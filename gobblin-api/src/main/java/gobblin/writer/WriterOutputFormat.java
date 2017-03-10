@@ -31,6 +31,7 @@ public enum WriterOutputFormat {
   JSON("json"),
   ORC("orc"),
   CSV("csv"),
+  TXT("txt"),
   OTHER(StringUtils.EMPTY);
 
   /**

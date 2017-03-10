@@ -37,6 +37,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import gobblin.util.ExecutorsUtils;
+
 
 /**
  * Methods to run performance tests on Gobblin Metrics.
@@ -169,7 +171,7 @@ public class PerformanceUtils {
 
     System.gc();
 
-    ExecutorService executorService = Executors.newFixedThreadPool(threads);
+    ExecutorService executorService = ExecutorsUtils.loggingDecorator(Executors.newFixedThreadPool(threads));
     if(queries == 0) {
       queries = 50000000l;
     }

@@ -20,6 +20,7 @@ package gobblin.cluster;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -29,7 +30,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import gobblin.util.JvmUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -78,6 +78,7 @@ import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.services.JMXReportingService;
 import gobblin.util.ConfigUtils;
 import gobblin.util.HadoopUtils;
+import gobblin.util.JvmUtils;
 import gobblin.util.logs.Log4jConfigurationHelper;
 
 
@@ -312,6 +313,10 @@ public class GobblinTaskRunner {
       return GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE;
     }
 
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
+    }
+
     @Override
     public void reset() {
 
@@ -392,6 +397,10 @@ public class GobblinTaskRunner {
     @Override
     public String getMessageType() {
       return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
     }
 
     @Override

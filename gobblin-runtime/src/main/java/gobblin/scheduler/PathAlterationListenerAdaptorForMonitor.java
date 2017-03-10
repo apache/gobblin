@@ -25,8 +25,8 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
@@ -74,6 +74,7 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
     try {
       Properties jobProps =
           SchedulerUtils.loadGenericJobConfig(this.jobScheduler.properties, path, jobConfigFileDirPath);
+      LOG.debug("Loaded job properties: {}", jobProps);
       switch (action) {
         case SCHEDULE:
           boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
@@ -148,7 +149,7 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
       } catch (IOException e) {
         e.printStackTrace();
       }
-      LOG.info("Detected cration to common properties file" + path.toString());
+      LOG.info("Detected creation of common properties file" + path.toString());
       // New .properties file founded with some new attributes, reschedule jobs.
       loadNewCommonConfigAndHandleNewJob(path, JobScheduler.Action.RESCHEDULE);
       return;
@@ -189,7 +190,7 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
   public void onFileDelete(Path path) {
     String fileExtension = path.getName().substring(path.getName().lastIndexOf('.') + 1);
     if (fileExtension.equalsIgnoreCase(SchedulerUtils.JOB_PROPS_FILE_EXTENSION)) {
-      LOG.info("Detected deletion to common properties file " + path.toString());
+      LOG.info("Detected deletion of common properties file " + path.toString());
       // For JobProps, deletion in local folder means inheritance from ancestor folder and reschedule.
       loadNewCommonConfigAndHandleNewJob(path, JobScheduler.Action.RESCHEDULE);
       return;
@@ -200,7 +201,7 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
       return;
     }
 
-    LOG.info("Detected deletion to job configuration file " + path.toString());
+    LOG.info("Detected deletion of job configuration file " + path.toString());
     // As for normal job file, deletion means unschedule
     unscheduleJobAtPath(path);
   }

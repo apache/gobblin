@@ -44,9 +44,9 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import javax.annotation.Nonnull;
+
 import lombok.Getter;
 import lombok.Setter;
-
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
@@ -58,6 +58,7 @@ import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.FinalState;
+import gobblin.writer.exception.NonTransientException;
 
 
 /**
@@ -306,10 +307,9 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
     this.cachedWriteException = t;
   }
 
-  private void maybeThrow()
-      throws IOException {
+  private void maybeThrow() {
     if (this.cachedWriteException != null) {
-      throw new IOException("Irrecoverable failure on async write", this.cachedWriteException);
+      throw new NonTransientException("Irrecoverable failure on async write", this.cachedWriteException);
     }
   }
 

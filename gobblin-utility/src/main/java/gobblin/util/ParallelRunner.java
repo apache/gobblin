@@ -95,8 +95,8 @@ public class ParallelRunner implements Closeable {
   }
 
   public ParallelRunner(int threads, FileSystem fs, FailPolicy failPolicy) {
-    this.executor = Executors.newFixedThreadPool(threads,
-        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ParallelRunner")));
+    this.executor = ExecutorsUtils.loggingDecorator(Executors.newFixedThreadPool(threads,
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ParallelRunner"))));
     this.fs = fs;
     this.failPolicy = failPolicy;
   }

@@ -64,12 +64,12 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private final DateTime _expectedHighWaterMarkDate;
   private boolean _successful = false;
 
-  public GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long expectedHighWaterMark,
+  public GoogleWebmasterExtractor(GoogleWebmasterClient gscClient, WorkUnitState wuState, long lowWatermark, long expectedHighWaterMark,
       Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics)
       throws IOException {
     this(wuState, lowWatermark, expectedHighWaterMark, columnPositionMap, requestedDimensions, requestedMetrics,
-        new GoogleWebmasterDataFetcherImpl(wuState));
+        new GoogleWebmasterDataFetcherImpl(gscClient, wuState));
   }
 
   /**

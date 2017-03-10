@@ -260,7 +260,7 @@ public class Instrumented implements Instrumentable, Closeable {
    * @param meter an Optional&lt;{@link com.codahale.metrics.Meter}&gt;
    * @param value value to mark
    */
-  public static void markMeter(Optional<Meter> meter, final int value) {
+  public static void markMeter(Optional<Meter> meter, final long value) {
     meter.transform(new Function<Meter, Meter>() {
       @Override
       public Meter apply(@Nonnull Meter input) {

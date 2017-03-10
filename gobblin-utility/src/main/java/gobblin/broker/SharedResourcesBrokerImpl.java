@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -83,7 +84,11 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
     try {
       return this.brokerCache.getAutoScoped(factory, key, this);
     } catch (ExecutionException ee) {
-      throw new RuntimeException(ee);
+      Throwable cause = ee.getCause();
+      if (cause instanceof NotConfiguredException) {
+        throw (NotConfiguredException) cause;
+      }
+      throw new RuntimeException(cause);
     }
   }
 
@@ -157,6 +162,8 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
     private Config config = ConfigFactory.empty();
 
     private SubscopedBrokerBuilder(ScopeInstance<S> scope) {
+      Preconditions.checkNotNull(scope, "Subscope instance cannot be null.");
+
       this.scope = scope;
 
       if (SharedResourcesBrokerImpl.this.selfScopeWrapper != null) {

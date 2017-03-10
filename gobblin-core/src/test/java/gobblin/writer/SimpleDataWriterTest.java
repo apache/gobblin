@@ -26,7 +26,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.Collections;
+import java.util.zip.GZIPInputStream;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
@@ -36,8 +39,13 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableList;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.crypto.EncryptionConfigParser;
+import gobblin.crypto.InsecureShiftCodec;
+import gobblin.metadata.types.GlobalMetadata;
 
 
 /**
@@ -50,10 +58,12 @@ public class SimpleDataWriterTest {
   private String filePath;
   private final String schema = "";
   private final int newLine = "\n".getBytes()[0];
-  private final State properties = new State();
+  private State properties;
 
   @BeforeMethod
   public void setUp() throws Exception {
+    properties = new State();
+
     // Making the staging and/or output dirs if necessary
     File stagingDir = new File(TestConstants.TEST_STAGING_DIR);
     File outputDir = new File(TestConstants.TEST_OUTPUT_DIR);
@@ -231,6 +241,62 @@ public class SimpleDataWriterTest {
       Assert.assertEquals(dis.readByte(), '\n');
     }
   }
+
+  @Test
+  public void testSupportsGzip() throws IOException {
+    properties.setProp(ConfigurationKeys.WRITER_CODEC_TYPE, "gzip");
+    properties.setProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, "");
+
+    byte[] toWrite = new byte[] { 'a', 'b', 'c', 'd'};
+
+    SimpleDataWriter writer = (SimpleDataWriter) new SimpleDataWriterBuilder()
+        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
+        .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0).build();
+
+    writer.write(toWrite);
+    writer.close();
+    writer.commit();
+
+    File outputFile = new File(writer.getOutputFilePath());
+    InputStream in = new GZIPInputStream(new FileInputStream(outputFile));
+
+    byte[] contents = IOUtils.toByteArray(in);
+    Assert.assertEquals(contents, toWrite, "Expected gzip'd content to be written out");
+    Assert.assertTrue(outputFile.getName().endsWith(".gzip"), "Expected gzip'd file to end in .gzip");
+  }
+
+  @Test
+  public void testSupportsGzipAndEncryption() throws IOException {
+    properties.setProp(ConfigurationKeys.WRITER_CODEC_TYPE, "gzip");
+    properties.setProp(EncryptionConfigParser.ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY,
+        "insecure_shift");
+    properties.setProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, "");
+
+    byte[] toWrite = new byte[] { 'a', 'b', 'c', 'd'};
+
+    SimpleDataWriter writer = (SimpleDataWriter) new SimpleDataWriterBuilder()
+        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
+        .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0).build();
+
+    writer.write(toWrite);
+    writer.close();
+    writer.commit();
+
+    File outputFile = new File(writer.getOutputFilePath());
+    Assert.assertTrue(outputFile.getName().endsWith(".gzip.encrypted_insecure_shift"),
+        "Expected compression & encryption in file name!");
+
+    InputStream decryptedFile = new InsecureShiftCodec(Collections.<String, Object>emptyMap()).decodeInputStream(
+        new FileInputStream(outputFile));
+    InputStream uncompressedFile = new GZIPInputStream(decryptedFile);
+
+    byte[] contents = IOUtils.toByteArray(uncompressedFile);
+    Assert.assertEquals(contents, toWrite, "expected to decode same contents");
+
+    String serializedMetadata = properties.getProp(ConfigurationKeys.WRITER_METADATA_KEY);
+    GlobalMetadata md = GlobalMetadata.fromJson(serializedMetadata);
+    Assert.assertEquals(md.getTransferEncoding(), ImmutableList.of("gzip", "encrypted_insecure_shift"));
+ }
 
   /**
    * Use the simple writer to write json entries to a file and ensure that

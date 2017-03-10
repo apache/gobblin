@@ -56,7 +56,8 @@ public class FsStateStoreTest {
 
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
         ConfigValueFactory.fromAnyRef("file:///")).withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
-        ConfigValueFactory.fromAnyRef("metastore-test"));
+        ConfigValueFactory.fromAnyRef("metastore-test")).withValue("fs.permissions.umask-mode",
+        ConfigValueFactory.fromAnyRef("022"));
 
     this.stateStore = stateStoreFactory.createStateStore(config, State.class);
 

@@ -23,6 +23,8 @@ import java.util.UUID;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.PropertiesConfiguration;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.util.PropertiesUtils;
 
@@ -32,6 +34,7 @@ import gobblin.util.PropertiesUtils;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class SchedulerDaemon extends ServiceBasedAppLauncher {
 
   private SchedulerDaemon(Properties defaultProperties, Properties customProperties) throws Exception {
@@ -66,6 +69,8 @@ public class SchedulerDaemon extends ServiceBasedAppLauncher {
       customProperties.putAll(ConfigurationConverter.getProperties(new PropertiesConfiguration(args[1])));
     }
 
+    log.debug("Scheduler Daemon::main starting with defaultProperties: {}, customProperties: {}", defaultProperties,
+        customProperties);
     // Start the scheduler daemon
     new SchedulerDaemon(defaultProperties, customProperties).start();
   }

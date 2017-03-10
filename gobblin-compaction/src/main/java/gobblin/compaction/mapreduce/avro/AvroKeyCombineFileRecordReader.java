@@ -24,10 +24,14 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyRecordReader;
 
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+
+import gobblin.util.AvroUtils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -41,20 +45,17 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 public class AvroKeyCombineFileRecordReader extends AvroKeyRecordReader<GenericRecord> {
 
-  private final AvroCombineFileSplit split;
+  private final CombineFileSplit split;
   private final Integer idx;
 
   @SuppressFBWarnings("BC_UNCONFIRMED_CAST")
-  public AvroKeyCombineFileRecordReader(CombineFileSplit split, TaskAttemptContext cx, Integer idx) {
-      this(split,
-          AvroJob.getInputKeySchema(cx.getConfiguration()) != null ?
-              AvroJob.getInputKeySchema(cx.getConfiguration()) : ((AvroCombineFileSplit) split).getSchema(),
-          idx);
+  public AvroKeyCombineFileRecordReader(CombineFileSplit split, TaskAttemptContext cx, Integer idx) throws IOException {
+      this(split, getSchema(split, cx, idx), idx);
   }
 
   private AvroKeyCombineFileRecordReader(CombineFileSplit split, Schema inputKeySchema, Integer idx) {
     super(inputKeySchema);
-    this.split = (AvroCombineFileSplit) split;
+    this.split = split;
     this.idx = idx;
   }
 
@@ -63,6 +64,17 @@ public class AvroKeyCombineFileRecordReader extends AvroKeyRecordReader<GenericR
     super.initialize(
         new FileSplit(this.split.getPath(this.idx), this.split.getOffset(this.idx), this.split.getLength(this.idx),
             null), cx);
+  }
+
+  private static Schema getSchema(CombineFileSplit split, TaskAttemptContext cx, Integer idx) throws IOException {
+    Schema schema = AvroJob.getInputKeySchema(cx.getConfiguration());
+    if (schema != null) {
+      return schema;
+    }
+
+    Path path = split.getPath(idx);
+    FileSystem fs = path.getFileSystem(cx.getConfiguration());
+    return AvroUtils.getSchemaFromDataFile(path, fs);
   }
 
 }

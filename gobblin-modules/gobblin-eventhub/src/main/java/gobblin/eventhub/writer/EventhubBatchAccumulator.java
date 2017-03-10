@@ -47,7 +47,7 @@ import gobblin.writer.WriteResponse;
  * Eventhub Accumulator based on batch size and TTL
  */
 
-public class EventhubBatchAccumulator extends BatchAccumulator<byte[]> {
+public class EventhubBatchAccumulator extends BatchAccumulator<String> {
 
   private Deque<EventhubBatch> dq = new ArrayDeque<>();
   private IncompleteRecordBatches incomplete = new IncompleteRecordBatches();
@@ -89,7 +89,7 @@ public class EventhubBatchAccumulator extends BatchAccumulator<byte[]> {
   /**
    * Add a data to internal dequeu data structure
    */
-  public final Future<RecordMetadata> enqueue (byte[] record, WriteCallback callback) throws InterruptedException {
+  public final Future<RecordMetadata> enqueue (String record, WriteCallback callback) throws InterruptedException {
 
     synchronized (dq) {
       EventhubBatch last = dq.peekLast();
@@ -108,7 +108,7 @@ public class EventhubBatchAccumulator extends BatchAccumulator<byte[]> {
       // Ignore the record because Eventhub can only accept payload less than 256KB
       if (future == null) {
         LOG.debug ("Batch " + batch.getId() + " is marked as complete because it contains a huge record: "
-                + Base64.getEncoder().encodeToString(record));
+                + record);
         future = Futures.immediateFuture(new RecordMetadata(0));
         callback.onSuccess(WriteResponse.EMPTY);
         return future;
@@ -153,7 +153,7 @@ public class EventhubBatchAccumulator extends BatchAccumulator<byte[]> {
     }
   }
 
-  public Iterator<Batch<byte[]>> iterator() {
+  public Iterator<Batch<String>> iterator() {
     return new EventhubBatchIterator();
   }
 
@@ -162,8 +162,8 @@ public class EventhubBatchAccumulator extends BatchAccumulator<byte[]> {
    * An internal iterator that will iterate all the available batches
    * This will be used by external BufferedAsyncDataWriter
    */
-  private class EventhubBatchIterator implements Iterator<Batch<byte[]>> {
-    public Batch<byte[]> next () {
+  private class EventhubBatchIterator implements Iterator<Batch<String>> {
+    public Batch<String> next () {
       synchronized (dq) {
         return dq.poll();
       }
@@ -209,7 +209,7 @@ public class EventhubBatchAccumulator extends BatchAccumulator<byte[]> {
   /**
    * Once batch is acknowledged, remove it from incomplete list
    */
-  public void deallocate (Batch<byte[]> batch) {
+  public void deallocate (Batch<String> batch) {
     this.incomplete.remove(batch);
   }
 }

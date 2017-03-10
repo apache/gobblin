@@ -46,6 +46,11 @@ public class GobblinClusterConfigurationKeys {
   // The number of tasks that can be running concurrently in the same worker process
   public static final String HELIX_CLUSTER_TASK_CONCURRENCY = GOBBLIN_CLUSTER_PREFIX + "helix.taskConcurrency";
   public static final int HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT = 40;
+
+  // Should job be executed in the scheduler thread?
+  public static final String JOB_EXECUTE_IN_SCHEDULING_THREAD = GOBBLIN_CLUSTER_PREFIX + "job.executeInSchedulingThread";
+  public static final boolean JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT = true;
+
   /**
    * A path pointing to a directory that contains job execution files to be executed by Gobblin. This directory can
    * have a nested structure.
@@ -61,4 +66,8 @@ public class GobblinClusterConfigurationKeys {
   public static final String TASK_SUCCESS_OPTIONAL_KEY = "TASK_SUCCESS_OPTIONAL";
   public static final String GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE = "log4j-cluster.properties";
   public static final String JOB_CONFIGURATION_MANAGER_KEY = GOBBLIN_CLUSTER_PREFIX + "job.configuration.manager";
+
+  public static final String JOB_SPEC_REFRESH_INTERVAL = GOBBLIN_CLUSTER_PREFIX + "job.spec.refresh.interval";
+  public static final String SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS_KEY = GOBBLIN_CLUSTER_PREFIX + "specConsumer.class";
+  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS = "gobblin.service.SimpleKafkaSpecExecutorInstanceConsumer";
 }

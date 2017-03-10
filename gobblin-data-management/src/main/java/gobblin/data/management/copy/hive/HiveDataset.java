@@ -17,6 +17,7 @@
 
 package gobblin.data.management.copy.hive;
 
+import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
@@ -33,6 +34,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
@@ -75,6 +77,7 @@ import gobblin.util.request_allocation.PushDownRequestor;
 public class HiveDataset implements PrioritizedCopyableDataset {
 
   private static Splitter SPLIT_ON_DOT = Splitter.on(".").omitEmptyStrings().trimResults();
+  public static final ImmutableSet<TableType> COPYABLE_TABLES = ImmutableSet.of(TableType.EXTERNAL_TABLE, TableType.MANAGED_TABLE);
 
   public static final String REGISTERER = "registerer";
   public static final String REGISTRATION_GENERATION_TIME_MILLIS = "registrationGenerationTimeMillis";
@@ -117,7 +120,8 @@ public class HiveDataset implements PrioritizedCopyableDataset {
     this.table = table;
     this.properties = properties;
 
-    this.tableRootPath = PathUtils.isGlob(this.table.getDataLocation()) ? Optional.<Path> absent() : Optional.of(this.table.getDataLocation());
+    this.tableRootPath = PathUtils.isGlob(this.table.getDataLocation()) ? Optional.<Path> absent() :
+        Optional.fromNullable(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
     log.info("Created Hive dataset for table " + this.tableIdentifier);
@@ -138,6 +142,9 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   @Override
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
+    if (!canCopyTable()) {
+      return Iterators.emptyIterator();
+    }
     try {
       return new HiveCopyEntityHelper(this, configuration, targetFs).getCopyEntities(configuration);
     } catch (IOException ioe) {
@@ -154,6 +161,9 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration,
       Comparator<FileSet<CopyEntity>> prioritizer, PushDownRequestor<FileSet<CopyEntity>> requestor)
       throws IOException {
+    if (!canCopyTable()) {
+      return Iterators.emptyIterator();
+    }
     try {
       List<FileSet<CopyEntity>> fileSetList = Lists.newArrayList(new HiveCopyEntityHelper(this, configuration, targetFs)
           .getCopyEntities(configuration, prioritizer, requestor));
@@ -311,5 +321,14 @@ public class HiveDataset implements PrioritizedCopyableDataset {
           HiveUtils.getPartitions(client.get(), getTable(), Optional.<String>absent());
       return sortPartitions(partitions);
     }
+  }
+
+  private boolean canCopyTable() {
+    if (!COPYABLE_TABLES.contains(this.table.getTableType())) {
+      log.warn(String.format("Not copying %s: tables of type %s are not copyable.", this.table.getCompleteName(),
+          this.table.getTableType()));
+      return false;
+    }
+    return true;
   }
 }

@@ -20,14 +20,19 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
 import gobblin.password.PasswordManager;
+import gobblin.util.ForkOperatorUtils;
 
 
 /**
  * Extract encryption related information from taskState
  */
+@Slf4j
 public class EncryptionConfigParser {
   /**
    * Encryption parameters for converters
@@ -43,10 +48,35 @@ public class EncryptionConfigParser {
 
   public static final String ENCRYPTION_TYPE_ANY = "any";
 
+  /**
+   * Retrieve encryption configuration for the branch the WorKUnitState represents
+   * @param workUnitState State for the object querying config
+   * @return A list of encryption properties or null if encryption isn't configured
+   */
+  public static Map<String, Object> getConfigForBranch(WorkUnitState workUnitState) {
+    return getConfigForBranch(workUnitState.getJobState(), ForkOperatorUtils.getPropertyNameForBranch(workUnitState, ""));
+  }
+
+  /**
+   * Retrieve encryption config for a given branch of a task
+   * @param taskState State of the task
+   * @param numBranches Number of branches overall
+   * @param branch Branch # of the current object
+   * @return A list of encryption properties or null if encryption isn't configured
+   */
   public static Map<String, Object> getConfigForBranch(State taskState, int numBranches, int branch) {
-    Map<String, Object> properties = extractPropertiesForBranch(taskState.getProperties(), ENCRYPT_PREFIX,
-        numBranches, branch);
+    return getConfigForBranch(taskState, ForkOperatorUtils.getPropertyNameForBranch("", numBranches, branch));
+  }
+
+  private static Map<String, Object> getConfigForBranch(State taskState, String branchSuffix) {
+    Map<String, Object> properties =
+        extractPropertiesForBranch(taskState.getProperties(), ENCRYPT_PREFIX, branchSuffix);
     if (properties.isEmpty()) {
+      return null;
+    }
+
+    if (getEncryptionType(properties) == null) {
+      log.warn("Encryption algorithm not specified; ignoring other encryption settings");
       return null;
     }
 
@@ -86,20 +116,25 @@ public class EncryptionConfigParser {
    * this is very similar to ConfigUtils and typesafe config; need to figure out config story
    * @param properties Properties to extract data from
    * @param prefix Prefix to match; all other properties will be ignored
-   * @param numBranches # of branches
-   * @param branch Branch # to extract
+   * @param branchSuffix Suffix for all config properties
    * @return Transformed properties as described above
    */
   private static Map<String, Object> extractPropertiesForBranch(
-      Properties properties, String prefix, int numBranches, int branch) {
+      Properties properties, String prefix, String branchSuffix) {
 
     Map<String, Object> ret = new HashMap<>();
-    String branchSuffix = (numBranches > 1) ? String.format(".%d", branch) : "";
 
     for (Map.Entry<Object, Object> prop: properties.entrySet()) {
       String key = (String)prop.getKey();
       if (key.startsWith(prefix) && (branchSuffix.length() == 0 || key.endsWith(branchSuffix))) {
-        int strippedKeyStart =  Math.min(key.length(), prefix.length() + 1);
+        int strippedKeyStart = Math.min(key.length(), prefix.length() + 1);
+
+        // filter out subkeys that don't have a '.' -- eg writer.encrypted.foo shouldn't be returned
+        // if prefix is writer.encrypt
+        if (strippedKeyStart != key.length() && key.charAt(strippedKeyStart - 1) != '.') {
+          continue;
+        }
+
         int strippedKeyEnd = Math.max(strippedKeyStart, key.length() - branchSuffix.length());
         String strippedKey = key.substring(strippedKeyStart, strippedKeyEnd);
         ret.put(strippedKey, prop.getValue());

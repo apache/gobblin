@@ -54,6 +54,7 @@ import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.metrics.Tag;
+import gobblin.util.ConfigUtils;
 import gobblin.util.io.GsonInterfaceAdapter;
 import gobblin.writer.WatermarkStorage;
 import org.slf4j.Logger;
@@ -163,7 +164,7 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
 
   public KafkaSimpleStreamingExtractor(WorkUnitState state) {
     super(state);
-    _consumer = KafkaSimpleStreamingSource.getKafkaConsumer(state);
+    _consumer = KafkaSimpleStreamingSource.getKafkaConsumer(ConfigUtils.propertiesToConfig(state.getProperties()));
     closer.register(_consumer);
     _partition = new TopicPartition(KafkaSimpleStreamingSource.getTopicNameFromState(state),
         KafkaSimpleStreamingSource.getPartitionIdFromState(state));
@@ -182,8 +183,9 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
   @Override
   public S getSchema() throws IOException {
     try {
-      if (_schemaRegistry.isPresent())
+      if (_schemaRegistry.isPresent()) {
         return _schemaRegistry.get().getLatestSchemaByTopic(this._partition.topic());
+      }
     } catch (SchemaRegistryException e) {
       throw new RuntimeException(e);
     }

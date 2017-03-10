@@ -106,6 +106,20 @@ public class ConfigurationKeys {
   public static final int DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE = 1;
 
   /**
+   * Common flow configuration properties.
+   */
+  public static final String FLOW_NAME_KEY = "flow.name";
+  public static final String FLOW_GROUP_KEY = "flow.group";
+  public static final String FLOW_DESCRIPTION_KEY = "flow.description";
+
+  /**
+   * Common topology configuration properties.
+   */
+  public static final String TOPOLOGY_NAME_KEY = "topology.name";
+  public static final String TOPOLOGY_GROUP_KEY = "topology.group";
+  public static final String TOPOLOGY_DESCRIPTION_KEY = "topology.description";
+
+  /**
    * Common job configuration properties.
    */
   public static final String JOB_NAME_KEY = "job.name";
@@ -166,7 +180,9 @@ public class ConfigurationKeys {
    * Configuration properties used internally.
    */
   public static final String JOB_ID_KEY = "job.id";
+  public static final String JOB_KEY_KEY = "job.key";
   public static final String TASK_ID_KEY = "task.id";
+  public static final String TASK_KEY_KEY = "task.key";
   public static final String TASK_ATTEMPT_ID_KEY = "task.AttemptId";
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
@@ -294,6 +310,9 @@ public class ConfigurationKeys {
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
 
+  // Internal use only - used to send metadata to publisher
+  public static final String WRITER_METADATA_KEY = WRITER_PREFIX + "._internal.metadata";
+
   /**
    * Writer configuration properties used internally.
    */
@@ -335,8 +354,18 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_PREFIX = "data.publisher";
 
   /**
+   * Metadata configuration
+   *
+   * PUBLISH_WRITER_METADATA_KEY: Whether or not to publish writer-generated metadata
+   * PUBLISH_WRITER_METADATA_MERGER_NAME_KEY: Class to use to merge writer-generated metadata.
+   */
+  public static final String DATA_PUBLISH_WRITER_METADATA_KEY = DATA_PUBLISHER_PREFIX + ".metadata.publish.writer";
+  public static final String DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_KEY = DATA_PUBLISHER_PREFIX + ".metadata.publish.writer.merger.class";
+
+  /**
    * Metadata configuration properties used internally
    */
+  public static final String DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_DEFAULT = "gobblin.metadata.types.GlobalMetadataJsonMerger";
   public static final String DATA_PUBLISHER_METADATA_OUTPUT_DIR =  DATA_PUBLISHER_PREFIX + ".metadata.output.dir";
   //Metadata String in the configuration file
   public static final String DATA_PUBLISHER_METADATA_STR = DATA_PUBLISHER_PREFIX + ".metadata.string";
@@ -635,7 +664,6 @@ public class ConfigurationKeys {
    * Password encryption and decryption properties.
    */
   public static final String ENCRYPT_KEY_FS_URI = "encrypt.key.fs.uri";
-  public static final String ENCRYPT_KEY_VAL = "encrypt.key.val";
   public static final String ENCRYPT_KEY_LOC = "encrypt.key.loc";
   public static final String ENCRYPT_USE_STRONG_ENCRYPTOR = "encrypt.use.strong.encryptor";
   public static final boolean DEFAULT_ENCRYPT_USE_STRONG_ENCRYPTOR = false;
@@ -649,6 +677,12 @@ public class ConfigurationKeys {
   public static final String FS_PROXY_AS_USER_TOKEN_FILE = "fs.proxy.as.user.token.file";
   public static final String SUPER_USER_NAME_TO_PROXY_AS_OTHERS = "super.user.name.to.proxy.as.others";
   public static final String SUPER_USER_KEY_TAB_LOCATION = "super.user.key.tab.location";
+  public static final String TOKEN_AUTH = "TOKEN";
+  public static final String KERBEROS_AUTH = "KERBEROS";
+  public static final String FS_PROXY_AUTH_METHOD = "fs.proxy.auth.method";
+  public static final String DEFAULT_FS_PROXY_AUTH_METHOD = TOKEN_AUTH;
+  public static final String KERBEROS_REALM = "kerberos.realm";
+
 
   /**
    * Azkaban properties.
@@ -679,4 +713,27 @@ public class ConfigurationKeys {
    * Configuration properties related to Flows
    */
   public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
+
+  /***
+   * Configuration properties related to Spec Store
+   */
+  public static final String SPECSTORE_FS_DIR_KEY = "specStore.fs.dir";
+
+  /***
+   * Configuration properties related to TopologySpec Store
+   */
+  public static final String TOPOLOGYSPEC_STORE_CLASS_KEY = "topologySpec.store.class";
+  public static final String TOPOLOGYSPEC_STORE_DIR_KEY = "topologySpec.store.dir";
+
+  /***
+   * Configuration properties related to FlowSpec Store
+   */
+  public static final String FLOWSPEC_STORE_CLASS_KEY = "flowSpec.store.class";
+  public static final String FLOWSPEC_STORE_DIR_KEY = "flowSpec.store.dir";
+
+  /***
+   * Configuration properties related to Spec Executor Instance
+   */
+  public static final String SPECEXECUTOR_INSTANCE_URI_KEY = "specExecInstance.uri";
+  public static final String SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY = "specExecInstance.capabilities";
 }

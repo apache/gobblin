@@ -55,7 +55,7 @@ public class JobContextTest {
     Properties jobProps = new Properties();
 
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "test");
-    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "id");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "job_id_12345");
     jobProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
 
     Map<String, JobState.DatasetState> datasetStateMap = Maps.newHashMap();
@@ -108,7 +108,7 @@ public class JobContextTest {
     Properties jobProps = new Properties();
 
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "test");
-    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "id");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "job_id_12345");
     jobProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
     jobProps.setProperty(ConfigurationKeys.PARALLELIZE_DATASET_COMMIT, "true");
 
@@ -162,7 +162,7 @@ public class JobContextTest {
     Properties jobProps = new Properties();
 
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "test");
-    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "id");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "job_id_12345");
     jobProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
 
     Map<String, JobState.DatasetState> datasetStateMap = Maps.newHashMap();

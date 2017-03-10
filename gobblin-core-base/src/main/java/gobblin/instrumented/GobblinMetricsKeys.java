@@ -38,4 +38,9 @@ public class GobblinMetricsKeys {
   // Generic keys
   public static final String OPERATION_TYPE_META = "operationType";
 
+  // FlowSpec related keys
+  /** The FlowSpec URI for which the tracking event is */
+  public static final String SPEC_URI_META = "flowSpecURI";
+  /** The version of the FlowSpec for which the tracking event is */
+  public static final String SPEC_VERSION_META = "flowSpecVersion";
 }

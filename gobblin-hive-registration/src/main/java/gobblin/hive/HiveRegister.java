@@ -33,7 +33,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
@@ -77,7 +76,7 @@ public abstract class HiveRegister implements Closeable {
   protected HiveRegister(State state) {
     this.props = new HiveRegProps(state);
     this.hiveDbRootDir = this.props.getDbRootDir();
-    this.executor = MoreExecutors.listeningDecorator(
+    this.executor = ExecutorsUtils.loggingDecorator(
         ScalingThreadPoolExecutor.newScalingThreadPool(0, this.props.getNumThreads(), TimeUnit.SECONDS.toMillis(10),
             ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of(getClass().getSimpleName()))));
   }

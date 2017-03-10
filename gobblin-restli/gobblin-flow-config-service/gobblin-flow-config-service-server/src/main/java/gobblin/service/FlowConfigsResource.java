@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +42,9 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.config.ConfigBuilder;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecNotFoundException;
-import gobblin.runtime.api.MutableJobCatalog;
+import gobblin.runtime.api.FlowSpec;
+import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.spec_catalog.FlowCatalog;
 
 
 @RestLiCollection(name = "flowconfigs", namespace = "gobblin.service")
@@ -53,15 +54,19 @@ import gobblin.runtime.api.MutableJobCatalog;
 public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
 
+  @edu.umd.cs.findbugs.annotations.SuppressWarnings("MS_SHOULD_BE_FINAL")
+  public static FlowCatalog _globalFlowCatalog;
+
   @Inject
-  private MutableJobCatalog _jobCatalog;
+  @Named("flowCatalog")
+  private FlowCatalog _flowCatalog;
 
   // For blocking use of this resource until it is ready
   @Inject
-  @Named("inUnitTest")
-  private boolean inUnitTest;
+  @Named("readyToUse")
+  private Boolean readyToUse = Boolean.FALSE;
 
-  FlowConfigsResource() {}
+  public FlowConfigsResource() {}
 
   /**
    * Logs message and throws Rest.li exception
@@ -92,21 +97,29 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
     LOG.info("Get called with flowGroup " + flowGroup + " flowName " + flowName);
 
     try {
-      JobSpec jobSpec = _jobCatalog.getJobSpec(new URI("/" + flowGroup  + "/" + flowName));
+      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
+      URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
+          "/" + flowGroup + "/" + flowName, null, null);
+      FlowSpec spec = (FlowSpec) getFlowCatalog().getSpec(flowUri);
       FlowConfig flowConfig = new FlowConfig();
-      Properties flowProps = jobSpec.getConfigAsProperties();
+      Properties flowProps = spec.getConfigAsProperties();
 
-      flowConfig.setSchedule(flowProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
-      flowConfig.setTemplateUris(flowProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH));
-
+      if (flowProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+        flowConfig.setSchedule(flowProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
+      }
+      if (flowProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+        flowConfig.setTemplateUris(flowProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH));
+      } else if (spec.getTemplateURIs().isPresent()) {
+        flowConfig.setTemplateUris(StringUtils.join(spec.getTemplateURIs().get(), ","));
+      } else {
+        flowConfig.setTemplateUris("NA");
+      }
       if (flowProps.containsKey(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)) {
         flowConfig.setRunImmediately(Boolean.valueOf(flowProps.getProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)));
       }
 
-      // remove keys that were injected as part of jobSpec creation
+      // remove keys that were injected as part of flowSpec creation
       flowProps.remove(ConfigurationKeys.JOB_SCHEDULE_KEY);
-      flowProps.remove(ConfigurationKeys.JOB_NAME_KEY);
-      flowProps.remove(ConfigurationKeys.JOB_GROUP_KEY);
       flowProps.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
 
       StringMap flowPropsAsStringMap = new StringMap();
@@ -115,7 +128,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
       return flowConfig.setFlowGroup(flowGroup).setFlowName(flowName).setProperties(flowPropsAsStringMap);
     } catch (URISyntaxException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowName, e);
-    } catch (JobSpecNotFoundException e) {
+    } catch (SpecNotFoundException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_404_NOT_FOUND, "Flow requested does not exist: " + flowName, null);
     }
 
@@ -123,15 +136,15 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
   }
 
   /**
-   * Build a {@link JobSpec} from a {@link FlowConfig}
+   * Build a {@link FlowSpec} from a {@link FlowConfig}
    * @param flowConfig flow configuration
-   * @return {@link JobSpec} created with attributes from flowConfig
+   * @return {@link FlowSpec} created with attributes from flowConfig
    */
-  private JobSpec createJobSpecForConfig(FlowConfig flowConfig) {
+  private FlowSpec createFlowSpecForConfig(FlowConfig flowConfig) {
     ConfigBuilder configBuilder = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, flowConfig.getFlowGroup())
-        .addPrimitive(ConfigurationKeys.JOB_NAME_KEY, flowConfig.getFlowName())
-        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, flowConfig.getSchedule());
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, flowConfig.getSchedule())
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, flowConfig.getFlowGroup())
+        .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, flowConfig.getFlowName());
 
     if (flowConfig.hasRunImmediately()) {
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, flowConfig.isRunImmediately());
@@ -147,11 +160,11 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
       logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getTemplateUris(), e);
     }
 
-    return JobSpec.builder().withConfig(configWithFallback).withTemplate(templateURI).build();
+    return FlowSpec.builder().withConfig(configWithFallback).withTemplate(templateURI).build();
   }
 
   /**
-   * Put a new {@link JobSpec} based on flowConfig in the {@link MutableJobCatalog}
+   * Put a new {@link FlowSpec} based on flowConfig in the {@link FlowCatalog}
    * @param flowConfig flow configuration
    * @return {@link CreateResponse}
    */
@@ -159,29 +172,35 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
   public CreateResponse create(FlowConfig flowConfig) {
     LOG.info("Create called with flowName " + flowConfig.getFlowName());
 
-    if (!inUnitTest) {
+    LOG.info("ReadyToUse is: " + readyToUse);
+    LOG.info("FlowCatalog is: " + getFlowCatalog());
+
+    if (!readyToUse && getFlowCatalog() == null) {
       throw new RuntimeException("Not ready for use.");
     }
 
     try {
-      URI flowUri = new URI("/" + flowConfig.getFlowGroup() + "/" + flowConfig.getFlowName());
-      if (_jobCatalog.getJobSpec(flowUri) != null) {
+      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
+      URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
+          "/" + flowConfig.getFlowGroup() + "/" + flowConfig.getFlowName(), null, null);
+
+      if (getFlowCatalog().getSpec(flowUri) != null) {
         logAndThrowRestLiServiceException(HttpStatus.S_409_CONFLICT,
             "Flow with the same name already exists: " + flowUri, null);
       }
     } catch (URISyntaxException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getFlowName(), e);
-    } catch (JobSpecNotFoundException e) {
+    } catch (SpecNotFoundException e) {
       // okay if flow does not exist
     }
 
-    _jobCatalog.put(createJobSpecForConfig(flowConfig));
+    getFlowCatalog().put(createFlowSpecForConfig(flowConfig));
 
     return new CreateResponse(flowConfig.getFlowName(), HttpStatus.S_201_CREATED);
   }
 
   /**
-   * Update the {@link JobSpec} in the {@link MutableJobCatalog} based on the specified {@link FlowConfig}
+   * Update the {@link FlowSpec} in the {@link FlowCatalog} based on the specified {@link FlowConfig}
    * @param key composite key containing group name and flow name that identifies the flow to update
    * @param flowConfig new flow configuration
    * @return {@link UpdateResponse}
@@ -190,7 +209,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
   public UpdateResponse update(ComplexResourceKey<FlowConfigId, EmptyRecord> key, FlowConfig flowConfig) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
-    String flowUriString = "/" + flowGroup  + "/" + flowName;
+    URI flowUri = null;
 
     LOG.info("Update called with flowGroup " + flowGroup + " flowName " + flowName);
 
@@ -200,16 +219,18 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
     }
 
     try {
-      URI flowUri = new URI(flowUriString);
-      JobSpec oldJobSpec = _jobCatalog.getJobSpec(flowUri);
-      JobSpec newJobSpec = createJobSpecForConfig(flowConfig);
+      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
+      flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
+          "/" + flowGroup + "/" + flowName, null, null);
+      FlowSpec oldFlowSpec = (FlowSpec) getFlowCatalog().getSpec(flowUri);
+      FlowSpec newFlowSpec = createFlowSpecForConfig(flowConfig);
 
-      _jobCatalog.put(newJobSpec);
+      getFlowCatalog().put(newFlowSpec);
 
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (URISyntaxException e) {
-      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUriString, e);
-    } catch (JobSpecNotFoundException e) {
+      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUri, e);
+    } catch (SpecNotFoundException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_404_NOT_FOUND, "Flow does not exist: flowGroup " + flowGroup +
           " flowName " + flowName, null);
     }
@@ -219,32 +240,47 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
 
   /** delete a configured flow
    * @param key composite key containing flow group and flow name that identifies the flow to remove from the
-   * {@link MutableJobCatalog}
+   * {@link FlowCatalog}
    * @return {@link UpdateResponse}
    */
   @Override
   public UpdateResponse delete(ComplexResourceKey<FlowConfigId, EmptyRecord> key) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
-    String flowUriString = "/" + flowGroup  + "/" + flowName;
+    URI flowUri = null;
 
     LOG.info("Delete called with flowGroup " + flowGroup + " flowName " + flowName);
 
     try {
-      URI flowUri = new URI(flowUriString);
-      JobSpec jobSpec = _jobCatalog.getJobSpec(flowUri);
+      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
+      flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
+          "/" + flowGroup + "/" + flowName, null, null);
+      FlowSpec flowSpec = (FlowSpec) getFlowCatalog().getSpec(flowUri);
 
-      _jobCatalog.remove(flowUri);
+      getFlowCatalog().remove(flowUri);
 
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (URISyntaxException e) {
-      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUriString, e);
-    } catch (JobSpecNotFoundException e) {
+      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUri, e);
+    } catch (SpecNotFoundException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_404_NOT_FOUND, "Flow does not exist: flowGroup " + flowGroup +
           " flowName " + flowName, null);
     }
 
     return null;
+  }
+
+  /***
+   * This method is to workaround injection issues where Service has only one active global FlowCatalog
+   * .. and is not able to inject it via RestLI bootstrap. We should remove this and make injected
+   * .. FlowCatalog standard after injection works and recipe is documented here.
+   * @return FlowCatalog in use.
+   */
+  private FlowCatalog getFlowCatalog() {
+    if (null != _globalFlowCatalog) {
+      return _globalFlowCatalog;
+    }
+    return this._flowCatalog;
   }
 }
 

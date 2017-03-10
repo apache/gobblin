@@ -17,7 +17,6 @@
 
 package gobblin.runtime;
 
-import com.typesafe.config.Config;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -44,6 +43,7 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.typesafe.config.Config;
 
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.gobblin_scopes.JobScopeInstance;
@@ -68,6 +68,7 @@ import gobblin.util.ConfigUtils;
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
+import gobblin.util.Id;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.executors.IteratorExecutor;
 
@@ -90,6 +91,7 @@ public class JobContext implements Closeable {
 
   private final String jobName;
   private final String jobId;
+  private final String jobSequence;
   private final JobState jobState;
   @Getter(AccessLevel.PACKAGE)
   private final JobCommitPolicy jobCommitPolicy;
@@ -126,8 +128,10 @@ public class JobContext implements Closeable {
         "A job must have a job name specified by job.name");
 
     this.jobName = JobState.getJobNameFromProps(jobProps);
-    this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)
-        : JobLauncherUtils.newJobId(this.jobName);
+    this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ?
+            jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY) :
+            JobLauncherUtils.newJobId(this.jobName);
+    this.jobSequence = Long.toString(Id.Job.parse(this.jobId).getSequence());
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId);
 
     this.jobBroker = instanceBroker.newSubscopedBuilder(new JobScopeInstance(this.jobName, this.jobId)).build();
@@ -242,6 +246,16 @@ public class JobContext implements Closeable {
    */
   public String getJobId() {
     return this.jobId;
+  }
+
+
+  /**
+   * Get the job key.
+   *
+   * @return job key
+   */
+  public String getJobKey() {
+    return this.jobSequence;
   }
 
   /**

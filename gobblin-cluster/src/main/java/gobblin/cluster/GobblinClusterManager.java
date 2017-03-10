@@ -21,6 +21,7 @@ import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -81,6 +82,7 @@ import gobblin.runtime.app.ApplicationLauncher;
 import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.scheduler.SchedulerService;
 import gobblin.util.ConfigUtils;
+import gobblin.util.JvmUtils;
 import gobblin.util.logs.Log4jConfigurationHelper;
 import gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -484,6 +486,10 @@ public class GobblinClusterManager implements ApplicationLauncher {
       return GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE;
     }
 
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
+    }
+
     @Override
     public void reset() {
 
@@ -563,6 +569,10 @@ public class GobblinClusterManager implements ApplicationLauncher {
     @Override
     public String getMessageType() {
       return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
     }
 
     @Override
@@ -645,6 +655,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
           GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE,
           GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE);
 
+      LOGGER.info(JvmUtils.getJvmInputArguments());
       Config config = ConfigFactory.load();
 
       if (cmd.hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)) {

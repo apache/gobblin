@@ -30,7 +30,8 @@ public class RestApiCommand implements Command {
 
   public enum RestApiCommandType implements CommandType {
     GET,
-    PUT
+    PUT,
+    POST
   }
 
   private List<String> params;

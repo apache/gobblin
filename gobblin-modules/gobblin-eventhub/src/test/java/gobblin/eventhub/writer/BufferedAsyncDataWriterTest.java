@@ -75,7 +75,7 @@ public class BufferedAsyncDataWriterTest {
     int totalTimes = 500;
     try {
       for (int i=0; i<totalTimes; ++i) {
-        byte[] record = new byte[8];
+        String record = "abcdefgh";
         futures.add(dataWriter.write(record, callback));
       }
 

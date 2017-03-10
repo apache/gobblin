@@ -211,7 +211,7 @@ public class AvroUtilsTest {
     Assert.assertEquals(AvroUtils.serializeAsPath(partition, false, false), new Path("a/b_c_d_e/title"));
   }
 
-  private List<GenericRecord> getRecordFromFile(String path)
+  public static List<GenericRecord> getRecordFromFile(String path)
       throws IOException {
     Configuration config = new Configuration();
     SeekableInput input = new FsInput(new Path(path), config);

@@ -17,7 +17,10 @@
 
 package gobblin.source.extractor.extract.kafka;
 
+import gobblin.source.extractor.limiter.LimiterConfigurationKeys;
+import gobblin.source.workunit.MultiWorkUnit;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +35,7 @@ import lombok.Setter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import com.google.common.base.Joiner;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -107,6 +110,22 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   private volatile boolean doneGettingAllPreviousOffsets = false;
 
+  private List<String> getLimiterExtractorReportKeys () {
+    List<String> keyNames = new ArrayList<>();
+    keyNames.add(KafkaSource.TOPIC_NAME);
+    keyNames.add(KafkaSource.PARTITION_ID);
+    return keyNames;
+  }
+
+  private void setLimiterReportKeyListToWorkUnits(List<WorkUnit> workUnits, List<String> keyNameList) {
+    if (keyNameList.isEmpty())
+      return;
+    String keyList = Joiner.on(',').join(keyNameList.iterator());
+    for (WorkUnit workUnit: workUnits) {
+      workUnit.setProp(LimiterConfigurationKeys.LIMITER_REPORT_KEY_LIST, keyList);
+    }
+  }
+
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     Map<String, List<WorkUnit>> workUnits = Maps.newConcurrentMap();
@@ -156,7 +175,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
       int numOfMultiWorkunits =
           state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
-      return KafkaWorkUnitPacker.getInstance(this, state).pack(workUnits, numOfMultiWorkunits);
+      List<WorkUnit> workUnitList = KafkaWorkUnitPacker.getInstance(this, state).pack(workUnits, numOfMultiWorkunits);
+      addTopicSpecificPropsToWorkUnits(workUnitList, topicSpecificStateMap);
+      setLimiterReportKeyListToWorkUnits(workUnitList, getLimiterExtractorReportKeys());
+      return workUnitList;
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
       throw new RuntimeException(e);
     } finally {
@@ -167,6 +189,28 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       } catch (IOException e) {
         throw new RuntimeException("Exception closing kafkaConsumerClient");
       }
+    }
+  }
+
+  private void addTopicSpecificPropsToWorkUnits(List<WorkUnit> workUnits, Map<String, State> topicSpecificStateMap) {
+    for (WorkUnit workUnit : workUnits) {
+      addTopicSpecificPropsToWorkUnit(workUnit, topicSpecificStateMap);
+    }
+  }
+
+  private void addTopicSpecificPropsToWorkUnit(WorkUnit workUnit, Map<String, State> topicSpecificStateMap) {
+    if (workUnit instanceof MultiWorkUnit) {
+      for (WorkUnit wu : ((MultiWorkUnit) workUnit).getWorkUnits()) {
+        addTopicSpecificPropsToWorkUnit(wu, topicSpecificStateMap);
+      }
+    } else if (!workUnit.contains(TOPIC_NAME)) {
+      return;
+    } else if (topicSpecificStateMap == null) {
+      return;
+    } else if (!topicSpecificStateMap.containsKey(workUnit.getProp(TOPIC_NAME))) {
+      return;
+    } else {
+      workUnit.addAll(topicSpecificStateMap.get(workUnit.getProp(TOPIC_NAME)));
     }
   }
 

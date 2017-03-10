@@ -30,10 +30,6 @@ buildscript {
 apply plugin: 'pegasus'
 apply plugin: 'java'
 
-if (file('extraDependencies.gradle').exists()) {
-  apply from: 'extraDependencies.gradle'
-}
-
 def apiProject = project(project.getParent().getPath() + ":" + project.getParent().getName() + "-api")
 def serverProject = project(project.getParent().getPath() + ":" + project.getParent().getName() + "-server")
 

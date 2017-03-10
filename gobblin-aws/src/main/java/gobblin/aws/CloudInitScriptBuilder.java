@@ -28,6 +28,7 @@ import com.google.common.base.Splitter;
 
 import gobblin.annotation.Alpha;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
+import gobblin.util.JvmUtils;
 import static gobblin.aws.GobblinAWSUtils.encodeBase64;
 
 
@@ -139,7 +140,7 @@ public class CloudInitScriptBuilder {
         .append("java")
         .append(" -cp ").append(classpath)
         .append(" -Xmx").append(masterJvmMemory)
-        .append(" ").append(masterJvmArgs.or(""))
+        .append(" ").append(JvmUtils.formatJvmArguments(masterJvmArgs))
         .append(" ").append(GobblinAWSClusterManager.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(clusterName)
@@ -245,7 +246,7 @@ public class CloudInitScriptBuilder {
         .append("java")
         .append(" -cp ").append(classpath)
         .append(" -Xmx").append(workerJvmMemory)
-        .append(" ").append(workerJvmArgs.or(""))
+        .append(" ").append(JvmUtils.formatJvmArguments(workerJvmArgs))
         .append(" ").append(GobblinAWSTaskRunner.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(clusterName)

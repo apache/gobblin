@@ -307,8 +307,8 @@ public class TaskContinuousTest {
     // Let's try to shutdown the task
     task.shutdown();
     log.info("Shutting down task now");
-    boolean success = task.awaitShutdown(1000);
-    Assert.assertTrue(success, "Task should shutdown in 1 second");
+    boolean success = task.awaitShutdown(3000);
+    Assert.assertTrue(success, "Task should shutdown in 3 seconds");
     log.info("Task done waiting to shutdown {}", success);
 
     externalWatermarkStorage =
@@ -366,8 +366,11 @@ public class TaskContinuousTest {
   }
 
   private TaskState getStreamingTaskState() {
-    TaskState taskState = new TaskState(new WorkUnitState(WorkUnit.create(
-        new Extract(Extract.TableType.SNAPSHOT_ONLY, this.getClass().getName(), this.getClass().getSimpleName()))));
+    WorkUnitState workUnitState = new WorkUnitState(WorkUnit.create(
+        new Extract(Extract.TableType.SNAPSHOT_ONLY, this.getClass().getName(), this.getClass().getSimpleName())));
+    workUnitState.setProp(ConfigurationKeys.TASK_KEY_KEY, "1234");
+
+    TaskState taskState = new TaskState(workUnitState);
     taskState.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(false));
     taskState.setProp(TaskConfigurationKeys.TASK_EXECUTION_MODE, ExecutionModel.STREAMING.name());
     taskState.setJobId("1234");
@@ -435,8 +438,8 @@ public class TaskContinuousTest {
     // Let's try to shutdown the task
     task.shutdown();
     log.info("Shutting down task now");
-    boolean success = task.awaitShutdown(1000);
-    Assert.assertTrue(success, "Task should shutdown in 1 second");
+    boolean success = task.awaitShutdown(3000);
+    Assert.assertTrue(success, "Task should shutdown in 3 seconds");
     log.info("Task done waiting to shutdown {}", success);
 
     // Ensure that committed watermarks match exactly the input rows because we shutdown in an orderly manner.

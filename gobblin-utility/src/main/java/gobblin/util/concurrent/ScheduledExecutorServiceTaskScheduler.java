@@ -57,7 +57,8 @@ class ScheduledExecutorServiceTaskScheduler<K, T extends ScheduledTask<K>> exten
   @Override
   final void startImpl(Optional<String> name) {
     this.executorService =
-        Executors.newScheduledThreadPool(0, ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOGGER), name));
+        ExecutorsUtils.loggingDecorator(Executors.newScheduledThreadPool(0,
+                ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOGGER), name)));
   }
 
   /**

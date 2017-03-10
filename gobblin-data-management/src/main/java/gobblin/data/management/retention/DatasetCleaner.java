@@ -40,7 +40,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 
 import gobblin.util.AzkabanTags;
 import gobblin.configuration.State;
@@ -105,7 +104,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
     ExecutorService executor = ScalingThreadPoolExecutor.newScalingThreadPool(0,
         Integer.parseInt(props.getProperty(MAX_CONCURRENT_DATASETS_CLEANED, DEFAULT_MAX_CONCURRENT_DATASETS_CLEANED)),
         100, ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("Dataset-cleaner-pool-%d")));
-    this.service = MoreExecutors.listeningDecorator(executor);
+    this.service = ExecutorsUtils.loggingDecorator(executor);
 
     List<Tag<?>> tags = Lists.newArrayList();
     tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));

@@ -18,6 +18,7 @@
 package gobblin.yarn;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
@@ -48,6 +49,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.cluster.GobblinTaskRunner;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
+import gobblin.util.JvmUtils;
 import gobblin.util.logs.Log4jConfigurationHelper;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
@@ -91,6 +93,10 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
     @Override
     public String getMessageType() {
       return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
     }
 
     @Override
@@ -161,6 +167,8 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       Log4jConfigurationHelper.updateLog4jConfiguration(GobblinTaskRunner.class,
           GobblinYarnConfigurationKeys.GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE,
           GobblinYarnConfigurationKeys.GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE);
+
+      LOGGER.info(JvmUtils.getJvmInputArguments());
 
       ContainerId containerId =
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));

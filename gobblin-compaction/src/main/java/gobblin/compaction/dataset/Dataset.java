@@ -22,6 +22,8 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
@@ -67,6 +69,7 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
 
     private Set<Path> inputPaths;
     private Set<Path> inputLatePaths;
+    private Set<Path> renamePaths;
     private Path outputPath;
     private Path outputLatePath;
     private Path outputTmpPath;
@@ -77,6 +80,7 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
     public Builder() {
       this.inputPaths = Sets.newHashSet();
       this.inputLatePaths = Sets.newHashSet();
+      this.renamePaths = Sets.newHashSet();
       this.jobProps = new State();
     }
 
@@ -158,6 +162,9 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   private final String datasetName;
   private AtomicReference<DatasetState> state;
 
+  @Getter@Setter
+  private Set<Path> renamePaths;
+
   @Deprecated
   private double lateDataThresholdForRecompact;
 
@@ -174,6 +181,7 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
     this.state = new AtomicReference<>(DatasetState.UNVERIFIED);
     this.datasetName = builder.datasetName;
     this.jobProps = builder.jobProps;
+    this.renamePaths = builder.renamePaths;
   }
 
   /**
@@ -228,7 +236,7 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   }
 
   /**
-   * Additional paths of this {@link Dataset} besides {@link #inputPath()} that contain data to be compacted.
+   * Additional paths of this {@link Dataset} besides {@link #inputPaths()} that contain data to be compacted.
    */
   public Set<Path> additionalInputPaths() {
     return this.additionalInputPaths;
@@ -318,6 +326,10 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
    */
   public void overwriteInputPath(Path newInputPath) {
     this.inputPaths = Sets.newHashSet(newInputPath);
+  }
+
+  public void overwriteInputPaths(Set<Path> newInputPaths) {
+    this.inputPaths = newInputPaths;
   }
 
   /**

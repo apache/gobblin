@@ -36,6 +36,7 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.guava
   compile externalDependency.slf4j
+  compile externalDependency.junit
 
   testCompile externalDependency.mockito
   testCompile externalDependency.testng

@@ -39,12 +39,16 @@ if (file('extraDependencies.gradle').exists()) {
 
 dependencies {
   compile project(path: apiProject.path, configuration: 'dataTemplate')
-  compile project(':gobblin-utility')
+  compile(project(':gobblin-utility')) {
+    // pegasus uses an old version of guice, so we must exclude it from gobblin-utility
+    exclude module: "guice"
+  }
 
   compile externalDependency.pegasus.restliServer
   compile externalDependency.pegasus.restliCommon
   compile externalDependency.pegasus.restliNettyStandalone
   compile externalDependency.pegasus.restliGuiceBridge
+  compile externalDependency.lombok
 
   testCompile externalDependency.testng
 }
@@ -59,6 +63,7 @@ dependencies {
 }
 
 task JettyRunWar(type: JavaExec) {
+  dependsOn war
   main = "org.mortbay.jetty.runner.Runner"
   args = [war.archivePath]
   classpath configurations.jetty8
@@ -70,4 +75,8 @@ afterEvaluate {
 
 artifacts {
   archives jar
+}
+
+war {
+  classifier "war"
 }

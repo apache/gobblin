@@ -39,7 +39,7 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.util.ConfigUtils;
 import gobblin.util.filesystem.PathAlterationObserver;
 
-import junit.framework.Assert;
+import org.testng.Assert;
 
 
 /**

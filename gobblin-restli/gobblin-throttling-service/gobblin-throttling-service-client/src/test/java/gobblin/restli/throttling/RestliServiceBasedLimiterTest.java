@@ -23,6 +23,7 @@ import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+import com.google.inject.name.Names;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
@@ -61,7 +62,7 @@ public class RestliServiceBasedLimiterTest {
     Injector injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
-        binder.bind(SharedResourcesBroker.class).toInstance(broker);
+        binder.bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
       }
     });
 
@@ -78,8 +79,8 @@ public class RestliServiceBasedLimiterTest {
 
       RestClient restClient = new RestClient(r2Client, server.getURIPrefix());
 
-      RestliServiceBasedLimiter limiter =
-          new RestliServiceBasedLimiter(restClient, res1key.getResourceLimited(), "service");
+      RestliServiceBasedLimiter limiter = RestliServiceBasedLimiter.builder().restClient(restClient)
+          .resourceLimited(res1key.getResourceLimited()).serviceIdentifier("service").build();
 
       Assert.assertNotNull(limiter.acquirePermits(20));
       Assert.assertNotNull(limiter.acquirePermits(20));

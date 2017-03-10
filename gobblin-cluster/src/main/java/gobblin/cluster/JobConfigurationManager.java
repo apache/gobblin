@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -22,6 +21,7 @@ import java.io.File;
 import java.util.List;
 import java.util.Properties;
 
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,8 +31,11 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
+import gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import gobblin.cluster.event.NewJobConfigArrivalEvent;
+import gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.ConfigUtils;
 import gobblin.util.SchedulerUtils;
 
 
@@ -87,7 +90,7 @@ public class JobConfigurationManager extends AbstractIdleService {
 
       if (jobConfigDir.exists()) {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
-        Properties properties = new Properties();
+        Properties properties = ConfigUtils.configToProperties(this.config);
         properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, "file://" + jobConfigDir.getAbsolutePath());
         List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
@@ -106,6 +109,17 @@ public class JobConfigurationManager extends AbstractIdleService {
   }
 
   protected void postNewJobConfigArrival(String jobName, Properties jobConfig) {
+    LOGGER.info(String.format("Posting new JobConfig with name: %s and config: %s", jobName, jobConfig));
     this.eventBus.post(new NewJobConfigArrivalEvent(jobName, jobConfig));
+  }
+
+  protected void postUpdateJobConfigArrival(String jobName, Properties jobConfig) {
+    LOGGER.info(String.format("Posting update JobConfig with name: %s and config: %s", jobName, jobConfig));
+    this.eventBus.post(new UpdateJobConfigArrivalEvent(jobName, jobConfig));
+  }
+
+  protected void postDeleteJobConfigArrival(String jobName, @Nullable Properties jobConfig) {
+    LOGGER.info(String.format("Posting delete JobConfig with name: %s and config: %s", jobName, jobConfig));
+    this.eventBus.post(new DeleteJobConfigArrivalEvent(jobName, jobConfig));
   }
 }

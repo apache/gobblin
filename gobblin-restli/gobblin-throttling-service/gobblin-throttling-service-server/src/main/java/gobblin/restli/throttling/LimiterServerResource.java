@@ -22,6 +22,8 @@ import java.io.Closeable;
 import com.google.inject.Inject;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 
@@ -31,15 +33,19 @@ import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.util.limiter.broker.SharedLimiterKey;
 
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Restli resource for allocating permits through Rest calls. Simply calls a {@link Limiter} in the server configured
  * through {@link SharedResourcesBroker}.
  */
+@Slf4j
 @RestLiCollection(name = "permits", namespace = "gobblin.restli.throttling")
 public class LimiterServerResource extends ComplexKeyResourceTemplate<PermitRequest, EmptyRecord, PermitAllocation> {
 
-  @Inject
+  public static final String BROKER_INJECT_NAME = "broker";
+
+  @Inject @javax.inject.Inject @javax.inject.Named(BROKER_INJECT_NAME)
   SharedResourcesBroker broker;
 
   /**
@@ -50,11 +56,11 @@ public class LimiterServerResource extends ComplexKeyResourceTemplate<PermitRequ
   public PermitAllocation get(ComplexResourceKey<PermitRequest, EmptyRecord> key) {
     try {
 
+      log.debug("Allocating request {}", key);
       PermitRequest request = key.getKey();
 
-      Limiter limiter =
-          (Limiter) this.broker.<Limiter, SharedLimiterKey>getSharedResource(new SharedLimiterFactory(),
-              new SharedLimiterKey(request.getResource()));
+      Limiter limiter = (Limiter) this.broker.<Limiter, SharedLimiterKey>getSharedResource(new SharedLimiterFactory(),
+          new SharedLimiterKey(request.getResource(), SharedLimiterKey.GlobalLimiterPolicy.LOCAL_ONLY));
 
       Closeable permit = limiter.acquirePermits(request.getPermits());
 
@@ -62,8 +68,10 @@ public class LimiterServerResource extends ComplexKeyResourceTemplate<PermitRequ
       allocation.setPermits(permit == null ? 0 : key.getKey().getPermits());
       allocation.setExpiration(Long.MAX_VALUE);
       return allocation;
-    } catch (NotConfiguredException | InterruptedException nce) {
-      throw new RuntimeException(nce);
+    } catch (NotConfiguredException nce) {
+      throw new RestLiServiceException(HttpStatus.S_422_UNPROCESSABLE_ENTITY, "No configuration for the requested resource.");
+    } catch (InterruptedException ie) {
+      throw new RuntimeException(ie);
     }
   }
 }

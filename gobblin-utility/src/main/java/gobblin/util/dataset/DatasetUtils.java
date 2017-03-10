@@ -123,7 +123,7 @@ public class DatasetUtils {
     private final Pattern datasetPattern;
 
     private DatasetPredicate(String datasetRegex) {
-      this.datasetPattern = Pattern.compile(datasetRegex);
+      this.datasetPattern = Pattern.compile(datasetRegex, Pattern.CASE_INSENSITIVE);
     }
 
     @Override

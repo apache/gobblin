@@ -75,10 +75,9 @@ public class AsyncTrash implements GobblinProxiedTrash, Closeable, Decorator {
       maxDeletingThreads = Integer.parseInt(properties.getProperty(MAX_DELETING_THREADS_KEY));
     }
     this.innerTrash = TrashFactory.createProxiedTrash(fs, properties, user);
-    this.executor = MoreExecutors.listeningDecorator(
+    this.executor = ExecutorsUtils.loggingDecorator(
         MoreExecutors.getExitingExecutorService(ScalingThreadPoolExecutor.newScalingThreadPool(0, maxDeletingThreads,
             100, ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("Async-trash-delete-pool-%d")))));
-
   }
 
   @Override

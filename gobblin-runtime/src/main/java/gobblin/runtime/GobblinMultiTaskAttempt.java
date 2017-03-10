@@ -38,6 +38,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
 import gobblin.annotation.Alpha;
+import gobblin.broker.iface.SubscopedBrokerBuilder;
 import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
@@ -283,8 +284,9 @@ public class GobblinMultiTaskAttempt {
     List<Task> tasks = Lists.newArrayList();
     for (WorkUnit workUnit : this.workUnits) {
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-      SharedResourcesBroker<GobblinScopeTypes> taskBroker = this.jobBroker.newSubscopedBuilder(new TaskScopeInstance(taskId)).build();
-      WorkUnitState workUnitState = new WorkUnitState(workUnit, this.jobState, taskBroker);
+      SubscopedBrokerBuilder<GobblinScopeTypes, ?> taskBrokerBuilder =
+          this.jobBroker.newSubscopedBuilder(new TaskScopeInstance(taskId));
+      WorkUnitState workUnitState = new WorkUnitState(workUnit, this.jobState, taskBrokerBuilder);
       workUnitState.setId(taskId);
       workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobId);
       workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);

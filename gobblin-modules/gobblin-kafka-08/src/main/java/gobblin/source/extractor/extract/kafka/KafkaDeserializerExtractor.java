@@ -27,6 +27,8 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -42,6 +44,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
 import gobblin.metrics.kafka.KafkaSchemaRegistry;
 import gobblin.metrics.kafka.SchemaRegistryException;
+import gobblin.util.AvroUtils;
 import gobblin.util.PropertiesUtils;
 
 
@@ -76,45 +79,59 @@ public class KafkaDeserializerExtractor extends KafkaExtractor<Object, Object> {
 
   private final Deserializer<?> kafkaDeserializer;
   private final KafkaSchemaRegistry<?, ?> kafkaSchemaRegistry;
-
+  private final Schema latestSchema;
+  
   public KafkaDeserializerExtractor(WorkUnitState state) throws ReflectiveOperationException {
-    this(state, getDeserializer(getProps(state)),
-        getKafkaSchemaRegistry(getProps(state)));
+    this(state, getDeserializerType(state.getProperties()));
   }
 
+  private KafkaDeserializerExtractor(WorkUnitState state, Optional<Deserializers> deserializerType)
+      throws ReflectiveOperationException {
+    this(state, deserializerType, 
+        getDeserializer(getProps(state), deserializerType),
+        getKafkaSchemaRegistry(getProps(state)));
+  }
+  
   @VisibleForTesting
-  KafkaDeserializerExtractor(WorkUnitState state, Deserializer<?> kafkaDeserializer,
-      KafkaSchemaRegistry<?, ?> kafkaSchemaRegistry) {
+  KafkaDeserializerExtractor(WorkUnitState state, Optional<Deserializers> deserializerType,
+      Deserializer<?> kafkaDeserializer, KafkaSchemaRegistry<?, ?> kafkaSchemaRegistry) {
     super(state);
     this.kafkaDeserializer = kafkaDeserializer;
     this.kafkaSchemaRegistry = kafkaSchemaRegistry;
+    this.latestSchema =
+        (deserializerType.equals(Optional.of(Deserializers.CONFLUENT_AVRO))) ? (Schema) getSchema() : null;
   }
 
   @Override
   protected Object decodeRecord(ByteArrayBasedKafkaRecord messageAndOffset) throws IOException {
-    return this.kafkaDeserializer.deserialize(this.topicName, messageAndOffset.getMessageBytes());
+    Object deserialized = kafkaDeserializer.deserialize(this.topicName, messageAndOffset.getMessageBytes());
+    
+    // For Confluent's Schema Registry the read schema is the latest registered schema to support schema evolution
+    return (this.latestSchema == null) ? deserialized
+        : AvroUtils.convertRecordSchema((GenericRecord) deserialized, this.latestSchema);
   }
 
   @Override
-  public Object getSchema() throws IOException {
+  public Object getSchema() {
     try {
       return this.kafkaSchemaRegistry.getLatestSchemaByTopic(this.topicName);
     } catch (SchemaRegistryException e) {
       throw new RuntimeException(e);
     }
   }
-
+  
+  private static Optional<Deserializers> getDeserializerType(Properties props) {
+    Preconditions.checkArgument(props.containsKey(KAFKA_DESERIALIZER_TYPE),
+        "Missing required property " + KAFKA_DESERIALIZER_TYPE);
+    return Enums.getIfPresent(Deserializers.class, props.getProperty(KAFKA_DESERIALIZER_TYPE).toUpperCase());
+  }
+  
   /**
    * Constructs a {@link Deserializer}, using the value of {@link #KAFKA_DESERIALIZER_TYPE}.
    */
-  private static Deserializer<?> getDeserializer(Properties props) throws ReflectiveOperationException {
+  private static Deserializer<?> getDeserializer(Properties props, Optional<Deserializers> deserializerType) throws ReflectiveOperationException {
 
-    Preconditions.checkArgument(props.containsKey(KAFKA_DESERIALIZER_TYPE),
-        "Missing required property " + KAFKA_DESERIALIZER_TYPE);
-    Optional<Deserializers> deserializerType =
-        Enums.getIfPresent(Deserializers.class, props.getProperty(KAFKA_DESERIALIZER_TYPE).toUpperCase());
     Deserializer<?> deserializer;
-
     if (deserializerType.isPresent()) {
       deserializer = ConstructorUtils.invokeConstructor(deserializerType.get().getDeserializerClass());
     } else {

@@ -25,6 +25,8 @@ import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
@@ -58,6 +60,7 @@ import gobblin.writer.WriterOutputFormat;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class TaskContext {
 
   private final TaskState taskState;
@@ -122,7 +125,7 @@ public class TaskContext {
           throw new IllegalArgumentException("The Limiter used with an Extractor should be an instance of "
               + NonRefillableLimiter.class.getSimpleName());
         }
-        return new LimitingExtractorDecorator<>(this.rawSourceExtractor, limiter);
+        return new LimitingExtractorDecorator<>(this.rawSourceExtractor, limiter, this.taskState);
       }
       return this.rawSourceExtractor;
     } catch (IOException ioe) {
@@ -171,9 +174,12 @@ public class TaskContext {
     String writerOutputFormatValue = this.taskState.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, branches, index),
         WriterOutputFormat.OTHER.name());
+    log.debug("Found writer output format value = {}", writerOutputFormatValue);
 
-    return Enums.getIfPresent(WriterOutputFormat.class, writerOutputFormatValue.toUpperCase())
+    WriterOutputFormat wof = Enums.getIfPresent(WriterOutputFormat.class, writerOutputFormatValue.toUpperCase())
         .or(WriterOutputFormat.OTHER);
+    log.debug("Returning writer output format = {}", wof);
+    return wof;
   }
 
   /**
@@ -299,9 +305,18 @@ public class TaskContext {
    * @return a {@link DataWriterBuilder}
    */
   public DataWriterBuilder getDataWriterBuilder(int branches, int index) {
-    String dataWriterBuilderClassName = this.taskState.getProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
-        ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS);
+    String writerBuilderPropertyName = ForkOperatorUtils
+        .getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index);
+    log.debug("Using property {} to get a writer builder for branches:{}, index:{}", writerBuilderPropertyName,
+        branches, index);
+
+    String dataWriterBuilderClassName = this.taskState.getProp(writerBuilderPropertyName, null);
+    if (dataWriterBuilderClassName == null) {
+      dataWriterBuilderClassName = ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS;
+      log.info("No configured writer builder found, using {} as the default builder", dataWriterBuilderClassName);
+    } else {
+      log.info("Found configured writer builder as {}", dataWriterBuilderClassName);
+    }
     try {
       return DataWriterBuilder.class.cast(Class.forName(dataWriterBuilderClassName).newInstance());
     } catch (ClassNotFoundException cnfe) {

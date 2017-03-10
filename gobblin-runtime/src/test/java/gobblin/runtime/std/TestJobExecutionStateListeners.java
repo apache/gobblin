@@ -22,7 +22,10 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobExecutionStateListener;
@@ -38,7 +41,10 @@ public class TestJobExecutionStateListeners {
     final Logger log = LoggerFactory.getLogger(getClass() + ".testHappyPath");
     JobExecutionStateListeners listeners = new JobExecutionStateListeners(log);
 
-    JobSpec js1 = JobSpec.builder("gobblin:test/job").build();
+    JobSpec js1 = JobSpec.builder("gobblin:test/job")
+        .withConfig(ConfigFactory.empty()
+            .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef("myJob")))
+        .build();
     JobExecutionUpdatable je1 = JobExecutionUpdatable.createFromJobSpec(js1);
 
     JobExecutionStateListener l1 = Mockito.mock(JobExecutionStateListener.class);

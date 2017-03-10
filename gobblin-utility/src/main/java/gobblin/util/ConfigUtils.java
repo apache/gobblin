@@ -221,8 +221,12 @@ public class ConfigUtils {
   }
 
   public static String desanitizeKey(String propKey) {
-    return propKey.endsWith(STRIP_SUFFIX) ?
+    propKey =  propKey.endsWith(STRIP_SUFFIX) ?
         propKey.substring(0, propKey.length() - STRIP_SUFFIX.length()) : propKey;
+
+    // Also strip quotes that can get introduced by TypeSafe.Config
+    propKey = propKey.replace("\"", "");
+    return propKey;
   }
 
 

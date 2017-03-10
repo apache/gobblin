@@ -16,10 +16,12 @@
  */
 package gobblin.runtime.api;
 
+import static gobblin.configuration.ConfigurationKeys.JOB_NAME_KEY;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.util.Properties;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -31,7 +33,10 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.std.JobExecutionUpdatable;
 import gobblin.testing.AssertWithBackoff;
@@ -44,7 +49,10 @@ public class TestJobExecutionState {
 
   @Test public void testStateTransitionsSuccess() throws TimeoutException, InterruptedException {
     final Logger log = LoggerFactory.getLogger(getClass().getSimpleName() + ".testStateTransitionsSuccess");
-    JobSpec js1 = JobSpec.builder("gobblin:/testStateTransitionsSuccess/job1").build();
+    JobSpec js1 = JobSpec.builder("gobblin:/testStateTransitionsSuccess/job1")
+        .withConfig(ConfigFactory.empty()
+            .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef("myJob")))
+        .build();
     JobExecution je1 = JobExecutionUpdatable.createFromJobSpec(js1);
 
     final JobExecutionStateListener listener = mock(JobExecutionStateListener.class);
@@ -95,7 +103,10 @@ public class TestJobExecutionState {
 
   @Test public void testStateTransitionsFailure() throws TimeoutException, InterruptedException {
     final Logger log = LoggerFactory.getLogger(getClass().getSimpleName() + ".testStateTransitionsFailure");
-    JobSpec js1 = JobSpec.builder("gobblin:/testStateTransitionsFailure/job1").build();
+    JobSpec js1 = JobSpec.builder("gobblin:/testStateTransitionsFailure/job1")
+        .withConfig(ConfigFactory.empty()
+            .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef("myJob")))
+        .build();
     JobExecution je1 = JobExecutionUpdatable.createFromJobSpec(js1);
 
     final JobExecutionStateListener listener = mock(JobExecutionStateListener.class);
@@ -132,7 +143,10 @@ public class TestJobExecutionState {
 
   @Test public void testStateTransitionsCancel() throws TimeoutException, InterruptedException {
     final Logger log = LoggerFactory.getLogger(getClass().getSimpleName() + ".testStateTransitionsCancel");
-    JobSpec js1 = JobSpec.builder("gobblin:/testStateTransitionsCancel/job1").build();
+    JobSpec js1 = JobSpec.builder("gobblin:/testStateTransitionsCancel/job1")
+        .withConfig(ConfigFactory.empty()
+            .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef("myJob")))
+        .build();
     JobExecution je1 = JobExecutionUpdatable.createFromJobSpec(js1);
 
     final JobExecutionStateListener listener = mock(JobExecutionStateListener.class);
@@ -199,7 +213,11 @@ public class TestJobExecutionState {
 
   @Test public void testAwait() throws InterruptedException {
     final Logger log = LoggerFactory.getLogger(getClass().getSimpleName() + ".testAwait");
-    JobSpec js1 = JobSpec.builder("gobblin:/testAwaitForDone/job1").build();
+    Properties properties = new Properties();
+    properties.setProperty(JOB_NAME_KEY, "jobname");
+    JobSpec js1 = JobSpec.builder("gobblin:/testAwaitForDone/job1")
+            .withConfigAsProperties(properties)
+            .build();
     JobExecution je1 = JobExecutionUpdatable.createFromJobSpec(js1);
 
     final JobExecutionState jes1 =

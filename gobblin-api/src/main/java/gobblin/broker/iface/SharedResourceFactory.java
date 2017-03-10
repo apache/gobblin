@@ -36,7 +36,7 @@ public interface SharedResourceFactory<T, K extends SharedResourceKey, S extends
    *    should be used instead (this allows, for example, to use a different factory, or always return a global scoped object.)
    */
   SharedResourceFactoryResponse<T>
-      createResource(SharedResourcesBroker broker, ScopedConfigView<?, K> config) throws NotConfiguredException;
+      createResource(SharedResourcesBroker<S> broker, ScopedConfigView<S, K> config) throws NotConfiguredException;
 
   /**
    * @return The {@link ScopeType} at which an auto scoped resource should be created. A good default is to return

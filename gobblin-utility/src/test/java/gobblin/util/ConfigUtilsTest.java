@@ -180,6 +180,25 @@ public class ConfigUtilsTest {
     Assert.assertEquals(props.getProperty("a.key3"), "true");
   }
 
+  /**
+   * Test that you can go from properties to Config and back without changing.
+   * Specifically tests prefixed paths and numeric key-parts.
+   */
+  @Test
+  public void testPropertiesToConfigAndBack() {
+    Properties props = new Properties();
+
+    props.setProperty("writer.staging.dir", "foobar");
+    props.setProperty("writer.staging.dir.0", "foobar-0");
+
+    Config config = ConfigUtils.propertiesToConfig(props);
+
+    Properties configProps = ConfigUtils.configToProperties(config);
+
+    Assert.assertEquals(configProps, props);
+  }
+
+
   @Test
   public void testFindFullPrefixKeys() {
     Properties props = new Properties();

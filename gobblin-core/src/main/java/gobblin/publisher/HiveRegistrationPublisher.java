@@ -70,8 +70,8 @@ public class HiveRegistrationPublisher extends DataPublisher {
   public HiveRegistrationPublisher(State state) {
     super(state);
     this.hiveRegister = this.closer.register(HiveRegister.get(state));
-    this.hivePolicyExecutor = Executors.newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
-        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d")));
+    this.hivePolicyExecutor = ExecutorsUtils.loggingDecorator(Executors.newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d"))));
   }
 
   @Override

@@ -34,8 +34,13 @@
   </listener>
 
   <context-param>
-    <param-name>myParam</param-name>
-    <param-value>myValue</param-value>
+    <param-name>gobblin.broker.limiter.streamCopierBandwidth.localhost.localhost.class</param-name>
+    <param-value>qps</param-value>
+  </context-param>
+
+  <context-param>
+    <param-name>gobblin.broker.limiter.streamCopierBandwidth.localhost.localhost.qps</param-name>
+    <param-value>100000000</param-value>
   </context-param>
 
 </web-app>

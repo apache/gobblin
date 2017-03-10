@@ -19,6 +19,7 @@ package gobblin.util.io;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -197,7 +198,7 @@ public class StreamUtils {
 
   /*
    * Determines if a byte array is compressed. The java.util.zip GZip
-   * implementaiton does not expose the GZip header so it is difficult to determine
+   * implementation does not expose the GZip header so it is difficult to determine
    * if a string is compressed.
    * Copied from Helix GZipCompressionUtil
    * @param bytes an array of bytes
@@ -209,6 +210,30 @@ public class StreamUtils {
     } else {
       return ((bytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC)) &&
           (bytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
+    }
+  }
+
+  /**
+   * Reads the full contents of a ByteBuffer and writes them to an OutputStream. The ByteBuffer is
+   * consumed by this operation; eg in.remaining() will be 0 after it completes successfully.
+   * @param in  ByteBuffer to write into the OutputStream
+   * @param out Destination stream
+   * @throws IOException If there is an error writing into the OutputStream
+   */
+  public static void byteBufferToOutputStream(ByteBuffer in, OutputStream out)
+      throws IOException {
+    final int BUF_SIZE = 8192;
+
+    if (in.hasArray()) {
+      out.write(in.array(), in.arrayOffset() + in.position(), in.remaining());
+    } else {
+      final byte[] b = new byte[Math.min(in.remaining(), BUF_SIZE)];
+      while (in.remaining() > 0) {
+        int bytesToRead = Math.min(in.remaining(), BUF_SIZE);
+        in.get(b, 0, bytesToRead);
+
+        out.write(b, 0, bytesToRead);
+      }
     }
   }
 }

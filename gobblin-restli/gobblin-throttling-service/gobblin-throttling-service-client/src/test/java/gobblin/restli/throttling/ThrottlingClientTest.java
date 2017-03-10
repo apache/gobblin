@@ -28,6 +28,7 @@ import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+import com.google.inject.name.Names;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
@@ -35,6 +36,7 @@ import com.linkedin.restli.client.Request;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.ResponseFuture;
 import com.linkedin.restli.client.RestClient;
+import com.linkedin.restli.client.RestLiResponseException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.server.resources.BaseResource;
@@ -64,13 +66,15 @@ public class ThrottlingClientTest {
         .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, SharedLimiterFactory.LIMITER_CLASS_KEY),
             CountBasedLimiter.FACTORY_ALIAS)
         .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, CountBasedLimiter.Factory.COUNT_KEY), "50")
+        .put(BrokerConfigurationKeyGenerator.generateKey(factory, null, null, SharedLimiterFactory.FAIL_ON_UNKNOWN_RESOURCE_ID),
+            "true")
         .build();
     final SharedResourcesBroker<SimpleScopeType> broker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(
         ConfigFactory.parseMap(configMap), SimpleScopeType.GLOBAL.defaultScopeInstance());
     Injector injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
-        binder.bind(SharedResourcesBroker.class).toInstance(broker);
+        binder.bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
       }
     });
 
@@ -102,6 +106,17 @@ public class ThrottlingClientTest {
       // out of permits
       allocation = getPermitAllocation(res1request, restClient, getBuilder);
       Assert.assertEquals(allocation.getPermits(), new Long(0));
+
+      PermitRequest invalidRequest = new PermitRequest();
+      invalidRequest.setPermits(20);
+      invalidRequest.setResource("invalidkey");
+
+      try {
+        allocation = getPermitAllocation(invalidRequest, restClient, getBuilder);
+        Assert.fail();
+      } catch (RestLiResponseException exc) {
+        Assert.assertEquals(exc.getStatus(), 422);
+      }
 
     } finally {
       if (server.isRunning()) {

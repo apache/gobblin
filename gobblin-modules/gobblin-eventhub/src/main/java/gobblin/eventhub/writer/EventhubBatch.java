@@ -21,7 +21,6 @@ package gobblin.eventhub.writer;
 import gobblin.annotation.Alpha;
 import gobblin.writer.Batch;
 
-import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -31,7 +30,7 @@ import java.util.List;
  * For now we are using LinkedList as our internal memory storage
  */
 @Alpha
-public class EventhubBatch extends Batch<byte[]>{
+public class EventhubBatch extends Batch<String>{
   private RecordMemory memory;
   private final long creationTimestamp;
   private final long memSizeLimit;
@@ -49,12 +48,12 @@ public class EventhubBatch extends Batch<byte[]>{
     return (System.currentTimeMillis() - creationTimestamp) >= ttlInMilliSeconds;
   }
 
-  private long getInternalSize(byte[] record) {
-    return Base64.getEncoder().encodeToString(record).length() + this.OVERHEAD_SIZE_IN_BYTES;
+  private long getInternalSize(String record) {
+    return record.length() + this.OVERHEAD_SIZE_IN_BYTES;
   }
 
   public  class RecordMemory {
-    private List<byte[]> records;
+    private List<String> records;
     private long byteSize;
 
     public RecordMemory () {
@@ -62,12 +61,12 @@ public class EventhubBatch extends Batch<byte[]>{
       records = new LinkedList<>();
     }
 
-    void append (byte[] record) {
+    void append (String record) {
       byteSize += EventhubBatch.this.getInternalSize(record);
       records.add(record);
     }
 
-    boolean hasRoom (byte[] record) {
+    boolean hasRoom (String record) {
       long recordLen = EventhubBatch.this.getInternalSize(record);
       return (byteSize + recordLen) <= EventhubBatch.this.memSizeLimit;
     }
@@ -76,21 +75,25 @@ public class EventhubBatch extends Batch<byte[]>{
       return byteSize;
     }
 
-    List<byte[]> getRecords() {
+    List<String> getRecords() {
       return records;
     }
   }
 
-  public List<byte[]> getRecords() {
+  public List<String> getRecords() {
     return memory.getRecords();
   }
 
-  public boolean hasRoom(byte[] object) {
+  public boolean hasRoom(String object) {
     return memory.hasRoom(object);
   }
 
-  public void append(byte[] object) {
+  public void append(String object) {
      memory.append(object);
+  }
+
+  public int getRecordSizeInByte (String record) {
+    return record.length();
   }
 
   public long getCurrentSizeInByte() {

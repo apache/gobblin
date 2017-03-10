@@ -3,7 +3,6 @@ package gobblin.eventhub.writer;
 import java.io.IOException;
 import java.util.Iterator;
 
-import org.bouncycastle.util.encoders.Base64;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -17,10 +16,10 @@ public class EventhubAccumulatorTest {
   public void testAccumulator() throws IOException, InterruptedException{
 
     EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator();
-    byte[] obj = new byte[8];
+    String obj = "abcdefgh";
 
     // overhead has 15 bytes
-    long unit = Base64.encode(obj).length + EventhubBatch.OVERHEAD_SIZE_IN_BYTES;
+    long unit = obj.length() + EventhubBatch.OVERHEAD_SIZE_IN_BYTES;
 
     // Assuming batch size is 256K bytes, and each record has (8 + 15) bytes
     // Adding {bytes/unit} records should not overflow the memory of first batch
@@ -30,7 +29,7 @@ public class EventhubAccumulatorTest {
       accumulator.append(obj, WriteCallback.EMPTY);
     }
 
-    Iterator<Batch<byte[]>> iterator = accumulator.iterator();
+    Iterator<Batch<String>> iterator = accumulator.iterator();
     Assert.assertEquals(iterator.hasNext(), false);
 
     // Now add another record, which should result in the overflow of first batch
@@ -47,7 +46,7 @@ public class EventhubAccumulatorTest {
 
     // Now the TTL should be expired, the second batch should be available
     Assert.assertEquals(iterator.hasNext(), true);
-    Batch<byte[]> batch = iterator.next();
+    Batch<String> batch = iterator.next();
     Assert.assertEquals(batch.getRecords().size(), 1);
   }
 }

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
 import org.eclipse.jetty.http.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -44,8 +45,7 @@ import com.typesafe.config.Config;
 import gobblin.config.ConfigBuilder;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.restli.EmbeddedRestliServer;
-import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.job_catalog.FSJobCatalog;
+import gobblin.runtime.spec_catalog.FlowCatalog;
 
 
 @Test(groups = { "gobblin.service" })
@@ -54,6 +54,7 @@ public class FlowConfigTest {
   private EmbeddedRestliServer _server;
   private File _testDirectory;
 
+  private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigTest/";
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
   private static final String TEST_SCHEDULE = "";
@@ -67,21 +68,24 @@ public class FlowConfigTest {
 
     _testDirectory = Files.createTempDir();
 
-    configBuilder.addPrimitive(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, _testDirectory.getAbsolutePath());
+    configBuilder
+        .addPrimitive(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, _testDirectory.getAbsolutePath())
+        .addPrimitive(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, TEST_SPEC_STORE_DIR);
+    cleanUpDir(TEST_SPEC_STORE_DIR);
 
     Config config = configBuilder.build();
-    final FSJobCatalog jobCatalog = new FSJobCatalog(config);
+    final FlowCatalog flowCatalog = new FlowCatalog(config);
 
-    jobCatalog.startAsync();
-    jobCatalog.awaitRunning();
+    flowCatalog.startAsync();
+    flowCatalog.awaitRunning();
 
     Injector injector = Guice.createInjector(new Module() {
        @Override
        public void configure(Binder binder) {
-         binder.bind(MutableJobCatalog.class).toInstance(jobCatalog);
+         binder.bind(FlowCatalog.class).annotatedWith(Names.named("flowCatalog")).toInstance(flowCatalog);
          // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
          // been made
-         binder.bindConstant().annotatedWith(Names.named("inUnitTest")).to(true);
+         binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);
        }
     });
 
@@ -93,6 +97,13 @@ public class FlowConfigTest {
 
     _client =
         new FlowConfigClient(String.format("http://localhost:%s/", _server.getPort()));
+  }
+
+  private void cleanUpDir(String dir) throws Exception {
+    File specStoreDir = new File(dir);
+    if (specStoreDir.exists()) {
+      FileUtils.deleteDirectory(specStoreDir);
+    }
   }
 
   @Test
@@ -139,8 +150,6 @@ public class FlowConfigTest {
     // Add this asssert back when getFlowSpec() is changed to return the raw flow spec
     //Assert.assertEquals(flowConfig.getProperties().size(), 1);
     Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
-    Assert.assertFalse(flowConfig.getProperties().containsKey("gobblin.fsJobCatalog.version"));
-    Assert.assertFalse(flowConfig.getProperties().containsKey("gobblin.fsJobCatalog.description"));
   }
 
   @Test (dependsOnMethods = "testGet")
@@ -244,8 +253,10 @@ public class FlowConfigTest {
     }
     if (_server != null) {
       _server.stopAsync();
-      _server.awaitTerminated();    }
+      _server.awaitTerminated();
+    }
     _testDirectory.delete();
+    cleanUpDir(TEST_SPEC_STORE_DIR);
   }
 
   private static int chooseRandomPort() throws IOException {

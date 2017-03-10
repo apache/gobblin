@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -45,6 +46,7 @@ import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
+import gobblin.fork.CopyHelper;
 import gobblin.fork.CopyNotSupportedException;
 import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
@@ -112,6 +114,7 @@ public class Task implements Runnable {
 
   private final String jobId;
   private final String taskId;
+  private final String taskKey;
   private final TaskContext taskContext;
   private final TaskState taskState;
   private final TaskStateTracker taskStateTracker;
@@ -154,6 +157,7 @@ public class Task implements Runnable {
     this.taskState = context.getTaskState();
     this.jobId = this.taskState.getJobId();
     this.taskId = this.taskState.getTaskId();
+    this.taskKey = this.taskState.getTaskKey();
     this.taskStateTracker = taskStateTracker;
     this.taskExecutor = taskExecutor;
     this.countDownLatch = countDownLatch;
@@ -287,6 +291,7 @@ public class Task implements Runnable {
   @Override
   @SuppressWarnings("unchecked")
   public void run() {
+    MDC.put(ConfigurationKeys.TASK_KEY_KEY, this.taskKey);
     this.startTime = System.currentTimeMillis();
     this.taskState.setStartTime(startTime);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.RUNNING);
@@ -311,7 +316,7 @@ public class Task implements Runnable {
                 branches));
       }
 
-      if (inMultipleBranches(forkedSchemas) && !(schema instanceof Copyable)) {
+      if (inMultipleBranches(forkedSchemas) && !(CopyHelper.isCopyable(schema))) {
         throw new CopyNotSupportedException(schema + " is not copyable");
       }
 
@@ -535,6 +540,15 @@ public class Task implements Runnable {
   }
 
   /**
+   * Get the key of this task.
+   *
+   * @return Key of this task
+   */
+  public String getTaskKey() {
+    return this.taskKey;
+  }
+
+  /**
    * Get the {@link TaskContext} associated with this task.
    *
    * @return {@link TaskContext} associated with this task
@@ -645,27 +659,31 @@ public class Task implements Runnable {
               branches));
     }
 
-    if (inMultipleBranches(forkedRecords) && !(convertedRecord instanceof Copyable)) {
-      throw new CopyNotSupportedException(convertedRecord + " is not copyable");
+    boolean needToCopy = inMultipleBranches(forkedRecords);
+    // we only have to copy a record if it needs to go into multiple forks
+    if (needToCopy && !(CopyHelper.isCopyable(convertedRecord))) {
+      throw new CopyNotSupportedException(convertedRecord.getClass().getName() + " is not copyable");
     }
 
-    // Put the record into the record queue of each fork. A put may timeout and return a false, in which
-    // case the put is retried until it is successful.
+
     int branch = 0;
+    int copyInstance = 0;
     for (Optional<Fork> fork : this.forks.keySet()) {
       if (fork.isPresent() && forkedRecords.get(branch)) {
-        Object recordForFork =
-            convertedRecord instanceof Copyable ? ((Copyable<?>) convertedRecord).copy() : convertedRecord;
+        Object recordForFork = CopyHelper.copy(convertedRecord, copyInstance);
+        copyInstance++;
         if (isStreamingTask()) {
           // Send the record, watermark pair down the fork
           recordForFork = new AcknowledgableRecordEnvelope<>(recordForFork, watermark.incrementAck());
         }
+        // Put the record into the record queue of each fork. A put may timeout and return a false, in which
+        // case the put is retried until it is successful.
         boolean succeeded = false;
         while (!succeeded) {
           succeeded = fork.get().putRecord(recordForFork);
         }
-        branch++;
       }
+      branch++;
     }
     if (watermark != null) {
       watermark.ack();
