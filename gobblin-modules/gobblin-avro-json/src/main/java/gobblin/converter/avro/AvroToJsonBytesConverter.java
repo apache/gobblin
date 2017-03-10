@@ -14,17 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.converter.avro;
 
-apply plugin: 'java'
-
-dependencies {
-  compile project(":gobblin-core-base")
-  compile project(":gobblin-runtime")
-  compile project(":gobblin-modules:gobblin-crypto")
-
-  testCompile project(":gobblin-test-utils")
-  testCompile externalDependency.testng
+public class AvroToJsonBytesConverter extends AvroToJsonStringConverterBase<byte[]> {
+  @Override
+  protected byte[] processUtf8Bytes(byte[] utf8Bytes) {
+    return utf8Bytes;
+  }
 }
-
-ext.classification="library"
-

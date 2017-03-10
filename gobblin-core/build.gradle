@@ -23,6 +23,7 @@ dependencies {
   compile project(":gobblin-tunnel")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
+  compile project(":gobblin-modules:gobblin-avro-json")
   compile project(":gobblin-modules:gobblin-metadata")
   compile project(":gobblin-hive-registration")
   compile project(":gobblin-config-management:gobblin-config-client")

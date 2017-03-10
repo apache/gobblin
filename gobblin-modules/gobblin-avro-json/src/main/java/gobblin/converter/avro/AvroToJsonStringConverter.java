@@ -14,17 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.converter.avro;
 
-apply plugin: 'java'
+import java.nio.charset.StandardCharsets;
 
-dependencies {
-  compile project(":gobblin-core-base")
-  compile project(":gobblin-runtime")
-  compile project(":gobblin-modules:gobblin-crypto")
 
-  testCompile project(":gobblin-test-utils")
-  testCompile externalDependency.testng
+public class AvroToJsonStringConverter extends AvroToJsonStringConverterBase<String> {
+  @Override
+  protected String processUtf8Bytes(byte[] utf8Bytes) {
+    return new String(utf8Bytes, StandardCharsets.UTF_8);
+  }
 }
-
-ext.classification="library"
-

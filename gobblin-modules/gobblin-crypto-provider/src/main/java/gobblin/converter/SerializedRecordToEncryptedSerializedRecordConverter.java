@@ -21,36 +21,33 @@ package gobblin.converter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.util.List;
+import java.util.Collections;
 import java.util.Map;
-
-import com.google.common.collect.ImmutableList;
 
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.codec.StreamCodec;
 import gobblin.configuration.WorkUnitState;
 import gobblin.crypto.EncryptionConfigParser;
 import gobblin.crypto.EncryptionFactory;
-import gobblin.type.SerializedRecord;
-import gobblin.util.io.StreamUtils;
-import gobblin.codec.StreamCodec;
+import gobblin.type.RecordWithMetadata;
 
 
 /**
- * A converter that converts a {@link SerializedRecord} to a new {@link SerializedRecord}
+ * A converter that converts a {@link gobblin.type.SerializedRecordWithMetadata} to a new {@link gobblin.type.SerializedRecordWithMetadata}
  * where the serialized bytes represent encrypted data. The encryption algorithm used will be
- * appended to the content type of the new SerializedRecord object.
+ * appended to the Transfer-Encoding of the new record.
  */
 @Slf4j
-public class SerializedRecordToEncryptedSerializedRecordConverter extends Converter<String, String, SerializedRecord, SerializedRecord> {
+public class SerializedRecordToEncryptedSerializedRecordConverter extends Converter<String, String, RecordWithMetadata<byte[]>, RecordWithMetadata<byte[]>> {
   private StreamCodec encryptor;
 
   @Override
-  public Converter<String, String, SerializedRecord, SerializedRecord> init(WorkUnitState workUnit) {
+  public Converter<String, String, RecordWithMetadata<byte[]>, RecordWithMetadata<byte[]>> init(
+      WorkUnitState workUnit) {
     super.init(workUnit);
 
-    Map<String, Object> encryptionConfig = EncryptionConfigParser.getConfigForBranch(workUnit);
+    Map<String, Object> encryptionConfig = EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, workUnit);
     if (encryptionConfig == null) {
       throw new IllegalStateException("No encryption config specified in job - can't encrypt!");
     }
@@ -66,20 +63,20 @@ public class SerializedRecordToEncryptedSerializedRecordConverter extends Conver
   }
 
   @Override
-  public Iterable<SerializedRecord> convertRecord(String outputSchema, SerializedRecord inputRecord,
+  public Iterable<RecordWithMetadata<byte[]>> convertRecord(String outputSchema, RecordWithMetadata<byte[]> inputRecord,
       WorkUnitState workUnit)
       throws DataConversionException {
     try {
       ByteArrayOutputStream bOs = new ByteArrayOutputStream();
-      OutputStream encryptedStream = encryptor.encodeOutputStream(bOs);
-      StreamUtils.byteBufferToOutputStream(inputRecord.getRecord(), encryptedStream);
+      try (OutputStream encryptedStream = encryptor.encodeOutputStream(bOs)) {
+        encryptedStream.write(inputRecord.getRecord());
+      }
+      inputRecord.getMetadata().getGlobalMetadata().addTransferEncoding(encryptor.getTag());
 
-      List<String> contentTypes =
-          ImmutableList.<String>builder().addAll(inputRecord.getContentTypes()).add(encryptor.getTag()).build();
+      RecordWithMetadata<byte[]> serializedRecord =
+          new RecordWithMetadata<byte[]>(bOs.toByteArray(), inputRecord.getMetadata());
 
-      SerializedRecord serializedRecord = new SerializedRecord(ByteBuffer.wrap(bOs.toByteArray()), contentTypes);
-
-      return new SingleRecordIterable<>(serializedRecord);
+      return Collections.singleton(serializedRecord);
     } catch (Exception e) {
       throw new DataConversionException(e);
     }

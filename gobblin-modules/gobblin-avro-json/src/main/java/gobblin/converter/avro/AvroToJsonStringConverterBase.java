@@ -18,6 +18,7 @@
 package gobblin.converter.avro;
 
 import java.io.IOException;
+import java.util.Collections;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -38,14 +39,14 @@ import gobblin.converter.SchemaConversionException;
 /**
  * Converts an Avro record to a json string.
  */
-public class AvroToJsonStringConverter extends Converter<Schema, String, GenericRecord, String> {
+public abstract class AvroToJsonStringConverterBase<T> extends Converter<Schema, String, GenericRecord, T> {
 
   private Schema schema;
 
   private final ThreadLocal<Serializer> serializer = new ThreadLocal<Serializer>() {
     @Override
     protected Serializer initialValue() {
-      return new Serializer(AvroToJsonStringConverter.this.schema);
+      return new Serializer(AvroToJsonStringConverterBase.this.schema);
     }
   };
 
@@ -65,11 +66,11 @@ public class AvroToJsonStringConverter extends Converter<Schema, String, Generic
       }
     }
 
-    public String serialize(GenericRecord record) throws IOException {
+    public byte[] serialize(GenericRecord record) throws IOException {
       this.outputStream.reset();
       this.writer.write(record, this.encoder);
       this.encoder.flush();
-      return this.outputStream.toString(Charsets.UTF_8);
+      return this.outputStream.toByteArray();
     }
   }
 
@@ -81,12 +82,15 @@ public class AvroToJsonStringConverter extends Converter<Schema, String, Generic
   }
 
   @Override
-  public Iterable<String> convertRecord(String outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Iterable<T> convertRecord(String outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     try {
-      return Lists.newArrayList(this.serializer.get().serialize(inputRecord));
+      byte[] utf8Bytes = this.serializer.get().serialize(inputRecord);
+      return Collections.singleton(processUtf8Bytes(utf8Bytes));
     } catch (IOException ioe) {
       throw new DataConversionException(ioe);
     }
   }
+
+  protected abstract T processUtf8Bytes(byte[] utf8Bytes);
 }

@@ -3,13 +3,13 @@ gobblin.workDir=gobblin
 
 launcher.type=LOCAL
 
-
+# FIXME!
 job.name=TestSourceToEventhub
 job.group=eventhubTest
 job.description=Pull from Test Source and write to Eventhub
 gobblin.workDir=gobblin
 source.class=gobblin.source.extractor.hadoop.AvroFileSource
-converter.classes=gobblin.converter.AnyToJsonRecordWithMetadataConverter,gobblin.converter.AnyToSerializedRecordConverter,gobblin.converter.SerializedRecordToJsonStringConverter
+converter.classes=gobblin.converter.RecordWithMetadataToEnvelopedRecordWithMetadata,gobblin.converter.AnyToSerializedRecordConverter,gobblin.converter.SerializedRecordToJsonStringConverter
 
 source.filebased.fs.uri=file://localhost/
 job.lock.dir=/tmp/gobblin-eventhub/locks

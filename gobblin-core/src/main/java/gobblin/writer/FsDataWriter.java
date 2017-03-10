@@ -53,7 +53,7 @@ import gobblin.util.recordcount.IngestionRecordCountProvider;
  *
  * @author akshay@nerdwallet.com
  */
-public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
+public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, MetadataAwareWriter, SpeculativeAttemptAwareConstruct {
 
   private static final Logger LOG = LoggerFactory.getLogger(FsDataWriter.class);
 
@@ -82,7 +82,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
   protected Optional<Long> bytesWritten;
   private final List<StreamCodec> encoders;
 
-  public FsDataWriter(FsDataWriterBuilder<?, D> builder, State properties) throws IOException {
+  public FsDataWriter(FsDataWriterBuilder<?, ?> builder, State properties) throws IOException {
     this.properties = properties;
     this.id = builder.getWriterId();
     this.numBranches = builder.getBranches();
@@ -191,7 +191,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
     return encoders;
   }
 
-  protected GlobalMetadata getDefaultMetadata() {
+  public GlobalMetadata getDefaultMetadata() {
     return defaultMetadata;
   }
 
@@ -244,10 +244,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
 
     HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile);
 
-    String propName =
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_METADATA_KEY, numBranches, branchId);
-    this.properties.setProp(propName, getDefaultMetadata().toJson());
-  }
+ }
 
   /**
    * {@inheritDoc}.

@@ -18,9 +18,13 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":gobblin-core-base")
-  compile project(":gobblin-runtime")
-  compile project(":gobblin-modules:gobblin-crypto")
+  /*
+   * Keep these dependencies as small as possible: we should not rely on
+   * gobblin-runtime, -core etc as they pull in huge transitive dependency trees!
+   */
+  compile project(":gobblin-api")
+  compile project(":gobblin-modules:gobblin-metadata")
+  compile externalDependency.slf4j
 
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.testng

@@ -14,17 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.writer;
 
-apply plugin: 'java'
+import gobblin.metadata.types.GlobalMetadata;
 
-dependencies {
-  compile project(":gobblin-core-base")
-  compile project(":gobblin-runtime")
-  compile project(":gobblin-modules:gobblin-crypto")
 
-  testCompile project(":gobblin-test-utils")
-  testCompile externalDependency.testng
+/**
+ * Represents a Writer that is metadata aware
+ */
+public interface MetadataAwareWriter {
+  GlobalMetadata getDefaultMetadata();
 }
-
-ext.classification="library"
-
