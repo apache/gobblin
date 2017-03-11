@@ -53,7 +53,7 @@ public class PartitionerTest {
     expectedPartitions.add(new Partition(20170101000000L, 20170101060000L));
     expectedPartitions.add(new Partition(20170101070000L, 20170101120000L, true));
     List<Partition> partitions = partitioner.getPartitionList(-1);
-    Collections.sort(partitions, Partitioner.getAscendingComparator());
+    Collections.sort(partitions, Partitioner.ascendingComparator);
     Assert.assertEquals(partitions, expectedPartitions);
   }
 

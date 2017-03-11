@@ -201,7 +201,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       }
 
       List<Partition> partitions = new Partitioner(combinedState).getPartitionList(previousWatermark);
-      Collections.sort(partitions, Partitioner.getAscendingComparator());
+      Collections.sort(partitions, Partitioner.ascendingComparator);
 
       // {@link ConfigurationKeys.EXTRACT_TABLE_NAME_KEY} specify the output path for Extract
       String outputTableName = sourceEntity.getDestTableName();

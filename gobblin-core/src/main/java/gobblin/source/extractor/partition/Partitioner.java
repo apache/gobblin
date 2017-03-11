@@ -46,9 +46,26 @@ public class Partitioner {
   private static final String WATERMARKTIMEFORMAT = "yyyyMMddHHmmss";
   private static final Logger LOG = LoggerFactory.getLogger(Partitioner.class);
   public static final String HAS_USER_SPECIFIED_HIGH_WATERMARK = "has.user.specified.high.watermark";
-  private static Comparator<Partition> ascendingComparator = null;
+
+  public static final Comparator<Partition> ascendingComparator = new Comparator<Partition>() {
+    @Override
+    public int compare(Partition p1, Partition p2) {
+      if (p1 == null && p2 == null) {
+        return 0;
+      }
+      if (p1 == null) {
+        return -1;
+      }
+      if (p2 == null) {
+        return 1;
+      }
+      return p1.getLowWatermark() > p2.getLowWatermark() ? 1 : -1;
+    }
+  };
 
   private SourceState state;
+
+  // Indicate if the user specifies a high watermark for the current run
   @VisibleForTesting
   protected boolean hasUserSpecifiedHighWatermark;
 
@@ -489,26 +506,5 @@ public class Partitioner {
   @VisibleForTesting
   public DateTime getCurrentTime(String timeZone) {
     return Utils.getCurrentTime(timeZone);
-  }
-
-  public static Comparator<Partition> getAscendingComparator() {
-    if (ascendingComparator == null) {
-      ascendingComparator = new Comparator<Partition>() {
-        @Override
-        public int compare(Partition p1, Partition p2) {
-          if (p1 == null && p2 == null) {
-            return 0;
-          }
-          if (p1 == null) {
-            return -1;
-          }
-          if (p2 == null) {
-            return 1;
-          }
-          return p1.getLowWatermark() > p2.getLowWatermark() ? 1 : -1;
-        }
-      };
-    }
-    return ascendingComparator;
   }
 }
