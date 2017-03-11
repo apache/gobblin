@@ -48,6 +48,7 @@ ext.externalDependency = [
     "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:3.2.9",
     "eventhub": "com.microsoft.azure:azure-eventhubs:0.9.0",
     "guava": "com.google.guava:guava:20.0",
+    "errorProneAnnotations":"com.google.errorprone:error_prone_annotations:2.0.12",
     "gson": "com.google.code.gson:gson:2.6.2",
     "findBugsAnnotations": "com.google.code.findbugs:jsr305:" + findBugsVersion,
     "hadoopCommon": "org.apache.hadoop:hadoop-common:" + hadoopVersion,
