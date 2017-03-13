@@ -79,7 +79,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   public static final boolean DEFAULT_SOURCE_OBTAIN_TABLE_PROPS_FROM_CONFIG_STORE = false;
   private static final String QUERY_BASED_SOURCE = "query_based_source";
   public static final String WORK_UNIT_STATE_VERSION_KEY = "source.querybased.workUnitState.version";
-  public static final String IS_LAST_WORK_UNIT = "source.querybased.is.last.work.unit";
+  public static final String IS_LAST_WORK_UNIT = "source.querybased.isLastWorkUnit";
   /**
    * WorkUnit Version 3:
    *    SOURCE_ENTITY = as specified in job config

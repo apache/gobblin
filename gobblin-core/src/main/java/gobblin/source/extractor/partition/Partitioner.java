@@ -45,7 +45,7 @@ import gobblin.source.extractor.watermark.WatermarkType;
 public class Partitioner {
   private static final String WATERMARKTIMEFORMAT = "yyyyMMddHHmmss";
   private static final Logger LOG = LoggerFactory.getLogger(Partitioner.class);
-  public static final String HAS_USER_SPECIFIED_HIGH_WATERMARK = "has.user.specified.high.watermark";
+  public static final String HAS_USER_SPECIFIED_HIGH_WATERMARK = "partitioner.hasUserSpecifiedHighWatermark";
 
   public static final Comparator<Partition> ascendingComparator = new Comparator<Partition>() {
     @Override
@@ -59,6 +59,7 @@ public class Partitioner {
       if (p2 == null) {
         return 1;
       }
+      // For compactness, treat the '==' case as '<'
       return p1.getLowWatermark() > p2.getLowWatermark() ? 1 : -1;
     }
   };
