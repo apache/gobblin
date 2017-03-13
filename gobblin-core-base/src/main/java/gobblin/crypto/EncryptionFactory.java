@@ -19,6 +19,7 @@ package gobblin.crypto;
 import java.util.Map;
 import java.util.ServiceLoader;
 
+import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.codec.StreamCodec;
@@ -57,6 +58,7 @@ public class EncryptionFactory {
    * @return A StreamCodec for that algorithm
    * @throws IllegalArgumentException If the given algorithm/parameter pair cannot be built
    */
+  @Synchronized
   public static StreamCodec buildStreamCryptoProvider(String algorithm, Map<String, Object> parameters) {
     for (EncryptionProvider provider: encryptionProviderLoader) {
       log.debug("Looking for algorithm {} in provider {}", algorithm, provider.getClass().getName());
