@@ -54,7 +54,7 @@ import gobblin.util.limiter.RateBasedLimiter;
  */
 @Slf4j
 class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[]> {
-
+  private final int _queueSize;
   private final RateBasedLimiter LIMITER;
   private final int ROUND_TIME_OUT;
   private final int BATCH_SIZE;
@@ -82,6 +82,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
     Preconditions.checkArgument(!filterMap.containsKey(GoogleWebmasterFilter.Dimension.PAGE),
         "Doesn't support filters for page for the time being. Will implement support later. If page filter is provided, the code won't take the responsibility of get all pages, so it will just return all queries for that page.");
 
+    _queueSize = wuState.getPropAsInt(AsyncIteratorWithDataSink.SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE, 2000);
     _webmaster = webmaster;
     _startDate = startDate;
     _endDate = endDate;
@@ -394,6 +395,11 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
       }
     }
   }
+
+  @Override
+  protected int getQueueSize() {
+    return _queueSize;
+  }
 }
 
 class ProgressReporter {
@@ -403,7 +409,7 @@ class ProgressReporter {
   private final int _total; //Total number of jobs.
   private final int _checkPoint; //report at every check point
 
-  public ProgressReporter(Logger log, int total) {
+  ProgressReporter(Logger log, int total) {
     this(log, total, 20);
   }
 
@@ -412,7 +418,7 @@ class ProgressReporter {
    * @param frequency indicate the frequency of reporting.
    *                  e.g. If set frequency to 20. Then, the reporter will report 20 times at every 5%.
    */
-  public ProgressReporter(Logger log, int total, int frequency) {
+  private ProgressReporter(Logger log, int total, int frequency) {
     _log = log;
     _total = total;
     _checkPoint = (int) Math.max(1, Math.ceil(1.0 * total / frequency));

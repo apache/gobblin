@@ -18,6 +18,10 @@ import gobblin.converter.SingleRecordIterable;
  * e.g. 99% -> 0.99
  */
 public class PercentageDoubleStringConverter extends Converter<JsonArray, JsonArray, JsonObject, JsonObject> {
+  private static final String JSON_KEY_COLUMN_NAME = "columnName";
+  private static final String JSON_KEY_DATA_TYPE = "dataType";
+  private static final String JSON_KEY_TYPE = "type";
+  
   @Override
   public Converter<JsonArray, JsonArray, JsonObject, JsonObject> init(WorkUnitState workUnit) {
     super.init(workUnit);
@@ -41,7 +45,7 @@ public class PercentageDoubleStringConverter extends Converter<JsonArray, JsonAr
       JsonElement record = inputRecord.get(col);
 
       if ("double".equals(getTypeName(schemaElement))) {
-        String recordString = record.getAsString();
+        String recordString = record.getAsString().trim();
         if (recordString.endsWith("%")) {
           outputRecord.addProperty(col, convertPercentage(recordString));
           continue;
@@ -59,10 +63,11 @@ public class PercentageDoubleStringConverter extends Converter<JsonArray, JsonAr
   }
 
   private static String getColumnName(JsonElement schemaElement) {
-    return schemaElement.getAsJsonObject().get("columnName").getAsString();
+    return schemaElement.getAsJsonObject().get(JSON_KEY_COLUMN_NAME).getAsString();
   }
 
   private static String getTypeName(JsonElement schemaElement) {
-    return schemaElement.getAsJsonObject().get("dataType").getAsJsonObject().get("type").getAsString().toLowerCase();
+    return schemaElement.getAsJsonObject().get(JSON_KEY_DATA_TYPE).getAsJsonObject().get(JSON_KEY_TYPE).getAsString()
+        .toLowerCase();
   }
 }

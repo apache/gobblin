@@ -124,13 +124,13 @@ public class HiveRegistrationUnit {
     if (state.contains(key)) {
       Optional<T> fieldValue;
 
-      if (new TypeToken<Boolean>() {}.isSubtypeOf(token)) {
+      if (new TypeToken<Boolean>() {}.isSupertypeOf(token)) {
         fieldValue = (Optional<T>) Optional.of(state.getPropAsBoolean(key));
-      } else if (new TypeToken<Integer>() {}.isSubtypeOf(token)) {
+      } else if (new TypeToken<Integer>() {}.isSupertypeOf(token)) {
         fieldValue = (Optional<T>) Optional.of(state.getPropAsInt(key));
-      } else if (new TypeToken<Long>() {}.isSubtypeOf(token)) {
+      } else if (new TypeToken<Long>() {}.isSupertypeOf(token)) {
         fieldValue = (Optional<T>) Optional.of(state.getPropAsLong(key));
-      } else if (new TypeToken<List<String>>() {}.isSubtypeOf(token)) {
+      } else if (new TypeToken<List<String>>() {}.isSupertypeOf(token)) {
         fieldValue = (Optional<T>) Optional.of(state.getPropAsList(key));
       } else {
         fieldValue = (Optional<T>) Optional.of(state.getProp(key));

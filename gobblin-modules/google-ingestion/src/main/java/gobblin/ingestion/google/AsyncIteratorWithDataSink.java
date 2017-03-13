@@ -10,10 +10,11 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
+  public static final String SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE = "source.async_iterator_blocking_queue_size";
   private final Object lock = new Object();
   private volatile Throwable exceptionInProducerThread = null;
   private Thread _producerThread;
-  protected LinkedBlockingDeque<T> _dataSink = new LinkedBlockingDeque<>(2000);
+  protected LinkedBlockingDeque<T> _dataSink = new LinkedBlockingDeque<>(getQueueSize());
 
   @Override
   public boolean hasNext() {
@@ -79,5 +80,9 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
         }
       }
     };
+  }
+
+  protected int getQueueSize() {
+    return 2000;
   }
 }

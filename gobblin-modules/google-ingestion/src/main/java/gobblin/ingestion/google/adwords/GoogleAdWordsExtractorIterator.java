@@ -9,13 +9,15 @@ import gobblin.ingestion.google.AsyncIteratorWithDataSink;
 
 @Slf4j
 public class GoogleAdWordsExtractorIterator extends AsyncIteratorWithDataSink<String[]> {
+  private final int _queueSize;
   private GoogleAdWordsReportDownloader _googleAdWordsReportDownloader;
   private Collection<String> _accounts;
 
   public GoogleAdWordsExtractorIterator(GoogleAdWordsReportDownloader googleAdWordsReportDownloader,
-      Collection<String> accounts) {
+      Collection<String> accounts, int queueSize) {
     _googleAdWordsReportDownloader = googleAdWordsReportDownloader;
     _accounts = accounts;
+    _queueSize = queueSize;
   }
 
   @Override
@@ -31,5 +33,10 @@ public class GoogleAdWordsExtractorIterator extends AsyncIteratorWithDataSink<St
         }
       }
     };
+  }
+
+  @Override
+  protected int getQueueSize() {
+    return _queueSize;
   }
 }

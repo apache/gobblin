@@ -30,7 +30,21 @@ public class PercentageDoubleStringConverterTest {
     converter.close();
 
     JsonObject converted = iterable.iterator().next();
-    Assert.assertEquals(converted.toString(),
-        "{\"Date\":\"20160924\",\"DeviceCategory\":\"desktop\",\"Sessions\":\"4\",\"BounceRate\":\"0.044\",\"AvgSessionDuration\":\"0.001\",\"Pageviews\":\"3\",\"PageviewsPerSession\":\"8.1\",\"UniquePageviews\":\"2\",\"AvgTimeOnPage\":\"1.0\",\"User_count\":\"17\"}");
+    Assert.assertEquals(converted.toString(), getExpectedJson().toString());
+  }
+
+  private JsonObject getExpectedJson() {
+    JsonObject json = new JsonObject();
+    json.addProperty("Date", "20160924");
+    json.addProperty("DeviceCategory", "desktop");
+    json.addProperty("Sessions", "4");
+    json.addProperty("BounceRate", "0.044");
+    json.addProperty("AvgSessionDuration", "0.001");
+    json.addProperty("Pageviews", "3");
+    json.addProperty("PageviewsPerSession", "8.1");
+    json.addProperty("UniquePageviews", "2");
+    json.addProperty("AvgTimeOnPage", "1.0");
+    json.addProperty("User_count", "17");
+    return json;
   }
 }

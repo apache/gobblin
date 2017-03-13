@@ -33,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.avro.JsonElementConversionFactory;
+import gobblin.ingestion.google.AsyncIteratorWithDataSink;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.LongWatermark;
@@ -93,10 +94,13 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
       throw new RuntimeException(String.format("Failed downloading report %s", reportType), e);
     }
 
-    _iterator = new GoogleAdWordsExtractorIterator(
-        new GoogleAdWordsReportDownloader(rootSession, _state, dateFormatter.print(_startDate),
-            dateFormatter.print(_expectedEndDate), reportType, dateRangeType, _schema),
-        getConfiguredAccounts(rootSession, state));
+    String startDate = dateFormatter.print(_startDate);
+    String endDate = dateFormatter.print(_expectedEndDate);
+    GoogleAdWordsReportDownloader downloader =
+        new GoogleAdWordsReportDownloader(rootSession, _state, startDate, endDate, reportType, dateRangeType, _schema);
+
+    _iterator = new GoogleAdWordsExtractorIterator(downloader, getConfiguredAccounts(rootSession, state),
+        state.getPropAsInt(AsyncIteratorWithDataSink.SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE, 2000));
   }
 
   /**
