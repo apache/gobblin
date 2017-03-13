@@ -186,4 +186,32 @@ public class DefaultGobblinBrokerTest {
     Assert.assertTrue(jobResource.isClosed());
     Assert.assertTrue(taskResource.isClosed());
   }
+
+  @Test
+  public void testScopedView() throws Exception {
+    Config config = ConfigFactory.empty();
+
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
+
+    SharedResourcesBrokerImpl<GobblinScopeTypes> instanceView = jobBroker.getScopedView(GobblinScopeTypes.INSTANCE);
+    Assert.assertEquals(instanceView.selfScope().getType(), GobblinScopeTypes.INSTANCE);
+
+    TestFactory.SharedResource resource =
+        instanceView.getSharedResource(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"));
+    TestFactory.SharedResource resource2 =
+        jobBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.INSTANCE);
+    Assert.assertEquals(resource, resource2);
+
+    try {
+      instanceView.newSubscopedBuilder(new JobScopeInstance("otherJob", "job234"));
+      Assert.fail();
+    } catch (UnsupportedOperationException exc) {
+      // Expected
+    }
+
+  }
 }

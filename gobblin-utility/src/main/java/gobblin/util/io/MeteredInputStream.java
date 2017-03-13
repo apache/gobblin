@@ -18,24 +18,36 @@
 package gobblin.util.io;
 
 import java.io.FilterInputStream;
-import java.io.FilterStreamUnpacker;
 import java.io.IOException;
 import java.io.InputStream;
 
 import com.codahale.metrics.Meter;
 import com.google.common.base.Optional;
 
-import lombok.Getter;
+import lombok.Builder;
+import lombok.extern.slf4j.Slf4j;
 
 
-public class MeteredInputStream extends FilterInputStream {
+/**
+ * A {@link FilterInputStream} that counts the bytes read from the underlying {@link InputStream}.
+ */
+@Slf4j
+public class MeteredInputStream extends FilterInputStream implements MeteredStream {
 
+  /**
+   * Find the lowest {@link MeteredInputStream} in a chain of {@link FilterInputStream}s.
+   */
   public static Optional<MeteredInputStream> findWrappedMeteredInputStream(InputStream is) {
     if (is instanceof FilterInputStream) {
-      Optional<MeteredInputStream> meteredInputStream =
-          findWrappedMeteredInputStream(FilterStreamUnpacker.unpackFilterInputStream((FilterInputStream) is));
-      if (meteredInputStream.isPresent()) {
-        return meteredInputStream;
+      try {
+        Optional<MeteredInputStream> meteredInputStream =
+            findWrappedMeteredInputStream(FilterStreamUnpacker.unpackFilterInputStream((FilterInputStream) is));
+        if (meteredInputStream.isPresent()) {
+          return meteredInputStream;
+        }
+      } catch (IllegalAccessException iae) {
+        log.warn("Cannot unpack input stream due to SecurityManager.", iae);
+        // Do nothing, we can't unpack the FilterInputStream due to security restrictions
       }
     }
     if (is instanceof MeteredInputStream) {
@@ -44,22 +56,27 @@ public class MeteredInputStream extends FilterInputStream {
     return Optional.absent();
   }
 
-  @Getter
-  BatchedMeterDecorator meter;
+  private BatchedMeterDecorator meter;
 
-  public MeteredInputStream(InputStream in) {
-    this(in, null);
-  }
-
-  public MeteredInputStream(InputStream in, Meter meter) {
+  /**
+   * Builds a {@link MeteredInputStream}.
+   * @param in The {@link InputStream} to measure.
+   * @param meter A {@link Meter} to use for measuring the {@link InputStream}. If null, a new {@link Meter} will be created.
+   * @param updateFrequency For performance, {@link MeteredInputStream} will batch {@link Meter} updates to this many bytes.
+   */
+  @Builder
+  private MeteredInputStream(InputStream in, Meter meter, int updateFrequency) {
     super(in);
-    this.meter = new BatchedMeterDecorator(meter == null ? new Meter() : meter, 1000);
+    this.meter = new BatchedMeterDecorator(meter == null ? new Meter() : meter, updateFrequency > 0 ? updateFrequency : 1000);
   }
 
   @Override
   public int read() throws IOException {
-    this.meter.mark();
-    return super.read();
+    int bte = super.read();
+    if (bte >= 0) {
+      this.meter.mark();
+    }
+    return bte;
   }
 
   @Override
@@ -67,5 +84,10 @@ public class MeteredInputStream extends FilterInputStream {
     int readBytes = super.read(b, off, len);
     this.meter.mark(readBytes);
     return readBytes;
+  }
+
+  @Override
+  public Meter getBytesProcessedMeter() {
+    return this.meter.getUnderlyingMeter();
   }
 }

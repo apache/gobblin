@@ -15,16 +15,17 @@
  * limitations under the License.
  */
 
-package java.io;
+package gobblin.broker;
 
-public class FilterStreamUnpacker {
+import gobblin.broker.iface.SharedResourceKey;
 
-  public static InputStream unpackFilterInputStream(FilterInputStream is) {
-    return is.in;
+
+/**
+ * A dummy {@link SharedResourceKey}.
+ */
+public final class EmptyKey implements SharedResourceKey {
+  @Override
+  public String toConfigurationKey() {
+    return null;
   }
-
-  public static OutputStream unpackFilterOutputStream(FilterOutputStream os) {
-    return os.out;
-  }
-
 }

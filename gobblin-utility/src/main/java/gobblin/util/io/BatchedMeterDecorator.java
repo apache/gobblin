@@ -24,6 +24,9 @@ import gobblin.util.Decorator;
 import javax.annotation.concurrent.NotThreadSafe;
 
 
+/**
+ * A decorator to a {@link Meter} that batches updates for performance.
+ */
 @NotThreadSafe
 public class BatchedMeterDecorator implements Decorator {
 
@@ -58,6 +61,10 @@ public class BatchedMeterDecorator implements Decorator {
 
   @Override
   public Object getDecoratedObject() {
+    return this.underlying;
+  }
+
+  public Meter getUnderlyingMeter() {
     return this.underlying;
   }
 }

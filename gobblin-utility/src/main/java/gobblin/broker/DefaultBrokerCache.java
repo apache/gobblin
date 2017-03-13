@@ -106,7 +106,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
     Object obj = this.sharedResourceCache.get(fullKey, new Callable<Object>() {
       @Override
       public Object call() throws Exception {
-        return factory.createResource(broker, broker.getConfigView(scope.getType(), key, factory.getName()));
+        return factory.createResource(broker.getScopedView(scope.getType()), broker.getConfigView(scope.getType(), key, factory.getName()));
       }
     });
     if (obj instanceof ResourceCoordinate) {

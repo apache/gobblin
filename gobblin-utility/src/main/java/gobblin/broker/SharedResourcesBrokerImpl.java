@@ -25,6 +25,7 @@ import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -40,6 +41,7 @@ import gobblin.broker.iface.SharedResourceKey;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.util.ConfigUtils;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.Data;
 
@@ -118,6 +120,16 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
     }
 
     return new KeyedScopedConfigViewImpl<>(scope, key, factoryName, config);
+  }
+
+  NonExtendableBrokerView<S> getScopedView(final S scope) throws NoSuchScopeException {
+    return new NonExtendableBrokerView<>(this.brokerCache, getWrappedScope(scope), this.scopedConfigs,
+        Maps.filterKeys(this.ancestorScopesByType, new Predicate<S>() {
+          @Override
+          public boolean apply(@Nullable S input) {
+            return SharedResourcesBrokerUtils.isScopeTypeAncestor(scope, input);
+          }
+        }));
   }
 
   ScopeWrapper<S> getWrappedScope(S scopeType) throws NoSuchScopeException {

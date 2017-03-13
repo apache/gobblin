@@ -20,6 +20,12 @@ package gobblin.util.io;
 import com.codahale.metrics.Meter;
 
 
+/**
+ * A {@link java.io.InputStream} or {@link java.io.OutputStream} that measures bytes processed.
+ */
 public interface MeteredStream {
-  Meter getMeter();
+  /**
+   * @return The {@link Meter} measuring the bytes processed.
+   */
+  Meter getBytesProcessedMeter();
 }

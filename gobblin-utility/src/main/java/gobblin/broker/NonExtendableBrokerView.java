@@ -15,26 +15,27 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package gobblin.broker;
 
-import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import gobblin.broker.iface.ScopeInstance;
+import gobblin.broker.iface.ScopeType;
+
 
 /**
- * A wrapper to {@link InputStream} that represents an entity to be copied. The enclosed {@link CopyableFile} instance
- * contains file Metadata like permission, destination path etc. required by the writers and converters.
+ * A view of a {@link SharedResourcesBrokerImpl} at a higher scope than the leaf scope. This is used only to pass into
+ * factories, and it does not allow creating subscoped brokers.
  */
-@AllArgsConstructor
-@Getter
-public class FileAwareInputStream {
-
-  private CopyableFile file;
-  private InputStream inputStream;
+class NonExtendableBrokerView<S extends ScopeType<S>> extends SharedResourcesBrokerImpl<S> {
+  public NonExtendableBrokerView(DefaultBrokerCache<S> brokerCache, ScopeWrapper<S> selfScope,
+      List<ScopedConfig<S>> scopedConfigs, Map<S, ScopeWrapper<S>> ancestorScopesByType) {
+    super(brokerCache, selfScope, scopedConfigs, ancestorScopesByType);
+  }
 
   @Override
-  public String toString() {
-    return this.file.toString();
+  public SubscopedBrokerBuilder newSubscopedBuilder(ScopeInstance<S> subscope) {
+    throw new UnsupportedOperationException();
   }
 }

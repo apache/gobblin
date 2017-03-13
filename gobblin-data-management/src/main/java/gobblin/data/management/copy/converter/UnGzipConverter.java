@@ -45,9 +45,9 @@ public class UnGzipConverter extends DistcpConverter {
   private static final String GZ_EXTENSION = ".gz";
   private static final String TGZ_EXTENSION = ".tgz";
 
-  @Override public Function<FSDataInputStream, FSDataInputStream> inputStreamTransformation() {
-    return new Function<FSDataInputStream, FSDataInputStream>() {
-      @Nullable @Override public FSDataInputStream apply(FSDataInputStream input) {
+  @Override public Function<InputStream, InputStream> inputStreamTransformation() {
+    return new Function<InputStream, InputStream>() {
+      @Nullable @Override public InputStream apply(InputStream input) {
         try {
           return StreamUtils.convertStream(new GZIPInputStream(input));
         } catch (IOException ioe) {
