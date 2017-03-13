@@ -21,6 +21,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -30,34 +31,35 @@ import gobblin.writer.partitioner.WriterPartitioner;
 
 
 /**
- * Partition the output by the date of fetched data set
+ * This day partitioner is responsible to for partition the output into the layout as
+ * - timestamp_append
+ *  - yyyy
+ *    - MM
+ *      - dd
+ *        - part.your.data.output.avro
+ *
+ * In order to get the date column for partitioning, you must provide GoggleIngestionConfigurationKeys.KEY_DATE_COLUMN_NAME,
+ * otherwise, the column will be default to "Date". And the date format is default to "yyyy-MM-dd",
+ * you can change it by configuring the key GoggleIngestionConfigurationKeys.KEY_DATE_FORMAT.
+ *
+ * You can futher enable adding column names to the output paths.
+ * If you turn on column names option (configured by GoggleIngestionConfigurationKeys.KEY_INCLUDE_COLUMN_NAMES), the layout would become
+ * - timestamp_append
+ *  - year=yyyy
+ *    - month=MM
+ *      - day=dd
+ *        - part.your.data.output.avro
  */
 public class DayPartitioner implements WriterPartitioner<GenericRecord> {
-  /**
-   * Optional. Default to String.Empty
-   * Prepend a prefix to each partition
-   */
-  public static final String KEY_PARTITIONER_PREFIX = "writer.partitioner.google_ingestion.prefix";
-  /**
-   * Optional. Default to false.
-   * Determine whether to include column names into the partition path.
-   */
-  public static final String KEY_INCLUDE_COLUMN_NAMES = "writer.partitioner.google_ingestion.column_names.include";
-  /**
-   * Optional. Default to "Date".
-   * Configure the column name for "Date" field/column.
-   */
-  public static final String KEY_DATE_COLUMN_NAME = "writer.partitioner.google_ingestion.date.column_name";
-  /**
-   * Optional. Default to "yyyy-MM-dd".
-   * Configure the date string format for date value in records
-   */
-  public static final String KEY_DATE_FORMAT = "writer.partitioner.google_ingestion.date.format";
-
   private static final String PARTITION_COLUMN_PREFIX = "type";
   private static final String PARTITION_COLUMN_YEAR = "year";
   private static final String PARTITION_COLUMN_MONTH = "month";
   private static final String PARTITION_COLUMN_DAY = "day";
+
+  private static final String DEFAULT_DATE_COLUMN = "Date";
+  private static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
+  private static final String NAME = "YearMonthDayPartitioner";
+  private static final String NAME_SPACE = "gobblin.ingestion.google";
 
   private final boolean _withColumnNames;
   private final String _prefix;
@@ -67,14 +69,15 @@ public class DayPartitioner implements WriterPartitioner<GenericRecord> {
   private final Schema _partitionSchema;
 
   public DayPartitioner(State state, int numBranches, int branchId) {
-    _withColumnNames = state.getPropAsBoolean(KEY_INCLUDE_COLUMN_NAMES, false);
-    _prefix = state.getProp(KEY_PARTITIONER_PREFIX);
-    _withPrefix = _prefix != null && !_prefix.trim().equals("");
-    _dateColumn = state.getProp(KEY_DATE_COLUMN_NAME, "Date");
-    _dateFormatter = DateTimeFormat.forPattern(state.getProp(KEY_DATE_FORMAT, "yyyy-MM-dd"));
+    _withColumnNames = state.getPropAsBoolean(GoggleIngestionConfigurationKeys.KEY_INCLUDE_COLUMN_NAMES, false);
+    _prefix = state.getProp(GoggleIngestionConfigurationKeys.KEY_PARTITIONER_PREFIX);
+    _withPrefix = StringUtils.isNotBlank(_prefix);
 
-    SchemaBuilder.FieldAssembler<Schema> assembler =
-        SchemaBuilder.record("YearMonthDayPartitioner").namespace("gobblin.ingestion.google.webmaster").fields();
+    _dateColumn = state.getProp(GoggleIngestionConfigurationKeys.KEY_DATE_COLUMN_NAME, DEFAULT_DATE_COLUMN);
+    _dateFormatter =
+        DateTimeFormat.forPattern(state.getProp(GoggleIngestionConfigurationKeys.KEY_DATE_FORMAT, DEFAULT_DATE_FORMAT));
+    
+    SchemaBuilder.FieldAssembler<Schema> assembler = SchemaBuilder.record(NAME).namespace(NAME_SPACE).fields();
     Schema stringType = Schema.create(Schema.Type.STRING);
 
     if (_withPrefix) {

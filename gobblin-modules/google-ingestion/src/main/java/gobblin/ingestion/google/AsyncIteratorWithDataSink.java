@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
-  public static final String SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE = "source.async_iterator_blocking_queue_size";
   private final Object lock = new Object();
   private volatile Throwable exceptionInProducerThread = null;
   private Thread _producerThread;
@@ -23,11 +22,11 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
       return true;
     }
     try {
-      T next = _dataSink.poll(1, TimeUnit.SECONDS);
+      T next = _dataSink.poll(getPollBlockingTime(), TimeUnit.SECONDS);
       while (next == null) {
         if (_producerThread.isAlive()) {
           //Job not done yet. Keep waiting...
-          next = _dataSink.poll(1, TimeUnit.SECONDS);
+          next = _dataSink.poll(getPollBlockingTime(), TimeUnit.SECONDS);
         } else {
           synchronized (lock) {
             if (exceptionInProducerThread != null) {
@@ -84,5 +83,12 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
 
   protected int getQueueSize() {
     return 2000;
+  }
+
+  /**
+   * @return the poll blocking time in seconds
+   */
+  protected int getPollBlockingTime() {
+    return 1;
   }
 }

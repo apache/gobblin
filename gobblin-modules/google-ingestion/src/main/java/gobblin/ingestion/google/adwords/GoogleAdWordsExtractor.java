@@ -99,8 +99,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
     GoogleAdWordsReportDownloader downloader =
         new GoogleAdWordsReportDownloader(rootSession, _state, startDate, endDate, reportType, dateRangeType, _schema);
 
-    _iterator = new GoogleAdWordsExtractorIterator(downloader, getConfiguredAccounts(rootSession, state),
-        state.getPropAsInt(AsyncIteratorWithDataSink.SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE, 2000));
+    _iterator = new GoogleAdWordsExtractorIterator(downloader, getConfiguredAccounts(rootSession, state), state);
   }
 
   /**
