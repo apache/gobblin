@@ -59,14 +59,15 @@ public class Partitioner {
       if (p2 == null) {
         return 1;
       }
-      // For compactness, treat the '==' case as '<'
-      return p1.getLowWatermark() > p2.getLowWatermark() ? 1 : -1;
+      return Long.compare(p1.getLowWatermark(), p2.getLowWatermark());
     }
   };
 
   private SourceState state;
 
-  // Indicate if the user specifies a high watermark for the current run
+  /**
+   * Indicate if the user specifies a high watermark for the current run
+   */
   @VisibleForTesting
   protected boolean hasUserSpecifiedHighWatermark;
 
@@ -151,7 +152,8 @@ public class Partitioner {
       if (partitionHighWatermark.equals(highestWatermark)) {
         partitions.add(new Partition(entry.getKey(), partitionHighWatermark, hasUserSpecifiedHighWatermark));
       } else {
-        partitions.add(new Partition(entry.getKey(), partitionHighWatermark));
+        // The partitionHighWatermark was computed on the fly not what user specifies
+        partitions.add(new Partition(entry.getKey(), partitionHighWatermark, false));
       }
     }
     return partitions;
