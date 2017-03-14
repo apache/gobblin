@@ -17,6 +17,9 @@
 
 package gobblin.util;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -27,6 +30,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.jasypt.util.text.BasicTextEncryptor;
 import org.jasypt.util.text.StrongTextEncryptor;
+import org.jasypt.util.text.TextEncryptor;
 
 import com.google.common.base.Optional;
 
@@ -46,6 +50,9 @@ public class CLIPasswordEncryptor {
   private static final char MASTER_PWD_OPTION = 'm';
   private static final char STRONG_ENCRYPTOR_OPTION = 's';
   private static final char MASTER_PWD_FILE_OPTION = 'f';
+  private static final char ENCRYPTED_PWD_OPTION = 'e';
+
+  private static final Pattern ENCRYPTED_PATTERN = Pattern.compile("ENC\\(([^)]+)\\)");
 
   private static final Options CLI_OPTIONS = new Options();
 
@@ -55,19 +62,35 @@ public class CLIPasswordEncryptor {
       printUsage();
       return;
     }
-    String plain = cl.getOptionValue(PLAIN_PWD_OPTION);
     String masterPassword = getMasterPassword(cl);
-    String encrypted;
+    TextEncryptor encryptor = getEncryptor(cl, masterPassword);
+
+    if (cl.hasOption(ENCRYPTED_PWD_OPTION)) {
+      Matcher matcher = ENCRYPTED_PATTERN.matcher(cl.getOptionValue(ENCRYPTED_PWD_OPTION));
+      if (matcher.find()) {
+        String encrypted = matcher.group(1);
+        System.out.println(encryptor.decrypt(encrypted));
+      } else {
+        throw new RuntimeException("Input encrypted password does not match pattern \"ENC(...)\"");
+      }
+    } else if (cl.hasOption(PLAIN_PWD_OPTION)){
+      System.out.println("ENC(" + encryptor.encrypt(cl.getOptionValue(PLAIN_PWD_OPTION)) + ")");
+    } else {
+      printUsage();
+      throw new RuntimeException(String.format("Must provide -%s or -%s option.", PLAIN_PWD_OPTION, ENCRYPTED_PWD_OPTION));
+    }
+  }
+
+  private static TextEncryptor getEncryptor(CommandLine cl, String masterPassword) {
     if (cl.hasOption(STRONG_ENCRYPTOR_OPTION)) {
       StrongTextEncryptor encryptor = new StrongTextEncryptor();
       encryptor.setPassword(masterPassword);
-      encrypted = encryptor.encrypt(plain);
+      return encryptor;
     } else {
       BasicTextEncryptor encryptor = new BasicTextEncryptor();
       encryptor.setPassword(masterPassword);
-      encrypted = encryptor.encrypt(plain);
+      return encryptor;
     }
-    System.out.println("ENC(" + encrypted + ")");
   }
 
   private static String getMasterPassword(CommandLine cl) {
@@ -101,6 +124,7 @@ public class CLIPasswordEncryptor {
     options.addOption(Option.builder(StringUtils.EMPTY + MASTER_PWD_FILE_OPTION).argName("master password file")
         .hasArg().desc("file that contains the master password used to encrypt the plain password").build());
     options.addOption(new Option(StringUtils.EMPTY + STRONG_ENCRYPTOR_OPTION, "use strong encryptor"));
+    options.addOption(Option.builder(StringUtils.EMPTY + ENCRYPTED_PWD_OPTION).argName("decrypt the input").hasArg().build());
     return options;
   }
 
@@ -108,7 +132,7 @@ public class CLIPasswordEncryptor {
     if (cl.hasOption(HELP_OPTION)) {
       return true;
     }
-    if (!cl.hasOption(PLAIN_PWD_OPTION) || !masterpasswordProvided(cl)) {
+    if (!masterpasswordProvided(cl)) {
       return true;
     }
     return false;
