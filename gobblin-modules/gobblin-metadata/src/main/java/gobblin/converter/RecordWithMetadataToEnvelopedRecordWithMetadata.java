@@ -29,7 +29,7 @@ import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import gobblin.configuration.WorkUnitState;
-import gobblin.metadata.types.Metadata;
+import gobblin.metadata.types.GlobalMetadata;
 import gobblin.type.ContentTypeUtils;
 import gobblin.type.RecordWithMetadata;
 
@@ -83,7 +83,7 @@ public class RecordWithMetadataToEnvelopedRecordWithMetadata extends Converter<O
 
   private void writeRecord(RecordWithMetadata<?> inputRecord, JsonGenerator generator)
       throws IOException {
-    if (treatRecordAsUtf8String(inputRecord)) {
+    if (shouldInterpretRecordAsUtf8ByteArray(inputRecord)) {
       generator.writeFieldName("r");
       byte[] bytes = (byte[]) inputRecord.getRecord();
       generator.writeUTF8String(bytes, 0, bytes.length);
@@ -102,17 +102,18 @@ public class RecordWithMetadataToEnvelopedRecordWithMetadata extends Converter<O
   }
 
   private void updateRecordMetadata(RecordWithMetadata<?> inputRecord) {
-    Metadata md = inputRecord.getMetadata();
+    GlobalMetadata md = inputRecord.getMetadata().getGlobalMetadata();
 
-    String origContentType = md.getGlobalMetadata().getContentType();
+    String origContentType = md.getContentType();
     if (origContentType != null) {
-      md.getGlobalMetadata().setInnerContentType(origContentType);
+      md.setInnerContentType(origContentType);
     }
 
-    md.getGlobalMetadata().setContentType(CONTENT_TYPE);
+    md.setContentType(CONTENT_TYPE);
+    md.markImmutable();
   }
 
-  private boolean treatRecordAsUtf8String(RecordWithMetadata<?> inputRecord) {
+  private boolean shouldInterpretRecordAsUtf8ByteArray(RecordWithMetadata<?> inputRecord) {
     if (inputRecord.getRecord() instanceof byte[]) {
       return ContentTypeUtils.getInstance().inferPrintableFromMetadata(inputRecord.getMetadata());
     }

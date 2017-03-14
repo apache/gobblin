@@ -101,6 +101,26 @@ public class GlobalMetadataTest {
     Assert.assertNotEquals(m1.getId(), m2.getId());
   }
 
+  @Test(expectedExceptions = UnsupportedOperationException.class)
+  public void testImmutableGlobal() {
+    GlobalMetadata md = new GlobalMetadata();
+    md.setDatasetUrn("Hello");
+    md.markImmutable();
+
+    Assert.assertEquals(md.getDatasetUrn(), "Hello");
+    md.setDatasetUrn("World"); // should throw
+  }
+
+  @Test(expectedExceptions = UnsupportedOperationException.class)
+  public void testImmutableDataset() {
+    GlobalMetadata md = new GlobalMetadata();
+    md.setFileMetadata("file1", "key1", "val1");
+    md.markImmutable();
+
+    Assert.assertEquals(md.getFileMetadata("file1", "key1"), "val1");
+    md.setFileMetadata("file1", "key1", "val2"); // should throw
+
+  }
   protected GlobalMetadata buildMetadata() {
     GlobalMetadata m = new GlobalMetadata();
     m.addTransferEncoding("foo");

@@ -56,6 +56,8 @@ public class GlobalMetadata {
   @JsonProperty("id")
   private String cachedId;
 
+  private transient boolean markedImmutable;
+
   private final static String DATASET_URN_KEY = "Dataset-URN";
   private final static String TRANSFER_ENCODING_KEY = "Transfer-Encoding";
   private final static String CONTENT_TYPE_KEY = "Content-Type";
@@ -66,8 +68,21 @@ public class GlobalMetadata {
    * Create a new, empty, metadata descriptor.
    */
   public GlobalMetadata() {
-    datasetLevel = new ConcurrentHashMap<>();
-    fileLevel = new ConcurrentHashMap<>();
+    this.datasetLevel = new ConcurrentHashMap<>();
+    this.fileLevel = new ConcurrentHashMap<>();
+    this.markedImmutable = false;
+  }
+
+  /**
+   * Mark the metadata as immutable. Once this flag is set all attempts to modify the object
+   * will fail with {@link UnsupportedOperationException}.
+   */
+  public void markImmutable() {
+    this.markedImmutable = true;
+  }
+
+  public boolean isImmutable() {
+    return this.markedImmutable;
   }
 
   /**
@@ -85,6 +100,8 @@ public class GlobalMetadata {
    * @param other Metadata object to add
    */
   public void addAll(GlobalMetadata other) {
+    throwIfImmutable();
+
     datasetLevel.putAll(other.datasetLevel);
     for (Map.Entry<String, Map<String, Object>> e : other.fileLevel.entrySet()) {
       Map<String, Object> val = new ConcurrentHashMap<>();
@@ -118,7 +135,7 @@ public class GlobalMetadata {
 
     for (Map.Entry<String, Object> entry : defaults.datasetLevel.entrySet()) {
       if (!datasetLevel.containsKey(entry.getKey())) {
-        datasetLevel.put(entry.getKey(), entry.getValue());
+        setDatasetMetadata(entry.getKey(), entry.getValue());
       }
     }
   }
@@ -232,6 +249,7 @@ public class GlobalMetadata {
    * Set an arbitrary dataset-level metadata key
    */
   public void setDatasetMetadata(String key, Object val) {
+    throwIfImmutable();
     datasetLevel.put(key, val);
     cachedId = null;
   }
@@ -248,6 +266,7 @@ public class GlobalMetadata {
    * Convenience method to add a new transfer-encoding to a dataset
    */
   public synchronized void addTransferEncoding(String encoding) {
+    throwIfImmutable();
     List<String> encodings = getTransferEncoding();
     if (encodings == null) {
       encodings = new ArrayList<>();
@@ -276,6 +295,7 @@ public class GlobalMetadata {
    * Set an arbitrary file-level metadata key
    */
   public void setFileMetadata(String file, String key, Object val) {
+    throwIfImmutable();
     Map<String, Object> fileKeys = fileLevel.get(file);
     if (fileKeys == null) {
       fileKeys = new ConcurrentHashMap<>();
@@ -335,5 +355,11 @@ public class GlobalMetadata {
 
   public boolean isEmpty() {
     return getId().equals(EMPTY_ID);
+  }
+
+  private void throwIfImmutable() {
+    if (this.markedImmutable) {
+      throw new UnsupportedOperationException("Metadata is marked as immutable -- cannot modify");
+    }
   }
 }
