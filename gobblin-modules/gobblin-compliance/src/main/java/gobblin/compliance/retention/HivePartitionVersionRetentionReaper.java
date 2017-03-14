@@ -93,10 +93,6 @@ public class HivePartitionVersionRetentionReaper extends HivePartitionVersionRet
         .getQueryExecutor(state, this.versionOwner, this.backUpOwner)) {
 
       Path newVersionLocation = getNewVersionLocation();
-      if (this.simulate) {
-        log.info("Simulate is set to true. Won't move the version " + completeName);
-        return;
-      }
 
       if (!this.versionOwnerFs.exists(versionLocation)) {
         log.info("Data versionLocation doesn't exist. Metadata will be dropped for the version  " + completeName);
@@ -104,6 +100,9 @@ public class HivePartitionVersionRetentionReaper extends HivePartitionVersionRet
         log.info(
             "Dataset location is same as version location. Won't delete the data but metadata will be dropped for the version "
                 + completeName);
+      } else if (this.simulate) {
+        log.info("Simulate is set to true. Won't move the version " + completeName);
+        return;
       } else if (completeName.contains(ComplianceConfigurationKeys.STAGING)) {
         log.info("Deleting data from version " + completeName);
         this.versionOwnerFs.delete(versionLocation, true);

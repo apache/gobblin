@@ -32,7 +32,7 @@ public class ComplianceConfigurationKeys {
   public static final String COMPLIANCE_DATASET_WHITELIST = COMPLIANCE_PREFIX + ".dataset.whitelist";
   public static final String PARTITION_NAME = COMPLIANCE_PREFIX + ".partition.name";
   public static final int TIME_STAMP_LENGTH = 13;
-  public static final String DBNAME_SEPARATOR = "@";
+  public static final String DBNAME_SEPARATOR = "__";
 
   public static final String MAX_CONCURRENT_DATASETS = COMPLIANCE_PREFIX + ".max.concurrent.datasets";
   public static final String DEFAULT_MAX_CONCURRENT_DATASETS = "100";

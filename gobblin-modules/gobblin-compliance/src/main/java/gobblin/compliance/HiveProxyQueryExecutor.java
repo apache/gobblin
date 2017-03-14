@@ -153,7 +153,7 @@ public class HiveProxyQueryExecutor implements QueryExecutor, Closeable {
     Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.HIVE_JDBC_URL), "Missing required property " + ComplianceConfigurationKeys.HIVE_JDBC_URL);
     String url = this.state.getProp(ComplianceConfigurationKeys.HIVE_JDBC_URL);
     if (proxyUser.isPresent()) {
-      url = url + ComplianceConfigurationKeys.HIVE_SERVER2_PROXY_USER + proxyUser;
+      url = url + ComplianceConfigurationKeys.HIVE_SERVER2_PROXY_USER + proxyUser.get();
     }
     return (HiveConnection) DriverManager.getConnection(url);
   }

@@ -79,10 +79,6 @@ public class HivePartitionVersionRetentionCleaner extends HivePartitionVersionRe
 
     try (HiveProxyQueryExecutor queryExecutor = ProxyUtils.getQueryExecutor(state, this.versionOwner)) {
       log.info("Trying to clean version " + completeName);
-      if (this.simulate) {
-        log.info("Simulate is set to true. Won't delete the partition " + completeName);
-        return;
-      }
       if (!this.fs.exists(versionLocation)) {
         log.info("Data versionLocation doesn't exist. Metadata will be dropped for the version  " + completeName);
       } else if (datasetLocation.toString().equalsIgnoreCase(versionLocation.toString())) {
@@ -94,6 +90,10 @@ public class HivePartitionVersionRetentionCleaner extends HivePartitionVersionRe
             "This version corresponds to the non deletable version. Won't delete the data but metadata will be dropped for the version "
                 + completeName);
       } else if (HadoopUtils.hasContent(this.fs, versionLocation)) {
+        if (this.simulate) {
+          log.info("Simulate is set to true. Won't delete the partition " + completeName);
+          return;
+        }
         log.info("Deleting data from the version " + completeName);
         this.fs.delete(versionLocation, true);
       }
