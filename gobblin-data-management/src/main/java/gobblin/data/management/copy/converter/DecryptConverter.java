@@ -55,11 +55,11 @@ public class DecryptConverter extends DistcpConverter {
   }
 
   @Override
-  public Function<FSDataInputStream, FSDataInputStream> inputStreamTransformation() {
-    return new Function<FSDataInputStream, FSDataInputStream>() {
+  public Function<InputStream, InputStream> inputStreamTransformation() {
+    return new Function<InputStream, InputStream>() {
       @Nullable
       @Override
-      public FSDataInputStream apply(FSDataInputStream input) {
+      public InputStream apply(InputStream input) {
         try {
           return GPGFileDecrypter.decryptFile(input, DecryptConverter.this.passphrase);
         } catch (IOException exception) {

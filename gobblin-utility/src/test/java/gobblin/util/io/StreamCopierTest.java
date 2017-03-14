@@ -71,29 +71,4 @@ public class StreamCopierTest {
     Assert.assertEquals(meter.getCount(), testString.length());
   }
 
-  @Test
-  public void testLimiter() throws Exception {
-    String testString = "This is a string";
-
-    ByteArrayInputStream inputStream = new ByteArrayInputStream(testString.getBytes(Charsets.UTF_8));
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-    try {
-      new StreamCopier(inputStream, outputStream).withBufferSize(10)
-          .withBytesTransferedLimiter(new CountBasedLimiter(10))
-          .copy();
-      Assert.fail();
-    } catch (StreamCopier.NotEnoughPermitsException npe) {
-      // expected
-    }
-
-    inputStream.reset();
-    outputStream.reset();
-
-    new StreamCopier(inputStream, outputStream).withBufferSize(10)
-        .withBytesTransferedLimiter(new CountBasedLimiter(30))
-        .copy();
-    Assert.assertEquals(testString, new String(outputStream.toByteArray(), Charsets.UTF_8));
-  }
-
 }

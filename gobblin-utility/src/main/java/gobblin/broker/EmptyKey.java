@@ -15,26 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package gobblin.broker;
 
-import java.io.InputStream;
+import gobblin.broker.iface.SharedResourceKey;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 
 /**
- * A wrapper to {@link InputStream} that represents an entity to be copied. The enclosed {@link CopyableFile} instance
- * contains file Metadata like permission, destination path etc. required by the writers and converters.
+ * A dummy {@link SharedResourceKey}.
  */
-@AllArgsConstructor
-@Getter
-public class FileAwareInputStream {
-
-  private CopyableFile file;
-  private InputStream inputStream;
-
+public final class EmptyKey implements SharedResourceKey {
   @Override
-  public String toString() {
-    return this.file.toString();
+  public String toConfigurationKey() {
+    return null;
   }
 }

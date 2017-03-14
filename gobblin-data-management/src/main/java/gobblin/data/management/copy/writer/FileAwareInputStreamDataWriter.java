@@ -18,6 +18,7 @@
 package gobblin.data.management.copy.writer;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.Collections;
@@ -40,6 +41,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import com.google.common.io.Closer;
 
+import gobblin.broker.EmptyKey;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.NotConfiguredException;
 import gobblin.broker.iface.SharedResourcesBroker;
@@ -67,6 +69,8 @@ import gobblin.util.PathUtils;
 import gobblin.util.WriterUtils;
 import gobblin.util.io.StreamCopier;
 import gobblin.util.io.StreamCopierSharedLimiterKey;
+import gobblin.util.io.StreamThrottler;
+import gobblin.util.io.ThrottledInputStream;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.writer.DataWriter;
@@ -180,7 +184,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    * @param copyableFile {@link gobblin.data.management.copy.CopyEntity} that generated this copy operation.
    * @throws IOException
    */
-  protected void writeImpl(FSDataInputStream inputStream, Path writeAt, CopyableFile copyableFile)
+  protected void writeImpl(InputStream inputStream, Path writeAt, CopyableFile copyableFile)
       throws IOException {
 
     final short replication =
@@ -211,17 +215,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       }
       try {
 
-        StreamCopier copier = new StreamCopier(inputStream, os).withBufferSize(this.bufferSize);
-
-        StreamCopierSharedLimiterKey key =
-            new StreamCopierSharedLimiterKey(copyableFile.getOrigin().getPath().toUri(), this.fs.makeQualified(writeAt).toUri());
-        log.info("Acquiring a limiter for stream copier with key " + Optional.fromNullable(key.toConfigurationKey()).or("null"));
-        try {
-          Limiter limiter = this.taskBroker.getSharedResource(new SharedLimiterFactory<GobblinScopeTypes>(), key);
-          copier.withBytesTransferedLimiter(limiter);
-        } catch (NotConfiguredException nce) {
-          log.warn("A limiter for %s is not configured. Will not use limiter for %s.", key, StreamCopier.class);
-        }
+        StreamThrottler<GobblinScopeTypes> throttler =
+            this.taskBroker.getSharedResource(new StreamThrottler.Factory<GobblinScopeTypes>(), new EmptyKey());
+        ThrottledInputStream throttledInputStream = throttler.throttleInputStream().inputStream(inputStream)
+            .sourceURI(copyableFile.getOrigin().getPath().toUri()).targetURI(this.fs.makeQualified(writeAt).toUri()).build();
+        StreamCopier copier = new StreamCopier(throttledInputStream, os).withBufferSize(this.bufferSize);
 
         if (isInstrumentationEnabled()) {
           copier.withCopySpeedMeter(this.copySpeedMeter);
@@ -233,6 +231,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         } else {
           log.info("File {} copied.", copyableFile.getOrigin().getPath());
         }
+      } catch (NotConfiguredException nce) {
+        log.warn("Broker error. Some features of stream copier may not be available.", nce);
       } finally {
         os.close();
         inputStream.close();

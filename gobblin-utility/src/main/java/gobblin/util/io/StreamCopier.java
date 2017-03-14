@@ -46,7 +46,7 @@ public class StreamCopier {
   private final WritableByteChannel outputChannel;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private Meter copySpeedMeter;
-  private Limiter bytesTransferredLimiter;
+
   private boolean closeChannelsOnComplete = false;
   private volatile boolean copied = false;
 
@@ -72,15 +72,6 @@ public class StreamCopier {
    */
   public StreamCopier withCopySpeedMeter(Meter copySpeedMeter) {
     this.copySpeedMeter = copySpeedMeter;
-    return this;
-  }
-
-  /**
-   * Set a {@link Limiter} to throttle the bytes transferred. Before filling the buffer, the copier will request
-   * as many permits as bytes fit in the buffer.
-   */
-  public StreamCopier withBytesTransferedLimiter(Limiter limiter) {
-    this.bytesTransferredLimiter = limiter;
     return this;
   }
 
@@ -137,15 +128,7 @@ public class StreamCopier {
   }
 
   private long fillBufferFromInputChannel(ByteBuffer buffer) throws IOException {
-    try (Closeable permit = this.bytesTransferredLimiter == null ? NOOP_CLOSEABLE :
-        this.bytesTransferredLimiter.acquirePermits(this.bufferSize)) {
-      if (permit == null) {
-        throw new NotEnoughPermitsException();
-      }
-      return this.inputChannel.read(buffer);
-    } catch (InterruptedException ie) {
-      throw new IOException("Stream copier was interrupted!", ie);
-    }
+    return this.inputChannel.read(buffer);
   }
 
   /**
