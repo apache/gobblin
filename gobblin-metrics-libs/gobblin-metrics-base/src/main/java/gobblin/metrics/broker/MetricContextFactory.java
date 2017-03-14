@@ -33,6 +33,7 @@ import gobblin.metrics.Tag;
 import gobblin.util.ConfigUtils;
 import java.util.Collection;
 import java.util.Map;
+import java.util.UUID;
 
 
 /**
@@ -60,6 +61,19 @@ public class MetricContextFactory<S extends ScopeType<S>> implements SharedResou
       ScopedConfigView<S, MetricContextKey> config) throws NotConfiguredException {
 
     try {
+
+      if (config.getKey() instanceof SubTaggedMetricContextKey) {
+        SubTaggedMetricContextKey key = (SubTaggedMetricContextKey) config.getKey();
+
+        MetricContext parent = broker.getSharedResource(this, new MetricContextKey());
+        MetricContext.Builder builder = parent.childBuilder(key.getMetricContextName());
+
+        for (Map.Entry<String, String> entry : key.getTags().entrySet()) {
+          builder.addTag(new Tag<>(entry.getKey(), entry.getValue()));
+        }
+        return new ResourceInstance<>(builder.build());
+      }
+
       MetricContext parentMetricContext = RootMetricContext.get();
 
       Collection<S> parents = config.getScope().parentScopes();
@@ -68,7 +82,12 @@ public class MetricContextFactory<S extends ScopeType<S>> implements SharedResou
         parentMetricContext = broker.getSharedResourceAtScope(this, config.getKey(), parentScope);
       }
 
-      MetricContext.Builder builder = parentMetricContext.childBuilder(broker.selfScope().toString());
+      // If this is the root scope, append a UUID to the name. This allows having a separate root context per broker.
+      String metricContextName = parents == null ?
+          config.getScope().name() + "_" + UUID.randomUUID().toString() :
+          broker.selfScope().getScopeId();
+
+      MetricContext.Builder builder = parentMetricContext.childBuilder(metricContextName);
 
       builder.addTag(new Tag<>(config.getScope().name(), broker.getScope(config.getScope()).getScopeId()));
       for (Map.Entry<String, ConfigValue> entry : ConfigUtils.getConfigOrEmpty(config.getConfig(), TAG_KEY).entrySet()) {

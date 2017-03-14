@@ -12,13 +12,14 @@
 
 package gobblin.restli.throttling;
 
+import com.codahale.metrics.Timer;
 import com.google.common.collect.Maps;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.name.Names;
 import com.google.inject.servlet.GuiceServletContextListener;
 import com.google.inject.servlet.ServletModule;
-import com.linkedin.r2.filter.CompressionConfig;
 import com.linkedin.r2.filter.FilterChain;
 import com.linkedin.r2.filter.FilterChains;
 import com.linkedin.r2.filter.compression.EncodingType;
@@ -32,7 +33,12 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.broker.BrokerConstants;
 import gobblin.broker.SharedResourcesBrokerFactory;
 import gobblin.broker.SimpleScopeType;
+import gobblin.broker.iface.NotConfiguredException;
 import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.broker.MetricContextFactory;
+import gobblin.metrics.broker.MetricContextKey;
+
 import java.util.Enumeration;
 import java.util.Map;
 import javax.servlet.ServletContext;
@@ -68,31 +74,41 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener {
 
   @Override
   protected Injector getInjector() {
+    return getInjector(this._brokerConfig);
+  }
+
+  public static Injector getInjector(final Config brokerConfig) {
     return Guice.createInjector(new AbstractModule() {
       @Override
       protected void configure() {
-        RestLiConfig restLiConfig = new RestLiConfig();
-        restLiConfig.setResourcePackageNames("gobblin.restli.throttling");
-        bind(RestLiConfig.class).toInstance(restLiConfig);
+        try {
 
-        SharedResourcesBroker<SimpleScopeType> broker =
-            SharedResourcesBrokerFactory.createDefaultTopLevelBroker(ThrottlingGuiceServletConfig.this._brokerConfig,
-                SimpleScopeType.GLOBAL.defaultScopeInstance());
-        bind(SharedResourcesBroker.class).toInstance(broker);
+          RestLiConfig restLiConfig = new RestLiConfig();
+          restLiConfig.setResourcePackageNames("gobblin.restli.throttling");
+          bind(RestLiConfig.class).toInstance(restLiConfig);
 
-        FilterChain filterChain = FilterChains.create(
-            new ServerCompressionFilter(new EncodingType[] { EncodingType.SNAPPY }),
-            new SimpleLoggingFilter());
-        bind(FilterChain.class).toInstance(filterChain);
+          SharedResourcesBroker<SimpleScopeType> broker =
+              SharedResourcesBrokerFactory.createDefaultTopLevelBroker(brokerConfig, SimpleScopeType.GLOBAL.defaultScopeInstance());
+          bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
+
+          MetricContext metricContext = broker.getSharedResource(new MetricContextFactory<SimpleScopeType>(), new MetricContextKey());
+          Timer timer = metricContext.timer(LimiterServerResource.REQUEST_TIMER_NAME);
+
+          bind(MetricContext.class).annotatedWith(Names.named(LimiterServerResource.METRIC_CONTEXT_INJECT_NAME)).toInstance(metricContext);
+          bind(Timer.class).annotatedWith(Names.named(LimiterServerResource.REQUEST_TIMER_INJECT_NAME)).toInstance(timer);
+
+          FilterChain filterChain =
+              FilterChains.create(new ServerCompressionFilter(new EncodingType[]{EncodingType.SNAPPY}), new SimpleLoggingFilter());
+          bind(FilterChain.class).toInstance(filterChain);
+        } catch (NotConfiguredException nce) {
+          throw new RuntimeException(nce);
+        }
       }
-    },
-        new ServletModule()
-        {
-          @Override
-          protected void configureServlets()
-          {
-            serve("/*").with(GuiceRestliServlet.class);
-          }
-        });
+    }, new ServletModule() {
+      @Override
+      protected void configureServlets() {
+        serve("/*").with(GuiceRestliServlet.class);
+      }
+    });
   }
 }
