@@ -15,17 +15,31 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.monitoring;
+package gobblin.service.monitoring;
+
+import gobblin.annotation.Alpha;
+
+import lombok.Builder;
+import lombok.Getter;
+
 
 /**
- * Tracks the latest flow execution Id.
+ * Contains attributes that describe job status.
  */
-public interface LatestFlowExecutionIdTracker {
-
-  /**
-   * @param flowName
-   * @param flowGroup
-   * @return the latest flow execution id with the given flowName and flowGroup. -1 will be returned if no such execution found.
-   */
-  long getLatestExecutionIdForFlow(String flowName, String flowGroup);
+@Alpha
+@Builder
+@Getter
+public class JobStatus {
+  private final String jobName;
+  private final String jobGroup;
+  private final long jobExecutionId;
+  private final long flowExecutionId;
+  private final String flowName;
+  private final String flowGroup;
+  private final String eventName;
+  private final long startTime;
+  private final long endTime;
+  private final String message;
+  private final long processedCount;
+  private final String watermark;
 }
