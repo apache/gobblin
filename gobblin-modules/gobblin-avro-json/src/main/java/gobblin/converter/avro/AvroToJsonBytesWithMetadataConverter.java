@@ -25,6 +25,9 @@ import gobblin.converter.SchemaConversionException;
 import gobblin.metadata.types.Metadata;
 
 
+/**
+ * Converts an Avro GenericRecord to a UTF-8 JSON encoded byte[]. Inserts the original recordname as content-type.
+ */
 public class AvroToJsonBytesWithMetadataConverter extends MetadataConverterWrapper<Schema, String, GenericRecord, byte[]> {
   private String contentType = null;
 

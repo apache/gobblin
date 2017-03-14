@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import gobblin.codec.StreamCodec;
 import gobblin.configuration.WorkUnitState;
+import gobblin.crypto.CredentialStore;
 import gobblin.crypto.EncryptionConfigParser;
 import gobblin.crypto.EncryptionFactory;
 import gobblin.type.RecordWithMetadata;
@@ -55,6 +56,14 @@ public class SerializedRecordToEncryptedSerializedRecordConverter extends Conver
 
     encryptor = EncryptionFactory.buildStreamCryptoProvider(encryptionConfig);
     return this;
+  }
+
+  /**
+   * Set the encryptor specifically instead of relying on a factory.
+   * @param encryptor
+   */
+  public void setEncryptor(StreamCodec encryptor) {
+    this.encryptor = encryptor;
   }
 
   @Override
