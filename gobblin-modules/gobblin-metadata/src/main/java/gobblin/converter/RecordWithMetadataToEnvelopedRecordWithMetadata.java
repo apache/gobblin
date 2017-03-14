@@ -22,22 +22,11 @@ package gobblin.converter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Map;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericRecord;
 import org.codehaus.jackson.JsonEncoding;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.map.ObjectMapper;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-
-import javassist.bytecode.ByteArray;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.metadata.types.Metadata;
@@ -46,13 +35,18 @@ import gobblin.type.RecordWithMetadata;
 
 
 /**
- * A converter that converts any type to a {@link RecordWithMetadata}.
- * Ensures that the contained Record is a JsonElement. If the recordType can be retrieved from the
- * object or inferred from the input schema, it will be placed in metadata.
- * Caveat: Currently only supports Avro and Json input
+ * A converter that takes a {@link RecordWithMetadata} and serializes it using the following format:
+ * {mId: "global metadata id", "rMd": recordMetadata, "r": record}
+ *
+ * The converter will also change the contentType in globalMetadata to lnkd+recordWithMetadata and record the
+ * original contentType inside an inner-content-type header.
+ *
+ * The output of this converter is a valid UTF8-string encoded as a byte[].
+ *
+ * Note that this should be the last step in a converter chain - if global metadata is changed, its ID may change
+ * as well which would lead to us embedding an incorrect metadata ID in the record.
  */
-public class RecordWithMetadataToEnvelopedRecordWithMetadata extends Converter<Object, String, RecordWithMetadata<?>,
-    RecordWithMetadata<byte[]>> {
+public class RecordWithMetadataToEnvelopedRecordWithMetadata extends Converter<Object, String, RecordWithMetadata<?>, RecordWithMetadata<byte[]>> {
   private static final ObjectMapper objectMapper = new ObjectMapper();
   private static final JsonFactory jsonFactory = new JsonFactory();
   private static final String CONTENT_TYPE = "lnkd+recordWithMetadata";
@@ -60,7 +54,6 @@ public class RecordWithMetadataToEnvelopedRecordWithMetadata extends Converter<O
   @Override
   public String convertSchema(Object inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
-    // Store the recordName if we know what it is
     return "";
   }
 
@@ -70,36 +63,53 @@ public class RecordWithMetadataToEnvelopedRecordWithMetadata extends Converter<O
       throws DataConversionException {
 
     try {
+      updateRecordMetadata(inputRecord);
+
       ByteArrayOutputStream bOs = new ByteArrayOutputStream(512);
       try (JsonGenerator generator = jsonFactory.createJsonGenerator(bOs, JsonEncoding.UTF8).setCodec(objectMapper)) {
         generator.writeStartObject();
-        generator.writeStringField("mId", inputRecord.getMetadata().getGlobalMetadata().getId());
 
-        if (!inputRecord.getMetadata().getRecordMetadata().isEmpty()) {
-          generator.writeObjectField("rMd", inputRecord.getMetadata().getRecordMetadata());
-        }
-
-        if (treatRecordAsUtf8String(inputRecord)) {
-          generator.writeFieldName("r");
-          byte[] bytes = (byte[])inputRecord.getRecord();
-          generator.writeUTF8String(bytes, 0, bytes.length);
-        } else {
-          generator.writeObjectField("r", inputRecord.getRecord());
-        }
+        writeHeaders(inputRecord, generator);
+        writeRecord(inputRecord, generator);
 
         generator.writeEndObject();
       }
 
-      Metadata md = inputRecord.getMetadata();
-      String origContentType = md.getGlobalMetadata().getContentType();
-      if (origContentType != null) {
-        md.getGlobalMetadata().setInnerContentType(origContentType);
-      }
-      md.getGlobalMetadata().setContentType(CONTENT_TYPE);
-      return Collections.singleton(new RecordWithMetadata<byte[]>(bOs.toByteArray(), md));
+      return Collections.singleton(new RecordWithMetadata<byte[]>(bOs.toByteArray(), inputRecord.getMetadata()));
     } catch (IOException e) {
       throw new DataConversionException(e);
     }
+  }
+
+  private void writeRecord(RecordWithMetadata<?> inputRecord, JsonGenerator generator)
+      throws IOException {
+    if (treatRecordAsUtf8String(inputRecord)) {
+      generator.writeFieldName("r");
+      byte[] bytes = (byte[]) inputRecord.getRecord();
+      generator.writeUTF8String(bytes, 0, bytes.length);
+    } else {
+      generator.writeObjectField("r", inputRecord.getRecord());
+    }
+  }
+
+  private void writeHeaders(RecordWithMetadata<?> inputRecord, JsonGenerator generator)
+      throws IOException {
+    generator.writeStringField("mId", inputRecord.getMetadata().getGlobalMetadata().getId());
+
+    if (!inputRecord.getMetadata().getRecordMetadata().isEmpty()) {
+      generator.writeObjectField("rMd", inputRecord.getMetadata().getRecordMetadata());
+    }
+  }
+
+  private void updateRecordMetadata(RecordWithMetadata<?> inputRecord) {
+    Metadata md = inputRecord.getMetadata();
+
+    String origContentType = md.getGlobalMetadata().getContentType();
+    if (origContentType != null) {
+      md.getGlobalMetadata().setInnerContentType(origContentType);
+    }
+
+    md.getGlobalMetadata().setContentType(CONTENT_TYPE);
   }
 
   private boolean treatRecordAsUtf8String(RecordWithMetadata<?> inputRecord) {

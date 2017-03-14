@@ -34,9 +34,9 @@ import gobblin.type.RecordWithMetadata;
 
 
 /**
- * A converter that converts a {@link gobblin.type.SerializedRecordWithMetadata} to a new {@link gobblin.type.SerializedRecordWithMetadata}
- * where the serialized bytes represent encrypted data. The encryption algorithm used will be
- * appended to the Transfer-Encoding of the new record.
+ * A converter that converts a {@link gobblin.type.SerializedRecordWithMetadata} to a {@link gobblin.type.SerializedRecordWithMetadata}
+ * where the serialized bytes represent encrypted data. The encryption algorithm used will be appended to the
+ * Transfer-Encoding of the new record.
  */
 @Slf4j
 public class SerializedRecordToEncryptedSerializedRecordConverter extends Converter<String, String, RecordWithMetadata<byte[]>, RecordWithMetadata<byte[]>> {
@@ -47,7 +47,8 @@ public class SerializedRecordToEncryptedSerializedRecordConverter extends Conver
       WorkUnitState workUnit) {
     super.init(workUnit);
 
-    Map<String, Object> encryptionConfig = EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, workUnit);
+    Map<String, Object> encryptionConfig =
+        EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, workUnit);
     if (encryptionConfig == null) {
       throw new IllegalStateException("No encryption config specified in job - can't encrypt!");
     }

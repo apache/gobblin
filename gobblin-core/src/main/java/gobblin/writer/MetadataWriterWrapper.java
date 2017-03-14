@@ -17,44 +17,57 @@
 package gobblin.writer;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Set;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.metadata.GlobalMetadataCollector;
 import gobblin.metadata.types.GlobalMetadata;
 import gobblin.type.RecordWithMetadata;
 import gobblin.util.ForkOperatorUtils;
 
-// TODO JAVADOC
+
+/**
+ * Wraps an existing {@link DataWriter} and makes it metadata aware. This class is responsible for doing the following:
+ *
+ * 1. If the underlying writer is {@link MetadataAwareWriter}, query it to get default metadata to add to any
+ *    incoming records.
+ * 2. Process each incoming record:
+ *     2a. If it is a {@link RecordWithMetadata}, process the metadata and pass either the underlying record or the
+ *         {@link RecordWithMetadata}, depending on the writer class type, to the wrapped writer.
+ *     2b. If it is a standard record type attach any default metadata and pass the record to the wrapped writer.
+ * 3. On {@link #commit()}, publish the combined metadata output to JobState property so it can be published.
+ */
 public class MetadataWriterWrapper<D> implements DataWriter<Object> {
   private final DataWriter wrappedWriter;
-  private final GlobalMetadata defaultMetadata;
-  private final Set<GlobalMetadata> collectedMetadata;
   private final Class<? extends D> writerClass;
   private final int numBranches;
   private final int branchId;
   private final State properties;
+  private final GlobalMetadataCollector metadataCollector;
 
-  // Optimization - cache the last seen GlobalMetadata so we don't bother
-  // merging records if they are unchanged
-  private String lastSeenMetadataId;
-
-  public MetadataWriterWrapper(DataWriter<D> wrappedWriter, Class<? extends D> writerClass,
+  /**
+   * Initialize a new metadata wrapper.
+   * @param wrappedWriter Writer to wrap
+   * @param writerDataClass Class of data the writer accepts
+   * @param numBranches # of branches in state
+   * @param branchId Branch this writer is wrapping
+   * @param writerProperties Configuration properties
+   */
+  public MetadataWriterWrapper(DataWriter<D> wrappedWriter, Class<? extends D> writerDataClass,
       int numBranches, int branchId, State writerProperties) {
     this.wrappedWriter = wrappedWriter;
-    this.writerClass = writerClass;
-    this.collectedMetadata = new HashSet<>();
-    this.lastSeenMetadataId = "";
+    this.writerClass = writerDataClass;
     this.numBranches = numBranches;
     this.branchId = branchId;
     this.properties = writerProperties;
 
+    GlobalMetadata defaultMetadata = null;
     if (wrappedWriter instanceof MetadataAwareWriter) {
-      this.defaultMetadata = ((MetadataAwareWriter) wrappedWriter).getDefaultMetadata();
-    } else {
-      this.defaultMetadata = new GlobalMetadata();
+      defaultMetadata = ((MetadataAwareWriter) wrappedWriter).getDefaultMetadata();
     }
+
+    this.metadataCollector = new GlobalMetadataCollector(defaultMetadata, GlobalMetadataCollector.UNLIMITED_SIZE);
   }
 
   @Override
@@ -65,12 +78,7 @@ public class MetadataWriterWrapper<D> implements DataWriter<Object> {
       RecordWithMetadata record = (RecordWithMetadata)untypedRecord;
 
       GlobalMetadata globalMetadata = record.getMetadata().getGlobalMetadata();
-      if (!lastSeenMetadataId.equals(globalMetadata.getId())) {
-        // TODO should there be a callback on newMetadata?
-        lastSeenMetadataId = globalMetadata.getId();
-        globalMetadata.mergeWithDefaults(defaultMetadata);
-        collectedMetadata.add(globalMetadata);
-      }
+      metadataCollector.processMetadata(globalMetadata);
 
       if (RecordWithMetadata.class.isAssignableFrom(writerClass)) {
         wrappedWriter.write(record);
@@ -78,14 +86,17 @@ public class MetadataWriterWrapper<D> implements DataWriter<Object> {
         wrappedWriter.write(record.getRecord());
       }
     } else {
-      if (!defaultMetadata.isEmpty()) {
-        collectedMetadata.add(defaultMetadata);
-      }
+      metadataCollector.processMetadata(null);
       wrappedWriter.write(untypedRecord);
     }
   }
 
+  /**
+   * Write combined metadata to the {@link ConfigurationKeys#WRITER_METADATA_KEY} parameter.
+   */
   protected void writeMetadata() throws IOException {
+    Set<GlobalMetadata> collectedMetadata = metadataCollector.getMetadataRecords();
+
     if (collectedMetadata.isEmpty()) {
       return;
     }

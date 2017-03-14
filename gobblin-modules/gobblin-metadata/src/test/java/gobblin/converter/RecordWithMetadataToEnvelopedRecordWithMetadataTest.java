@@ -42,7 +42,10 @@ public class RecordWithMetadataToEnvelopedRecordWithMetadataTest {
     final String innerContentType = "randomJsonRecord";
 
     ObjectMapper objectMapper = new ObjectMapper();
+    RecordWithMetadataToEnvelopedRecordWithMetadata converter = new RecordWithMetadataToEnvelopedRecordWithMetadata();
+    converter.convertSchema("", null);
 
+    // Build Test Record
     HashMap<String, String> map = new HashMap<>();
     map.put("test", "test");
     map.put("value", "value");
@@ -53,14 +56,15 @@ public class RecordWithMetadataToEnvelopedRecordWithMetadataTest {
     md.getGlobalMetadata().setContentType(innerContentType);
     md.getRecordMetadata().put("foo", "bar");
 
-    RecordWithMetadataToEnvelopedRecordWithMetadata converter = new RecordWithMetadataToEnvelopedRecordWithMetadata();
-    converter.convertSchema("", null);
+    RecordWithMetadata<JsonNode> record = new RecordWithMetadata(jsonElement, md);
+    // Convert it
     Iterator<RecordWithMetadata<byte[]>> recordWithMetadataIterator =
-        converter.convertRecord("", new RecordWithMetadata<>(jsonElement, md), null).iterator();
+        converter.convertRecord("", record, null).iterator();
     RecordWithMetadata recordWithMetadata = recordWithMetadataIterator.next();
 
+    // Verify it
     JsonNode parsedElement = objectMapper.readValue((byte[]) recordWithMetadata.getRecord(), JsonNode.class);
-    Assert.assertNotNull(parsedElement.get("mId"));
+    Assert.assertEquals(parsedElement.get("mId").getTextValue(), record.getMetadata().getGlobalMetadata().getId());
     Assert.assertEquals(parsedElement.get("r"), jsonElement);
     Assert.assertEquals(parsedElement.get("rMd").get("foo").getTextValue(), "bar");
 
@@ -73,16 +77,17 @@ public class RecordWithMetadataToEnvelopedRecordWithMetadataTest {
   public void testSuccessWithString()
       throws DataConversionException, IOException {
     ObjectMapper objectMapper = new ObjectMapper();
-    String record = "abracadabra";
+    String innerRecord = "abracadabra";
     RecordWithMetadataToEnvelopedRecordWithMetadata converter = new RecordWithMetadataToEnvelopedRecordWithMetadata();
+    RecordWithMetadata<String> record = new RecordWithMetadata<>(innerRecord, new Metadata());
 
     Iterator<RecordWithMetadata<byte[]>> recordWithMetadataIterator =
-        converter.convertRecord("", new RecordWithMetadata<>(record, new Metadata()), null).iterator();
+        converter.convertRecord("", record, null).iterator();
     RecordWithMetadata recordWithMetadata = recordWithMetadataIterator.next();
 
     JsonNode parsedElement = objectMapper.readValue((byte[]) recordWithMetadata.getRecord(), JsonNode.class);
-    Assert.assertNotNull(parsedElement.get("mId"));
-    Assert.assertEquals(parsedElement.get("r").getTextValue(), record);
+    Assert.assertEquals(parsedElement.get("mId").getTextValue(), record.getMetadata().getGlobalMetadata().getId());
+    Assert.assertEquals(parsedElement.get("r").getTextValue(), innerRecord);
 
     Assert
         .assertEquals(recordWithMetadata.getMetadata().getGlobalMetadata().getContentType(), "lnkd+recordWithMetadata");
