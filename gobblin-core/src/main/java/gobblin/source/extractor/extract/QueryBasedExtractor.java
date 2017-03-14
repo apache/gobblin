@@ -17,10 +17,12 @@
 
 package gobblin.source.extractor.extract;
 
+import com.google.common.annotations.VisibleForTesting;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.exception.ExtractPrepareException;
 import gobblin.source.extractor.exception.HighWatermarkException;
+import gobblin.source.extractor.partition.Partitioner;
 import gobblin.source.extractor.schema.ArrayDataType;
 import gobblin.source.extractor.schema.DataType;
 import gobblin.source.extractor.schema.EnumDataType;
@@ -71,7 +73,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 
   private Iterator<D> iterator;
   protected final List<String> columnList = new ArrayList<>();
-  private final List<Predicate> predicateList = new ArrayList<>();
+  @VisibleForTesting
+  protected final List<Predicate> predicateList = new ArrayList<>();
 
   private S getOutputSchema() {
     return this.outputSchema;
@@ -145,6 +148,10 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     try {
       if (isInitialPull()) {
         log.info("Initial pull");
+
+        if (shouldRemoveDataPullUpperBounds()) {
+          this.removeDataPullUpperBounds();
+        }
         this.iterator = this.getIterator();
       }
 
@@ -163,6 +170,45 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       throw new DataRecordException("Failed to get records using rest api; error - " + e.getMessage(), e);
     }
     return nextElement;
+  }
+
+  /**
+   * Check if it's appropriate to remove data pull upper bounds in the last work unit, fetching as much data as possible
+   * from the source. As between the time when data query was created and that was executed, there might be some
+   * new data generated in the source. Removing the upper bounds will help us grab the new data.
+   *
+   * Note: It's expected that there might be some duplicate data between runs because of removing the upper bounds
+   *
+   * @return should remove or not
+   */
+  private boolean shouldRemoveDataPullUpperBounds() {
+    // Only consider the last work unit
+    if (!this.workUnit.getPropAsBoolean(QueryBasedSource.IS_LAST_WORK_UNIT)) {
+      return false;
+    }
+
+    // Don't remove if user specifies one or is recorded in previous run
+    if (this.workUnit.getPropAsBoolean(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK) ||
+        this.workUnitState.getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY) != null) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Remove all upper bounds in the predicateList used for pulling data
+   */
+  private void removeDataPullUpperBounds() {
+    log.info("Removing data pull upper bound for last work unit");
+    Iterator<Predicate> it = predicateList.iterator();
+    while (it.hasNext()) {
+      Predicate predicate = it.next();
+      if (predicate.getType() == Predicate.PredicateType.HWM) {
+        log.info("Remove predicate: " + predicate.condition);
+        it.remove();
+      }
+    }
   }
 
   /**
