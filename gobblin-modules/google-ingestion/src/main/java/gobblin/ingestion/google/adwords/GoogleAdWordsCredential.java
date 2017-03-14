@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 
+
 public class GoogleAdWordsCredential {
   private static final String REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob";
   private static final ArrayList<String> SCOPES = Lists.newArrayList("https://www.googleapis.com/auth/adwords");
@@ -94,10 +95,6 @@ public class GoogleAdWordsCredential {
             // By default, the library will automatically refresh tokens when it can
             // But this can be turned off by setting api.adwords.refreshOAuth2Token=false.
             .setAccessType("offline").build();
-
-//    GoogleCredential gc = GoogleCredential.fromStream(new FileInputStream(""))
-//        .createScoped(Collections.singletonList("SCOPE"));
-//    AdWordsSession build = new AdWordsSession.Builder().fromFile().build();
 
     String authorizeUrl = authorizationFlow.newAuthorizationUrl().setRedirectUri(REDIRECT_URI).build();
     System.out.println(String.format("Paste this url in your browser:%n%s%n", authorizeUrl));

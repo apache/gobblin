@@ -28,12 +28,12 @@ import com.google.common.collect.Sets;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import avro.shaded.com.google.common.base.Optional;
 import avro.shaded.com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.avro.JsonElementConversionFactory;
-import gobblin.ingestion.google.AsyncIteratorWithDataSink;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.LongWatermark;
@@ -43,7 +43,8 @@ import static gobblin.ingestion.google.webmaster.GoogleWebmasterExtractor.dateFo
 
 @Slf4j
 public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
-  private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
+  private static final String ACCOUNT_ID_COLUMN = "extraAccId";
+  private final static Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
   private final WorkUnitState _state;
   private final GoogleAdWordsExtractorIterator _iterator;
   private final DateTime _startDate;
@@ -84,7 +85,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
 
     String columnNamesString = state.getProp(GoogleAdWordsSource.KEY_COLUMN_NAMES, "");
     List<String> columnNames =
-        columnNamesString.trim().isEmpty() ? null : Lists.newArrayList(splitter.split(columnNamesString));
+        columnNamesString.trim().isEmpty() ? null : Lists.newArrayList(SPLIT_BY_COMMA.split(columnNamesString));
 
     HashMap<String, String> allFields = downloadReportFields(rootSession, reportType);
     try {
@@ -111,12 +112,13 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
       throws ValidationException, RemoteException {
 
     String masterCustomerId = state.getProp(GoogleAdWordsSource.KEY_MASTER_CUSTOMER);
-    String exactAccountString = state.getProp(GoogleAdWordsSource.KEY_ACCOUNTS_EXACT, "");
+    Optional<String> exactAccountOpt = Optional.fromNullable(state.getProp(GoogleAdWordsSource.KEY_ACCOUNTS_EXACT));
     Set<String> exactAccounts =
-        exactAccountString.trim().isEmpty() ? null : Sets.newHashSet(splitter.split(exactAccountString));
-    String exclusiveAccountString = state.getProp(GoogleAdWordsSource.KEY_ACCOUNTS_EXCLUDE, "");
+        exactAccountOpt.isPresent() ? Sets.newHashSet(SPLIT_BY_COMMA.split(exactAccountOpt.get())) : null;
+
+    Optional<String> excAccountOpt = Optional.fromNullable(state.getProp(GoogleAdWordsSource.KEY_ACCOUNTS_EXCLUDE));
     Set<String> exclusiveAccounts =
-        exclusiveAccountString.trim().isEmpty() ? null : Sets.newHashSet(splitter.split(exclusiveAccountString));
+        excAccountOpt.isPresent() ? Sets.newHashSet(SPLIT_BY_COMMA.split(excAccountOpt.get())) : null;
 
     GoogleAdWordsAccountManager accountManager = new GoogleAdWordsAccountManager(rootSession);
     Map<Long, ManagedCustomer> availableAccounts = accountManager.getChildrenAccounts(masterCustomerId, false);
@@ -154,7 +156,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
       updatedSchema.add(_schema.get(i));
     }
     //add extra columns(AccountId) at the end of the original schema
-    updatedSchema.add(createColumnJson("extraAccId", false, JsonElementConversionFactory.Type.STRING));
+    updatedSchema.add(createColumnJson(ACCOUNT_ID_COLUMN, false, JsonElementConversionFactory.Type.STRING));
     return updatedSchema.toString();
   }
 
@@ -246,7 +248,6 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
       throws RemoteException {
     try {
       AdWordsServices adWordsServices = new AdWordsServices();
-
       ReportDefinitionServiceInterface reportDefinitionService =
           adWordsServices.get(rootSession, ReportDefinitionServiceInterface.class);
 
