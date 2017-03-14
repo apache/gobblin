@@ -11,18 +11,15 @@ import gobblin.ingestion.google.GoggleIngestionConfigurationKeys;
 
 @Slf4j
 public class GoogleAdWordsExtractorIterator extends AsyncIteratorWithDataSink<String[]> {
-  private final int _queueSize;
-  private final int _queueBlockingTime;
   private GoogleAdWordsReportDownloader _googleAdWordsReportDownloader;
   private Collection<String> _accounts;
 
   public GoogleAdWordsExtractorIterator(GoogleAdWordsReportDownloader googleAdWordsReportDownloader,
       Collection<String> accounts, WorkUnitState state) {
+    super(state.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE, 2000),
+        state.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_POLL_BLOCKING_TIME, 1));
     _googleAdWordsReportDownloader = googleAdWordsReportDownloader;
     _accounts = accounts;
-    _queueSize = state.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE, 2000);
-    _queueBlockingTime =
-        state.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_POLL_BLOCKING_TIME, 1);
   }
 
   @Override
@@ -38,15 +35,5 @@ public class GoogleAdWordsExtractorIterator extends AsyncIteratorWithDataSink<St
         }
       }
     };
-  }
-
-  @Override
-  protected int getQueueSize() {
-    return _queueSize;
-  }
-
-  @Override
-  protected int getPollBlockingTime() {
-    return _queueBlockingTime;
   }
 }

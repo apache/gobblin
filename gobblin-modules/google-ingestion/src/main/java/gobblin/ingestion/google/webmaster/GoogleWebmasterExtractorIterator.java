@@ -55,8 +55,6 @@ import gobblin.util.limiter.RateBasedLimiter;
  */
 @Slf4j
 class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[]> {
-  private final int _queueSize;
-  private final int _queueBlockingTime;
   private final RateBasedLimiter LIMITER;
   private final int ROUND_TIME_OUT;
   private final int BATCH_SIZE;
@@ -81,12 +79,13 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics,
       Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filterMap, WorkUnitState wuState) {
+
+    super(wuState.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE, 2000),
+        wuState.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_POLL_BLOCKING_TIME, 1));
+
     Preconditions.checkArgument(!filterMap.containsKey(GoogleWebmasterFilter.Dimension.PAGE),
         "Doesn't support filters for page for the time being. Will implement support later. If page filter is provided, the code won't take the responsibility of get all pages, so it will just return all queries for that page.");
 
-    _queueSize = wuState.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE, 2000);
-    _queueBlockingTime =
-        wuState.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_POLL_BLOCKING_TIME, 1);
     _webmaster = webmaster;
     _startDate = startDate;
     _endDate = endDate;
@@ -398,16 +397,6 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
         throw new RuntimeException(e);
       }
     }
-  }
-
-  @Override
-  protected int getQueueSize() {
-    return _queueSize;
-  }
-
-  @Override
-  protected int getPollBlockingTime() {
-    return _queueBlockingTime;
   }
 }
 

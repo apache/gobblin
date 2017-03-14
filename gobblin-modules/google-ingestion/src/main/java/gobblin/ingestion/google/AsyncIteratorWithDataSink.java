@@ -13,7 +13,13 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
   private final Object lock = new Object();
   private volatile Throwable exceptionInProducerThread = null;
   private Thread _producerThread;
-  protected LinkedBlockingDeque<T> _dataSink = new LinkedBlockingDeque<>(getQueueSize());
+  protected LinkedBlockingDeque<T> _dataSink;
+  private final int _pollBlockingTime;
+
+  protected AsyncIteratorWithDataSink(int queueSize, int pollBlockingTime) {
+    _dataSink = new LinkedBlockingDeque<>(queueSize);
+    _pollBlockingTime = pollBlockingTime;
+  }
 
   @Override
   public boolean hasNext() {
@@ -22,11 +28,11 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
       return true;
     }
     try {
-      T next = _dataSink.poll(getPollBlockingTime(), TimeUnit.SECONDS);
+      T next = _dataSink.poll(_pollBlockingTime, TimeUnit.SECONDS);
       while (next == null) {
         if (_producerThread.isAlive()) {
           //Job not done yet. Keep waiting...
-          next = _dataSink.poll(getPollBlockingTime(), TimeUnit.SECONDS);
+          next = _dataSink.poll(_pollBlockingTime, TimeUnit.SECONDS);
         } else {
           synchronized (lock) {
             if (exceptionInProducerThread != null) {
@@ -79,16 +85,5 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
         }
       }
     };
-  }
-
-  protected int getQueueSize() {
-    return 2000;
-  }
-
-  /**
-   * @return the poll blocking time in seconds
-   */
-  protected int getPollBlockingTime() {
-    return 1;
   }
 }
