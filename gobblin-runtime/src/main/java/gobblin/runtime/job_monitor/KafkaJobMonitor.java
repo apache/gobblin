@@ -46,6 +46,9 @@ import lombok.extern.slf4j.Slf4j;
 public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> implements JobSpecMonitor {
 
   public static final String KAFKA_JOB_MONITOR_PREFIX = "jobSpecMonitor.kafka";
+  public static final String KAFKA_AUTO_OFFSET_RESET_KEY = KAFKA_JOB_MONITOR_PREFIX + ".auto.offset.reset";
+  public static final String KAFKA_AUTO_OFFSET_RESET_SMALLEST = "smallest";
+  public static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
 
   private final MutableJobCatalog jobCatalog;
   private Counter newSpecs;

@@ -115,29 +115,39 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
     this.converter = new ImmutableFSJobCatalog.JobSpecConverter(this.jobConfDirPath, getInjectedExtension());
 
     long pollingInterval = cfgAccessor.getPollingInterval();
-    this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
 
-    // If absent, the Optional object will be created automatically by addPathAlterationObserver
-    Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(observer);
-    FSPathAlterationListenerAdaptor configFilelistener =
-        new FSPathAlterationListenerAdaptor(this.jobConfDirPath, this.loader, this.sysConfig, this.listeners,
-            this.converter);
-    this.pathAlterationDetector.addPathAlterationObserver(configFilelistener, observerOptional,
-        this.jobConfDirPath);
+    if (pollingInterval == ConfigurationKeys.DISABLED_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL) {
+      this.pathAlterationDetector = null;
+    }
+    else {
+      this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
+
+      // If absent, the Optional object will be created automatically by addPathAlterationObserver
+      Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(observer);
+      FSPathAlterationListenerAdaptor configFilelistener =
+          new FSPathAlterationListenerAdaptor(this.jobConfDirPath, this.loader, this.sysConfig, this.listeners,
+              this.converter);
+      this.pathAlterationDetector.addPathAlterationObserver(configFilelistener, observerOptional, this.jobConfDirPath);
+    }
   }
 
   @Override
   protected void startUp()
       throws IOException {
     super.startUp();
-    this.pathAlterationDetector.start();
+
+    if (this.pathAlterationDetector != null) {
+      this.pathAlterationDetector.start();
+    }
   }
 
   @Override
   protected void shutDown()
       throws IOException {
     try {
-      this.pathAlterationDetector.stop();
+      if (this.pathAlterationDetector != null) {
+        this.pathAlterationDetector.stop();
+      }
     } catch (InterruptedException exc) {
       throw new RuntimeException("Failed to stop " + ImmutableFSJobCatalog.class.getName(), exc);
     }
