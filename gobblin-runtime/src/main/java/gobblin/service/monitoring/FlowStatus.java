@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.monitoring;
+package gobblin.service.monitoring;
 
 import java.util.Iterator;
 
