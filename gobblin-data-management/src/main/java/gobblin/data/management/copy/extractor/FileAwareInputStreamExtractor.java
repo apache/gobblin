@@ -23,6 +23,7 @@ import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.util.HadoopUtils;
+import gobblin.util.io.MeteredInputStream;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -79,7 +80,8 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
           this.state == null ? HadoopUtils.newConfiguration() : HadoopUtils.getConfFromState(this.state);
       FileSystem fsFromFile = this.file.getOrigin().getPath().getFileSystem(conf);
       this.recordRead = true;
-      return new FileAwareInputStream(this.file, fsFromFile.open(this.file.getFileStatus().getPath()));
+      return new FileAwareInputStream(this.file,
+          MeteredInputStream.builder().in(fsFromFile.open(this.file.getFileStatus().getPath())).build());
     }
     return null;
   }

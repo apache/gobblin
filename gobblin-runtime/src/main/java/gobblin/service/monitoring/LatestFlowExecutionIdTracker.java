@@ -15,26 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
-
-import java.io.InputStream;
-
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+package gobblin.service.monitoring;
 
 /**
- * A wrapper to {@link InputStream} that represents an entity to be copied. The enclosed {@link CopyableFile} instance
- * contains file Metadata like permission, destination path etc. required by the writers and converters.
+ * Tracks the latest flow execution Id.
  */
-@AllArgsConstructor
-@Getter
-public class FileAwareInputStream {
+public interface LatestFlowExecutionIdTracker {
 
-  private CopyableFile file;
-  private InputStream inputStream;
-
-  @Override
-  public String toString() {
-    return this.file.toString();
-  }
+  /**
+   * @param flowName
+   * @param flowGroup
+   * @return the latest flow execution id with the given flowName and flowGroup. -1 will be returned if no such execution found.
+   */
+  long getLatestExecutionIdForFlow(String flowName, String flowGroup);
 }

@@ -15,26 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package gobblin.util.io;
 
-import java.io.InputStream;
+import com.codahale.metrics.Meter;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 
 /**
- * A wrapper to {@link InputStream} that represents an entity to be copied. The enclosed {@link CopyableFile} instance
- * contains file Metadata like permission, destination path etc. required by the writers and converters.
+ * A {@link java.io.InputStream} or {@link java.io.OutputStream} that measures bytes processed.
  */
-@AllArgsConstructor
-@Getter
-public class FileAwareInputStream {
-
-  private CopyableFile file;
-  private InputStream inputStream;
-
-  @Override
-  public String toString() {
-    return this.file.toString();
-  }
+public interface MeteredStream {
+  /**
+   * @return The {@link Meter} measuring the bytes processed.
+   */
+  Meter getBytesProcessedMeter();
 }

@@ -15,26 +15,31 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package gobblin.service.monitoring;
 
-import java.io.InputStream;
+import gobblin.annotation.Alpha;
 
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 
+
 /**
- * A wrapper to {@link InputStream} that represents an entity to be copied. The enclosed {@link CopyableFile} instance
- * contains file Metadata like permission, destination path etc. required by the writers and converters.
+ * Contains attributes that describe job status.
  */
-@AllArgsConstructor
+@Alpha
+@Builder
 @Getter
-public class FileAwareInputStream {
-
-  private CopyableFile file;
-  private InputStream inputStream;
-
-  @Override
-  public String toString() {
-    return this.file.toString();
-  }
+public class JobStatus {
+  private final String jobName;
+  private final String jobGroup;
+  private final long jobExecutionId;
+  private final long flowExecutionId;
+  private final String flowName;
+  private final String flowGroup;
+  private final String eventName;
+  private final long startTime;
+  private final long endTime;
+  private final String message;
+  private final long processedCount;
+  private final String watermark;
 }

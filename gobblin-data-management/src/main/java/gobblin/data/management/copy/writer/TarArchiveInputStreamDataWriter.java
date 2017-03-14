@@ -61,7 +61,7 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
    * @see gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter#write(gobblin.data.management.copy.FileAwareInputStream)
    */
   @Override
-  public void writeImpl(FSDataInputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
+  public void writeImpl(InputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
     this.closer.register(inputStream);
 
     TarArchiveInputStream tarIn = new TarArchiveInputStream(inputStream);

@@ -92,11 +92,21 @@ public class EncryptionFactory {
   }
 
   private static CredentialStore buildCredentialStore(Map<String, Object> parameters) {
+    String ks_type = EncryptionConfigParser.getKeystoreType(parameters);
     String ks_path = EncryptionConfigParser.getKeystorePath(parameters);
     String ks_password = EncryptionConfigParser.getKeystorePassword(parameters);
 
     try {
-      return new JCEKSKeystoreCredentialStore(ks_path, ks_password);
+      // TODO this is yet another example of building a broad type (CredentialStore) based on a human-readable name
+      // (json) with a bag of parameters. Need to pull out into its own pattern!
+     switch (ks_type) {
+       case JsonCredentialStore.TAG:
+        return new JsonCredentialStore(ks_path);
+       case JCEKSKeystoreCredentialStore.TAG:
+        return new JCEKSKeystoreCredentialStore(ks_path, ks_password);
+      default:
+        throw new IllegalArgumentException("Don't know how to build credStore type" + ks_type);
+      }
     } catch (IOException e) {
       log.error("Error building credential store, returning null", e);
       return null;
