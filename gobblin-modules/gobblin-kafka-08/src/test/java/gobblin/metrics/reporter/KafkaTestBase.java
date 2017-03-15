@@ -55,7 +55,7 @@ public class KafkaTestBase implements Closeable {
 
   private static int brokerId = 0;
   public static int kafkaPort = 0;
-  static String zkConnect = "";
+  public static String zkConnect = "";
   static EmbeddedZookeeper zkServer = null;
   static ZkClient zkClient = null;
   static KafkaServer kafkaServer = null;
