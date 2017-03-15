@@ -17,6 +17,7 @@
 
 package gobblin.runtime.listeners;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -172,6 +173,28 @@ public class JobListeners {
         }
       } finally {
         ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(LOGGER));
+        closeJobListeners();
+      }
+    }
+
+    private void closeJobListeners() throws IOException {
+      IOException exception = null;
+      for (JobListener jobListener : this.jobListeners) {
+        if (jobListener instanceof Closeable) {
+          try {
+            ((Closeable) jobListener).close();
+          } catch (IOException e) {
+            if (exception == null) {
+              exception = e;
+            } else {
+              LOGGER.warn("JobListener failed while calling close.  Suppressed exception beyond first.", e);
+              exception.addSuppressed(e);
+            }
+          }
+        }
+      }
+      if (exception != null) {
+        throw exception;
       }
     }
   }
