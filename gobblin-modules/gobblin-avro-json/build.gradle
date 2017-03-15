@@ -24,6 +24,10 @@ dependencies {
    */
   compile project(":gobblin-api")
   compile project(":gobblin-modules:gobblin-metadata")
+
+  compile externalDependency.avro
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
   compile externalDependency.slf4j
 
   testCompile project(":gobblin-test-utils")
