@@ -2,9 +2,9 @@
 
 # Introduction
 [`QueryBasedSource`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/QueryBasedSource.java)
-represents a category of sources whose data is pulled by sending queries. A dataset of A source is identified as a
+represents a category of sources whose data is pulled by sending queries. A dataset of a source is identified as a
 [`SourceEntity`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/QueryBasedSource.java#L96).
-Query can be done by sending HTTP requests or SQL commands. A source often, not always, has a corresponding
+Query can be done by sending HTTP requests or SQL commands. A source often, but not always, has a corresponding
 [`QueryBasedExtractor`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/QueryBasedExtractor.java),
 which defines the way and implements common routines to extract data from the source.
 
@@ -22,7 +22,7 @@ Like other categories of sources, a `QueryBasedSource` focuses on creating work 
 - calculate low watermark of current run based on previous runs
 - compute a high watermark
 - partition datasets of current run into work units
-- pick up peviously failed work units.
+- pick up previously failed work units.
 
 At last, it will group several work units as
 [`MultiWorkUnit`](https://github.com/linkedin/gobblin/blob/master/gobblin-api/src/main/java/gobblin/source/workunit/MultiWorkUnit.java)
@@ -37,7 +37,7 @@ according to the `mr.job.max.mappers` configuration (Note: other categories of s
 </p>
 
 Currently in Gobblin, depending on how an extractor communicates with a source
-(or [different communiation protocols](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/ProtocolSpecificLayer.java)),
+(or [different communication protocols](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/ProtocolSpecificLayer.java)),
 a `QueryBasedExtractor` falls into 2 categories:
 [`RestApiExtractor`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/restapi/RestApiExtractor.java)
 and
@@ -82,7 +82,7 @@ where (SystemModTime >= '2014-01-01 00:00:00' and SystemModTime <= '2017-03-01 1
 The actual implementations of those methods are pushed to an upper layer, which uses its own protocol(e.g. [Rest Api](../sources/RestApiSource.md) or Jdbc. The examples given are using Jdbc.) to query the source.
 
 ### `readRecord`
-While querying the record set for the last work unit, the upper bounds will be removed if appropriately. For a daily open-ended full dump job, it will fetch a more complete data set as there
+While querying the record set for the last work unit, the upper bounds will be removed if appropriate. For a daily open-ended full dump job, it will fetch a more complete data set as there
 might be some new data generated or existing data changes between the data query creation and execution. 
 
 Two separate approaches to fetch record set:
