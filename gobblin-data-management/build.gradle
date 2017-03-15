@@ -46,6 +46,8 @@ dependencies {
   compile externalDependency.testng
   compile externalDependency.junit
 
+  testCompile project(":gobblin-test-utils")
+
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde

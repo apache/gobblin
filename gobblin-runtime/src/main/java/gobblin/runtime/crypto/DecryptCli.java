@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -19,9 +20,11 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.IOUtils;
 
+import com.google.common.collect.ImmutableMap;
+
 import gobblin.annotation.Alias;
-import gobblin.crypto.CredentialStore;
-import gobblin.crypto.RotatingAESCodec;
+import gobblin.crypto.EncryptionConfigParser;
+import gobblin.crypto.EncryptionFactory;
 import gobblin.runtime.cli.CliApplication;
 
 
@@ -52,9 +55,14 @@ public class DecryptCli implements CliApplication {
         return;
       }
 
-      CredentialStore credStore = JCEKSKeystoreCredentialStoreCli.loadKeystore(cli.getOptionValue(KEYSTORE_LOCATION.getOpt()));
+      Map<String, Object> encryptionProperties = ImmutableMap.<String, Object>of(
+          EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "rotating_aes",
+          EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, cli.getOptionValue(KEYSTORE_LOCATION.getOpt()),
+          EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY, getPasswordFromConsole()
+      );
+
       InputStream fIs = new BufferedInputStream(new FileInputStream(new File(cli.getOptionValue(INPUT_LOCATION.getOpt()))));
-      InputStream cipherStream = new RotatingAESCodec(credStore).decodeInputStream(fIs);
+      InputStream cipherStream = EncryptionFactory.buildStreamCryptoProvider(encryptionProperties).decodeInputStream(fIs);
 
       OutputStream out = new BufferedOutputStream(new FileOutputStream(cli.getOptionValue(OUTPUT_LOCATION.getOpt())));
 
@@ -73,5 +81,10 @@ public class DecryptCli implements CliApplication {
 
     String usage = "decryption utilities ";
     formatter.printHelp(usage, options);
+  }
+
+  private static char[] getPasswordFromConsole() {
+    System.out.print("Please enter the keystore password: ");
+    return System.console().readPassword();
   }
 }

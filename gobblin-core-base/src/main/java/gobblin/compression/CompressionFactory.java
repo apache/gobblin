@@ -19,7 +19,8 @@ package gobblin.compression;
 import java.util.Map;
 
 import gobblin.annotation.Alpha;
-import gobblin.writer.StreamCodec;
+import gobblin.codec.GzipCodec;
+import gobblin.codec.StreamCodec;
 
 
 /**
