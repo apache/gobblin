@@ -281,6 +281,12 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
   public JdbcExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
+    try {
+      this.jdbcSource = createJdbcSource();
+      this.dataConnection = this.jdbcSource.getConnection();
+    } catch (SQLException e) {
+      this.log.error("Failed to get connection : error-" + e.getMessage(), e);
+    }
   }
 
   @Override
@@ -627,8 +633,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     this.log.info("Executing query:" + query);
     ResultSet resultSet = null;
     try {
-      this.jdbcSource = createJdbcSource();
-      this.dataConnection = this.jdbcSource.getConnection();
+
       Statement statement = this.dataConnection.createStatement();
 
       if (fetchSize != 0 && this.getExpectedRecordCount() > 2000) {
@@ -684,8 +689,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     this.log.info("Executing query:" + query);
     ResultSet resultSet = null;
     try {
-      this.jdbcSource = createJdbcSource();
-      this.dataConnection = this.jdbcSource.getConnection();
 
       PreparedStatement statement =
           this.dataConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
@@ -1145,7 +1148,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
   @Override
   public void closeConnection() throws Exception {
-    this.jdbcSource.close();
     if (this.dataConnection != null) {
       try {
         this.dataConnection.close();
@@ -1153,5 +1155,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         this.log.error("Failed to close connection ;error-" + e.getMessage(), e);
       }
     }
+    this.jdbcSource.close();
   }
 }
