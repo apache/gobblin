@@ -24,6 +24,7 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 
+import gobblin.codec.StreamCodec;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.AvroUtils;
