@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
@@ -161,22 +160,25 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   }
 
   private MetadataMerger<String> buildPublisherForBranch(int branchId) {
-    String keyName = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_KEY,
-        this.numBranches, branchId);
-    String className = this.getState().getProp(keyName, ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_DEFAULT);
+    String keyName = ForkOperatorUtils
+        .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_KEY, this.numBranches,
+            branchId);
+    String className =
+        this.getState().getProp(keyName, ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_DEFAULT);
 
     try {
       Class<?> mdClass = Class.forName(className);
 
       // If the merger understands properties, use that constructor; otherwise use the default
       // parameter-less ctor
-      @SuppressWarnings("uncheeked")
-      Object merger = GobblinConstructorUtils.invokeFirstConstructor(mdClass, Collections.<Object>singletonList(
-          this.getState().getProperties()), Collections.<Object>emptyList());
+      @SuppressWarnings("unchecked")
+      Object merger = GobblinConstructorUtils
+          .invokeFirstConstructor(mdClass, Collections.<Object>singletonList(this.getState().getProperties()),
+              Collections.<Object>emptyList());
 
       try {
         @SuppressWarnings("unchecked")
-        MetadataMerger<String> casted = (MetadataMerger<String>)merger;
+        MetadataMerger<String> casted = (MetadataMerger<String>) merger;
 
         return casted;
       } catch (ClassCastException e) {
@@ -300,6 +302,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
           writerOutputPathsMoved.add(writerOutputDir);
           return;
         }
+
         // Delete the final output directory if it is configured to be replaced
         LOG.info("Deleting publisher output dir " + publisherOutputDir);
         this.publisherFileSystemByBranches.get(branchId).delete(publisherOutputDir, true);
@@ -424,7 +427,34 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   private void mergeAndPublishMetadata(Collection<? extends WorkUnitState> states)
       throws IOException {
+    Set<String> partitions = new HashSet<>();
+
     // There should be one merged metadata file per branch; first merge all of the pieces together
+    mergeMetadataAndCollectPartitionNames(states, partitions);
+
+    // Now, pick an arbitrary WorkUnitState and publish its metadata. We assume that publisher config settings
+    // are the same across all workunits so it doesn't really matter which workUnit we call publishMetadata() for.
+
+    WorkUnitState anyState = states.iterator().next();
+    for (int branchId = 0; branchId < numBranches; branchId++) {
+      String mdOutputPath = getMetadataOutputPathFromState(anyState, branchId);
+      List<Path> metadataPaths = Lists.newArrayList();
+      String userSpecifiedPath = getUserSpecifiedOutputPathFromState(anyState, branchId);
+
+      if (partitions.isEmpty() || userSpecifiedPath != null) {
+        metadataPaths.add(getMetadataOutputFileForBranch(anyState, branchId));
+      } else {
+        for (String partition : partitions) {
+          metadataPaths
+              .add(new Path(new Path(mdOutputPath, partition), getMetadataFileNameForBranch(anyState, branchId)));
+        }
+      }
+
+      publishMetadata(getMergedMetadataForState(anyState, branchId), branchId, metadataPaths);
+    }
+  }
+
+  private void mergeMetadataAndCollectPartitionNames(Collection<? extends WorkUnitState> states, Set<String> partitions) {
     for (WorkUnitState workUnitState : states) {
       for (int branchId = 0; branchId < numBranches; branchId++) {
         String md = getIntermediateMetadataFromState(workUnitState, branchId);
@@ -432,12 +462,13 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
           metadataMergers.get(branchId).update(md);
         }
       }
-    }
 
-    // Now, pick an arbitrary WorkUnitState and publish its metadata. We assume that publisher config settings
-    // are the same across all workunits so it doesn't really matter which workUnit we call publishMetadata() for.
-    WorkUnitState anyState = states.iterator().next();
-    publishMetadata(anyState);
+      for (Map.Entry<Object, Object> property : workUnitState.getProperties().entrySet()) {
+        if (((String) property.getKey()).startsWith(ConfigurationKeys.WRITER_PARTITION_PATH_KEY)) {
+          partitions.add((String) property.getValue());
+        }
+      }
+    }
   }
 
   /**
@@ -455,9 +486,18 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         //Nothing to write
         continue;
       }
+      Path metadataOutputPath = getMetadataOutputFileForBranch(state, branchId);
+      publishMetadata(metadataValue, branchId, Collections.singleton(metadataOutputPath));
+    }
+  }
 
+  /**
+   * Publish metadata to a set of paths
+   */
+  private void publishMetadata(String metadataValue, int branchId, Collection<Path> pathsToPublish)
+      throws IOException {
+    for (Path metadataOutputPath : pathsToPublish) {
       try {
-        Path metadataOutputPath = getMetadataOutputFileForBranch(state, branchId);
         if (metadataOutputPath == null) {
           LOG.info("Metadata output path not set for branch " + String.valueOf(branchId) + ", not publishing.");
           continue;
@@ -483,24 +523,27 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     }
   }
 
-  private Path getMetadataOutputFileForBranch(WorkUnitState state, int branchId) {
+  private String getMetadataFileNameForBranch(WorkUnitState state, int branchId) {
     // Note: This doesn't follow the pattern elsewhere in Gobblin where we have branch specific config
     // parameters! Leaving this way for backwards compatibility.
     String filePrefix = state.getProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_FILE);
-    String fileName = ForkOperatorUtils.getPropertyNameForBranch(filePrefix, this.numBranches, branchId);
-    String metaDataOutputDirStr = getMetadataOutputPathFromState(state, branchId);
+    return ForkOperatorUtils.getPropertyNameForBranch(filePrefix, this.numBranches, branchId);
+  }
 
-    if (filePrefix == null || metaDataOutputDirStr == null || fileName == null) {
+  private Path getMetadataOutputFileForBranch(WorkUnitState state, int branchId) {
+    String metaDataOutputDirStr = getMetadataOutputPathFromState(state, branchId);
+    String fileName = getMetadataFileNameForBranch(state, branchId);
+    if (metaDataOutputDirStr == null || fileName == null) {
       return null;
     }
     return new Path(metaDataOutputDirStr, fileName);
   }
 
-  private String getMetadataOutputPathFromState(WorkUnitState state, int branchId) {
+  private String getUserSpecifiedOutputPathFromState(WorkUnitState state, int branchId) {
     String outputDir = state.getProp(ForkOperatorUtils
         .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR, this.numBranches, branchId));
 
-    // An older version of this code did not get a branch specific PUBLISHER_METADATA_OUTPUT_DIR so fallback
+   // An older version of this code did not get a branch specific PUBLISHER_METADATA_OUTPUT_DIR so fallback
     // for compatibility's sake
     if (outputDir == null && this.numBranches > 1) {
       outputDir = state.getProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR);
@@ -509,6 +552,12 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
             + " is this intended?");
       }
     }
+
+    return outputDir;
+  }
+
+  private String getMetadataOutputPathFromState(WorkUnitState state, int branchId) {
+    String outputDir = getUserSpecifiedOutputPathFromState(state, branchId);
 
     // Just write out to the regular output path if a metadata specific path hasn't been provided
     if (outputDir == null) {
@@ -557,5 +606,14 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     String keyName = ForkOperatorUtils
         .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_KEY, this.numBranches, branchId);
     return this.getState().getPropAsBoolean(keyName, false);
+  }
+
+  /**
+   * The BaseDataPublisher relies on publishData() to create and clean-up the output directories, so data
+   * has to be published before the metadata can be.
+   */
+  @Override
+  protected boolean shouldPublishMetadataFirst() {
+    return false;
   }
 }

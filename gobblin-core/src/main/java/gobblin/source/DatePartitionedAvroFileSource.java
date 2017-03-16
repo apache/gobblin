@@ -62,57 +62,57 @@ import gobblin.source.workunit.WorkUnit;
 /**
  * Implementation of {@link gobblin.source.Source} that reads over date-partitioned Avro data.
  * This source can be regarded as the reader equivalent of {@link TimeBasedAvroWriterPartitioner}.
- * 
+ *
  * <p>
  * The class will iterate through all the data folders given by the base directory
- * {@link ConfigurationKeys#SOURCE_FILEBASED_DATA_DIRECTORY} and the partitioning type 
+ * {@link ConfigurationKeys#SOURCE_FILEBASED_DATA_DIRECTORY} and the partitioning type
  * {@link #DATE_PARTITIONED_SOURCE_PARTITION_PATTERN} or {@link #DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY}
- * 
+ *
  * <p>
  * For example, if the base directory is set to /my/data/ and daily partitioning is used, then it is assumed that
- * /my/data/daily/[year]/[month]/[day] is present. It will iterate through all the data under these folders starting 
- * from the date specified by {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} until either 
- * {@link #DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB} files have been processed, or until there is no more data 
+ * /my/data/daily/[year]/[month]/[day] is present. It will iterate through all the data under these folders starting
+ * from the date specified by {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} until either
+ * {@link #DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB} files have been processed, or until there is no more data
  * to process. For example, if {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} is set to 2015/01/01, then the job
  * will read from the folder /my/data/daily/2015/01/02/, /my/data/daily/2015/01/03/, /my/data/2015/01/04/ etc.
  * When partitions contain pre/suffixes in the form of /my/data/prefix/[year]/[month]/[day]/suffix, one can refer to
  * them via the {@link #DATE_PARTITIONED_SOURCE_PARTITION_PREFIX} and {@link #DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX}
  * properties.
  * </p>
- * 
+ *
  * </p>
- * 
+ *
  * The class will only process data in Avro format.
  */
 public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, GenericRecord> {
-  
+
   // Configuration parameters
   private static final String DATE_PARTITIONED_SOURCE_PREFIX = "date.partitioned.source";
-  
+
   private static final String DATE_PARTITIONED_SOURCE_PARTITION_PREFIX =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.prefix";
-  
+
   private static final String DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.suffix";
-  
+
   static final String DATE_PARTITIONED_SOURCE_PARTITION_PATTERN =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.pattern";
-  
+
   private static final String DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.granularity";
   private static final DatePartitionType DEFAULT_DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY =
       DatePartitionType.HOUR;
-  
+
   /**
-  * A String of the format defined by {@link #DATE_PARTITIONED_SOURCE_PARTITION_PATTERN} or 
-  * {@link #DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY}. For example for yyyy/MM/dd the 
-  * 2015/01/01 corresponds to January 1st, 2015. The job will start reading data from this point in time. 
+  * A String of the format defined by {@link #DATE_PARTITIONED_SOURCE_PARTITION_PATTERN} or
+  * {@link #DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY}. For example for yyyy/MM/dd the
+  * 2015/01/01 corresponds to January 1st, 2015. The job will start reading data from this point in time.
   * If this parameter is not specified the job will start reading data from
   * the beginning of Unix time.
   */
   private static final String DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE =
       DATE_PARTITIONED_SOURCE_PREFIX + ".min.watermark.value";
-  
+
   /**
   * The maximum number of files that this job should process.
   */
@@ -162,7 +162,7 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
   private String sourcePartitionSuffix;
   private DateTimeFormatter partitionPatternFormatter;
   private DurationFieldType incrementalUnit;
-  
+
   /**
    * Gobblin calls the {@link Source#getWorkunits(SourceState)} method after creating a {@link Source} object with a
    * blank constructor, so any custom initialization of the object needs to be done here.
@@ -170,9 +170,9 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
   protected void init(SourceState state) {
     DateTimeZone.setDefault(DateTimeZone
         .forID(state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE)));
-    
+
     initDatePartition(state);
-    
+
     try {
       initFileSystemHelper(state);
     } catch (FileBasedHelperException e) {
@@ -199,20 +199,20 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
     this.fileCount = 0;
 
     this.sourceDir = new Path(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY));
-    
+
     this.sourcePartitionPrefix = state.getProp(DATE_PARTITIONED_SOURCE_PARTITION_PREFIX, StringUtils.EMPTY);
-    
+
     this.sourcePartitionSuffix = state.getProp(DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX, StringUtils.EMPTY);
-    
+
   }
-  
+
   private void initDatePartition(State state) {
     initDatePartitionFromPattern(state);
     if (this.partitionPatternFormatter == null) {
       initDatePartitionFromGranularity(state);
     }
   }
-  
+
   private void initDatePartitionFromPattern(State state) {
     String partitionPattern = null;
     try {
@@ -227,7 +227,7 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
       throw new IllegalArgumentException("Invalid source partition pattern: " + partitionPattern, e);
     }
   }
-  
+
   private void initDatePartitionFromGranularity(State state) {
     String granularityProp = state.getProp(DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY);
     DatePartitionType partitionType = null;
@@ -243,7 +243,7 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
     this.partitionPatternFormatter = DateTimeFormat.forPattern(partitionType.getDateTimePattern());
     this.incrementalUnit = partitionType.getDateTimeFieldType().getDurationType();
   }
-  
+
   @Override
   public void initFileSystemHelper(State state) throws FileBasedHelperException {
     this.fsHelper = new AvroFsHelper(state);
@@ -320,10 +320,10 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
     // Process all data from the lowWaterMark date until the maxFilesPerJob has been hit
     for (DateTime date = lowWaterMarkDate; !date.isAfter(currentDay) && this.fileCount < this.maxFilesPerJob; date =
         date.withFieldAdded(incrementalUnit, 1)) {
-       
+
       // Constructs the path folder - e.g. /my/data/prefix/2015/01/01/suffix
       Path sourcePath = constructSourcePath(date);
-      
+
       try {
         if (this.fs.exists(sourcePath)) {
 
@@ -365,12 +365,25 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
   }
 
   private Path constructSourcePath(DateTime date) {
-    return new Path(this.sourceDir, this.sourcePartitionPrefix + Path.SEPARATOR
-        + this.partitionPatternFormatter.print(date) + Path.SEPARATOR + this.sourcePartitionSuffix);
+    StringBuilder pathBuilder = new StringBuilder();
+
+    if (!this.sourcePartitionPrefix.isEmpty()) {
+      pathBuilder.append(this.sourcePartitionPrefix);
+      pathBuilder.append(Path.SEPARATOR);
+    }
+
+    pathBuilder.append(this.partitionPatternFormatter.print(date));
+
+    if (!this.sourcePartitionSuffix.isEmpty()) {
+      pathBuilder.append(Path.SEPARATOR);
+      pathBuilder.append(this.sourcePartitionSuffix);
+    }
+
+    return new Path(this.sourceDir, pathBuilder.toString());
   }
-  
+
   /**
-   * Gets the LWM for this job runs. The new LWM is the HWM of the previous run + 1 unit (day,hour,minute..etc). 
+   * Gets the LWM for this job runs. The new LWM is the HWM of the previous run + 1 unit (day,hour,minute..etc).
    * If there was no previous execution then it is set to the given lowWaterMark + 1 unit.
    */
   private long getLowWaterMark(Iterable<WorkUnitState> previousStates, String lowWaterMark) {
