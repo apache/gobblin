@@ -1145,7 +1145,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
   @Override
   public void closeConnection() throws Exception {
-    this.jdbcSource.close();
     if (this.dataConnection != null) {
       try {
         this.dataConnection.close();
@@ -1153,5 +1152,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         this.log.error("Failed to close connection ;error-" + e.getMessage(), e);
       }
     }
+
+    this.jdbcSource.close();
   }
 }
