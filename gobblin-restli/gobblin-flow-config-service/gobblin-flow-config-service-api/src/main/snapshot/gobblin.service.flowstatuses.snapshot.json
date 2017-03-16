@@ -1,0 +1,136 @@
+{
+  "models" : [ {
+    "type" : "record",
+    "name" : "JobStatus",
+    "namespace" : "gobblin.service",
+    "doc" : "Status of a job",
+    "fields" : [ {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow"
+    }, {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow."
+    }, {
+      "name" : "jobName",
+      "type" : "string",
+      "doc" : "Name of the job"
+    }, {
+      "name" : "jobGroup",
+      "type" : "string",
+      "doc" : "Group of the job. This defines the namespace for the job."
+    }, {
+      "name" : "executionStartTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the last execution began"
+    }, {
+      "name" : "executionEndTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the last execution ended"
+    }, {
+      "name" : "executionStatus",
+      "type" : "string",
+      "doc" : "Execution status"
+    }, {
+      "name" : "message",
+      "type" : "string",
+      "doc" : "Error or status message"
+    }, {
+      "name" : "processedCount",
+      "type" : "long",
+      "doc" : "Number of records processed in last execution"
+    }, {
+      "name" : "watermark",
+      "type" : "string",
+      "doc" : "Watermark after last execution"
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "FlowStatus",
+    "namespace" : "gobblin.service",
+    "doc" : "Status of a flow",
+    "fields" : [ {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow"
+    }, {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow."
+    }, {
+      "name" : "executionStartTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the last execution began"
+    }, {
+      "name" : "executionEndTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the last execution ended"
+    }, {
+      "name" : "executionStatus",
+      "type" : "string",
+      "doc" : "Execution status"
+    }, {
+      "name" : "message",
+      "type" : "string",
+      "doc" : "Error or status message"
+    }, {
+      "name" : "jobStatuses",
+      "type" : {
+        "type" : "array",
+        "items" : "JobStatus"
+      },
+      "doc" : "Status of jobs belonging to the flow"
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "FlowStatusId",
+    "namespace" : "gobblin.service",
+    "doc" : "Identifier for a flow",
+    "fields" : [ {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow"
+    }, {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow."
+    }, {
+      "name" : "flowExecutionId",
+      "type" : "long",
+      "doc" : "Execution id for the flow",
+      "optional" : true
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "EmptyRecord",
+    "namespace" : "com.linkedin.restli.common",
+    "doc" : "An literally empty record.  Intended as a marker to indicate the absence of content where a record type is required.  If used the underlying DataMap *must* be empty, EmptyRecordValidator is provided to help enforce this.  For example,  CreateRequest extends Request<EmptyRecord> to indicate it has no response body.   Also, a ComplexKeyResource implementation that has no ParamKey should have a signature like XyzResource implements ComplexKeyResource<XyzKey, EmptyRecord, Xyz>.",
+    "fields" : [ ],
+    "validate" : {
+      "com.linkedin.restli.common.EmptyRecordValidator" : { }
+    }
+  } ],
+  "schema" : {
+    "name" : "flowstatuses",
+    "namespace" : "gobblin.service",
+    "path" : "/flowstatuses",
+    "schema" : "gobblin.service.FlowStatus",
+    "doc" : "generated from: gobblin.service.FlowStatusResource",
+    "collection" : {
+      "identifier" : {
+        "name" : "flowstatusesId",
+        "type" : "gobblin.service.FlowStatusId",
+        "params" : "com.linkedin.restli.common.EmptyRecord"
+      },
+      "supports" : [ "get" ],
+      "methods" : [ {
+        "method" : "get",
+        "doc" : "Retrieve the latest {@link FlowStatus} with the given key"
+      } ],
+      "entity" : {
+        "path" : "/flowstatuses/{flowstatusesId}"
+      }
+    }
+  }
+}

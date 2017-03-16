@@ -1,0 +1,58 @@
+{
+  "type" : "record",
+  "name" : "JobStatus",
+  "namespace": "gobblin.service",
+  "doc" : "Status of a job",
+  "fields" : [
+    {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow"
+    },
+    {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow."
+    },
+    {
+      "name" : "jobName",
+      "type" : "string",
+      "doc" : "Name of the job"
+    },
+    {
+      "name" : "jobGroup",
+      "type" : "string",
+      "doc" : "Group of the job. This defines the namespace for the job."
+    },
+    {
+      "name" : "executionStartTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the last execution began"
+    },
+    {
+      "name" : "executionEndTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the last execution ended"
+    },
+    {
+      "name" : "executionStatus",
+      "type" : "string",
+      "doc" : "Execution status"
+    },
+    {
+      "name" : "message",
+      "type" : "string",
+      "doc" : "Error or status message"
+    },
+    {
+      "name" : "processedCount",
+      "type" : "long",
+      "doc" : "Number of records processed in last execution"
+    },
+    {
+      "name" : "watermark",
+      "type" : "string",
+      "doc" : "Watermark after last execution"
+    }
+  ]
+}

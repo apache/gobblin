@@ -1,0 +1,22 @@
+{
+  "name" : "flowstatuses",
+  "namespace" : "gobblin.service",
+  "path" : "/flowstatuses",
+  "schema" : "gobblin.service.FlowStatus",
+  "doc" : "generated from: gobblin.service.FlowStatusResource",
+  "collection" : {
+    "identifier" : {
+      "name" : "flowstatusesId",
+      "type" : "gobblin.service.FlowStatusId",
+      "params" : "com.linkedin.restli.common.EmptyRecord"
+    },
+    "supports" : [ "get" ],
+    "methods" : [ {
+      "method" : "get",
+      "doc" : "Retrieve the latest {@link FlowStatus} with the given key"
+    } ],
+    "entity" : {
+      "path" : "/flowstatuses/{flowstatusesId}"
+    }
+  }
+}
