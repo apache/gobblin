@@ -56,7 +56,7 @@ public class DecryptCli implements CliApplication {
       }
 
       Map<String, Object> encryptionProperties = ImmutableMap.<String, Object>of(
-          EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "rotating_aes",
+          EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "aes_rotating",
           EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, cli.getOptionValue(KEYSTORE_LOCATION.getOpt()),
           EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY, getPasswordFromConsole()
       );
@@ -83,8 +83,8 @@ public class DecryptCli implements CliApplication {
     formatter.printHelp(usage, options);
   }
 
-  private static char[] getPasswordFromConsole() {
+  private static String getPasswordFromConsole() {
     System.out.print("Please enter the keystore password: ");
-    return System.console().readPassword();
+    return new String(System.console().readPassword());
   }
 }
