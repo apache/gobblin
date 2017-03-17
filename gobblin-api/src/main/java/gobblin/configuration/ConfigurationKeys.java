@@ -481,6 +481,8 @@ public class ConfigurationKeys {
   public static final String SOURCE_CONN_PORT = SOURCE_CONN_PREFIX + "port";
   public static final int SOURCE_CONN_DEFAULT_PORT = 22;
   public static final String SOURCE_CONN_SID = SOURCE_CONN_PREFIX + "sid";
+  public static final String SOURCE_CONN_REFRESH_TOKEN = SOURCE_CONN_PREFIX + "refresh.token";
+
 
   /**
    * Source default configurations.

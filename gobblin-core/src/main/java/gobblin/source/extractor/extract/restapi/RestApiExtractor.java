@@ -73,6 +73,27 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 
   protected abstract RestApiConnector getConnector(WorkUnitState state);
 
+  protected void buildQuery(String inputQuery, String entity, JsonArray columnArray) {
+    if (inputQuery == null && this.columnList.size() != 0) {
+      // if input query is null, build the query from metadata
+      this.updatedQuery = "SELECT " + Joiner.on(",").join(this.columnList) + " FROM " + entity;
+    } else {
+      // if input query is not null, build the query with intersection of columns from input query and columns from Metadata
+      if (inputQuery != null) {
+        String queryLowerCase = inputQuery.toLowerCase();
+        int columnsStartIndex = queryLowerCase.indexOf("select ") + 7;
+        int columnsEndIndex = queryLowerCase.indexOf(" from ");
+        if (columnsStartIndex > 0 && columnsEndIndex > 0) {
+          String givenColumnList = inputQuery.substring(columnsStartIndex, columnsEndIndex);
+          this.updatedQuery = inputQuery.replace(givenColumnList, Joiner.on(",").join(this.columnList));
+        } else {
+          this.updatedQuery = inputQuery;
+        }
+      }
+    }
+    log.info("Updated input query: " + this.updatedQuery);
+  }
+
   @Override
   public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException {
     log.info("Extract Metadata using Rest Api");
@@ -132,26 +153,8 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
         }
       }
 
-      if (inputQuery == null && this.columnList.size() != 0) {
-        // if input query is null, build the query from metadata
-        this.updatedQuery = "SELECT " + Joiner.on(",").join(this.columnList) + " FROM " + entity;
-      } else {
-        // if input query is not null, build the query with intersection of columns from input query and columns from Metadata
-        if (inputQuery != null) {
-          String queryLowerCase = inputQuery.toLowerCase();
-          int columnsStartIndex = queryLowerCase.indexOf("select ") + 7;
-          int columnsEndIndex = queryLowerCase.indexOf(" from ");
-          if (columnsStartIndex > 0 && columnsEndIndex > 0) {
-            String givenColumnList = inputQuery.substring(columnsStartIndex, columnsEndIndex);
-            this.updatedQuery = inputQuery.replace(givenColumnList, Joiner.on(",").join(this.columnList));
-          } else {
-            this.updatedQuery = inputQuery;
-          }
-        }
-      }
-
-      log.info("Updated input query: " + this.updatedQuery);
-      log.debug("Schema:" + columnArray);
+      buildQuery(inputQuery, entity, columnArray);
+      log.info("Schema:" + columnArray);
       this.setOutputSchema(columnArray);
     } catch (RuntimeException | RestApiConnectionException | RestApiProcessingException | IOException
         | SchemaException e) {
