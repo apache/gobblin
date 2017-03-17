@@ -50,9 +50,14 @@
       "doc" : "Number of records processed in last execution"
     },
     {
-      "name" : "watermark",
+      "name" : "lowWatermark",
       "type" : "string",
-      "doc" : "Watermark after last execution"
+      "doc" : "Low watermark after last execution"
+    },
+    {
+      "name" : "highWatermark",
+      "type" : "string",
+      "doc" : "High watermark after last execution"
     }
   ]
 }

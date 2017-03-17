@@ -96,12 +96,12 @@ public class FlowStatusTest {
   public void testGetCompleted() throws Exception {
     gobblin.service.monitoring.JobStatus js1 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
-        .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0)
-        .message("Test message 1").processedCount(100).jobExecutionId(1).watermark("watermark:1").build();
+        .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 1")
+        .processedCount(100).jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").build();
     gobblin.service.monitoring.JobStatus js2 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
-        .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0)
-        .message("Test message 2").processedCount(200).jobExecutionId(2).watermark("watermark:2").build();
+        .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 2")
+        .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
     _jobStatusList = Lists.newArrayList(js1, js2);
 
     FlowStatusId flowId = new FlowStatusId().setFlowGroup("fgroup1").setFlowName("flow1");
@@ -134,12 +134,12 @@ public class FlowStatusTest {
   public void testGetRunning() throws Exception {
     gobblin.service.monitoring.JobStatus js1 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
-        .eventName(TimingEvent.LauncherTimings.JOB_RUN).flowExecutionId(0)
-        .message("Test message 1").processedCount(100).jobExecutionId(1).watermark("watermark:1").build();
+        .eventName(TimingEvent.LauncherTimings.JOB_RUN).flowExecutionId(0).message("Test message 1").processedCount(100)
+        .jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").build();
     gobblin.service.monitoring.JobStatus js2 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
-        .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0)
-        .message("Test message 2").processedCount(200).jobExecutionId(2).watermark("watermark:2").build();
+        .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 2")
+        .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
     _jobStatusList = Lists.newArrayList(js1, js2);
 
     FlowStatusId flowId = new FlowStatusId().setFlowGroup("fgroup1").setFlowName("flow1");
@@ -172,12 +172,12 @@ public class FlowStatusTest {
   public void testGetFailed() throws Exception {
     gobblin.service.monitoring.JobStatus js1 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
-        .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0)
-        .message("Test message 1").processedCount(100).jobExecutionId(1).watermark("watermark:1").build();
+        .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 1")
+        .processedCount(100).jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").build();
     gobblin.service.monitoring.JobStatus js2 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
-        .eventName(TimingEvent.LauncherTimings.JOB_FAILED).flowExecutionId(0)
-        .message("Test message 2").processedCount(200).jobExecutionId(2).watermark("watermark:2").build();
+        .eventName(TimingEvent.LauncherTimings.JOB_FAILED).flowExecutionId(0).message("Test message 2")
+        .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
     _jobStatusList = Lists.newArrayList(js1, js2);
 
     FlowStatusId flowId = new FlowStatusId().setFlowGroup("fgroup1").setFlowName("flow1");
@@ -227,6 +227,7 @@ public class FlowStatusTest {
     Assert.assertEquals(mjs.getStartTime(), js.getExecutionStartTime().longValue());
     Assert.assertEquals(mjs.getEndTime(), js.getExecutionEndTime().longValue());
     Assert.assertEquals(mjs.getProcessedCount(), js.getProcessedCount().longValue());
-    Assert.assertEquals(mjs.getWatermark(), js.getWatermark());
+    Assert.assertEquals(mjs.getLowWatermark(), js.getLowWatermark());
+    Assert.assertEquals(mjs.getHighWatermark(), js.getHighWatermark());
   }
 }

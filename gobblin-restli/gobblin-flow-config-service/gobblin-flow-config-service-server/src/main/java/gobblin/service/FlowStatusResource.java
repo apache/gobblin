@@ -88,7 +88,8 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
             .setExecutionStatus(timingEventToStatus(queriedJobStatus.getEventName()))
             .setMessage(queriedJobStatus.getMessage())
             .setProcessedCount(queriedJobStatus.getProcessedCount())
-            .setWatermark(queriedJobStatus.getWatermark());
+            .setLowWatermark(queriedJobStatus.getLowWatermark())
+            .setHighWatermark(queriedJobStatus.getHighWatermark());
 
         jobStatusArray.add(jobStatus);
 
