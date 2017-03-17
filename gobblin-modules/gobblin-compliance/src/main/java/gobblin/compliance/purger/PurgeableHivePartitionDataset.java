@@ -142,7 +142,7 @@ public class PurgeableHivePartitionDataset extends HivePartitionDataset implemen
   }
 
   public String getStagingPartitionLocation() {
-    return getStagingTableLocation() + getName();
+    return StringUtils.join(Arrays.asList(getStagingTableLocation(), getName()), '/');
   }
 
   public String getOriginalPartitionLocation() {
