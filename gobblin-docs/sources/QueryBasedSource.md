@@ -12,7 +12,7 @@ which defines the way and implements common routines to extract data from the so
 ## `QueryBasedSource`
 <p align="center">
   <figure>    
-    <img src="/img/Gobblin-Query-Based-Sources.png" alt="Query based sources" width="800">
+    <img src="../../img/Gobblin-Query-Based-Sources.png" alt="Query based sources" width="800">
     <figcaption><br>Figure 1: Query based sources<br></figcaption>
   </figure>
 </p>
@@ -31,7 +31,7 @@ according to the `mr.job.max.mappers` configuration (Note: other categories of s
 ## `QueryBasedExtractor`
 <p align="center">
   <figure>    
-    <img src=/img/Gobblin-Query-Based-Extractors.png alt="Query based extractors" width="800">
+    <img src=../../img/Gobblin-Query-Based-Extractors.png alt="Query based extractors" width="800">
     <figcaption><br>Figure 2: Query based extractors<br></figcaption>
   </figure>
 </p>
@@ -51,7 +51,7 @@ Building a query based extractor may involve three queries:
 
 <p align="center">
   <figure>    
-    <img src=/img/Gobblin-Query-Based-Extractor-Build-Queries.png alt="Query based extractor build queries" width="400">
+    <img src=../../img/Gobblin-Query-Based-Extractor-Build-Queries.png alt="Query based extractor build queries" width="400">
     <figcaption><br>Figure 3: Query based extractor build queries<br></figcaption>
   </figure>
 </p>
