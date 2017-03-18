@@ -18,8 +18,11 @@
 package gobblin.service.monitoring;
 
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
+
+import com.google.common.collect.Lists;
 
 import gobblin.annotation.Alpha;
 
@@ -41,9 +44,9 @@ public class FlowStatusGenerator {
    * @return the latest {@link FlowStatus}. -1 will be used as the flow execution Id if there is no flow execution found.
    */
   public FlowStatus getLatestFlowStatus(String flowName, String flowGroup) {
-    Iterator<JobStatus> jobStatusIterator =
-        jobStatusRetriever.getLatestJobStatusByFlowNameAndGroup(flowName, flowGroup);
-    long flowExecutionId = jobStatusIterator.hasNext() ? jobStatusIterator.next().getFlowExecutionId() : -1l;
-    return new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator);
+    List<JobStatus> jobStatusList = Lists.newArrayList(
+        jobStatusRetriever.getLatestJobStatusByFlowNameAndGroup(flowName, flowGroup));
+    long flowExecutionId = !jobStatusList.isEmpty() ? jobStatusList.get(0).getFlowExecutionId() : -1l;
+    return new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusList.iterator());
   }
 }

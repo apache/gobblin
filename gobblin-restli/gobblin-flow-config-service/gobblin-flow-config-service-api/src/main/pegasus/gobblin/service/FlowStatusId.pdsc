@@ -1,0 +1,24 @@
+{
+  "type" : "record",
+  "name" : "FlowStatusId",
+  "namespace": "gobblin.service",
+  "doc" : "Identifier for a flow",
+  "fields" : [
+    {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow"
+    },
+    {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow."
+    },
+    {
+      "name" : "flowExecutionId",
+      "type" : "long",
+      "doc" : "Execution id for the flow",
+      "optional" : true
+    }
+  ]
+}
