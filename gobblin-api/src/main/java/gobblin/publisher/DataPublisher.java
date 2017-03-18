@@ -62,8 +62,13 @@ public abstract class DataPublisher implements Closeable {
    * @throws IOException if there is a problem with publishing the metadata or the data.
    */
   public void publish(Collection<? extends WorkUnitState> states) throws IOException {
-    publishMetadata(states);
-    publishData(states);
+    if (shouldPublishMetadataFirst()) {
+      publishMetadata(states);
+      publishData(states);
+    } else {
+      publishData(states);
+      publishMetadata(states);
+    }
   }
 
   public State getState() {
@@ -93,5 +98,13 @@ public abstract class DataPublisher implements Closeable {
    */
   public boolean isThreadSafe() {
     return this.getClass() == DataPublisher.class;
+  }
+
+  /**
+   * Generally metadata should be published before the data it represents, but this allows subclasses to override
+   * if they are dependent on data getting published first.
+   */
+  protected boolean shouldPublishMetadataFirst() {
+    return true;
   }
 }

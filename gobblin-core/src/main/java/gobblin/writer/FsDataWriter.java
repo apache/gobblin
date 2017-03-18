@@ -145,6 +145,11 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
     for (StreamCodec c : getEncoders()) {
       this.defaultMetadata.addTransferEncoding(c.getTag());
     }
+
+    String partitionPath = builder.getPartitionPath(properties);
+    if (builder.getPartitionPath(properties) != null) {
+      properties.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + builder.getWriterId(), partitionPath);
+    }
   }
 
   /**
