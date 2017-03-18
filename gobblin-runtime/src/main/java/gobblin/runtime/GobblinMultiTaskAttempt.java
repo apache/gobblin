@@ -20,6 +20,10 @@ package gobblin.runtime;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.gobblin_scopes.TaskScopeInstance;
 import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.runtime.task.TaskIFace;
+import gobblin.runtime.task.TaskUtils;
+import gobblin.runtime.task.TaskFactory;
+import gobblin.runtime.task.TaskIFaceWrapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -29,6 +33,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -294,8 +299,7 @@ public class GobblinMultiTaskAttempt {
         workUnitState.setProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY, this.containerIdOptional.get());
       }
       // Create a new task from the work unit and submit the task to run
-      Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker, this.taskExecutor,
-                           Optional.of(countDownLatch));
+      Task task = createTaskRunnable(workUnitState, countDownLatch);
       this.taskStateTracker.registerNewTask(task);
       tasks.add(task);
       this.taskExecutor.execute(task);
@@ -305,6 +309,17 @@ public class GobblinMultiTaskAttempt {
         .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
 
     return tasks;
+  }
+
+  private Task createTaskRunnable(WorkUnitState workUnitState, CountDownLatch countDownLatch) {
+    Optional<TaskFactory> taskFactoryOpt = TaskUtils.getTaskFactory(workUnitState);
+    if (taskFactoryOpt.isPresent()) {
+      return new TaskIFaceWrapper(taskFactoryOpt.get().createTask(new TaskContext(workUnitState)), new TaskContext(workUnitState),
+          countDownLatch, this.taskStateTracker);
+    } else {
+      return new Task(new TaskContext(workUnitState), this.taskStateTracker, this.taskExecutor,
+          Optional.of(countDownLatch));
+    }
   }
 
   public void runAndOptionallyCommitTaskAttempt(CommitPolicy multiTaskAttemptCommitPolicy)
@@ -347,7 +362,6 @@ public class GobblinMultiTaskAttempt {
    * @param taskStateTracker a {@link TaskStateTracker} for task state tracking
    * @param taskExecutor a {@link TaskExecutor} for task execution
    * @param taskStateStore a {@link StateStore} for storing {@link TaskState}s
-   * @param logger a {@link Logger} for logging
    * @param multiTaskAttemptCommitPolicy {@link GobblinMultiTaskAttempt.CommitPolicy} for committing {@link GobblinMultiTaskAttempt}
    * @throws IOException if there's something wrong with any IO operations
    * @throws InterruptedException if the task execution gets cancelled

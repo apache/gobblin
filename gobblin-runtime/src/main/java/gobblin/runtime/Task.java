@@ -17,6 +17,8 @@
 
 package gobblin.runtime;
 
+import gobblin.configuration.State;
+import gobblin.runtime.task.TaskIFace;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -107,7 +109,7 @@ import gobblin.writer.WatermarkStorage;
  *
  * @author Yinan Li
  */
-public class Task implements Runnable {
+public class Task implements TaskIFace {
 
   private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
@@ -140,6 +142,29 @@ public class Task implements Runnable {
 
   private final AtomicBoolean shutdownRequested;
   private final CountDownLatch shutdownLatch;
+
+  public Task() {
+    this.taskContext = null;
+    this.taskState = null;
+    this.jobId = null;
+    this.taskId = null;
+    this.taskStateTracker = null;
+    this.taskExecutor = null;
+    this.countDownLatch = null;
+    this.closer = null;
+    this.extractor = null;
+    this.converter = null;
+    this.rowChecker = null;
+    this.taskMode = null;
+    this.recordsPulled = null;
+    this.lastRecordPulledTimestampMillis = 0;
+    this.shutdownRequested = null;
+    this.shutdownLatch = null;
+    this.watermarkingStrategy = null;
+    this.watermarkManager = null;
+    this.watermarkTracker = null;
+    this.watermarkStorage = null;
+  }
 
   /**
    * Instantiate a new {@link Task}.
@@ -551,6 +576,21 @@ public class Task implements Runnable {
    */
   public TaskState getTaskState() {
     return this.taskState;
+  }
+
+  @Override
+  public State getPersistentState() {
+    return getTaskState();
+  }
+
+  @Override
+  public State getExecutionMetadata() {
+    return getTaskState();
+  }
+
+  @Override
+  public WorkUnitState.WorkingState getWorkingState() {
+    return getTaskState().getWorkingState();
   }
 
   /**

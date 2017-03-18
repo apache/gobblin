@@ -403,6 +403,8 @@ public class JobContext implements Closeable {
           }).iterator(), numCommitThreads, ExecutorsUtils.newThreadFactory(Optional.of(this.logger), Optional.of("Commit-thread-%d")))
           .executeAndGetResults();
 
+      IteratorExecutor.logFailures(result, LOG, 10);
+
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
         this.jobState.setState(JobState.RunningState.FAILED);
         throw new IOException("Failed to commit dataset state for some dataset(s) of job " + this.jobId);
