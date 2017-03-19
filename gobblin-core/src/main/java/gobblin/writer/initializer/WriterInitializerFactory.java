@@ -19,12 +19,11 @@ package gobblin.writer.initializer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.source.workunit.WorkUnit;
+import gobblin.source.workunit.WorkUnitStream;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.JdbcWriterBuilder;
 import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
-import java.util.Collection;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
@@ -43,7 +42,7 @@ public class WriterInitializerFactory {
    * @param state
    * @return WriterInitializer
    */
-  public static WriterInitializer newInstace(State state, Collection<WorkUnit> workUnits) {
+  public static WriterInitializer newInstace(State state, WorkUnitStream workUnits) {
     int branches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
     if (branches == 1) {
       return newSingleInstance(state, workUnits, branches, 0);
@@ -56,14 +55,19 @@ public class WriterInitializerFactory {
     return new MultiWriterInitializer(wis);
   }
 
-  private static WriterInitializer newSingleInstance(State state, Collection<WorkUnit> workUnits, int branches, int branchId) {
+  private static WriterInitializer newSingleInstance(State state, WorkUnitStream workUnits, int branches, int branchId) {
     Preconditions.checkNotNull(state);
 
     String writerBuilderKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, branchId);
     String writerBuilderClass = state.getProp(writerBuilderKey, ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS);
 
     if(JdbcWriterBuilder.class.getName().equals(writerBuilderClass)) {
-      return new JdbcWriterInitializer(state, workUnits, new JdbcWriterCommandsFactory(), branches, branchId);
+      if (workUnits.isSafeToMaterialize()) {
+        return new JdbcWriterInitializer(state, workUnits.getMaterializedWorkUnitCollection(),
+            new JdbcWriterCommandsFactory(), branches, branchId);
+      } else {
+        throw new RuntimeException(JdbcWriterBuilder.class.getName() + " does not support work unit streams.");
+      }
     }
     return NOOP;
   }

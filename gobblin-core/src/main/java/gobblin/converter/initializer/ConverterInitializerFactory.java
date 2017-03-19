@@ -17,7 +17,6 @@
 
 package gobblin.converter.initializer;
 
-import java.util.Collection;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
@@ -27,9 +26,9 @@ import com.google.common.collect.Lists;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.converter.jdbc.AvroToJdbcEntryConverter;
-import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.commands.JdbcWriterCommandsFactory;
+import gobblin.source.workunit.WorkUnitStream;
 
 
 public class ConverterInitializerFactory {
@@ -43,7 +42,7 @@ public class ConverterInitializerFactory {
    * @param state
    * @return WriterInitializer
    */
-  public static ConverterInitializer newInstance(State state, Collection<WorkUnit> workUnits) {
+  public static ConverterInitializer newInstance(State state, WorkUnitStream workUnits) {
     int branches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
     if (branches == 1) {
       return newInstance(state, workUnits, branches, 0);
@@ -56,7 +55,7 @@ public class ConverterInitializerFactory {
     return new MultiConverterInitializer(cis);
   }
 
-  private static ConverterInitializer newInstance(State state, Collection<WorkUnit> workUnits, int branches,
+  private static ConverterInitializer newInstance(State state, WorkUnitStream workUnits, int branches,
       int branchId) {
     Preconditions.checkNotNull(state);
 
@@ -72,7 +71,12 @@ public class ConverterInitializerFactory {
     JdbcWriterCommandsFactory factory = new JdbcWriterCommandsFactory();
     for (String converterClass : converterClasses) {
       if (AvroToJdbcEntryConverter.class.getName().equals(converterClass)) {
-        cis.add(new AvroToJdbcEntryConverterInitializer(state, workUnits, factory, branches, branchId));
+        if (workUnits.isSafeToMaterialize()) {
+          cis.add(new AvroToJdbcEntryConverterInitializer(state, workUnits.getMaterializedWorkUnitCollection(),
+              factory, branches, branchId));
+        } else {
+          throw new RuntimeException(AvroToJdbcEntryConverter.class.getName() + " does not support work unit streams.");
+        }
       }
     }
     return new MultiConverterInitializer(cis);

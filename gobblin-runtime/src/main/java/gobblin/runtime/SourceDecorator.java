@@ -30,8 +30,11 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.workunit.BasicWorkUnitStream;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.Decorator;
+import gobblin.source.WorkUnitStreamSource;
+import gobblin.source.workunit.WorkUnitStream;
 
 
 /**
@@ -40,7 +43,7 @@ import gobblin.util.Decorator;
  *
  * @author Yinan Li
  */
-public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
+public class SourceDecorator<S, D> implements WorkUnitStreamSource<S, D>, Decorator {
   private static final Logger LOG = LoggerFactory.getLogger(SourceDecorator.class);
 
   private final Source<S, D> source;
@@ -62,6 +65,25 @@ public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
         return Collections.emptyList();
       }
       return workUnits;
+    } catch (Throwable t) {
+      this.logger.error("Failed to get work units for job " + this.jobId, t);
+      // Return null in case of errors
+      return null;
+    }
+  }
+
+  @Override
+  public WorkUnitStream getWorkunitStream(SourceState state) {
+    try {
+      if (this.source instanceof WorkUnitStreamSource) {
+        return ((WorkUnitStreamSource) this.source).getWorkunitStream(state);
+      }
+      List<WorkUnit> workUnits = this.source.getWorkunits(state);
+      if (workUnits == null) {
+        // Return an empty list if no work units are returned by the source
+        workUnits = Collections.emptyList();
+      }
+      return new BasicWorkUnitStream.Builder(workUnits).build();
     } catch (Throwable t) {
       this.logger.error("Failed to get work units for job " + this.jobId, t);
       // Return null in case of errors

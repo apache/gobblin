@@ -79,7 +79,7 @@ public class GobblinMultiTaskAttempt {
   }
 
   private final Logger log;
-  private final List<WorkUnit> workUnits;
+  private final Iterator<WorkUnit> workUnits;
   private final String jobId;
   private final JobState jobState;
   private final TaskStateTracker taskStateTracker;
@@ -95,7 +95,7 @@ public class GobblinMultiTaskAttempt {
    */
   private List<CommitStep> cleanupCommitSteps;
 
-  public GobblinMultiTaskAttempt(List<WorkUnit> workUnits,
+  public GobblinMultiTaskAttempt(Iterator<WorkUnit> workUnits,
                                  String jobId,
                                  JobState jobState,
                                  TaskStateTracker taskStateTracker,
@@ -123,19 +123,19 @@ public class GobblinMultiTaskAttempt {
    */
   public void run()
       throws IOException, InterruptedException {
-    if (workUnits.isEmpty()) {
+    if (!this.workUnits.hasNext()) {
       log.warn("No work units to run in container " + containerIdOptional.or(""));
       this.tasks = new ArrayList<>();
       return;
     }
 
-    CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
+    CountUpAndDownLatch countDownLatch = new CountUpAndDownLatch(0);
     this.tasks = runWorkUnits(countDownLatch);
     log.info("Waiting for submitted tasks of job {} to complete in container {}...", jobId,
         containerIdOptional.or(""));
     while (countDownLatch.getCount() > 0) {
       log.info(String.format("%d out of %d tasks of job %s are running in container %s", countDownLatch.getCount(),
-          workUnits.size(), jobId, containerIdOptional.or("")));
+          countDownLatch.getRegisteredParties(), jobId, containerIdOptional.or("")));
       if (countDownLatch.await(10, TimeUnit.SECONDS)) {
         break;
       }
@@ -214,8 +214,8 @@ public class GobblinMultiTaskAttempt {
     }
 
     StateStore<TaskState> taskStateStore = this.taskStateStoreOptional.get();
-    for (WorkUnit workUnit : workUnits) {
-      String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+    for (Task task : this.tasks) {
+      String taskId = task.getTaskId();
       // Delete the task state file for the task if it already exists.
       // This usually happens if the task is retried upon failure.
       if (taskStateStore.exists(jobId, taskId + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)) {
@@ -282,10 +282,12 @@ public class GobblinMultiTaskAttempt {
    * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
    * @return a list of {@link Task}s from the {@link WorkUnit}s
    */
-  private List<Task> runWorkUnits(CountDownLatch countDownLatch) {
+  private List<Task> runWorkUnits(CountUpAndDownLatch countDownLatch) {
 
     List<Task> tasks = Lists.newArrayList();
-    for (WorkUnit workUnit : this.workUnits) {
+    while (this.workUnits.hasNext()) {
+      WorkUnit workUnit = this.workUnits.next();
+      countDownLatch.countUp();
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
       SubscopedBrokerBuilder<GobblinScopeTypes, ?> taskBrokerBuilder =
           this.jobBroker.newSubscopedBuilder(new TaskScopeInstance(taskId));
@@ -304,7 +306,7 @@ public class GobblinMultiTaskAttempt {
     }
 
     new EventSubmitter.Builder(JobMetrics.get(this.jobId).getMetricContext(), "gobblin.runtime").build()
-        .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
+        .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Long.toString(countDownLatch.getRegisteredParties()));
 
     return tasks;
   }
@@ -337,7 +339,7 @@ public class GobblinMultiTaskAttempt {
    * not access the task state store. This should be addressed as all task executions should be
    * updating the task state.
    */
-  public static GobblinMultiTaskAttempt runWorkUnits(JobContext jobContext, List<WorkUnit> workUnits,
+  public static GobblinMultiTaskAttempt runWorkUnits(JobContext jobContext, Iterator<WorkUnit> workUnits,
       TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
       CommitPolicy multiTaskAttemptCommitPolicy)
       throws IOException, InterruptedException {
@@ -370,7 +372,7 @@ public class GobblinMultiTaskAttempt {
       CommitPolicy multiTaskAttemptCommitPolicy, SharedResourcesBroker<GobblinScopeTypes> jobBroker)
       throws IOException, InterruptedException {
     GobblinMultiTaskAttempt multiTaskAttempt =
-        new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
+        new GobblinMultiTaskAttempt(workUnits.iterator(), jobId, jobState, taskStateTracker, taskExecutor,
             Optional.of(containerId), Optional.of(taskStateStore), jobBroker);
 
     multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);

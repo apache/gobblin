@@ -19,6 +19,7 @@ package gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -98,7 +99,7 @@ public class JobLauncherUtils {
    * @param workUnits is a {@link List} containing either {@link WorkUnit}s or {@link MultiWorkUnit}s
    * @return a {@link List} of flattened {@link WorkUnit}s
    */
-  public static List<WorkUnit> flattenWorkUnits(List<WorkUnit> workUnits) {
+  public static List<WorkUnit> flattenWorkUnits(Collection<WorkUnit> workUnits) {
     List<WorkUnit> flattenedWorkUnits = Lists.newArrayList();
     for (WorkUnit workUnit : workUnits) {
       if (workUnit instanceof MultiWorkUnit) {
