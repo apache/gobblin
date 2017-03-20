@@ -37,8 +37,8 @@ import com.google.gson.JsonParser;
 
 import lombok.EqualsAndHashCode;
 
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
+import gobblin.compat.TextSerializer;
+import gobblin.compat.WritableShim;
 
 
 /**
@@ -47,7 +47,7 @@ import org.apache.hadoop.io.Writable;
  * @author kgoodhop
  */
 @EqualsAndHashCode(exclude = { "jsonParser" })
-public class State implements Writable {
+public class State implements WritableShim {
 
   private static final Joiner LIST_JOINER = Joiner.on(",");
   private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
@@ -488,15 +488,12 @@ public class State implements Writable {
 
   @Override
   public void readFields(DataInput in) throws IOException {
-    Text txt = new Text();
 
     int numEntries = in.readInt();
 
     while (numEntries-- > 0) {
-      txt.readFields(in);
-      String key = txt.toString().intern();
-      txt.readFields(in);
-      String value = txt.toString().intern();
+      String key = TextSerializer.readTextAsString(in).intern();
+      String value = TextSerializer.readTextAsString(in).intern();
 
       this.properties.put(key, value);
     }
@@ -504,15 +501,11 @@ public class State implements Writable {
 
   @Override
   public void write(DataOutput out) throws IOException {
-    Text txt = new Text();
     out.writeInt(this.properties.size());
 
     for (Object key : this.properties.keySet()) {
-      txt.set((String) key);
-      txt.write(out);
-
-      txt.set(this.properties.getProperty((String) key));
-      txt.write(out);
+      TextSerializer.writeStringAsText(out, (String)key);
+      TextSerializer.writeStringAsText(out, this.properties.getProperty((String)key));
     }
   }
 
