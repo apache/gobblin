@@ -324,12 +324,11 @@ public class HiveAvroORCQueryGenerator {
    * @param tableName Hive table name.
    * @param partitionLocation Physical location of partition.
    * @param partitionsDMLInfo Partitions DML info - a map of partition name and partition value.
+   * @param format Hive partition file format
    * @return Commands to create a partition.
    */
-  public static List<String> generateCreatePartitionDDL(String dbName,
-      String tableName,
-      String partitionLocation,
-      Map<String, String> partitionsDMLInfo) {
+  public static List<String> generateCreatePartitionDDL(String dbName, String tableName, String partitionLocation,
+      Map<String, String> partitionsDMLInfo, Optional<String> format) {
 
     if (null == partitionsDMLInfo || partitionsDMLInfo.size() == 0) {
       return Collections.emptyList();
@@ -355,10 +354,22 @@ public class HiveAvroORCQueryGenerator {
     // .. hence specifying 'use dbName' as a precursor to rename
     // Refer: HIVE-2496
     ddls.add(String.format("USE %s%n", dbName));
-    ddls.add(String.format("ALTER TABLE `%s` ADD IF NOT EXISTS %s LOCATION '%s' ", tableName, partitionSpecs,
-        partitionLocation));
+    if (format.isPresent()) {
+      ddls.add(String
+          .format("ALTER TABLE `%s` ADD IF NOT EXISTS %s FILEFORMAT %s LOCATION '%s' ", tableName, partitionSpecs,
+              format.get(), partitionLocation));
+    } else {
+      ddls.add(String.format("ALTER TABLE `%s` ADD IF NOT EXISTS %s LOCATION '%s' ", tableName, partitionSpecs,
+          partitionLocation));
+    }
 
     return ddls;
+  }
+
+  public static List<String> generateCreatePartitionDDL(String dbName, String tableName, String partitionLocation,
+      Map<String, String> partitionsDMLInfo) {
+    return generateCreatePartitionDDL(dbName, tableName, partitionLocation, partitionsDMLInfo,
+        Optional.<String>absent());
   }
 
   /***

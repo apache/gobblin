@@ -16,12 +16,12 @@
  */
 package gobblin.data.management.conversion.hive.validation;
 
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -54,12 +54,16 @@ import org.slf4j.LoggerFactory;
 import azkaban.jobExecutor.AbstractJob;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Enums;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -75,6 +79,7 @@ import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
 import gobblin.hive.HiveMetastoreClientPool;
+import gobblin.hive.HiveSerDeWrapper;
 import gobblin.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
@@ -107,7 +112,15 @@ public class ValidationJob extends AbstractJob {
 
   private static final String MAX_THREAD_COUNT = "validation.maxThreadCount";
   private static final String DEFAULT_MAX_THREAD_COUNT = "50";
+  private static final String VALIDATION_TYPE_KEY = "hive.validation.type";
+  private static final String HIVE_VALIDATION_IGNORE_DATA_PATH_IDENTIFIER_KEY = "hive.validation.ignoreDataPathIdentifier";
+  private static final String DEFAULT_HIVE_VALIDATION_IGNORE_DATA_PATH_IDENTIFIER = org.apache.commons.lang.StringUtils.EMPTY;
+  private static final Splitter COMMA_BASED_SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
+  private static final String VALIDATION_FILE_FORMAT_KEY = "hive.validation.fileFormat";
 
+  private final ValidationType validationType;
+  private List<String> ignoreDataPathIdentifierList;
+  private final List<Throwable> throwables;
   private final Properties props;
   private final MetricContext metricContext;
   private final EventSubmitter eventSubmitter;
@@ -153,10 +166,67 @@ public class ValidationJob extends AbstractJob {
     EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.VALIDATION_SETUP_EVENT);
 
     this.pool = HiveMetastoreClientPool.get(props, Optional.fromNullable(props.getProperty(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
+    Preconditions.checkArgument(props.containsKey(VALIDATION_TYPE_KEY), "Missing property " + VALIDATION_TYPE_KEY);
+    this.validationType = ValidationType.valueOf(props.getProperty(VALIDATION_TYPE_KEY));
+    this.ignoreDataPathIdentifierList = COMMA_BASED_SPLITTER.splitToList(props
+        .getProperty(HIVE_VALIDATION_IGNORE_DATA_PATH_IDENTIFIER_KEY,
+            DEFAULT_HIVE_VALIDATION_IGNORE_DATA_PATH_IDENTIFIER));
+    this.throwables = new ArrayList<>();
   }
 
   @Override
   public void run() throws Exception {
+    if (this.validationType == ValidationType.COUNT_VALIDATION) {
+      runCountValidation();
+    } else if (this.validationType == ValidationType.FILE_FORMAT_VALIDATION) {
+      runFileFormatValidation();
+    }
+  }
+
+  /**
+   * Validates that partitions are in a given format
+   */
+  private void runFileFormatValidation()
+      throws IOException {
+    Preconditions.checkArgument(this.props.containsKey(VALIDATION_FILE_FORMAT_KEY));
+    Iterator<HiveDataset> iterator = this.datasetFinder.getDatasetsIterator();
+    EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.VALIDATION_FIND_HIVE_TABLES_EVENT);
+    while (iterator.hasNext()) {
+      HiveDataset hiveDataset = iterator.next();
+      if (!HiveUtils.isPartitioned(hiveDataset.getTable())) {
+        return;
+      }
+      for (Partition partition : hiveDataset.getPartitionsFromDataset()) {
+        if (!shouldValidate(partition)) {
+          return;
+        }
+        String fileFormat = this.props.getProperty(VALIDATION_FILE_FORMAT_KEY);
+        if (!partition.getDataLocation().toString().endsWith(fileFormat)) {
+          throwables.add(new Throwable("Format of " + partition.getCompleteName() + "is not " + fileFormat));
+          return;
+        }
+        Optional<HiveSerDeWrapper.BuiltInHiveSerDe> hiveSerDe =
+            Enums.getIfPresent(HiveSerDeWrapper.BuiltInHiveSerDe.class, fileFormat.toUpperCase());
+        if (!hiveSerDe.isPresent()) {
+          throwables.add(new Throwable("Partition SerDe is either not supported or absent"));
+          return;
+        }
+        String serdeLib = partition.getTPartition().getSd().getSerdeInfo().getName();
+        if (!hiveSerDe.get().toString().equalsIgnoreCase(serdeLib)) {
+          throwables.add(new Throwable("Partition SerDe " + serdeLib +"doesn't match with the required SerDe " + hiveSerDe.get().toString()));
+        }
+      }
+    }
+    if (!this.throwables.isEmpty()) {
+      for (Throwable e : this.throwables) {
+        log.error("Failed to validate due to " + e);
+      }
+      throw new RuntimeException("Validation Job Failed");
+    }
+  }
+
+  private void runCountValidation()
+      throws InterruptedException {
     try {
       // Validation results
       this.successfulConversions = Maps.newConcurrentMap();
@@ -534,6 +604,11 @@ public class ValidationJob extends AbstractJob {
    * lies between maxLookBackTime and skipRecentThanTime window.
    */
   private boolean shouldValidate(Partition partition) {
+    for (String pathToken : this.ignoreDataPathIdentifierList) {
+      if (partition.getDataLocation().toString().toLowerCase().contains(pathToken.toLowerCase())) {
+        return false;
+      }
+    }
     long createTime = HiveSource.getCreateTime(partition);
     return new DateTime(createTime).isAfter(this.maxLookBackTime) && new DateTime(createTime).isBefore(this.skipRecentThanTime);
   }
@@ -561,5 +636,12 @@ public class ValidationJob extends AbstractJob {
     }
 
     return ImmutablePair.of(table, partitions);
+  }
+}
+
+enum ValidationType {
+  COUNT_VALIDATION, FILE_FORMAT_VALIDATION;
+
+  ValidationType() {
   }
 }
