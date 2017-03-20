@@ -100,7 +100,11 @@ public class LimiterServerResource extends ComplexKeyResourceTemplate<PermitRequ
         permit = limiter.acquirePermits(request.getPermits());
       }
 
-      long permitsGranted = permit == null ? 0 : key.getKey().getPermits();
+      if (permit == null) {
+        throw new RestLiServiceException(HttpStatus.S_403_FORBIDDEN, "No more permits available for resource " + resourceId);
+      }
+
+      long permitsGranted = key.getKey().getPermits();
       permitsGrantedMeter.mark(permitsGranted);
 
       PermitAllocation allocation = new PermitAllocation();
