@@ -73,10 +73,11 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 
   protected abstract RestApiConnector getConnector(WorkUnitState state);
 
-  protected void buildQuery(String inputQuery, String entity, JsonArray columnArray) {
+  protected String buildDataQuery(String inputQuery, String entity) {
+    String dataQuery = null;
     if (inputQuery == null && this.columnList.size() != 0) {
       // if input query is null, build the query from metadata
-      this.updatedQuery = "SELECT " + Joiner.on(",").join(this.columnList) + " FROM " + entity;
+      dataQuery = "SELECT " + Joiner.on(",").join(this.columnList) + " FROM " + entity;
     } else {
       // if input query is not null, build the query with intersection of columns from input query and columns from Metadata
       if (inputQuery != null) {
@@ -85,13 +86,14 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
         int columnsEndIndex = queryLowerCase.indexOf(" from ");
         if (columnsStartIndex > 0 && columnsEndIndex > 0) {
           String givenColumnList = inputQuery.substring(columnsStartIndex, columnsEndIndex);
-          this.updatedQuery = inputQuery.replace(givenColumnList, Joiner.on(",").join(this.columnList));
+          dataQuery = inputQuery.replace(givenColumnList, Joiner.on(",").join(this.columnList));
         } else {
-          this.updatedQuery = inputQuery;
+          dataQuery = inputQuery;
         }
       }
     }
-    log.info("Updated input query: " + this.updatedQuery);
+    log.info("Updated data query: " + dataQuery);
+    return dataQuery;
   }
 
   @Override
@@ -153,7 +155,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
         }
       }
 
-      buildQuery(inputQuery, entity, columnArray);
+      this.updatedQuery = buildDataQuery(inputQuery, entity);
       log.info("Schema:" + columnArray);
       this.setOutputSchema(columnArray);
     } catch (RuntimeException | RestApiConnectionException | RestApiProcessingException | IOException
