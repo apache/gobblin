@@ -346,6 +346,7 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
             partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, fileStatus.getPath());
             partitionState.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, date.getMillis());
             partitionState.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, date.getMillis());
+            partitionState.setProp(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_KEY, date.getMillis());
 
             WorkUnit singleWorkUnit = partitionState.createWorkUnit(extract);
 

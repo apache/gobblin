@@ -204,6 +204,7 @@ public class DatePartitionedAvroFileExtractorTest {
 
         GenericRecord record = extractor.readRecord(null);
         Assert.assertEquals(recordTimestamps[i], record.get(PARTITION_COLUMN_NAME));
+        Assert.assertEquals(recordTimestamps[i], workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_KEY));
       }
     }
   }
