@@ -27,9 +27,8 @@ dependencies {
   compile externalDependency.datanucleusRdbms
   compile externalDependency.guava
   compile externalDependency.hiveCommon
-  compile (externalDependency.hiveExec) {
-    exclude group: "com.google.guava"
-  }
+  compile externalDependency.hiveExec
+
   compile externalDependency.hiveMetastore
   compile externalDependency.hiveSerDe
   compile externalDependency.libthrift
