@@ -160,6 +160,7 @@ ext.externalDependency = [
     "googleApiClient": "com.google.api-client:google-api-client:" + googleVersion,
     "opencsv": "com.opencsv:opencsv:3.8",
     "hadoopAdl" : "org.apache.hadoop:hadoop-azure-datalake:3.0.0-alpha2",
+    'parquet': 'com.twitter:parquet-hadoop-bundle:1.5.0',
     "slf4j": [
         "org.slf4j:slf4j-api:" + slf4jVersion,
         "org.slf4j:slf4j-log4j12:" + slf4jVersion,
