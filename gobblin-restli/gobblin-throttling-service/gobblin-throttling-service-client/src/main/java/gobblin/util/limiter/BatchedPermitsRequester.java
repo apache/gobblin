@@ -117,6 +117,9 @@ class BatchedPermitsRequester {
    * @return true if permits were obtained successfully.
    */
   public boolean getPermits(long permits) throws InterruptedException {
+    if (permits <= 0) {
+      return true;
+    }
     this.permitsOutstanding.addAndGet(permits);
     this.lock.lock();
     try {
