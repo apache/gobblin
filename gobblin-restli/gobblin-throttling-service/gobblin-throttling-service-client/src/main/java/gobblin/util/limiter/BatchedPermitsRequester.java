@@ -17,6 +17,8 @@
 
 package gobblin.util.limiter;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
@@ -26,6 +28,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -39,15 +43,18 @@ import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
 
+import gobblin.metrics.MetricContext;
 import gobblin.restli.throttling.PermitAllocation;
 import gobblin.restli.throttling.PermitRequest;
 import gobblin.restli.throttling.PermitsGetRequestBuilder;
 import gobblin.restli.throttling.PermitsRequestBuilders;
+import gobblin.util.NoopCloseable;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -58,6 +65,9 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 class BatchedPermitsRequester {
+
+  public static final String REST_REQUEST_TIMER = "limiter.restli.restRequestTimer";
+  public static final String REST_REQUEST_PERMITS_HISTOGRAM = "limiter.restli.restRequestPermitsHistogram";
 
   /** These status codes are considered non-retriable. */
   public static final ImmutableSet<Integer> NON_RETRIABLE_ERRORS = ImmutableSet.of(HttpStatus.S_403_FORBIDDEN.getCode(),
@@ -73,12 +83,13 @@ class BatchedPermitsRequester {
 
   private final PermitBatchContainer permitBatchContainer;
   private final RestClient restClient;
-  private final AllocationCallback callback;
   private final Lock lock;
   private final Condition newPermitsAvailable;
   private final Semaphore requestSemaphore;
   private final PermitRequest basePermitRequest;
   private final RequestSender requestSender;
+  private final Timer restRequestTimer;
+  private final Histogram restRequestHistogram;
 
   private volatile int retries = 0;
   private final RetryStatus retryStatus;
@@ -87,7 +98,7 @@ class BatchedPermitsRequester {
 
   @Builder
   private BatchedPermitsRequester(RestClient restClient, String resourceId, String requestorIdentifier,
-      long targetMillisBetweenRequests, @VisibleForTesting RequestSender requestSender) {
+      long targetMillisBetweenRequests, @VisibleForTesting RequestSender requestSender, MetricContext metricContext) {
 
     Preconditions.checkNotNull(restClient, "Must provide a Rest client.");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(resourceId), "Must provide a resource id.");
@@ -99,7 +110,6 @@ class BatchedPermitsRequester {
     this.newPermitsAvailable = this.lock.newCondition();
     /** Ensures there is only one in-flight request at a time. */
     this.requestSemaphore = new Semaphore(1);
-    this.callback = new AllocationCallback();
     /** Number of not-yet-satisfied permits. */
     this.permitsOutstanding = new AtomicLong();
     this.targetMillisBetweenRequests = targetMillisBetweenRequests > 0 ? targetMillisBetweenRequests :
@@ -110,6 +120,9 @@ class BatchedPermitsRequester {
     this.basePermitRequest = new PermitRequest();
     this.basePermitRequest.setResource(resourceId);
     this.basePermitRequest.setRequestorIdentifier(requestorIdentifier);
+
+    this.restRequestTimer = metricContext == null ? null : metricContext.timer(REST_REQUEST_TIMER);
+    this.restRequestHistogram = metricContext == null ? null : metricContext.histogram(REST_REQUEST_PERMITS_HISTOGRAM);
   }
 
   /**
@@ -157,8 +170,13 @@ class BatchedPermitsRequester {
 
       PermitRequest permitRequest = this.basePermitRequest.copy();
       permitRequest.setPermits(permits);
+      if (BatchedPermitsRequester.this.restRequestHistogram != null) {
+        BatchedPermitsRequester.this.restRequestHistogram.update(permits);
+      }
 
-      this.requestSender.sendRequest(permitRequest, this.callback);
+      this.requestSender.sendRequest(permitRequest, new AllocationCallback(
+          BatchedPermitsRequester.this.restRequestTimer == null ? NoopCloseable.INSTANCE :
+              BatchedPermitsRequester.this.restRequestTimer.time()));
     } catch (CloneNotSupportedException cnse) {
       // This should never happen.
       this.requestSemaphore.release();
@@ -203,7 +221,10 @@ class BatchedPermitsRequester {
   /**
    * Callback for Rest request.
    */
+  @RequiredArgsConstructor
   private class AllocationCallback implements Callback<Response<PermitAllocation>> {
+    private final Closeable timerContext;
+
     @Override
     public void onError(Throwable exc) {
       BatchedPermitsRequester.this.lock.lock();
@@ -227,6 +248,11 @@ class BatchedPermitsRequester {
       } catch (Throwable t) {
         log.error("Error on batched permits container.", t);
       } finally {
+        try {
+          this.timerContext.close();
+        } catch (IOException ioe) {
+          // Do nothing
+        }
         BatchedPermitsRequester.this.lock.unlock();
       }
     }
@@ -246,6 +272,11 @@ class BatchedPermitsRequester {
         BatchedPermitsRequester.this.requestSemaphore.release();
         BatchedPermitsRequester.this.newPermitsAvailable.signalAll();
       } finally {
+        try {
+          this.timerContext.close();
+        } catch (IOException ioe) {
+          // Do nothing
+        }
         BatchedPermitsRequester.this.lock.unlock();
       }
     }
