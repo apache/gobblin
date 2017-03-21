@@ -17,8 +17,12 @@
 
 package gobblin.runtime.task;
 
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.runtime.Task;
@@ -26,9 +30,6 @@ import gobblin.runtime.TaskContext;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.fork.Fork;
-
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
 
 
 /**

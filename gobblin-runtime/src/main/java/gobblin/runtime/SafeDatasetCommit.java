@@ -107,7 +107,8 @@ final class SafeDatasetCommit implements Callable<Void> {
                 taskFactory.createDataPublisher(this.datasetState);
             if (this.isMultithreaded && !publisher.isThreadSafe()) {
               log.warn(String.format(
-                  "Gobblin is set up to parallelize publishing, however the publisher %s is not thread-safe. " + "Falling back to serial publishing.", publisher.getClass().getName()));
+                  "Gobblin is set up to parallelize publishing, however the publisher %s is not thread-safe. "
+                      + "Falling back to serial publishing.", publisher.getClass().getName()));
               safeCommitDataset(entry.getValue(), publisher);
             } else {
               commitDataset(entry.getValue(), publisher);
@@ -124,12 +125,10 @@ final class SafeDatasetCommit implements Callable<Void> {
       log.error(String.format("Failed to instantiate data publisher for dataset %s of job %s.", this.datasetUrn,
               this.jobContext.getJobId()), roe);
       throw new RuntimeException(roe);
-    } catch (IOException ioe) {
+    } catch (Throwable throwable) {
       log.error(String.format("Failed to commit dataset state for dataset %s of job %s", this.datasetUrn,
-          this.jobContext.getJobId()), ioe);
-      throw new RuntimeException(ioe);
-    } catch (Throwable t) {
-      log.error("Error", t);
+          this.jobContext.getJobId()), throwable);
+      throw new RuntimeException(throwable);
     } finally {
       try {
         finalizeDatasetState(datasetState, datasetUrn);
@@ -185,7 +184,7 @@ final class SafeDatasetCommit implements Callable<Void> {
     private final TaskFactory taskFactory;
 
     public boolean equals(Object other) {
-      if (other instanceof TaskFactoryWrapper) {
+      if (canEqual(other)) {
         if (this.taskFactory == null) {
           return ((TaskFactoryWrapper) other).taskFactory == null;
         }

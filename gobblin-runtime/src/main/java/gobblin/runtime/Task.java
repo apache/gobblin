@@ -80,6 +80,8 @@ import gobblin.writer.MultiWriterWatermarkManager;
 import gobblin.writer.WatermarkManager;
 import gobblin.writer.WatermarkStorage;
 
+import lombok.NoArgsConstructor;
+
 
 /**
  * A physical unit of execution for a Gobblin {@link gobblin.source.workunit.WorkUnit}.
@@ -109,6 +111,7 @@ import gobblin.writer.WatermarkStorage;
  *
  * @author Yinan Li
  */
+@NoArgsConstructor(force = true)
 public class Task implements TaskIFace {
 
   private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -142,29 +145,6 @@ public class Task implements TaskIFace {
 
   private final AtomicBoolean shutdownRequested;
   private final CountDownLatch shutdownLatch;
-
-  public Task() {
-    this.taskContext = null;
-    this.taskState = null;
-    this.jobId = null;
-    this.taskId = null;
-    this.taskStateTracker = null;
-    this.taskExecutor = null;
-    this.countDownLatch = null;
-    this.closer = null;
-    this.extractor = null;
-    this.converter = null;
-    this.rowChecker = null;
-    this.taskMode = null;
-    this.recordsPulled = null;
-    this.lastRecordPulledTimestampMillis = 0;
-    this.shutdownRequested = null;
-    this.shutdownLatch = null;
-    this.watermarkingStrategy = null;
-    this.watermarkManager = null;
-    this.watermarkTracker = null;
-    this.watermarkStorage = null;
-  }
 
   /**
    * Instantiate a new {@link Task}.
