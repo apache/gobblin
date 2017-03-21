@@ -67,6 +67,7 @@ public class GobblinClusterKillTest {
   private Thread[] _workerStartThreads;
 
   private String _testDirPath;
+  private String _jobDirPath;
   Config _config;
 
   /**
@@ -74,11 +75,11 @@ public class GobblinClusterKillTest {
    */
   private void setupTestDir() throws IOException {
     _testDirPath = _config.getString("gobblin.cluster.work.dir");
-    String jobDirPath = _config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY);
+    _jobDirPath = _config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY);
 
     // clean up test directory and create job dir
     File testDir = new File(_testDirPath);
-    File jobDir = new File(jobDirPath);
+    File jobDir = new File(_jobDirPath);
 
     if (testDir.exists()) {
       FileUtils.deleteDirectory(testDir);
@@ -87,12 +88,12 @@ public class GobblinClusterKillTest {
     jobDir.mkdirs();
 
     // copy job file from resource
-    String jobFileName = GobblinClusterKillTest.class.getSimpleName() + ".job";
+    String jobFileName = GobblinClusterKillTest.class.getSimpleName() + "Job.conf";
     try (InputStream resourceStream = this.getClass().getClassLoader().getResourceAsStream(jobFileName)) {
       if (resourceStream == null) {
         throw new RuntimeException("Could not find job resource " + jobFileName);
       }
-      File targetFile = new File(jobDirPath + "/" + jobFileName);
+      File targetFile = new File(_jobDirPath + "/" + jobFileName);
 
       FileUtils.copyInputStreamToFile(resourceStream, targetFile);
     } catch (IOException e) {
@@ -148,6 +149,8 @@ public class GobblinClusterKillTest {
     _config = ConfigFactory.parseURL(url)
         .withValue("gobblin.cluster.zk.connection.string",
                    ConfigValueFactory.fromAnyRef(_testingZKServer.getConnectString()))
+        .withValue("gobblin.cluster.jobconf.fullyQualifiedPath",
+            ConfigValueFactory.fromAnyRef("/tmp/gobblinClusterKillTest/job-conf"))
         .resolve();
 
     String zkConnectionString = _config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
@@ -176,6 +179,10 @@ public class GobblinClusterKillTest {
 
     final File writerOutputDir = new File(_testDirPath + "/writer-output/gobblin/util/test/HelloWorldSource/");
     final File jobOutputDir = new File(_testDirPath + "/job-output/gobblin/util/test/HelloWorldSource/");
+    final File testJobFile = new File(_jobDirPath + "/GobblinClusterKillTestJob.conf");
+
+    // Job file should exist
+    Assert.assertTrue(testJobFile.exists());
 
     AssertWithBackoff.create().logger(LOG).timeoutMs(ASSERT_TIMEOUT).maxSleepMs(ASSERT_MAX_SLEEP).backoffFactor(1.5)
         .assertTrue(new Predicate<Void>() {
@@ -205,6 +212,10 @@ public class GobblinClusterKillTest {
         }
       }
     }, "Waiting for job-completion");
+
+    // Job file should have been deleted
+    Thread.sleep(2000);
+    Assert.assertFalse(testJobFile.exists());
   }
 
   // The kill tests are unreliable on Travis

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -32,6 +33,7 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
+import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.kafka.writer.KafkaWriterConfigurationKeys;
@@ -39,6 +41,7 @@ import gobblin.metrics.reporter.KafkaTestBase;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecExecutorInstance;
+import gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
 import gobblin.util.ConfigUtils;
 import gobblin.writer.WriteResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +56,7 @@ public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
   private Properties _properties;
   private SimpleKafkaSpecExecutorInstanceProducer _seip;
   private StreamingKafkaSpecExecutorInstanceConsumer _seic;
+  private NonObservingFSJobCatalog _jobCatalog;
   private String _kafkaBrokers;
   private static final String _TEST_DIR_PATH = "/tmp/StreamingKafkaSpecExecutorInstanceTest";
   private static final String _JOBS_DIR_PATH = _TEST_DIR_PATH + "/jobs";
@@ -93,16 +97,21 @@ public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
     _properties.setProperty(SimpleKafkaSpecExecutorInstanceProducer.SPEC_KAFKA_TOPICS_KEY, TOPIC);
     _properties.setProperty("gobblin.cluster.jobconf.fullyQualifiedPath", _JOBS_DIR_PATH);
 
+    Config config = ConfigUtils.propertiesToConfig(_properties);
+
     // SEI Producer
-    _seip = _closer.register(new SimpleKafkaSpecExecutorInstanceProducer(ConfigUtils.propertiesToConfig(_properties)));
+    _seip = _closer.register(new SimpleKafkaSpecExecutorInstanceProducer(config));
 
     String addedSpecUriString = "/foo/bar/addedSpec";
     Spec spec = initJobSpec(addedSpecUriString);
     WriteResponse writeResponse = (WriteResponse) _seip.addSpec(spec).get();
     log.info("WriteResponse: " + writeResponse);
 
+    _jobCatalog = new NonObservingFSJobCatalog(config.getConfig("gobblin.cluster"));
+    _jobCatalog.startAsync().awaitRunning();
+
     // SEI Consumer
-    _seic = _closer.register(new StreamingKafkaSpecExecutorInstanceConsumer(ConfigUtils.propertiesToConfig(_properties)));
+    _seic = _closer.register(new StreamingKafkaSpecExecutorInstanceConsumer(config, _jobCatalog));
 
     List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
@@ -166,6 +175,10 @@ public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
       close();
     } catch(Exception e) {
       log.error("Failed to close Kafka server.", e);
+    }
+
+    if (_jobCatalog != null) {
+      _jobCatalog.stopAsync().awaitTerminated();
     }
 
     cleanupTestDir();

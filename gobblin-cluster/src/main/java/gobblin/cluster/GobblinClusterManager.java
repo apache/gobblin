@@ -17,7 +17,6 @@
 
 package gobblin.cluster;
 
-import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -35,14 +34,13 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.Criteria;
-import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
-import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.HelixProperty;
@@ -52,7 +50,6 @@ import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
-import org.apache.helix.model.IdealState;
 import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
 import org.apache.helix.task.TaskDriver;
@@ -70,13 +67,16 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.annotation.Alpha;
 import gobblin.cluster.event.ClusterManagerShutdownRequest;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.Tag;
+import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.app.ApplicationException;
 import gobblin.runtime.app.ApplicationLauncher;
 import gobblin.runtime.app.ServiceBasedAppLauncher;
@@ -140,6 +140,8 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
   private final boolean isStandaloneMode;
 
+  private final MutableJobCatalog jobCatalog;
+
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
 
@@ -164,6 +166,26 @@ public class GobblinClusterManager implements ApplicationLauncher {
     this.fs = buildFileSystem(config);
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get() :
         GobblinClusterUtils.getAppWorkDirPath(this.fs, clusterName, applicationId);
+
+    // create a job catalog for keeping track of received jobs if a job config path is specified
+    if (config.hasPath(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX
+        + ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
+      String jobCatalogClassName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.JOB_CATALOG_KEY,
+          GobblinClusterConfigurationKeys.DEFAULT_JOB_CATALOG);
+
+      this.jobCatalog = (MutableJobCatalog)GobblinConstructorUtils.invokeFirstConstructor(Class.forName(
+          jobCatalogClassName),
+            ImmutableList.<Object>of(config.getConfig(StringUtils.removeEnd(
+                GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX, "."))));
+
+      // other services such as the job configuration manager have a dependency on the job catalog, so it has be be
+      // started first
+      if (this.jobCatalog instanceof Service) {
+        ((Service) this.jobCatalog).startAsync().awaitRunning();
+      }
+    } else {
+      this.jobCatalog = null;
+    }
 
     SchedulerService schedulerService = new SchedulerService(properties);
     this.applicationLauncher.addService(schedulerService);
@@ -344,7 +366,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
       throws Exception {
     Properties properties = ConfigUtils.configToProperties(config);
     return new GobblinHelixJobScheduler(properties, this.helixManager, this.eventBus, appWorkDir, metadataTags,
-        schedulerService);
+        schedulerService, this.jobCatalog);
   }
 
   /**
@@ -358,7 +380,8 @@ public class GobblinClusterManager implements ApplicationLauncher {
     try {
       if (config.hasPath(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)) {
         return (JobConfigurationManager) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(
-                config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)),
+            config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)),
+            ImmutableList.<Object>of(this.eventBus, config, this.jobCatalog),
             ImmutableList.<Object>of(this.eventBus, config));
       } else {
         return new JobConfigurationManager(this.eventBus, config);
@@ -455,6 +478,10 @@ public class GobblinClusterManager implements ApplicationLauncher {
   @Override
   public void close() throws IOException {
     this.applicationLauncher.close();
+
+    if (this.jobCatalog instanceof Service) {
+      ((Service) this.jobCatalog).stopAsync().awaitTerminated();
+    }
   }
 
   /**
