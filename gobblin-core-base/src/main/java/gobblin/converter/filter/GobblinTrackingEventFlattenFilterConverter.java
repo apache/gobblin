@@ -30,6 +30,9 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.typesafe.config.Config;
 
 import gobblin.configuration.WorkUnitState;
@@ -49,12 +52,15 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
 
   public static final String FIELDS_TO_FLATTEN = "fieldsToFlatten";
   public static final String NEW_SCHEMA_NAME = "outputSchemaName";
+  public static final String FIELDS_RENAME_MAP = "fieldsRenameMap";
+  private static final char OLD_NEW_NAME_SEPARATOR = ':';
 
   private Schema gobblinTrackingEventSchema;
   private Set<String> nonMapFields;
   private String mapFieldName;
   private List<Field> newFields;
   private Config config;
+  private BiMap<String, String> fieldsRenameMap;
 
   @Override
   public Converter init(WorkUnitState workUnitState) {
@@ -65,23 +71,39 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
       throw new RuntimeException("Cannot parse GobblinTrackingEvent schema.", e);
     }
     config = ConfigUtils.propertiesToConfig(workUnitState.getProperties()).getConfig(this.getClass().getSimpleName());
+    List<String> entryList = ConfigUtils.getStringList(config, FIELDS_RENAME_MAP);
+    this.fieldsRenameMap = HashBiMap.create();
+    for (String entry : entryList) {
+      List<String> oldNewNames = Splitter.on(OLD_NEW_NAME_SEPARATOR).omitEmptyStrings().splitToList(entry);
+      Preconditions.checkArgument(oldNewNames.size() == 2, "Wrong format for key " + FIELDS_RENAME_MAP);
+      this.fieldsRenameMap.put(oldNewNames.get(0), oldNewNames.get(1));
+    }
+
     this.nonMapFields = new HashSet<>();
     this.newFields = new ArrayList<>();
     List<String> mapFieldNames = new ArrayList<>();
     for (Field field : gobblinTrackingEventSchema.getFields()) {
+      String curFieldName = field.name();
       if (!field.schema().getType().equals(Schema.Type.MAP)) {
-        newFields.add(new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue()));
-        this.nonMapFields.add(field.name());
+        if (fieldsRenameMap.containsKey(curFieldName)) {
+          newFields.add(
+              new Schema.Field(fieldsRenameMap.get(curFieldName), field.schema(), field.doc(), field.defaultValue()));
+        } else {
+          newFields.add(new Schema.Field(curFieldName, field.schema(), field.doc(), field.defaultValue()));
+        }
+        this.nonMapFields.add(curFieldName);
       } else {
-        mapFieldNames.add(field.name());
+        mapFieldNames.add(curFieldName);
       }
     }
 
-    Preconditions.checkArgument(mapFieldNames.size() == 1);
+    Preconditions.checkArgument(mapFieldNames.size() == 1, "Input schema does not match GobblinTrackingEvent.");
     this.mapFieldName = mapFieldNames.get(0);
 
     for (String fieldToFlatten : ConfigUtils.getStringList(config, FIELDS_TO_FLATTEN)) {
-      newFields.add(new Field(fieldToFlatten, Schema.create(Schema.Type.STRING), "", null));
+      String newFieldName =
+          this.fieldsRenameMap.containsKey(fieldToFlatten) ? this.fieldsRenameMap.get(fieldToFlatten) : fieldToFlatten;
+      newFields.add(new Field(newFieldName, Schema.create(Schema.Type.STRING), "", null));
     }
 
     return this;
@@ -103,12 +125,17 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
       throws DataConversionException {
     GenericRecord genericRecord = new GenericData.Record(outputSchema);
 
+    BiMap<String, String> inversedViewOfFieldsRenameMap = this.fieldsRenameMap.inverse();
     for (Schema.Field field : outputSchema.getFields()) {
-      if (this.nonMapFields.contains(field.name())) {
-        genericRecord.put(field.name(), inputRecord.get(field.name()));
+      String curFieldName = field.name();
+      String originalFieldName =
+          inversedViewOfFieldsRenameMap.containsKey(curFieldName) ? inversedViewOfFieldsRenameMap.get(curFieldName)
+              : curFieldName;
+      if (this.nonMapFields.contains(originalFieldName)) {
+        genericRecord.put(curFieldName, inputRecord.get(originalFieldName));
       } else {
-        genericRecord.put(field.name(),
-            AvroUtils.getFieldValue(inputRecord, Joiner.on('.').join(this.mapFieldName, field.name())).get());
+        genericRecord.put(curFieldName,
+            AvroUtils.getFieldValue(inputRecord, Joiner.on('.').join(this.mapFieldName, originalFieldName)).get());
       }
     }
     return new SingleRecordIterable<>(genericRecord);
