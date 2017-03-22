@@ -33,6 +33,16 @@ public class ComplianceConfigurationKeys {
   public static final String PARTITION_NAME = COMPLIANCE_PREFIX + ".partition.name";
   public static final int TIME_STAMP_LENGTH = 13;
   public static final String DBNAME_SEPARATOR = "__";
+  public static final String NUM_ROWS = "numRows";
+  public static final String RAW_DATA_SIZE = "rawDataSize";
+  public static final String TOTAL_DATA_SIZE = "totalDataSize";
+  public static final String WORKUNIT_RECORDSREAD = COMPLIANCE_PREFIX + ".workunit.recordsRead";
+  public static final String WORKUNIT_RECORDSWRITTEN = COMPLIANCE_PREFIX + ".workunit.recordsWritten";
+  public static final String WORKUNIT_BYTESREAD = COMPLIANCE_PREFIX + ".workunit.bytesRead";
+  public static final String WORKUNIT_BYTESWRITTEN = COMPLIANCE_PREFIX + ".workunit.bytesWritten";
+  public static final String EXECUTION_NUMBER = COMPLIANCE_PREFIX + ".workunit.executionNumberInCurrentCycle";
+  public static final String TOTAL_EXECUTIONS_IN_CYCLE = COMPLIANCE_PREFIX + ".workunit.totalExecutionsInCycle";
+  public static final int DEFAULT_EXECUTION_NUMBER = 1;
 
   public static final String MAX_CONCURRENT_DATASETS = COMPLIANCE_PREFIX + ".max.concurrent.datasets";
   public static final String DEFAULT_MAX_CONCURRENT_DATASETS = "100";
