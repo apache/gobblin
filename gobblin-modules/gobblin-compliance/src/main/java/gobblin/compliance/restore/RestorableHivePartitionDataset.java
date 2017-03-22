@@ -75,7 +75,12 @@ public class RestorableHivePartitionDataset extends HivePartitionDataset impleme
     this.state = new State(state);
     Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.RESTORE_POLICY_CLASS),
         "Missing required property " + ComplianceConfigurationKeys.RESTORE_POLICY_CLASS);
+    Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.TRASH_OWNER),
+        "Missing required property " + ComplianceConfigurationKeys.TRASH_OWNER);
     String restorePolicyClass = this.state.getProp(ComplianceConfigurationKeys.RESTORE_POLICY_CLASS);
+    this.datasetOwner = getOwner();
+    this.trashOwner = Optional.fromNullable(this.state.getProp(ComplianceConfigurationKeys.TRASH_OWNER));
+    setTimeStamp();
     this.restorePolicy =
         GobblinConstructorUtils.invokeConstructor(HivePartitionRestorePolicy.class, restorePolicyClass, this.state);
     try {
@@ -84,12 +89,7 @@ public class RestorableHivePartitionDataset extends HivePartitionDataset impleme
     } catch (IOException e) {
       Throwables.propagate(e);
     }
-    this.datasetOwner = getOwner();
     this.datasetToRestoreOwner = this.datasetToRestore.getOwner();
-    Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.TRASH_OWNER),
-        "Missing required property " + ComplianceConfigurationKeys.TRASH_OWNER);
-    this.trashOwner = Optional.fromNullable(this.state.getProp(ComplianceConfigurationKeys.TRASH_OWNER));
-    setTimeStamp();
   }
 
   public void restore()
