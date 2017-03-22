@@ -21,6 +21,8 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
+
 import gobblin.metadata.types.GlobalMetadata;
 
 
@@ -50,9 +52,7 @@ public class GlobalMetadataCollector {
    * (Eg: a dataset-URN or a set of Transfer-Encodings).
    */
   public GlobalMetadataCollector(GlobalMetadata defaultMetadata, int cacheSize) {
-    if (cacheSize == 0 || cacheSize < -1) {
-      throw new IllegalArgumentException("cacheSize must be -1 or greater than 0");
-    }
+    Preconditions.checkArgument(cacheSize == -1 || cacheSize > 0, "cacheSize must be -1 or greater than 0");
 
     this.defaultMetadata = defaultMetadata;
     this.cacheSize = cacheSize;

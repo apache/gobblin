@@ -52,35 +52,40 @@ public class EncryptionConfigParser {
 
   public static final String ENCRYPTION_TYPE_ANY = "any";
 
+  /**
+   * Represents the entity we are trying to retrieve configuration for. Internally this
+   * enum maps entity type to a configuration prefix.
+   */
   public enum EntityType {
     CONVERTER(CONVERTER_ENCRYPT_PREFIX),
     WRITER(WRITER_ENCRYPT_PREFIX);
 
-    private final String text;
+    private final String configPrefix;
 
-    private EntityType(String text) {
-      this.text = text;
+    private EntityType(String configPrefix) {
+      this.configPrefix = configPrefix;
     }
 
-    @Override
-    public String toString() {
-      return text;
+    public String getConfigPrefix() {
+      return configPrefix;
     }
-  };
+  }
 
   /**
    * Retrieve encryption configuration for the branch the WorKUnitState represents
+   * @param entityType Type of entity we are retrieving config for
    * @param workUnitState State for the object querying config
    * @return A list of encryption properties or null if encryption isn't configured
    */
   public static Map<String, Object> getConfigForBranch(EntityType entityType, WorkUnitState workUnitState) {
     return getConfigForBranch(workUnitState.getJobState(),
-        entityType.toString(),
+        entityType.getConfigPrefix(),
         ForkOperatorUtils.getPropertyNameForBranch(workUnitState, ""));
   }
 
   /**
    * Retrieve encryption config for a given branch of a task
+   * @param entityType Entity type we are retrieving config for
    * @param taskState State of the task
    * @param numBranches Number of branches overall
    * @param branch Branch # of the current object
@@ -88,7 +93,7 @@ public class EncryptionConfigParser {
    */
   public static Map<String, Object> getConfigForBranch(EntityType entityType, State taskState, int numBranches, int branch) {
     return getConfigForBranch(taskState,
-        entityType.toString(),
+        entityType.getConfigPrefix(),
         ForkOperatorUtils.getPropertyNameForBranch("", numBranches, branch));
   }
 

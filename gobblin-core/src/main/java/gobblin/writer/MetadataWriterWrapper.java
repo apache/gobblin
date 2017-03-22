@@ -40,7 +40,7 @@ import gobblin.util.ForkOperatorUtils;
  */
 public class MetadataWriterWrapper<D> implements DataWriter<Object> {
   private final DataWriter wrappedWriter;
-  private final Class<? extends D> writerClass;
+  private final Class<? extends D> writerDataClass;
   private final int numBranches;
   private final int branchId;
   private final State properties;
@@ -57,7 +57,7 @@ public class MetadataWriterWrapper<D> implements DataWriter<Object> {
   public MetadataWriterWrapper(DataWriter<D> wrappedWriter, Class<? extends D> writerDataClass,
       int numBranches, int branchId, State writerProperties) {
     this.wrappedWriter = wrappedWriter;
-    this.writerClass = writerDataClass;
+    this.writerDataClass = writerDataClass;
     this.numBranches = numBranches;
     this.branchId = branchId;
     this.properties = writerProperties;
@@ -80,7 +80,7 @@ public class MetadataWriterWrapper<D> implements DataWriter<Object> {
       GlobalMetadata globalMetadata = record.getMetadata().getGlobalMetadata();
       metadataCollector.processMetadata(globalMetadata);
 
-      if (RecordWithMetadata.class.isAssignableFrom(writerClass)) {
+      if (RecordWithMetadata.class.isAssignableFrom(writerDataClass)) {
         wrappedWriter.write(record);
       } else {
         wrappedWriter.write(record.getRecord());

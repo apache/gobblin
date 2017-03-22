@@ -20,7 +20,12 @@ import gobblin.metadata.types.GlobalMetadata;
 
 
 /**
- * Represents a Writer that is metadata aware
+ * Represents a Writer that is metadata aware. Metadata aware writers
+ * specify default {@link GlobalMetadata} that will be added to all records that flow
+ * through the pipeline they are a part of.
+ *
+ * This allows a writer to communicate with the MetadataWriterWrapper that surrounds it
+ * and is the one responsible for processing any metadata that flows through the conversion pipeline.
  */
 public interface MetadataAwareWriter {
   GlobalMetadata getDefaultMetadata();
