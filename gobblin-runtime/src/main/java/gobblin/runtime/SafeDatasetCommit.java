@@ -53,7 +53,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 final class SafeDatasetCommit implements Callable<Void> {
 
-  private static final String GLOBAL_LOCK = "LOCK";
+  private static final Object GLOBAL_LOCK = new Object();
 
   private final boolean shouldCommitDataInJob;
   private final DeliverySemantics deliverySemantics;
@@ -184,14 +184,14 @@ final class SafeDatasetCommit implements Callable<Void> {
     private final TaskFactory taskFactory;
 
     public boolean equals(Object other) {
-      if (canEqual(other)) {
-        if (this.taskFactory == null) {
-          return ((TaskFactoryWrapper) other).taskFactory == null;
-        }
-        return ((TaskFactoryWrapper) other).taskFactory != null &&
-            this.taskFactory.getClass().equals(((TaskFactoryWrapper) other).taskFactory.getClass());
+      if (!(other instanceof TaskFactoryWrapper)) {
+        return false;
       }
-      return false;
+      if (this.taskFactory == null) {
+        return ((TaskFactoryWrapper) other).taskFactory == null;
+      }
+      return ((TaskFactoryWrapper) other).taskFactory != null && this.taskFactory.getClass()
+          .equals(((TaskFactoryWrapper) other).taskFactory.getClass());
     }
 
     public int hashCode() {
@@ -200,10 +200,6 @@ final class SafeDatasetCommit implements Callable<Void> {
       final Class<?> klazz = this.taskFactory == null ? null : this.taskFactory.getClass();
       result = result * PRIME + (klazz == null ? 43 : klazz.hashCode());
       return result;
-    }
-
-    protected boolean canEqual(Object other) {
-      return other instanceof TaskFactoryWrapper;
     }
   }
 
