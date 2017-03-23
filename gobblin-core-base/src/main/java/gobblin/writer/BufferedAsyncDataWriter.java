@@ -19,6 +19,7 @@
 
 package gobblin.writer;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.Executors;
@@ -89,9 +90,13 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
     }
   }
 
-  private class RecordProcessor<D> implements Runnable {
+  private class RecordProcessor<D> implements Runnable, Closeable{
     BatchAccumulator<D> accumulator;
     BatchAsyncDataWriter<D> writer;
+
+    public void close() throws IOException {
+      this.writer.close();
+    }
 
     public RecordProcessor (BatchAccumulator<D> accumulator, BatchAsyncDataWriter<D> writer) {
       this.accumulator = accumulator;
@@ -137,7 +142,7 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
       return new WriteCallback() {
         @Override
         public void onSuccess(WriteResponse writeResponse) {
-          LOG.info ("Batch " + batch.getId() + " is on success");
+          LOG.info ("Batch " + batch.getId() + " is on success with size " + batch.getCurrentSizeInByte() + " num of record " + batch.getRecords().size());
           batch.onSuccess(writeResponse);
           batch.done();
           accumulator.deallocate(batch);
@@ -187,13 +192,15 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
     try {
       this.running = false;
       this.accumulator.close();
-      if (!this.service.awaitTermination(60, TimeUnit.SECONDS)) {
+      if (!this.service.awaitTermination(3600, TimeUnit.SECONDS)) {
         forceClose();
       } else {
         LOG.info ("Closed properly: elapsed " + (System.currentTimeMillis() - startTime) + " milliseconds");
       }
     } catch (InterruptedException e) {
       LOG.error ("Interruption happened during close " + e.toString());
+    } finally {
+      this.processor.close();
     }
   }
 }

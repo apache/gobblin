@@ -19,15 +19,17 @@
 
 package gobblin.eventhub.writer;
 
-import java.util.ArrayDeque;
+import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Future;
 import java.util.Iterator;
-import java.util.Base64;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +51,7 @@ import gobblin.writer.WriteResponse;
 
 public class EventhubBatchAccumulator extends BatchAccumulator<String> {
 
-  private Deque<EventhubBatch> dq = new ArrayDeque<>();
+  private Deque<EventhubBatch> dq = new LinkedList<>();
   private IncompleteRecordBatches incomplete = new IncompleteRecordBatches();
   private final long batchSizeLimit;
   private final long memSizeLimit;
@@ -57,8 +59,13 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
   private final long expireInMilliSecond;
   private static final Logger LOG = LoggerFactory.getLogger(EventhubBatchAccumulator.class);
 
+  private final ReentrantLock dqLock = new ReentrantLock();
+  private final Condition notEmpty = dqLock.newCondition();
+  private final Condition notFull = dqLock.newCondition();
+  private final long capacity;
+
   public EventhubBatchAccumulator () {
-    this (1024 * 256, 3000);
+    this (1024 * 256, 1000, 100);
   }
 
   public EventhubBatchAccumulator (Properties properties) {
@@ -69,12 +76,16 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
     this.expireInMilliSecond = ConfigUtils.getLong(config, EventhubWriterConfigurationKeys.BATCH_TTL,
         EventhubWriterConfigurationKeys.BATCH_TTL_DEFAULT);
 
+    this.capacity = ConfigUtils.getLong(config, EventhubWriterConfigurationKeys.BATCH_QUEUE_CAPACITY,
+            EventhubWriterConfigurationKeys.BATCH_QUEUE_CAPACITY_DEFAULT);
+
     this.memSizeLimit = (long) (this.tolerance * this.batchSizeLimit);
   }
 
-  public EventhubBatchAccumulator (long batchSizeLimit, long expireInMilliSecond) {
+  public EventhubBatchAccumulator (long batchSizeLimit, long expireInMilliSecond, long capacity) {
     this.batchSizeLimit = batchSizeLimit;
     this.expireInMilliSecond = expireInMilliSecond;
+    this.capacity = capacity;
     this.memSizeLimit = (long) (this.tolerance * this.batchSizeLimit);
   }
 
@@ -90,33 +101,43 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
    * Add a data to internal dequeu data structure
    */
   public final Future<RecordMetadata> enqueue (String record, WriteCallback callback) throws InterruptedException {
-
-    synchronized (dq) {
+    final ReentrantLock lock = this.dqLock;
+    lock.lock();
+    try {
       EventhubBatch last = dq.peekLast();
       if (last != null) {
         Future<RecordMetadata> future = last.tryAppend(record, callback);
-        if (future != null)
+        if (future != null) {
           return future;
+        }
       }
 
       // Create a new batch because previous one has no space
       EventhubBatch batch = new EventhubBatch(this.memSizeLimit, this.expireInMilliSecond);
-      LOG.info ("Batch " + batch.getId() + " is generated");
+      LOG.info("Batch " + batch.getId() + " is generated");
       Future<RecordMetadata> future = batch.tryAppend(record, callback);
 
       // Even single record can exceed the size limit from one batch
       // Ignore the record because Eventhub can only accept payload less than 256KB
       if (future == null) {
-        LOG.debug ("Batch " + batch.getId() + " is marked as complete because it contains a huge record: "
+        LOG.error("Batch " + batch.getId() + " is marked as complete because it contains a huge record: "
                 + record);
         future = Futures.immediateFuture(new RecordMetadata(0));
         callback.onSuccess(WriteResponse.EMPTY);
         return future;
       }
 
+      // if queue is full, we should not add more
+      while (dq.size() >= this.capacity) {
+        this.notFull.await();
+      }
       dq.addLast(batch);
       incomplete.add(batch);
+      this.notEmpty.signal();
       return future;
+
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -163,28 +184,64 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
    * This will be used by external BufferedAsyncDataWriter
    */
   private class EventhubBatchIterator implements Iterator<Batch<String>> {
+
+    /**
+     * Retrieve available batch from the queue. Below actions are performed.
+     * 1) queue.size > 1, return the first batch in the queue
+     * 2) queue.size == 1, return null if the first batch is not expired, else return this first batch
+     * 3) queue.size == 0, wait until new batch is inserted.
+     */
     public Batch<String> next () {
-      synchronized (dq) {
-        return dq.poll();
+      final ReentrantLock lock = EventhubBatchAccumulator.this.dqLock;
+      try {
+        lock.lock();
+
+        while (dq.size() == 0) {
+          if (EventhubBatchAccumulator.this.isClosed()) {
+            return null;
+          }
+          EventhubBatchAccumulator.this.notEmpty.await(1000, TimeUnit.MILLISECONDS);
+        }
+
+        if (dq.size() > 1) {
+          EventhubBatch candidate = dq.poll();
+          EventhubBatchAccumulator.this.notFull.signal();
+          return candidate;
+        }
+
+        if (dq.size() == 1) {
+          if (dq.peekFirst().isTTLExpire() || EventhubBatchAccumulator.this.isClosed()) {
+            EventhubBatch candidate = dq.poll();
+            EventhubBatchAccumulator.this.notFull.signal();
+            return candidate;
+          } else {
+            return null;
+          }
+        } else {
+          throw new RuntimeException("Should never get to here");
+        }
+
+      } catch (InterruptedException e) {
+        LOG.error("Wait for next batch is interrupted. " + e.toString());
+      } finally {
+        lock.unlock();
       }
+
+      return null;
     }
 
+    /**
+     * The element retrieval was handled by next()
+     */
     public boolean hasNext() {
-      synchronized (dq) {
+      try {
+        EventhubBatchAccumulator.this.dqLock.lock();
         if (EventhubBatchAccumulator.this.isClosed()) {
           return dq.size() > 0;
         }
-        if (dq.size() > 1)
-            return true;
-        if (dq.size() == 0)
-            return false;
-        EventhubBatch first = dq.peekFirst();
-        if (first.isTTLExpire()) {
-            LOG.info ("Batch " + first.getId() + " is expired");
-            return true;
-        }
-
-        return false;
+        return true;
+      } finally {
+        EventhubBatchAccumulator.this.dqLock.unlock();
       }
     }
 
