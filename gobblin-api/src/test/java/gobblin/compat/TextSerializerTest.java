@@ -28,6 +28,8 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Strings;
 
+import gobblin.compat.hadoop.TextSerializer;
+
 
 public class TextSerializerTest {
   private static final String[] textsToSerialize = new String[]{"abracadabra", Strings.repeat("longString", 128000)};

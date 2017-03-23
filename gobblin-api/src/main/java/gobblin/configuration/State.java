@@ -37,8 +37,8 @@ import com.google.gson.JsonParser;
 
 import lombok.EqualsAndHashCode;
 
-import gobblin.compat.TextSerializer;
-import gobblin.compat.WritableShim;
+import gobblin.compat.hadoop.TextSerializer;
+import gobblin.compat.hadoop.WritableShim;
 
 
 /**

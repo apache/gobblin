@@ -27,7 +27,7 @@ import org.apache.hadoop.io.serializer.Deserializer;
 import org.apache.hadoop.io.serializer.Serialization;
 import org.apache.hadoop.io.serializer.Serializer;
 
-import gobblin.compat.WritableShim;
+import gobblin.compat.hadoop.WritableShim;
 
 
 /**
@@ -66,7 +66,7 @@ public class WritableShimSerialization implements Serialization<WritableShim> {
     return new WritableShimDeserializer(c);
   }
 
-  private class WritableShimSerializer implements Serializer<WritableShim> {
+  private static class WritableShimSerializer implements Serializer<WritableShim> {
     private DataOutputStream out;
 
     public WritableShimSerializer() {
@@ -94,7 +94,7 @@ public class WritableShimSerialization implements Serialization<WritableShim> {
     }
   }
 
-  private class WritableShimDeserializer implements Deserializer<WritableShim> {
+  private static class WritableShimDeserializer implements Deserializer<WritableShim> {
     private final Class<WritableShim> clazz;
     private DataInputStream in;
 
