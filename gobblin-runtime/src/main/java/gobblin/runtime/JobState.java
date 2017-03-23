@@ -28,10 +28,13 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.io.Text;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
@@ -132,7 +135,8 @@ public class JobState extends SourceState {
   private final Map<String, TaskState> skippedTaskStates = Maps.newLinkedHashMap();
 
   // Necessary for serialization/deserialization
-  public JobState() {}
+  public JobState() {
+  }
 
   public JobState(String jobName, String jobId) {
     this.jobName = jobName;
@@ -378,7 +382,7 @@ public class JobState extends SourceState {
    * @return a list of {@link TaskState}s
    */
   public List<TaskState> getTaskStates() {
-    return ImmutableList.<TaskState> builder().addAll(this.taskStates.values()).build();
+    return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
   }
 
   /**
@@ -442,9 +446,8 @@ public class JobState extends SourceState {
    * Get the {@link LauncherTypeEnum} for this {@link JobState}.
    */
   public LauncherTypeEnum getLauncherType() {
-    return Enums
-        .getIfPresent(LauncherTypeEnum.class,
-            this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.LOCAL.name()))
+    return Enums.getIfPresent(LauncherTypeEnum.class,
+        this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.LOCAL.name()))
         .or(LauncherTypeEnum.LOCAL);
   }
 
@@ -463,7 +466,8 @@ public class JobState extends SourceState {
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException {
+  public void readFields(DataInput in)
+      throws IOException {
     Text text = new Text();
     text.readFields(in);
     this.jobName = text.toString().intern();
@@ -477,20 +481,44 @@ public class JobState extends SourceState {
     this.state = RunningState.valueOf(text.toString());
     this.taskCount = in.readInt();
     int numTaskStates = in.readInt();
-    for (int i = 0; i < numTaskStates; i++) {
-      TaskState taskState = new TaskState();
-      taskState.readFields(in);
-      this.taskStates.put(taskState.getTaskId().intern(), taskState);
-    }
+    getTaskStateWithCommonAndSpecWuProps(numTaskStates, in);
     super.readFields(in);
   }
 
+  @VisibleForTesting
+  protected void getTaskStateWithCommonAndSpecWuProps(int numTaskStates, DataInput in)
+      throws IOException {
+    Properties commonWuProps = new Properties();
+
+    for (int i = 0; i < numTaskStates; i++) {
+      TaskState taskState = new TaskState();
+      taskState.readFields(in);
+      if (i == 0) {
+        commonWuProps.putAll(taskState.getWorkunit().getProperties());
+      } else {
+        Properties newCommonWuProps = new Properties();
+        newCommonWuProps
+            .putAll(Maps.difference(commonWuProps, taskState.getWorkunit().getProperties()).entriesInCommon());
+        commonWuProps = newCommonWuProps;
+      }
+
+      this.taskStates.put(taskState.getTaskId().intern(), taskState);
+    }
+    for (TaskState taskState : this.taskStates.values()) {
+      Properties newSpecProps = new Properties();
+      newSpecProps.putAll(Maps.difference(commonWuProps, taskState.getWorkunit().getProperties()).entriesOnlyOnRight());
+      taskState.setWuProperties(commonWuProps, newSpecProps);
+    }
+  }
+
   @Override
-  public void write(DataOutput out) throws IOException {
+  public void write(DataOutput out)
+      throws IOException {
     write(out, true);
   }
 
-  public void write(DataOutput out, boolean writeTasks) throws IOException {
+  public void write(DataOutput out, boolean writeTasks)
+      throws IOException {
     Text text = new Text();
     text.set(this.jobName);
     text.write(out);
@@ -524,7 +552,8 @@ public class JobState extends SourceState {
    * @param keepConfig whether to keep all configuration properties
    * @throws IOException
    */
-  public void toJson(JsonWriter jsonWriter, boolean keepConfig) throws IOException {
+  public void toJson(JsonWriter jsonWriter, boolean keepConfig)
+      throws IOException {
     jsonWriter.beginObject();
 
     jsonWriter.name("job name").value(this.getJobName()).name("job id").value(this.getJobId()).name("job state")
@@ -550,7 +579,8 @@ public class JobState extends SourceState {
     jsonWriter.endObject();
   }
 
-  protected void propsToJson(JsonWriter jsonWriter) throws IOException {
+  protected void propsToJson(JsonWriter jsonWriter)
+      throws IOException {
     jsonWriter.beginObject();
     for (String key : this.getPropertyNames()) {
       jsonWriter.name(key).value(this.getProp(key));
@@ -661,8 +691,9 @@ public class JobState extends SourceState {
     Map<String, String> jobProperties = Maps.newHashMap();
     for (String name : this.getPropertyNames()) {
       String value = this.getProp(name);
-      if (!Strings.isNullOrEmpty(value))
+      if (!Strings.isNullOrEmpty(value)) {
         jobProperties.put(name, value);
+      }
     }
     jobExecutionInfo.setJobProperties(new StringMap(jobProperties));
 
@@ -738,7 +769,8 @@ public class JobState extends SourceState {
     }
 
     @Override
-    protected void propsToJson(JsonWriter jsonWriter) throws IOException {
+    protected void propsToJson(JsonWriter jsonWriter)
+        throws IOException {
       jsonWriter.beginObject();
       jsonWriter.name(ConfigurationKeys.DATASET_URN_KEY).value(getDatasetUrn());
       jsonWriter.name(ConfigurationKeys.JOB_FAILURES_KEY).value(getJobFailures());
