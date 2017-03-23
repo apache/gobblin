@@ -200,7 +200,11 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
           if (EventhubBatchAccumulator.this.isClosed()) {
             return null;
           }
-          EventhubBatchAccumulator.this.notEmpty.await(1000, TimeUnit.MILLISECONDS);
+          if (EventhubBatchAccumulator.this.notEmpty.await(1000, TimeUnit.MILLISECONDS)) {
+            LOG.debug ("Being signaled due to not empty");
+          } else {
+            LOG.debug ("Wake up due to timeout");
+          }
         }
 
         if (dq.size() > 1) {
@@ -234,8 +238,8 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
      * The element retrieval was handled by next()
      */
     public boolean hasNext() {
+      EventhubBatchAccumulator.this.dqLock.lock();
       try {
-        EventhubBatchAccumulator.this.dqLock.lock();
         if (EventhubBatchAccumulator.this.isClosed()) {
           return dq.size() > 0;
         }
