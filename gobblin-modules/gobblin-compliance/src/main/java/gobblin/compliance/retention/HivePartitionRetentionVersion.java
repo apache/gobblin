@@ -40,9 +40,9 @@ public class HivePartitionRetentionVersion extends HivePartitionVersion {
 
   @Override
   public int compareTo(HivePartitionVersion version) {
-    long thisAge = getAgeInMilliSeconds(this);
-    long otherAge = getAgeInMilliSeconds((HivePartitionRetentionVersion) version);
-    return Long.compare(thisAge, otherAge);
+    long thisTime = Long.parseLong(getTimeStamp(this));
+    long otherTime = Long.parseLong(getTimeStamp((HivePartitionRetentionVersion) version));
+    return Long.compare(otherTime, thisTime);
   }
 
   public boolean equals(Object obj) {
