@@ -93,10 +93,15 @@ public abstract class BatchAccumulator<D> implements Closeable {
    * Add a busy loop here to ensure all the ongoing appends are completed
    */
   public void close () {
+    closed = true;
     while (appendsInProgress.get() > 0) {
       LOG.info("Append is still going on, wait for a while");
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException e) {
+        LOG.error("close is interrupted while appending data is in progress");
+      }
     }
-    closed = true;
     this.closeComplete.countDown();
   }
 

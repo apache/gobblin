@@ -19,6 +19,7 @@ public class EventhubAccumulatorTest {
     accumulator.getNextAvailableBatch();
     accumulator.getNextAvailableBatch();
 
+    Thread.sleep(500);
     // The spawned thread should unblock current thread because it removes some front batches
     Assert.assertEquals(accumulator.getNumOfBatches(), 2);
   }
@@ -44,6 +45,7 @@ public class EventhubAccumulatorTest {
     accumulator.append(record, WriteCallback.EMPTY);
     accumulator.append(record, WriteCallback.EMPTY);
 
+    Thread.sleep(500);
     // The spawned thread should unblock current thread because it removes some front batches
     Assert.assertEquals(accumulator.getNumOfBatches(), 4);
   }
