@@ -36,6 +36,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,13 +62,7 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
 
   // Below are HDFS metrics
   @VisibleForTesting
-  protected final Timer listStatusPathTimer;
-  @VisibleForTesting
-  protected final Timer listStatusPathsTimer;
-  @VisibleForTesting
-  protected final Timer listStatusPathWithFilterTimer;
-  @VisibleForTesting
-  protected final Timer listStatusPathsWithFilterTimer;
+  protected final Timer listStatusTimer;
   @VisibleForTesting
   protected final Timer listFilesTimer;
   @VisibleForTesting
@@ -78,23 +73,49 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   protected final Timer deleteTimer;
   @VisibleForTesting
   protected final Timer renameTimer;
+  @VisibleForTesting
+  protected final Timer createTimer;
+  @VisibleForTesting
+  protected final Timer openTimer;
+  @VisibleForTesting
+  protected final Timer setOwnerTimer;
+  @VisibleForTesting
+  protected final Timer getFileStatusTimer;
+  @VisibleForTesting
+  protected final Timer setPermissionTimer;
+  @VisibleForTesting
+  protected final Timer setTimesTimer;
+  @VisibleForTesting
+  protected final Timer appendTimer;
+  @VisibleForTesting
+  protected final Timer concatTimer;
 
   private static class TimerContextWithLog implements Closeable {
     Timer.Context context;
     String operation;
     List<Object> parameters;
     long startTick;
+    Object result;
     private static final Logger LOG = LoggerFactory.getLogger(TimerContextWithLog.class);
     public TimerContextWithLog (Timer.Context context, String operation, Object... values) {
       this.context = context;
       this.startTick = System.nanoTime();
       this.operation = operation;
       this.parameters = new ArrayList<>(Arrays.asList(values));
+      this.result = null;
+    }
+
+    public void setResult(Object rst) {
+      this.result = rst;
     }
 
     public void close() {
       long duration = System.nanoTime() - startTick;
-      LOG.debug ("HDFS operation {} with {} takes {} nanoseconds", operation, parameters, duration);
+      if (result instanceof FileStatus[]) {
+        LOG.debug ("HDFS operation {} with {} takes {} nanoseconds and returns {} files", operation, parameters, duration, ((FileStatus[])result).length);
+      } else {
+        LOG.debug ("HDFS operation {} with {} takes {} nanoseconds", operation, parameters, duration);
+      }
       this.context.close();
     }
   }
@@ -104,15 +125,20 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
     this.metricContext = new MetricContext.Builder(HDFS_METRIC_CONTEXT_NAME).build();
     this.metricContext = this.closer.register(metricContext);
 
-    this.listStatusPathTimer = this.metricContext.timer("listStatusPath");
-    this.listStatusPathsTimer = this.metricContext.timer("listStatusPaths");
-    this.listStatusPathWithFilterTimer = this.metricContext.timer("listStatusPathWithFilter");
-    this.listStatusPathsWithFilterTimer = this.metricContext.timer("listStatusPathsWithFilter");
-    this.listFilesTimer = this.metricContext.timer("listFilesTimer");
-    this.globStatusTimer = this.metricContext.timer("globStatusTimer");
+    this.listStatusTimer = this.metricContext.timer("listStatus");
+    this.listFilesTimer = this.metricContext.timer("listFiles");
+    this.globStatusTimer = this.metricContext.timer("globStatus");
     this.mkdirTimer = this.metricContext.timer("mkdirs");
     this.renameTimer = this.metricContext.timer("rename");
-    this.deleteTimer = this.metricContext.timer("deleteTimer");
+    this.deleteTimer = this.metricContext.timer("delete");
+    this.createTimer = this.metricContext.timer("create");
+    this.openTimer = this.metricContext.timer("open");
+    this.setOwnerTimer = this.metricContext.timer("setOwner");
+    this.getFileStatusTimer = this.metricContext.timer("getFileStatus");
+    this.setPermissionTimer = this.metricContext.timer("setPermission");
+    this.setTimesTimer = this.metricContext.timer("setTimes");
+    this.appendTimer = this.metricContext.timer ("append");
+    this.concatTimer = this.metricContext.timer ("concat");
   }
 
   @Override
@@ -153,18 +179,10 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
    */
   public boolean mkdir(Path f, FsPermission permission) throws IOException {
     try (Closeable context = new TimerContextWithLog(mkdirTimer.time(), "mkdir", f, permission)) {
-      boolean status = super.mkdir (f, permission);
-      return status;
+      return super.mkdir (f, permission);
     } catch (IOException e) {
       throw e;
     }
-  }
-
-  /**
-   * Indirect call to {@link InstrumentedHDFSFileSystem#mkdirs(Path, FsPermission)}
-   */
-  public boolean mkdirs(Path f) throws IOException {
-    return super.mkdirs(f);
   }
 
   /**
@@ -172,8 +190,7 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
    */
   public boolean mkdirs(Path f, FsPermission permission) throws IOException {
     try (Closeable context = new TimerContextWithLog(mkdirTimer.time(), "mkdirs", f, permission)) {
-      boolean status = super.mkdirs (f, permission);
-      return status;
+      return super.mkdirs (f, permission);
     } catch (IOException e) {
       throw e;
     }
@@ -184,8 +201,7 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
    */
   public boolean rename (Path src, Path dst) throws IOException {
     try (Closeable context =  new TimerContextWithLog(renameTimer.time(), "rename", src, dst)) {
-      boolean status = super.rename(src, dst);
-      return status;
+      return super.rename(src, dst);
     } catch (IOException e) {
       throw e;
     }
@@ -196,8 +212,7 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
    */
   public boolean delete (Path f, boolean recursive) throws  IOException {
     try (Closeable context = new TimerContextWithLog(deleteTimer.time(), "delete", f, recursive)) {
-      boolean status = super.delete (f, recursive);
-      return status;
+      return super.delete (f, recursive);
     } catch (IOException e) {
       throw e;
     }
@@ -207,45 +222,10 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
    * Add timer metrics to {@link DistributedFileSystem#listStatus(Path)}
    */
   public FileStatus[] listStatus(Path path) throws IOException {
-   try (Closeable context = new TimerContextWithLog(listStatusPathTimer.time(), "listStatus", path)) {
-      FileStatus[] status = super.listStatus(path);
-      return status;
-    } catch (IOException e) {
-      throw e;
-    }
-  }
-
-  /**
-   * Add timer metrics to {@link DistributedFileSystem#listStatus(Path[])}
-   */
-  public FileStatus[] listStatus(Path[] paths) throws IOException {
-    try (Closeable context = new TimerContextWithLog(listStatusPathsTimer.time(), "listStatus", paths)) {
-      FileStatus[] status = super.listStatus(paths);
-      return status;
-    } catch (IOException e) {
-      throw e;
-    }
-  }
-
-  /**
-   * Add timer metrics to  {@link DistributedFileSystem#listStatus(Path, PathFilter)}
-   */
-  public FileStatus[] listStatus(Path path, PathFilter filter) throws IOException {
-    try (Closeable context = new TimerContextWithLog(listStatusPathWithFilterTimer.time(), "listStatus", path, filter)) {
-      FileStatus[] status = super.listStatus(path, filter);
-      return status;
-    } catch (IOException e) {
-      throw e;
-    }
-  }
-
-  /**
-   * Add timer metrics to  {@link DistributedFileSystem#listStatus(Path[], PathFilter)}
-   */
-  public FileStatus[] listStatus(Path[] paths, PathFilter filter) throws IOException {
-    try (Closeable context = new TimerContextWithLog(listStatusPathsWithFilterTimer.time(), "listStatus", paths, filter)) {
-      FileStatus[] status = super.listStatus(paths, filter);
-      return status;
+   try (TimerContextWithLog context = new TimerContextWithLog(listStatusTimer.time(), "listStatus", path)) {
+      FileStatus[] statuses = super.listStatus(path);
+      context.setResult(statuses);
+      return statuses;
     } catch (IOException e) {
       throw e;
     }
@@ -255,9 +235,10 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
    * Add timer metrics to  {@link DistributedFileSystem#globStatus(Path)}
    */
   public FileStatus[] globStatus(Path pathPattern) throws IOException {
-    try (Closeable context = new TimerContextWithLog(globStatusTimer.time(), "globStatus", pathPattern)) {
-      FileStatus[] status = super.globStatus(pathPattern);
-      return status;
+    try (TimerContextWithLog context = new TimerContextWithLog(globStatusTimer.time(), "globStatus", pathPattern)) {
+      FileStatus[] statuses = super.globStatus(pathPattern);
+      context.setResult(statuses);
+      return statuses;
     } catch (IOException e) {
       throw e;
     }
@@ -267,9 +248,10 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
    * Add timer metrics to  {@link DistributedFileSystem#globStatus(Path, PathFilter)}
    */
   public FileStatus[] globStatus(Path pathPattern, PathFilter filter) throws IOException {
-    try (Closeable context = new TimerContextWithLog(globStatusTimer.time(), "globStatus", pathPattern, filter)) {
-      FileStatus[] status = super.globStatus(pathPattern, filter);
-      return status;
+    try (TimerContextWithLog context = new TimerContextWithLog(globStatusTimer.time(), "globStatus", pathPattern, filter)) {
+      FileStatus[] statuses = super.globStatus(pathPattern, filter);
+      context.setResult(statuses);
+      return statuses;
     } catch (IOException e) {
       throw e;
     }
@@ -278,10 +260,103 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   /**
    * Add timer metrics to {@link FileSystem#listFiles(Path, boolean)}
    */
-  public RemoteIterator<LocatedFileStatus> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException{
+  public RemoteIterator<LocatedFileStatus> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
     try (Closeable context = new TimerContextWithLog(this.listFilesTimer.time(), "listFiles", f, recursive)) {
-      RemoteIterator<LocatedFileStatus>  status = super.listFiles(f, recursive);
-      return status;
+      return super.listFiles(f, recursive);
+    } catch (IOException e) {
+      throw e;
+    }
+  }
+
+  /**
+   * Add timer metrics to {@link DistributedFileSystem#create(Path, FsPermission, boolean, int, short, long, Progressable)}
+   */
+  public FSDataOutputStream create(Path f,
+    FsPermission permission,
+    boolean overwrite,
+    int bufferSize,
+    short replication,
+    long blockSize,
+    Progressable progress) throws IOException {
+    try (Closeable context = new TimerContextWithLog(this.createTimer.time(), "create", f, permission, overwrite, bufferSize, replication, blockSize, progress)) {
+      return super.create(f, permission, overwrite, bufferSize, replication, blockSize, progress);
+    } catch (IOException e) {
+      throw e;
+    }
+  }
+
+  /**
+   * Add timer metrics to {@link DistributedFileSystem#open(Path, int)}
+   */
+  public FSDataInputStream open(Path f, int bufferSize) throws IOException {
+    try (Closeable context = new TimerContextWithLog(this.openTimer.time(), "open", f, bufferSize)) {
+      return super.open(f, bufferSize);
+    } catch (IOException e) {
+      throw e;
+    }
+  }
+
+  /**
+   * Add timer metrics to {@link DistributedFileSystem#setOwner(Path, String, String)}
+   */
+  public void setOwner(Path f, String user, String group) throws IOException {
+    try (Closeable context = new TimerContextWithLog(this.setOwnerTimer.time(), "setOwner", f, user, group)) {
+      super.setOwner(f, user, group);
+    } catch (IOException e) {
+      throw e;
+    }
+  }
+
+  /**
+   * Add timer metrics to {@link DistributedFileSystem#getFileStatus(Path)}
+   */
+  public FileStatus getFileStatus (Path f) throws IOException {
+    try (Closeable context = new TimerContextWithLog(this.getFileStatusTimer.time(), "getFileStatus", f)) {
+      return super.getFileStatus(f);
+    } catch (IOException e) {
+      throw e;
+    }
+  }
+
+  /**
+   * Add timer metrics to {@link DistributedFileSystem#setPermission(Path, FsPermission)}
+   */
+  public void setPermission (Path f, final FsPermission permission) throws IOException {
+    try (Closeable context = new TimerContextWithLog(this.setPermissionTimer.time(), "setPermission", f, permission)) {
+      super.setPermission(f, permission);
+    } catch (IOException e) {
+      throw e;
+    }
+  }
+
+  /**
+   * Add timer metrics to {@link DistributedFileSystem#setTimes(Path, long, long)}
+   */
+  public void setTimes (Path f, long t, long a) throws IOException {
+    try (Closeable context = new TimerContextWithLog(this.setTimesTimer.time(), "setTimes", f, t, a)) {
+      super.setTimes(f, t, a);
+    } catch (IOException e) {
+      throw e;
+    }
+  }
+
+  /**
+   * Add timer metrics to {@link DistributedFileSystem#append(Path, int, Progressable)}
+   */
+  public FSDataOutputStream append (Path p, final int bufferSize, Progressable progress) throws IOException {
+    try (Closeable context = new TimerContextWithLog(this.appendTimer.time(), "append", p)) {
+      return super.append(p, bufferSize, progress);
+    } catch (IOException e) {
+      throw e;
+    }
+  }
+
+  /**
+   * Add timer metrics to {@link DistributedFileSystem#concat(Path, Path[])}
+   */
+  public void concat (Path trg, Path [] psrcs) throws IOException  {
+    try (Closeable context = new TimerContextWithLog(this.concatTimer.time(), "concat", trg, psrcs)) {
+      super.concat(trg, psrcs);
     } catch (IOException e) {
       throw e;
     }

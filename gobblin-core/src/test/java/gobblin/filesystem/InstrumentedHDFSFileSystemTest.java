@@ -29,6 +29,8 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 
@@ -175,10 +177,7 @@ public class InstrumentedHDFSFileSystemTest {
     InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path rootPath = hdfsRoot.getRootPath();
     FileStatus[] status = fs.listStatus(rootPath);
-    Assert.assertEquals(fs.listStatusPathTimer.getCount(), 1);
-    Assert.assertEquals(fs.listStatusPathsTimer.getCount(), 0);
-    Assert.assertEquals(fs.listStatusPathWithFilterTimer.getCount(), 0);
-    Assert.assertEquals(fs.listStatusPathsWithFilterTimer.getCount(), 0);
+    Assert.assertEquals(fs.listStatusTimer.getCount(), 1);
     Assert.assertEquals(status.length, 6);
     hdfsRoot.cleanupRoot();
   }
@@ -192,10 +191,7 @@ public class InstrumentedHDFSFileSystemTest {
       fs.listStatus(new Path("/tmp/nonexistence"));
     } catch (Exception e) {
       // stop search when a non-existed directory was encountered, the visit of non-existed path is sill considered as one visit.
-      Assert.assertEquals(fs.listStatusPathTimer.getCount(), 1);
-      Assert.assertEquals(fs.listStatusPathsTimer.getCount(), 0);
-      Assert.assertEquals(fs.listStatusPathWithFilterTimer.getCount(), 0);
-      Assert.assertEquals(fs.listStatusPathsWithFilterTimer.getCount(), 0);
+      Assert.assertEquals(fs.listStatusTimer.getCount(), 1);
     } finally {
       hdfsRoot.cleanupRoot();
     }
@@ -209,10 +205,7 @@ public class InstrumentedHDFSFileSystemTest {
     Path[] paths = {hdfsRoot.filePath2, hdfsRoot.dirPath2};
     FileStatus[] status = fs.listStatus(paths);
 
-    Assert.assertEquals(fs.listStatusPathTimer.getCount(), 2);
-    Assert.assertEquals(fs.listStatusPathsTimer.getCount(), 1);
-    Assert.assertEquals(fs.listStatusPathsWithFilterTimer.getCount(), 1);
-    Assert.assertEquals(fs.listStatusPathWithFilterTimer.getCount(), 0);
+    Assert.assertEquals(fs.listStatusTimer.getCount(), 2);
     Assert.assertEquals(status.length, 3);
     hdfsRoot.cleanupRoot();
   }
@@ -227,10 +220,7 @@ public class InstrumentedHDFSFileSystemTest {
       fs.listStatus(paths);
     } catch (Exception e) {
       // stop search when a non-existed directory was encountered, the visit of non-existed path is sill considered as one visit.
-      Assert.assertEquals(fs.listStatusPathTimer.getCount(), 2);
-      Assert.assertEquals(fs.listStatusPathsTimer.getCount(), 1);
-      Assert.assertEquals(fs.listStatusPathsWithFilterTimer.getCount(), 1);
-      Assert.assertEquals(fs.listStatusPathWithFilterTimer.getCount(), 0);
+      Assert.assertEquals(fs.listStatusTimer.getCount(), 2);
     } finally {
       hdfsRoot.cleanupRoot();
     }
@@ -246,10 +236,7 @@ public class InstrumentedHDFSFileSystemTest {
         return path.toString().endsWith(".ext");
       }
     });
-    Assert.assertEquals(fs.listStatusPathTimer.getCount(), 1);
-    Assert.assertEquals(fs.listStatusPathsTimer.getCount(), 0);
-    Assert.assertEquals(fs.listStatusPathWithFilterTimer.getCount(), 1);
-    Assert.assertEquals(fs.listStatusPathsWithFilterTimer.getCount(), 0);
+    Assert.assertEquals(fs.listStatusTimer.getCount(), 1);
     Assert.assertEquals(status.length, 2);
     hdfsRoot.cleanupRoot();
   }
@@ -267,10 +254,7 @@ public class InstrumentedHDFSFileSystemTest {
       }
     });
 
-    Assert.assertEquals(fs.listStatusPathTimer.getCount(), 3);
-    Assert.assertEquals(fs.listStatusPathsTimer.getCount(), 0);
-    Assert.assertEquals(fs.listStatusPathsWithFilterTimer.getCount(), 1);
-    Assert.assertEquals(fs.listStatusPathWithFilterTimer.getCount(), 0);
+    Assert.assertEquals(fs.listStatusTimer.getCount(), 3);
     Assert.assertEquals(status.length, 2);
     hdfsRoot.cleanupRoot();
   }
@@ -282,10 +266,7 @@ public class InstrumentedHDFSFileSystemTest {
 
     fs.listFiles(hdfsRoot.getRootPath(), true);
     Assert.assertEquals(fs.listFilesTimer.getCount(), 1);
-    Assert.assertEquals(fs.listStatusPathTimer.getCount(), 0);
-    Assert.assertEquals(fs.listStatusPathsTimer.getCount(), 0);
-    Assert.assertEquals(fs.listStatusPathsWithFilterTimer.getCount(), 0);
-    Assert.assertEquals(fs.listStatusPathWithFilterTimer.getCount(), 0);
+    Assert.assertEquals(fs.listStatusTimer.getCount(), 0);
     hdfsRoot.cleanupRoot();
   }
 
@@ -369,6 +350,209 @@ public class InstrumentedHDFSFileSystemTest {
 
     Assert.assertFalse(fs.exists(hdfsRoot.getDirPath3()));
     Assert.assertTrue(fs.exists(newDir));
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testCreate1() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path("/tmp/create/newFile");
+    FSDataOutputStream fstream = fs.create(newFile);
+    Assert.assertEquals(fs.createTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testCreate2() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path("/tmp/create/newFile");
+    FSDataOutputStream fstream = fs.create(newFile, true);
+    Assert.assertEquals(fs.createTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testCreate3() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path("/tmp/create/newFile");
+    FSDataOutputStream fstream = fs.create(newFile, true, 300);
+    Assert.assertEquals(fs.createTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testCreate4() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path("/tmp/create/newFile");
+    FSDataOutputStream fstream = fs.create(newFile, true, 300, null);
+    Assert.assertEquals(fs.createTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testCreate5() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path("/tmp/create/newFile");
+    FSDataOutputStream fstream = fs.create(newFile, true, 300, (short)1, 1048576);
+    Assert.assertEquals(fs.createTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testCreate6() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path("/tmp/create/newFile");
+    FSDataOutputStream fstream = fs.create(newFile, true, 300, (short)1, 1048576, null);
+    Assert.assertEquals(fs.createTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testCreate7() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ);
+    Path newFile = new Path("/tmp/create/newFile");
+    FSDataOutputStream fstream = fs.create(newFile, permission, true, 100, (short)2, 1048576, null);
+    Assert.assertEquals(fs.createTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testCreate8() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path("/tmp/create/newFile");
+    FSDataOutputStream fstream = fs.create(newFile, (short)2);
+    Assert.assertEquals(fs.createTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testCreate9() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path("/tmp/create/newFile");
+    FSDataOutputStream fstream = fs.create(newFile, (short)2, null);
+    Assert.assertEquals(fs.createTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testCreate10() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path("/tmp/create/newFile");
+    FSDataOutputStream fstream = fs.create(newFile, null);
+    Assert.assertEquals(fs.createTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testOpen1() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/Open");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path(hdfsRoot.getRootPath(), new Path("file8.ext"));
+    FSDataInputStream fstream = fs.open(newFile);
+    Assert.assertEquals(fs.openTimer.getCount(), 1);
+
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testOpen2() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/Open");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path(hdfsRoot.getRootPath(), new Path("file8.ext"));
+    FSDataInputStream fstream = fs.open(newFile, 100);
+    Assert.assertEquals(fs.openTimer.getCount(), 1);
+
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testSetOwner() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/setOwner");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    Path newFile = new Path(hdfsRoot.getRootPath(), new Path("file8.ext"));
+    fs.setOwner(newFile, "someone", "linkedin");
+    Assert.assertEquals(fs.setOwnerTimer.getCount(), 1);
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testGetFileStatus() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/getFileStatus");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    fs.getFileStatus(hdfsRoot.getFilePath8());
+    Assert.assertEquals(fs.getFileStatusTimer.getCount(), 1);
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testSetPermission() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/permission");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ);
+    fs.setPermission(hdfsRoot.getFilePath8(), permission);
+    Assert.assertEquals(fs.setPermissionTimer.getCount(), 1);
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testSetTimes() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/setTimes");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    fs.setTimes(hdfsRoot.getFilePath8(), System.currentTimeMillis(), System.currentTimeMillis());
+    Assert.assertEquals(fs.setTimesTimer.getCount(), 1);
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testAppend1() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/append");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    FSDataOutputStream fstream = fs.append(hdfsRoot.getFilePath8());
+    Assert.assertEquals(fs.appendTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testAppend2() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/append");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    FSDataOutputStream fstream = fs.append(hdfsRoot.getFilePath8(), 100);
+    Assert.assertEquals(fs.appendTimer.getCount(), 1);
+    fstream.close();
+    hdfsRoot.cleanupRoot();
+  }
+
+  @Test(enabled = false)
+  public void testAppend3() throws IOException, URISyntaxException {
+    HDFSRoot hdfsRoot = new HDFSRoot("/tmp/append");
+    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    FSDataOutputStream fstream = fs.append(hdfsRoot.getFilePath8(), 100, null);
+    Assert.assertEquals(fs.appendTimer.getCount(), 1);
+    fstream.close();
     hdfsRoot.cleanupRoot();
   }
 }
