@@ -19,6 +19,7 @@
 
 package gobblin.writer;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.Executors;
@@ -89,40 +90,42 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
     }
   }
 
-  private class RecordProcessor<D> implements Runnable {
+  private class RecordProcessor<D> implements Runnable, Closeable{
     BatchAccumulator<D> accumulator;
     BatchAsyncDataWriter<D> writer;
+
+    public void close() throws IOException {
+      this.writer.close();
+    }
 
     public RecordProcessor (BatchAccumulator<D> accumulator, BatchAsyncDataWriter<D> writer) {
       this.accumulator = accumulator;
       this.writer = writer;
     }
 
-    /**
-     * A main loop to process the available batches
-     * The hasNext may still return null if batch's TTL doesn't expire. However this really depends on the implementation
-     */
     public void run() {
       LOG.info ("Start iterating accumulator");
-      Iterator<Batch<D>> iterator = this.accumulator.iterator();
+
+      /**
+       * A main loop to process available batches
+       */
       while (running) {
-        while (running && iterator.hasNext()) {
-          Batch<D> batch = iterator.next();
-          if (batch != null) {
-            this.writer.write(batch, this.createBatchCallback(batch));
-          }
+        Batch<D> batch = this.accumulator.getNextAvailableBatch();
+        if (batch != null) {
+          this.writer.write(batch, this.createBatchCallback(batch));
         }
       }
 
       // Wait until all the ongoing appends finished
       accumulator.waitClose();
+      LOG.info ("Start to process remaining batches");
 
-      // Send all remaining batches
-      while (iterator.hasNext()) {
-        Batch<D> batch = iterator.next();
-        if (batch != null) {
-          this.writer.write(batch, this.createBatchCallback(batch));
-        }
+      /**
+       * A main loop to process remaining batches
+       */
+      Batch<D> batch;
+      while ((batch = this.accumulator.getNextAvailableBatch()) != null) {
+        this.writer.write(batch, this.createBatchCallback(batch));
       }
 
       // Wait until all the batches get acknowledged
@@ -137,7 +140,7 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
       return new WriteCallback() {
         @Override
         public void onSuccess(WriteResponse writeResponse) {
-          LOG.info ("Batch " + batch.getId() + " is on success");
+          LOG.info ("Batch " + batch.getId() + " is on success with size " + batch.getCurrentSizeInByte() + " num of record " + batch.getRecords().size());
           batch.onSuccess(writeResponse);
           batch.done();
           accumulator.deallocate(batch);
@@ -194,6 +197,8 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
       }
     } catch (InterruptedException e) {
       LOG.error ("Interruption happened during close " + e.toString());
+    } finally {
+      this.processor.close();
     }
   }
 }
