@@ -35,7 +35,6 @@ import lombok.Builder;
  */
 public class RestliServiceBasedLimiter implements Limiter {
 
-  public static final String REQUEST_TIMER_NAME = "limiter.restli.requestTimer";
   public static final String PERMITS_REQUESTED_METER_NAME = "limiter.restli.permitsRequested";
   public static final String PERMITS_GRANTED_METER_NAME = "limiter.restli.permitsGranted";
 
@@ -43,7 +42,6 @@ public class RestliServiceBasedLimiter implements Limiter {
 
   private final Optional<MetricContext> metricContext;
 
-  private final Optional<Timer> requestTimer;
   private final Optional<Meter> permitsRequestedMeter;
   private final Optional<Meter> permitsGrantedMeter;
 
@@ -55,11 +53,9 @@ public class RestliServiceBasedLimiter implements Limiter {
 
     this.metricContext = Optional.fromNullable(metricContext);
     if (this.metricContext.isPresent()) {
-      this.requestTimer = Optional.of(this.metricContext.get().timer(REQUEST_TIMER_NAME));
       this.permitsRequestedMeter = Optional.of(this.metricContext.get().meter(PERMITS_REQUESTED_METER_NAME));
       this.permitsGrantedMeter = Optional.of(this.metricContext.get().meter(PERMITS_GRANTED_METER_NAME));
     } else {
-      this.requestTimer = Optional.absent();
       this.permitsRequestedMeter = Optional.absent();
       this.permitsGrantedMeter = Optional.absent();
     }
@@ -75,14 +71,9 @@ public class RestliServiceBasedLimiter implements Limiter {
 
     Instrumented.markMeter(this.permitsRequestedMeter, permits);
 
-    try(Closeable context = this.requestTimer.isPresent() ? this.requestTimer.get().time() : NoopCloseable.INSTANCE) {
-      boolean permitsGranted = this.bachedPermitsContainer.getPermits(permits);
-      Instrumented.markMeter(this.permitsGrantedMeter, permits);
-      return permitsGranted ? NoopCloseable.INSTANCE : null;
-    } catch (IOException ioe) {
-      // This should never happen
-      throw new RuntimeException(ioe);
-    }
+    boolean permitsGranted = this.bachedPermitsContainer.getPermits(permits);
+    Instrumented.markMeter(this.permitsGrantedMeter, permits);
+    return permitsGranted ? NoopCloseable.INSTANCE : null;
   }
 
   @Override
