@@ -1,52 +1,158 @@
 package gobblin.eventhub.writer;
 
 import java.io.IOException;
-import java.util.Iterator;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-
-import gobblin.writer.Batch;
 import gobblin.writer.WriteCallback;
 
 
 public class EventhubAccumulatorTest {
   @Test
-  public void testAccumulator() throws IOException, InterruptedException{
+  public void testAccumulatorEmpty() throws IOException, InterruptedException{
+    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
 
-    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator();
-    String obj = "abcdefgh";
+    // Spawn a new thread to add new batches
+    (new Thread(new AddBatchThread(accumulator))).start();
 
-    // overhead has 15 bytes
-    long unit = obj.length() + EventhubBatch.OVERHEAD_SIZE_IN_BYTES;
+    // Below three get operation will be blocked until we fill the empty queue
+    accumulator.getNextAvailableBatch();
+    accumulator.getNextAvailableBatch();
+    accumulator.getNextAvailableBatch();
 
-    // Assuming batch size is 256K bytes, and each record has (8 + 15) bytes
-    // Adding {bytes/unit} records should not overflow the memory of first batch
-    // The first batch is still waiting for more incoming records so it is not ready to be sent out
-    long bytes = accumulator.getMemSizeLimit();
-    for (int i=0; i<bytes/unit; ++i) {
-      accumulator.append(obj, WriteCallback.EMPTY);
+    // The spawned thread should unblock current thread because it removes some front batches
+    Assert.assertEquals(accumulator.getNumOfBatches(), 2);
+  }
+
+  @Test
+  public void testAccumulatorCapacity () throws IOException, InterruptedException {
+    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
+    StringBuffer buffer = new StringBuffer();
+    for (int i = 0; i < 40; ++i) {
+      buffer.append('a');
     }
+    String record = buffer.toString();
+    accumulator.append(record, WriteCallback.EMPTY);
+    accumulator.append(record, WriteCallback.EMPTY);
+    accumulator.append(record, WriteCallback.EMPTY);
+    accumulator.append(record, WriteCallback.EMPTY);
+    accumulator.append(record, WriteCallback.EMPTY);
 
-    Iterator<Batch<String>> iterator = accumulator.iterator();
-    Assert.assertEquals(iterator.hasNext(), false);
+    // Spawn a new thread to remove available batches
+    (new Thread(new RemoveBatchThread(accumulator))).start();
 
-    // Now add another record, which should result in the overflow of first batch
-    // This record should be added into the second batch, now the first batch should be available
-    accumulator.append(obj, WriteCallback.EMPTY);
-    Assert.assertEquals(iterator.hasNext(), true);
+    // Flowing two appends will be blocked
+    accumulator.append(record, WriteCallback.EMPTY);
+    accumulator.append(record, WriteCallback.EMPTY);
 
-    // Remove the first batch, the second batch should now contains one record and it should
-    // not be ready to pop out because 1) size is not exceed the limit 2) TTL is not expired
-    iterator.next();
-    Assert.assertEquals(iterator.hasNext(), false);
+    // The spawned thread should unblock current thread because it removes some front batches
+    Assert.assertEquals(accumulator.getNumOfBatches(), 4);
+  }
 
-    Thread.sleep(accumulator.getExpireInMilliSecond());
+  @Test
+  public void testCloseBeforeAwait () throws IOException, InterruptedException {
+    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
+    (new Thread(new CloseAccumulatorThread(accumulator))).start();
+    Thread.sleep(1000);
 
-    // Now the TTL should be expired, the second batch should be available
-    Assert.assertEquals(iterator.hasNext(), true);
-    Batch<String> batch = iterator.next();
-    Assert.assertEquals(batch.getRecords().size(), 1);
+    Assert.assertNull(accumulator.getNextAvailableBatch());
+  }
+
+  @Test
+  public void testCloseAfterAwait () throws IOException, InterruptedException {
+    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
+    (new Thread(new CloseAccumulatorThread(accumulator))).start();
+
+    // this thread should be blocked and waked up by spawned thread
+    Assert.assertNull(accumulator.getNextAvailableBatch());
+  }
+
+  @Test
+  public void testClose () throws IOException, InterruptedException {
+    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 3000, 5);
+    StringBuffer buffer = new StringBuffer();
+    for (int i = 0; i < 40; ++i) {
+      buffer.append('a');
+    }
+    String record1 = buffer.toString() + "1";
+    String record2 = buffer.toString() + "2";
+    String record3 = buffer.toString() + "3";
+    String record4 = buffer.toString() + "4";
+    String record5 = buffer.toString() + "5";
+    accumulator.append(record1, WriteCallback.EMPTY);
+    accumulator.append(record2, WriteCallback.EMPTY);
+    accumulator.append(record3, WriteCallback.EMPTY);
+    accumulator.append(record4, WriteCallback.EMPTY);
+    accumulator.append(record5, WriteCallback.EMPTY);
+
+    (new Thread(new CloseAccumulatorThread(accumulator))).start();
+    Thread.sleep(1000);
+    Assert.assertEquals(accumulator.getNextAvailableBatch().getRecords().get(0), record1);
+    Assert.assertEquals(accumulator.getNextAvailableBatch().getRecords().get(0), record2);
+    Assert.assertEquals(accumulator.getNextAvailableBatch().getRecords().get(0), record3);
+    Assert.assertEquals(accumulator.getNextAvailableBatch().getRecords().get(0), record4);
+    Assert.assertEquals(accumulator.getNextAvailableBatch().getRecords().get(0), record5);
+  }
+
+  @Test
+  public void testExpiredBatch () throws IOException, InterruptedException {
+    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 3000, 5);
+    String record = "1";
+    accumulator.append(record, WriteCallback.EMPTY);
+    Assert.assertNull(accumulator.getNextAvailableBatch());
+    Thread.sleep(3000);
+    Assert.assertNotNull(accumulator.getNextAvailableBatch());
+  }
+
+  public class CloseAccumulatorThread implements Runnable {
+    EventhubBatchAccumulator accumulator;
+    public CloseAccumulatorThread (EventhubBatchAccumulator accumulator) {
+      this.accumulator = accumulator;
+    }
+    public void run() {
+      try {
+        Thread.sleep(500);
+      } catch (InterruptedException e) {
+      }
+      this.accumulator.close();
+    }
+  }
+
+  public class RemoveBatchThread implements Runnable {
+    EventhubBatchAccumulator accumulator;
+    public RemoveBatchThread (EventhubBatchAccumulator accumulator) {
+      this.accumulator = accumulator;
+    }
+    public void run() {
+      try {
+        Thread.sleep(1000);
+        this.accumulator.getNextAvailableBatch();
+        this.accumulator.getNextAvailableBatch();
+        this.accumulator.getNextAvailableBatch();
+      } catch (InterruptedException e) {
+      }
+    }
+  }
+
+  public class AddBatchThread implements Runnable {
+    EventhubBatchAccumulator accumulator;
+    public AddBatchThread (EventhubBatchAccumulator accumulator) {
+      this.accumulator = accumulator;
+    }
+    public void run() {
+      try {
+        Thread.sleep(1000);
+        StringBuffer buffer = new StringBuffer();
+        for (int i = 0; i < 40; ++i) {
+          buffer.append('a');
+        }
+        String record = buffer.toString();
+        accumulator.append(record, WriteCallback.EMPTY);
+        accumulator.append(record, WriteCallback.EMPTY);
+        accumulator.append(record, WriteCallback.EMPTY);
+        accumulator.append(record, WriteCallback.EMPTY);
+        accumulator.append(record, WriteCallback.EMPTY);
+      } catch (InterruptedException e) {
+      }
+    }
   }
 }

@@ -25,9 +25,7 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.Iterator;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -89,16 +87,17 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
     this.memSizeLimit = (long) (this.tolerance * this.batchSizeLimit);
   }
 
-  public long getMemSizeLimit () {
-    return this.memSizeLimit;
-  }
-
-  public long getExpireInMilliSecond () {
-    return this.expireInMilliSecond;
+  public long getNumOfBatches () {
+    this.dqLock.lock();
+    try {
+      return this.dq.size();
+    } finally {
+      this.dqLock.unlock();
+    }
   }
 
   /**
-   * Add a data to internal dequeu data structure
+   * Add a data to internal deque data structure
    */
   public final Future<RecordMetadata> enqueue (String record, WriteCallback callback) throws InterruptedException {
     final ReentrantLock lock = this.dqLock;
@@ -117,7 +116,7 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
       LOG.info("Batch " + batch.getId() + " is generated");
       Future<RecordMetadata> future = batch.tryAppend(record, callback);
 
-      // Even single record can exceed the size limit from one batch
+      // Even single record can exceed the batch size limit
       // Ignore the record because Eventhub can only accept payload less than 256KB
       if (future == null) {
         LOG.error("Batch " + batch.getId() + " is marked as complete because it contains a huge record: "
@@ -167,90 +166,75 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
       }
     }
 
-    public Iterable<Batch> all() {
+    public ArrayList<Batch> all() {
       synchronized (incomplete) {
         return new ArrayList (this.incomplete);
       }
     }
   }
 
-  public Iterator<Batch<String>> iterator() {
-    return new EventhubBatchIterator();
-  }
-
 
   /**
-   * An internal iterator that will iterate all the available batches
-   * This will be used by external BufferedAsyncDataWriter
+   * If accumulator has been closed,  below actions are performed:
+   *    1) remove and return the first batch if available.
+   *    2) return null if queue is empty.
+   * If accumulator has not been closed, below actions are performed:
+   *    1) if queue.size == 0, block current thread until more batches are available or accumulator is closed.
+   *    2) if queue size == 1, remove and return the first batch if TTL has expired, else return null.
+   *    3) if queue size > 1, remove and return the first batch element.
    */
-  private class EventhubBatchIterator implements Iterator<Batch<String>> {
-
-    /**
-     * Retrieve available batch from the queue. Below actions are performed.
-     * 1) queue.size > 1, return the first batch in the queue
-     * 2) queue.size == 1, return null if the first batch is not expired, else return this first batch
-     * 3) queue.size == 0, wait until new batch is inserted.
-     */
-    public Batch<String> next () {
-      final ReentrantLock lock = EventhubBatchAccumulator.this.dqLock;
-      try {
-        lock.lock();
-
-        while (dq.size() == 0) {
-          if (EventhubBatchAccumulator.this.isClosed()) {
-            return null;
+  public Batch<String> getNextAvailableBatch () {
+    final ReentrantLock lock = EventhubBatchAccumulator.this.dqLock;
+    try {
+      lock.lock();
+      if (EventhubBatchAccumulator.this.isClosed()) {
+        return dq.poll();
+      } else {
+          while (dq.size() == 0) {
+            LOG.info ("ready to sleep because of queue is empty");
+            EventhubBatchAccumulator.this.notEmpty.await();
+            if (EventhubBatchAccumulator.this.isClosed()) {
+              return dq.poll();
+            }
           }
-          if (EventhubBatchAccumulator.this.notEmpty.await(1000, TimeUnit.MILLISECONDS)) {
-            LOG.debug ("Being signaled due to not empty");
-          } else {
-            LOG.debug ("Wake up due to timeout");
-          }
-        }
 
-        if (dq.size() > 1) {
-          EventhubBatch candidate = dq.poll();
-          EventhubBatchAccumulator.this.notFull.signal();
-          return candidate;
-        }
-
-        if (dq.size() == 1) {
-          if (dq.peekFirst().isTTLExpire() || EventhubBatchAccumulator.this.isClosed()) {
+          if (dq.size() > 1) {
             EventhubBatch candidate = dq.poll();
             EventhubBatchAccumulator.this.notFull.signal();
+            LOG.info ("retrieve batch " + candidate.getId());
             return candidate;
-          } else {
-            return null;
           }
-        } else {
-          throw new RuntimeException("Should never get to here");
-        }
 
-      } catch (InterruptedException e) {
-        LOG.error("Wait for next batch is interrupted. " + e.toString());
-      } finally {
-        lock.unlock();
+          if (dq.size() == 1) {
+            if (dq.peekFirst().isTTLExpire()) {
+              LOG.info ("Batch " + dq.peekFirst().getId() + " is expired");
+              EventhubBatch candidate = dq.poll();
+              EventhubBatchAccumulator.this.notFull.signal();
+              return candidate;
+            } else {
+              return null;
+            }
+          } else {
+            throw new RuntimeException("Should never get to here");
+          }
       }
 
-      return null;
+    } catch (InterruptedException e) {
+      LOG.error("Wait for next batch is interrupted. " + e.toString());
+    } finally {
+      lock.unlock();
     }
 
-    /**
-     * The element retrieval was handled by next()
-     */
-    public boolean hasNext() {
-      EventhubBatchAccumulator.this.dqLock.lock();
-      try {
-        if (EventhubBatchAccumulator.this.isClosed()) {
-          return dq.size() > 0;
-        }
-        return true;
-      } finally {
-        EventhubBatchAccumulator.this.dqLock.unlock();
-      }
-    }
+    return null;
+  }
 
-    public void remove() {
-      throw new UnsupportedOperationException("EventhubBatchIterator doesn't support remove operation");
+  public void close() {
+    super.close();
+    this.dqLock.lock();
+    try {
+      this.notEmpty.signal();
+    } finally {
+      this.dqLock.unlock();
     }
   }
 
@@ -259,7 +243,9 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
    */
   public void flush() {
     try {
-      for (Batch batch: this.incomplete.all()) {
+      ArrayList<Batch> batches = this.incomplete.all();
+      LOG.info ("flush on {} batches", batches.size());
+      for (Batch batch: batches) {
         batch.await();
       }
     } catch (Exception e) {

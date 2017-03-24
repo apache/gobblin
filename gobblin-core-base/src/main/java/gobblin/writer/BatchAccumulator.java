@@ -1,5 +1,6 @@
 package gobblin.writer;
 
+import java.io.Closeable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -16,7 +17,7 @@ import gobblin.annotation.Alpha;
  * One way to do this is scanning all the internal batches through an iterator
  */
 @Alpha
-public abstract class BatchAccumulator<D> implements Iterable<Batch<D>> {
+public abstract class BatchAccumulator<D> implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BatchAccumulator.class);
 
@@ -91,11 +92,11 @@ public abstract class BatchAccumulator<D> implements Iterable<Batch<D>> {
    * When close is invoked, all new coming records will be rejected
    * Add a busy loop here to ensure all the ongoing appends are completed
    */
-  public final void close () {
-    closed = true;
+  public void close () {
     while (appendsInProgress.get() > 0) {
       LOG.info("Append is still going on, wait for a while");
     }
+    closed = true;
     this.closeComplete.countDown();
   }
 
@@ -103,4 +104,7 @@ public abstract class BatchAccumulator<D> implements Iterable<Batch<D>> {
    * Release some resource current batch is allocated
    */
   public abstract void deallocate (Batch<D> batch);
+
+  public abstract Batch<D> getNextAvailableBatch();
+
 }

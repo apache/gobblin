@@ -103,28 +103,28 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
       this.writer = writer;
     }
 
-    /**
-     * A main loop to process the available batches
-     * The hasNext may still return null if batch's TTL doesn't expire. However this really depends on the implementation
-     */
     public void run() {
       LOG.info ("Start iterating accumulator");
-      Iterator<Batch<D>> iterator = this.accumulator.iterator();
+
+      /**
+       * A main loop to process available batches
+       */
       while (running) {
-        while (running && iterator.hasNext()) {
-          Batch<D> batch = iterator.next();
-          if (batch != null) {
-            this.writer.write(batch, this.createBatchCallback(batch));
-          }
+        Batch<D> batch = this.accumulator.getNextAvailableBatch();
+        if (batch != null) {
+          this.writer.write(batch, this.createBatchCallback(batch));
         }
       }
 
       // Wait until all the ongoing appends finished
       accumulator.waitClose();
+      LOG.info ("Start to process remaining batches");
 
-      // Send all remaining batches
-      while (iterator.hasNext()) {
-        Batch<D> batch = iterator.next();
+      /**
+       * A main loop to process remaining batches
+       */
+      Batch<D> batch;
+      while ((batch = this.accumulator.getNextAvailableBatch()) != null) {
         if (batch != null) {
           this.writer.write(batch, this.createBatchCallback(batch));
         }
@@ -192,7 +192,7 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
     try {
       this.running = false;
       this.accumulator.close();
-      if (!this.service.awaitTermination(3600, TimeUnit.SECONDS)) {
+      if (!this.service.awaitTermination(60, TimeUnit.SECONDS)) {
         forceClose();
       } else {
         LOG.info ("Closed properly: elapsed " + (System.currentTimeMillis() - startTime) + " milliseconds");
