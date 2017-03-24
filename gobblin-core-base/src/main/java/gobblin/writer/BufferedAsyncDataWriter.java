@@ -125,9 +125,7 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
        */
       Batch<D> batch;
       while ((batch = this.accumulator.getNextAvailableBatch()) != null) {
-        if (batch != null) {
-          this.writer.write(batch, this.createBatchCallback(batch));
-        }
+        this.writer.write(batch, this.createBatchCallback(batch));
       }
 
       // Wait until all the batches get acknowledged
