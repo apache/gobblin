@@ -17,6 +17,7 @@
 
 package gobblin.hive.metastore;
 
+import com.google.common.base.Splitter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -73,7 +74,10 @@ public class HiveMetaStoreUtils {
   private static final Logger LOG = LoggerFactory.getLogger(HiveMetaStoreUtils.class);
 
   private static final TableType DEFAULT_TABLE_TYPE = TableType.EXTERNAL_TABLE;
+  private static final Splitter LIST_SPLITTER_COMMA = Splitter.on(",").trimResults().omitEmptyStrings();
+  private static final Splitter LIST_SPLITTER_COLON = Splitter.on(":").trimResults().omitEmptyStrings();
   private static final String EXTERNAL = "EXTERNAL";
+  public static final String RUNTIME_PROPS = "runtime.props";
 
   private HiveMetaStoreUtils() {
   }
@@ -106,6 +110,15 @@ public class HiveMetaStoreUtils {
     }
     if (table.getTableType().equals(TableType.EXTERNAL_TABLE.toString())) {
       table.getParameters().put(EXTERNAL, Boolean.TRUE.toString().toUpperCase());
+    }
+    if (hiveTable.getProps().contains(RUNTIME_PROPS)) {
+      String runtimePropsString = hiveTable.getProps().getProp(RUNTIME_PROPS);
+      for (String propValue : LIST_SPLITTER_COMMA.splitToList(runtimePropsString)) {
+        List<String> tokens = LIST_SPLITTER_COLON.splitToList(propValue);
+        Preconditions.checkState(tokens.size() == 2,
+            propValue + " is not a valid Hive table/partition property");
+        table.getParameters().put(tokens.get(0), tokens.get(1));
+      }
     }
     table.setPartitionKeys(getFieldSchemas(hiveTable.getPartitionKeys()));
     table.setSd(getStorageDescriptor(hiveTable));
