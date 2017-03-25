@@ -180,8 +180,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public boolean mkdir(Path f, FsPermission permission) throws IOException {
     try (Closeable context = new TimerContextWithLog(mkdirTimer.time(), "mkdir", f, permission)) {
       return super.mkdir (f, permission);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -191,8 +189,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public boolean mkdirs(Path f, FsPermission permission) throws IOException {
     try (Closeable context = new TimerContextWithLog(mkdirTimer.time(), "mkdirs", f, permission)) {
       return super.mkdirs (f, permission);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -202,8 +198,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public boolean rename (Path src, Path dst) throws IOException {
     try (Closeable context =  new TimerContextWithLog(renameTimer.time(), "rename", src, dst)) {
       return super.rename(src, dst);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -213,8 +207,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public boolean delete (Path f, boolean recursive) throws  IOException {
     try (Closeable context = new TimerContextWithLog(deleteTimer.time(), "delete", f, recursive)) {
       return super.delete (f, recursive);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -226,8 +218,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
       FileStatus[] statuses = super.listStatus(path);
       context.setResult(statuses);
       return statuses;
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -239,8 +229,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
       FileStatus[] statuses = super.globStatus(pathPattern);
       context.setResult(statuses);
       return statuses;
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -252,8 +240,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
       FileStatus[] statuses = super.globStatus(pathPattern, filter);
       context.setResult(statuses);
       return statuses;
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -263,8 +249,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public RemoteIterator<LocatedFileStatus> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
     try (Closeable context = new TimerContextWithLog(this.listFilesTimer.time(), "listFiles", f, recursive)) {
       return super.listFiles(f, recursive);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -280,8 +264,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
     Progressable progress) throws IOException {
     try (Closeable context = new TimerContextWithLog(this.createTimer.time(), "create", f, permission, overwrite, bufferSize, replication, blockSize, progress)) {
       return super.create(f, permission, overwrite, bufferSize, replication, blockSize, progress);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -291,8 +273,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public FSDataInputStream open(Path f, int bufferSize) throws IOException {
     try (Closeable context = new TimerContextWithLog(this.openTimer.time(), "open", f, bufferSize)) {
       return super.open(f, bufferSize);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -302,8 +282,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public void setOwner(Path f, String user, String group) throws IOException {
     try (Closeable context = new TimerContextWithLog(this.setOwnerTimer.time(), "setOwner", f, user, group)) {
       super.setOwner(f, user, group);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -313,8 +291,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public FileStatus getFileStatus (Path f) throws IOException {
     try (Closeable context = new TimerContextWithLog(this.getFileStatusTimer.time(), "getFileStatus", f)) {
       return super.getFileStatus(f);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -324,8 +300,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public void setPermission (Path f, final FsPermission permission) throws IOException {
     try (Closeable context = new TimerContextWithLog(this.setPermissionTimer.time(), "setPermission", f, permission)) {
       super.setPermission(f, permission);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -335,8 +309,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public void setTimes (Path f, long t, long a) throws IOException {
     try (Closeable context = new TimerContextWithLog(this.setTimesTimer.time(), "setTimes", f, t, a)) {
       super.setTimes(f, t, a);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -346,8 +318,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public FSDataOutputStream append (Path p, final int bufferSize, Progressable progress) throws IOException {
     try (Closeable context = new TimerContextWithLog(this.appendTimer.time(), "append", p)) {
       return super.append(p, bufferSize, progress);
-    } catch (IOException e) {
-      throw e;
     }
   }
 
@@ -357,8 +327,6 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   public void concat (Path trg, Path [] psrcs) throws IOException  {
     try (Closeable context = new TimerContextWithLog(this.concatTimer.time(), "concat", trg, psrcs)) {
       super.concat(trg, psrcs);
-    } catch (IOException e) {
-      throw e;
     }
   }
 }
