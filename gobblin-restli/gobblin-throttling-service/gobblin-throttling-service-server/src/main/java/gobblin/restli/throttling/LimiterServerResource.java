@@ -23,7 +23,7 @@ import java.io.IOException;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.collect.ImmutableMap;
-import com.google.inject.Inject;
+import com.linkedin.data.template.GetMode;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
@@ -31,7 +31,7 @@ import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 
-import gobblin.broker.SimpleScopeType;
+import gobblin.annotation.Alpha;
 import gobblin.broker.iface.NotConfiguredException;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.metrics.MetricContext;
@@ -39,18 +39,22 @@ import gobblin.metrics.broker.MetricContextFactory;
 import gobblin.metrics.broker.SubTaggedMetricContextKey;
 import gobblin.util.NoopCloseable;
 import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.util.limiter.broker.SharedLimiterKey;
 
+import javax.inject.Inject;
+import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * Restli resource for allocating permits through Rest calls. Simply calls a {@link Limiter} in the server configured
  * through {@link SharedResourcesBroker}.
  */
+@Alpha
 @Slf4j
 @RestLiCollection(name = "permits", namespace = "gobblin.restli.throttling")
 public class LimiterServerResource extends ComplexKeyResourceTemplate<PermitRequest, EmptyRecord, PermitAllocation> {
+
+  public static final long TIMEOUT_MILLIS = 7000; // resli client times out after 10 seconds
 
   public static final String BROKER_INJECT_NAME = "broker";
   public static final String METRIC_CONTEXT_INJECT_NAME = "limiterResourceMetricContext";
@@ -62,13 +66,13 @@ public class LimiterServerResource extends ComplexKeyResourceTemplate<PermitRequ
   public static final String LIMITER_TIMER_NAME = "limiterServer.limiterTimer";
   public static final String RESOURCE_ID_TAG = "resourceId";
 
-  @Inject @javax.inject.Inject @javax.inject.Named(BROKER_INJECT_NAME)
+  @Inject @Named(BROKER_INJECT_NAME)
   SharedResourcesBroker broker;
 
-  @javax.inject.Inject @javax.inject.Named(METRIC_CONTEXT_INJECT_NAME)
+  @Inject @Named(METRIC_CONTEXT_INJECT_NAME)
   MetricContext metricContext;
 
-  @javax.inject.Inject @javax.inject.Named(REQUEST_TIMER_INJECT_NAME)
+  @Inject @Named(REQUEST_TIMER_INJECT_NAME)
   Timer requestTimer;
 
   /**
@@ -92,29 +96,18 @@ public class LimiterServerResource extends ComplexKeyResourceTemplate<PermitRequ
 
       permitsRequestedMeter.mark(request.getPermits());
 
-      Limiter limiter = (Limiter) this.broker.getSharedResource(new SharedLimiterFactory<SimpleScopeType>(),
-          new SharedLimiterKey(request.getResource(), SharedLimiterKey.GlobalLimiterPolicy.LOCAL_ONLY));
+      ThrottlingPolicy policy = (ThrottlingPolicy) this.broker.getSharedResource(new ThrottlingPolicyFactory(),
+          new SharedLimiterKey(request.getResource()));
 
-      Closeable permit;
+      PermitAllocation allocation;
       try (Closeable thisContext = limiterTimer.time()) {
-        permit = limiter.acquirePermits(request.getPermits());
+        allocation = policy.computePermitAllocation(request);
       }
 
-      if (permit == null) {
-        throw new RestLiServiceException(HttpStatus.S_403_FORBIDDEN, "No more permits available for resource " + resourceId);
-      }
-
-      long permitsGranted = key.getKey().getPermits();
-      permitsGrantedMeter.mark(permitsGranted);
-
-      PermitAllocation allocation = new PermitAllocation();
-      allocation.setPermits(permitsGranted);
-      allocation.setExpiration(Long.MAX_VALUE);
+      permitsGrantedMeter.mark(allocation.getPermits());
       return allocation;
     } catch (NotConfiguredException nce) {
       throw new RestLiServiceException(HttpStatus.S_422_UNPROCESSABLE_ENTITY, "No configuration for the requested resource.");
-    } catch (InterruptedException ie) {
-      throw new RuntimeException(ie);
     } catch (IOException ioe) {
       // Failed to close timer context. This should never happen
       throw new RuntimeException(ioe);
