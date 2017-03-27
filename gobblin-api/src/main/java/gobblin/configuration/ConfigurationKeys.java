@@ -336,6 +336,8 @@ public class ConfigurationKeys {
   public static final String ROW_LEVEL_ERR_FILE = QUALITY_CHECKER_PREFIX + ".row.err.file";
   public static final String QUALITY_CHECKER_TIMEZONE = QUALITY_CHECKER_PREFIX + ".timezone";
   public static final String DEFAULT_QUALITY_CHECKER_TIMEZONE = PST_TIMEZONE_NAME;
+  public static final String CLEAN_ERR_DIR = QUALITY_CHECKER_PREFIX + "clean.err.dir";
+  public static final boolean DEFAULT_CLEAN_ERR_DIR = false;
 
   /**
    * Configuration properties used by the row count policies.
