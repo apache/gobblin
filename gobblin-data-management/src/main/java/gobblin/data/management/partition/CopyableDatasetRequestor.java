@@ -53,9 +53,6 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor
 @Getter
 public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyEntity>> {
-  private final static String CONF_PREFIX = CopyConfiguration.COPY_PREFIX + "." + CopyableDatasetRequestor.class.getSimpleName();
-  private final static String FAIL_FAST = CONF_PREFIX + ".failFast";
-
   @AllArgsConstructor
   public static class Factory implements Function<CopyableDatasetBase, CopyableDatasetRequestor> {
     private final FileSystem targetFs;
@@ -89,8 +86,7 @@ public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyE
     try {
       return injectRequestor(this.dataset.getFileSetIterator(this.targetFs, this.copyConfiguration));
     } catch (Throwable exc) {
-      if (copyConfiguration.getConfig().hasPath(FAIL_FAST)
-          && copyConfiguration.getConfig().getBoolean(FAIL_FAST)) {
+      if (copyConfiguration.isAbortOnSingleDatasetFailure()) {
         throw new RuntimeException(String.format("Could not get FileSets for dataset %s", this.dataset.datasetURN()), exc);
       }
       log.error(String.format("Could not get FileSets for dataset %s. Skipping.", this.dataset.datasetURN()), exc);

@@ -57,6 +57,8 @@ public class CopyConfiguration {
   public static final String BINPACKING_MAX_PER_BUCKET_PREFIX = COPY_PREFIX + ".binPacking.maxPerBucket";
   public static final String BUFFER_SIZE = COPY_PREFIX + ".bufferSize";
 
+  public static final String ABORT_ON_SINGLE_DATASET_FAILURE = COPY_PREFIX + ".abortOnSingleDatasetFailure";
+
   /**
    * User supplied directory where files should be published. This value is identical for all datasets in the distcp job.
    */
@@ -76,12 +78,15 @@ public class CopyConfiguration {
 
   private final Config config;
 
+  private final boolean abortOnSingleDatasetFailure;
+
   public static class CopyConfigurationBuilder {
 
     private PreserveAttributes preserve;
     private Optional<String> targetGroup;
     private CopyContext copyContext;
     private Path publishDir;
+    private boolean abortOnSingleDatasetFailure;
 
     public CopyConfigurationBuilder(FileSystem targetFs, Properties properties) {
 
@@ -114,6 +119,11 @@ public class CopyConfiguration {
         this.prioritizer = Optional.absent();
       }
       this.maxToCopy = CopyResourcePool.fromConfig(ConfigUtils.getConfigOrEmpty(this.config, MAX_COPY_PREFIX));
+
+      this.abortOnSingleDatasetFailure = false;
+      if (this.config.hasPath(ABORT_ON_SINGLE_DATASET_FAILURE)) {
+        this.abortOnSingleDatasetFailure = this.config.getBoolean(ABORT_ON_SINGLE_DATASET_FAILURE);
+      }
     }
   }
 
