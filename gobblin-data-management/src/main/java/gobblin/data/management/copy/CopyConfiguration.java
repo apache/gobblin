@@ -86,7 +86,6 @@ public class CopyConfiguration {
     private Optional<String> targetGroup;
     private CopyContext copyContext;
     private Path publishDir;
-    private boolean abortOnSingleDatasetFailure;
 
     public CopyConfigurationBuilder(FileSystem targetFs, Properties properties) {
 
