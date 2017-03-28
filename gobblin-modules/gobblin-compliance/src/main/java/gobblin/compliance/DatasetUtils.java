@@ -22,7 +22,7 @@ public class DatasetUtils {
     return Optional.<HivePartitionDataset>absent();
   }
 
-  public static String getPropertyFromDataset(HivePartitionDataset dataset, String property, int defaultValue) {
+  public static String getProperty(HivePartitionDataset dataset, String property, int defaultValue) {
     Optional<String> propertyValueOptional = Optional.fromNullable(dataset.getParams().get(property));
     if (!propertyValueOptional.isPresent()) {
       return Integer.toString(defaultValue);

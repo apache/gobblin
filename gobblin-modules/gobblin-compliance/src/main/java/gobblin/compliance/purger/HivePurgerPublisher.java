@@ -93,7 +93,7 @@ public class HivePurgerPublisher extends DataPublisher {
     metadata.put(ComplianceConfigurationKeys.WORKUNIT_RECORDSREAD, state.getProp(ComplianceConfigurationKeys.NUM_ROWS));
     metadata.put(ComplianceConfigurationKeys.WORKUNIT_BYTESREAD,
         getDataSize(workUnit.getProp(ComplianceConfigurationKeys.RAW_DATA_SIZE),
-            workUnit.getProp(ComplianceConfigurationKeys.TOTAL_DATA_SIZE)));
+            workUnit.getProp(ComplianceConfigurationKeys.TOTAL_SIZE)));
     Optional<HivePartitionDataset> dataset =
         DatasetUtils.findDataset(workUnit.getProp(ComplianceConfigurationKeys.PARTITION_NAME), this.datasets);
     if (!dataset.isPresent()) {
@@ -103,25 +103,25 @@ public class HivePurgerPublisher extends DataPublisher {
     HivePartitionDataset hivePartitionDataset = dataset.get();
 
     metadata.put(ComplianceConfigurationKeys.WORKUNIT_RECORDSWRITTEN, DatasetUtils
-        .getPropertyFromDataset(hivePartitionDataset, ComplianceConfigurationKeys.NUM_ROWS,
+        .getProperty(hivePartitionDataset, ComplianceConfigurationKeys.NUM_ROWS,
             ComplianceConfigurationKeys.DEFAULT_NUM_ROWS));
     metadata.put(ComplianceConfigurationKeys.WORKUNIT_BYTESWRITTEN, getDataSize(DatasetUtils
-        .getPropertyFromDataset(hivePartitionDataset, ComplianceConfigurationKeys.RAW_DATA_SIZE,
+        .getProperty(hivePartitionDataset, ComplianceConfigurationKeys.RAW_DATA_SIZE,
             ComplianceConfigurationKeys.DEFAULT_RAW_DATA_SIZE), DatasetUtils
-        .getPropertyFromDataset(hivePartitionDataset, ComplianceConfigurationKeys.TOTAL_DATA_SIZE,
-            ComplianceConfigurationKeys.DEFAULT_TOTAL_DATA_SIZE)));
+        .getProperty(hivePartitionDataset, ComplianceConfigurationKeys.TOTAL_SIZE,
+            ComplianceConfigurationKeys.DEFAULT_TOTAL_SIZE)));
 
     metadata.put(ComplianceConfigurationKeys.PARTITION_NAME, hivePartitionDataset.datasetURN());
 
     this.eventSubmitter.submit(name, metadata);
   }
 
-  private String getDataSize(String rawDataSizeString, String totalDataSizeString) {
-    int rawDataSize = Integer.parseInt(rawDataSizeString);
-    int totalDataSize = Integer.parseInt(totalDataSizeString);
-    int dataSize = totalDataSize;
-    if (totalDataSize <= 0) {
-      dataSize = rawDataSize;
+  private String getDataSize(String rawDataSize, String totalDataSize) {
+    int rawDataSizeVal = Integer.parseInt(rawDataSize);
+    int totalDataSizeVal = Integer.parseInt(totalDataSize);
+    int dataSize = totalDataSizeVal;
+    if (totalDataSizeVal <= 0) {
+      dataSize = rawDataSizeVal;
     }
     return Integer.toString(dataSize);
   }

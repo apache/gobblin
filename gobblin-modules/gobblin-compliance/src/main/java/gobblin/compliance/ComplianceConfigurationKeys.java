@@ -36,17 +36,17 @@ public class ComplianceConfigurationKeys {
 
   public static final String NUM_ROWS = "numRows";
   public static final String RAW_DATA_SIZE = "rawDataSize";
-  public static final String TOTAL_DATA_SIZE = "totalDataSize";
+  public static final String TOTAL_SIZE = "totalSize";
 
   public static final int DEFAULT_NUM_ROWS = -1;
   public static final int DEFAULT_RAW_DATA_SIZE = -1;
-  public static final int DEFAULT_TOTAL_DATA_SIZE = -1;
+  public static final int DEFAULT_TOTAL_SIZE = -1;
 
   public static final String WORKUNIT_RECORDSREAD = COMPLIANCE_PREFIX + ".workunit.recordsRead";
   public static final String WORKUNIT_RECORDSWRITTEN = COMPLIANCE_PREFIX + ".workunit.recordsWritten";
   public static final String WORKUNIT_BYTESREAD = COMPLIANCE_PREFIX + ".workunit.bytesRead";
   public static final String WORKUNIT_BYTESWRITTEN = COMPLIANCE_PREFIX + ".workunit.bytesWritten";
-  public static final String EXECUTION_COUNT = COMPLIANCE_PREFIX + ".workunit.executionCountInCurrentCycle";
+  public static final String EXECUTION_COUNT = COMPLIANCE_PREFIX + ".workunit.executionCount";
   public static final String TOTAL_EXECUTIONS = COMPLIANCE_PREFIX + ".workunit.totalExecutions";
   public static final int DEFAULT_EXECUTION_COUNT = 1;
 

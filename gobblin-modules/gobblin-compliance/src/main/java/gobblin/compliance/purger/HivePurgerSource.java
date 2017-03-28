@@ -87,7 +87,7 @@ public class HivePurgerSource implements Source {
       throws IOException {
     setTimeStamp();
     setLowWatermark(state);
-    setExecutionNumberInCurrentCycle(state);
+    setExecutionCount(state);
     this.metricContext = Instrumented.getMetricContext(state, this.getClass());
     this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, ComplianceEvents.NAMESPACE).
         build();
@@ -166,20 +166,20 @@ public class HivePurgerSource implements Source {
 
   protected static void setNumRowsInWorkUnit(HivePartitionDataset dataset, WorkUnit workUnit) {
     workUnit.setProp(ComplianceConfigurationKeys.NUM_ROWS, DatasetUtils
-        .getPropertyFromDataset(dataset, ComplianceConfigurationKeys.NUM_ROWS,
+        .getProperty(dataset, ComplianceConfigurationKeys.NUM_ROWS,
             ComplianceConfigurationKeys.DEFAULT_NUM_ROWS));
   }
 
   protected static void setRawDataSizeInWorkUnit(HivePartitionDataset dataset, WorkUnit workUnit) {
     workUnit.setProp(ComplianceConfigurationKeys.RAW_DATA_SIZE, DatasetUtils
-        .getPropertyFromDataset(dataset, ComplianceConfigurationKeys.RAW_DATA_SIZE,
+        .getProperty(dataset, ComplianceConfigurationKeys.RAW_DATA_SIZE,
             ComplianceConfigurationKeys.DEFAULT_RAW_DATA_SIZE));
   }
 
   protected static void setTotalDataSizeInWorkUnit(HivePartitionDataset dataset, WorkUnit workUnit) {
-    workUnit.setProp(ComplianceConfigurationKeys.TOTAL_DATA_SIZE, DatasetUtils
-        .getPropertyFromDataset(dataset, ComplianceConfigurationKeys.TOTAL_DATA_SIZE,
-            ComplianceConfigurationKeys.DEFAULT_TOTAL_DATA_SIZE));
+    workUnit.setProp(ComplianceConfigurationKeys.TOTAL_SIZE, DatasetUtils
+        .getProperty(dataset, ComplianceConfigurationKeys.TOTAL_SIZE,
+            ComplianceConfigurationKeys.DEFAULT_TOTAL_SIZE));
   }
 
   /**
@@ -295,16 +295,16 @@ public class HivePurgerSource implements Source {
     log.info("Setting low watermark for the job: " + this.lowWatermark);
   }
 
-  protected void setExecutionNumberInCurrentCycle(SourceState state) {
-    String executionNumber = getWatermarkFromPreviousWorkUnits(state, ComplianceConfigurationKeys.EXECUTION_COUNT);
-    if (executionNumber.equalsIgnoreCase(ComplianceConfigurationKeys.NO_PREVIOUS_WATERMARK)) {
+  protected void setExecutionCount(SourceState state) {
+    String executionCount = getWatermarkFromPreviousWorkUnits(state, ComplianceConfigurationKeys.EXECUTION_COUNT);
+    if (executionCount.equalsIgnoreCase(ComplianceConfigurationKeys.NO_PREVIOUS_WATERMARK)) {
       this.executionCount = ComplianceConfigurationKeys.DEFAULT_EXECUTION_COUNT;
-      log.info("No execution number is found. Setting it to " + this.executionCount);
+      log.info("No executionCount is found. Setting it to " + this.executionCount);
     } else {
       try {
-        this.executionCount = Integer.parseInt(executionNumber) + 1;
+        this.executionCount = Integer.parseInt(executionCount) + 1;
       } catch (NumberFormatException e) {
-        log.warn("Unable to convert executionNumber " + executionNumber + " to int : " + e.getMessage());
+        log.warn("Unable to convert executionCount " + executionCount + " to int : " + e.getMessage());
         this.executionCount = ComplianceConfigurationKeys.DEFAULT_EXECUTION_COUNT;
       }
     }
