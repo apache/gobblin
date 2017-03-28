@@ -25,7 +25,7 @@ public class DatasetUtils {
   public static String getPropertyFromDataset(HivePartitionDataset dataset, String property, int defaultValue) {
     Optional<String> propertyValueOptional = Optional.fromNullable(dataset.getParams().get(property));
     if (!propertyValueOptional.isPresent()) {
-
+      return Integer.toString(defaultValue);
     }
     try {
       int propertyVal = Integer.parseInt(propertyValueOptional.get());
