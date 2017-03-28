@@ -149,9 +149,15 @@ public class HivePurgerSource implements Source {
     workUnit.setProp(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SHOULD_PROXY, this.shouldProxy);
     workUnit.setProp(ComplianceConfigurationKeys.EXECUTION_COUNT, this.executionCount);
 
-    setNumRowsInWorkUnit(dataset, workUnit);
-    setRawDataSizeInWorkUnit(dataset, workUnit);
-    setTotalDataSizeInWorkUnit(dataset, workUnit);
+    workUnit.setProp(ComplianceConfigurationKeys.NUM_ROWS, DatasetUtils
+        .getProperty(dataset, ComplianceConfigurationKeys.NUM_ROWS,
+            ComplianceConfigurationKeys.DEFAULT_NUM_ROWS));
+    workUnit.setProp(ComplianceConfigurationKeys.RAW_DATA_SIZE, DatasetUtils
+        .getProperty(dataset, ComplianceConfigurationKeys.RAW_DATA_SIZE,
+            ComplianceConfigurationKeys.DEFAULT_RAW_DATA_SIZE));
+    workUnit.setProp(ComplianceConfigurationKeys.TOTAL_SIZE, DatasetUtils
+        .getProperty(dataset, ComplianceConfigurationKeys.TOTAL_SIZE,
+            ComplianceConfigurationKeys.DEFAULT_TOTAL_SIZE));
 
     submitWorkUnitGeneratedEvent(dataset.datasetURN(), executionAttempts);
     return workUnit;
@@ -162,24 +168,6 @@ public class HivePurgerSource implements Source {
     metadata.put(ComplianceConfigurationKeys.EXECUTION_ATTEMPTS, Integer.toString(executionAttempts));
     metadata.put(ComplianceConfigurationKeys.PARTITION_NAME, partitionName);
     this.eventSubmitter.submit(ComplianceEvents.Purger.WORKUNIT_GENERATED, metadata);
-  }
-
-  protected static void setNumRowsInWorkUnit(HivePartitionDataset dataset, WorkUnit workUnit) {
-    workUnit.setProp(ComplianceConfigurationKeys.NUM_ROWS, DatasetUtils
-        .getProperty(dataset, ComplianceConfigurationKeys.NUM_ROWS,
-            ComplianceConfigurationKeys.DEFAULT_NUM_ROWS));
-  }
-
-  protected static void setRawDataSizeInWorkUnit(HivePartitionDataset dataset, WorkUnit workUnit) {
-    workUnit.setProp(ComplianceConfigurationKeys.RAW_DATA_SIZE, DatasetUtils
-        .getProperty(dataset, ComplianceConfigurationKeys.RAW_DATA_SIZE,
-            ComplianceConfigurationKeys.DEFAULT_RAW_DATA_SIZE));
-  }
-
-  protected static void setTotalDataSizeInWorkUnit(HivePartitionDataset dataset, WorkUnit workUnit) {
-    workUnit.setProp(ComplianceConfigurationKeys.TOTAL_SIZE, DatasetUtils
-        .getProperty(dataset, ComplianceConfigurationKeys.TOTAL_SIZE,
-            ComplianceConfigurationKeys.DEFAULT_TOTAL_SIZE));
   }
 
   /**
