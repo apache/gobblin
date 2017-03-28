@@ -45,6 +45,7 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
+import gobblin.util.WritableShimSerialization;
 
 
 /**
@@ -113,15 +114,18 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
       return null;
     }
 
+    Configuration deserializeConf = new Configuration(this.conf);
+    WritableShimSerialization.addToHadoopConfiguration(deserializeConf);
     try (@SuppressWarnings("deprecation")
-    SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath, this.conf)) {
+    SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath, deserializeConf)) {
       // This is necessary for backward compatibility as existing jobs are using the JobState class
-      Writable writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
+      Object writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
 
       try {
         Text key = new Text();
 
-        while (reader.next(key, writable)) {
+        while (reader.next(key)) {
+          writable = reader.getCurrentValue(writable);
           if (key.toString().equals(stateId)) {
             if (writable instanceof JobState.DatasetState) {
               return (JobState.DatasetState) writable;
@@ -146,14 +150,17 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
       return states;
     }
 
+    Configuration deserializeConfig = new Configuration(this.conf);
+    WritableShimSerialization.addToHadoopConfiguration(deserializeConfig);
     try (@SuppressWarnings("deprecation")
-    SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath, this.conf)) {
+    SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath, deserializeConfig)) {
       // This is necessary for backward compatibility as existing jobs are using the JobState class
-      Writable writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
+      Object writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
 
       try {
         Text key = new Text();
-        while (reader.next(key, writable)) {
+        while (reader.next(key)) {
+          writable = reader.getCurrentValue(writable);
           if (writable instanceof JobState.DatasetState) {
             states.add((JobState.DatasetState) writable);
             writable = new JobState.DatasetState();

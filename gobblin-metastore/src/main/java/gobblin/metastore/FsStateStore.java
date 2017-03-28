@@ -40,6 +40,8 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
+import gobblin.util.WritableShimSerialization;
+
 
 /**
  * An implementation of {@link StateStore} backed by a {@link FileSystem}.
@@ -73,23 +75,39 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   private final Class<T> stateClass;
 
   public FsStateStore(String fsUri, String storeRootDir, Class<T> stateClass) throws IOException {
-    this.conf = new Configuration();
+    this.conf = getConf(null);
     this.fs = FileSystem.get(URI.create(fsUri), this.conf);
     this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
     this.storeRootDir = storeRootDir;
     this.stateClass = stateClass;
   }
 
+  /**
+   * Get a Hadoop configuration that understands how to (de)serialize WritableShim objects.
+   */
+  private Configuration getConf(Configuration otherConf) {
+    Configuration conf;
+    if (otherConf == null) {
+      conf = new Configuration();
+    } else {
+      conf = new Configuration(otherConf);
+    }
+
+    WritableShimSerialization.addToHadoopConfiguration(conf);
+
+    return conf;
+  }
+
   public FsStateStore(FileSystem fs, String storeRootDir, Class<T> stateClass) {
     this.fs = fs;
     this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
-    this.conf = this.fs.getConf();
+    this.conf = getConf(this.fs.getConf());
     this.storeRootDir = storeRootDir;
     this.stateClass = stateClass;
   }
 
   public FsStateStore(String storeUrl, Class<T> stateClass) throws IOException {
-    this.conf = new Configuration();
+    this.conf = getConf(null);
     Path storePath = new Path(storeUrl);
     this.fs = storePath.getFileSystem(this.conf);
     this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
@@ -143,6 +161,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
 
     Closer closer = Closer.create();
     try {
+      @SuppressWarnings("deprecation")
       SequenceFile.Writer writer = closer.register(SequenceFile.createWriter(this.fs, this.conf, tmpTablePath,
           Text.class, this.stateClass, SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
       writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
@@ -177,6 +196,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
 
     Closer closer = Closer.create();
     try {
+      @SuppressWarnings("deprecation")
       SequenceFile.Writer writer = closer.register(SequenceFile.createWriter(this.fs, this.conf, tmpTablePath,
           Text.class, this.stateClass, SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
       for (T state : states) {
@@ -195,6 +215,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public T get(String storeName, String tableName, String stateId) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath)) {
@@ -208,7 +229,8 @@ public class FsStateStore<T extends State> implements StateStore<T> {
       try {
         Text key = new Text();
         T state = this.stateClass.newInstance();
-        while (reader.next(key, state)) {
+        while (reader.next(key)) {
+          state = (T)reader.getCurrentValue(state);
           if (key.toString().equals(stateId)) {
             return state;
           }
@@ -226,6 +248,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public List<T> getAll(String storeName, String tableName) throws IOException {
     List<T> states = Lists.newArrayList();
 
@@ -241,7 +264,8 @@ public class FsStateStore<T extends State> implements StateStore<T> {
       try {
         Text key = new Text();
         T state = this.stateClass.newInstance();
-        while (reader.next(key, state)) {
+        while (reader.next(key)) {
+          state = (T)reader.getCurrentValue(state);
           states.add(state);
           // We need a new object for each read state
           state = this.stateClass.newInstance();
