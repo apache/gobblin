@@ -214,6 +214,7 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_WORKING_STATE_KEY = "workunit.working.state";
   public static final String WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK = "workunit.state.runtime.high.water.mark";
   public static final String WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY = "workunit.state.actual.high.water.mark";
+  public static final String WORK_UNIT_DATE_PARTITION_KEY = "workunit.source.date.partition";
 
   /**
    * Watermark interval related configuration properties.
@@ -313,6 +314,7 @@ public class ConfigurationKeys {
 
   // Internal use only - used to send metadata to publisher
   public static final String WRITER_METADATA_KEY = WRITER_PREFIX + "._internal.metadata";
+  public static final String WRITER_PARTITION_PATH_KEY = WRITER_PREFIX + "._internal.partition.path";
 
   /**
    * Writer configuration properties used internally.
@@ -481,6 +483,8 @@ public class ConfigurationKeys {
   public static final String SOURCE_CONN_PORT = SOURCE_CONN_PREFIX + "port";
   public static final int SOURCE_CONN_DEFAULT_PORT = 22;
   public static final String SOURCE_CONN_SID = SOURCE_CONN_PREFIX + "sid";
+  public static final String SOURCE_CONN_REFRESH_TOKEN = SOURCE_CONN_PREFIX + "refresh.token";
+
 
   /**
    * Source default configurations.

@@ -65,11 +65,11 @@ public class DatePartitionedAvroFileExtractorTest {
 
   private static final String PREFIX = "minutes";
   private static final String SUFFIX = "test";
-  private static final String SOURCE_ENTITY = "testsource"; 
-  
+  private static final String SOURCE_ENTITY = "testsource";
+
   private static final String DATE_PATTERN = "yyyy/MM/dd/HH_mm";
   private static final int RECORD_SIZE = 4;
-  
+
   private static final String AVRO_SCHEMA =
     "{" +
       "\"type\" : \"record\"," +
@@ -93,9 +93,9 @@ public class DatePartitionedAvroFileExtractorTest {
 
   @BeforeClass
   public void setUp() throws IOException {
-    
+
     this.schema = new Schema.Parser().parse(AVRO_SCHEMA);
-    
+
     //set up datetime objects
     DateTime now = new DateTime(TZ).minusHours(2);
     this.startDateTime =
@@ -128,7 +128,7 @@ public class DatePartitionedAvroFileExtractorTest {
         .withWriterId("writer-1")
         .withSchema(this.schema)
         .withBranches(1).forBranch(0);
-    
+
     this.writer = new PartitionedDataWriter<Schema, GenericRecord>(builder, state);
 
     GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(this.schema);
@@ -165,6 +165,35 @@ public class DatePartitionedAvroFileExtractorTest {
     List<WorkUnit> workunits = source.getWorkunits(state);
 
     Assert.assertEquals(workunits.size(), 4);
+    verifyWorkUnits(workunits);
+  }
+
+  @Test
+  public void testWorksNoPrefix() throws IOException, DataRecordException {
+    DatePartitionedAvroFileSource source = new DatePartitionedAvroFileSource();
+
+    SourceState state = new SourceState();
+    state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
+    state.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, SOURCE_ENTITY);
+    state.setProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY, OUTPUT_DIR + Path.SEPARATOR + SOURCE_ENTITY + Path.SEPARATOR + PREFIX);
+    state.setProp(ConfigurationKeys.SOURCE_ENTITY, SOURCE_ENTITY);
+    state.setProp(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS, 2);
+
+    state.setProp("date.partitioned.source.partition.pattern", DATE_PATTERN);
+    state.setProp("date.partitioned.source.min.watermark.value", DateTimeFormat.forPattern(DATE_PATTERN).print(
+        this.startDateTime.minusMinutes(1)));
+    state.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, TableType.SNAPSHOT_ONLY);
+    state.setProp("date.partitioned.source.partition.suffix", SUFFIX);
+
+    //Read data partitioned by minutes, i.e each workunit is assigned records under the same YYYY/MM/dd/HH_mm directory
+    List<WorkUnit> workunits = source.getWorkunits(state);
+
+    Assert.assertEquals(workunits.size(), 4);
+    verifyWorkUnits(workunits);
+  }
+
+  private void verifyWorkUnits(List<WorkUnit> workunits)
+      throws IOException, DataRecordException {
     for (int i = 0; i < RECORD_SIZE; i++) {
       WorkUnit workUnit = ((MultiWorkUnit) workunits.get(i)).getWorkUnits().get(0);
       WorkUnitState wuState = new WorkUnitState(workunits.get(i), new State());
@@ -175,6 +204,7 @@ public class DatePartitionedAvroFileExtractorTest {
 
         GenericRecord record = extractor.readRecord(null);
         Assert.assertEquals(recordTimestamps[i], record.get(PARTITION_COLUMN_NAME));
+        Assert.assertEquals(recordTimestamps[i], workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_KEY));
       }
     }
   }

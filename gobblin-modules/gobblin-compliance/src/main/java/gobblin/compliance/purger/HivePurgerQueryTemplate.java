@@ -107,6 +107,10 @@ public class HivePurgerQueryTemplate {
     return "ALTER TABLE " + tableName + " DROP IF EXISTS" + " PARTITION (" + partitionSpec + ")";
   }
 
+  public static String getUpdatePartitionMetadataQuery(String dbName, String tableName, String partitionSpec) {
+    return "ANALYZE TABLE " + dbName + "." + tableName + " PARTITION (" + partitionSpec + ") COMPUTE STATISTICS";
+  }
+
   /**
    * Will return all the queries needed to populate the staging table partition.
    * This won't include alter table partition location query.
@@ -148,9 +152,10 @@ public class HivePurgerQueryTemplate {
   public static List<String> getAlterOriginalPartitionLocationQueries(PurgeableHivePartitionDataset dataset) {
     List<String> queries = new ArrayList<>();
     queries.add(getUseDbQuery(dataset.getDbName()));
+    String partitionSpecString = PartitionUtils.getPartitionSpecString(dataset.getSpec());
     queries.add(
-        getAlterTableLocationQuery(dataset.getTableName(), PartitionUtils.getPartitionSpecString(dataset.getSpec()),
-            dataset.getStagingPartitionLocation()));
+        getAlterTableLocationQuery(dataset.getTableName(), partitionSpecString, dataset.getStagingPartitionLocation()));
+    queries.add(getUpdatePartitionMetadataQuery(dataset.getDbName(), dataset.getTableName(), partitionSpecString));
     return queries;
   }
 

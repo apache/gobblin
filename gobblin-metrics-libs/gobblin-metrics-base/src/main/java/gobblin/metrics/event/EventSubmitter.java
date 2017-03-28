@@ -52,7 +52,7 @@ public class EventSubmitter {
     private final String namespace;
 
     public Builder(MetricContext metricContext, String namespace) {
-      this(Optional.of(metricContext), namespace);
+      this(Optional.fromNullable(metricContext), namespace);
     }
 
     public Builder(Optional<MetricContext> metricContext, String namespace) {

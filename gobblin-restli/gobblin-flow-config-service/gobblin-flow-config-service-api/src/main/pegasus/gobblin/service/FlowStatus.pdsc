@@ -1,0 +1,43 @@
+{
+  "type" : "record",
+  "name" : "FlowStatus",
+  "namespace": "gobblin.service",
+  "doc" : "Status of a flow",
+  "fields" : [
+    {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow"
+    },
+    {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow."
+    },
+    {
+      "name" : "executionStartTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the last execution began"
+    },
+    {
+      "name" : "executionEndTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the last execution ended"
+    },
+    {
+      "name" : "executionStatus",
+      "type" : "string",
+      "doc" : "Execution status"
+    },
+    {
+      "name" : "message",
+      "type" : "string",
+      "doc" : "Error or status message"
+    },
+    {
+      "name" : "jobStatuses",
+      "type" : {"type" : "array", "items" : "JobStatus"},
+      "doc" : "Status of jobs belonging to the flow"
+    }
+  ]
+}

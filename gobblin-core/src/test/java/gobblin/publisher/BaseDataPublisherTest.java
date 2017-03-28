@@ -27,14 +27,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.Files;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metadata.MetadataMerger;
+import gobblin.metadata.types.GlobalMetadata;
 import gobblin.util.ForkOperatorUtils;
 
 
@@ -184,6 +189,46 @@ public class BaseDataPublisherTest {
 
     File mdFile = openMetadataFile(s, 1, 0);
     Assert.assertFalse(mdFile.exists(), "Internal metadata from writer should not be written out if no merger is set in config");
+  }
+
+  @Test
+  public void testWithPartitionKey() throws IOException {
+    File publishPath = Files.createTempDir();
+    try {
+      File part1 = new File(publishPath, "1-2-3-4");
+      part1.mkdir();
+
+      File part2 = new File(publishPath, "5-6-7-8");
+      part2.mkdir();
+
+      State s = buildDefaultState(1);
+      String md = new GlobalMetadata().toJson();
+
+      s.removeProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR);
+      s.setProp(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_KEY, "true");
+      s.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, publishPath.getAbsolutePath());
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR, "false");
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_FILE, "metadata.json");
+
+      WorkUnitState wuState1 = new WorkUnitState();
+      wuState1.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY, "1-2-3-4");
+      wuState1.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      addStateToWorkunit(s, wuState1);
+
+      WorkUnitState wuState2 = new WorkUnitState();
+      wuState2.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY, "5-6-7-8");
+      wuState2.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      addStateToWorkunit(s, wuState2);
+
+      BaseDataPublisher publisher = new BaseDataPublisher(s);
+      publisher.publishMetadata(ImmutableList.of(wuState1, wuState2));
+
+      Assert.assertTrue(new File(part1, "metadata.json").exists());
+      Assert.assertTrue(new File(part2, "metadata.json").exists());
+    } finally {
+      FileUtils.deleteDirectory(publishPath);
+    }
   }
 
   public static class TestAdditionMerger implements MetadataMerger<String> {

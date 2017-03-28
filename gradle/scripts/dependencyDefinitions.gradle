@@ -66,7 +66,7 @@ ext.externalDependency = [
     "hiveService": "org.apache.hive:hive-service:" + hiveVersion,
     "hiveJdbc": "org.apache.hive:hive-jdbc:" + hiveVersion,
     "hiveMetastore": "org.apache.hive:hive-metastore:" + hiveVersion,
-    "hiveExec": "org.apache.hive:hive-exec:" + hiveVersion,
+    "hiveExec": "org.apache.hive:hive-exec:" + hiveVersion + ":core",
     "hiveSerDe": "org.apache.hive:hive-serde:" + hiveVersion,
     "httpclient": "org.apache.httpcomponents:httpclient:4.5.2",
     "httpcore": "org.apache.httpcomponents:httpcore:4.4.4",
@@ -160,6 +160,7 @@ ext.externalDependency = [
     "googleApiClient": "com.google.api-client:google-api-client:" + googleVersion,
     "opencsv": "com.opencsv:opencsv:3.8",
     "hadoopAdl" : "org.apache.hadoop:hadoop-azure-datalake:3.0.0-alpha2",
+    'parquet': 'com.twitter:parquet-hadoop-bundle:1.5.0',
     "slf4j": [
         "org.slf4j:slf4j-api:" + slf4jVersion,
         "org.slf4j:slf4j-log4j12:" + slf4jVersion,

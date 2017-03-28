@@ -142,7 +142,7 @@ public class EventhubDataWriter implements SyncDataWriter<String>, BatchAsyncDat
   public Future<WriteResponse> write (Batch<String> batch, WriteCallback callback) {
     long before = System.nanoTime();
     int returnCode = 0;
-
+    LOG.info ("Dispatching batch " + batch.getId());
     try {
       String encoded = encodeBatch(batch);
       bytesWritten.mark(encoded.getBytes(Charsets.UTF_8).length);
@@ -151,7 +151,7 @@ public class EventhubDataWriter implements SyncDataWriter<String>, BatchAsyncDat
       WriteResponse<Integer> response = WRITE_RESPONSE_WRAPPER.wrap(returnCode);
       callback.onSuccess(response);
     } catch (Exception e) {
-      LOG.error("Write batch " + batch.getId() + " failed :" + e.toString());
+      LOG.error("Dispatching batch " + batch.getId() + " failed :" + e.toString());
       callback.onFailure(e);
     }
 
@@ -210,11 +210,13 @@ public class EventhubDataWriter implements SyncDataWriter<String>, BatchAsyncDat
     // and ensure it is fully consumed
     EntityUtils.consume(entity2);
 
-    if (status.getStatusCode() != HttpStatus.SC_CREATED) {
+    int returnCode = status.getStatusCode();
+    if (returnCode != HttpStatus.SC_CREATED) {
+      LOG.error (new IOException(status.getReasonPhrase()).toString());
       throw new IOException(status.getReasonPhrase());
     }
 
-    return status.getStatusCode();
+    return returnCode;
   }
 
   /**

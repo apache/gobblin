@@ -14,19 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.compliance.restore;
 
-package gobblin.util.limiter;
-
-import java.io.Closeable;
 import java.io.IOException;
 
 
 /**
- * A {@link Closeable} that does nothing. Used for certain {@link Limiter}s.
+ * @author adsharma
  */
-public class DummyCloseablePermit implements Closeable {
-  @Override
-  public void close() throws IOException {
-    // Do nothing
-  }
+public interface RestorePolicy<T> {
+  T getDatasetToRestore(T dataset)
+      throws IOException;
 }

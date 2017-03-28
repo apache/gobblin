@@ -20,7 +20,7 @@ A simplified general flow of routines is depicted in Figure 1:
 
 <p align="center">
   <figure>    
-    <img src=/img/Rest-Api-Extractor-Flow.png alt="Rest api extractor general routine flow" width="500">
+    <img src=../../img/Rest-Api-Extractor-Flow.png alt="Rest api extractor general routine flow" width="500">
     <figcaption><br>Figure 1: RestApiExtractor general routine flow <br></figcaption>
   </figure>
 </p>
