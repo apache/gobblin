@@ -43,6 +43,6 @@ public class ComplianceEvents {
     public static final String WORKUNIT_GENERATED = "WorkUnitGenerated";
     public static final String WORKUNIT_COMMITTED = "WorkUnitCommitted";
     public static final String WORKUNIT_FAILED = "WorkUnitFailed";
-    public static final String CYCLE_COMPLETED = "CycleCompleted";
+    public static final String CYCLE_COMPLETED = "PurgeCycleCompleted";
   }
 }

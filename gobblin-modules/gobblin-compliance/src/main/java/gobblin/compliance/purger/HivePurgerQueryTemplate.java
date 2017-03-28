@@ -108,7 +108,7 @@ public class HivePurgerQueryTemplate {
   }
 
   public static String getUpdatePartitionMetadataQuery(String dbName, String tableName, String partitionSpec) {
-    return "analyze table " + dbName + "." + tableName + " partition (" + partitionSpec + ") compute statistics";
+    return "ANALYZE TABLE " + dbName + "." + tableName + " PARTITION (" + partitionSpec + ") COMPUTE STATISTICS";
   }
 
   /**

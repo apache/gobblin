@@ -23,7 +23,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.thrift.TException;
 
@@ -37,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import gobblin.compliance.ComplianceConfigurationKeys;
 import gobblin.compliance.ComplianceEvents;
+import gobblin.compliance.DatasetUtils;
 import gobblin.compliance.HivePartitionDataset;
 import gobblin.compliance.HivePartitionFinder;
 import gobblin.compliance.utils.ProxyUtils;
@@ -77,7 +77,7 @@ public class HivePurgerSource implements Source {
   protected MetricContext metricContext;
   protected EventSubmitter eventSubmitter;
 
-  protected int executionNumberInCurrentCycle;
+  protected int executionCount;
 
   // These datasets are lexicographically sorted by their name
   protected List<HivePartitionDataset> datasets = new ArrayList<>();
@@ -129,18 +129,8 @@ public class HivePurgerSource implements Source {
     return new ArrayList<>(this.workUnitMap.values());
   }
 
-  public static Optional<HivePartitionDataset> findDataset(String partitionName, List<HivePartitionDataset> datasets) {
-    for (HivePartitionDataset dataset : datasets) {
-      if (dataset.datasetURN().equalsIgnoreCase(partitionName)) {
-        return Optional.fromNullable(dataset);
-      }
-    }
-    log.warn("Unable to find dataset corresponding to " + partitionName);
-    return Optional.<HivePartitionDataset>absent();
-  }
-
   protected Optional<WorkUnit> createNewWorkUnit(String partitionName, int executionAttempts) {
-    Optional<HivePartitionDataset> dataset = findDataset(partitionName, this.datasets);
+    Optional<HivePartitionDataset> dataset = DatasetUtils.findDataset(partitionName, this.datasets);
     if (!dataset.isPresent()) {
       return Optional.<WorkUnit>absent();
     }
@@ -157,53 +147,39 @@ public class HivePurgerSource implements Source {
     workUnit.setProp(ComplianceConfigurationKeys.EXECUTION_ATTEMPTS, executionAttempts);
     workUnit.setProp(ComplianceConfigurationKeys.TIMESTAMP, this.timeStamp);
     workUnit.setProp(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SHOULD_PROXY, this.shouldProxy);
-    workUnit.setProp(ComplianceConfigurationKeys.EXECUTION_NUMBER, this.executionNumberInCurrentCycle);
+    workUnit.setProp(ComplianceConfigurationKeys.EXECUTION_COUNT, this.executionCount);
 
     setNumRowsInWorkUnit(dataset, workUnit);
     setRawDataSizeInWorkUnit(dataset, workUnit);
     setTotalDataSizeInWorkUnit(dataset, workUnit);
 
-    this.eventSubmitter.submit(ComplianceEvents.Purger.WORKUNIT_GENERATED, propertiesToMap(workUnit.getProperties()));
+    submitWorkUnitGeneratedEvent(dataset.datasetURN(), executionAttempts);
     return workUnit;
   }
 
-  protected static Map<String, String> propertiesToMap(Properties properties) {
-    Map<String, String> map = new HashMap<>();
-    for (Map.Entry<Object, Object> entry : properties.entrySet()) {
-      map.put((String) entry.getKey(), (String) entry.getValue());
-    }
-    return map;
+  protected void submitWorkUnitGeneratedEvent(String partitionName, int executionAttempts) {
+    Map<String, String> metadata = new HashMap<>();
+    metadata.put(ComplianceConfigurationKeys.EXECUTION_ATTEMPTS, Integer.toString(executionAttempts));
+    metadata.put(ComplianceConfigurationKeys.PARTITION_NAME, partitionName);
+    this.eventSubmitter.submit(ComplianceEvents.Purger.WORKUNIT_GENERATED, metadata);
   }
 
   protected static void setNumRowsInWorkUnit(HivePartitionDataset dataset, WorkUnit workUnit) {
-    setPropertyInWorkUnit(dataset, workUnit, ComplianceConfigurationKeys.NUM_ROWS, -1);
+    workUnit.setProp(ComplianceConfigurationKeys.NUM_ROWS, DatasetUtils
+        .getPropertyFromDataset(dataset, ComplianceConfigurationKeys.NUM_ROWS,
+            ComplianceConfigurationKeys.DEFAULT_NUM_ROWS));
   }
 
   protected static void setRawDataSizeInWorkUnit(HivePartitionDataset dataset, WorkUnit workUnit) {
-    setPropertyInWorkUnit(dataset, workUnit, ComplianceConfigurationKeys.RAW_DATA_SIZE, -1);
+    workUnit.setProp(ComplianceConfigurationKeys.RAW_DATA_SIZE, DatasetUtils
+        .getPropertyFromDataset(dataset, ComplianceConfigurationKeys.RAW_DATA_SIZE,
+            ComplianceConfigurationKeys.DEFAULT_RAW_DATA_SIZE));
   }
 
   protected static void setTotalDataSizeInWorkUnit(HivePartitionDataset dataset, WorkUnit workUnit) {
-    setPropertyInWorkUnit(dataset, workUnit, ComplianceConfigurationKeys.TOTAL_DATA_SIZE, -1);
-  }
-
-  protected static void setPropertyInWorkUnit(HivePartitionDataset dataset, WorkUnit workUnit, String property,
-      int defaultValue) {
-    Optional<String> propertyValueOptional = Optional.fromNullable(dataset.getParams().get(property));
-    if (!propertyValueOptional.isPresent()) {
-      workUnit.setProp(property, defaultValue);
-      return;
-    }
-    try {
-      int propertyVal = Integer.parseInt(propertyValueOptional.get());
-      if (propertyVal < 0) {
-        workUnit.setProp(property, defaultValue);
-      } else {
-        workUnit.setProp(property, propertyVal);
-      }
-    } catch (NumberFormatException e) {
-      workUnit.setProp(property, defaultValue);
-    }
+    workUnit.setProp(ComplianceConfigurationKeys.TOTAL_DATA_SIZE, DatasetUtils
+        .getPropertyFromDataset(dataset, ComplianceConfigurationKeys.TOTAL_DATA_SIZE,
+            ComplianceConfigurationKeys.DEFAULT_TOTAL_DATA_SIZE));
   }
 
   /**
@@ -320,35 +296,35 @@ public class HivePurgerSource implements Source {
   }
 
   protected void setExecutionNumberInCurrentCycle(SourceState state) {
-    String executionNumber = getWatermarkFromPreviousWorkUnits(state, ComplianceConfigurationKeys.EXECUTION_NUMBER);
+    String executionNumber = getWatermarkFromPreviousWorkUnits(state, ComplianceConfigurationKeys.EXECUTION_COUNT);
     if (executionNumber.equalsIgnoreCase(ComplianceConfigurationKeys.NO_PREVIOUS_WATERMARK)) {
-      this.executionNumberInCurrentCycle = ComplianceConfigurationKeys.DEFAULT_EXECUTION_NUMBER;
-      log.info("No execution number is found. Setting it to " + this.executionNumberInCurrentCycle);
+      this.executionCount = ComplianceConfigurationKeys.DEFAULT_EXECUTION_COUNT;
+      log.info("No execution number is found. Setting it to " + this.executionCount);
     } else {
       try {
-        this.executionNumberInCurrentCycle = Integer.parseInt(executionNumber) + 1;
+        this.executionCount = Integer.parseInt(executionNumber) + 1;
       } catch (NumberFormatException e) {
         log.warn("Unable to convert executionNumber " + executionNumber + " to int : " + e.getMessage());
-        this.executionNumberInCurrentCycle = ComplianceConfigurationKeys.DEFAULT_EXECUTION_NUMBER;
+        this.executionCount = ComplianceConfigurationKeys.DEFAULT_EXECUTION_COUNT;
       }
     }
   }
 
   /**
    * If low watermark is at the reset point, then either cycle is completed or starting for the first time
-   * If executionNumberInCurrentCycle is greater than 1, then cycle is completed
-   * If cycle is completed, executionNumberInCurrentCycle will be reset and cycle completion event will be submitted
+   * If executionCount is greater than 1, then cycle is completed
+   * If cycle is completed, executionCount will be reset and cycle completion event will be submitted
    */
   protected void submitCycleCompletionEvent() {
     if (!this.lowWatermark.equalsIgnoreCase(ComplianceConfigurationKeys.NO_PREVIOUS_WATERMARK)) {
       return;
     }
-    if (this.executionNumberInCurrentCycle > 1) {
+    if (this.executionCount > 1) {
       // Cycle completed
       Map<String, String> metadata = new HashMap<>();
-      metadata.put(ComplianceConfigurationKeys.TOTAL_EXECUTIONS_IN_CYCLE, Integer.toString((this.executionNumberInCurrentCycle - 1)));
+      metadata.put(ComplianceConfigurationKeys.TOTAL_EXECUTIONS, Integer.toString((this.executionCount - 1)));
       this.eventSubmitter.submit(ComplianceEvents.Purger.CYCLE_COMPLETED, metadata);
-      this.executionNumberInCurrentCycle = ComplianceConfigurationKeys.DEFAULT_EXECUTION_NUMBER;
+      this.executionCount = ComplianceConfigurationKeys.DEFAULT_EXECUTION_COUNT;
     }
   }
 
