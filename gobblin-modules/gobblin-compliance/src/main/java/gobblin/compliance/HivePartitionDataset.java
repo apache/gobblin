@@ -81,6 +81,10 @@ public class HivePartitionDataset implements Dataset {
     return this.hivePartition.getTable().getParameters();
   }
 
+  public Map<String, String> getParams() {
+    return this.hivePartition.getParameters();
+  }
+
   public Properties getTableMetadata() {
     return this.hivePartition.getTable().getMetadata();
   }

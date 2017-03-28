@@ -38,4 +38,11 @@ public class ComplianceEvents {
   public static class Restore {
     public static final String FAILED_EVENT_NAME = "RestoreFailed";
   }
+
+  public static class Purger {
+    public static final String WORKUNIT_GENERATED = "WorkUnitGenerated";
+    public static final String WORKUNIT_COMMITTED = "WorkUnitCommitted";
+    public static final String WORKUNIT_FAILED = "WorkUnitFailed";
+    public static final String CYCLE_COMPLETED = "PurgeCycleCompleted";
+  }
 }

@@ -35,6 +35,8 @@ import com.google.common.collect.Iterables;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.compliance.ComplianceConfigurationKeys;
+import gobblin.compliance.ComplianceEvents;
+import gobblin.compliance.DatasetUtils;
 import gobblin.compliance.HivePartitionDataset;
 import gobblin.compliance.HivePartitionFinder;
 import gobblin.compliance.utils.ProxyUtils;
@@ -42,6 +44,9 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.dataset.DatasetsFinder;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
@@ -69,6 +74,11 @@ public class HivePurgerSource implements Source {
   protected PurgePolicy policy;
   protected boolean shouldProxy;
 
+  protected MetricContext metricContext;
+  protected EventSubmitter eventSubmitter;
+
+  protected int executionCount;
+
   // These datasets are lexicographically sorted by their name
   protected List<HivePartitionDataset> datasets = new ArrayList<>();
 
@@ -76,7 +86,12 @@ public class HivePurgerSource implements Source {
   protected void initialize(SourceState state)
       throws IOException {
     setTimeStamp();
-    this.setLowWatermark(state);
+    setLowWatermark(state);
+    setExecutionCount(state);
+    this.metricContext = Instrumented.getMetricContext(state, this.getClass());
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, ComplianceEvents.NAMESPACE).
+        build();
+    submitCycleCompletionEvent();
     this.maxWorkUnits = state
         .getPropAsInt(ComplianceConfigurationKeys.MAX_WORKUNITS_KEY, ComplianceConfigurationKeys.DEFAULT_MAX_WORKUNITS);
     this.maxWorkUnitExecutionAttempts = state
@@ -114,17 +129,45 @@ public class HivePurgerSource implements Source {
     return new ArrayList<>(this.workUnitMap.values());
   }
 
-  protected WorkUnit createNewWorkUnit(String partitionName, int executionAttempts) {
+  protected Optional<WorkUnit> createNewWorkUnit(String partitionName, int executionAttempts) {
+    Optional<HivePartitionDataset> dataset = DatasetUtils.findDataset(partitionName, this.datasets);
+    if (!dataset.isPresent()) {
+      return Optional.<WorkUnit>absent();
+    }
+    return Optional.fromNullable(createNewWorkUnit(dataset.get(), executionAttempts));
+  }
+
+  protected WorkUnit createNewWorkUnit(HivePartitionDataset dataset) {
+    return createNewWorkUnit(dataset, ComplianceConfigurationKeys.DEFAULT_EXECUTION_ATTEMPTS);
+  }
+
+  protected WorkUnit createNewWorkUnit(HivePartitionDataset dataset, int executionAttempts) {
     WorkUnit workUnit = WorkUnit.createEmpty();
-    workUnit.setProp(ComplianceConfigurationKeys.PARTITION_NAME, partitionName);
+    workUnit.setProp(ComplianceConfigurationKeys.PARTITION_NAME, dataset.datasetURN());
     workUnit.setProp(ComplianceConfigurationKeys.EXECUTION_ATTEMPTS, executionAttempts);
     workUnit.setProp(ComplianceConfigurationKeys.TIMESTAMP, this.timeStamp);
     workUnit.setProp(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SHOULD_PROXY, this.shouldProxy);
+    workUnit.setProp(ComplianceConfigurationKeys.EXECUTION_COUNT, this.executionCount);
+
+    workUnit.setProp(ComplianceConfigurationKeys.NUM_ROWS, DatasetUtils
+        .getProperty(dataset, ComplianceConfigurationKeys.NUM_ROWS,
+            ComplianceConfigurationKeys.DEFAULT_NUM_ROWS));
+    workUnit.setProp(ComplianceConfigurationKeys.RAW_DATA_SIZE, DatasetUtils
+        .getProperty(dataset, ComplianceConfigurationKeys.RAW_DATA_SIZE,
+            ComplianceConfigurationKeys.DEFAULT_RAW_DATA_SIZE));
+    workUnit.setProp(ComplianceConfigurationKeys.TOTAL_SIZE, DatasetUtils
+        .getProperty(dataset, ComplianceConfigurationKeys.TOTAL_SIZE,
+            ComplianceConfigurationKeys.DEFAULT_TOTAL_SIZE));
+
+    submitWorkUnitGeneratedEvent(dataset.datasetURN(), executionAttempts);
     return workUnit;
   }
 
-  protected WorkUnit createNewWorkUnit(String partitionName) {
-    return createNewWorkUnit(partitionName, ComplianceConfigurationKeys.DEFAULT_EXECUTION_ATTEMPTS);
+  protected void submitWorkUnitGeneratedEvent(String partitionName, int executionAttempts) {
+    Map<String, String> metadata = new HashMap<>();
+    metadata.put(ComplianceConfigurationKeys.EXECUTION_ATTEMPTS, Integer.toString(executionAttempts));
+    metadata.put(ComplianceConfigurationKeys.PARTITION_NAME, partitionName);
+    this.eventSubmitter.submit(ComplianceEvents.Purger.WORKUNIT_GENERATED, metadata);
   }
 
   /**
@@ -148,7 +191,7 @@ public class HivePurgerSource implements Source {
       if (!this.policy.shouldPurge(dataset)) {
         continue;
       }
-      WorkUnit workUnit = createNewWorkUnit(dataset.datasetURN());
+      WorkUnit workUnit = createNewWorkUnit(dataset);
       log.info("Created new work unit with partition " + workUnit.getProp(ComplianceConfigurationKeys.PARTITION_NAME));
       this.workUnitMap.put(workUnit.getProp(ComplianceConfigurationKeys.PARTITION_NAME), workUnit);
       this.workUnitsCreatedCount++;
@@ -205,7 +248,12 @@ public class HivePurgerSource implements Source {
       int executionAttempts = workUnit.getPropAsInt(ComplianceConfigurationKeys.EXECUTION_ATTEMPTS,
           ComplianceConfigurationKeys.DEFAULT_EXECUTION_ATTEMPTS);
       if (executionAttempts < this.maxWorkUnitExecutionAttempts) {
-        workUnit = createNewWorkUnit(workUnit.getProp(ComplianceConfigurationKeys.PARTITION_NAME), ++executionAttempts);
+        Optional<WorkUnit> workUnitOptional =
+            createNewWorkUnit(workUnit.getProp(ComplianceConfigurationKeys.PARTITION_NAME), ++executionAttempts);
+        if (!workUnitOptional.isPresent()) {
+          continue;
+        }
+        workUnit = workUnitOptional.get();
         log.info("Revived old Work Unit for partiton " + workUnit.getProp(ComplianceConfigurationKeys.PARTITION_NAME)
             + " having execution attempt " + workUnit.getProp(ComplianceConfigurationKeys.EXECUTION_ATTEMPTS));
         workUnitMap.put(workUnit.getProp(ComplianceConfigurationKeys.PARTITION_NAME), workUnit);
@@ -233,6 +281,39 @@ public class HivePurgerSource implements Source {
   protected void setLowWatermark(SourceState state) {
     this.lowWatermark = getWatermarkFromPreviousWorkUnits(state, ComplianceConfigurationKeys.HIVE_PURGER_WATERMARK);
     log.info("Setting low watermark for the job: " + this.lowWatermark);
+  }
+
+  protected void setExecutionCount(SourceState state) {
+    String executionCount = getWatermarkFromPreviousWorkUnits(state, ComplianceConfigurationKeys.EXECUTION_COUNT);
+    if (executionCount.equalsIgnoreCase(ComplianceConfigurationKeys.NO_PREVIOUS_WATERMARK)) {
+      this.executionCount = ComplianceConfigurationKeys.DEFAULT_EXECUTION_COUNT;
+      log.info("No executionCount is found. Setting it to " + this.executionCount);
+    } else {
+      try {
+        this.executionCount = Integer.parseInt(executionCount) + 1;
+      } catch (NumberFormatException e) {
+        log.warn("Unable to convert executionCount " + executionCount + " to int : " + e.getMessage());
+        this.executionCount = ComplianceConfigurationKeys.DEFAULT_EXECUTION_COUNT;
+      }
+    }
+  }
+
+  /**
+   * If low watermark is at the reset point, then either cycle is completed or starting for the first time
+   * If executionCount is greater than 1, then cycle is completed
+   * If cycle is completed, executionCount will be reset and cycle completion event will be submitted
+   */
+  protected void submitCycleCompletionEvent() {
+    if (!this.lowWatermark.equalsIgnoreCase(ComplianceConfigurationKeys.NO_PREVIOUS_WATERMARK)) {
+      return;
+    }
+    if (this.executionCount > 1) {
+      // Cycle completed
+      Map<String, String> metadata = new HashMap<>();
+      metadata.put(ComplianceConfigurationKeys.TOTAL_EXECUTIONS, Integer.toString((this.executionCount - 1)));
+      this.eventSubmitter.submit(ComplianceEvents.Purger.CYCLE_COMPLETED, metadata);
+      this.executionCount = ComplianceConfigurationKeys.DEFAULT_EXECUTION_COUNT;
+    }
   }
 
   protected String getLowWatermark() {
