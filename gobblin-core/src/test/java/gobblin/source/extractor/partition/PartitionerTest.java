@@ -57,6 +57,43 @@ public class PartitionerTest {
     Assert.assertEquals(partitions, expectedPartitions);
   }
 
+  @Test
+  public void testGetUserSpecifiedPartitionList() {
+    List<Partition> expectedPartitions = new ArrayList<>();
+    SourceState sourceState = new SourceState();
+    sourceState.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
+
+    TestPartitioner partitioner = new TestPartitioner(sourceState);
+    long defaultValue = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+    expectedPartitions.add(new Partition(defaultValue, defaultValue, true));
+    sourceState.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, "");
+    // Partition list doesn't exist
+    Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
+
+    // Date partitions
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "date");
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE, "APPEND_DAILY");
+    sourceState.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, "20140101030201, 20140102040201");
+    expectedPartitions.clear();
+    expectedPartitions.add(new Partition(20140101000000L, 20140102000000L, true));
+    Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
+
+    // Hour partitions, snapshot extract
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "hour");
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE, "SNAPSHOT");
+    expectedPartitions.clear();
+    expectedPartitions.add(new Partition(20140101030000L, 20140102030000L, true));
+    expectedPartitions.add(new Partition(20140102040000L, 20170101000000L, false));
+    Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
+
+    // Hour partitions, timestamp extract
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "timestamp");
+    expectedPartitions.clear();
+    expectedPartitions.add(new Partition(20140101030201L, 20140102040200L, true));
+    expectedPartitions.add(new Partition(20140102040201L, 20170101000000L, false));
+    Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
+  }
+
   /**
    * Test getLowWatermark. Is watermark override: true.
    */
