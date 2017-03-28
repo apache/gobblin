@@ -33,6 +33,8 @@ public class ComplianceConfigurationKeys {
   public static final String PARTITION_NAME = COMPLIANCE_PREFIX + ".partition.name";
   public static final int TIME_STAMP_LENGTH = 13;
   public static final String DBNAME_SEPARATOR = "__";
+  public static final String SPECIFY_PARTITION_FORMAT = COMPLIANCE_PREFIX + ".specifyPartitionFormat";
+  public static final boolean DEFAULT_SPECIFY_PARTITION_FORMAT = false;
 
   public static final String NUM_ROWS = "numRows";
   public static final String RAW_DATA_SIZE = "rawDataSize";

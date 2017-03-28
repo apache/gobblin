@@ -22,6 +22,8 @@ import java.util.Map;
 
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 
+import com.google.common.base.Optional;
+
 import gobblin.compliance.utils.PartitionUtils;
 
 
@@ -86,12 +88,15 @@ public class HivePurgerQueryTemplate {
         dataset.getSpec(), "a.");
   }
 
-  public static String getAddPartitionQuery(String tableName, String partitonSpec, String location) {
-    return getAddPartitionQuery(tableName, partitonSpec) + " LOCATION " + PartitionUtils.getQuotedString(location);
-  }
-
-  public static String getAddPartitionQuery(String tableName, String partitonSpec) {
-    return "ALTER TABLE " + tableName + " ADD IF NOT EXISTS" + " PARTITION (" + partitonSpec + ")";
+  public static String getAddPartitionQuery(String tableName, String partitionSpec, Optional<String> fileFormat, Optional<String> location) {
+    String query = "ALTER TABLE " + tableName + " ADD IF NOT EXISTS" + " PARTITION (" + partitionSpec + ")";
+    if (fileFormat.isPresent()) {
+      query = query + " FILEFORMAT " + fileFormat.get();
+    }
+    if (location.isPresent()) {
+      query = query + " LOCATION " + PartitionUtils.getQuotedString(location.get());
+    }
+    return query;
   }
 
   public static String getAlterTableLocationQuery(String tableName, String partitionSpec, String location) {
@@ -128,6 +133,13 @@ public class HivePurgerQueryTemplate {
     queries.add(getAutoConvertJoinProperty());
     queries.add(getCreateTableQuery(dataset.getCompleteStagingTableName(), dataset.getDbName(), dataset.getTableName(),
         dataset.getStagingTableLocation()));
+
+    Optional<String> fileFormat = Optional.absent();
+    if (dataset.getSpecifyPartitionFormat()) {
+      fileFormat = dataset.getFileFormat();
+    }
+    queries.add(getAddPartitionQuery(dataset.getCompleteStagingTableName(),
+        PartitionUtils.getPartitionSpecString(dataset.getSpec()), fileFormat, Optional.<String>absent()));
     return queries;
   }
 
@@ -138,10 +150,13 @@ public class HivePurgerQueryTemplate {
     List<String> queries = new ArrayList<>();
     queries.add(getUseDbQuery(dataset.getDbName()));
     queries.add(getCreateTableQuery(dataset.getCompleteBackupTableName(), dataset.getDbName(), dataset.getTableName()));
+    Optional<String> fileFormat = Optional.absent();
+    if (dataset.getSpecifyPartitionFormat()) {
+      fileFormat = dataset.getFileFormat();
+    }
     queries.add(
-        getAddPartitionQuery(dataset.getBackupTableName(), PartitionUtils.getPartitionSpecString(dataset.getSpec())));
-    queries.add(getAlterTableLocationQuery(dataset.getBackupTableName(),
-        PartitionUtils.getPartitionSpecString(dataset.getSpec()), dataset.getOriginalPartitionLocation()));
+        getAddPartitionQuery(dataset.getBackupTableName(), PartitionUtils.getPartitionSpecString(dataset.getSpec()),
+            fileFormat, Optional.fromNullable(dataset.getOriginalPartitionLocation())));
     return queries;
   }
 
