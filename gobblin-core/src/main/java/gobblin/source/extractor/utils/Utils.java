@@ -96,6 +96,20 @@ public class Utils {
     return outFormat.format(date);
   }
 
+  public static Date toDate(String input, String inputfmt, String outputfmt) {
+    final SimpleDateFormat inputFormat = new SimpleDateFormat(inputfmt);
+    final SimpleDateFormat outputFormat = new SimpleDateFormat(outputfmt);
+    Date outDate = null;
+    try {
+      Date date = inputFormat.parse(input);
+      String dateStr = outputFormat.format(date);
+      outDate = outputFormat.parse(dateStr);
+    } catch (ParseException e) {
+      e.printStackTrace();
+    }
+    return outDate;
+  }
+
   public static String epochToDate(long epoch, String format) {
     SimpleDateFormat sdf = new SimpleDateFormat(format);
     Date date = new Date(epoch);
@@ -142,6 +156,13 @@ public class Utils {
   public static String dateToString(Date datetime, String format) {
     SimpleDateFormat fmt = new SimpleDateFormat(format);
     return fmt.format(datetime);
+  }
+
+  public static Date addDaysToDate(Date datetime, int days) {
+    Calendar calendar = Calendar.getInstance();
+    calendar.setTime(datetime);
+    calendar.add(Calendar.DATE, days);
+    return calendar.getTime();
   }
 
   public static Date addHoursToDate(Date datetime, int hours) {

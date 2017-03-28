@@ -17,9 +17,11 @@
 
 package gobblin.source.extractor.partition;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +46,11 @@ import gobblin.source.extractor.watermark.WatermarkType;
  */
 public class Partitioner {
   private static final String WATERMARKTIMEFORMAT = "yyyyMMddHHmmss";
+  private static final SimpleDateFormat WATERMARKTIMEPARSER = new SimpleDateFormat(WATERMARKTIMEFORMAT);
   private static final Logger LOG = LoggerFactory.getLogger(Partitioner.class);
   public static final String HAS_USER_SPECIFIED_HIGH_WATERMARK = "partitioner.hasUserSpecifiedHighWatermark";
+  public static final String HAS_USER_SPECIFIED_PARTITIONS = "partitioner.hasUserSpecifiedPartitions";
+  public static final String USER_SPECIFIED_PARTITIONS = "partitioner.userSpecifiedPartitions";
 
   public static final Comparator<Partition> ascendingComparator = new Comparator<Partition>() {
     @Override
@@ -132,6 +137,10 @@ public class Partitioner {
    * @return an unordered list of partition
    */
   public List<Partition> getPartitionList(long previousWatermark) {
+    if (state.getPropAsBoolean(HAS_USER_SPECIFIED_PARTITIONS)) {
+      return createUserSpecifiedPartitions();
+    }
+
     List<Partition> partitions = new ArrayList<>();
 
     /*
@@ -157,6 +166,70 @@ public class Partitioner {
       }
     }
     return partitions;
+  }
+
+  /**
+   * Generate the partitions based on the lists specified by the user in job config
+   */
+  private List<Partition> createUserSpecifiedPartitions() {
+    List<Partition> partitions = new ArrayList<>();
+
+    List<String> watermarkPoints = state.getPropAsList(USER_SPECIFIED_PARTITIONS);
+    if (watermarkPoints == null || watermarkPoints.size() < 2 ) {
+      partitions.add(
+          new Partition(ConfigurationKeys.DEFAULT_WATERMARK_VALUE, ConfigurationKeys.DEFAULT_WATERMARK_VALUE, false));
+      return partitions;
+    }
+
+    WatermarkType watermarkType = WatermarkType.valueOf(
+        state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, ConfigurationKeys.DEFAULT_WATERMARK_TYPE)
+            .toUpperCase());
+
+    String prevWatermark = watermarkPoints.get(0);
+    String curWatermark;
+    int i;
+    for (i = 1; i < watermarkPoints.size() - 1; i++) {
+      curWatermark = watermarkPoints.get(i);
+      partitions.add(
+          new Partition(Long.parseLong(prevWatermark), updateWatermark(curWatermark, watermarkType, -1), false));
+      prevWatermark = curWatermark;
+    }
+
+    // Last partition
+    curWatermark = watermarkPoints.get(i);
+    partitions.add(new Partition(Long.parseLong(prevWatermark), Long.parseLong(curWatermark), true));
+    return partitions;
+  }
+
+  /**
+   * Diff a watermark based on watermark type
+   *
+   * @param baseWatermark the original watermark
+   * @param watermarkType Watermark Type
+   * @param diff the amount of difference
+   * @return updated watermark
+   */
+  private static long updateWatermark(String baseWatermark, WatermarkType watermarkType, int diff) {
+    Date date;
+    long result = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+    switch (watermarkType) {
+      case SIMPLE:
+        result = Long.parseLong(baseWatermark) + diff;
+        break;
+      case DATE:
+        date = Utils.toDate(baseWatermark, WATERMARKTIMEFORMAT, "yyyyMMdd");
+        result = Long.parseLong(WATERMARKTIMEPARSER.format(Utils.addDaysToDate(date, diff)));
+        break;
+      case HOUR:
+        date = Utils.toDate(baseWatermark, WATERMARKTIMEFORMAT, "yyyyMMddHH");
+        result = Long.parseLong(WATERMARKTIMEPARSER.format(Utils.addHoursToDate(date, diff)));
+        break;
+      case TIMESTAMP:
+        date = Utils.toDate(baseWatermark, WATERMARKTIMEFORMAT, WATERMARKTIMEFORMAT);
+        result = Long.parseLong(WATERMARKTIMEPARSER.format(Utils.addSecondsToDate(date, diff)));
+        break;
+    }
+    return result;
   }
 
   /**
