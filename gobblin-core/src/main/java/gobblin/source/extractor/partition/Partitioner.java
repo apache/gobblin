@@ -51,9 +51,9 @@ public class Partitioner {
 
   private static final SimpleDateFormat WATERMARKTIMEPARSER = new SimpleDateFormat(WATERMARKTIMEFORMAT);
   private static final Logger LOG = LoggerFactory.getLogger(Partitioner.class);
-  public static final String HAS_USER_SPECIFIED_HIGH_WATERMARK = "querybased.partitioner.hasUserSpecifiedHighWatermark";
-  public static final String HAS_USER_SPECIFIED_PARTITIONS = "querybased.partitioner.hasUserSpecifiedPartitions";
-  public static final String USER_SPECIFIED_PARTITIONS = "querybased.partitioner.userSpecifiedPartitions";
+  public static final String HAS_USER_SPECIFIED_HIGH_WATERMARK = "partitioner.hasUserSpecifiedHighWatermark";
+  public static final String HAS_USER_SPECIFIED_PARTITIONS = "partitioner.hasUserSpecifiedPartitions";
+  public static final String USER_SPECIFIED_PARTITIONS = "partitioner.userSpecifiedPartitions";
 
   public static final Comparator<Partition> ascendingComparator = new Comparator<Partition>() {
     @Override
@@ -173,6 +173,8 @@ public class Partitioner {
 
   /**
    * Generate the partitions based on the lists specified by the user in job config
+   *
+   * TODO: allow only one partition point and find a way to simply the logic if possible
    */
   private List<Partition> createUserSpecifiedPartitions() {
     List<Partition> partitions = new ArrayList<>();
