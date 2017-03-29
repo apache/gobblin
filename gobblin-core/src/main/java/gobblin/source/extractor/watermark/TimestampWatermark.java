@@ -37,7 +37,8 @@ public class TimestampWatermark implements Watermark {
   private static final Logger LOG = LoggerFactory.getLogger(TimestampWatermark.class);
   // default water mark format(input format) example: 20140301050505
   private static final String INPUTFORMAT = "yyyyMMddHHmmss";
-  private static final SimpleDateFormat INPUTFORMATPARSER = new SimpleDateFormat(INPUTFORMAT);
+  private final SimpleDateFormat _inputFormatParser;
+
 
   private static final int deltaForNextWatermark = 1;
   private String watermarkColumn;
@@ -46,6 +47,7 @@ public class TimestampWatermark implements Watermark {
   public TimestampWatermark(String watermarkColumn, String watermarkFormat) {
     this.watermarkColumn = watermarkColumn;
     this.watermarkFormat = watermarkFormat;
+    _inputFormatParser = new SimpleDateFormat(INPUTFORMAT);
   }
 
   @Override
@@ -91,11 +93,11 @@ public class TimestampWatermark implements Watermark {
     long lwm;
     long hwm;
     while (startTime.getTime() <= endTime.getTime()) {
-      lwm = Long.parseLong(INPUTFORMATPARSER.format(startTime));
+      lwm = Long.parseLong(_inputFormatParser.format(startTime));
       calendar.setTime(startTime);
       calendar.add(Calendar.HOUR, (int) interval);
       nextTime = calendar.getTime();
-      hwm = Long.parseLong(INPUTFORMATPARSER.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
+      hwm = Long.parseLong(_inputFormatParser.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
       LOG.debug("Partition - low:" + lwm + "; high:" + hwm);
       calendar.add(Calendar.SECOND, deltaForNextWatermark);
