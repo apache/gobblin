@@ -88,8 +88,6 @@ public class TaskMetrics extends GobblinMetrics {
   }
 
   public static String taskInstanceRemoved(String metricName) {
-    //Logger LOG = LoggerFactory.getLogger(TaskState.class);
-    //LOG.info("arjun, changed taskId is : " + ret);
     final String METRIC_SEPARATOR = "_";
 
     String[] taskIdTokens = metricName.split(METRIC_SEPARATOR);
