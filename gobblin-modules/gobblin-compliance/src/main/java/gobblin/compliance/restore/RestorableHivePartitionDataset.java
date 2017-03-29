@@ -135,11 +135,14 @@ public class RestorableHivePartitionDataset extends HivePartitionDataset impleme
       queryExecutor.executeQuery(HivePurgerQueryTemplate
           .getCreateTableQuery(trashDbName + "." + trashTableName, getDbName(), getTableName(),
               getTrashTableLocation()), this.trashOwner);
+      Optional<String> fileFormat = Optional.absent();
+      if (this.state.getPropAsBoolean(ComplianceConfigurationKeys.SPECIFY_PARTITION_FORMAT,
+          ComplianceConfigurationKeys.DEFAULT_SPECIFY_PARTITION_FORMAT)) {
+        fileFormat = getFileFormat();
+      }
       queryExecutor.executeQuery(HivePurgerQueryTemplate
-          .getAddPartitionQuery(trashTableName, PartitionUtils.getPartitionSpecString(getSpec())), this.trashOwner);
-      queryExecutor.executeQuery(HivePurgerQueryTemplate
-          .getAlterTableLocationQuery(trashTableName, PartitionUtils.getPartitionSpecString(getSpec()),
-              getTrashPartitionLocation().toString()), this.trashOwner);
+          .getAddPartitionQuery(trashTableName, PartitionUtils.getPartitionSpecString(getSpec()), fileFormat,
+              Optional.fromNullable(getTrashPartitionLocation().toString())), this.trashOwner);
     } catch (SQLException e) {
       throw new IOException(e);
     }

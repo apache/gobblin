@@ -145,11 +145,14 @@ public class HivePartitionVersionRetentionReaper extends HivePartitionVersionRet
       queryExecutor.executeQuery(HivePurgerQueryTemplate
           .getCreateTableQuery(backUpDb + "." + backUpTableName, version.getDbName(), version.getTableName(),
               getBackUpTableLocation(version)), this.backUpOwner);
-      queryExecutor.executeQuery(HivePurgerQueryTemplate.getAddPartitionQuery(backUpTableName, partitionSpecString),
-          this.backUpOwner);
+      Optional<String> fileFormat = Optional.absent();
+      if (this.state.getPropAsBoolean(ComplianceConfigurationKeys.SPECIFY_PARTITION_FORMAT,
+          ComplianceConfigurationKeys.DEFAULT_SPECIFY_PARTITION_FORMAT)) {
+        fileFormat = version.getFileFormat();
+      }
       queryExecutor.executeQuery(HivePurgerQueryTemplate
-              .getAlterTableLocationQuery(backUpTableName, partitionSpecString, getNewVersionLocation().toString()),
-          this.backUpOwner);
+          .getAddPartitionQuery(backUpTableName, partitionSpecString, fileFormat,
+              Optional.fromNullable(getNewVersionLocation().toString())), this.backUpOwner);
     } catch (SQLException e) {
       throw new IOException(e);
     }

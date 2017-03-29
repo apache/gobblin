@@ -60,6 +60,7 @@ public class PurgeableHivePartitionDataset extends HivePartitionDataset implemen
   private Optional<String> datasetOwner = Optional.absent();
   private long startTime;
   private long endTime;
+  private Boolean specifyPartitionFormat;
 
   public PurgeableHivePartitionDataset(Partition partition) {
     super(partition);
