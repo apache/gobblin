@@ -67,7 +67,7 @@ public class EventhubDataWriterBuilder extends DataWriterBuilder {
           .commitStepWaitTimeInMillis(commitStepWaitTimeMillis)
           .failureAllowanceRatio(failureAllowance)
           .retriesEnabled(false)
-          .asyncDataWriter(getAsyncDataWriter(taskProps)).maxOutstandingWrites(10000).retriesEnabled(false)
+          .asyncDataWriter(getAsyncDataWriter(taskProps)).maxOutstandingWrites(10000)
           .build();
     }
 }

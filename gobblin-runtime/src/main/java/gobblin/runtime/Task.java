@@ -17,6 +17,8 @@
 
 package gobblin.runtime;
 
+import gobblin.configuration.State;
+import gobblin.runtime.task.TaskIFace;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,6 +81,8 @@ import gobblin.writer.MultiWriterWatermarkManager;
 import gobblin.writer.WatermarkManager;
 import gobblin.writer.WatermarkStorage;
 
+import lombok.NoArgsConstructor;
+
 
 /**
  * A physical unit of execution for a Gobblin {@link gobblin.source.workunit.WorkUnit}.
@@ -108,7 +112,8 @@ import gobblin.writer.WatermarkStorage;
  *
  * @author Yinan Li
  */
-public class Task implements Runnable {
+@NoArgsConstructor(force = true)
+public class Task implements TaskIFace {
 
   private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
@@ -564,6 +569,21 @@ public class Task implements Runnable {
    */
   public TaskState getTaskState() {
     return this.taskState;
+  }
+
+  @Override
+  public State getPersistentState() {
+    return getTaskState();
+  }
+
+  @Override
+  public State getExecutionMetadata() {
+    return getTaskState();
+  }
+
+  @Override
+  public WorkUnitState.WorkingState getWorkingState() {
+    return getTaskState().getWorkingState();
   }
 
   /**

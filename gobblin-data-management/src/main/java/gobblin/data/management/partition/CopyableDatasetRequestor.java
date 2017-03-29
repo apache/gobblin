@@ -40,6 +40,7 @@ import gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
 import gobblin.util.request_allocation.PushDownRequestor;
 
 import javax.annotation.Nullable;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -52,7 +53,6 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor
 @Getter
 public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyEntity>> {
-
   @AllArgsConstructor
   public static class Factory implements Function<CopyableDatasetBase, CopyableDatasetRequestor> {
     private final FileSystem targetFs;
@@ -86,6 +86,9 @@ public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyE
     try {
       return injectRequestor(this.dataset.getFileSetIterator(this.targetFs, this.copyConfiguration));
     } catch (Throwable exc) {
+      if (copyConfiguration.isAbortOnSingleDatasetFailure()) {
+        throw new RuntimeException(String.format("Could not get FileSets for dataset %s", this.dataset.datasetURN()), exc);
+      }
       log.error(String.format("Could not get FileSets for dataset %s. Skipping.", this.dataset.datasetURN()), exc);
       return Collections.emptyIterator();
     }

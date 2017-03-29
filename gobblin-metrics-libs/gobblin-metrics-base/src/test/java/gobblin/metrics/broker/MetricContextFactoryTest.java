@@ -66,4 +66,38 @@ public class MetricContextFactoryTest {
     Assert.assertFalse(tagMap.containsKey("tag3"));
   }
 
+  @Test
+  public void testSubTaggedMetricContext() throws Exception {
+    MetricContextFactory<SimpleScopeType> factory = new MetricContextFactory<>();
+
+    Config config = ConfigFactory.parseMap(ImmutableMap.of(
+        BrokerConfigurationKeyGenerator.generateKey(factory, null, null, MetricContextFactory.TAG_KEY + ".tag1"), "value1"
+    ));
+
+    SharedResourcesBroker<SimpleScopeType> rootBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        SimpleScopeType.GLOBAL.defaultScopeInstance());
+
+    MetricContext metricContext = rootBroker.getSharedResource(factory,
+        new SubTaggedMetricContextKey("myMetricContext", ImmutableMap.of("tag2", "value2")));
+
+    Map<String, String> tagMap = (Map<String, String>) Tag.toMap(Tag.tagValuesToString(metricContext.getTags()));
+    Assert.assertEquals(metricContext.getName(), "myMetricContext");
+    Assert.assertEquals(tagMap.get("tag1"), "value1");
+    Assert.assertEquals(tagMap.get("tag2"), "value2");
+
+    MetricContext metricContext2 = rootBroker.getSharedResource(factory,
+        new SubTaggedMetricContextKey("myMetricContext", ImmutableMap.of("tag2", "value2")));
+    Assert.assertEquals(metricContext, metricContext2);
+
+    MetricContext metricContext3 = rootBroker.getSharedResource(factory,
+        new SubTaggedMetricContextKey("myMetricContext", ImmutableMap.of("tag3", "value3")));
+    Assert.assertNotEquals(metricContext, metricContext3);
+
+    MetricContext parent = rootBroker.getSharedResource(factory, new MetricContextKey());
+    tagMap = (Map<String, String>) Tag.toMap(Tag.tagValuesToString(parent.getTags()));
+    Assert.assertEquals(metricContext.getParent().get(), parent);
+    Assert.assertEquals(tagMap.get("tag1"), "value1");
+    Assert.assertFalse(tagMap.containsKey("tag2"));
+  }
+
 }

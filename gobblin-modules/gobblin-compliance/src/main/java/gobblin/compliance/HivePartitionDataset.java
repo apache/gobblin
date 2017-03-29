@@ -27,6 +27,7 @@ import org.apache.hadoop.hive.ql.metadata.Partition;
 import com.google.common.base.Optional;
 
 import gobblin.dataset.Dataset;
+import gobblin.hive.HiveSerDeWrapper;
 
 
 /**
@@ -81,12 +82,26 @@ public class HivePartitionDataset implements Dataset {
     return this.hivePartition.getTable().getParameters();
   }
 
+  public Map<String, String> getParams() {
+    return this.hivePartition.getParameters();
+  }
+
   public Properties getTableMetadata() {
     return this.hivePartition.getTable().getMetadata();
   }
 
   public List<FieldSchema> getCols() {
     return this.hivePartition.getTable().getCols();
+  }
+
+  public Optional<String> getFileFormat() {
+    String serdeLib = this.hivePartition.getTPartition().getSd().getSerdeInfo().getSerializationLib();
+    for (HiveSerDeWrapper.BuiltInHiveSerDe hiveSerDe : HiveSerDeWrapper.BuiltInHiveSerDe.values()) {
+      if (hiveSerDe.toString().equalsIgnoreCase(serdeLib)) {
+        return Optional.fromNullable(hiveSerDe.name());
+      }
+    }
+    return Optional.<String>absent();
   }
 
   /**

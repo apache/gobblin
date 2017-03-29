@@ -18,9 +18,7 @@ package gobblin.compliance.purger;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -62,6 +60,7 @@ public class PurgeableHivePartitionDataset extends HivePartitionDataset implemen
   private Optional<String> datasetOwner = Optional.absent();
   private long startTime;
   private long endTime;
+  private Boolean specifyPartitionFormat;
 
   public PurgeableHivePartitionDataset(Partition partition) {
     super(partition);
@@ -144,7 +143,7 @@ public class PurgeableHivePartitionDataset extends HivePartitionDataset implemen
   }
 
   public String getStagingPartitionLocation() {
-    return getStagingTableLocation() + getName();
+    return StringUtils.join(Arrays.asList(getStagingTableLocation(), getName()), '/');
   }
 
   public String getOriginalPartitionLocation() {

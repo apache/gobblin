@@ -19,7 +19,9 @@ package gobblin.hive;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -31,6 +33,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
@@ -71,7 +74,7 @@ public abstract class HiveRegister implements Closeable {
 
   protected final Optional<String> hiveDbRootDir;
   protected final ListeningExecutorService executor;
-  protected final List<Future<Void>> futures = Lists.newArrayList();
+  protected final Map<String, Future<Void>> futures = Maps.newConcurrentMap();
 
   protected HiveRegister(State state) {
     this.props = new HiveRegProps(state);
@@ -118,8 +121,18 @@ public abstract class HiveRegister implements Closeable {
       }
 
     });
-    this.futures.add(future);
+    this.futures.put(getSpecId(spec), future);
     return future;
+  }
+
+  private String getSpecId(HiveSpec spec) {
+    Optional<HivePartition> partition = spec.getPartition();
+    if (partition.isPresent()) {
+      return String.format("%s.%s@%s", spec.getTable().getDbName(), spec.getTable().getTableName(),
+          Arrays.toString(partition.get().getValues().toArray()));
+    } else {
+      return String.format("%s.%s", spec.getTable().getDbName(), spec.getTable().getTableName());
+    }
   }
 
   private boolean evaluatePredicates(HiveSpecWithPredicates spec) {
@@ -318,13 +331,15 @@ public abstract class HiveRegister implements Closeable {
   @Override
   public void close() throws IOException {
     try {
-      for (Future<Void> future : this.futures) {
-        future.get();
+      for (Map.Entry<String, Future<Void>> entry : this.futures.entrySet()) {
+        try {
+          entry.getValue().get();
+        } catch (ExecutionException ee) {
+          throw new IOException("Failed to finish registration for " + entry.getKey(), ee.getCause());
+        }
       }
     } catch (InterruptedException e) {
       throw new IOException(e);
-    } catch (ExecutionException e) {
-      throw new IOException(e.getCause());
     } finally {
       ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log));
     }

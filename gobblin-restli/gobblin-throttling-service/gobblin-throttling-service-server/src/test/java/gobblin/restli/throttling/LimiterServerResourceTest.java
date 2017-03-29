@@ -22,19 +22,16 @@ import java.util.Map;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.inject.Binder;
-import com.google.inject.Guice;
+import com.codahale.metrics.Timer;
 import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.name.Names;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.server.RestLiServiceException;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.broker.BrokerConfigurationKeyGenerator;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SimpleScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.metrics.MetricContext;
 import gobblin.util.limiter.CountBasedLimiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.util.limiter.broker.SharedLimiterKey;
@@ -46,16 +43,7 @@ public class LimiterServerResourceTest {
 
   @Test
   public void test() {
-
-    final SharedResourcesBroker<SimpleScopeType> broker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(
-        ConfigFactory.empty(), SimpleScopeType.GLOBAL.defaultScopeInstance());
-
-    Injector injector = Guice.createInjector(new Module() {
-      @Override
-      public void configure(Binder binder) {
-        binder.bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
-      }
-    });
+    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.empty());
 
     LimiterServerResource limiterServer = injector.getInstance(LimiterServerResource.class);
 
@@ -84,15 +72,7 @@ public class LimiterServerResourceTest {
         .put(BrokerConfigurationKeyGenerator.generateKey(factory, res2key, null, CountBasedLimiter.Factory.COUNT_KEY), "50")
         .build();
 
-    final SharedResourcesBroker<SimpleScopeType> broker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(
-        ConfigFactory.parseMap(configMap), SimpleScopeType.GLOBAL.defaultScopeInstance());
-
-    Injector injector = Guice.createInjector(new Module() {
-      @Override
-      public void configure(Binder binder) {
-        binder.bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
-      }
-    });
+    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.parseMap(configMap));
 
     LimiterServerResource limiterServer = injector.getInstance(LimiterServerResource.class);
 
@@ -113,16 +93,48 @@ public class LimiterServerResourceTest {
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
-    // out of permits
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(0));
+
+    try {
+      // out of permits
+      limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits();
+      Assert.fail();
+    } catch (RestLiServiceException exc) {
+      Assert.assertEquals(exc.getStatus(), HttpStatus.S_403_FORBIDDEN);
+    }
 
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits(), new Long(20));
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits(), new Long(20));
     // out of permits
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits(), new Long(0));
+    try {
+      // out of permits
+      limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits();
+      Assert.fail();
+    } catch (RestLiServiceException exc) {
+      Assert.assertEquals(exc.getStatus(), HttpStatus.S_403_FORBIDDEN);
+    }
 
     // No limit
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res3request, new EmptyRecord())).getPermits(), res3request.getPermits());
+  }
+
+  @Test
+  public void testMetrics() throws Exception {
+    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.empty());
+
+    LimiterServerResource limiterServer = injector.getInstance(LimiterServerResource.class);
+
+    PermitRequest request = new PermitRequest();
+    request.setPermits(10);
+    request.setResource("myResource");
+
+    limiterServer.get(new ComplexResourceKey<>(request, new EmptyRecord()));
+    limiterServer.get(new ComplexResourceKey<>(request, new EmptyRecord()));
+    limiterServer.get(new ComplexResourceKey<>(request, new EmptyRecord()));
+
+    MetricContext metricContext = limiterServer.metricContext;
+    Timer timer = metricContext.timer(LimiterServerResource.REQUEST_TIMER_NAME);
+
+    Assert.assertEquals(timer.getCount(), 3);
   }
 
 }

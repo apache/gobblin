@@ -24,11 +24,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
-import com.google.inject.Binder;
-import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.name.Names;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
@@ -39,13 +35,11 @@ import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.RestLiResponseException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.broker.BrokerConfigurationKeyGenerator;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SimpleScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.restli.EmbeddedRestliServer;
 import gobblin.util.limiter.CountBasedLimiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
@@ -69,14 +63,8 @@ public class ThrottlingClientTest {
         .put(BrokerConfigurationKeyGenerator.generateKey(factory, null, null, SharedLimiterFactory.FAIL_ON_UNKNOWN_RESOURCE_ID),
             "true")
         .build();
-    final SharedResourcesBroker<SimpleScopeType> broker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(
-        ConfigFactory.parseMap(configMap), SimpleScopeType.GLOBAL.defaultScopeInstance());
-    Injector injector = Guice.createInjector(new Module() {
-      @Override
-      public void configure(Binder binder) {
-        binder.bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
-      }
-    });
+
+    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.parseMap(configMap));
 
     EmbeddedRestliServer server = EmbeddedRestliServer.builder().resources(
         Lists.<Class<? extends BaseResource>>newArrayList(LimiterServerResource.class)).injector(injector).build();
@@ -104,8 +92,12 @@ public class ThrottlingClientTest {
       Assert.assertEquals(allocation.getPermits(), new Long(20));
 
       // out of permits
-      allocation = getPermitAllocation(res1request, restClient, getBuilder);
-      Assert.assertEquals(allocation.getPermits(), new Long(0));
+      try {
+        allocation = getPermitAllocation(res1request, restClient, getBuilder);
+        Assert.fail();
+      } catch (RestLiResponseException exc) {
+        Assert.assertEquals(exc.getStatus(), HttpStatus.S_403_FORBIDDEN.getCode());
+      }
 
       PermitRequest invalidRequest = new PermitRequest();
       invalidRequest.setPermits(20);

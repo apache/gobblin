@@ -44,7 +44,7 @@ import com.google.common.collect.ImmutableList;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.crypto.EncryptionConfigParser;
-import gobblin.crypto.InsecureShiftCodec;
+import gobblin.crypto.EncryptionFactory;
 import gobblin.metadata.types.GlobalMetadata;
 
 
@@ -267,9 +267,12 @@ public class SimpleDataWriterTest {
 
   @Test
   public void testSupportsGzipAndEncryption() throws IOException {
-    properties.setProp(ConfigurationKeys.WRITER_CODEC_TYPE, "gzip");
+    final String ENCRYPTION_TYPE = "insecure_shift";
+    final String COMPRESSION_TYPE = "gzip";
+
+    properties.setProp(ConfigurationKeys.WRITER_CODEC_TYPE, COMPRESSION_TYPE);
     properties.setProp(EncryptionConfigParser.ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY,
-        "insecure_shift");
+        ENCRYPTION_TYPE);
     properties.setProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, "");
 
     byte[] toWrite = new byte[] { 'a', 'b', 'c', 'd'};
@@ -283,11 +286,12 @@ public class SimpleDataWriterTest {
     writer.commit();
 
     File outputFile = new File(writer.getOutputFilePath());
-    Assert.assertTrue(outputFile.getName().endsWith(".gzip.encrypted_insecure_shift"),
+    Assert.assertTrue(outputFile.getName().endsWith("." + COMPRESSION_TYPE + "." + ENCRYPTION_TYPE),
         "Expected compression & encryption in file name!");
 
-    InputStream decryptedFile = new InsecureShiftCodec(Collections.<String, Object>emptyMap()).decodeInputStream(
-        new FileInputStream(outputFile));
+    InputStream decryptedFile =
+        EncryptionFactory.buildStreamCryptoProvider(ENCRYPTION_TYPE, Collections.<String, Object>emptyMap())
+            .decodeInputStream(new FileInputStream(outputFile));
     InputStream uncompressedFile = new GZIPInputStream(decryptedFile);
 
     byte[] contents = IOUtils.toByteArray(uncompressedFile);
@@ -295,7 +299,7 @@ public class SimpleDataWriterTest {
 
     String serializedMetadata = properties.getProp(ConfigurationKeys.WRITER_METADATA_KEY);
     GlobalMetadata md = GlobalMetadata.fromJson(serializedMetadata);
-    Assert.assertEquals(md.getTransferEncoding(), ImmutableList.of("gzip", "encrypted_insecure_shift"));
+    Assert.assertEquals(md.getTransferEncoding(), ImmutableList.of(COMPRESSION_TYPE, ENCRYPTION_TYPE));
  }
 
   /**

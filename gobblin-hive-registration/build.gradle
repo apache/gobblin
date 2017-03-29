@@ -28,6 +28,7 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.hiveCommon
   compile externalDependency.hiveExec
+
   compile externalDependency.hiveMetastore
   compile externalDependency.hiveSerDe
   compile externalDependency.libthrift

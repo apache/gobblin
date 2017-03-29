@@ -24,6 +24,7 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 
+import gobblin.codec.StreamCodec;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.AvroUtils;
@@ -80,15 +81,22 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
     return properties.getProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, StringUtils.EMPTY);
   }
 
-  protected String getPartitionedFileName(State properties, String originalFileName) {
-    boolean includePartitionerFieldNames = properties.getPropAsBoolean(
-        ForkOperatorUtils.getPropertyNameForBranch(WRITER_INCLUDE_PARTITION_IN_FILE_NAMES, this.branches, this.branch),
-        false);
-    boolean removePathSeparators = properties.getPropAsBoolean(ForkOperatorUtils
-        .getPropertyNameForBranch(WRITER_REPLACE_PATH_SEPARATORS_IN_PARTITIONS, this.branches, this.branch), false);
+  protected String getPartitionPath(State properties) {
+    if (this.partition.isPresent()) {
+      boolean includePartitionerFieldNames = properties.getPropAsBoolean(ForkOperatorUtils
+          .getPropertyNameForBranch(WRITER_INCLUDE_PARTITION_IN_FILE_NAMES, this.branches, this.branch), false);
+      boolean removePathSeparators = properties.getPropAsBoolean(ForkOperatorUtils
+          .getPropertyNameForBranch(WRITER_REPLACE_PATH_SEPARATORS_IN_PARTITIONS, this.branches, this.branch), false);
 
+      return AvroUtils.serializeAsPath(this.partition.get(), includePartitionerFieldNames, removePathSeparators).toString();
+    } else {
+      return null;
+    }
+  }
+
+  protected String getPartitionedFileName(State properties, String originalFileName) {
     return new Path(
-        AvroUtils.serializeAsPath(this.partition.get(), includePartitionerFieldNames, removePathSeparators).toString(),
+        getPartitionPath(properties),
         originalFileName).toString();
   }
 

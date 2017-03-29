@@ -30,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -186,12 +187,14 @@ public class ParallelRunner implements Closeable {
     this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        try (@SuppressWarnings("deprecation")
-        SequenceFile.Reader reader =
-            new SequenceFile.Reader(ParallelRunner.this.fs, inputFilePath, ParallelRunner.this.fs.getConf())) {
+        Configuration conf = new Configuration(ParallelRunner.this.fs.getConf());
+        WritableShimSerialization.addToHadoopConfiguration(conf);
+        try (@SuppressWarnings("deprecation") SequenceFile.Reader reader = new SequenceFile.Reader(
+            ParallelRunner.this.fs, inputFilePath, conf)) {
           Writable key = keyClass.newInstance();
           T state = stateClass.newInstance();
-          while (reader.next(key, state)) {
+          while (reader.next(key)) {
+            state = (T) reader.getCurrentValue(state);
             states.add(state);
             state = stateClass.newInstance();
           }

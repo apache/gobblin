@@ -19,7 +19,6 @@ package gobblin.writer;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Collections;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
@@ -35,6 +34,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.codec.StreamCodec;
 import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -144,6 +144,11 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
     this.defaultMetadata = new GlobalMetadata();
     for (StreamCodec c : getEncoders()) {
       this.defaultMetadata.addTransferEncoding(c.getTag());
+    }
+
+    String partitionPath = builder.getPartitionPath(properties);
+    if (builder.getPartitionPath(properties) != null) {
+      properties.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + builder.getWriterId(), partitionPath);
     }
   }
 

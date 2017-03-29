@@ -109,14 +109,7 @@ public abstract class RestApiConnector {
 
         JsonObject jsonRet = json.getAsJsonObject();
         log.info("jsonRet: " + jsonRet.toString());
-        if (!hasId(jsonRet)) {
-          throw new RestApiConnectionException("Failed on authentication with the following HTTP response received:"
-              + json.toString().length() + ", string value: " + json.toString());
-        }
-
-        this.instanceUrl = jsonRet.get("instance_url").getAsString();
-        this.accessToken = jsonRet.get("access_token").getAsString();
-        this.createdAt = System.currentTimeMillis();
+        parseAuthenticationResponse(jsonRet);
       }
     } catch (IOException e) {
       throw new RestApiConnectionException("Failed to get rest api connection; error - " + e.getMessage(), e);
@@ -195,7 +188,7 @@ public abstract class RestApiConnector {
     return output;
   }
 
-  private void addHeaders(HttpRequestBase httpRequest) {
+  protected void addHeaders(HttpRequestBase httpRequest) {
     if (this.accessToken != null) {
       httpRequest.addHeader("Authorization", "OAuth " + this.accessToken);
     }
@@ -253,4 +246,14 @@ public abstract class RestApiConnector {
    */
   public abstract HttpEntity getAuthentication() throws RestApiConnectionException;
 
+  protected void parseAuthenticationResponse(JsonObject jsonRet) throws RestApiConnectionException {
+    if (!hasId(jsonRet)) {
+      throw new RestApiConnectionException("Failed on authentication with the following HTTP response received:"
+          + jsonRet.toString());
+    }
+
+    this.instanceUrl = jsonRet.get("instance_url").getAsString();
+    this.accessToken = jsonRet.get("access_token").getAsString();
+    this.createdAt = System.currentTimeMillis();
+  }
 }

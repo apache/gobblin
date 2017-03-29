@@ -55,7 +55,7 @@ public abstract class DatasetDescriptor {
 
   protected void checkValidJsonStr(String jsonStr) {
     try {
-      new JsonParser().parse(this.descriptor);
+      new JsonParser().parse(jsonStr);
     } catch (JsonParseException e) {
       log.warn("Not a valid JSON String : " + jsonStr);
       Throwables.propagate(e);

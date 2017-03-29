@@ -16,11 +16,32 @@
  */
 package gobblin.compliance.purger;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
+
+import lombok.extern.slf4j.Slf4j;
+
+import gobblin.compliance.ComplianceConfigurationKeys;
+import gobblin.compliance.ComplianceEvents;
+import gobblin.compliance.DatasetUtils;
+import gobblin.compliance.HivePartitionDataset;
+import gobblin.compliance.HivePartitionFinder;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.dataset.DatasetsFinder;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.publisher.DataPublisher;
+import gobblin.source.workunit.WorkUnit;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -28,9 +49,26 @@ import gobblin.publisher.DataPublisher;
  *
  * @author adsharma
  */
+@Slf4j
 public class HivePurgerPublisher extends DataPublisher {
+  protected List<HivePartitionDataset> datasets = new ArrayList<>();
+  protected MetricContext metricContext;
+  protected EventSubmitter eventSubmitter;
+  protected DatasetsFinder datasetFinder;
+
   public HivePurgerPublisher(State state) {
     super(state);
+    this.metricContext = Instrumented.getMetricContext(state, this.getClass());
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, ComplianceEvents.NAMESPACE).
+        build();
+    String datasetFinderClass = state.getProp(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_DATASET_FINDER_CLASS,
+        HivePartitionFinder.class.getName());
+    this.datasetFinder = GobblinConstructorUtils.invokeConstructor(DatasetsFinder.class, datasetFinderClass, state);
+    try {
+      this.datasets = this.datasetFinder.findDatasets();
+    } catch (IOException e) {
+      Throwables.propagate(e);
+    }
   }
 
   public void initialize() {
@@ -41,10 +79,51 @@ public class HivePurgerPublisher extends DataPublisher {
     for (WorkUnitState state : states) {
       if (state.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL) {
         state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+        submitEvent(state, ComplianceEvents.Purger.WORKUNIT_COMMITTED);
       } else {
         state.setWorkingState(WorkUnitState.WorkingState.FAILED);
+        submitEvent(state, ComplianceEvents.Purger.WORKUNIT_FAILED);
       }
     }
+  }
+
+  private void submitEvent(WorkUnitState state, String name) {
+    WorkUnit workUnit = state.getWorkunit();
+    Map<String, String> metadata = new HashMap<>();
+    metadata.put(ComplianceConfigurationKeys.WORKUNIT_RECORDSREAD, state.getProp(ComplianceConfigurationKeys.NUM_ROWS));
+    metadata.put(ComplianceConfigurationKeys.WORKUNIT_BYTESREAD,
+        getDataSize(workUnit.getProp(ComplianceConfigurationKeys.RAW_DATA_SIZE),
+            workUnit.getProp(ComplianceConfigurationKeys.TOTAL_SIZE)));
+    Optional<HivePartitionDataset> dataset =
+        DatasetUtils.findDataset(workUnit.getProp(ComplianceConfigurationKeys.PARTITION_NAME), this.datasets);
+    if (!dataset.isPresent()) {
+      return;
+    }
+
+    HivePartitionDataset hivePartitionDataset = dataset.get();
+
+    metadata.put(ComplianceConfigurationKeys.WORKUNIT_RECORDSWRITTEN, DatasetUtils
+        .getProperty(hivePartitionDataset, ComplianceConfigurationKeys.NUM_ROWS,
+            ComplianceConfigurationKeys.DEFAULT_NUM_ROWS));
+    metadata.put(ComplianceConfigurationKeys.WORKUNIT_BYTESWRITTEN, getDataSize(DatasetUtils
+        .getProperty(hivePartitionDataset, ComplianceConfigurationKeys.RAW_DATA_SIZE,
+            ComplianceConfigurationKeys.DEFAULT_RAW_DATA_SIZE), DatasetUtils
+        .getProperty(hivePartitionDataset, ComplianceConfigurationKeys.TOTAL_SIZE,
+            ComplianceConfigurationKeys.DEFAULT_TOTAL_SIZE)));
+
+    metadata.put(ComplianceConfigurationKeys.PARTITION_NAME, hivePartitionDataset.datasetURN());
+
+    this.eventSubmitter.submit(name, metadata);
+  }
+
+  private String getDataSize(String rawDataSize, String totalDataSize) {
+    int rawDataSizeVal = Integer.parseInt(rawDataSize);
+    int totalDataSizeVal = Integer.parseInt(totalDataSize);
+    int dataSize = totalDataSizeVal;
+    if (totalDataSizeVal <= 0) {
+      dataSize = rawDataSizeVal;
+    }
+    return Integer.toString(dataSize);
   }
 
   public void publishMetadata(Collection<? extends WorkUnitState> states) {

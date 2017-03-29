@@ -111,6 +111,8 @@ public class HivePurgerExtractor implements Extractor<PurgeableHivePartitionData
     String complianceIdentifier = state.getProp(ComplianceConfigurationKeys.COMPLIANCEID_KEY);
     String complianceIdTable = state.getProp(ComplianceConfigurationKeys.COMPLIANCE_ID_TABLE_KEY);
     String timeStamp = state.getProp(ComplianceConfigurationKeys.TIMESTAMP);
+    Boolean specifyPartitionFormat = state.getPropAsBoolean(ComplianceConfigurationKeys.SPECIFY_PARTITION_FORMAT,
+        ComplianceConfigurationKeys.DEFAULT_SPECIFY_PARTITION_FORMAT);
 
     State datasetState = new State();
     datasetState.addAll(state.getProperties());
@@ -121,6 +123,7 @@ public class HivePurgerExtractor implements Extractor<PurgeableHivePartitionData
     dataset.setTimeStamp(timeStamp);
     dataset.setState(datasetState);
     dataset.setSimulate(simulate);
+    dataset.setSpecifyPartitionFormat(specifyPartitionFormat);
     return dataset;
   }
 

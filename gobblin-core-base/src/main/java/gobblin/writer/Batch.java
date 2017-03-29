@@ -162,7 +162,7 @@ public abstract class Batch<D>{
    */
   public Future<RecordMetadata> tryAppend(D record, WriteCallback callback) {
     if (!hasRoom(record)) {
-      LOG.info ("Cannot add " + record + " to previous batch because the batch already has " + getCurrentSizeInByte() + " bytes");
+      LOG.debug ("Cannot add " + record + " to previous batch because the batch already has " + getCurrentSizeInByte() + " bytes");
       return null;
     }
 

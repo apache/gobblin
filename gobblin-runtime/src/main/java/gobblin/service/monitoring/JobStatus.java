@@ -41,5 +41,6 @@ public class JobStatus {
   private final long endTime;
   private final String message;
   private final long processedCount;
-  private final String watermark;
+  private final String lowWatermark;
+  private final String highWatermark;
 }
