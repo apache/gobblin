@@ -26,7 +26,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -172,6 +171,8 @@ public class HiveCopyEntityHelper {
   private final DeregisterFileDeleteMethod deleteMethod;
 
   private final Optional<CommitStep> tableRegistrationStep;
+  private final Optional<CommitStep> dataLocationChangeStep;
+
   private final Map<List<String>, Partition> sourcePartitions;
   private final Map<List<String>, Partition> targetPartitions;
 
@@ -187,6 +188,8 @@ public class HiveCopyEntityHelper {
     REPLACE_PARTITIONS,
     /** Deregister target table, do NOT delete its files, and create a new table with correct values. */
     REPLACE_TABLE,
+    /** Keep the target table as registered while updating the file location */
+    UPDATE_TABLE,
     /** Abort copying of conflict table. */
     ABORT
   }
@@ -261,7 +264,7 @@ public class HiveCopyEntityHelper {
 
       this.deleteMethod = this.dataset.getProperties().containsKey(DELETE_FILES_ON_DEREGISTER)
           ? DeregisterFileDeleteMethod
-              .valueOf(this.dataset.getProperties().getProperty(DELETE_FILES_ON_DEREGISTER).toUpperCase())
+          .valueOf(this.dataset.getProperties().getProperty(DELETE_FILES_ON_DEREGISTER).toUpperCase())
           : DEFAULT_DEREGISTER_DELETE_METHOD;
 
       if (this.dataset.getProperties().containsKey(COPY_PARTITION_FILTER_GENERATOR)) {
@@ -284,16 +287,16 @@ public class HiveCopyEntityHelper {
       try {
         this.fastPartitionSkip = this.dataset.getProperties().containsKey(FAST_PARTITION_SKIP_PREDICATE)
             ? Optional.of(GobblinConstructorUtils.invokeFirstConstructor(
-                (Class<Predicate<HivePartitionFileSet>>) Class
-                    .forName(this.dataset.getProperties().getProperty(FAST_PARTITION_SKIP_PREDICATE)),
-                Lists.<Object> newArrayList(this), Lists.newArrayList()))
+            (Class<Predicate<HivePartitionFileSet>>) Class
+                .forName(this.dataset.getProperties().getProperty(FAST_PARTITION_SKIP_PREDICATE)),
+            Lists.<Object> newArrayList(this), Lists.newArrayList()))
             : Optional.<Predicate<HivePartitionFileSet>> absent();
 
         this.fastTableSkip = this.dataset.getProperties().containsKey(FAST_TABLE_SKIP_PREDICATE)
             ? Optional.of(GobblinConstructorUtils.invokeFirstConstructor(
-                (Class<Predicate<HiveCopyEntityHelper>>) Class
-                    .forName(this.dataset.getProperties().getProperty(FAST_TABLE_SKIP_PREDICATE)),
-                Lists.newArrayList()))
+            (Class<Predicate<HiveCopyEntityHelper>>) Class
+                .forName(this.dataset.getProperties().getProperty(FAST_TABLE_SKIP_PREDICATE)),
+            Lists.newArrayList()))
             : Optional.<Predicate<HiveCopyEntityHelper>> absent();
 
       } catch (ReflectiveOperationException roe) {
@@ -314,14 +317,25 @@ public class HiveCopyEntityHelper {
           this.existingTargetTable = Optional.absent();
         }
 
+        // Constructing CommitStep object for table registration
         Path targetPath = getTargetLocation(dataset.fs, this.targetFs, dataset.table.getDataLocation(),
             Optional.<Partition> absent());
         this.targetTable = getTargetTable(this.dataset.table, targetPath);
         HiveSpec tableHiveSpec = new SimpleHiveSpec.Builder<>(targetPath)
             .withTable(HiveMetaStoreUtils.getHiveTable(this.targetTable.getTTable())).build();
-        CommitStep tableRegistrationStep = new HiveRegisterStep(this.targetURI, tableHiveSpec, this.hiveRegProps);
-
+        CommitStep tableRegistrationStep = new HiveRegisterStep(this.targetURI, tableHiveSpec, this.hiveRegProps, false);
         this.tableRegistrationStep = Optional.of(tableRegistrationStep);
+
+        // Constructing CommitStep object for table alteration, not necessary to use.
+        if (this.existingTargetTable.isPresent()) {
+          HiveSpec alteredTableHiveSpec = new SimpleHiveSpec.Builder<>(targetPath)
+              .withTable(HiveMetaStoreUtils.getHiveTable(this.existingTargetTable.get().getTTable())).build();
+          CommitStep dataLocationChangeStep = new HiveRegisterStep(this.targetURI, alteredTableHiveSpec, this.hiveRegProps, true);
+          this.dataLocationChangeStep = Optional.of(dataLocationChangeStep);
+        }
+        else {
+          this.dataLocationChangeStep = Optional.absent();
+        }
 
         if (this.existingTargetTable.isPresent() && this.existingTargetTable.get().isPartitioned()) {
           checkPartitionedTableCompatibility(this.targetTable, this.existingTargetTable.get());
@@ -534,6 +548,15 @@ public class HiveCopyEntityHelper {
     return priority;
   }
 
+  int addLocationUpdateSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority){
+    int priority = initialPriority ;
+    if ( this.dataLocationChangeStep.isPresent()){
+      copyEntities.add(new PostPublishStep(fileSet, Maps.<String, String> newHashMap(), this.dataLocationChangeStep.get(),
+          priority++));
+    }
+    return priority;
+  }
+
   /**
    * Compares three entities to figure out which files should be copied and which files should be deleted in the target
    * file system.
@@ -689,7 +712,7 @@ public class HiveCopyEntityHelper {
       }
       List<OwnerAndPermission> ancestorOwnerAndPermission =
           CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(actualSourceFs,
-          sourceAndDestination.getSource().getPath().getParent(), this.dataset.getTableRootPath().get().getParent(), configuration);
+              sourceAndDestination.getSource().getPath().getParent(), this.dataset.getTableRootPath().get().getParent(), configuration);
 
       builders.add(CopyableFile.fromOriginAndDestination(actualSourceFs, sourceAndDestination.getSource(),
           sourceAndDestination.getDestination(), configuration).

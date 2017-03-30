@@ -42,14 +42,15 @@ import gobblin.hive.spec.HiveSpec;
 @AllArgsConstructor
 public class HiveRegisterStep implements CommitStep {
 
-  public HiveRegisterStep(Optional<String> metastoreURI, HiveSpec hiveSpec, HiveRegProps props) {
-    this(metastoreURI, hiveSpec, props, true);
+  public HiveRegisterStep(Optional<String> metastoreURI, HiveSpec hiveSpec, HiveRegProps props, boolean alterationOnly) {
+    this(metastoreURI, hiveSpec, props, true, alterationOnly);
   }
 
   private final Optional<String> metastoreURI;
   private final HiveSpec hiveSpec;
   private final HiveRegProps props;
   private final boolean verifyBeforeRegistering;
+  private final boolean alterationOnly;
 
   @Override
   public boolean isCompleted() throws IOException {
@@ -85,9 +86,15 @@ public class HiveRegisterStep implements CommitStep {
     }
 
     try (HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI)) {
-      log.info("Registering Hive Spec " + this.hiveSpec);
-      ListenableFuture<Void> future = hiveRegister.register(this.hiveSpec);
-      future.get();
+      if (!alterationOnly) {
+        log.info("Registering Hive Spec " + this.hiveSpec);
+        ListenableFuture<Void> future = hiveRegister.register(this.hiveSpec);
+        future.get();
+      }
+      else {
+        log.info("Altering Hive Table " + this.hiveSpec.getTable().getTableName());
+        hiveRegister.alterTable(this.hiveSpec.getTable());
+      }
     } catch (InterruptedException | ExecutionException ie) {
       throw new IOException("Hive registration was interrupted.", ie);
     }
