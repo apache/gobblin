@@ -17,6 +17,7 @@
 
 package gobblin.converter.avro;
 
+import java.util.Collections;
 import java.util.Map;
 
 import org.apache.avro.Schema.Field;
@@ -34,7 +35,6 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
 
 
 /**
@@ -69,6 +69,6 @@ public class AvroToJsonConverter extends Converter<String, JsonArray, GenericRec
       record.put(field.name(), col);
     }
 
-    return new SingleRecordIterable<>(this.gson.fromJson(this.gson.toJson(record), JsonObject.class).getAsJsonObject());
+    return Collections.singleton(this.gson.fromJson(this.gson.toJson(record), JsonObject.class).getAsJsonObject());
   }
 }

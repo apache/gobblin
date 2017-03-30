@@ -24,6 +24,8 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import gobblin.metadata.types.Metadata;
+
 
 /**
  * A holder for records with metadata
@@ -34,5 +36,5 @@ public class RecordWithMetadata<D> {
   public static final String RECORD_NAME = "recordName";
 
   private final D record;
-  private final Map<String, Object> metadata;
+  private final Metadata metadata;
 }
