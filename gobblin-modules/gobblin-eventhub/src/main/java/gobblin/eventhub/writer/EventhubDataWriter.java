@@ -21,6 +21,11 @@ package gobblin.eventhub.writer;
 
 import java.io.IOException;
 
+import gobblin.configuration.State;
+import gobblin.eventhub.EventhubMetricNames;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.MetricNames;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -36,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Meter;
-import com.google.common.base.Charsets;
 import com.google.common.util.concurrent.Futures;
 import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
 
@@ -56,7 +60,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import com.codahale.metrics.Timer;
 
 
@@ -84,11 +87,17 @@ public class EventhubDataWriter implements SyncDataWriter<String>, BatchAsyncDat
   private final String sasKeyName;
   private final String sasKey;
   private final String targetURI;
-  private final Timer timer = new Timer();
-  private final Meter bytesWritten = new Meter();
+
+  private final Meter bytesWritten;
+  private final Meter recordsAttempted;
+  private final Meter recordsSuccess;
+  private final Meter recordsFailed;
+  private final Timer writeTimer;
+
   private long postStartTimestamp = 0;
   private long sigExpireInMinute = 1;
   private String signature = "";
+  private MetricContext metricContext;
 
   private static final ObjectMapper mapper = new ObjectMapper();
 
@@ -128,6 +137,12 @@ public class EventhubDataWriter implements SyncDataWriter<String>, BatchAsyncDat
     sasKey = manager.readPassword(encodedSasKey);
     targetURI = "https://" + namespaceName + ".servicebus.windows.net/" + eventHubName + "/messages";
     httpclient = HttpClients.createDefault();
+    metricContext = Instrumented.getMetricContext(new State(properties),EventhubDataWriter.class);
+    recordsAttempted = this.metricContext.meter(EventhubMetricNames.EventhubDataWriterMetrics.RECORDS_ATTEMPTED_METER);
+    recordsSuccess = this.metricContext.meter(EventhubMetricNames.EventhubDataWriterMetrics.RECORDS_SUCCESS_METER);
+    recordsFailed = this.metricContext.meter(EventhubMetricNames.EventhubDataWriterMetrics.RECORDS_FAILED_METER);
+    bytesWritten = this.metricContext.meter(EventhubMetricNames.EventhubDataWriterMetrics.BYTES_WRITTEN_METER);
+    writeTimer = this.metricContext.timer(EventhubMetricNames.EventhubDataWriterMetrics.WRITE_TIMER);
   }
 
   /** User needs to provide eventhub properties and an httpClient */
@@ -140,21 +155,24 @@ public class EventhubDataWriter implements SyncDataWriter<String>, BatchAsyncDat
    * Write a whole batch to eventhub
    */
   public Future<WriteResponse> write (Batch<String> batch, WriteCallback callback) {
-    long before = System.nanoTime();
+    Timer.Context context = writeTimer.time();
     int returnCode = 0;
     LOG.info ("Dispatching batch " + batch.getId());
+    recordsAttempted.mark(batch.getRecords().size());
     try {
       String encoded = encodeBatch(batch);
-      bytesWritten.mark(encoded.getBytes(Charsets.UTF_8).length);
       returnCode = request (encoded);
-      timer.update(System.nanoTime() - before, TimeUnit.NANOSECONDS);
       WriteResponse<Integer> response = WRITE_RESPONSE_WRAPPER.wrap(returnCode);
       callback.onSuccess(response);
+      bytesWritten.mark(encoded.length());
+      recordsSuccess.mark(batch.getRecords().size());
     } catch (Exception e) {
       LOG.error("Dispatching batch " + batch.getId() + " failed :" + e.toString());
       callback.onFailure(e);
+      recordsFailed.mark(batch.getRecords().size());
     }
 
+    context.close();
     Future<Integer> future = Futures.immediateFuture(returnCode);
     return new WriteResponseFuture<>(future, WRITE_RESPONSE_WRAPPER);
   }
@@ -163,12 +181,11 @@ public class EventhubDataWriter implements SyncDataWriter<String>, BatchAsyncDat
    * Write a single record to eventhub
    */
   public WriteResponse write (String record) throws IOException {
-    long before = System.nanoTime();
+    recordsAttempted.mark();
     String encoded = encodeRecord(record);
-    bytesWritten.mark(encoded.getBytes(Charsets.UTF_8).length);
     int returnCode = request (encoded);
-    timer.update(System.nanoTime() - before, TimeUnit.NANOSECONDS);
-
+    recordsSuccess.mark();
+    bytesWritten.mark(encoded.length());
     return WRITE_RESPONSE_WRAPPER.wrap(returnCode);
   }
 

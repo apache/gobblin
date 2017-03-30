@@ -16,35 +16,34 @@
  */
 package gobblin.converter;
 
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.ImmutableList;
-
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.crypto.EncryptionConfigParser;
+import gobblin.metadata.types.Metadata;
 import gobblin.test.crypto.InsecureShiftCodec;
-import gobblin.type.SerializedRecord;
+import gobblin.type.RecordWithMetadata;
 
 
 public class SerializedRecordToEncryptedSerializedRecordConverterTest {
   private WorkUnitState workUnitState;
   private SerializedRecordToEncryptedSerializedRecordConverter converter;
-  private SerializedRecord sampleRecord;
+  private RecordWithMetadata<byte[]> sampleRecord;
   private byte[] shiftedValue;
   private String insecureShiftTag;
+
+  private final String ENCRYPT_PREFIX = "converter.encrypt.";
 
   @BeforeTest
   public void setUp() {
     workUnitState = new WorkUnitState();
     converter = new SerializedRecordToEncryptedSerializedRecordConverter();
-    sampleRecord = new SerializedRecord(ByteBuffer.wrap(new byte[]{'a', 'b', 'c', 'd'}),
-        ImmutableList.of("application/octet-stream"));
+    sampleRecord = new RecordWithMetadata<>(new byte[]{'a', 'b', 'c', 'd'}, new Metadata());
     shiftedValue = new byte[]{'b', 'c', 'd', 'e'};
     insecureShiftTag = InsecureShiftCodec.TAG;
   }
@@ -61,38 +60,36 @@ public class SerializedRecordToEncryptedSerializedRecordConverterTest {
       throws DataConversionException {
     workUnitState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, 2);
     workUnitState.getJobState()
-        .setProp(EncryptionConfigParser.ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY + ".2",
+        .setProp(ENCRYPT_PREFIX + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY + ".2",
             "insecure_shift");
 
     converter.init(workUnitState);
-    Iterable<SerializedRecord> records = converter.convertRecord("", sampleRecord, workUnitState);
-    Iterator<SerializedRecord> recordIt = records.iterator();
+    Iterable<RecordWithMetadata<byte[]>> records = converter.convertRecord("", sampleRecord, workUnitState);
+    Iterator<RecordWithMetadata<byte[]>> recordIt = records.iterator();
     Assert.assertTrue(recordIt.hasNext());
 
-    SerializedRecord record = recordIt.next();
+    RecordWithMetadata<byte[]> record = recordIt.next();
 
     Assert.assertFalse(recordIt.hasNext());
-    Assert.assertEquals(record.getContentTypes().get(0), sampleRecord.getContentTypes().get(0));
-    Assert.assertEquals(record.getContentTypes().get(1), insecureShiftTag);
-    Assert.assertEquals(record.getRecord().array(), shiftedValue);
+    Assert.assertEquals(record.getMetadata().getGlobalMetadata().getTransferEncoding().get(0), insecureShiftTag);
+    Assert.assertEquals(record.getRecord(), shiftedValue);
   }
 
   @Test
   public void worksNoFork()
       throws DataConversionException {
     workUnitState.getJobState()
-        .setProp(EncryptionConfigParser.ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY,
+        .setProp(ENCRYPT_PREFIX + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY,
             "insecure_shift");
     converter.init(workUnitState);
-    Iterable<SerializedRecord> records = converter.convertRecord("", sampleRecord, workUnitState);
-    Iterator<SerializedRecord> recordIt = records.iterator();
+    Iterable<RecordWithMetadata<byte[]>> records = converter.convertRecord("", sampleRecord, workUnitState);
+    Iterator<RecordWithMetadata<byte[]>> recordIt = records.iterator();
     Assert.assertTrue(recordIt.hasNext());
 
-    SerializedRecord record = recordIt.next();
+    RecordWithMetadata<byte[]> record = recordIt.next();
 
     Assert.assertFalse(recordIt.hasNext());
-    Assert.assertEquals(record.getContentTypes().get(0), sampleRecord.getContentTypes().get(0));
-    Assert.assertEquals(record.getContentTypes().get(1), insecureShiftTag);
-    Assert.assertEquals(record.getRecord().array(), shiftedValue);
+    Assert.assertEquals(record.getMetadata().getGlobalMetadata().getTransferEncoding().get(0), insecureShiftTag);
+    Assert.assertEquals(record.getRecord(), shiftedValue);
   }
 }

@@ -15,28 +15,29 @@
  * limitations under the License.
  */
 
-apply plugin: 'java'
-apply plugin: 'me.champeau.gradle.jmh'
+package gobblin.runtime.mapreduce;
 
-dependencies {
-  /*
-   * Keep these dependencies as small as possible: we should not rely on
-   * gobblin-runtime, -core etc as they pull in huge transitive dependency trees!
-   */
-  compile project(":gobblin-api")
-  compile project(":gobblin-modules:gobblin-codecs")
-  compile project(":gobblin-modules:gobblin-metadata")
-  compile externalDependency.slf4j
+import gobblin.publisher.DataPublisher;
+import gobblin.publisher.NoopPublisher;
+import gobblin.runtime.JobState;
+import gobblin.runtime.TaskContext;
+import gobblin.runtime.task.TaskFactory;
+import gobblin.runtime.task.TaskIFace;
 
-  testCompile project(":gobblin-core-base") // for EncryptionConfigParser
-  testCompile project(":gobblin-test-utils")
-  testCompile externalDependency.testng
-}
 
-ext.classification="library"
+/**
+ * A {@link TaskFactory} that runs an {@link MRTask}. This factory is intended to publish data in the task directly, and
+ * uses a {@link NoopPublisher}.
+ */
+public class MRTaskFactory implements TaskFactory {
 
-jmh {
-  include = ""
-  zip64 = true
-  duplicateClassesStrategy = "EXCLUDE"
+  @Override
+  public TaskIFace createTask(TaskContext taskContext) {
+    return new MRTask(taskContext);
+  }
+
+  @Override
+  public DataPublisher createDataPublisher(JobState.DatasetState datasetState) {
+    return new NoopPublisher(datasetState);
+  }
 }

@@ -16,7 +16,6 @@
  */
 
 apply plugin: 'java'
-apply plugin: 'me.champeau.gradle.jmh'
 
 dependencies {
   /*
@@ -24,19 +23,16 @@ dependencies {
    * gobblin-runtime, -core etc as they pull in huge transitive dependency trees!
    */
   compile project(":gobblin-api")
-  compile project(":gobblin-modules:gobblin-codecs")
   compile project(":gobblin-modules:gobblin-metadata")
+
+  compile externalDependency.avro
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
   compile externalDependency.slf4j
 
-  testCompile project(":gobblin-core-base") // for EncryptionConfigParser
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.testng
 }
 
 ext.classification="library"
 
-jmh {
-  include = ""
-  zip64 = true
-  duplicateClassesStrategy = "EXCLUDE"
-}

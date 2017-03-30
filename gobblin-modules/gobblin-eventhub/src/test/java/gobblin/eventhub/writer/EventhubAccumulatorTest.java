@@ -1,12 +1,17 @@
 package gobblin.eventhub.writer;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import gobblin.writer.WriteCallback;
 
 
 public class EventhubAccumulatorTest {
+  private CountDownLatch latchEmpty = new CountDownLatch(1);
+  private CountDownLatch latchCapacity = new CountDownLatch(1);
+
   @Test
   public void testAccumulatorEmpty() throws IOException, InterruptedException{
     EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
@@ -19,7 +24,7 @@ public class EventhubAccumulatorTest {
     accumulator.getNextAvailableBatch();
     accumulator.getNextAvailableBatch();
 
-    Thread.sleep(500);
+    this.latchEmpty.await();
     // The spawned thread should unblock current thread because it removes some front batches
     Assert.assertEquals(accumulator.getNumOfBatches(), 2);
   }
@@ -45,7 +50,7 @@ public class EventhubAccumulatorTest {
     accumulator.append(record, WriteCallback.EMPTY);
     accumulator.append(record, WriteCallback.EMPTY);
 
-    Thread.sleep(500);
+    this.latchCapacity.await();
     // The spawned thread should unblock current thread because it removes some front batches
     Assert.assertEquals(accumulator.getNumOfBatches(), 4);
   }
@@ -130,6 +135,7 @@ public class EventhubAccumulatorTest {
         this.accumulator.getNextAvailableBatch();
         this.accumulator.getNextAvailableBatch();
         this.accumulator.getNextAvailableBatch();
+        latchCapacity.countDown();
       } catch (InterruptedException e) {
       }
     }
@@ -153,6 +159,7 @@ public class EventhubAccumulatorTest {
         accumulator.append(record, WriteCallback.EMPTY);
         accumulator.append(record, WriteCallback.EMPTY);
         accumulator.append(record, WriteCallback.EMPTY);
+        latchEmpty.countDown();
       } catch (InterruptedException e) {
       }
     }

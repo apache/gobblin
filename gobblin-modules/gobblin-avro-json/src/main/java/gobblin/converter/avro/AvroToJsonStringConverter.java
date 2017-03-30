@@ -14,29 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.converter.avro;
 
-apply plugin: 'java'
-apply plugin: 'me.champeau.gradle.jmh'
+import java.nio.charset.StandardCharsets;
 
-dependencies {
-  /*
-   * Keep these dependencies as small as possible: we should not rely on
-   * gobblin-runtime, -core etc as they pull in huge transitive dependency trees!
-   */
-  compile project(":gobblin-api")
-  compile project(":gobblin-modules:gobblin-codecs")
-  compile project(":gobblin-modules:gobblin-metadata")
-  compile externalDependency.slf4j
 
-  testCompile project(":gobblin-core-base") // for EncryptionConfigParser
-  testCompile project(":gobblin-test-utils")
-  testCompile externalDependency.testng
-}
-
-ext.classification="library"
-
-jmh {
-  include = ""
-  zip64 = true
-  duplicateClassesStrategy = "EXCLUDE"
+public class AvroToJsonStringConverter extends AvroToJsonStringConverterBase<String> {
+  @Override
+  protected String processUtf8Bytes(byte[] utf8Bytes) {
+    return new String(utf8Bytes, StandardCharsets.UTF_8);
+  }
 }

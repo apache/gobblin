@@ -113,7 +113,7 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
 
       // Create a new batch because previous one has no space
       EventhubBatch batch = new EventhubBatch(this.memSizeLimit, this.expireInMilliSecond);
-      LOG.info("Batch " + batch.getId() + " is generated");
+      LOG.debug("Batch " + batch.getId() + " is generated");
       Future<RecordMetadata> future = batch.tryAppend(record, callback);
 
       // Even single record can exceed the batch size limit
@@ -201,7 +201,7 @@ public class EventhubBatchAccumulator extends BatchAccumulator<String> {
           if (dq.size() > 1) {
             EventhubBatch candidate = dq.poll();
             EventhubBatchAccumulator.this.notFull.signal();
-            LOG.info ("retrieve batch " + candidate.getId());
+            LOG.debug ("retrieve batch " + candidate.getId());
             return candidate;
           }
 
