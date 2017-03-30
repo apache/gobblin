@@ -56,7 +56,7 @@ public class ConfigurationKeys {
   // File system URI for file-system-based task store
   public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
   // Thread pool size for listing dataset state store
-  public static final String THREADPOOL_SIZE_OF_LISTING_FS_DATASET_STATESTORE = "state.store.threadpoolSizeOfLisingFsDatasetStateStore";
+  public static final String THREADPOOL_SIZE_OF_LISTING_FS_DATASET_STATESTORE = "state.store.threadpoolSizeOfListingFsDatasetStateStore";
   public static final int DEFAULT_THREADPOOL_SIZE_OF_LISTING_FS_DATASET_STATESTORE = 10;
   // Enable / disable state store
   public static final String STATE_STORE_ENABLED = "state.store.enabled";

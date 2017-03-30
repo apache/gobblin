@@ -74,8 +74,9 @@ public class State implements WritableShim {
   }
 
   public State(State otherState) {
-    this.specProperties = otherState.getSpecProperties();
     this.commonProperties = otherState.getCommonProperties();
+    this.specProperties = new Properties();
+    this.specProperties.putAll(otherState.getSpecProperties());
   }
 
   /**
@@ -101,6 +102,7 @@ public class State implements WritableShim {
    * @param otherState the other {@link State} instance
    */
   public void addAll(State otherState) {
+    addAll(otherState.commonProperties);
     addAll(otherState.specProperties);
   }
 
@@ -119,6 +121,7 @@ public class State implements WritableShim {
    * @param otherState a {@link State} instance
    */
   public void addAllIfNotExist(State otherState) {
+    addAllIfNotExist(otherState.commonProperties);
     addAllIfNotExist(otherState.specProperties);
   }
 
@@ -141,6 +144,7 @@ public class State implements WritableShim {
    * @param otherState a {@link State} instance
    */
   public void overrideWith(State otherState) {
+    overrideWith(otherState.commonProperties);
     overrideWith(otherState.specProperties);
   }
 

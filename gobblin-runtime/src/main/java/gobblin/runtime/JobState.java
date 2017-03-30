@@ -28,13 +28,10 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.io.Text;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
@@ -509,7 +506,7 @@ public class JobState extends SourceState {
       Properties newSpecProps = new Properties();
       newSpecProps.putAll(
           Maps.difference(immutableCommonProperties, taskState.getWorkunit().getProperties()).entriesOnlyOnRight());
-      taskState.setWuProperties(commonWuProps, newSpecProps);
+      taskState.setWuProperties(immutableCommonProperties, newSpecProps);
     }
   }
 
