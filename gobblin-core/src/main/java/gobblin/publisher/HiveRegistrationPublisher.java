@@ -17,8 +17,6 @@
 
 package gobblin.publisher;
 
-import com.google.common.base.Splitter;
-import gobblin.hive.metastore.HiveMetaStoreUtils;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
@@ -33,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
@@ -43,6 +42,7 @@ import gobblin.hive.HiveRegProps;
 import gobblin.hive.HiveRegister;
 import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
+import gobblin.hive.metastore.HiveMetaStoreUtils;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.util.ExecutorsUtils;
 
@@ -103,7 +103,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
     // runtime.props are comma-separated props collected in runtime.
     Set<String> pathsToRegisterFromSingleState = Sets.newHashSet() ;
     for (State state:states) {
-      State taskSpecificState = super.state;
+      State taskSpecificState = state;
       if (state.contains(ConfigurationKeys.PUBLISHER_DIRS)) {
 
         // Upstream data attribute is specified, need to inject these info into superState as runtimeTableProps.
