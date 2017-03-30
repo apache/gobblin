@@ -232,7 +232,7 @@ public class Partitioner {
    * @param diff the amount of difference
    * @return the adjusted watermark value
    */
-  synchronized private static long adjustWatermark(String baseWatermark, WatermarkType watermarkType, int diff) {
+  private static long adjustWatermark(String baseWatermark, WatermarkType watermarkType, int diff) {
     SimpleDateFormat watermarkTimeParser = new SimpleDateFormat(WATERMARKTIMEFORMAT);
     Date date;
     long result = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
