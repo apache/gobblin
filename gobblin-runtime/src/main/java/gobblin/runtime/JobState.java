@@ -60,6 +60,7 @@ import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.ImmutableProperties;
 
 
 /**
@@ -485,8 +486,7 @@ public class JobState extends SourceState {
     super.readFields(in);
   }
 
-  @VisibleForTesting
-  protected void getTaskStateWithCommonAndSpecWuProps(int numTaskStates, DataInput in)
+  private void getTaskStateWithCommonAndSpecWuProps(int numTaskStates, DataInput in)
       throws IOException {
     Properties commonWuProps = new Properties();
 
@@ -504,9 +504,11 @@ public class JobState extends SourceState {
 
       this.taskStates.put(taskState.getTaskId().intern(), taskState);
     }
+    ImmutableProperties immutableCommonProperties = new ImmutableProperties(commonWuProps);
     for (TaskState taskState : this.taskStates.values()) {
       Properties newSpecProps = new Properties();
-      newSpecProps.putAll(Maps.difference(commonWuProps, taskState.getWorkunit().getProperties()).entriesOnlyOnRight());
+      newSpecProps.putAll(
+          Maps.difference(immutableCommonProperties, taskState.getWorkunit().getProperties()).entriesOnlyOnRight());
       taskState.setWuProperties(commonWuProps, newSpecProps);
     }
   }
