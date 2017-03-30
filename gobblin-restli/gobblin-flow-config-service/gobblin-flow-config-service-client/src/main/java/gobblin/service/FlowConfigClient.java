@@ -68,6 +68,19 @@ public class FlowConfigClient implements Closeable {
   }
 
   /**
+   * Construct a {@link FlowConfigClient} to communicate with http flow config server at URI serverUri
+   * @param restClient restClient to send restli request
+   */
+  public FlowConfigClient(RestClient restClient) {
+    LOG.debug("FlowConfigClient with restClient " + restClient);
+
+    _httpClientFactory = Optional.absent();
+    _restClient = Optional.of(restClient);
+
+    _flowconfigsRequestBuilders = new FlowconfigsRequestBuilders();
+  }
+
+  /**
    * Create a flow configuration
    * @param flowConfig flow configuration attributes
    * @throws RemoteInvocationException
