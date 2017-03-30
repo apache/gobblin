@@ -28,5 +28,13 @@ import gobblin.metadata.types.GlobalMetadata;
  * and is the one responsible for processing any metadata that flows through the conversion pipeline.
  */
 public interface MetadataAwareWriter {
+  /**
+   * Get default metadata that will be attached to records that pass through this writer.
+   * For example, if the writer always gzip's data that passes through it, it would implement
+   * this method and return a new GlobalMetadata object record with transferEncoding: ['gzip'].
+   *
+   * This default metadata will be merged with the RecordWithMetadata that is added to each record
+   * by the source and converters in the pipeline.
+   */
   GlobalMetadata getDefaultMetadata();
 }
