@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.math.DoubleMath;
 import com.google.common.primitives.Ints;
+
 import gobblin.source.extractor.extract.QueryBasedExtractor;
 
 
@@ -37,8 +38,7 @@ public class TimestampWatermark implements Watermark {
   private static final Logger LOG = LoggerFactory.getLogger(TimestampWatermark.class);
   // default water mark format(input format) example: 20140301050505
   private static final String INPUTFORMAT = "yyyyMMddHHmmss";
-  private static final SimpleDateFormat INPUTFORMATPARSER = new SimpleDateFormat(INPUTFORMAT);
-
+  private final SimpleDateFormat inputFormatParser;
   private static final int deltaForNextWatermark = 1;
   private String watermarkColumn;
   private String watermarkFormat;
@@ -46,12 +46,13 @@ public class TimestampWatermark implements Watermark {
   public TimestampWatermark(String watermarkColumn, String watermarkFormat) {
     this.watermarkColumn = watermarkColumn;
     this.watermarkFormat = watermarkFormat;
+    inputFormatParser = new SimpleDateFormat(INPUTFORMAT);
   }
 
   @Override
   public String getWatermarkCondition(QueryBasedExtractor<?, ?> extractor, long watermarkValue, String operator) {
-    return extractor.getTimestampPredicateCondition(this.watermarkColumn, watermarkValue, this.watermarkFormat,
-        operator);
+    return extractor
+        .getTimestampPredicateCondition(this.watermarkColumn, watermarkValue, this.watermarkFormat, operator);
   }
 
   @Override
@@ -62,8 +63,8 @@ public class TimestampWatermark implements Watermark {
   @Override
   synchronized public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue,
       long partitionInterval, int maxIntervals) {
-    Preconditions.checkArgument(partitionInterval >= 1,
-        "Invalid value for partitionInterval, value should be at least 1.");
+    Preconditions
+        .checkArgument(partitionInterval >= 1, "Invalid value for partitionInterval, value should be at least 1.");
     Preconditions.checkArgument(maxIntervals > 0, "Invalid value for maxIntervals, positive value expected.");
 
     HashMap<Long, Long> intervalMap = new HashMap<>();
@@ -91,11 +92,11 @@ public class TimestampWatermark implements Watermark {
     long lwm;
     long hwm;
     while (startTime.getTime() <= endTime.getTime()) {
-      lwm = Long.parseLong(INPUTFORMATPARSER.format(startTime));
+      lwm = Long.parseLong(inputFormatParser.format(startTime));
       calendar.setTime(startTime);
       calendar.add(Calendar.HOUR, (int) interval);
       nextTime = calendar.getTime();
-      hwm = Long.parseLong(INPUTFORMATPARSER.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
+      hwm = Long.parseLong(inputFormatParser.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
       LOG.debug("Partition - low:" + lwm + "; high:" + hwm);
       calendar.add(Calendar.SECOND, deltaForNextWatermark);
