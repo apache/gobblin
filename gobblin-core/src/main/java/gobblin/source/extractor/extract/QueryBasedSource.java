@@ -225,6 +225,8 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
         if (partition.getHasUserSpecifiedHighWatermark()) {
           workunit.setProp(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK, true);
         }
+        workunit.setProp(Partition.IS_LOWWATERMARK_INCLUSIVE, partition.isLowWatermarkInclusive());
+        workunit.setProp(Partition.IS_HIGHWATERMARK_INCLUSIVE, partition.isHighWatermarkInclusive());
         workUnits.add(workunit);
       }
 

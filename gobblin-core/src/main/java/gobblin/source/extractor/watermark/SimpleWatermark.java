@@ -71,7 +71,7 @@ public class SimpleWatermark implements Watermark {
       longOverflow = (Long.MAX_VALUE - interval < startNum);
       nextNum = longOverflow ? Long.MAX_VALUE : startNum + interval;
       intervalMap.put(startNum, (nextNum <= endNum ? nextNum : endNum));
-      startNum = nextNum + deltaForNextWatermark;
+      startNum = nextNum;
     }
     return intervalMap;
   }
@@ -109,5 +109,16 @@ public class SimpleWatermark implements Watermark {
 
     }
     return outputInterval;
+  }
+
+  /**
+   * Adjust the given watermark by diff
+   *
+   * @param baseWatermark the original watermark
+   * @param diff the amount to change
+   * @return the adjusted watermark value
+   */
+  public static long adjustWatermark(String baseWatermark, int diff) {
+    return Long.parseLong(baseWatermark) + diff;
   }
 }

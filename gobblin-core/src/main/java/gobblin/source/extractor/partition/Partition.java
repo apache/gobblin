@@ -15,6 +15,9 @@ import lombok.Getter;
  * <p>
  *   A {@link Source} partitions its data into a collection of {@link Partition}, each of which will be used to create
  *   a {@link WorkUnit}.
+ *
+ *   By default, {@link #isLowWatermarkInclusive} is true, {@link #isHighWatermarkInclusive} is false,
+ *   {@link #hasUserSpecifiedHighWatermark} is false
  * </p>
  *
  * @author zhchen
@@ -22,8 +25,17 @@ import lombok.Getter;
 @AllArgsConstructor
 @EqualsAndHashCode
 public class Partition {
-  @Getter private final long lowWatermark;
-  @Getter private final long highWatermark;
+  public static final String IS_LOWWATERMARK_INCLUSIVE = "partition.isLowWatermarkInclusive";
+  public static final String IS_HIGHWATERMARK_INCLUSIVE = "partition.isLowWatermarkInclusive";
+
+  @Getter
+  private final long lowWatermark;
+  @Getter
+  private final boolean isLowWatermarkInclusive;
+  @Getter
+  private final long highWatermark;
+  @Getter
+  private final boolean isHighWatermarkInclusive;
 
   /**
    * Indicate if the Partition highWatermark is set as user specifies, not computed on the fly
@@ -31,7 +43,16 @@ public class Partition {
   private final boolean hasUserSpecifiedHighWatermark;
 
   public Partition(long lowWatermark, long highWatermark) {
-    this(lowWatermark, highWatermark, false);
+    this(lowWatermark, true, highWatermark, false, false);
+  }
+
+  public Partition(long lowWatermark, long highWatermark, boolean isHighWatermarkInclusive,
+      boolean hasUserSpecifiedHighWatermark) {
+    this(lowWatermark, true, highWatermark, isHighWatermarkInclusive, hasUserSpecifiedHighWatermark);
+  }
+
+  public Partition(long lowWatermark, long highWatermark, boolean hasUserSpecifiedHighWatermark) {
+    this(lowWatermark, true, highWatermark, false, hasUserSpecifiedHighWatermark);
   }
 
   public boolean getHasUserSpecifiedHighWatermark() {

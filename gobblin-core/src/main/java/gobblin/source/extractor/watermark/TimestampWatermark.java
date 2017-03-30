@@ -32,6 +32,7 @@ import com.google.common.math.DoubleMath;
 import com.google.common.primitives.Ints;
 
 import gobblin.source.extractor.extract.QueryBasedExtractor;
+import gobblin.source.extractor.utils.Utils;
 
 
 public class TimestampWatermark implements Watermark {
@@ -99,8 +100,7 @@ public class TimestampWatermark implements Watermark {
       hwm = Long.parseLong(inputFormatParser.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
       LOG.debug("Partition - low:" + lwm + "; high:" + hwm);
-      calendar.add(Calendar.SECOND, deltaForNextWatermark);
-      startTime = calendar.getTime();
+      startTime = nextTime;
     }
     return intervalMap;
   }
@@ -133,5 +133,23 @@ public class TimestampWatermark implements Watermark {
       throw new RuntimeException(e.getMessage(), e);
     }
     return date.getTime();
+  }
+
+  /**
+   * Adjust the given watermark by diff
+   *
+   * @param baseWatermark the original watermark
+   * @param diff the amount to change
+   * @return the adjusted watermark value
+   */
+  public static long adjustWatermark(String baseWatermark, int diff) {
+    SimpleDateFormat parser = new SimpleDateFormat(INPUTFORMAT);
+    try {
+      Date date = parser.parse(baseWatermark);
+      return Long.parseLong(parser.format(Utils.addSecondsToDate(date, diff)));
+    } catch (ParseException e) {
+      LOG.error("Fail to adjust timestamp watermark", e);
+    }
+    return -1;
   }
 }

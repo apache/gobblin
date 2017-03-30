@@ -22,6 +22,7 @@ import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.exception.ExtractPrepareException;
 import gobblin.source.extractor.exception.HighWatermarkException;
+import gobblin.source.extractor.partition.Partition;
 import gobblin.source.extractor.partition.Partitioner;
 import gobblin.source.extractor.schema.ArrayDataType;
 import gobblin.source.extractor.schema.DataType;
@@ -397,16 +398,19 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    */
   private void setRangePredicates(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue) {
     log.debug("Getting range predicates");
+    String lwmOperator = this.workUnit.getPropAsBoolean(Partition.IS_LOWWATERMARK_INCLUSIVE) ? ">=" : ">";
+    String hwmOperator = this.workUnit.getPropAsBoolean(Partition.IS_HIGHWATERMARK_INCLUSIVE) ? "<=" : "<";
+
     WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
-    this.addPredicates(watermark.getPredicate(this, lwmValue, ">=", Predicate.PredicateType.LWM));
-    this.addPredicates(watermark.getPredicate(this, hwmValue, "<=", Predicate.PredicateType.HWM));
+    this.addPredicates(watermark.getPredicate(this, lwmValue, lwmOperator, Predicate.PredicateType.LWM));
+    this.addPredicates(watermark.getPredicate(this, hwmValue, hwmOperator, Predicate.PredicateType.HWM));
 
     if (Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_HOURLY_EXTRACT))) {
       String hourColumn = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_HOUR_COLUMN);
       if (StringUtils.isNotBlank(hourColumn)) {
         WatermarkPredicate hourlyWatermark = new WatermarkPredicate(hourColumn, WatermarkType.HOUR);
-        this.addPredicates(hourlyWatermark.getPredicate(this, lwmValue, ">=", Predicate.PredicateType.LWM));
-        this.addPredicates(hourlyWatermark.getPredicate(this, hwmValue, "<=", Predicate.PredicateType.HWM));
+        this.addPredicates(hourlyWatermark.getPredicate(this, lwmValue, lwmOperator, Predicate.PredicateType.LWM));
+        this.addPredicates(hourlyWatermark.getPredicate(this, hwmValue, hwmOperator, Predicate.PredicateType.HWM));
       }
     }
   }

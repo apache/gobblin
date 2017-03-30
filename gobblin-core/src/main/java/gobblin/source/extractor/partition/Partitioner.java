@@ -17,11 +17,9 @@
 
 package gobblin.source.extractor.partition;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +36,10 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.source.extractor.extract.ExtractType;
 import gobblin.source.extractor.utils.Utils;
+import gobblin.source.extractor.watermark.DateWatermark;
+import gobblin.source.extractor.watermark.HourWatermark;
+import gobblin.source.extractor.watermark.SimpleWatermark;
+import gobblin.source.extractor.watermark.TimestampWatermark;
 import gobblin.source.extractor.watermark.WatermarkPredicate;
 import gobblin.source.extractor.watermark.WatermarkType;
 
@@ -46,8 +48,6 @@ import gobblin.source.extractor.watermark.WatermarkType;
  * An implementation of default partitioner for all types of sources
  */
 public class Partitioner {
-  private static final String WATERMARKDATEFORMAT = "yyyyMMdd";
-  private static final String WATERMARKHOURFORMAT = "yyyyMMddHH";
   private static final String WATERMARKTIMEFORMAT = "yyyyMMddHHmmss";
   private static final Logger LOG = LoggerFactory.getLogger(Partitioner.class);
   public static final String HAS_USER_SPECIFIED_HIGH_WATERMARK = "partitioner.hasUserSpecifiedHighWatermark";
@@ -162,7 +162,7 @@ public class Partitioner {
       Long partitionHighWatermark = entry.getValue();
       // Apply hasUserSpecifiedHighWatermark to the last partition, which has highestWatermark
       if (partitionHighWatermark.equals(highestWatermark)) {
-        partitions.add(new Partition(entry.getKey(), partitionHighWatermark, hasUserSpecifiedHighWatermark));
+        partitions.add(new Partition(entry.getKey(), partitionHighWatermark, true, hasUserSpecifiedHighWatermark));
       } else {
         // The partitionHighWatermark was computed on the fly not what user specifies
         partitions.add(new Partition(entry.getKey(), partitionHighWatermark, false));
@@ -173,84 +173,78 @@ public class Partitioner {
 
   /**
    * Generate the partitions based on the lists specified by the user in job config
-   *
-   * TODO: allow only one partition point and find a way to simply the logic if possible
    */
   private List<Partition> createUserSpecifiedPartitions() {
     List<Partition> partitions = new ArrayList<>();
 
     List<String> watermarkPoints = state.getPropAsList(USER_SPECIFIED_PARTITIONS);
-    if (watermarkPoints == null || watermarkPoints.size() < 2) {
-      LOG.info("There should be at least 2 partition points");
-      partitions.add(
-          new Partition(ConfigurationKeys.DEFAULT_WATERMARK_VALUE, ConfigurationKeys.DEFAULT_WATERMARK_VALUE, true));
+    if (watermarkPoints == null || watermarkPoints.size() == 0 ) {
+      LOG.info("There should be some partition points");
+      long defaultWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+      partitions.add(new Partition(defaultWatermark, defaultWatermark, true, true));
       return partitions;
     }
 
-    ExtractType extractType =
-        ExtractType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
     WatermarkType watermarkType = WatermarkType.valueOf(
         state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, ConfigurationKeys.DEFAULT_WATERMARK_TYPE)
             .toUpperCase());
 
-    String prevWatermark = watermarkPoints.get(0);
-    String curWatermark;
-    int i;
-    for (i = 1; i < watermarkPoints.size() - 1; i++) {
-      curWatermark = watermarkPoints.get(i);
-      partitions.add(new Partition(adjustWatermark(prevWatermark, watermarkType, 0),
-          adjustWatermark(curWatermark, watermarkType, -1), true));
-      prevWatermark = curWatermark;
+    long lowWatermark = adjustWatermark(watermarkPoints.get(0), watermarkType);
+    long highWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+    if (watermarkType != WatermarkType.SIMPLE) {
+      String timeZone = this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE);
+      highWatermark =
+          Long.parseLong(Utils.dateTimeToString(getCurrentTime(timeZone), WATERMARKTIMEFORMAT, timeZone));
+    }
+    // Only one partition point specified
+    if (watermarkPoints.size() == 1) {
+      partitions.add(new Partition(lowWatermark, highWatermark, true, false));
+      return partitions;
     }
 
-    curWatermark = watermarkPoints.get(i);
+    int i;
+    for (i = 1; i < watermarkPoints.size() - 1; i++) {
+      highWatermark = adjustWatermark(watermarkPoints.get(i), watermarkType);
+      partitions.add(new Partition(lowWatermark, highWatermark, true));
+      lowWatermark = highWatermark;
+    }
+
+    // Last partition
+    highWatermark = adjustWatermark(watermarkPoints.get(i), watermarkType);
+    ExtractType extractType =
+        ExtractType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
     if (isFullDump() || isSnapshot(extractType)) {
-      partitions.add(new Partition(adjustWatermark(prevWatermark, watermarkType, 0),
-          adjustWatermark(curWatermark, watermarkType, -1), true));
-      prevWatermark = curWatermark;
-      long highWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-      if (watermarkType != WatermarkType.SIMPLE) {
-        String timeZone = this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE);
-        highWatermark = Long.parseLong(Utils.dateTimeToString(getCurrentTime(timeZone), WATERMARKTIMEFORMAT, timeZone));
-      }
-      // Last partition, the upper bounds can be removed for last work unit
-      partitions.add(new Partition(adjustWatermark(prevWatermark, watermarkType, 0), highWatermark, false));
+      // The upper bounds can be removed for last work unit
+      partitions.add(new Partition(lowWatermark, highWatermark, true, false));
     } else {
-      // Last partition, the upper bounds can not be removed for last work unit
-      partitions.add(new Partition(adjustWatermark(prevWatermark, watermarkType, 0),
-          adjustWatermark(curWatermark, watermarkType, 0), true));
+      // The upper bounds can not be removed for last work unit
+      partitions.add(new Partition(lowWatermark, highWatermark, true, true));
     }
 
     return partitions;
   }
 
   /**
-   * Adjust a watermark based on watermark type by diff
+   * Adjust a watermark based on watermark type
    *
    * @param baseWatermark the original watermark
    * @param watermarkType Watermark Type
-   * @param diff the amount of difference
    * @return the adjusted watermark value
    */
-  private static long adjustWatermark(String baseWatermark, WatermarkType watermarkType, int diff) {
-    SimpleDateFormat watermarkTimeParser = new SimpleDateFormat(WATERMARKTIMEFORMAT);
-    Date date;
+  private static long adjustWatermark(String baseWatermark, WatermarkType watermarkType) {
     long result = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
     switch (watermarkType) {
       case SIMPLE:
-        result = Long.parseLong(baseWatermark) + diff;
+        result = SimpleWatermark.adjustWatermark(baseWatermark, 0);
         break;
       case DATE:
-        date = Utils.toDate(baseWatermark, WATERMARKTIMEFORMAT, WATERMARKDATEFORMAT);
-        result = Long.parseLong(watermarkTimeParser.format(Utils.addDaysToDate(date, diff)));
+        result = DateWatermark.adjustWatermark(baseWatermark, 0);
         break;
       case HOUR:
-        date = Utils.toDate(baseWatermark, WATERMARKTIMEFORMAT, WATERMARKHOURFORMAT);
-        result = Long.parseLong(watermarkTimeParser.format(Utils.addHoursToDate(date, diff)));
+        result = HourWatermark.adjustWatermark(baseWatermark, 0);
         break;
       case TIMESTAMP:
-        date = Utils.toDate(baseWatermark, WATERMARKTIMEFORMAT, WATERMARKTIMEFORMAT);
-        result = Long.parseLong(watermarkTimeParser.format(Utils.addSecondsToDate(date, diff)));
+        result = TimestampWatermark.adjustWatermark(baseWatermark, 0);
         break;
     }
     return result;
