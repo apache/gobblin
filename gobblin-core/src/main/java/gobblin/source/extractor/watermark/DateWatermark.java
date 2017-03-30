@@ -32,6 +32,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.math.DoubleMath;
 import com.google.common.primitives.Ints;
+
 import gobblin.source.extractor.extract.QueryBasedExtractor;
 
 
@@ -41,8 +42,7 @@ public class DateWatermark implements Watermark {
   private static final String INPUTFORMAT = "yyyyMMddHHmmss";
   // output format of date water mark example: 20140301
   private static final String OUTPUTFORMAT = "yyyyMMdd";
-  private static final SimpleDateFormat INPUTFORMATPARSER = new SimpleDateFormat(INPUTFORMAT);
-
+  private final SimpleDateFormat inputFormatParser;
   private static final int deltaForNextWatermark = 24 * 60 * 60;
   private String watermarkColumn;
   private String watermarkFormat;
@@ -50,6 +50,7 @@ public class DateWatermark implements Watermark {
   public DateWatermark(String watermarkColumn, String watermarkFormat) {
     this.watermarkColumn = watermarkColumn;
     this.watermarkFormat = watermarkFormat;
+    inputFormatParser = new SimpleDateFormat(INPUTFORMAT);
   }
 
   @Override
@@ -91,11 +92,11 @@ public class DateWatermark implements Watermark {
     long lwm;
     long hwm;
     while (startTime.getTime() <= endTime.getTime()) {
-      lwm = Long.parseLong(INPUTFORMATPARSER.format(startTime));
+      lwm = Long.parseLong(inputFormatParser.format(startTime));
       calendar.setTime(startTime);
       calendar.add(Calendar.DATE, interval - 1);
       nextTime = calendar.getTime();
-      hwm = Long.parseLong(INPUTFORMATPARSER.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
+      hwm = Long.parseLong(inputFormatParser.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
       LOG.debug("Partition - low:" + lwm + "; high:" + hwm);
       calendar.add(Calendar.SECOND, deltaForNextWatermark);
