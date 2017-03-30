@@ -66,6 +66,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   protected final WorkUnit workUnit;
   private final String entity;
   private final String schema;
+  private final boolean isLastWorkUnit;
 
   private boolean fetchStatus = true;
   private S outputSchema;
@@ -114,6 +115,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     this.workUnit = this.workUnitState.getWorkunit();
     this.schema = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
     this.entity = this.workUnitState.getProp(ConfigurationKeys.SOURCE_ENTITY);
+    isLastWorkUnit = workUnit.getPropAsBoolean(QueryBasedSource.IS_LAST_WORK_UNIT);
     MDC.put("tableName", getWorkUnitName());
   }
 
@@ -184,7 +186,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    */
   private boolean shouldRemoveDataPullUpperBounds() {
     // Only consider the last work unit
-    if (!this.workUnit.getPropAsBoolean(QueryBasedSource.IS_LAST_WORK_UNIT)) {
+    if (!isLastWorkUnit) {
       return false;
     }
 
@@ -297,16 +299,22 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       this.extractMetadata(this.schema, this.entity, this.workUnit);
 
       if (StringUtils.isNotBlank(watermarkColumn)) {
-        this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
-        log.info("High water mark from source: " + this.highWatermark);
-        // If high water mark is found, then consider the same as runtime high water mark.
-        // Else, consider the low water mark as high water mark(with no delta).i.e, don't move the pointer
-        long currentRunHighWatermark = (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE
-            ? this.highWatermark : this.getLowWatermarkWithNoDelta(lwm));
+        if (isLastWorkUnit) {
+          // Get a more accurate high watermark from the source
+          long adjustedHighWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
+          log.info("High water mark from source: " + adjustedHighWatermark);
+          // If the source reports a finer high watermark, then consider the same as runtime high watermark.
+          // Else, consider the low watermark as high water mark(with no delta).i.e, don't move the pointer
+          if (adjustedHighWatermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
+            adjustedHighWatermark = getLowWatermarkWithNoDelta(lwm);
+          }
+          this.highWatermark = adjustedHighWatermark;
+        } else {
+          this.highWatermark = hwm;
+        }
 
-        log.info("High water mark for the current run: " + currentRunHighWatermark);
-        this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
-        this.highWatermark = currentRunHighWatermark;
+        log.info("High water mark for the current run: " + highWatermark);
+        this.setRangePredicates(watermarkColumn, watermarkType, lwm, highWatermark);
       }
 
       // if it is set to true, skip count calculation and set source count to -1
@@ -387,19 +395,17 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 
   /**
    * range predicates for watermark column and transaction columns.
-   * @param string
-   * @param watermarkType
-   * @param watermark column
-   * @param date column(for appends)
-   * @param hour column(for appends)
-   * @param batch column(for appends)
-   * @param low watermark value
-   * @param high watermark value
+   *
+   * @param watermarkColumn name of the column used as watermark
+   * @param watermarkType watermark type
+   * @param lwmValue estimated low watermark value
+   * @param hwmValue estimated high watermark value
    */
   private void setRangePredicates(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue) {
     log.debug("Getting range predicates");
     String lwmOperator = this.workUnit.getPropAsBoolean(Partition.IS_LOWWATERMARK_INCLUSIVE) ? ">=" : ">";
-    String hwmOperator = this.workUnit.getPropAsBoolean(Partition.IS_HIGHWATERMARK_INCLUSIVE) ? "<=" : "<";
+    String hwmOperator =
+        (isLastWorkUnit || this.workUnit.getPropAsBoolean(Partition.IS_HIGHWATERMARK_INCLUSIVE)) ? "<=" : "<";
 
     WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
     this.addPredicates(watermark.getPredicate(this, lwmValue, lwmOperator, Predicate.PredicateType.LWM));

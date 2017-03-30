@@ -67,10 +67,10 @@ public class SimpleWatermark implements Watermark {
     long startNum = lowWatermarkValue;
     long endNum = highWatermarkValue;
     boolean longOverflow = false;
-    while (startNum <= endNum && !longOverflow) {
+    while (startNum < endNum && !longOverflow) {
       longOverflow = (Long.MAX_VALUE - interval < startNum);
-      nextNum = longOverflow ? Long.MAX_VALUE : startNum + interval;
-      intervalMap.put(startNum, (nextNum <= endNum ? nextNum : endNum));
+      nextNum = longOverflow ? Long.MAX_VALUE : Math.min(startNum + interval, endNum);
+      intervalMap.put(startNum, nextNum);
       startNum = nextNum;
     }
     return intervalMap;

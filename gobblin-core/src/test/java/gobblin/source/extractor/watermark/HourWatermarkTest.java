@@ -59,7 +59,6 @@ public class HourWatermarkTest {
     int maxInterval = 4;
     Map<Long, Long> results = datewm.getIntervals(lwm, hwm, partition, maxInterval);
     Map<Long, Long> expected = Maps.newHashMap();
-    expected.put(20150201010000l, 20150201010000l);
     Assert.assertEquals(results, expected);
   }
 
@@ -79,7 +78,7 @@ public class HourWatermarkTest {
     Map<Long, Long> results = hourwm.getIntervals(lwm, hwm, partition, maxInterval);
     Map<Long, Long> expected = Maps.newHashMap();
     expected.put(20150201010000l, 20150201030000l);
-    expected.put(20150201040000l, 20150201050000l);
+    expected.put(20150201030000l, 20150201050000l);
     Assert.assertEquals(results, expected);
   }
 
@@ -98,7 +97,7 @@ public class HourWatermarkTest {
     Map<Long, Long> results = hourwm.getIntervals(lwm, hwm, partition, maxInterval);
     Map<Long, Long> expected = Maps.newHashMap();
     expected.put(20150201010000l, 20150201130000l);
-    expected.put(20150201140000l, 20150202010000l);
+    expected.put(20150201130000l, 20150202010000l);
     Assert.assertEquals(results, expected);
   }
 

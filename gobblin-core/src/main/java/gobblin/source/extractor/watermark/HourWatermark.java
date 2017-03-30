@@ -91,10 +91,10 @@ public class HourWatermark implements Watermark {
     LOG.debug("Start time:" + startTime + "; End time:" + endTime);
     long lwm;
     long hwm;
-    while (startTime.getTime() <= endTime.getTime()) {
+    while (startTime.getTime() < endTime.getTime()) {
       lwm = Long.parseLong(inputFormatParser.format(startTime));
       calendar.setTime(startTime);
-      calendar.add(Calendar.HOUR, interval - 1);
+      calendar.add(Calendar.HOUR, interval);
       nextTime = calendar.getTime();
       hwm = Long.parseLong(inputFormatParser.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
@@ -118,7 +118,7 @@ public class HourWatermark implements Watermark {
     if (totalIntervals > maxIntervals) {
       hourInterval = DoubleMath.roundToInt((double) totalHours / maxIntervals, RoundingMode.CEILING);
     }
-    return Ints.checkedCast(hourInterval) + 1;
+    return Ints.checkedCast(hourInterval);
   }
 
   /**

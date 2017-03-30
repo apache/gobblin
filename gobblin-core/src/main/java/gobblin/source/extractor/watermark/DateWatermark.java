@@ -92,10 +92,10 @@ public class DateWatermark implements Watermark {
     LOG.debug("Start time:" + startTime + "; End time:" + endTime);
     long lwm;
     long hwm;
-    while (startTime.getTime() <= endTime.getTime()) {
+    while (startTime.getTime() < endTime.getTime()) {
       lwm = Long.parseLong(inputFormatParser.format(startTime));
       calendar.setTime(startTime);
-      calendar.add(Calendar.DATE, interval - 1);
+      calendar.add(Calendar.DATE, interval);
       nextTime = calendar.getTime();
       hwm = Long.parseLong(inputFormatParser.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
@@ -119,9 +119,9 @@ public class DateWatermark implements Watermark {
     int totalIntervals = DoubleMath.roundToInt((double) totalHours / (dayInterval * 24), RoundingMode.CEILING);
     if (totalIntervals > maxIntervals) {
       hourInterval = DoubleMath.roundToInt((double) totalHours / maxIntervals, RoundingMode.CEILING);
-      dayInterval = TimeUnit.HOURS.toDays(hourInterval);
+      dayInterval = DoubleMath.roundToInt((double) hourInterval / 24, RoundingMode.CEILING);
     }
-    return Ints.checkedCast(dayInterval) + 1;
+    return Ints.checkedCast(dayInterval);
   }
 
   /**

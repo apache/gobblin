@@ -92,7 +92,7 @@ public class TimestampWatermark implements Watermark {
     LOG.debug("Sart time:" + startTime + "; End time:" + endTime);
     long lwm;
     long hwm;
-    while (startTime.getTime() <= endTime.getTime()) {
+    while (startTime.getTime() < endTime.getTime()) {
       lwm = Long.parseLong(inputFormatParser.format(startTime));
       calendar.setTime(startTime);
       calendar.add(Calendar.HOUR, (int) interval);

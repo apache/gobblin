@@ -191,13 +191,13 @@ public class Partitioner {
 
     long lowWatermark = adjustWatermark(watermarkPoints.get(0), watermarkType);
     long highWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-    if (watermarkType != WatermarkType.SIMPLE) {
-      String timeZone = this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE);
-      highWatermark =
-          Long.parseLong(Utils.dateTimeToString(getCurrentTime(timeZone), WATERMARKTIMEFORMAT, timeZone));
-    }
     // Only one partition point specified
     if (watermarkPoints.size() == 1) {
+      if (watermarkType != WatermarkType.SIMPLE) {
+        String timeZone = this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE);
+        String currentTime = Utils.dateTimeToString(getCurrentTime(timeZone), WATERMARKTIMEFORMAT, timeZone);
+        highWatermark = adjustWatermark(currentTime, watermarkType);
+      }
       partitions.add(new Partition(lowWatermark, highWatermark, true, false));
       return partitions;
     }
