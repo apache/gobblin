@@ -88,6 +88,10 @@ public class LocalTaskStateTracker extends AbstractTaskStateTracker {
       // it has not reached the maximum number of retries
       WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
       if (state == WorkUnitState.WorkingState.FAILED && task.getRetryCount() < this.maxTaskRetries) {
+        boolean restartFromFirstIterator = task.getTaskState().getPropAsBoolean(ConfigurationKeys.SOURCE_QUERYBASED_RETRY_RESETITERATOR, false);
+        if(restartFromFirstIterator) {
+          task.resetCount();
+        }
         this.taskExecutor.retry(task);
         return;
       }

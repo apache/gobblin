@@ -234,7 +234,6 @@ public class Task implements TaskIFace {
     }
   }
 
-
   private ExecutionModel getTaskMode(TaskContext taskContext) {
     String mode = taskContext.getTaskState()
         .getProp(TaskConfigurationKeys.TASK_EXECUTION_MODE, TaskConfigurationKeys.DEFAULT_TASK_EXECUTION_MODE);
@@ -880,5 +879,9 @@ public class Task implements TaskIFace {
       }
     }
     return true;
+  }
+
+  public void resetCount() {
+    recordsPulled.set(0L);
   }
 }
