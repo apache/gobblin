@@ -52,24 +52,24 @@ public class LimiterServerResourceTest {
     request.setResource("myResource");
     PermitAllocation allocation = limiterServer.get(new ComplexResourceKey<>(request, new EmptyRecord()));
 
-    Assert.assertEquals(allocation.getPermits(), new Long(10));
+    Assert.assertTrue(allocation.getPermits() >= 10);
 
   }
 
   @Test
   public void testLimitedRequests() {
 
-    SharedLimiterFactory factory = new SharedLimiterFactory();
+    ThrottlingPolicyFactory factory = new ThrottlingPolicyFactory();
     SharedLimiterKey res1key = new SharedLimiterKey("res1");
     SharedLimiterKey res2key = new SharedLimiterKey("res2");
 
     Map<String, String> configMap = ImmutableMap.<String, String>builder()
-        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, SharedLimiterFactory.LIMITER_CLASS_KEY),
-            CountBasedLimiter.FACTORY_ALIAS)
-        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, CountBasedLimiter.Factory.COUNT_KEY), "100")
-        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res2key, null, SharedLimiterFactory.LIMITER_CLASS_KEY),
-            CountBasedLimiter.FACTORY_ALIAS)
-        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res2key, null, CountBasedLimiter.Factory.COUNT_KEY), "50")
+        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, ThrottlingPolicyFactory.POLICY_KEY),
+            CountBasedPolicy.FACTORY_ALIAS)
+        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, CountBasedPolicy.COUNT_KEY), "100")
+        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res2key, null, ThrottlingPolicyFactory.POLICY_KEY),
+            CountBasedPolicy.FACTORY_ALIAS)
+        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res2key, null, CountBasedPolicy.COUNT_KEY), "50")
         .build();
 
     Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.parseMap(configMap));
@@ -114,7 +114,7 @@ public class LimiterServerResourceTest {
     }
 
     // No limit
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res3request, new EmptyRecord())).getPermits(), res3request.getPermits());
+    Assert.assertTrue(limiterServer.get(new ComplexResourceKey<>(res3request, new EmptyRecord())).getPermits() >= res3request.getPermits());
   }
 
   @Test
