@@ -174,6 +174,13 @@ Controls how often Gobblin checks the jobconf.dir for new configuration files, o
 300000
 ###### Required
 No
+#### jobscheduler.startup.timeout
+###### Description
+Value in seconds after which Scheduler will be considered as not running. Consider increasing the value when you use Quartz scheduler in clustered mode.
+###### Default value
+1
+###### Required
+No
 ## CliMRJobLauncher Properties <a name="CliMRJobLauncher-Properties"></a>
 There are no configuration parameters specific to CliMRJobLauncher. This class is used to launch Gobblin jobs on Hadoop from the command line, the jobs are not scheduled. Common properties are set using the `--sysconfig` option when launching jobs via the command line. For more information on how to set the configuration parameters for jobs launched through the command line, check out the [Deployment](Gobblin-Deployment) page.  
 ## AzkabanJobLauncher Properties <a name="AzkabanJobLauncher-Properties"></a>

@@ -94,6 +94,9 @@ public class ConfigurationKeys {
   // Note this only applies to jobs scheduled by the built-in Quartz-based job scheduler.
   public static final String SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY = "scheduler.wait.for.job.completion";
   public static final String DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION = Boolean.TRUE.toString();
+  // Timeout for starting a scheduler, in seconds. Useful when you are using quartz in clustered mode
+  public static final String JOB_SCHEDULER_STARTUP_TIMEOUT_KEY = "jobscheduler.startup.timeout";
+  public static final long DEFAULT_JOB_SCHEDULER_STARTUP_TIMEOUT = 1L;
 
 
   /**
