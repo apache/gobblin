@@ -69,6 +69,7 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.extractor.RecordEnvelope;
 import gobblin.source.extractor.StreamingExtractor;
+import gobblin.source.extractor.WorkUnitRetryMode;
 import gobblin.state.ConstructState;
 import gobblin.util.ConfigUtils;
 import gobblin.writer.AcknowledgableRecordEnvelope;
@@ -295,7 +296,7 @@ public class Task implements TaskIFace {
   @Override
   @SuppressWarnings("unchecked")
   public void run() {
-    recordsPulled.set(0L);
+    clearState();
     MDC.put(ConfigurationKeys.TASK_KEY_KEY, this.taskKey);
     this.startTime = System.currentTimeMillis();
     this.taskState.setStartTime(startTime);
@@ -426,6 +427,15 @@ public class Task implements TaskIFace {
     } finally {
       this.taskStateTracker.onTaskRunCompletion(this);
       completeShutdown();
+    }
+  }
+
+  //TODO: Incompleted
+  private void clearState() {
+    WorkUnitRetryMode retryMode =
+        WorkUnitRetryMode.forNameOrDefault(taskState.getProp(ConfigurationKeys.WORK_UNIT_RETRY_MODE_KEY));
+    if (retryMode == WorkUnitRetryMode.FULL) {
+      recordsPulled.set(0L);
     }
   }
 
