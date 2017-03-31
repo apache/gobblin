@@ -149,7 +149,6 @@ public class ConfigurationKeys {
   public static final int DEFAULT_DATASET_COMMIT_THREADS = 20;
 
   public static final String WORK_UNIT_RETRY_POLICY_KEY = "workunit.retry.policy";
-  public static final String WORK_UNIT_RETRY_MODE_KEY = "workunit.retry.mode";
   public static final String WORK_UNIT_RETRY_ENABLED_KEY = "workunit.retry.enabled";
   public static final String JOB_RUN_ONCE_KEY = "job.runonce";
   public static final String JOB_DISABLED_KEY = "job.disabled";
