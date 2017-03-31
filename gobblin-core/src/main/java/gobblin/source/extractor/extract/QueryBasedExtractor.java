@@ -66,7 +66,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   protected final WorkUnit workUnit;
   private final String entity;
   private final String schema;
-  private final boolean isLastWorkUnit;
+  private final Partition partition;
 
   private boolean fetchStatus = true;
   private S outputSchema;
@@ -115,7 +115,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     this.workUnit = this.workUnitState.getWorkunit();
     this.schema = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
     this.entity = this.workUnitState.getProp(ConfigurationKeys.SOURCE_ENTITY);
-    isLastWorkUnit = workUnit.getPropAsBoolean(QueryBasedSource.IS_LAST_WORK_UNIT);
+    partition = Partition.deserialize(workUnit);
     MDC.put("tableName", getWorkUnitName());
   }
 
@@ -186,12 +186,12 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    */
   private boolean shouldRemoveDataPullUpperBounds() {
     // Only consider the last work unit
-    if (!isLastWorkUnit) {
+    if (!partition.isLastPartition()) {
       return false;
     }
 
     // Don't remove if user specifies one or is recorded in previous run
-    if (this.workUnit.getPropAsBoolean(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK) ||
+    if (partition.getHasUserSpecifiedHighWatermark() ||
         this.workUnitState.getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY) != null) {
       return false;
     }
@@ -299,7 +299,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       this.extractMetadata(this.schema, this.entity, this.workUnit);
 
       if (StringUtils.isNotBlank(watermarkColumn)) {
-        if (isLastWorkUnit) {
+        if (partition.isLastPartition()) {
           // Get a more accurate high watermark from the source
           long adjustedHighWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
           log.info("High water mark from source: " + adjustedHighWatermark);
@@ -403,9 +403,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    */
   private void setRangePredicates(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue) {
     log.debug("Getting range predicates");
-    String lwmOperator = this.workUnit.getPropAsBoolean(Partition.IS_LOWWATERMARK_INCLUSIVE) ? ">=" : ">";
-    String hwmOperator =
-        (isLastWorkUnit || this.workUnit.getPropAsBoolean(Partition.IS_HIGHWATERMARK_INCLUSIVE)) ? "<=" : "<";
+    String lwmOperator = partition.isLowWatermarkInclusive() ? ">=" : ">";
+    String hwmOperator = (partition.isLastPartition() || partition.isHighWatermarkInclusive()) ? "<=" : "<";
 
     WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
     this.addPredicates(watermark.getPredicate(this, lwmValue, lwmOperator, Predicate.PredicateType.LWM));
