@@ -27,13 +27,36 @@ import lombok.experimental.Delegate;
 /**
  * Immutable wrapper for {@link Properties}.
  */
-
 public class ImmutableProperties extends Properties {
   @Delegate
   private final Map<Object, Object> props;
 
   public ImmutableProperties(Properties props) {
     this.props = Collections.unmodifiableMap(props);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    ImmutableProperties that = (ImmutableProperties) o;
+
+    return props != null ? props.equals(that.props) : that.props == null;
+  }
+
+  @Override
+  public int hashCode() {
+    int result = super.hashCode();
+    result = 31 * result + (props != null ? props.hashCode() : 0);
+    return result;
   }
 
   /**
