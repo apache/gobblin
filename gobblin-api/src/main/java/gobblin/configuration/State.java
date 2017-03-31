@@ -21,6 +21,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -30,6 +31,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -102,7 +104,9 @@ public class State implements WritableShim {
    * @param otherState the other {@link State} instance
    */
   public void addAll(State otherState) {
-    addAll(otherState.commonProperties);
+    Properties diffCommonProps = new Properties();
+    diffCommonProps.putAll(Maps.difference(this.commonProperties, otherState.commonProperties).entriesOnlyOnRight());
+    addAll(diffCommonProps);
     addAll(otherState.specProperties);
   }
 
@@ -155,11 +159,8 @@ public class State implements WritableShim {
    */
   public void overrideWith(Properties properties) {
     for (String key : properties.stringPropertyNames()) {
-      if (this.specProperties.containsKey(key)) {
+      if (this.specProperties.containsKey(key) || this.commonProperties.containsKey(key)) {
         this.specProperties.setProperty(key, properties.getProperty(key));
-      }
-      if (this.commonProperties.containsKey(key)) {
-        this.commonProperties.setProperty(key, properties.getProperty(key));
       }
     }
   }
@@ -484,7 +485,13 @@ public class State implements WritableShim {
    */
   public void removeProp(String key) {
     this.specProperties.remove(key);
-    this.commonProperties.remove(key);
+    if (this.commonProperties.containsKey(key)) {
+      // This case should not happen.
+      Properties commonPropsCopy = new Properties();
+      commonPropsCopy.putAll(this.commonProperties);
+      commonPropsCopy.remove(key);
+      this.commonProperties = commonPropsCopy;
+    }
   }
 
   /**
