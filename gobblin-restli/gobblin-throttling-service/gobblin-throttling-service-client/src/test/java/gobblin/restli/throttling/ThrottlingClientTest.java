@@ -53,14 +53,14 @@ public class ThrottlingClientTest {
   @Test
   public void test() throws Exception {
 
-    SharedLimiterFactory factory = new SharedLimiterFactory();
+    ThrottlingPolicyFactory factory = new ThrottlingPolicyFactory();
     SharedLimiterKey res1key = new SharedLimiterKey("res1");
 
     Map<String, String> configMap = ImmutableMap.<String, String>builder()
-        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, SharedLimiterFactory.LIMITER_CLASS_KEY),
-            CountBasedLimiter.FACTORY_ALIAS)
-        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, CountBasedLimiter.Factory.COUNT_KEY), "50")
-        .put(BrokerConfigurationKeyGenerator.generateKey(factory, null, null, SharedLimiterFactory.FAIL_ON_UNKNOWN_RESOURCE_ID),
+        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, ThrottlingPolicyFactory.POLICY_KEY),
+            CountBasedPolicy.FACTORY_ALIAS)
+        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, CountBasedPolicy.COUNT_KEY), "50")
+        .put(BrokerConfigurationKeyGenerator.generateKey(factory, null, null, ThrottlingPolicyFactory.FAIL_ON_UNKNOWN_RESOURCE_ID),
             "true")
         .build();
 

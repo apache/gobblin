@@ -33,7 +33,10 @@ public class ImmutableWorkUnit extends WorkUnit {
 
   public ImmutableWorkUnit(WorkUnit workUnit) {
     super(workUnit.getExtract());
-    super.addAll(workUnit.getProperties());
+    // Only copy the specProperties from the given workUnit.
+    Properties specificPropertiesCopy = new Properties();
+    specificPropertiesCopy.putAll(workUnit.getSpecProperties());
+    super.setProps(workUnit.getCommonProperties(), specificPropertiesCopy);
   }
 
   @Override
@@ -94,7 +97,8 @@ public class ImmutableWorkUnit extends WorkUnit {
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException {
+  public void readFields(DataInput in)
+      throws IOException {
     throw new UnsupportedOperationException();
   }
 }

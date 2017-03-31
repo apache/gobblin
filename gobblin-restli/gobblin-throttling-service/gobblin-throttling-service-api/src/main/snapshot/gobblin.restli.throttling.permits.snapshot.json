@@ -12,6 +12,11 @@
       "name" : "expiration",
       "type" : "long",
       "doc" : "Expiration time in Unix timestamp of the allocated permits."
+    }, {
+      "name" : "minRetryDelayMillis",
+      "type" : "long",
+      "doc" : "Client should not try to acquire permits before this delay has passed.",
+      "optional" : true
     } ]
   }, {
     "type" : "record",
@@ -26,6 +31,11 @@
       "name" : "permits",
       "type" : "long",
       "doc" : "Number of permits needed."
+    }, {
+      "name" : "minPermits",
+      "type" : "long",
+      "doc" : "Minimum number of useful permits.",
+      "optional" : true
     }, {
       "name" : "requestorIdentifier",
       "type" : "string",

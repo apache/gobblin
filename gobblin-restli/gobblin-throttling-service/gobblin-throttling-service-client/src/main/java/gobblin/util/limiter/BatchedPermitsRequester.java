@@ -23,7 +23,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -50,6 +49,7 @@ import gobblin.restli.throttling.PermitsGetRequestBuilder;
 import gobblin.restli.throttling.PermitsRequestBuilders;
 import gobblin.util.NoopCloseable;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -93,7 +93,7 @@ class BatchedPermitsRequester {
 
   private volatile int retries = 0;
   private final RetryStatus retryStatus;
-  private final AtomicLong permitsOutstanding;
+  private final SynchronizedAverager permitsOutstanding;
   private final long targetMillisBetweenRequests;
 
   @Builder
@@ -111,7 +111,7 @@ class BatchedPermitsRequester {
     /** Ensures there is only one in-flight request at a time. */
     this.requestSemaphore = new Semaphore(1);
     /** Number of not-yet-satisfied permits. */
-    this.permitsOutstanding = new AtomicLong();
+    this.permitsOutstanding = new SynchronizedAverager();
     this.targetMillisBetweenRequests = targetMillisBetweenRequests > 0 ? targetMillisBetweenRequests :
         DEFAULT_TARGET_MILLIS_BETWEEN_REQUESTS;
     this.requestSender = requestSender == null ? new RequestSender(this.restClient) : requestSender;
@@ -133,12 +133,12 @@ class BatchedPermitsRequester {
     if (permits <= 0) {
       return true;
     }
-    this.permitsOutstanding.addAndGet(permits);
+    this.permitsOutstanding.addEntryWithWeight(permits);
     this.lock.lock();
     try {
       while (true) {
         if (this.permitBatchContainer.tryTake(permits)) {
-          this.permitsOutstanding.addAndGet(-1 * permits);
+          this.permitsOutstanding.removeEntryWithWeight(permits);
           return true;
         }
         if (this.retryStatus.canRetry()) {
@@ -170,6 +170,7 @@ class BatchedPermitsRequester {
 
       PermitRequest permitRequest = this.basePermitRequest.copy();
       permitRequest.setPermits(permits);
+      permitRequest.setMinPermits((long) this.permitsOutstanding.getAverageWeightOrZero());
       if (BatchedPermitsRequester.this.restRequestHistogram != null) {
         BatchedPermitsRequester.this.restRequestHistogram.update(permits);
       }
@@ -191,7 +192,7 @@ class BatchedPermitsRequester {
 
     long candidatePermits = 0;
 
-    long unsatisfiablePermits = this.permitsOutstanding.get() - this.permitBatchContainer.totalPermits;
+    long unsatisfiablePermits = this.permitsOutstanding.getTotalWeight() - this.permitBatchContainer.totalPermits;
     if (unsatisfiablePermits > 0) {
       candidatePermits = unsatisfiablePermits;
     }
@@ -397,6 +398,41 @@ class BatchedPermitsRequester {
       PermitsGetRequestBuilder getBuilder = new PermitsRequestBuilders().get();
       Request<PermitAllocation> fullRequest = getBuilder.id(new ComplexResourceKey<>(request, new EmptyRecord())).build();
       this.restClient.sendRequest(fullRequest, callback);
+    }
+  }
+
+  private static class SynchronizedAverager {
+    private volatile long weight;
+    private volatile long entries;
+
+    @SuppressFBWarnings(value = "VO_VOLATILE_INCREMENT", justification = "All methods updating volatile variables are synchronized")
+    public synchronized void addEntryWithWeight(long weight) {
+      this.entries++;
+      this.weight += weight;
+    }
+
+    @SuppressFBWarnings(value = "VO_VOLATILE_INCREMENT", justification = "All methods updating volatile variables are synchronized")
+    public synchronized void removeEntryWithWeight(long weight) {
+      if (this.entries == 0) {
+        throw new IllegalStateException("Cannot have a negative number of entries.");
+      }
+      this.entries--;
+      this.weight -= weight;
+    }
+
+    public synchronized double getAverageWeightOrZero() {
+      if (this.entries == 0) {
+        return 0;
+      }
+      return (double) this.weight / this.entries;
+    }
+
+    public long getTotalWeight() {
+      return this.weight;
+    }
+
+    public long getNumEntries() {
+      return this.entries;
     }
   }
 
