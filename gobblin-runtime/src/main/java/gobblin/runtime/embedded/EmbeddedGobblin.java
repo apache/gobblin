@@ -91,6 +91,7 @@ import gobblin.runtime.plugins.PluginStaticKeys;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
 import gobblin.state.ConstructState;
+import gobblin.util.HadoopUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.PullFileLoader;
 
@@ -146,6 +147,7 @@ public class EmbeddedGobblin {
 
   @EmbeddedGobblinCliSupport(argumentNames = {"jobName"})
   public EmbeddedGobblin(String name) {
+    HadoopUtils.addGobblinSite();
     this.specBuilder = new JobSpec.Builder(name);
     this.userConfigMap = Maps.newHashMap();
     this.builtConfigMap = Maps.newHashMap();

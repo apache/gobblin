@@ -104,6 +104,8 @@ public class ClustersNames {
       // URIs without protocol prefix
       if (!uri.isOpaque() && null != uri.getHost()) {
         clusterIdentifier = uri.getHost();
+      } else {
+        clusterIdentifier = uri.toString().replaceAll("[/:]"," ").trim().replaceAll(" ", "_");
       }
     } catch (URISyntaxException e) {
       //leave ID as is

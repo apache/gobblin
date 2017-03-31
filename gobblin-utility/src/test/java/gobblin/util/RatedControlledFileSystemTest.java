@@ -56,8 +56,7 @@ public class RatedControlledFileSystemTest {
     }
 
     @Override
-    protected Limiter getRateLimiter()
-        throws ExecutionException {
+    protected Limiter getRateLimiter() {
       return this.limiter;
     }
   }

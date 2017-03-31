@@ -57,6 +57,9 @@ public class KeyedScopedConfigViewImpl<S extends ScopeType<S>, K extends SharedR
   }
 
   public Config getKeyedConfig() {
+    if (this.key == null) {
+      return ConfigFactory.empty();
+    }
     String key = this.key.toConfigurationKey();
     if (key == null) {
       return ConfigFactory.empty();
