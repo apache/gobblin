@@ -295,6 +295,7 @@ public class Task implements TaskIFace {
   @Override
   @SuppressWarnings("unchecked")
   public void run() {
+    recordsPulled.set(0L);
     MDC.put(ConfigurationKeys.TASK_KEY_KEY, this.taskKey);
     this.startTime = System.currentTimeMillis();
     this.taskState.setStartTime(startTime);
@@ -879,9 +880,5 @@ public class Task implements TaskIFace {
       }
     }
     return true;
-  }
-
-  public void resetCount() {
-    recordsPulled.set(0L);
   }
 }

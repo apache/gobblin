@@ -105,22 +105,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     return getFetchStatus();
   }
 
-  private boolean isInitialPull() {
+  protected boolean isInitialPull() {
     return this.iterator == null;
-  }
-
-  /**
-   * Reset iterator to null after the task failed such that
-   * retry task begins with the initial pull to re-start from the very first iterator,
-   * otherwise the retry task will start from the last failed iterator.
-   *
-   * The feature should be used together with the configuration key SOURCE_QUERYBASED_RETRY_RESETITERATOR
-   * to reset the RecordsCount to 0 before retrying the failed task.
-   */
-  public void resetIterator(){
-    Preconditions.checkArgument(workUnit.getPropAsBoolean(ConfigurationKeys.SOURCE_QUERYBASED_RETRY_RESETITERATOR),
-        "resetIterator can only be used when the key source.querybased.retry.resetIterator is set to true.");
-    this.iterator = null;
   }
 
   public QueryBasedExtractor(WorkUnitState workUnitState) {
