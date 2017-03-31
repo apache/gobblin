@@ -33,7 +33,7 @@ public class ImmutableWorkUnitState extends WorkUnitState {
 
   public ImmutableWorkUnitState(WorkUnitState workUnitState) {
     super(workUnitState.getWorkunit(), workUnitState.getJobState());
-    super.addAll(workUnitState.getProperties());
+    super.addAll(workUnitState.getSpecProperties());
   }
 
   @Override
