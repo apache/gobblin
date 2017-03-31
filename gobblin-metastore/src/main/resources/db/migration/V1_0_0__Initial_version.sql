@@ -18,8 +18,8 @@
 CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 	job_name VARCHAR(128) NOT NULL,
 	job_id VARCHAR(128) NOT NULL,
-	start_time TIMESTAMP,
-	end_time TIMESTAMP,
+	start_time TIMESTAMP NULL,
+	end_time TIMESTAMP NULL,
 	duration BIGINT(21),
 	state ENUM('PENDING', 'RUNNING', 'SUCCESSFUL', 'COMMITTED', 'FAILED', 'CANCELLED'),
 	launched_tasks INT,
@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 CREATE TABLE IF NOT EXISTS gobblin_task_executions (
 	task_id VARCHAR(128) NOT NULL,
 	job_id VARCHAR(128) NOT NULL,
-	start_time TIMESTAMP,
-	end_time TIMESTAMP,
+	start_time TIMESTAMP NULL,
+	end_time TIMESTAMP NULL,
 	duration BIGINT(21),
 	state ENUM('PENDING', 'RUNNING', 'SUCCESSFUL', 'COMMITTED', 'FAILED', 'CANCELLED'),
 	failure_exception TEXT,
