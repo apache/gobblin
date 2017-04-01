@@ -17,18 +17,6 @@
 
 package gobblin.source.extractor.extract;
 
-import com.google.common.annotations.VisibleForTesting;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.exception.ExtractPrepareException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.partition.Partitioner;
-import gobblin.source.extractor.schema.ArrayDataType;
-import gobblin.source.extractor.schema.DataType;
-import gobblin.source.extractor.schema.EnumDataType;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkType;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,17 +27,30 @@ import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.MDC;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.watermark.WatermarkPredicate;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.exception.ExtractPrepareException;
+import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.exception.RecordCountException;
 import gobblin.source.extractor.exception.SchemaException;
+import gobblin.source.extractor.partition.Partitioner;
+import gobblin.source.extractor.schema.ArrayDataType;
+import gobblin.source.extractor.schema.DataType;
+import gobblin.source.extractor.schema.EnumDataType;
 import gobblin.source.extractor.schema.MapDataType;
+import gobblin.source.extractor.utils.Utils;
+import gobblin.source.extractor.watermark.Predicate;
+import gobblin.source.extractor.watermark.WatermarkPredicate;
+import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.WorkUnit;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -104,7 +105,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     return getFetchStatus();
   }
 
-  private boolean isInitialPull() {
+  protected boolean isInitialPull() {
     return this.iterator == null;
   }
 
