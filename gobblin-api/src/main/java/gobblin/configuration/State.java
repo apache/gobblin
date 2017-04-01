@@ -21,6 +21,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -29,13 +30,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
 import gobblin.compat.hadoop.TextSerializer;
 import gobblin.compat.hadoop.WritableShim;
@@ -46,7 +49,7 @@ import gobblin.compat.hadoop.WritableShim;
  *
  * @author kgoodhop
  */
-@EqualsAndHashCode(exclude = { "jsonParser" })
+@EqualsAndHashCode(exclude = {"jsonParser"})
 public class State implements WritableShim {
 
   private static final Joiner LIST_JOINER = Joiner.on(",");
@@ -54,19 +57,28 @@ public class State implements WritableShim {
 
   private String id;
 
-  private final Properties properties;
+  // State contains two parts: commonProperties and specProperties (specProperties overrides commonProperties).
+  @Getter
+  private Properties commonProperties;
+  @Getter
+  private Properties specProperties;
+
   private final JsonParser jsonParser = new JsonParser();
 
   public State() {
-    this.properties = new Properties();
+    this.specProperties = new Properties();
+    this.commonProperties = new Properties();
   }
 
   public State(Properties properties) {
-    this.properties = properties;
+    this.specProperties = properties;
+    this.commonProperties = new Properties();
   }
 
   public State(State otherState) {
-    this.properties = otherState.getProperties();
+    this.commonProperties = otherState.getCommonProperties();
+    this.specProperties = new Properties();
+    this.specProperties.putAll(otherState.getSpecProperties());
   }
 
   /**
@@ -76,9 +88,12 @@ public class State implements WritableShim {
    */
   public Properties getProperties() {
     // a.putAll(b) iterates over the entries of b. Synchronizing on b prevents concurrent modification on b.
-    synchronized (this.properties) {
+    synchronized (this.specProperties) {
       Properties props = new Properties();
-      props.putAll(this.properties);
+      if (this.commonProperties != null) {
+        props.putAll(this.commonProperties);
+      }
+      props.putAll(this.specProperties);
       return props;
     }
   }
@@ -89,7 +104,10 @@ public class State implements WritableShim {
    * @param otherState the other {@link State} instance
    */
   public void addAll(State otherState) {
-    addAll(otherState.properties);
+    Properties diffCommonProps = new Properties();
+    diffCommonProps.putAll(Maps.difference(this.commonProperties, otherState.commonProperties).entriesOnlyOnRight());
+    addAll(diffCommonProps);
+    addAll(otherState.specProperties);
   }
 
   /**
@@ -98,7 +116,7 @@ public class State implements WritableShim {
    * @param properties a {@link Properties} instance
    */
   public void addAll(Properties properties) {
-    this.properties.putAll(properties);
+    this.specProperties.putAll(properties);
   }
 
   /**
@@ -107,7 +125,8 @@ public class State implements WritableShim {
    * @param otherState a {@link State} instance
    */
   public void addAllIfNotExist(State otherState) {
-    addAllIfNotExist(otherState.properties);
+    addAllIfNotExist(otherState.commonProperties);
+    addAllIfNotExist(otherState.specProperties);
   }
 
   /**
@@ -117,8 +136,8 @@ public class State implements WritableShim {
    */
   public void addAllIfNotExist(Properties properties) {
     for (String key : properties.stringPropertyNames()) {
-      if (!this.properties.containsKey(key)) {
-        this.properties.setProperty(key, properties.getProperty(key));
+      if (!this.specProperties.containsKey(key) && !this.commonProperties.containsKey(key)) {
+        this.specProperties.setProperty(key, properties.getProperty(key));
       }
     }
   }
@@ -129,7 +148,8 @@ public class State implements WritableShim {
    * @param otherState a {@link State} instance
    */
   public void overrideWith(State otherState) {
-    overrideWith(otherState.properties);
+    overrideWith(otherState.commonProperties);
+    overrideWith(otherState.specProperties);
   }
 
   /**
@@ -139,8 +159,8 @@ public class State implements WritableShim {
    */
   public void overrideWith(Properties properties) {
     for (String key : properties.stringPropertyNames()) {
-      if (this.properties.containsKey(key)) {
-        this.properties.setProperty(key, properties.getProperty(key));
+      if (this.specProperties.containsKey(key) || this.commonProperties.containsKey(key)) {
+        this.specProperties.setProperty(key, properties.getProperty(key));
       }
     }
   }
@@ -174,7 +194,17 @@ public class State implements WritableShim {
    * @param value property value
    */
   public void setProp(String key, Object value) {
-    this.properties.put(key, value.toString());
+    this.specProperties.put(key, value.toString());
+  }
+
+  /**
+   * Override existing {@link #commonProperties} and {@link #specProperties}.
+   * @param commonProperties
+   * @param specProperties
+   */
+  public void setProps(Properties commonProperties, Properties specProperties) {
+    this.commonProperties = commonProperties;
+    this.specProperties = specProperties;
   }
 
   /**
@@ -210,7 +240,7 @@ public class State implements WritableShim {
    * @param value property value (if it includes commas, it will be split by the commas).
    */
   public synchronized void appendToSetProp(String key, String value) {
-    Set<String> set = value == null ? Sets.<String> newHashSet() : Sets.newHashSet(LIST_SPLITTER.splitToList(value));
+    Set<String> set = value == null ? Sets.<String>newHashSet() : Sets.newHashSet(LIST_SPLITTER.splitToList(value));
     if (contains(key)) {
       set.addAll(getPropAsSet(key));
     }
@@ -224,7 +254,10 @@ public class State implements WritableShim {
    * @return value associated with the key as a string or <code>null</code> if the property is not set
    */
   public String getProp(String key) {
-    return this.properties.getProperty(key);
+    if (this.specProperties.containsKey(key)) {
+      return this.specProperties.getProperty(key);
+    }
+    return this.commonProperties.getProperty(key);
   }
 
   /**
@@ -235,7 +268,10 @@ public class State implements WritableShim {
    * @return value associated with the key or the default value if the property is not set
    */
   public String getProp(String key, String def) {
-    return this.properties.getProperty(key, def);
+    if (this.specProperties.containsKey(key)) {
+      return this.specProperties.getProperty(key);
+    }
+    return this.commonProperties.getProperty(key, def);
   }
 
   /**
@@ -448,7 +484,14 @@ public class State implements WritableShim {
    * @param key property key
    */
   public void removeProp(String key) {
-    this.properties.remove(key);
+    this.specProperties.remove(key);
+    if (this.commonProperties.containsKey(key)) {
+      // This case should not happen.
+      Properties commonPropsCopy = new Properties();
+      commonPropsCopy.putAll(this.commonProperties);
+      commonPropsCopy.remove(key);
+      this.commonProperties = commonPropsCopy;
+    }
   }
 
   /**
@@ -473,7 +516,8 @@ public class State implements WritableShim {
    * @return names of all the properties set in a {@link Set}
    */
   public Set<String> getPropertyNames() {
-    return this.properties.stringPropertyNames();
+    return Sets.newHashSet(
+        Iterables.concat(this.commonProperties.stringPropertyNames(), this.specProperties.stringPropertyNames()));
   }
 
   /**
@@ -483,34 +527,36 @@ public class State implements WritableShim {
    * @return <code>true</code> if the property is set or <code>false</code> otherwise
    */
   public boolean contains(String key) {
-    return this.properties.getProperty(key) != null;
+    return this.specProperties.containsKey(key) || this.commonProperties.containsKey(key);
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException {
-
+  public void readFields(DataInput in)
+      throws IOException {
     int numEntries = in.readInt();
-
     while (numEntries-- > 0) {
       String key = TextSerializer.readTextAsString(in).intern();
       String value = TextSerializer.readTextAsString(in).intern();
-
-      this.properties.put(key, value);
+      this.specProperties.put(key, value);
     }
   }
 
   @Override
-  public void write(DataOutput out) throws IOException {
-    out.writeInt(this.properties.size());
-
-    for (Object key : this.properties.keySet()) {
-      TextSerializer.writeStringAsText(out, (String)key);
-      TextSerializer.writeStringAsText(out, this.properties.getProperty((String)key));
+  public void write(DataOutput out)
+      throws IOException {
+    out.writeInt(this.commonProperties.size() + this.specProperties.size());
+    for (Object key : this.commonProperties.keySet()) {
+      TextSerializer.writeStringAsText(out, (String) key);
+      TextSerializer.writeStringAsText(out, this.commonProperties.getProperty((String) key));
+    }
+    for (Object key : this.specProperties.keySet()) {
+      TextSerializer.writeStringAsText(out, (String) key);
+      TextSerializer.writeStringAsText(out, this.specProperties.getProperty((String) key));
     }
   }
 
   @Override
   public String toString() {
-    return this.properties.toString();
+    return "Common:" + this.commonProperties.toString() + "\n Specific: " + this.specProperties.toString();
   }
 }

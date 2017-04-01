@@ -163,6 +163,13 @@ public class WorkUnitState extends State {
   }
 
   /**
+   * Override {@link #workUnit}'s properties with new commonProps and specProps.
+   */
+  public void setWuProperties(Properties commonProps, Properties specProps) {
+    this.workUnit.setProps(commonProps, specProps);
+  }
+
+  /**
    * Get the current runtime state of the {@link WorkUnit}.
    *
    * @return {@link WorkingState} of the {@link WorkUnit}

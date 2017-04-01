@@ -22,7 +22,7 @@ import com.google.common.base.Strings;
 
 
 /**
- * An enumeration of supported work unit retry policies.
+ * An enumeration of retry policies determining under what conditions the failed work unit should retry
  *
  * @author Yinan Li
  */
