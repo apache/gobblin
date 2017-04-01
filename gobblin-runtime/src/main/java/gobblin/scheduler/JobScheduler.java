@@ -169,7 +169,7 @@ public class JobScheduler extends AbstractIdleService {
     LOG.info("Starting the job scheduler");
 
     try {
-      this.scheduler.awaitRunning(Long.valueOf(
+      this.scheduler.awaitRunning(Long.parseLong(
               this.properties.getProperty(ConfigurationKeys.JOB_SCHEDULER_STARTUP_TIMEOUT_KEY,
                       Long.toString(ConfigurationKeys.DEFAULT_JOB_SCHEDULER_STARTUP_TIMEOUT))),
               TimeUnit.SECONDS);
