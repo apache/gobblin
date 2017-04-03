@@ -35,6 +35,8 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -47,7 +49,7 @@ import gobblin.source.extractor.watermark.WatermarkType;
 
 
 public class Utils {
-
+  private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
   private static final Gson GSON = new Gson();
   private static final String CURRENT_DAY = "CURRENTDAY";
   private static final String CURRENT_HOUR = "CURRENTHOUR";
@@ -105,7 +107,7 @@ public class Utils {
       String dateStr = outputFormat.format(date);
       outDate = outputFormat.parse(dateStr);
     } catch (ParseException e) {
-      e.printStackTrace();
+      LOG.error("Parse to date failed", e);
     }
     return outDate;
   }
