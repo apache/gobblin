@@ -17,6 +17,7 @@
 
 package gobblin.hive.policy;
 
+import gobblin.hive.metastore.HiveMetaStoreUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -162,7 +163,6 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     if (!this.props.contains(HIVE_TABLE_NAME) && !this.props.contains(HIVE_TABLE_REGEX)) {
       return Optional.<String> absent();
     }
-
     return Optional.<String> of(
         this.tableNamePrefix + getDatabaseOrTableName(path, HIVE_TABLE_NAME, HIVE_TABLE_REGEX, this.tableNamePattern)
             + this.tableNameSuffix);
@@ -308,7 +308,14 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
     table.setLocation(this.fs.makeQualified(getTableLocation(path)).toString());
     table.setSerDeProps(path);
-    table.setProps(this.props.getTablePartitionProps());
+
+    // Setting table-level props.
+    State tableProps = new State(this.props.getTablePartitionProps());
+    if (this.props.getRuntimeTableProps().isPresent()){
+      tableProps.setProp(HiveMetaStoreUtils.RUNTIME_PROPS, this.props.getRuntimeTableProps().get());
+    }
+    table.setProps(tableProps);
+
     table.setStorageProps(this.props.getStorageProps());
     table.setSerDeProps(this.props.getSerdeProps());
     table.setNumBuckets(-1);
