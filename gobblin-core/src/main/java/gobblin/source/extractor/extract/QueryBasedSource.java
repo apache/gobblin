@@ -79,7 +79,6 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   public static final boolean DEFAULT_SOURCE_OBTAIN_TABLE_PROPS_FROM_CONFIG_STORE = false;
   private static final String QUERY_BASED_SOURCE = "query_based_source";
   public static final String WORK_UNIT_STATE_VERSION_KEY = "source.querybased.workUnitState.version";
-  public static final String IS_LAST_WORK_UNIT = "source.querybased.isLastWorkUnit";
   /**
    * WorkUnit Version 3:
    *    SOURCE_ENTITY = as specified in job config
@@ -218,18 +217,10 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
         WorkUnit workunit = WorkUnit.create(extract);
         workunit.setProp(ConfigurationKeys.SOURCE_ENTITY, sourceEntity.getSourceEntityName());
         workunit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, sourceEntity.getDestTableName());
-        workunit.setWatermarkInterval(
-            new WatermarkInterval(
-                new LongWatermark(partition.getLowWatermark()), new LongWatermark(partition.getHighWatermark())));
         workunit.setProp(WORK_UNIT_STATE_VERSION_KEY, CURRENT_WORK_UNIT_STATE_VERSION);
-        if (partition.getHasUserSpecifiedHighWatermark()) {
-          workunit.setProp(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK, true);
-        }
+        partition.serialize(workunit);
         workUnits.add(workunit);
       }
-
-      // Mark last work unit of the current source entity
-      workUnits.get(workUnits.size() - 1).setProp(IS_LAST_WORK_UNIT, true);
     }
 
     log.info("Total number of workunits for the current run: " + workUnits.size());

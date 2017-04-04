@@ -55,21 +55,24 @@ If you are running a Gobblin compaction job: add [`HiveRegistrationCompactorList
 
 | Property Name  | Semantics  |
 |---|---|
-| `hive.registration.policy` | class name which implements `HiveRegistrationPolicy` |
-| `hive.row.format` | either `AVRO`, or the class name which implements `HiveSerDeManager`|
+| `hive.registration.policy` | Class name which implements `HiveRegistrationPolicy` |
+| `hive.row.format` | Either `AVRO`, or the class name which implements `HiveSerDeManager`|
 | `hive.database.name` | Hive database name |
 | `hive.database.regex` | Hive database regex |
 | `hive.database.name.prefix` | Hive database name prefix |
 | `hive.database.name.suffix` | Hive database name suffix |
-| `additional.hive.database.names` | additional Hive database names |
+| `additional.hive.database.names` | Additional Hive database names |
 | `hive.table.name` | Hive table name |
 | `hive.table.regex` | Hive table regex |
 | `hive.table.name.prefix` | Hive table name prefix |
 | `hive.table.name.suffix` | Hive table name suffix |
-| `additional.hive.table.names` | additional Hive table names |
-| `hive.register.threads` | thread pool size used for Hive registration |
-| `hive.db.root.dir` | the root dir of Hive db |
-| `hive.table.partition.props` | table/partition properties |
-| `hive.storage.props` | storage descriptor properties |
+| `additional.hive.table.names` | Additional Hive table names |
+| `hive.register.threads` | Thread pool size used for Hive registration |
+| `hive.db.root.dir` | The root dir of Hive db |
+| `hive.table.partition.props` | Table/partition properties |
+| `hive.storage.props` | Storage descriptor properties |
 | `hive.serde.props` | SerDe properties |
-| `hive.registration.fs.uri` | file system URI for Hive registration |
+| `hive.registration.fs.uri` | File system URI for Hive registration |
+| `hive.upstream.data.attr.names` | Attributes to describe upstream data source as Hive Metadata |
+
+

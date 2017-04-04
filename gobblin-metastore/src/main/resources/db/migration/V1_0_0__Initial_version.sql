@@ -15,11 +15,13 @@
 --  limitations under the License.
 --
 
+SET SESSION time_zone = '+00:00';
+
 CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 	job_name VARCHAR(128) NOT NULL,
 	job_id VARCHAR(128) NOT NULL,
-	start_time TIMESTAMP,
-	end_time TIMESTAMP,
+	start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	end_time TIMESTAMP NOT NULL DEFAULT '1970-01-01 00:00:01',
 	duration BIGINT(21),
 	state ENUM('PENDING', 'RUNNING', 'SUCCESSFUL', 'COMMITTED', 'FAILED', 'CANCELLED'),
 	launched_tasks INT,
@@ -36,8 +38,8 @@ CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 CREATE TABLE IF NOT EXISTS gobblin_task_executions (
 	task_id VARCHAR(128) NOT NULL,
 	job_id VARCHAR(128) NOT NULL,
-	start_time TIMESTAMP,
-	end_time TIMESTAMP,
+	start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	end_time TIMESTAMP NOT NULL DEFAULT '1970-01-01 00:00:01',
 	duration BIGINT(21),
 	state ENUM('PENDING', 'RUNNING', 'SUCCESSFUL', 'COMMITTED', 'FAILED', 'CANCELLED'),
 	failure_exception TEXT,

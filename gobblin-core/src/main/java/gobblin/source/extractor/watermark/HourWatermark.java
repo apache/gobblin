@@ -18,6 +18,7 @@
 package gobblin.source.extractor.watermark;
 
 import gobblin.source.extractor.extract.QueryBasedExtractor;
+import gobblin.source.extractor.utils.Utils;
 
 import java.math.RoundingMode;
 import java.text.ParseException;
@@ -90,16 +91,15 @@ public class HourWatermark implements Watermark {
     LOG.debug("Start time:" + startTime + "; End time:" + endTime);
     long lwm;
     long hwm;
-    while (startTime.getTime() <= endTime.getTime()) {
+    while (startTime.getTime() < endTime.getTime()) {
       lwm = Long.parseLong(inputFormatParser.format(startTime));
       calendar.setTime(startTime);
-      calendar.add(Calendar.HOUR, interval - 1);
+      calendar.add(Calendar.HOUR, interval);
       nextTime = calendar.getTime();
       hwm = Long.parseLong(inputFormatParser.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
       LOG.debug("Partition - low:" + lwm + "; high:" + hwm);
-      calendar.add(Calendar.SECOND, deltaForNextWatermark);
-      startTime = calendar.getTime();
+      startTime = nextTime;
     }
     return intervalMap;
   }
@@ -118,7 +118,7 @@ public class HourWatermark implements Watermark {
     if (totalIntervals > maxIntervals) {
       hourInterval = DoubleMath.roundToInt((double) totalHours / maxIntervals, RoundingMode.CEILING);
     }
-    return Ints.checkedCast(hourInterval) + 1;
+    return Ints.checkedCast(hourInterval);
   }
 
   /**
@@ -139,5 +139,18 @@ public class HourWatermark implements Watermark {
       LOG.error(e.getMessage(), e);
     }
     return outDate;
+  }
+
+  /**
+   * Adjust the given watermark by diff
+   *
+   * @param baseWatermark the original watermark
+   * @param diff the amount to change
+   * @return the adjusted watermark value
+   */
+  public static long adjustWatermark(String baseWatermark, int diff) {
+    SimpleDateFormat parser = new SimpleDateFormat(INPUTFORMAT);
+    Date date = Utils.toDate(baseWatermark, INPUTFORMAT, OUTPUTFORMAT);
+    return Long.parseLong(parser.format(Utils.addHoursToDate(date, diff)));
   }
 }
