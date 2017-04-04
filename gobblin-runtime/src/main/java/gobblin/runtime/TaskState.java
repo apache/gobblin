@@ -253,8 +253,10 @@ public class TaskState extends WorkUnitState {
    */
   public synchronized void updateRecordMetrics(long recordsWritten, int branchIndex) {
     TaskMetrics metrics = TaskMetrics.get(this);
-    String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
+    // chopping branch index from metric name
+    // String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
+    String forkBranchId = TaskMetrics.taskInstanceRemoved(this.taskId);
     Counter taskRecordCounter = metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, RECORDS);
     long inc = recordsWritten - taskRecordCounter.getCount();
     taskRecordCounter.inc(inc);
@@ -273,8 +275,8 @@ public class TaskState extends WorkUnitState {
    */
   public synchronized void updateByteMetrics(long bytesWritten, int branchIndex) {
     TaskMetrics metrics = TaskMetrics.get(this);
-    String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
+    String forkBranchId = TaskMetrics.taskInstanceRemoved(this.taskId);
     Counter taskByteCounter = metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, BYTES);
     long inc = bytesWritten - taskByteCounter.getCount();
     taskByteCounter.inc(inc);
