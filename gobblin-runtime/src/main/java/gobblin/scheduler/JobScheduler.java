@@ -169,9 +169,12 @@ public class JobScheduler extends AbstractIdleService {
     LOG.info("Starting the job scheduler");
 
     try {
-      this.scheduler.awaitRunning(1, TimeUnit.SECONDS);
+      this.scheduler.awaitRunning(Long.parseLong(
+              this.properties.getProperty(ConfigurationKeys.JOB_SCHEDULER_STARTUP_TIMEOUT_KEY,
+                      Long.toString(ConfigurationKeys.DEFAULT_JOB_SCHEDULER_STARTUP_TIMEOUT))),
+              TimeUnit.SECONDS);
     } catch (TimeoutException | IllegalStateException exc) {
-      throw new IllegalStateException("Scheduler service is not running.");
+      throw new IllegalStateException("Scheduler service is not running.", exc);
     }
 
     // Note: This should not be mandatory, gobblin-cluster modes have their own job configuration managers
