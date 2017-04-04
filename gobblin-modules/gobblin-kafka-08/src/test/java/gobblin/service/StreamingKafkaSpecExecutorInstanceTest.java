@@ -112,6 +112,7 @@ public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
 
     // SEI Consumer
     _seic = _closer.register(new StreamingKafkaSpecExecutorInstanceConsumer(config, _jobCatalog));
+    _seic.startAsync().awaitRunning();
 
     List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");

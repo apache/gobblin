@@ -114,11 +114,11 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinClusterManager.class);
 
-  private final HelixManager helixManager;
+  private HelixManager helixManager;
 
   private volatile boolean stopInProgress = false;
 
-  protected final ServiceBasedAppLauncher applicationLauncher;
+  protected ServiceBasedAppLauncher applicationLauncher;
 
   // An EventBus used for communications between services running in the ApplicationMaster
   protected final EventBus eventBus = new EventBus(GobblinClusterManager.class.getSimpleName());
@@ -140,59 +140,90 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
   private final boolean isStandaloneMode;
 
-  private final MutableJobCatalog jobCatalog;
+  private MutableJobCatalog jobCatalog;
+
+  private final String clusterName;
+  private final Config config;
 
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
+    this.clusterName = clusterName;
+    this.config = config;
 
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
+    this.applicationId = applicationId;
+
+    initializeHelixManager();
+
+    this.fs = buildFileSystem(config);
+    this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
+        : GobblinClusterUtils.getAppWorkDirPath(this.fs, clusterName, applicationId);
+
+    initializeAppLauncherAndServices();
+  }
+
+  /**
+   * Create the service based application launcher and other associated services
+   * @throws Exception
+   */
+  private void initializeAppLauncherAndServices() throws Exception {
     // Done to preserve backwards compatibility with the previously hard-coded timeout of 5 minutes
-    Properties properties = ConfigUtils.configToProperties(config);
+    Properties properties = ConfigUtils.configToProperties(this.config);
     if (!properties.contains(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS)) {
       properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
     }
-
-    this.applicationId = applicationId;
-    this.applicationLauncher = new ServiceBasedAppLauncher(properties, clusterName);
-
-    String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
-
-    // This will create and register a Helix controller in ZooKeeper
-    this.helixManager = buildHelixManager(config, zkConnectionString);
-
-    this.fs = buildFileSystem(config);
-    this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get() :
-        GobblinClusterUtils.getAppWorkDirPath(this.fs, clusterName, applicationId);
+    this.applicationLauncher = new ServiceBasedAppLauncher(properties, this.clusterName);
 
     // create a job catalog for keeping track of received jobs if a job config path is specified
-    if (config.hasPath(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX
+    if (this.config.hasPath(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX
         + ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
       String jobCatalogClassName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.JOB_CATALOG_KEY,
           GobblinClusterConfigurationKeys.DEFAULT_JOB_CATALOG);
 
-      this.jobCatalog = (MutableJobCatalog)GobblinConstructorUtils.invokeFirstConstructor(Class.forName(
-          jobCatalogClassName),
-            ImmutableList.<Object>of(config.getConfig(StringUtils.removeEnd(
-                GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX, "."))));
-
-      // other services such as the job configuration manager have a dependency on the job catalog, so it has be be
-      // started first
-      if (this.jobCatalog instanceof Service) {
-        ((Service) this.jobCatalog).startAsync().awaitRunning();
-      }
+      this.jobCatalog =
+          (MutableJobCatalog) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(jobCatalogClassName),
+          ImmutableList.<Object>of(config.getConfig(
+              StringUtils.removeEnd(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX, "."))));
     } else {
       this.jobCatalog = null;
     }
 
     SchedulerService schedulerService = new SchedulerService(properties);
     this.applicationLauncher.addService(schedulerService);
-    this.applicationLauncher
-        .addService(buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
+    this.applicationLauncher.addService(
+        buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
             schedulerService));
     this.applicationLauncher.addService(buildJobConfigurationManager(config));
+  }
+
+  /**
+   * Start any services required by the application launcher then start the application launcher
+   */
+  private void startAppLauncherAndServices() {
+    // other services such as the job configuration manager have a dependency on the job catalog, so it has be be
+    // started first
+    if (this.jobCatalog instanceof Service) {
+      ((Service) this.jobCatalog).startAsync().awaitRunning();
+    }
+
+    this.applicationLauncher.start();
+  }
+
+  /**
+   * Stop the application launcher then any services that were started outside of the application launcher
+   */
+  private void stopAppLauncherAndServices() {
+    try {
+      this.applicationLauncher.stop();
+    } catch (ApplicationException ae) {
+      LOGGER.error("Error while stopping Gobblin Cluster application launcher", ae);
+    }
+
+    if (this.jobCatalog instanceof Service) {
+      ((Service) this.jobCatalog).stopAsync().awaitTerminated();
+    }
   }
 
   /**
@@ -201,7 +232,8 @@ public class GobblinClusterManager implements ApplicationLauncher {
    * The leader cleans up existing jobs before starting the applicationLauncher.
    * @param changeContext notification context
    */
-  private void handleLeadershipChange(NotificationContext changeContext) {
+  @VisibleForTesting
+  void handleLeadershipChange(NotificationContext changeContext) {
     if (this.helixManager.isLeader()) {
       // can get multiple notifications on a leadership change, so only start the application launcher the first time
       // the notification is received
@@ -231,17 +263,19 @@ public class GobblinClusterManager implements ApplicationLauncher {
           }
         }
 
-        this.applicationLauncher.start();
+        startAppLauncherAndServices();
         isLeader = true;
       }
     } else {
-      // stop application launcher if lost leadership role
+      // stop and reinitialize services since they are not restartable
+      // this prepares them to start when this cluster manager becomes a leader
       if (isLeader) {
         isLeader = false;
+        stopAppLauncherAndServices();
         try {
-          this.applicationLauncher.stop();
-        } catch (ApplicationException ae) {
-          LOGGER.error("Error while stopping Gobblin Cluser application launcheer", ae);
+          initializeAppLauncherAndServices();
+        } catch (Exception e) {
+          throw new RuntimeException("Exception reinitializing app launcher services ", e);
         }
       }
     }
@@ -257,16 +291,8 @@ public class GobblinClusterManager implements ApplicationLauncher {
     this.eventBus.register(this);
     connectHelixManager();
 
-    // standalone mode listens for controller change
     if (this.isStandaloneMode) {
-      // Subscribe to leadership changes
-      this.helixManager.addControllerListener(new ControllerChangeListener() {
-        @Override
-        public void onControllerChange(NotificationContext changeContext) {
-          handleLeadershipChange(changeContext);
-        }
-      });
-
+      // standalone mode starts non-daemon threads later, so need to have this thread to keep process up
       this.idleProcessThread = new Thread(new Runnable() {
         @Override
         public void run() {
@@ -292,7 +318,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
         }
       });
     } else {
-      this.applicationLauncher.start();
+      startAppLauncherAndServices();
     }
   }
 
@@ -317,15 +343,15 @@ public class GobblinClusterManager implements ApplicationLauncher {
       }
     }
 
-    // Send a shutdown request to all GobblinTaskRunners
-    sendShutdownRequest();
-    try {
-      this.applicationLauncher.stop();
-    } catch (ApplicationException ae) {
-      LOGGER.error("Error while stopping Gobblin Cluster Manager", ae);
-    } finally {
-      disconnectHelixManager();
+    // Send a shutdown request to all GobblinTaskRunners unless running in standalone mode.
+    // In standalone mode a failing manager should not stop the whole cluster.
+    if (!this.isStandaloneMode) {
+      sendShutdownRequest();
     }
+
+    stopAppLauncherAndServices();
+
+    disconnectHelixManager();
   }
 
   /**
@@ -351,8 +377,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
   /**
    * Build the {@link FileSystem} for the Application Master.
    */
-  private FileSystem buildFileSystem(Config config)
-      throws IOException {
+  private FileSystem buildFileSystem(Config config) throws IOException {
     return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
         .get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration())
         : FileSystem.get(new Configuration());
@@ -362,8 +387,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
    * Build the {@link GobblinHelixJobScheduler} for the Application Master.
    */
   private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
-      List<? extends Tag<?>> metadataTags, SchedulerService schedulerService)
-      throws Exception {
+      List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
     Properties properties = ConfigUtils.configToProperties(config);
     return new GobblinHelixJobScheduler(properties, this.helixManager, this.eventBus, appWorkDir, metadataTags,
         schedulerService, this.jobCatalog);
@@ -386,8 +410,8 @@ public class GobblinClusterManager implements ApplicationLauncher {
       } else {
         return new JobConfigurationManager(this.eventBus, config);
       }
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-        | ClassNotFoundException e) {
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException |
+        ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
   }
@@ -406,12 +430,25 @@ public class GobblinClusterManager implements ApplicationLauncher {
   @VisibleForTesting
   void connectHelixManager() {
     try {
+      this.isLeader = false;
       this.helixManager.connect();
       this.helixManager.addLiveInstanceChangeListener(new GobblinLiveInstanceChangeListener());
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(
-          GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE, new ControllerShutdownMessageHandlerFactory());
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(
-          Message.MessageType.USER_DEFINE_MSG.toString(), getUserDefinedMessageHandlerFactory());
+      this.helixManager.getMessagingService()
+          .registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE, new ControllerShutdownMessageHandlerFactory());
+      this.helixManager.getMessagingService()
+          .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
+              getUserDefinedMessageHandlerFactory());
+
+      // standalone mode listens for controller change
+      if (this.isStandaloneMode) {
+        // Subscribe to leadership changes
+        this.helixManager.addControllerListener(new ControllerChangeListener() {
+          @Override
+          public void onControllerChange(NotificationContext changeContext) {
+            handleLeadershipChange(changeContext);
+          }
+        });
+      }
     } catch (Exception e) {
       LOGGER.error("HelixManager failed to connect", e);
       throw Throwables.propagate(e);
@@ -438,6 +475,15 @@ public class GobblinClusterManager implements ApplicationLauncher {
   @VisibleForTesting
   boolean isHelixManagerConnected() {
     return this.helixManager.isConnected();
+  }
+
+  @VisibleForTesting
+  void initializeHelixManager() {
+    String zkConnectionString = this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
+
+    // This will create and register a Helix controller in ZooKeeper
+    this.helixManager = buildHelixManager(this.config, zkConnectionString);
   }
 
   @VisibleForTesting
@@ -478,10 +524,6 @@ public class GobblinClusterManager implements ApplicationLauncher {
   @Override
   public void close() throws IOException {
     this.applicationLauncher.close();
-
-    if (this.jobCatalog instanceof Service) {
-      ((Service) this.jobCatalog).stopAsync().awaitTerminated();
-    }
   }
 
   /**

@@ -60,7 +60,7 @@ public class GobblinClusterKillTest {
 
   private final static int ASSERT_TIMEOUT = 60000;
   private final static int ASSERT_MAX_SLEEP = 2000;
-  private final static int NUM_MANAGERS = 3;
+  private final static int NUM_MANAGERS = 2;
   private final static int NUM_WORKERS = 2;
   private GobblinClusterManager[] _clusterManagers;
   private GobblinTaskRunner[] _clusterWorkers;
@@ -214,7 +214,7 @@ public class GobblinClusterKillTest {
     }, "Waiting for job-completion");
 
     // Job file should have been deleted
-    Thread.sleep(2000);
+    Thread.sleep(5000);
     Assert.assertFalse(testJobFile.exists());
   }
 
@@ -254,6 +254,59 @@ public class GobblinClusterKillTest {
         }
       }
     }, "Waiting for job-completion");
+
+    // Job file should have been deleted
+    Thread.sleep(5000);
+    final File testJobFile = new File(_jobDirPath + "/GobblinClusterKillTestJob.conf");
+    Assert.assertFalse(testJobFile.exists());
+  }
+
+  // The kill tests are unreliable on Travis
+  @Test(groups = { "disabledOnTravis" }, enabled=true, dependsOnMethods = "testKillManager")
+  public void testRestartManager() throws IOException, TimeoutException, InterruptedException {
+    Collection<File> matches = Collections.EMPTY_LIST;
+    final File writerOutputDir = new File(_testDirPath + "/writer-output/gobblin/util/test/HelloWorldSource/");
+    final File jobOutputDir = new File(_testDirPath + "/job-output/gobblin/util/test/HelloWorldSource/");
+
+    // reinitialize test directory
+    setupTestDir();
+
+    // At this point there is one connected manager. Disconnect it and reconnect the other one to confirm that a manager
+    // can continue to function after regaining leadership.
+    _clusterManagers[1].disconnectHelixManager();
+
+    // Should function after regaining leadership
+    // need to reinitialize the heap manager and call handleLeadershipChange to shut down services in the test
+    // since the leadership change is simulated
+    _clusterManagers[0].initializeHelixManager();
+    _clusterManagers[0].handleLeadershipChange(null);
+
+    // reconnect to get leadership role
+    _clusterManagers[0].connectHelixManager();
+
+    AssertWithBackoff.create().logger(LOG).timeoutMs(ASSERT_TIMEOUT).maxSleepMs(ASSERT_MAX_SLEEP).backoffFactor(1.5)
+        .assertTrue(new Predicate<Void>() {
+          @Override
+          public boolean apply(Void input) {
+            if (writerOutputDir.exists()) {
+              return FileUtils.listFiles(writerOutputDir, new String[]{"txt"}, true).size() >= 25;
+            } else {
+              return false;
+            }
+          }
+        }, "Waiting for writer output");
+
+    AssertWithBackoff.create().logger(LOG).timeoutMs(ASSERT_TIMEOUT).maxSleepMs(ASSERT_MAX_SLEEP).backoffFactor(1.5)
+        .assertTrue(new Predicate<Void>() {
+          @Override
+          public boolean apply(Void input) {
+            if (jobOutputDir.exists()) {
+              return FileUtils.listFiles(jobOutputDir, new String[]{"txt"}, true).size() >= 100;
+            } else {
+              return false;
+            }
+          }
+        }, "Waiting for job-completion");
   }
 
   @AfterClass

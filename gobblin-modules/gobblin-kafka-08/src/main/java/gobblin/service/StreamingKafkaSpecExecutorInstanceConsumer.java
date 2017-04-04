@@ -17,6 +17,7 @@
 
 package gobblin.service;
 
+import gobblin.util.ConfigUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -51,7 +52,8 @@ import gobblin.util.CompletedFuture;
  */
 public class StreamingKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExecutorInstance
     implements SpecExecutorInstanceConsumer<Spec>, Closeable {
-
+  public static final String SPEC_STREAMING_BLOCKING_QUEUE_SIZE = "spec.StreamingBlockingQueueSize";
+  private static final int DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE = 100;
   private final AvroJobSpecKafkaJobMonitor _jobMonitor;
   private final BlockingQueue<ImmutablePair<Verb, Spec>> _jobSpecQueue;
 
@@ -64,17 +66,15 @@ public class StreamingKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecE
     try {
       _jobMonitor = (AvroJobSpecKafkaJobMonitor)(new AvroJobSpecKafkaJobMonitor.Factory())
           .forConfig(config.withFallback(defaults), jobCatalog);
-
-      _jobSpecQueue = new LinkedBlockingQueue<>();
-
-      // listener will add job specs to a blocking queue to send to callers of changedSpecs()
-      jobCatalog.addListener(new JobSpecListener());
-
-      _jobMonitor.startAsync();
-      _jobMonitor.awaitRunning();
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Could not create job monitor", e);
     }
+
+    _jobSpecQueue = new LinkedBlockingQueue<>(ConfigUtils.getInt(config, "SPEC_STREAMING_BLOCKING_QUEUE_SIZE",
+        DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE));
+
+    // listener will add job specs to a blocking queue to send to callers of changedSpecs()
+    jobCatalog.addListener(new JobSpecListener());
   }
 
   public StreamingKafkaSpecExecutorInstanceConsumer(Config config, MutableJobCatalog jobCatalog, Logger log) {
@@ -111,9 +111,18 @@ public class StreamingKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecE
   }
 
   @Override
+  protected void startUp() {
+    _jobMonitor.startAsync().awaitRunning();
+  }
+
+  @Override
+  protected void shutDown() {
+    _jobMonitor.stopAsync().awaitTerminated();
+  }
+
+  @Override
   public void close() throws IOException {
-    _jobMonitor.stopAsync();
-    _jobMonitor.awaitTerminated();
+    shutDown();
   }
 
   /**
