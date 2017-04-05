@@ -175,7 +175,9 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
         //unfilled elements should be nullable.
         return record;
       }
-      _iterators.remove();
+      GoogleWebmasterExtractorIterator done = _iterators.remove();
+      log.info(
+          String.format("Iterator Job Finished for site %s at country %s. ^_^", done.getProperty(), done.getCountry()));
       _positionMaps.remove();
     }
 

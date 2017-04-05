@@ -170,11 +170,12 @@ class GoogleWebmasterExtractorIterator {
     throw new NoSuchElementException();
   }
 
-  /**
-   * For test only
-   */
-  String getCountry() {
+  public String getCountry() {
     return _country;
+  }
+
+  public String getProperty() {
+    return _webmaster.getSiteProperty();
   }
 
   /**

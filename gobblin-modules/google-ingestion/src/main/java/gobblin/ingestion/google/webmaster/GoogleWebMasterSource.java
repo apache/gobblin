@@ -47,7 +47,7 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    * Must Provide.
    * Provide the property site URL whose google search analytics data you want to download
    */
-  public static final String KEY_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "property_url";
+  public static final String KEY_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "property_urls";
   /**
    * The filters that will be passed to all your API requests.
    * Filter format is [GoogleWebmasterFilter.Dimension].[DimensionValue]
