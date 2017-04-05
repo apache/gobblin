@@ -31,11 +31,11 @@ import org.joda.time.format.DateTimeFormatter;
 
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.common.base.Splitter;
+import com.google.gson.JsonArray;
 
 import avro.shaded.com.google.common.collect.Iterables;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
@@ -46,11 +46,11 @@ import gobblin.source.extractor.extract.LongWatermark;
 public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
 
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-  private final String _schema;
+  private final JsonArray _schema;
   private final WorkUnitState _wuState;
-  private final int _size;
   public final static DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
   private final static DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
+  private final boolean _includeSource;
   private Queue<GoogleWebmasterExtractorIterator> _iterators = new ArrayDeque<>();
   /**
    * Each element keeps a mapping from API response order to output schema order.
@@ -67,9 +67,10 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   public GoogleWebmasterExtractor(GoogleWebmasterClient gscClient, WorkUnitState wuState, long lowWatermark,
       long expectedHighWaterMark, Map<String, Integer> columnPositionMap,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics)
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, JsonArray schemaJson)
       throws IOException {
     this(wuState, lowWatermark, expectedHighWaterMark, columnPositionMap, requestedDimensions, requestedMetrics,
+        schemaJson,
         createGoogleWebmasterDataFetchers(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY), gscClient, wuState));
   }
 
@@ -89,14 +90,14 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
    */
   GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long expectedHighWaterMark,
       Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, List<GoogleWebmasterDataFetcher> dataFetchers) {
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, JsonArray schemaJson,
+      List<GoogleWebmasterDataFetcher> dataFetchers) {
     _startDate = watermarkFormatter.parseDateTime(Long.toString(lowWatermark));
     _expectedHighWaterMark = expectedHighWaterMark;
     _expectedHighWaterMarkDate = watermarkFormatter.parseDateTime(Long.toString(expectedHighWaterMark));
-
-    _schema = wuState.getWorkunit().getProp(ConfigurationKeys.SOURCE_SCHEMA);
-    _size = columnPositionMap.size();
     _wuState = wuState;
+    _schema = schemaJson;
+    _includeSource = wuState.getWorkunit().getPropAsBoolean(GoogleWebMasterSource.KEY_INCLUDE_SOURCE_PROPERTY, true);
 
     Iterable<Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter>> filterGroups = getFilterGroups(wuState);
 
@@ -157,7 +158,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   @Override
   public String getSchema()
       throws IOException {
-    return this._schema;
+    return _schema.toString();
   }
 
   @Override
@@ -168,11 +169,15 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       int[] positionMap = _positionMaps.peek();
       if (iterator.hasNext()) {
         String[] apiResponse = iterator.next();
-        String[] record = new String[_size];
+        int size = _schema.size();
+        String[] record = new String[size];
         for (int i = 0; i < positionMap.length; ++i) {
           record[positionMap[i]] = apiResponse[i];
         }
         //unfilled elements should be nullable.
+        if (_includeSource) {
+          record[size - 1] = iterator.getProperty();
+        }
         return record;
       }
       GoogleWebmasterExtractorIterator done = _iterators.remove();

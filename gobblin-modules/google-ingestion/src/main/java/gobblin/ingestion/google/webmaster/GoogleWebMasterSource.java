@@ -27,12 +27,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.avro.JsonElementConversionFactory;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.QueryBasedSource;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -48,6 +51,11 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    * Provide the property site URL whose google search analytics data you want to download
    */
   public static final String KEY_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "property_urls";
+  /**
+   * Optional. Default to true.
+   * Determine whether to add source property as the last column to your configured schema
+   */
+  public static final String KEY_INCLUDE_SOURCE_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "include_source_property";
   /**
    * The filters that will be passed to all your API requests.
    * Filter format is [GoogleWebmasterFilter.Dimension].[DimensionValue]
@@ -159,6 +167,7 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
   // =============================================
 
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
+  private final static String SOURCE_PROPERTY_COLUMN_NAME = "source";
 
   @Override
   public Extractor<String, String[]> getExtractor(WorkUnitState state)
@@ -166,7 +175,9 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = getRequestedDimensions(state);
     List<GoogleWebmasterDataFetcher.Metric> requestedMetrics = getRequestedMetrics(state);
 
-    String schema = state.getWorkunit().getProp(ConfigurationKeys.SOURCE_SCHEMA);
+    WorkUnit workunit = state.getWorkunit();
+    String schema = workunit.getProp(ConfigurationKeys.SOURCE_SCHEMA);
+
     JsonArray schemaJson = new JsonParser().parse(schema).getAsJsonArray();
     Map<String, Integer> columnPositionMap = new HashMap<>();
     for (int i = 0; i < schemaJson.size(); ++i) {
@@ -175,14 +186,18 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
       columnPositionMap.put(columnName, i);
     }
 
+    if (workunit.getPropAsBoolean(GoogleWebMasterSource.KEY_INCLUDE_SOURCE_PROPERTY, true)) {
+      schemaJson.add(createColumnJson(SOURCE_PROPERTY_COLUMN_NAME, false, JsonElementConversionFactory.Type.STRING));
+    }
+
     validateFilters(state.getProp(GoogleWebMasterSource.KEY_REQUEST_FILTERS));
     validateRequests(columnPositionMap, requestedDimensions, requestedMetrics);
-    return createExtractor(state, columnPositionMap, requestedDimensions, requestedMetrics);
+    return createExtractor(state, columnPositionMap, requestedDimensions, requestedMetrics, schemaJson);
   }
 
   abstract GoogleWebmasterExtractor createExtractor(WorkUnitState state, Map<String, Integer> columnPositionMap,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics)
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, JsonArray schemaJson)
       throws IOException;
 
   private void validateFilters(String filters) {
@@ -224,5 +239,18 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
       metrics.add(GoogleWebmasterDataFetcher.Metric.valueOf(metric.toUpperCase()));
     }
     return metrics;
+  }
+
+  private static JsonObject createColumnJson(String columnName, boolean isNullable,
+      JsonElementConversionFactory.Type columnType) {
+    JsonObject columnJson = new JsonObject();
+    columnJson.addProperty("columnName", columnName);
+    columnJson.addProperty("isNullable", isNullable);
+
+    JsonObject typeJson = new JsonObject();
+    typeJson.addProperty("type", columnType.toString());
+    columnJson.add("dataType", typeJson);
+
+    return columnJson;
   }
 }
