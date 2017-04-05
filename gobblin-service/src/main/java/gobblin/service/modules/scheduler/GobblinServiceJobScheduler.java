@@ -100,9 +100,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // No-op if already in correct state
       return;
     }
-    this.isActive = isActive;
 
-    if (isActive) {
+    if (!isActive) {
       if (this.flowCatalog.isPresent()) {
         Collection<Spec> specs = this.flowCatalog.get().getSpecs();
         for (Spec spec : specs) {
@@ -114,6 +113,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         onDeleteSpec(spec.getUri(), spec.getVersion());
       }
     }
+
+    // Change status after invoking addition / removal of specs, or else they will use isActive
+    // .. to exhibit behavior for updated iActive value
+    this.isActive = isActive;
   }
 
   @Override
