@@ -64,12 +64,24 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private final DateTime _expectedHighWaterMarkDate;
   private boolean _successful = false;
 
-  public GoogleWebmasterExtractor(GoogleWebmasterClient gscClient, WorkUnitState wuState, long lowWatermark, long expectedHighWaterMark,
-      Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
+  public GoogleWebmasterExtractor(GoogleWebmasterClient gscClient, WorkUnitState wuState, long lowWatermark,
+      long expectedHighWaterMark, Map<String, Integer> columnPositionMap,
+      List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics)
       throws IOException {
     this(wuState, lowWatermark, expectedHighWaterMark, columnPositionMap, requestedDimensions, requestedMetrics,
-        new GoogleWebmasterDataFetcherImpl(gscClient, wuState));
+        createGoogleWebmasterDataFetchers(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY), gscClient, wuState));
+  }
+
+  private static List<GoogleWebmasterDataFetcher> createGoogleWebmasterDataFetchers(String properties,
+      GoogleWebmasterClient gscClient, WorkUnitState wuState)
+      throws IOException {
+    List<GoogleWebmasterDataFetcher> fetchers = new ArrayList<>();
+    Iterable<String> props = splitter.split(properties);
+    for (String prop : props) {
+      fetchers.add(new GoogleWebmasterDataFetcherImpl(prop, gscClient, wuState));
+    }
+    return fetchers;
   }
 
   /**
@@ -77,7 +89,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
    */
   GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long expectedHighWaterMark,
       Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, GoogleWebmasterDataFetcher dataFetcher) {
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, List<GoogleWebmasterDataFetcher> dataFetchers) {
     _startDate = watermarkFormatter.parseDateTime(Long.toString(lowWatermark));
     _expectedHighWaterMark = expectedHighWaterMark;
     _expectedHighWaterMarkDate = watermarkFormatter.parseDateTime(Long.toString(expectedHighWaterMark));
@@ -88,29 +100,33 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
 
     Iterable<Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter>> filterGroups = getFilterGroups(wuState);
 
-    for (Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filters : filterGroups) {
-      List<GoogleWebmasterFilter.Dimension> actualDimensionRequests = new ArrayList<>(requestedDimensions);
-      //Need to remove the dimension from actualDimensionRequests if the filter for that dimension is ALL/Aggregated
-      for (Map.Entry<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filter : filters.entrySet()) {
-        if (filter.getValue() == null) {
-          actualDimensionRequests.remove(filter.getKey());
+    for (GoogleWebmasterDataFetcher dataFetcher : dataFetchers) {
+      for (Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filters : filterGroups) {
+        List<GoogleWebmasterFilter.Dimension> actualDimensionRequests = new ArrayList<>(requestedDimensions);
+        //Need to remove the dimension from actualDimensionRequests if the filter for that dimension is ALL/Aggregated
+        for (Map.Entry<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filter : filters.entrySet()) {
+          if (filter.getValue() == null) {
+            actualDimensionRequests.remove(filter.getKey());
+          }
         }
+        GoogleWebmasterExtractorIterator iterator =
+            new GoogleWebmasterExtractorIterator(dataFetcher, dateFormatter.print(_startDate),
+                dateFormatter.print(_expectedHighWaterMarkDate), actualDimensionRequests, requestedMetrics, filters,
+                wuState);
+        // positionMapping is to address the cases when requested dimensions/metrics order
+        // is different from the column order in source.schema
+        int[] positionMapping = new int[actualDimensionRequests.size() + requestedMetrics.size()];
+        int i = 0;
+        for (; i < actualDimensionRequests.size(); ++i) {
+          positionMapping[i] = columnPositionMap.get(actualDimensionRequests.get(i).toString());
+        }
+        for (GoogleWebmasterDataFetcher.Metric requestedMetric : requestedMetrics) {
+          positionMapping[i++] = columnPositionMap.get(requestedMetric.toString());
+        }
+        //One positionMapping is corresponding to one iterator.
+        _iterators.add(iterator);
+        _positionMaps.add(positionMapping);
       }
-      GoogleWebmasterExtractorIterator iterator =
-          new GoogleWebmasterExtractorIterator(dataFetcher, dateFormatter.print(_startDate),
-              dateFormatter.print(_expectedHighWaterMarkDate), actualDimensionRequests, requestedMetrics, filters,
-              wuState);
-      //positionMapping is to address the problems that requested dimensions/metrics order might be different from the column order in source.schema
-      int[] positionMapping = new int[actualDimensionRequests.size() + requestedMetrics.size()];
-      int i = 0;
-      for (; i < actualDimensionRequests.size(); ++i) {
-        positionMapping[i] = columnPositionMap.get(actualDimensionRequests.get(i).toString());
-      }
-      for (GoogleWebmasterDataFetcher.Metric requestedMetric : requestedMetrics) {
-        positionMapping[i++] = columnPositionMap.get(requestedMetric.toString());
-      }
-      _iterators.add(iterator);
-      _positionMaps.add(positionMapping);
     }
   }
 

@@ -19,6 +19,7 @@ package gobblin.ingestion.google.webmaster;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +44,8 @@ public class GoogleWebmasterExtractorTest {
    * Test that positionMaps and iterators are constructed correctly in the constructor
    */
   @Test
-  public void testConstructor() throws IOException, DataRecordException {
+  public void testConstructor()
+      throws IOException, DataRecordException {
     WorkUnitState wuState = getWorkUnitState1();
     wuState.setProp(GoogleWebMasterSource.KEY_REQUEST_FILTERS, "Country.USA,Country.ALL");
 
@@ -60,7 +62,7 @@ public class GoogleWebmasterExtractorTest {
     GoogleWebmasterExtractor extractor =
         new GoogleWebmasterExtractor(wuState, wuState.getWorkunit().getLowWatermark(LongWatermark.class).getValue(),
             wuState.getWorkunit().getExpectedHighWatermark(LongWatermark.class).getValue(), positionMap, dimensions,
-            metrics, dataFetcher);
+            metrics, Collections.singletonList(dataFetcher));
 
     Queue<GoogleWebmasterExtractorIterator> iterators = extractor.getIterators();
     GoogleWebmasterExtractorIterator iteratorUSA = iterators.poll();
