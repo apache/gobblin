@@ -19,12 +19,14 @@ package gobblin.service.modules.topology;
 
 import java.util.Collection;
 
+import gobblin.annotation.Alpha;
 import gobblin.runtime.api.TopologySpec;
 
 
 /***
  * A {@link TopologySpec} Factory that creates or generates the {@link TopologySpec} to be used.
  */
+@Alpha
 public interface TopologySpecFactory {
   /***
    * Create or generate {@link TopologySpec}s.
