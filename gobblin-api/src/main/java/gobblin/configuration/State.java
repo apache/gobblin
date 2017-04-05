@@ -78,7 +78,10 @@ public class State implements WritableShim {
   public State(State otherState) {
     this.commonProperties = otherState.getCommonProperties();
     this.specProperties = new Properties();
-    this.specProperties.putAll(otherState.getSpecProperties());
+    this.specProperties.putAll(otherState.getProperties());
+    for (Object key : this.commonProperties.keySet()) {
+      this.specProperties.remove(key);
+    }
   }
 
   /**
