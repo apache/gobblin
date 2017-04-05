@@ -30,6 +30,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.JobSpec;
@@ -49,6 +50,7 @@ import gobblin.service.ServiceConfigKeys;
  * Take in a logical {@link Spec} ie flow and compile corresponding materialized job {@link Spec}
  * and its mapping to {@link SpecExecutorInstance}.
  */
+@Alpha
 public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
 
   private final Map<URI, TopologySpec> topologySpecMap;
