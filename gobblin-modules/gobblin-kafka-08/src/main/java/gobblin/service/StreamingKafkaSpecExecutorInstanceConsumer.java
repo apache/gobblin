@@ -17,6 +17,7 @@
 
 package gobblin.service;
 
+import gobblin.util.ConfigUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -37,9 +38,9 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecExecutorInstanceConsumer;
-import gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
 import gobblin.runtime.job_monitor.AvroJobSpecKafkaJobMonitor;
 import gobblin.runtime.job_monitor.KafkaJobMonitor;
 import gobblin.runtime.std.DefaultJobCatalogListenerImpl;
@@ -51,43 +52,38 @@ import gobblin.util.CompletedFuture;
  */
 public class StreamingKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExecutorInstance
     implements SpecExecutorInstanceConsumer<Spec>, Closeable {
-
+  public static final String SPEC_STREAMING_BLOCKING_QUEUE_SIZE = "spec.StreamingBlockingQueueSize";
+  private static final int DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE = 100;
   private final AvroJobSpecKafkaJobMonitor _jobMonitor;
-  private final NonObservingFSJobCatalog _fsJobCatalog;
   private final BlockingQueue<ImmutablePair<Verb, Spec>> _jobSpecQueue;
 
-  public StreamingKafkaSpecExecutorInstanceConsumer(Config config, Optional<Logger> log) {
+  public StreamingKafkaSpecExecutorInstanceConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
     super(config, log);
     String topic = config.getString(SPEC_KAFKA_TOPICS_KEY);
     Config defaults = ConfigFactory.parseMap(ImmutableMap.of(AvroJobSpecKafkaJobMonitor.TOPIC_KEY, topic,
         KafkaJobMonitor.KAFKA_AUTO_OFFSET_RESET_KEY, KafkaJobMonitor.KAFKA_AUTO_OFFSET_RESET_SMALLEST));
 
     try {
-      _fsJobCatalog = new NonObservingFSJobCatalog(config.getConfig("gobblin.cluster"));
       _jobMonitor = (AvroJobSpecKafkaJobMonitor)(new AvroJobSpecKafkaJobMonitor.Factory())
-          .forConfig(config.withFallback(defaults), _fsJobCatalog);
-
-      _jobSpecQueue = new LinkedBlockingQueue<>();
-
-      // listener will add job specs to a blocking queue to send to callers of changedSpecs()
-      _fsJobCatalog.addListener(new JobSpecListener());
-
-      _fsJobCatalog.startAsync();
-      _fsJobCatalog.awaitRunning();
-      _jobMonitor.startAsync();
-      _jobMonitor.awaitRunning();
+          .forConfig(config.withFallback(defaults), jobCatalog);
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Could not create job monitor", e);
     }
+
+    _jobSpecQueue = new LinkedBlockingQueue<>(ConfigUtils.getInt(config, "SPEC_STREAMING_BLOCKING_QUEUE_SIZE",
+        DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE));
+
+    // listener will add job specs to a blocking queue to send to callers of changedSpecs()
+    jobCatalog.addListener(new JobSpecListener());
   }
 
-  public StreamingKafkaSpecExecutorInstanceConsumer(Config config, Logger log) {
-    this(config, Optional.of(log));
+  public StreamingKafkaSpecExecutorInstanceConsumer(Config config, MutableJobCatalog jobCatalog, Logger log) {
+    this(config, jobCatalog, Optional.of(log));
   }
 
   /** Constructor with no logging */
-  public StreamingKafkaSpecExecutorInstanceConsumer(Config config) {
-    this(config, Optional.<Logger>absent());
+  public StreamingKafkaSpecExecutorInstanceConsumer(Config config, MutableJobCatalog jobCatalog) {
+    this(config, jobCatalog, Optional.<Logger>absent());
   }
 
   /**
@@ -115,11 +111,18 @@ public class StreamingKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecE
   }
 
   @Override
+  protected void startUp() {
+    _jobMonitor.startAsync().awaitRunning();
+  }
+
+  @Override
+  protected void shutDown() {
+    _jobMonitor.stopAsync().awaitTerminated();
+  }
+
+  @Override
   public void close() throws IOException {
-    _jobMonitor.stopAsync();
-    _fsJobCatalog.stopAsync();
-    _jobMonitor.awaitTerminated();
-    _fsJobCatalog.awaitTerminated();
+    shutDown();
   }
 
   /**

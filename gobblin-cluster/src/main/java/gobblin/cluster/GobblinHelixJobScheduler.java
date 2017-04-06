@@ -17,6 +17,8 @@
 
 package gobblin.cluster;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -36,6 +38,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
+import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.listeners.JobListener;
 import gobblin.scheduler.JobScheduler;
 import gobblin.cluster.event.DeleteJobConfigArrivalEvent;
@@ -64,9 +67,11 @@ public class GobblinHelixJobScheduler extends JobScheduler {
   private final EventBus eventBus;
   private final Path appWorkDir;
   private final List<? extends Tag<?>> metadataTags;
+  private final MutableJobCatalog jobCatalog;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
-      Path appWorkDir, List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
+      Path appWorkDir, List<? extends Tag<?>> metadataTags, SchedulerService schedulerService,
+      MutableJobCatalog jobCatalog) throws Exception {
     super(properties, schedulerService);
     this.properties = properties;
     this.helixManager = helixManager;
@@ -74,6 +79,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
 
     this.appWorkDir = appWorkDir;
     this.metadataTags = metadataTags;
+    this.jobCatalog = jobCatalog;
   }
 
   @Override
@@ -123,7 +129,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
         scheduleJob(jobConfig, null);
       } else {
         LOGGER.info("No job schedule found, so running job " + newJobArrival.getJobName());
-        this.jobExecutor.execute(new NonScheduledJobRunner(jobConfig, null));
+        this.jobExecutor.execute(new NonScheduledJobRunner(newJobArrival.getJobName(), jobConfig, null));
       }
     } catch (JobException je) {
       LOGGER.error("Failed to schedule or run job " + newJobArrival.getJobName(), je);
@@ -162,10 +168,12 @@ public class GobblinHelixJobScheduler extends JobScheduler {
    */
   class NonScheduledJobRunner implements Runnable {
 
+    private final String jobUri;
     private final Properties jobConfig;
     private final JobListener jobListener;
 
-    public NonScheduledJobRunner(Properties jobConfig, JobListener jobListener) {
+    public NonScheduledJobRunner(String jobUri, Properties jobConfig, JobListener jobListener) {
+      this.jobUri = jobUri;
       this.jobConfig = jobConfig;
       this.jobListener = jobListener;
     }
@@ -174,6 +182,15 @@ public class GobblinHelixJobScheduler extends JobScheduler {
     public void run() {
       try {
         GobblinHelixJobScheduler.this.runJob(this.jobConfig, this.jobListener);
+
+        // remove non-scheduled job catalog once done so it won't be re-executed
+        if (GobblinHelixJobScheduler.this.jobCatalog != null) {
+          try {
+            GobblinHelixJobScheduler.this.jobCatalog.remove(new URI(jobUri));
+          } catch (URISyntaxException e) {
+            LOGGER.error("Failed to remove job with bad uri " + jobUri, e);
+          }
+        }
       } catch (JobException je) {
         LOGGER.error("Failed to run job " + this.jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
       }

@@ -17,6 +17,7 @@
 
 package gobblin.service.monitoring;
 
+import java.util.Collections;
 import java.util.Iterator;
 
 import com.google.common.collect.Iterators;
@@ -40,7 +41,7 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
   public Iterator<JobStatus> getLatestJobStatusByFlowNameAndGroup(String flowName, String flowGroup) {
     long latestExecutionId = getLatestExecutionIdForFlow(flowName, flowGroup);
 
-    return latestExecutionId == -1l ? Iterators.<JobStatus>emptyIterator()
+    return latestExecutionId == -1l ? Collections.<JobStatus>emptyIterator()
         : getJobStatusesForFlowExecution(flowName, flowGroup, latestExecutionId);
   }
 }

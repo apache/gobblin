@@ -53,8 +53,7 @@ public class TaskMetrics extends GobblinMetrics {
   public static TaskMetrics get(final TaskState taskState) {
     return (TaskMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(taskState), new Callable<GobblinMetrics>() {
       @Override
-      public GobblinMetrics call()
-          throws Exception {
+      public GobblinMetrics call() throws Exception {
         return new TaskMetrics(taskState);
       }
     });
@@ -85,5 +84,17 @@ public class TaskMetrics extends GobblinMetrics {
 
   private static MetricContext parentContextForTask(TaskState taskState) {
     return JobMetrics.get(taskState.getProp(ConfigurationKeys.JOB_NAME_KEY), taskState.getJobId()).getMetricContext();
+  }
+
+  public static String taskInstanceRemoved(String metricName) {
+    final String METRIC_SEPARATOR = "_";
+
+    String[] taskIdTokens = metricName.split(METRIC_SEPARATOR);
+    StringBuilder sb = new StringBuilder(taskIdTokens[0]);
+    // chopping taskId and jobId from metric name
+    for (int i = 1; i < taskIdTokens.length - 2; i++) {
+      sb.append(METRIC_SEPARATOR).append(taskIdTokens[i]);
+    }
+    return sb.toString();
   }
 }

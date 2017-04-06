@@ -73,4 +73,8 @@ public class GobblinClusterConfigurationKeys {
       "gobblin.service.SimpleKafkaSpecExecutorInstanceConsumer";
   public static final String DEFAULT_STREAMING_SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS =
       "gobblin.service.StreamingKafkaSpecExecutorInstanceConsumer";
+  public static final String JOB_CATALOG_KEY = GOBBLIN_CLUSTER_PREFIX + "job.catalog";
+  public static final String DEFAULT_JOB_CATALOG =
+      "gobblin.runtime.job_catalog.NonObservingFSJobCatalog";
+
 }
