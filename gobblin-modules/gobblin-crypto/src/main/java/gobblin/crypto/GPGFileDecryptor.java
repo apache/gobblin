@@ -14,15 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.util;
-
-import gobblin.util.io.StreamUtils;
+package gobblin.crypto;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.Security;
 
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPEncryptedDataList;
@@ -40,9 +37,9 @@ import org.bouncycastle.openpgp.operator.jcajce.JcePBEDataDecryptorFactoryBuilde
  *
  * Code reference - org.bouncycastle.openpgp.examples.PBEFileProcessor
  */
-public class GPGFileDecrypter {
+public class GPGFileDecryptor {
 
-  public static FSDataInputStream decryptFile(InputStream inputStream, String passPhrase) throws IOException {
+  public static InputStream decryptFile(InputStream inputStream, String passPhrase) throws IOException {
 
     if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
       Security.addProvider(new BouncyCastleProvider());
@@ -76,7 +73,7 @@ public class GPGFileDecrypter {
       }
 
       PGPLiteralData ld = (PGPLiteralData) pgpfObject;
-      return StreamUtils.convertStream(ld.getInputStream());
+      return ld.getInputStream();
     } catch (PGPException e) {
       throw new IOException(e);
     }

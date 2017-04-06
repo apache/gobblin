@@ -26,6 +26,8 @@ dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-modules:gobblin-codecs")
   compile project(":gobblin-modules:gobblin-metadata")
+  compile externalDependency.bcpgJdk15on
+  compile externalDependency.bcprovJdk15on
   compile externalDependency.slf4j
 
   testCompile project(":gobblin-core-base") // for EncryptionConfigParser
