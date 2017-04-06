@@ -17,6 +17,7 @@
 
 package gobblin.util.request_allocation;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -77,7 +78,7 @@ public abstract class PriorityIterableBasedRequestAllocator<T extends Request<T>
         IteratorExecutor.logFailures(results, log, 10);
       } catch (InterruptedException ie) {
         log.error("Request allocation was interrupted.");
-        return new AllocatedRequestsIteratorBase<>(Iterators.<AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T>>emptyIterator(),
+        return new AllocatedRequestsIteratorBase<>(Collections.<AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T>>emptyIterator(),
             resourcePool);
       }
     }
