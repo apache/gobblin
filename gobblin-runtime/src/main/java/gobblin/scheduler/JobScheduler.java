@@ -169,7 +169,7 @@ public class JobScheduler extends AbstractIdleService {
     LOG.info("Starting the job scheduler");
 
     try {
-      this.scheduler.awaitRunning(1, TimeUnit.SECONDS);
+      this.scheduler.awaitRunning(30, TimeUnit.SECONDS);
     } catch (TimeoutException | IllegalStateException exc) {
       throw new IllegalStateException("Scheduler service is not running.");
     }
