@@ -36,6 +36,7 @@ import com.google.gson.JsonArray;
 import avro.shaded.com.google.common.collect.Iterables;
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.annotation.Alpha;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
@@ -43,6 +44,7 @@ import gobblin.source.extractor.extract.LongWatermark;
 
 
 @Slf4j
+@Alpha
 public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
 
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
@@ -97,7 +99,8 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
     _expectedHighWaterMarkDate = watermarkFormatter.parseDateTime(Long.toString(expectedHighWaterMark));
     _wuState = wuState;
     _schema = schemaJson;
-    _includeSource = wuState.getWorkunit().getPropAsBoolean(GoogleWebMasterSource.KEY_INCLUDE_SOURCE_PROPERTY, true);
+    _includeSource = wuState.getWorkunit().getPropAsBoolean(GoogleWebMasterSource.KEY_INCLUDE_SOURCE_PROPERTY,
+        GoogleWebMasterSource.DEFAULT_INCLUDE_SOURCE_PROPERTY);
 
     Iterable<Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter>> filterGroups = getFilterGroups(wuState);
 

@@ -63,7 +63,8 @@ Starting with GoogleWebMasterSource, it consumes the job or pull configuration f
 Configuration Key | Default Value | Description
 ----------------- | ------------- | ---
 source.google_webmasters.property_urls|Must Provide|Provide the property site URLs whose google search analytics data you want to download. Those URLs should be separated by commas.
-source.google_webmasters.include_source_property|True|Determine whether to add source property as the last column to your configured schema.
+source.google_webmasters.source_property.include|False|Determine whether to add source property as the last column to your configured schema.
+source.google_webmasters.source_property.column_name|Source|Determine the column name for the additional source property origin column if included.
 source.google_webmasters.request.filters|Optional|The filters that will be passed to all your API requests. <p><br>Filter format is [GoogleWebmasterFilter.Dimension].[DimensionValue].</p>Currently, this filter operator is "EQUALS" and only Country dimension is supported. Will extend this feature according to more use cases in the future.
 source.google_webmasters.request.dimensions|Must Provide|Allowed dimensions are DATE, PAGE, COUNTRY, QUERY, DEVICE, SEARCH_TYPE, SEARCH_APPEARANCE
 source.google_webmasters.request.metrics|Must Provide|Allowed metrics are CLICKS, IMPRESSIONS, CTR, POSITION

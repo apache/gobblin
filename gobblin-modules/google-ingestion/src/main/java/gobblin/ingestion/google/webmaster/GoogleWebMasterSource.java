@@ -27,12 +27,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.avro.JsonElementConversionFactory;
+import gobblin.ingestion.google.util.SchemaUtil;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.QueryBasedSource;
 import gobblin.source.workunit.WorkUnit;
@@ -44,6 +45,7 @@ import gobblin.source.workunit.WorkUnit;
  * The minimum unit of querying range is date. Change the range by configuring "source.querybased.start.value" and "source.querybased.end.value". Note that the analytics data for Google Search Console has a delay or 3 days. So cap your configuration of "source.querybased.append.max.watermark.limit" by "CURRENTDATE-3". See the documentation details of each configuration in the GoogleWebMasterSource fields.
  *
  */
+@Alpha
 abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
   public static final String SOURCE_GOOGLE_WEBMASTER_PREFIX = "source.google_webmasters.";
   /**
@@ -52,10 +54,16 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    */
   public static final String KEY_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "property_urls";
   /**
-   * Optional. Default to true.
+   * Optional. Default to false.
    * Determine whether to add source property as the last column to your configured schema
    */
-  public static final String KEY_INCLUDE_SOURCE_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "include_source_property";
+  public static final String KEY_INCLUDE_SOURCE_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "source_property.include";
+  /**
+   * Optional. Default to "Source".
+   * Determine the column name for the additional source property origin column if included
+   */
+  public static final String KEY_SOURCE_PROPERTY_COLUMN_NAME =
+      SOURCE_GOOGLE_WEBMASTER_PREFIX + "source_property.column_name";
   /**
    * The filters that will be passed to all your API requests.
    * Filter format is [GoogleWebmasterFilter.Dimension].[DimensionValue]
@@ -167,7 +175,8 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
   // =============================================
 
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-  private final static String SOURCE_PROPERTY_COLUMN_NAME = "source";
+  public static final boolean DEFAULT_INCLUDE_SOURCE_PROPERTY = false;
+  public static final String DEFAULT_SOURCE_PROPERTY_COLUMN_NAME = "Source";
 
   @Override
   public Extractor<String, String[]> getExtractor(WorkUnitState state)
@@ -186,8 +195,9 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
       columnPositionMap.put(columnName, i);
     }
 
-    if (workunit.getPropAsBoolean(GoogleWebMasterSource.KEY_INCLUDE_SOURCE_PROPERTY, true)) {
-      schemaJson.add(createColumnJson(SOURCE_PROPERTY_COLUMN_NAME, false, JsonElementConversionFactory.Type.STRING));
+    if (workunit.getPropAsBoolean(GoogleWebMasterSource.KEY_INCLUDE_SOURCE_PROPERTY, DEFAULT_INCLUDE_SOURCE_PROPERTY)) {
+      String columnName = workunit.getProp(KEY_SOURCE_PROPERTY_COLUMN_NAME, DEFAULT_SOURCE_PROPERTY_COLUMN_NAME);
+      schemaJson.add(SchemaUtil.createColumnJson(columnName, false, JsonElementConversionFactory.Type.STRING));
     }
 
     validateFilters(state.getProp(GoogleWebMasterSource.KEY_REQUEST_FILTERS));
@@ -239,18 +249,5 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
       metrics.add(GoogleWebmasterDataFetcher.Metric.valueOf(metric.toUpperCase()));
     }
     return metrics;
-  }
-
-  private static JsonObject createColumnJson(String columnName, boolean isNullable,
-      JsonElementConversionFactory.Type columnType) {
-    JsonObject columnJson = new JsonObject();
-    columnJson.addProperty("columnName", columnName);
-    columnJson.addProperty("isNullable", isNullable);
-
-    JsonObject typeJson = new JsonObject();
-    typeJson.addProperty("type", columnType.toString());
-    columnJson.add("dataType", typeJson);
-
-    return columnJson;
   }
 }
