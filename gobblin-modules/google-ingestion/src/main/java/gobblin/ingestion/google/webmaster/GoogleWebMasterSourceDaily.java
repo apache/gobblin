@@ -26,7 +26,6 @@ import java.util.Objects;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.services.webmasters.WebmastersScopes;
 import com.google.common.base.Preconditions;
-import com.google.gson.JsonArray;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -46,7 +45,7 @@ public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
   @Override
   GoogleWebmasterExtractor createExtractor(WorkUnitState state, Map<String, Integer> columnPositionMap,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, JsonArray schemaJson)
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics)
       throws IOException {
 
     long lowWatermark = state.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
@@ -55,7 +54,7 @@ public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
         new GoogleWebmasterClientImpl(getCredential(state), state.getProp(ConfigurationKeys.SOURCE_ENTITY));
 
     return new GoogleWebmasterExtractor(gscClient, state, lowWatermark, expectedHighWatermark, columnPositionMap,
-        requestedDimensions, requestedMetrics, schemaJson);
+        requestedDimensions, requestedMetrics);
   }
 
   private static Credential getCredential(State wuState) {

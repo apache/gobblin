@@ -29,14 +29,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
-import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.converter.avro.JsonElementConversionFactory;
-import gobblin.ingestion.google.util.SchemaUtil;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.QueryBasedSource;
-import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -45,25 +41,13 @@ import gobblin.source.workunit.WorkUnit;
  * The minimum unit of querying range is date. Change the range by configuring "source.querybased.start.value" and "source.querybased.end.value". Note that the analytics data for Google Search Console has a delay or 3 days. So cap your configuration of "source.querybased.append.max.watermark.limit" by "CURRENTDATE-3". See the documentation details of each configuration in the GoogleWebMasterSource fields.
  *
  */
-@Alpha
 abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
   public static final String SOURCE_GOOGLE_WEBMASTER_PREFIX = "source.google_webmasters.";
   /**
    * Must Provide.
    * Provide the property site URL whose google search analytics data you want to download
    */
-  public static final String KEY_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "property_urls";
-  /**
-   * Optional. Default to false.
-   * Determine whether to add source property as the last column to your configured schema
-   */
-  public static final String KEY_INCLUDE_SOURCE_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "source_property.include";
-  /**
-   * Optional. Default to "Source".
-   * Determine the column name for the additional source property origin column if included
-   */
-  public static final String KEY_SOURCE_PROPERTY_COLUMN_NAME =
-      SOURCE_GOOGLE_WEBMASTER_PREFIX + "source_property.column_name";
+  public static final String KEY_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "property_url";
   /**
    * The filters that will be passed to all your API requests.
    * Filter format is [GoogleWebmasterFilter.Dimension].[DimensionValue]
@@ -175,8 +159,6 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
   // =============================================
 
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-  public static final boolean DEFAULT_INCLUDE_SOURCE_PROPERTY = false;
-  public static final String DEFAULT_SOURCE_PROPERTY_COLUMN_NAME = "Source";
 
   @Override
   public Extractor<String, String[]> getExtractor(WorkUnitState state)
@@ -184,9 +166,7 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = getRequestedDimensions(state);
     List<GoogleWebmasterDataFetcher.Metric> requestedMetrics = getRequestedMetrics(state);
 
-    WorkUnit workunit = state.getWorkunit();
-    String schema = workunit.getProp(ConfigurationKeys.SOURCE_SCHEMA);
-
+    String schema = state.getWorkunit().getProp(ConfigurationKeys.SOURCE_SCHEMA);
     JsonArray schemaJson = new JsonParser().parse(schema).getAsJsonArray();
     Map<String, Integer> columnPositionMap = new HashMap<>();
     for (int i = 0; i < schemaJson.size(); ++i) {
@@ -195,19 +175,14 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
       columnPositionMap.put(columnName, i);
     }
 
-    if (workunit.getPropAsBoolean(GoogleWebMasterSource.KEY_INCLUDE_SOURCE_PROPERTY, DEFAULT_INCLUDE_SOURCE_PROPERTY)) {
-      String columnName = workunit.getProp(KEY_SOURCE_PROPERTY_COLUMN_NAME, DEFAULT_SOURCE_PROPERTY_COLUMN_NAME);
-      schemaJson.add(SchemaUtil.createColumnJson(columnName, false, JsonElementConversionFactory.Type.STRING));
-    }
-
     validateFilters(state.getProp(GoogleWebMasterSource.KEY_REQUEST_FILTERS));
     validateRequests(columnPositionMap, requestedDimensions, requestedMetrics);
-    return createExtractor(state, columnPositionMap, requestedDimensions, requestedMetrics, schemaJson);
+    return createExtractor(state, columnPositionMap, requestedDimensions, requestedMetrics);
   }
 
   abstract GoogleWebmasterExtractor createExtractor(WorkUnitState state, Map<String, Integer> columnPositionMap,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, JsonArray schemaJson)
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics)
       throws IOException;
 
   private void validateFilters(String filters) {
