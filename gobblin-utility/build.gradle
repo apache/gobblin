@@ -28,7 +28,6 @@ dependencies {
   compile externalDependency.commonsIo
   compile externalDependency.commonsLang
   compile externalDependency.guava
-  compile externalDependency.errorProneAnnotations
   compile externalDependency.slf4j
   compile externalDependency.avro
   compile externalDependency.jodaTime

@@ -233,6 +233,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       //wait for jobs to finish and start next round if necessary.
       try {
         es.shutdown();
+        log.info(String.format("Wait for get-all-pages jobs to finish at round %d... Next round now has size %d.", r,
+            nextRound.size()));
         boolean terminated = es.awaitTermination(5, TimeUnit.MINUTES);
         if (!terminated) {
           es.shutdownNow();
