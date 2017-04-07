@@ -141,12 +141,11 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
     }
   }
 
-  public String getCountry() {
+  /**
+   * For test only
+   */
+  String getCountry() {
     return _country;
-  }
-
-  public String getProperty() {
-    return _webmaster.getSiteProperty();
   }
 
   /**

@@ -51,7 +51,7 @@ public class GoogleWebmasterDataFetcherImplTest {
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.setProp(GoogleWebMasterSource.KEY_PROPERTY, _property);
 
-    GoogleWebmasterDataFetcher dataFetcher = new GoogleWebmasterDataFetcherImpl(_property, client, workUnitState);
+    GoogleWebmasterDataFetcher dataFetcher = new GoogleWebmasterDataFetcherImpl(client, workUnitState);
     Collection<ProducerJob> allPages = dataFetcher.getAllPages(null, null, "ALL", 2);
 
     List<String> pageStrings = new ArrayList<>();
@@ -80,7 +80,7 @@ public class GoogleWebmasterDataFetcherImplTest {
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.setProp(GoogleWebMasterSource.KEY_PROPERTY, _property);
 
-    GoogleWebmasterDataFetcher dataFetcher = new GoogleWebmasterDataFetcherImpl(_property, client, workUnitState);
+    GoogleWebmasterDataFetcher dataFetcher = new GoogleWebmasterDataFetcherImpl(client, workUnitState);
     Collection<ProducerJob> response = dataFetcher.getAllPages(null, null, "ALL", 5000);
 
     List<String> pageStrings = new ArrayList<>();
