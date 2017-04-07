@@ -32,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -165,7 +166,7 @@ public class HiveCopyEntityHelper {
   private final ExistingEntityPolicy existingEntityPolicy;
   private final UnmanagedDataPolicy unmanagedDataPolicy;
   private final Optional<String> partitionFilter;
-  private final Optional<String> partitionTimeGranularity;
+  private final Optional<PathFilter> partitionTimeGranularity;
   private final Optional<Predicate<HivePartitionFileSet>> fastPartitionSkip;
   private final Optional<Predicate<HiveCopyEntityHelper>> fastTableSkip;
 
@@ -282,8 +283,15 @@ public class HiveCopyEntityHelper {
       }
 
       if ( this.dataset.getProperties().containsKey(LookbackPartitionFilterGenerator.TIME_GRANULARITY)){
-        this.partitionTimeGranularity = Optional.of(this.dataset.getProperties()
-            .getProperty(LookbackPartitionFilterGenerator.TIME_GRANULARITY));
+        final String timeGranularity = this.dataset.getProperties()
+            .getProperty(LookbackPartitionFilterGenerator.TIME_GRANULARITY);
+        PathFilter pathFilter = new PathFilter() {
+          @Override
+          public boolean accept(Path path) {
+            return path.toString().contains("/" + timeGranularity +"/");
+          }
+        };
+        this.partitionTimeGranularity = Optional.of(pathFilter);
       }
       else this.partitionTimeGranularity = Optional.absent();
 

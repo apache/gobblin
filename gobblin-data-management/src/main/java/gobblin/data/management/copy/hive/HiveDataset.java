@@ -316,7 +316,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public List<Partition> getPartitionsFromDataset() throws IOException{
     try (AutoReturnableObject<IMetaStoreClient> client = getClientPool().getClient()) {
       List<Partition> partitions =
-          HiveUtils.getPartitions(client.get(), getTable(), Optional.<String>absent(), Optional.<String>absent());
+          HiveUtils.getPartitions(client.get(), getTable(), Optional.<String>absent());
       return sortPartitions(partitions);
     }
   }

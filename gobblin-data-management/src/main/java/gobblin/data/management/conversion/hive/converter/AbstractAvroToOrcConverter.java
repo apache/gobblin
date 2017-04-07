@@ -691,7 +691,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         if (table.isPresent()) {
           org.apache.hadoop.hive.ql.metadata.Table qlTable = new org.apache.hadoop.hive.ql.metadata.Table(table.get());
           if (HiveUtils.isPartitioned(qlTable)) {
-            partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String>absent(), Optional.<String>absent()));
+            partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String>absent()));
           }
         }
       }

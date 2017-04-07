@@ -28,6 +28,7 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -62,9 +63,8 @@ public class HiveUtils {
    * @return a map of values to {@link Partition} for input {@link Table}.
    */
   public static Map<List<String>, Partition> getPartitionsMap(IMetaStoreClient client, Table table,
-      Optional<String> filter, Optional<String> timeGranularity) throws IOException {
-    System.out.println("entering getPartitionsMap");
-    return Maps.uniqueIndex(getPartitions(client, table, filter, timeGranularity), new Function<Partition, List<String>>() {
+      Optional<String> filter, Optional<PathFilter> pathFilterOptional) throws IOException {
+    return Maps.uniqueIndex(getPartitions(client, table, filter, pathFilterOptional), new Function<Partition, List<String>>() {
       @Override
       public List<String> apply(@Nullable Partition partition) {
         if (partition == null) {
@@ -85,7 +85,7 @@ public class HiveUtils {
    * @return a list of {@link Partition}s
    */
   public static List<Partition> getPartitions(IMetaStoreClient client, Table table,
-      Optional<String> filter, Optional<String> timeGranularity)
+      Optional<String> filter, Optional<PathFilter> pathFilterOptional)
       throws IOException {
     try {
       List<Partition> partitions = Lists.newArrayList();
@@ -93,8 +93,8 @@ public class HiveUtils {
           ? client.listPartitionsByFilter(table.getDbName(), table.getTableName(), filter.get(), (short) -1)
           : client.listPartitions(table.getDbName(), table.getTableName(), (short) -1);
       for (org.apache.hadoop.hive.metastore.api.Partition p : partitionsList) {
-        if (!timeGranularity.isPresent() ||
-            p.getSd().getLocation().contains("/" + timeGranularity.get() + "/")) {
+        if (!pathFilterOptional.isPresent() ||
+            pathFilterOptional.get().accept( new Path(p.getSd().getLocation())) ) {
           Partition partition = new Partition(table, p);
           partitions.add(partition);
         }
@@ -103,6 +103,19 @@ public class HiveUtils {
     } catch (TException | HiveException te) {
       throw new IOException("Hive Error", te);
     }
+  }
+
+  /**
+   * For backward compatibility when PathFilter is injected as a parameter.
+   * @param client
+   * @param table
+   * @param filter
+   * @return
+   * @throws IOException
+   */
+  public static List<Partition> getPartitions(IMetaStoreClient client, Table table, Optional<String> filter)
+      throws IOException {
+    return getPartitions(client, table, filter, Optional.<PathFilter>absent());
   }
 
   /**

@@ -368,7 +368,7 @@ public class ValidationJob extends AbstractJob {
   private void processPartitionedTable(ConvertibleHiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client) throws IOException {
 
     // Get partitions for the table
-    List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent(), Optional.<String>absent());
+    List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent());
 
     for (final String format : hiveDataset.getDestFormats()) {
       Optional<ConvertibleHiveDataset.ConversionConfig> conversionConfigOptional = hiveDataset.getConversionConfigForFormat(format);
@@ -625,7 +625,7 @@ public class ValidationJob extends AbstractJob {
         if (table.isPresent()) {
           org.apache.hadoop.hive.ql.metadata.Table qlTable = new org.apache.hadoop.hive.ql.metadata.Table(table.get());
           if (HiveUtils.isPartitioned(qlTable)) {
-            partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String> absent(), Optional.<String>absent()));
+            partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String> absent()));
           }
         }
       }
