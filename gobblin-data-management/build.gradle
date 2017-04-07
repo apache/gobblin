@@ -30,7 +30,6 @@ dependencies {
   compile externalDependency.commonsLang
   compile externalDependency.commonsLang3
   compile externalDependency.guava
-  compile externalDependency.errorProneAnnotations
   compile externalDependency.slf4j
   compile externalDependency.log4j
   compile externalDependency.jodaTime

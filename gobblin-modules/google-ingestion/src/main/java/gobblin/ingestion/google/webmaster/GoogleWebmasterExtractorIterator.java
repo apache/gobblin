@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,8 +45,6 @@ import avro.shaded.com.google.common.base.Joiner;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
-import gobblin.ingestion.google.AsyncIteratorWithDataSink;
-import gobblin.ingestion.google.GoggleIngestionConfigurationKeys;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.limiter.RateBasedLimiter;
 
@@ -54,7 +53,8 @@ import gobblin.util.limiter.RateBasedLimiter;
  * This iterator holds a GoogleWebmasterDataFetcher, through which it get all pages. And then for each page, it will get all query data(Clicks, Impressions, CTR, Position). Basically, it will cache all pages got, and for each page, cache the detailed query data, and then iterate through them one by one.
  */
 @Slf4j
-class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[]> {
+class GoogleWebmasterExtractorIterator {
+
   private final RateBasedLimiter LIMITER;
   private final int ROUND_TIME_OUT;
   private final int BATCH_SIZE;
@@ -70,6 +70,8 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
   private final String _startDate;
   private final String _endDate;
   private final String _country;
+  private Thread _producerThread;
+  private LinkedBlockingDeque<String[]> _cachedQueries = new LinkedBlockingDeque<>(2000);
   private final Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> _filterMap;
   //This is the requested dimensions sent to Google API
   private final List<GoogleWebmasterFilter.Dimension> _requestedDimensions;
@@ -79,10 +81,6 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics,
       Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filterMap, WorkUnitState wuState) {
-
-    super(wuState.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE, 2000),
-        wuState.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_POLL_BLOCKING_TIME, 1));
-
     Preconditions.checkArgument(!filterMap.containsKey(GoogleWebmasterFilter.Dimension.PAGE),
         "Doesn't support filters for page for the time being. Will implement support later. If page filter is provided, the code won't take the responsibility of get all pages, so it will just return all queries for that page.");
 
@@ -130,15 +128,46 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
     }
   }
 
-  @Override
-  protected Runnable getProducerRunnable() {
+  public boolean hasNext()
+      throws IOException {
+    initialize();
+    if (!_cachedQueries.isEmpty()) {
+      return true;
+    }
     try {
-      Collection<ProducerJob> allJobs = _webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT);
-      return new ResponseProducer(allJobs);
-    } catch (Exception e) {
-      log.error(e.getMessage());
+      String[] next = _cachedQueries.poll(1, TimeUnit.SECONDS);
+      while (next == null) {
+        if (_producerThread.isAlive()) {
+          //Job not done yet. Keep waiting.
+          next = _cachedQueries.poll(1, TimeUnit.SECONDS);
+        } else {
+          log.info("Producer job has finished. No more query data in the queue.");
+          return false;
+        }
+      }
+      //Must put it back. Implement in this way because LinkedBlockingDeque doesn't support blocking peek.
+      _cachedQueries.putFirst(next);
+      return true;
+    } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private void initialize()
+      throws IOException {
+    if (_producerThread == null) {
+      Collection<ProducerJob> allJobs = _webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT);
+      _producerThread = new Thread(new ResponseProducer(allJobs));
+      _producerThread.start();
+    }
+  }
+
+  public String[] next()
+      throws IOException {
+    if (hasNext()) {
+      return _cachedQueries.remove();
+    }
+    throw new NoSuchElementException();
   }
 
   /**
@@ -216,17 +245,20 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
             batch.add(job);
           }
           if (batch.size() == BATCH_SIZE) {
-            es.submit(getResponses(batch, retries, _dataSink, reporter));
+            es.submit(getResponses(batch, retries, _cachedQueries, reporter));
             batch = new ArrayList<>(BATCH_SIZE);
           }
         }
         //Send the last batch
         if (!batch.isEmpty()) {
-          es.submit(getResponses(batch, retries, _dataSink, reporter));
+          es.submit(getResponses(batch, retries, _cachedQueries, reporter));
         }
         log.info(String.format("Submitted all jobs at round %d.", r));
         try {
           es.shutdown(); //stop accepting new requests
+          log.info(String
+              .format("Wait for download-query-data jobs to finish at round %d... Next round now has size %d.", r,
+                  retries.size()));
           boolean terminated = es.awaitTermination(ROUND_TIME_OUT, TimeUnit.MINUTES);
           if (!terminated) {
             es.shutdownNow();
@@ -407,7 +439,7 @@ class ProgressReporter {
   private final int _total; //Total number of jobs.
   private final int _checkPoint; //report at every check point
 
-  ProgressReporter(Logger log, int total) {
+  public ProgressReporter(Logger log, int total) {
     this(log, total, 20);
   }
 
@@ -416,7 +448,7 @@ class ProgressReporter {
    * @param frequency indicate the frequency of reporting.
    *                  e.g. If set frequency to 20. Then, the reporter will report 20 times at every 5%.
    */
-  private ProgressReporter(Logger log, int total, int frequency) {
+  public ProgressReporter(Logger log, int total, int frequency) {
     _log = log;
     _total = total;
     _checkPoint = (int) Math.max(1, Math.ceil(1.0 * total / frequency));
