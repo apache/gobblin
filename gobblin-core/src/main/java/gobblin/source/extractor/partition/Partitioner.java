@@ -48,8 +48,9 @@ import gobblin.source.extractor.watermark.WatermarkType;
  * An implementation of default partitioner for all types of sources
  */
 public class Partitioner {
-  private static final String WATERMARKTIMEFORMAT = "yyyyMMddHHmmss";
   private static final Logger LOG = LoggerFactory.getLogger(Partitioner.class);
+
+  public static final String WATERMARKTIMEFORMAT = "yyyyMMddHHmmss";
   public static final String HAS_USER_SPECIFIED_PARTITIONS = "partitioner.hasUserSpecifiedPartitions";
   public static final String USER_SPECIFIED_PARTITIONS = "partitioner.userSpecifiedPartitions";
 
@@ -81,6 +82,21 @@ public class Partitioner {
     super();
     this.state = state;
     hasUserSpecifiedHighWatermark = false;
+  }
+
+  public Partition getGobalPartition(long previousWatermark) {
+    ExtractType extractType =
+        ExtractType.valueOf(state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
+    WatermarkType watermarkType = WatermarkType.valueOf(
+        state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, ConfigurationKeys.DEFAULT_WATERMARK_TYPE)
+            .toUpperCase());
+
+    WatermarkPredicate watermark = new WatermarkPredicate(null, watermarkType);
+    int deltaForNextWatermark = watermark.getDeltaNumForNextWatermark();
+
+    long lowWatermark = getLowWatermark(extractType, watermarkType, previousWatermark, deltaForNextWatermark);
+    long highWatermark = getHighWatermark(extractType, watermarkType);
+    return new Partition(lowWatermark, highWatermark, hasUserSpecifiedHighWatermark);
   }
 
   /**

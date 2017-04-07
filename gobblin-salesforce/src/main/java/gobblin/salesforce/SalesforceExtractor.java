@@ -453,7 +453,7 @@ public class SalesforceExtractor extends RestApiExtractor {
     return this.nextUrl;
   }
 
-  private static String getSoqlUrl(String soqlQuery) throws RestApiClientException {
+  public static String getSoqlUrl(String soqlQuery) throws RestApiClientException {
     String path = SOQL_RESOURCE + "/";
     NameValuePair pair = new BasicNameValuePair("q", soqlQuery);
     List<NameValuePair> qparams = new ArrayList<>();
