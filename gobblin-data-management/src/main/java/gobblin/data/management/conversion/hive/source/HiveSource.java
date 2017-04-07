@@ -282,7 +282,7 @@ public class HiveSource implements Source {
     }
 
     List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(),
-        partitionFilter);
+        partitionFilter, Optional.<String>absent());
 
     for (Partition sourcePartition : sourcePartitions) {
 

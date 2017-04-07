@@ -74,7 +74,7 @@ public abstract class AbstractHiveDatasetVersionFinder implements VersionFinder<
 
     try (AutoReturnableObject<IMetaStoreClient> client = hiveDataset.getClientPool().getClient()) {
 
-      List<Partition> partitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent());
+      List<Partition> partitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent(), Optional.<String>absent());
       return Lists.newArrayList(Iterables.filter(Iterables.transform(partitions, new Function<Partition, HiveDatasetVersion>() {
 
         @Override

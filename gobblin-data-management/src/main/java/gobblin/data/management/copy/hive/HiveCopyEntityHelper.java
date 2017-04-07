@@ -26,7 +26,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -60,7 +59,7 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.hive.avro.HiveAvroCopyEntityHelper;
-import gobblin.data.management.partition.CopyableDatasetRequestor;
+import gobblin.data.management.copy.hive.filter.LookbackPartitionFilterGenerator;
 import gobblin.data.management.partition.FileSet;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HiveRegProps;
@@ -166,6 +165,7 @@ public class HiveCopyEntityHelper {
   private final ExistingEntityPolicy existingEntityPolicy;
   private final UnmanagedDataPolicy unmanagedDataPolicy;
   private final Optional<String> partitionFilter;
+  private final Optional<String> partitionTimeGranularity;
   private final Optional<Predicate<HivePartitionFileSet>> fastPartitionSkip;
   private final Optional<Predicate<HiveCopyEntityHelper>> fastTableSkip;
 
@@ -281,6 +281,12 @@ public class HiveCopyEntityHelper {
             Optional.fromNullable(this.dataset.getProperties().getProperty(COPY_PARTITIONS_FILTER_CONSTANT));
       }
 
+      if ( this.dataset.getProperties().containsKey(LookbackPartitionFilterGenerator.TIME_GRANULARITY)){
+        this.partitionTimeGranularity = Optional.of(this.dataset.getProperties()
+            .getProperty(LookbackPartitionFilterGenerator.TIME_GRANULARITY));
+      }
+      else this.partitionTimeGranularity = Optional.absent();
+
       try {
         this.fastPartitionSkip = this.dataset.getProperties().containsKey(FAST_PARTITION_SKIP_PREDICATE)
             ? Optional.of(GobblinConstructorUtils.invokeFirstConstructor(
@@ -326,15 +332,15 @@ public class HiveCopyEntityHelper {
         if (this.existingTargetTable.isPresent() && this.existingTargetTable.get().isPartitioned()) {
           checkPartitionedTableCompatibility(this.targetTable, this.existingTargetTable.get());
         }
-
         if (HiveUtils.isPartitioned(this.dataset.table)) {
           this.sourcePartitions = HiveUtils.getPartitionsMap(multiClient.getClient(source_client), this.dataset.table,
-              this.partitionFilter);
+              this.partitionFilter, this.partitionTimeGranularity);
           // Note: this must be mutable, so we copy the map
           this.targetPartitions =
               this.existingTargetTable.isPresent() ? Maps.newHashMap(
                   HiveUtils.getPartitionsMap(multiClient.getClient(target_client),
-                      this.existingTargetTable.get(), this.partitionFilter)) : Maps.<List<String>, Partition> newHashMap();
+                      this.existingTargetTable.get(), this.partitionFilter, this.partitionTimeGranularity))
+                  : Maps.<List<String>, Partition> newHashMap();
         } else {
           this.sourcePartitions = Maps.newHashMap();
           this.targetPartitions = Maps.newHashMap();
