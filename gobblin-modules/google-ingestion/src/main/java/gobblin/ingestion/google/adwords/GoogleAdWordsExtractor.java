@@ -26,7 +26,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 
 import avro.shaded.com.google.common.base.Optional;
 import avro.shaded.com.google.common.collect.Lists;
@@ -34,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.avro.JsonElementConversionFactory;
+import gobblin.ingestion.google.util.SchemaUtil;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.LongWatermark;
@@ -156,7 +156,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
       updatedSchema.add(_schema.get(i));
     }
     //add extra columns(AccountId) at the end of the original schema
-    updatedSchema.add(createColumnJson(ACCOUNT_ID_COLUMN, false, JsonElementConversionFactory.Type.STRING));
+    updatedSchema.add(SchemaUtil.createColumnJson(ACCOUNT_ID_COLUMN, false, JsonElementConversionFactory.Type.STRING));
     return updatedSchema.toString();
   }
 
@@ -225,22 +225,9 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
       if (acceptedType == null) {
         acceptedType = JsonElementConversionFactory.Type.STRING;
       }
-      schema.add(createColumnJson(column.getKey(), true, acceptedType));
+      schema.add(SchemaUtil.createColumnJson(column.getKey(), true, acceptedType));
     }
     return schema;
-  }
-
-  private static JsonObject createColumnJson(String columnName, boolean isNullable,
-      JsonElementConversionFactory.Type columnType) {
-    JsonObject columnJson = new JsonObject();
-    columnJson.addProperty("columnName", columnName);
-    columnJson.addProperty("isNullable", isNullable);
-
-    JsonObject typeJson = new JsonObject();
-    typeJson.addProperty("type", columnType.toString());
-    columnJson.add("dataType", typeJson);
-
-    return columnJson;
   }
 
   private static HashMap<String, String> downloadReportFields(AdWordsSession rootSession,

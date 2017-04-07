@@ -57,7 +57,7 @@ source.querybased.partition.interval=23
 source.class=gobblin.ingestion.google.webmaster.GoogleWebMasterSourceDaily
 
 #Webmaster Specific
-source.google_webmasters.property_url=[Complete This]
+source.google_webmasters.property_urls=[Complete This]
 source.google_webmasters.request.dimensions=Date,Country,Page,Query
 source.google_webmasters.request.metrics=Clicks,Impressions,CTR,Position
 source.google_webmasters.request.filters=Country.deu,Country.ind,Country.all,Country.usa
