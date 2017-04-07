@@ -171,8 +171,6 @@ public class HiveCopyEntityHelper {
   private final DeregisterFileDeleteMethod deleteMethod;
 
   private final Optional<CommitStep> tableRegistrationStep;
-  private final Optional<CommitStep> dataLocationChangeStep;
-
   private final Map<List<String>, Partition> sourcePartitions;
   private final Map<List<String>, Partition> targetPartitions;
 
@@ -323,19 +321,10 @@ public class HiveCopyEntityHelper {
         this.targetTable = getTargetTable(this.dataset.table, targetPath);
         HiveSpec tableHiveSpec = new SimpleHiveSpec.Builder<>(targetPath)
             .withTable(HiveMetaStoreUtils.getHiveTable(this.targetTable.getTTable())).build();
-        CommitStep tableRegistrationStep = new HiveRegisterStep(this.targetURI, tableHiveSpec, this.hiveRegProps, false);
-        this.tableRegistrationStep = Optional.of(tableRegistrationStep);
 
-        // Constructing CommitStep object for table alteration, not necessary to use.
-        if (this.existingTargetTable.isPresent()) {
-          HiveSpec alteredTableHiveSpec = new SimpleHiveSpec.Builder<>(targetPath)
-              .withTable(HiveMetaStoreUtils.getHiveTable(this.existingTargetTable.get().getTTable())).build();
-          CommitStep dataLocationChangeStep = new HiveRegisterStep(this.targetURI, alteredTableHiveSpec, this.hiveRegProps, true);
-          this.dataLocationChangeStep = Optional.of(dataLocationChangeStep);
-        }
-        else {
-          this.dataLocationChangeStep = Optional.absent();
-        }
+        CommitStep tableRegistrationStep =
+            new HiveRegisterStep(this.targetURI, tableHiveSpec, this.hiveRegProps);
+        this.tableRegistrationStep = Optional.of(tableRegistrationStep);
 
         if (this.existingTargetTable.isPresent() && this.existingTargetTable.get().isPartitioned()) {
           checkPartitionedTableCompatibility(this.targetTable, this.existingTargetTable.get());
@@ -543,15 +532,6 @@ public class HiveCopyEntityHelper {
     int priority = initialPriority;
     if (this.tableRegistrationStep.isPresent()) {
       copyEntities.add(new PostPublishStep(fileSet, Maps.<String, String> newHashMap(), this.tableRegistrationStep.get(),
-          priority++));
-    }
-    return priority;
-  }
-
-  int addLocationUpdateSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority){
-    int priority = initialPriority ;
-    if ( this.dataLocationChangeStep.isPresent()){
-      copyEntities.add(new PostPublishStep(fileSet, Maps.<String, String> newHashMap(), this.dataLocationChangeStep.get(),
           priority++));
     }
     return priority;

@@ -121,7 +121,7 @@ public class HivePartitionFileSet extends HiveFileSet {
           .withTable(HiveMetaStoreUtils.getHiveTable(hiveCopyEntityHelper.getTargetTable().getTTable()))
           .withPartition(Optional.of(HiveMetaStoreUtils.getHivePartition(targetPartition.getTPartition()))).build();
       HiveRegisterStep register = new HiveRegisterStep(hiveCopyEntityHelper.getTargetURI(), partitionHiveSpec,
-          hiveCopyEntityHelper.getHiveRegProps(), false);
+          hiveCopyEntityHelper.getHiveRegProps());
       copyEntities.add(new PostPublishStep(fileSet, Maps.<String, String> newHashMap(), register, stepPriority++));
 
       multiTimer.nextStage(HiveCopyEntityHelper.Stages.CREATE_LOCATIONS);
