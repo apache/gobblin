@@ -687,10 +687,6 @@ public class SalesforceExtractor extends RestApiExtractor {
 
       // Get batch info with complete resultset (info id - refers to the resultset id corresponding to entire resultset)
       this.bulkBatchInfo = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
-      if (this.bulkBatchInfo.getState() == BatchStateEnum.Failed) {
-        throw new RuntimeException("Failed to get bulk batch info for jobId " + this.bulkBatchInfo.getJobId()
-            + " error - " + this.bulkBatchInfo.getStateMessage());
-      }
 
       while ((this.bulkBatchInfo.getState() != BatchStateEnum.Completed)
           && (this.bulkBatchInfo.getState() != BatchStateEnum.Failed)) {
@@ -698,6 +694,12 @@ public class SalesforceExtractor extends RestApiExtractor {
         this.bulkBatchInfo = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
         log.debug("Bulk Api Batch Info:" + this.bulkBatchInfo);
         log.info("Waiting for bulk resultSetIds");
+      }
+
+      if (this.bulkBatchInfo.getState() == BatchStateEnum.Failed) {
+        log.info("Bulk batch failed: " + bulkBatchInfo.toString());
+        throw new RuntimeException("Failed to get bulk batch info for jobId " + this.bulkBatchInfo.getJobId()
+            + " error - " + this.bulkBatchInfo.getStateMessage());
       }
 
       // Get resultset ids from the batch info
