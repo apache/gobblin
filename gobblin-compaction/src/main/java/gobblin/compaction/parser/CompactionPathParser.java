@@ -1,5 +1,6 @@
-package gobblin.compaction.dataset;
+package gobblin.compaction.parser;
 
+import gobblin.dataset.FileSystemDataset;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -8,7 +9,6 @@ import org.joda.time.format.DateTimeFormatter;
 
 import com.google.common.base.Preconditions;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -17,15 +17,17 @@ import gobblin.configuration.State;
 
 
 /**
- * Parse the {@link CompactionPartition} to some format of result
- * that downstream user can utilize.
- *
- * {@link CompactionParserResult} is a return result of {@link CompactionParser#parse(CompactionPartition)}
+ * A parser which converts {@link FileSystemDataset} to {@link CompactionParserResult}
  */
-@AllArgsConstructor
-public class CompactionParser {
-  State state;
+public class CompactionPathParser extends CompactionParser<FileSystemDataset> {
 
+  public CompactionPathParser (State state) {
+    super (state);
+  }
+
+  /**
+   * A parsed result returned by {@link CompactionPathParser#parse(FileSystemDataset)}
+   */
   public static class CompactionParserResult {
     @Getter @Setter
     private  String srcBaseDir;
@@ -44,7 +46,12 @@ public class CompactionParser {
     private String datasetName;
   }
 
-  public CompactionParserResult parse (CompactionPartition partition) {
+  /**
+   * Parse a {@link FileSystemDataset} to some detailed parts like source base directory,
+   * source sub directory, destination based directory, destination sub directory, and time
+   * information.
+   */
+  public CompactionParserResult parse (FileSystemDataset dataset) {
 
     CompactionParserResult result = new CompactionParserResult();
     result.srcBaseDir = getSrcBaseDir (state);
@@ -52,14 +59,14 @@ public class CompactionParser {
     result.dstBaseDir = getDstBaseDir (state);
     result.dstSubDir  = getDstSubDir  (state);
 
-    parseTimeAndDatasetName(partition, result);
+    parseTimeAndDatasetName(dataset, result);
 
     return result;
   }
 
-  private void parseTimeAndDatasetName (CompactionPartition partition, CompactionParserResult rst) {
+  private void parseTimeAndDatasetName (FileSystemDataset dataset, CompactionParserResult rst) {
     String commonBase = rst.getSrcBaseDir();
-    String fullPath = partition.getPath().toString();
+    String fullPath = dataset.datasetURN();
     int startPos = fullPath.indexOf(commonBase) + commonBase.length();
     String relative = StringUtils.removeStart(fullPath.substring(startPos), "/");
 

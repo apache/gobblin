@@ -2,66 +2,55 @@ package gobblin.compaction.source;
 
 import com.google.common.collect.Lists;
 
-import gobblin.compaction.dataset.CompactionParser;
-import gobblin.compaction.dataset.CompactionPartition;
+import gobblin.compaction.suite.CompactionAvroSuite;
+import gobblin.compaction.suite.CompactionSuite;
 import gobblin.compaction.verify.CompactionVerifier;
 import gobblin.compaction.mapreduce.MRCompactionTaskFactory;
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.dataset.Dataset;
+import gobblin.dataset.DatasetsFinder;
 import gobblin.runtime.task.TaskUtils;
 import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.HadoopUtils;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.joda.time.DateTime;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
 /**
- * A source class which use {@link CompactionPartitionGlobFinder} to find all the {@link CompactionPartition} units
- * and convert them to available workunits.
+ * A compaction source derived from {@link Source} which uses {@link CompactionSuite#getDatasetFinder()} to find all
+ * {@link Dataset}s. Use {@link CompactionSuite#getDatasetsFinderVerifiers()} to guarantee a given dataset has passed
+ * all verification. The MR compaction job is created by {@link gobblin.compaction.mapreduce.configurator.CompactionJobConfigurator}.
+ * After the job finishes, some post actions are performed by {@link gobblin.compaction.action.CompactionCompleteAction}.
  */
 public class CompactionSource implements Source<String, String> {
-
-
-  protected FileSystem getFileSystem(State state)
-      throws IOException {
-    Configuration conf = HadoopUtils.getConfFromState(state);
-    String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
-    FileSystem fs = FileSystem.get(URI.create(uri), conf);
-
-    return fs;
-  }
+  CompactionSuite suite;
 
   public List<WorkUnit> getWorkunits(SourceState state) {
-    // TODO: get from and to range
     List<WorkUnit> workUnits = Lists.newArrayList();
 
     try {
-      FileSystem fs = getFileSystem(state);
-      CompactionPartitionGlobFinder finder = new CompactionPartitionGlobFinder(fs, state);
-      List<CompactionPartition> partitions = finder.findDatasets();
+      //TODO: use reflection to get real suite
+      suite = new CompactionAvroSuite(state);
+      DatasetsFinder finder = suite.getDatasetFinder();
+      List<CompactionVerifier> verifiers = suite.getDatasetsFinderVerifiers();
+      List<Dataset> datasets = finder.findDatasets();
 
-      for (CompactionPartition partition: partitions) {
-        CompactionParser parser = partition.getSuite().getParser();
-        CompactionVerifier verifier = partition.getSuite().getVerifiers().get(CompactionVerifier.COMPACTION_VERIFIER_DUMMY);
-        CompactionParser.CompactionParserResult rst = parser.parse(partition);
-
-        DateTime time = rst.getTime();
-        DateTime start = time.minusDays(1);
-        DateTime end = time.plusDays(1);
-        if (time.isBefore(end) && time.isAfter(start)) {
-          if (verifier.verify(partition)) {
-            WorkUnit workUnit = createWorkUnit(partition);
-            workUnits.add(workUnit);
+      for (Dataset dataset: datasets) {
+        // all verifier should be passed before we compact the dataset
+        boolean verificationPassed = true;
+        for (CompactionVerifier verifier : verifiers) {
+          if (!verifier.verify(dataset)) {
+            verificationPassed = false;
+            break;
           }
+        }
+
+        if (verificationPassed) {
+          WorkUnit workUnit = createWorkUnit(dataset);
+          workUnits.add(workUnit);
         }
       }
     } catch (IOException e) {
@@ -71,10 +60,10 @@ public class CompactionSource implements Source<String, String> {
     return workUnits;
   }
 
-  public WorkUnit createWorkUnit (CompactionPartition partition) throws IOException {
+  protected WorkUnit createWorkUnit (Dataset dataset) throws IOException {
     WorkUnit workUnit = new WorkUnit();
     TaskUtils.setTaskFactoryClass(workUnit, MRCompactionTaskFactory.class);
-    partition.save(workUnit);
+    suite.save(dataset, workUnit);
     return workUnit;
   }
 

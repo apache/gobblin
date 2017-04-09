@@ -1,13 +1,20 @@
 package gobblin.compaction.verify;
 
-import gobblin.compaction.dataset.CompactionPartition;
+import gobblin.configuration.State;
+import gobblin.dataset.Dataset;
+import lombok.AllArgsConstructor;
+
 
 /**
- * And interface which represents a generic verifier for compaction
+ * A class which represents a generic verifier for compaction
  */
-public interface CompactionVerifier {
-   String COMPACTION_VERIFIER_AUDIT_COUNT = "compaction-verifier-audit-count";
-   String COMPACTION_VERIFIER_THRESHOLD = "compaction-verifier-threshold";
-   String COMPACTION_VERIFIER_DUMMY = "compaction-verifier-dummy";
-   boolean verify(CompactionPartition partition) ;
+@AllArgsConstructor
+public abstract class CompactionVerifier<D extends Dataset> {
+   public final static String COMPACTION_VERIFIER_PREFIX = "compaction-verifier-";
+
+   protected final State state;
+
+   public abstract boolean verify(D dataset);
+
+   public abstract String getName();
 }

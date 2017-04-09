@@ -1,20 +1,29 @@
 package gobblin.compaction.verify;
 
+import gobblin.dataset.FileSystemDataset;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compaction.dataset.CompactionPartition;
 import gobblin.configuration.State;
 
 /**
- * A class which used to verify previous compacted records and current total records
- * and determine if a recompaction is needed
+ * A class which counts previous compacted records and compare to the new total records.
+ * If difference exceeds the user specified tolerance, a compaction needs to be triggered.
  */
 @Slf4j
-@AllArgsConstructor
-public class CompactionThresholdVerifier implements CompactionVerifier {
-  State state;
-  public boolean verify (CompactionPartition partition) {
+public class CompactionThresholdVerifier extends CompactionVerifier<FileSystemDataset> {
+  public final static String COMPACTION_VERIFIER_THRESHOLD = COMPACTION_VERIFIER_PREFIX + "threshold";
+
+  public CompactionThresholdVerifier (State state) {
+    super (state);
+  }
+
+  public boolean verify (FileSystemDataset dataset) {
+    //TODO: check previous compacted records and compare to current new records
     return true;
+  }
+
+  public String getName() {
+    return COMPACTION_VERIFIER_THRESHOLD;
   }
 }
