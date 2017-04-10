@@ -44,6 +44,9 @@ public class GobblinCli {
     } catch (ReflectiveOperationException roe) {
       System.err.println("Could not find an application with alias " + alias);
       printUsage(resolver);
+    } catch (Throwable t) {
+      System.out.println("Error: " + t.getMessage());
+      t.printStackTrace();
     }
   }
 
