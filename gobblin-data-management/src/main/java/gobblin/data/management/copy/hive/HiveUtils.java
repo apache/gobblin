@@ -63,8 +63,8 @@ public class HiveUtils {
    * @return a map of values to {@link Partition} for input {@link Table}.
    */
   public static Map<List<String>, Partition> getPartitionsMap(IMetaStoreClient client, Table table,
-      Optional<String> filter, Optional<PathFilter> pathFilterOptional) throws IOException {
-    return Maps.uniqueIndex(getPartitions(client, table, filter, pathFilterOptional), new Function<Partition, List<String>>() {
+      Optional<String> filter, Optional<? extends HivePartitionExtendedFilter> hivePartitionExtendedFilterOptional) throws IOException {
+    return Maps.uniqueIndex(getPartitions(client, table, filter, hivePartitionExtendedFilterOptional), new Function<Partition, List<String>>() {
       @Override
       public List<String> apply(@Nullable Partition partition) {
         if (partition == null) {
@@ -85,7 +85,7 @@ public class HiveUtils {
    * @return a list of {@link Partition}s
    */
   public static List<Partition> getPartitions(IMetaStoreClient client, Table table,
-      Optional<String> filter, Optional<PathFilter> pathFilterOptional)
+      Optional<String> filter, Optional<? extends HivePartitionExtendedFilter> hivePartitionExtendedFilterOptional)
       throws IOException {
     try {
       List<Partition> partitions = Lists.newArrayList();
@@ -93,8 +93,8 @@ public class HiveUtils {
           ? client.listPartitionsByFilter(table.getDbName(), table.getTableName(), filter.get(), (short) -1)
           : client.listPartitions(table.getDbName(), table.getTableName(), (short) -1);
       for (org.apache.hadoop.hive.metastore.api.Partition p : partitionsList) {
-        if (!pathFilterOptional.isPresent() ||
-            pathFilterOptional.get().accept( new Path(p.getSd().getLocation())) ) {
+        if (!hivePartitionExtendedFilterOptional.isPresent() ||
+            hivePartitionExtendedFilterOptional.get().accept(p)) {
           Partition partition = new Partition(table, p);
           partitions.add(partition);
         }
@@ -115,22 +115,7 @@ public class HiveUtils {
    */
   public static List<Partition> getPartitions(IMetaStoreClient client, Table table, Optional<String> filter)
       throws IOException {
-    return getPartitions(client, table, filter, Optional.<PathFilter>absent());
-  }
-
-  /**
-   * Helping function to determine if the partition has a specific metadata value. Normally used as a filter condition
-   * @param partition
-   * @param expectedMetadataValue
-   * @param checkedMetadataKey
-   *
-   * @return Whether a given partition contains the exact metadata value as expectedMetadataValue.
-   */
-  public static boolean partitonMetadataChecker(org.apache.hadoop.hive.metastore.api.Partition partition,
-      String expectedMetadataValue, String checkedMetadataKey){
-     return ( partition.getParameters().containsKey(checkedMetadataKey) &&
-     partition.getParameters().get(checkedMetadataKey).equals(expectedMetadataValue));
-    // TODO: Find the way to put in partition-level metadata, and where to obtain the 'hourly' & 'daily' info.
+    return getPartitions(client, table, filter, Optional.<HivePartitionExtendedFilter>absent());
   }
 
   /**

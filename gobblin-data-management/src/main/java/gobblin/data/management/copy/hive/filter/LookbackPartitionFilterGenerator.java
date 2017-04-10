@@ -20,7 +20,6 @@ package gobblin.data.management.copy.hive.filter;
 import java.util.Arrays;
 import java.util.Properties;
 
-import lombok.Getter;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
@@ -42,26 +41,17 @@ import gobblin.data.management.copy.hive.PartitionFilterGenerator;
  *   must be such that lexycographical string and date ordering are compatible.
  * </p>
  */
-@Getter
 public class LookbackPartitionFilterGenerator implements PartitionFilterGenerator {
 
   public static final String PARTITION_COLUMN = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.column";
   public static final String LOOKBACK = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.lookback";
   public static final String DATETIME_FORMAT = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.format";
-  public static final String TIME_GRANULARITY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.time.granularity";
-  /*
-  * For the value of granularity, currently three options:
-  * both, daily, hourly
-  * */
-  public static final String DEFAULT_TIME_GRANULARITY = "both";
-
   private static final String ERROR_MESSAGE = LookbackPartitionFilterGenerator.class.getName()
       + " requires the following properties " + Arrays.toString(new String[]{PARTITION_COLUMN, LOOKBACK, DATETIME_FORMAT});
 
   private final String partitionColumn;
   private final Period lookback;
   private final DateTimeFormatter formatter;
-  private final String timeGranularity;
 
 
   public LookbackPartitionFilterGenerator(Properties properties) {
@@ -72,7 +62,6 @@ public class LookbackPartitionFilterGenerator implements PartitionFilterGenerato
     this.partitionColumn = properties.getProperty(PARTITION_COLUMN);
     this.lookback = Period.parse(properties.getProperty(LOOKBACK));
     this.formatter = DateTimeFormat.forPattern(properties.getProperty(DATETIME_FORMAT));
-    timeGranularity = properties.containsKey(TIME_GRANULARITY) ? properties.getProperty(TIME_GRANULARITY) : this.DEFAULT_TIME_GRANULARITY;
   }
 
   @Override
