@@ -23,15 +23,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
 import gobblin.broker.iface.ConfigView;
 import gobblin.broker.iface.ScopeType;
 import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.metrics.ContextAwareTimer;
 import gobblin.metrics.MetricContext;
 import gobblin.util.filesystem.FileSystemInstrumentation;
 import gobblin.util.filesystem.FileSystemInstrumentationFactory;
@@ -73,33 +76,35 @@ public class MetricsFileSystemInstrumentation extends FileSystemInstrumentation 
 
   // Below are HDFS metrics
   @VisibleForTesting
-  protected final Timer listStatusTimer;
+  protected final ContextAwareTimer listStatusTimer;
   @VisibleForTesting
-  protected final Timer listFilesTimer;
+  protected final ContextAwareTimer listFilesTimer;
   @VisibleForTesting
-  protected final Timer globStatusTimer;
+  protected final ContextAwareTimer globStatusTimer;
   @VisibleForTesting
-  protected final Timer mkdirTimer;
+  protected final ContextAwareTimer mkdirTimer;
   @VisibleForTesting
-  protected final Timer deleteTimer;
+  protected final ContextAwareTimer deleteTimer;
   @VisibleForTesting
-  protected final Timer renameTimer;
+  protected final ContextAwareTimer renameTimer;
   @VisibleForTesting
-  protected final Timer createTimer;
+  protected final ContextAwareTimer createTimer;
   @VisibleForTesting
-  protected final Timer openTimer;
+  protected final ContextAwareTimer openTimer;
   @VisibleForTesting
-  protected final Timer setOwnerTimer;
+  protected final ContextAwareTimer setOwnerTimer;
   @VisibleForTesting
-  protected final Timer getFileStatusTimer;
+  protected final ContextAwareTimer getFileStatusTimer;
   @VisibleForTesting
-  protected final Timer setPermissionTimer;
+  protected final ContextAwareTimer setPermissionTimer;
   @VisibleForTesting
-  protected final Timer setTimesTimer;
+  protected final ContextAwareTimer setTimesTimer;
   @VisibleForTesting
-  protected final Timer appendTimer;
+  protected final ContextAwareTimer appendTimer;
   @VisibleForTesting
-  protected final Timer concatTimer;
+  protected final ContextAwareTimer concatTimer;
+
+  private final List<ContextAwareTimer> allTimers;
 
   private static class TimerContextWithLog implements Closeable {
     Timer.Context context;
@@ -151,6 +156,31 @@ public class MetricsFileSystemInstrumentation extends FileSystemInstrumentation 
     this.setTimesTimer = this.metricContext.timer("setTimes");
     this.appendTimer = this.metricContext.timer ("append");
     this.concatTimer = this.metricContext.timer ("concat");
+
+    this.allTimers = ImmutableList.<ContextAwareTimer>builder().add(
+        this.listStatusTimer, this.listFilesTimer, this.globStatusTimer, this.mkdirTimer, this.renameTimer,
+        this.deleteTimer, this.createTimer, this.openTimer, this.setOwnerTimer, this.getFileStatusTimer, this.setPermissionTimer,
+        this.setTimesTimer, this.appendTimer, this.concatTimer
+    ).build();
+  }
+
+  @Override
+  protected void onClose() {
+    StringBuilder message = new StringBuilder();
+    message.append("========================").append("\n");
+    message.append("Statistics for FileSystem: ").append(getUri()).append("\n");
+    message.append("------------------------").append("\n");
+    message.append("method\tcalls\tmean time(ns)\t99 percentile(ns)").append("\n");
+    for (ContextAwareTimer timer : this.allTimers) {
+      if (timer.getCount() > 0) {
+        message.append(timer.getName()).append("\t").append(timer.getCount()).append("\t").
+            append(timer.getSnapshot().getMean()).append("\t").append(timer.getSnapshot().get99thPercentile()).append("\n");
+      }
+    }
+    message.append("------------------------").append("\n");
+
+    log.info(message.toString());
+    super.onClose();
   }
 
   @Override

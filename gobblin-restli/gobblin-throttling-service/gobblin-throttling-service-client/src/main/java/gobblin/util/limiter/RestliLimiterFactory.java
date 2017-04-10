@@ -19,12 +19,14 @@ package gobblin.util.limiter;
 
 import com.linkedin.restli.client.RestClient;
 
+import gobblin.broker.ResourceCoordinate;
 import gobblin.broker.ResourceInstance;
 import gobblin.broker.iface.ConfigView;
 import gobblin.broker.iface.NotConfiguredException;
 import gobblin.broker.iface.ScopeType;
 import gobblin.broker.iface.ScopedConfigView;
 import gobblin.broker.iface.SharedResourceFactory;
+import gobblin.broker.iface.SharedResourceFactoryResponse;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.metrics.broker.MetricContextFactory;
 import gobblin.metrics.broker.MetricContextKey;
@@ -32,11 +34,14 @@ import gobblin.restli.SharedRestClientFactory;
 import gobblin.restli.SharedRestClientKey;
 import gobblin.util.limiter.broker.SharedLimiterKey;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * A {@link gobblin.util.limiter.broker.SharedLimiterFactory} that creates {@link RestliServiceBasedLimiter}s. It
  * automatically acquires a {@link RestClient} from the broker for restli service name {@link #RESTLI_SERVICE_NAME}.
  */
+@Slf4j
 public class RestliLimiterFactory<S extends ScopeType<S>>
     implements SharedResourceFactory<RestliServiceBasedLimiter, SharedLimiterKey, S> {
 
@@ -50,8 +55,13 @@ public class RestliLimiterFactory<S extends ScopeType<S>>
   }
 
   @Override
-  public ResourceInstance<RestliServiceBasedLimiter> createResource(SharedResourcesBroker<S> broker,
+  public SharedResourceFactoryResponse<RestliServiceBasedLimiter> createResource(SharedResourcesBroker<S> broker,
       ScopedConfigView<S, SharedLimiterKey> config) throws NotConfiguredException {
+
+    S scope = config.getScope();
+    if (scope != scope.rootScope()) {
+      return new ResourceCoordinate<>(this, config.getKey(), scope.rootScope());
+    }
 
     String serviceIdentifier = config.getConfig().hasPath(SERVICE_IDENTIFIER_KEY) ?
         config.getConfig().getString(SERVICE_IDENTIFIER_KEY) : "UNKNOWN";

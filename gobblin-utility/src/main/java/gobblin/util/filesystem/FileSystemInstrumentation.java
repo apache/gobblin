@@ -17,6 +17,8 @@
 
 package gobblin.util.filesystem;
 
+import java.io.IOException;
+
 import org.apache.hadoop.fs.FileSystem;
 
 
@@ -25,9 +27,36 @@ import org.apache.hadoop.fs.FileSystem;
  */
 public class FileSystemInstrumentation extends FileSystemDecorator {
 
+  protected boolean closed = false;
+
   public FileSystemInstrumentation(FileSystem underlying) {
     super(underlying.getScheme(), underlying.getScheme());
     this.underlyingFs = underlying;
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        if (!FileSystemInstrumentation.this.closed) {
+          onClose();
+        }
+      }
+    });
+  }
+
+  @Override
+  public synchronized void close() throws IOException {
+    if (!this.closed) {
+      onClose();
+      this.closed = true;
+    }
+    super.close();
+  }
+
+  /**
+   * A method called when the {@link FileSystem} is being closed or when the JVM is shutting down.
+   * Useful for writing out information about the instrumentation.
+   */
+  protected void onClose() {
+
   }
 
 }

@@ -134,7 +134,9 @@ public class SharedResourcesBrokerFactory {
 
     if (ConfigUtils.getBoolean(config, LOAD_HADOOP_CONFIGURATION, true)) {
       Map<String, String> hadoopConfMap = Maps.newHashMap();
-      addBrokerKeys(hadoopConfMap, new Configuration());
+      Configuration hadoopConf = new Configuration();
+      hadoopConf.addResource("gobblin-site.xml");
+      addBrokerKeys(hadoopConfMap, hadoopConf);
       config = config.withFallback(ConfigFactory.parseMap(hadoopConfMap));
     }
 

@@ -209,7 +209,7 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
     this.bytesWritten = this.metricContext.meter(MetricNames.DataWriterMetrics.BYTES_WRITTEN_METER);
 
     if (isInstrumentationEnabled()) {
-      this.dataWriterTimer = Optional.of(this.metricContext.timer(MetricNames.DataWriterMetrics.WRITE_TIMER));
+      this.dataWriterTimer = Optional.<Timer>of(this.metricContext.timer(MetricNames.DataWriterMetrics.WRITE_TIMER));
     } else {
       this.dataWriterTimer = Optional.absent();
     }

@@ -98,7 +98,7 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
     if (isInstrumentationEnabled()) {
       this.inputMeter = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER));
       this.outputForks = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER));
-      this.forkOperatorTimer = Optional.of(this.metricContext.timer(MetricNames.ForkOperatorMetrics.FORK_TIMER));
+      this.forkOperatorTimer = Optional.<Timer>of(this.metricContext.timer(MetricNames.ForkOperatorMetrics.FORK_TIMER));
     } else {
       this.inputMeter = Optional.absent();
       this.outputForks = Optional.absent();

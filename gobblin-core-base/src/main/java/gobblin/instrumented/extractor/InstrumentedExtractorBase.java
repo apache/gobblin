@@ -94,7 +94,7 @@ public abstract class InstrumentedExtractorBase<S, D>
       this.readRecordsMeter = Optional.of(this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_READ_METER));
       this.dataRecordExceptionsMeter =
           Optional.of(this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_FAILED_METER));
-      this.extractorTimer = Optional.of(this.metricContext.timer(MetricNames.ExtractorMetrics.EXTRACT_TIMER));
+      this.extractorTimer = Optional.<Timer>of(this.metricContext.timer(MetricNames.ExtractorMetrics.EXTRACT_TIMER));
     } else {
       this.readRecordsMeter = Optional.absent();
       this.dataRecordExceptionsMeter = Optional.absent();
