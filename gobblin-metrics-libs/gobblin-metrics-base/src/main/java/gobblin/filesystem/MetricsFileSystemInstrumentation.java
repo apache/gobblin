@@ -20,7 +20,6 @@ package gobblin.filesystem;
 import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -29,8 +28,15 @@ import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 
 import com.google.common.io.Closer;
+
+import gobblin.broker.iface.ConfigView;
+import gobblin.broker.iface.ScopeType;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.metrics.MetricContext;
-import org.apache.hadoop.conf.Configuration;
+import gobblin.util.filesystem.FileSystemInstrumentation;
+import gobblin.util.filesystem.FileSystemInstrumentationFactory;
+import gobblin.util.filesystem.FileSystemKey;
+
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
@@ -51,11 +57,16 @@ import org.slf4j.LoggerFactory;
  * When modifying this class, tests must be run manually (see InstrumentedHDFSFileSystemTest).
  */
 @Slf4j
-public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
+public class MetricsFileSystemInstrumentation extends FileSystemInstrumentation {
 
-  public static final String INSTRUMENTED_HDFS_SCHEME = "instrumented-hdfs";
-  public static final String HDFS_METRIC_CONTEXT_NAME = "hdfsMetricContext";
-  private static final String HDFS_SCHEME = "hdfs";
+  public static class Factory<S extends ScopeType<S>> extends FileSystemInstrumentationFactory<S> {
+    @Override
+    public FileSystem instrumentFileSystem(FileSystem fs, SharedResourcesBroker<S> broker,
+        ConfigView<S, FileSystemKey> config) {
+      return new MetricsFileSystemInstrumentation(fs);
+    }
+  }
+
   private MetricContext metricContext;
 
   protected final Closer closer;
@@ -120,9 +131,10 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
     }
   }
 
-  public InstrumentedHDFSFileSystem() {
+  public MetricsFileSystemInstrumentation(FileSystem underlying) {
+    super(underlying);
     this.closer = Closer.create();
-    this.metricContext = new MetricContext.Builder(HDFS_METRIC_CONTEXT_NAME).build();
+    this.metricContext = new MetricContext.Builder(underlying.getUri() + "_metrics").build();
     this.metricContext = this.closer.register(metricContext);
 
     this.listStatusTimer = this.metricContext.timer("listStatus");
@@ -142,45 +154,10 @@ public class InstrumentedHDFSFileSystem extends DistributedFileSystem {
   }
 
   @Override
-  public String getScheme() {
-    return INSTRUMENTED_HDFS_SCHEME;
-  }
-
-  @Override
-  public void initialize(URI uri, Configuration conf)
-      throws IOException {
-    super.initialize(InstrumentedFileSystemUtils.replaceScheme(uri, INSTRUMENTED_HDFS_SCHEME, HDFS_SCHEME), conf);
-  }
-
-  @Override
-  protected URI getCanonicalUri() {
-    return InstrumentedFileSystemUtils.replaceScheme(super.getCanonicalUri(), HDFS_SCHEME, INSTRUMENTED_HDFS_SCHEME);
-  }
-
-  @Override
-  public URI getUri() {
-    return InstrumentedFileSystemUtils.replaceScheme(super.getUri(), HDFS_SCHEME, INSTRUMENTED_HDFS_SCHEME);
-  }
-
-  @Override
-  protected URI canonicalizeUri(URI uri) {
-    return InstrumentedFileSystemUtils.replaceScheme(super.canonicalizeUri(uri), HDFS_SCHEME, INSTRUMENTED_HDFS_SCHEME);
-  }
-
-  @Override
   public void close()
       throws IOException {
     super.close();
     // Should print out statistics here
-  }
-
-  /**
-   * Add timer metrics to {@link DistributedFileSystem#mkdir(Path, FsPermission)}
-   */
-  public boolean mkdir(Path f, FsPermission permission) throws IOException {
-    try (Closeable context = new TimerContextWithLog(mkdirTimer.time(), "mkdir", f, permission)) {
-      return super.mkdir (f, permission);
-    }
   }
 
   /**

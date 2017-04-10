@@ -15,27 +15,22 @@
  * limitations under the License.
  */
 
-package gobblin.filesystem;
+package gobblin.util.filesystem;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import org.apache.hadoop.hdfs.web.WebHdfsFileSystem;
 
 
 /**
- * Common methods for Instrumented {@link org.apache.hadoop.fs.FileSystem}s.
+ * A {@link InstrumentedFileSystem} for the webhdfs scheme.
+ *
+ * Usage:
+ * FileSystem.get("instrumented-webhdfs://...")
  */
-public class InstrumentedFileSystemUtils {
+public class InstrumentedWebHDFSFileSystem extends InstrumentedFileSystem {
 
-  public static URI replaceScheme(URI uri, String replace, String replacement) {
-    try {
-      if (replace != null && replace.equals(uri.getScheme())) {
-        return new URI(replacement, uri.getUserInfo(), uri.getHost(), uri.getPort(), uri.getPath(), uri.getQuery(), uri.getFragment());
-      } else {
-        return uri;
-      }
-    } catch (URISyntaxException use) {
-      throw new RuntimeException("Failed to replace scheme.");
-    }
+  public static final String SCHEME = "instrumented-webhdfs";
+
+  public InstrumentedWebHDFSFileSystem() {
+    super(SCHEME, new WebHdfsFileSystem());
   }
-
 }
