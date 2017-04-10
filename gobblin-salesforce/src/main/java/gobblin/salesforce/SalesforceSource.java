@@ -106,9 +106,14 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       return super.generateWorkUnits(sourceEntity, state, previousWatermark);
     }
 
-    Partition partition = new Partitioner(state).getGobalPartition(previousWatermark);
-    Histogram histogram =
-        getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
+    Partition partition = new Partitioner(state).getGlobalPartition(previousWatermark);
+    Histogram histogram;
+    try {
+      histogram = getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
+    } catch (DataRecordException e) {
+      throw new RuntimeException(e);
+    }
+
     int maxPartitions = state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS,
         ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
     String specifiedPartitions = generateSpecifiedPartitions(histogram, maxPartitions, partition.getHighWatermark());
@@ -181,7 +186,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   }
 
   private Histogram getHistogram(String entity, String watermarkColumn, SourceState state,
-      Partition partition) {
+      Partition partition) throws DataRecordException {
     Histogram histogram = new Histogram();
 
     Calendar calendar = new GregorianCalendar();
@@ -217,8 +222,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         List<Command> commands = RestApiConnector.constructGetCommand(connector.getFullUri(soqlQuery));
         CommandOutput<?, ?> response = connector.getResponse(commands);
         histogram.add(parseHistogram(response));
+      } catch (DataRecordException e) {
+        throw e;
       } catch (Exception e) {
-        e.printStackTrace();
+        throw new DataRecordException("Fail to get data of year " + year + " from salesforce", e);
       }
     }
 

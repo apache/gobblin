@@ -84,7 +84,13 @@ public class Partitioner {
     hasUserSpecifiedHighWatermark = false;
   }
 
-  public Partition getGobalPartition(long previousWatermark) {
+  /**
+   * Get the global partition of the whole data set, which has the global low and high watermarks
+   *
+   * @param previousWatermark previous watermark for computing the low watermark of current run
+   * @return a Partition instance
+   */
+  public Partition getGlobalPartition(long previousWatermark) {
     ExtractType extractType =
         ExtractType.valueOf(state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
     WatermarkType watermarkType = WatermarkType.valueOf(
@@ -96,7 +102,7 @@ public class Partitioner {
 
     long lowWatermark = getLowWatermark(extractType, watermarkType, previousWatermark, deltaForNextWatermark);
     long highWatermark = getHighWatermark(extractType, watermarkType);
-    return new Partition(lowWatermark, highWatermark, hasUserSpecifiedHighWatermark);
+    return new Partition(lowWatermark, highWatermark, true, hasUserSpecifiedHighWatermark);
   }
 
   /**

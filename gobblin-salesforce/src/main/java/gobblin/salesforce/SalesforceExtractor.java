@@ -697,7 +697,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       }
 
       if (this.bulkBatchInfo.getState() == BatchStateEnum.Failed) {
-        log.info("Bulk batch failed: " + bulkBatchInfo.toString());
+        log.error("Bulk batch failed: " + bulkBatchInfo.toString());
         throw new RuntimeException("Failed to get bulk batch info for jobId " + this.bulkBatchInfo.getJobId()
             + " error - " + this.bulkBatchInfo.getStateMessage());
       }
