@@ -100,6 +100,7 @@ public class HelixUtils {
     message.setMsgSubType(messageSubType);
     message.setAttribute(Message.Attributes.INNER_MESSAGE, messageVal);
     message.setMsgState(Message.MessageState.NEW);
+    message.setTgtSessionId("*");
 
     int messagesSent = helixManager.getMessagingService().send(criteria, message);
     if (messagesSent == 0) {
