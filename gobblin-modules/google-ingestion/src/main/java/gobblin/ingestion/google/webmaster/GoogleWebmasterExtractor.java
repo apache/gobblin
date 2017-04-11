@@ -37,6 +37,7 @@ import avro.shaded.com.google.common.collect.Iterables;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.annotation.Alpha;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
@@ -50,8 +51,8 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
   private final JsonArray _schema;
   private final WorkUnitState _wuState;
-  public final static DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
-  private final static DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
+  private final DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
+  private final DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
   private final boolean _includeSource;
   private Queue<GoogleWebmasterExtractorIterator> _iterators = new ArrayDeque<>();
   /**
@@ -97,6 +98,9 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
     _startDate = watermarkFormatter.parseDateTime(Long.toString(lowWatermark));
     _expectedHighWaterMark = expectedHighWaterMark;
     _expectedHighWaterMarkDate = watermarkFormatter.parseDateTime(Long.toString(expectedHighWaterMark));
+    log.info(String.format("Creating GoogleWebmasterExtractor for [%s, %s] for job %s.", _startDate.toString(),
+        _expectedHighWaterMarkDate.toString(), wuState.getProp(ConfigurationKeys.SOURCE_ENTITY)));
+
     _wuState = wuState;
     _schema = schemaJson;
     _includeSource = wuState.getWorkunit().getPropAsBoolean(GoogleWebMasterSource.KEY_INCLUDE_SOURCE_PROPERTY,
@@ -113,10 +117,15 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
             actualDimensionRequests.remove(filter.getKey());
           }
         }
+        String startDate = dateFormatter.print(_startDate);
+        String endDate = dateFormatter.print(_expectedHighWaterMarkDate);
+        log.info(String
+            .format("Creating GoogleWebmasterExtractorIterator for [%s, %s] for site %s.", startDate, endDate,
+                dataFetcher.getSiteProperty()));
+
         GoogleWebmasterExtractorIterator iterator =
-            new GoogleWebmasterExtractorIterator(dataFetcher, dateFormatter.print(_startDate),
-                dateFormatter.print(_expectedHighWaterMarkDate), actualDimensionRequests, requestedMetrics, filters,
-                wuState);
+            new GoogleWebmasterExtractorIterator(dataFetcher, startDate, endDate, actualDimensionRequests,
+                requestedMetrics, filters, wuState);
         // positionMapping is to address the cases when requested dimensions/metrics order
         // is different from the column order in source.schema
         int[] positionMapping = new int[actualDimensionRequests.size() + requestedMetrics.size()];
