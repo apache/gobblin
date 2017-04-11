@@ -242,8 +242,8 @@ public class OrchestratorTest {
 
     // Make sure FlowCatalog has the added Flow
     Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Spec after addition");
-    // Make sure FlowCatalog Listener knows about added Flow
-    Assert.assertTrue(((List)(sei.listSpecs().get())).size() == 1, "SpecExecutorInstanceProducer should contain 1 "
+    // Orchestrator is a no-op listener for any new FlowSpecs
+    Assert.assertTrue(((List)(sei.listSpecs().get())).size() == 0, "SpecExecutorInstanceProducer should contain 0 "
         + "Spec after addition");
   }
 
@@ -263,9 +263,9 @@ public class OrchestratorTest {
     }
     // Make sure FlowCatalog has the previously added Flow
     Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Flow that was added in last test");
-    // Make sure FlowCatalog Listener knows about the previously added Flow
+    // Orchestrator is a no-op listener for any new FlowSpecs, so no FlowSpecs should be around
     int specsInSEI = ((List)(sei.listSpecs().get())).size();
-    Assert.assertTrue(specsInSEI == 1, "SpecExecutorInstanceProducer should contain 1 "
+    Assert.assertTrue(specsInSEI == 0, "SpecExecutorInstanceProducer should contain 1 "
         + "Spec after addition");
 
     // Remove the flow
