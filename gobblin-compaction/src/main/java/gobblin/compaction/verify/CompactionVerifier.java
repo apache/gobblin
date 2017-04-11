@@ -6,15 +6,12 @@ import lombok.AllArgsConstructor;
 
 
 /**
- * A class which represents a generic verifier for compaction
+ * An interface which represents a generic verifier for compaction
  */
-@AllArgsConstructor
-public abstract class CompactionVerifier<D extends Dataset> {
-   public final static String COMPACTION_VERIFIER_PREFIX = "compaction-verifier-";
+public interface CompactionVerifier<D extends Dataset> {
+   String COMPACTION_VERIFIER_PREFIX = "compaction-verifier-";
 
-   protected final State state;
+   boolean verify(D dataset);
 
-   public abstract boolean verify(D dataset);
-
-   public abstract String getName();
+   String getName();
 }

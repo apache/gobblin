@@ -3,51 +3,34 @@ package gobblin.compaction.suite;
 import gobblin.compaction.action.CompactionCompleteAction;
 import gobblin.compaction.action.CompactionCompleteFileOperationAction;
 import gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
-import gobblin.compaction.parser.CompactionPathParser;
-import gobblin.compaction.dataset.CompactionFileSystemGlobFinder;
 import gobblin.compaction.verify.CompactionAuditCountVerifier;
 import gobblin.compaction.verify.CompactionThresholdVerifier;
 import gobblin.compaction.verify.CompactionTimeRangeVerifier;
 import gobblin.compaction.verify.CompactionVerifier;
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.dataset.DatasetsFinder;
 import gobblin.dataset.FileSystemDataset;
-import gobblin.util.HadoopUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.*;
 
 /**
  * A type of {@link CompactionSuite} which implements all components needed for avro file compaction.
  */
 @Slf4j
-public class CompactionAvroSuite extends CompactionSuite<FileSystemDataset> {
+public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
 
   public static final String SERIALIZE_COMPACTION_FILE_PATH_NAME = "compaction-file-path-name";
-
+  private State state;
   private CompactionAvroJobConfigurator configurator = null;
 
   /**
    * Constructor
    */
-  public CompactionAvroSuite(State state) throws IOException {
-    super(state);
-  }
-
-  /**
-   * Implementation of {@link CompactionSuite#getParser()}
-   * @return A {@link CompactionPathParser} instance which parses a given {@link FileSystemDataset}
-   *         to a {@link gobblin.compaction.parser.CompactionPathParser.CompactionParserResult}
-   */
-  public CompactionPathParser getParser () {
-    return new CompactionPathParser(state);
+  public CompactionAvroSuite (State state) {
+    this.state = state;
   }
 
   /**

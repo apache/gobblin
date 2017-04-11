@@ -1,6 +1,7 @@
 package gobblin.compaction.verify;
 
 import gobblin.dataset.FileSystemDataset;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.State;
@@ -9,12 +10,11 @@ import gobblin.configuration.State;
  * A verifier compare audit count from upstream tier to the local record count
  */
 @Slf4j
-public class CompactionAuditCountVerifier extends CompactionVerifier<FileSystemDataset> {
+@AllArgsConstructor
+public class CompactionAuditCountVerifier implements CompactionVerifier<FileSystemDataset> {
   public final static String COMPACTION_VERIFIER_AUDIT_COUNT = COMPACTION_VERIFIER_PREFIX + "audit-count";
 
-  public CompactionAuditCountVerifier(State state) {
-    super(state);
-  }
+  protected State state;
 
   /**
    * Compare audit count from upstream tier to the local record count

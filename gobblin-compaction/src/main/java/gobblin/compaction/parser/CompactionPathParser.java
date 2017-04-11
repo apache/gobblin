@@ -1,6 +1,7 @@
 package gobblin.compaction.parser;
 
 import gobblin.dataset.FileSystemDataset;
+import lombok.AllArgsConstructor;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -19,11 +20,9 @@ import gobblin.configuration.State;
 /**
  * A parser which converts {@link FileSystemDataset} to {@link CompactionParserResult}
  */
-public class CompactionPathParser extends CompactionParser<FileSystemDataset> {
-
-  public CompactionPathParser (State state) {
-    super (state);
-  }
+@AllArgsConstructor
+public class CompactionPathParser {
+  State state;
 
   /**
    * A parsed result returned by {@link CompactionPathParser#parse(FileSystemDataset)}

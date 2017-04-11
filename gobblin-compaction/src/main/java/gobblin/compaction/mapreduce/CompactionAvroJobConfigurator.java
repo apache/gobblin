@@ -19,7 +19,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.math3.primes.Primes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -33,10 +32,6 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Collections;
-import java.util.Arrays;
 import java.util.Set;
 
 /**
@@ -182,7 +177,7 @@ public class CompactionAvroJobConfigurator {
    * @return Concatenated path or null if the parameter is empty
    */
   private Path concatPaths (String ...names) {
-    if (names.length == 0) {
+    if (names == null || names.length == 0) {
       return null;
     }
     Path cur = new Path(names[0]);

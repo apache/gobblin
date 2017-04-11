@@ -1,4 +1,4 @@
-package gobblin.compaction.dataset;
+package gobblin.data.management.dataset;
 
 import gobblin.configuration.State;
 import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
@@ -6,14 +6,15 @@ import gobblin.dataset.FileSystemDataset;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import java.io.IOException;
+import java.util.Properties;
 
 /**
  * A subclass of {@link ConfigurableGlobDatasetFinder} which find all the {@link FileSystemDataset}
  * that matches a given glob pattern.
  */
-public class CompactionFileSystemGlobFinder extends ConfigurableGlobDatasetFinder<FileSystemDataset> {
-  public CompactionFileSystemGlobFinder(FileSystem fs, State state) throws IOException {
-    super(fs, state.getProperties());
+public class DefaultFileSystemGlobFinder extends ConfigurableGlobDatasetFinder<FileSystemDataset> {
+  public DefaultFileSystemGlobFinder(FileSystem fs, Properties properties) throws IOException {
+    super(fs, properties);
   }
 
   public FileSystemDataset datasetAtPath(final Path path) throws IOException {

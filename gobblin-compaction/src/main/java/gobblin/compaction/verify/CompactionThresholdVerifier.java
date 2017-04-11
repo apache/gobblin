@@ -11,12 +11,11 @@ import gobblin.configuration.State;
  * If difference exceeds the user specified tolerance, a compaction needs to be triggered.
  */
 @Slf4j
-public class CompactionThresholdVerifier extends CompactionVerifier<FileSystemDataset> {
+@AllArgsConstructor
+public class CompactionThresholdVerifier implements CompactionVerifier<FileSystemDataset> {
   public final static String COMPACTION_VERIFIER_THRESHOLD = COMPACTION_VERIFIER_PREFIX + "threshold";
 
-  public CompactionThresholdVerifier (State state) {
-    super (state);
-  }
+  protected State state;
 
   public boolean verify (FileSystemDataset dataset) {
     //TODO: check previous compacted records and compare to current new records
