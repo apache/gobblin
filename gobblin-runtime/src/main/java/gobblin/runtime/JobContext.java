@@ -123,14 +123,14 @@ public class JobContext implements Closeable {
   // A map from dataset URNs to DatasetStates (optional and maybe absent if not populated)
   private Optional<Map<String, JobState.DatasetState>> datasetStatesByUrns = Optional.absent();
 
-  public JobContext(Properties jobProps, Logger logger, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
+  public JobContext(Properties jobProps, Logger logger, SharedResourcesBroker<GobblinScopeTypes> instanceBroker)
+      throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
     this.jobName = JobState.getJobNameFromProps(jobProps);
-    this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ?
-            jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY) :
-            JobLauncherUtils.newJobId(this.jobName);
+    this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)
+        : JobLauncherUtils.newJobId(this.jobName);
     this.jobSequence = Long.toString(Id.Job.parse(this.jobId).getSequence());
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId);
 
@@ -142,8 +142,9 @@ public class JobContext implements Closeable {
 
     State jobPropsState = new State();
     jobPropsState.addAll(jobProps);
-    this.jobState = new JobState(jobPropsState, this.datasetStateStore.getLatestDatasetStatesByUrns(this.jobName),
-        this.jobName, this.jobId);
+    this.jobState =
+        new JobState(jobPropsState, this.datasetStateStore.getLatestDatasetStatesByUrns(this.jobName), this.jobName,
+            this.jobId);
 
     setTaskStagingAndOutputDirs();
 
@@ -163,30 +164,28 @@ public class JobContext implements Closeable {
 
     this.parallelizeCommit = this.jobState.getPropAsBoolean(ConfigurationKeys.PARALLELIZE_DATASET_COMMIT,
         ConfigurationKeys.DEFAULT_PARALLELIZE_DATASET_COMMIT);
-    this.parallelCommits = this.parallelizeCommit
-        ? this.jobState.getPropAsInt(ConfigurationKeys.DATASET_COMMIT_THREADS, ConfigurationKeys.DEFAULT_DATASET_COMMIT_THREADS)
-        : 1;
+    this.parallelCommits = this.parallelizeCommit ? this.jobState
+        .getPropAsInt(ConfigurationKeys.DATASET_COMMIT_THREADS, ConfigurationKeys.DEFAULT_DATASET_COMMIT_THREADS) : 1;
   }
 
-  protected DatasetStateStore createStateStore(Config jobConfig) throws IOException {
-    boolean stateStoreEnabled = !jobConfig.hasPath(ConfigurationKeys.STATE_STORE_ENABLED)
-        || jobConfig.getBoolean(ConfigurationKeys.STATE_STORE_ENABLED);
+  protected DatasetStateStore createStateStore(Config jobConfig)
+      throws IOException {
+    boolean stateStoreEnabled = !jobConfig.hasPath(ConfigurationKeys.STATE_STORE_ENABLED) || jobConfig
+        .getBoolean(ConfigurationKeys.STATE_STORE_ENABLED);
 
     String stateStoreType;
 
     if (!stateStoreEnabled) {
       stateStoreType = ConfigurationKeys.STATE_STORE_TYPE_NOOP;
     } else {
-      stateStoreType = ConfigUtils.getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY,
-          ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
+      stateStoreType = ConfigUtils
+          .getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY, ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
     }
 
-    ClassAliasResolver<DatasetStateStore.Factory> resolver =
-        new ClassAliasResolver<>(DatasetStateStore.Factory.class);
+    ClassAliasResolver<DatasetStateStore.Factory> resolver = new ClassAliasResolver<>(DatasetStateStore.Factory.class);
 
     try {
-      DatasetStateStore.Factory stateStoreFactory =
-          resolver.resolveClass(stateStoreType).newInstance();
+      DatasetStateStore.Factory stateStoreFactory = resolver.resolveClass(stateStoreType).newInstance();
       return stateStoreFactory.createStateStore(jobConfig);
     } catch (RuntimeException e) {
       throw e;
@@ -206,10 +205,11 @@ public class JobContext implements Closeable {
     }
   }
 
-  protected Optional<CommitSequenceStore> createCommitSequenceStore() throws IOException {
+  protected Optional<CommitSequenceStore> createCommitSequenceStore()
+      throws IOException {
 
     if (this.semantics != DeliverySemantics.EXACTLY_ONCE) {
-      return Optional.<CommitSequenceStore> absent();
+      return Optional.<CommitSequenceStore>absent();
     }
 
     Preconditions.checkState(this.jobState.contains(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_DIR));
@@ -218,7 +218,7 @@ public class JobContext implements Closeable {
         .getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_FS_URI, ConfigurationKeys.LOCAL_FS_URI)),
         HadoopUtils.getConfFromState(this.jobState))) {
 
-      return Optional.<CommitSequenceStore> of(new FsCommitSequenceStore(fs,
+      return Optional.<CommitSequenceStore>of(new FsCommitSequenceStore(fs,
           new Path(this.jobState.getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_DIR))));
     }
   }
@@ -247,7 +247,6 @@ public class JobContext implements Closeable {
   public String getJobId() {
     return this.jobId;
   }
-
 
   /**
    * Get the job key.
@@ -312,8 +311,8 @@ public class JobContext implements Closeable {
           ConfigurationKeys.WRITER_STAGING_DIR, ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY));
     } else {
       String workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
-      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR,
-          new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
+      this.jobState
+          .setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
     }
   }
 
@@ -353,7 +352,7 @@ public class JobContext implements Closeable {
    * @return a {@link Map} from dataset URNs to {@link JobState.DatasetState}s representing the dataset states
    */
   Map<String, JobState.DatasetState> getDatasetStatesByUrns() {
-    return ImmutableMap.copyOf(this.datasetStatesByUrns.or(Maps.<String, JobState.DatasetState> newHashMap()));
+    return ImmutableMap.copyOf(this.datasetStatesByUrns.or(Maps.<String, JobState.DatasetState>newHashMap()));
   }
 
   /**
@@ -386,15 +385,16 @@ public class JobContext implements Closeable {
 
     for (TaskState taskState : this.jobState.getTaskStates()) {
       // Set fork.branches explicitly here so the rest job flow can pick it up
-      this.jobState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY,
-          taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1));
+      this.jobState
+          .setProp(ConfigurationKeys.FORK_BRANCHES_KEY, taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1));
     }
   }
 
   /**
    * Commit the job on a per-dataset basis.
    */
-  void commit() throws IOException {
+  void commit()
+      throws IOException {
     this.datasetStatesByUrns = Optional.of(computeDatasetStatesByUrns());
     final boolean shouldCommitDataInJob = shouldCommitDataInJob(this.jobState);
     final DeliverySemantics deliverySemantics = DeliverySemantics.parse(this.jobState);
@@ -405,16 +405,22 @@ public class JobContext implements Closeable {
     }
 
     try {
-      List<Either<Void, ExecutionException>> result =
-          new IteratorExecutor<>(Iterables.transform(this.datasetStatesByUrns.get().entrySet(),
-          new Function<Map.Entry<String, DatasetState>, Callable<Void>>() {
-            @Nullable
-            @Override
-            public Callable<Void> apply(final Map.Entry<String, DatasetState> entry) {
-              return createSafeDatasetCommit(shouldCommitDataInJob, deliverySemantics, entry.getKey(), entry.getValue(),
-                  numCommitThreads > 1, JobContext.this);
-            }
-          }).iterator(), numCommitThreads, ExecutorsUtils.newThreadFactory(Optional.of(this.logger), Optional.of("Commit-thread-%d")))
+      if (this.datasetStatesByUrns.isPresent()) {
+        this.logger.info("Persisting dataset urns.");
+        this.datasetStateStore.persistDatasetURNs(this.jobName, this.datasetStatesByUrns.get().keySet());
+      }
+
+      List<Either<Void, ExecutionException>> result = new IteratorExecutor<>(Iterables
+          .transform(this.datasetStatesByUrns.get().entrySet(),
+              new Function<Map.Entry<String, DatasetState>, Callable<Void>>() {
+                @Nullable
+                @Override
+                public Callable<Void> apply(final Map.Entry<String, DatasetState> entry) {
+                  return createSafeDatasetCommit(shouldCommitDataInJob, deliverySemantics, entry.getKey(),
+                      entry.getValue(), numCommitThreads > 1, JobContext.this);
+                }
+              }).iterator(), numCommitThreads,
+          ExecutorsUtils.newThreadFactory(Optional.of(this.logger), Optional.of("Commit-thread-%d")))
           .executeAndGetResults();
 
       IteratorExecutor.logFailures(result, LOG, 10);
@@ -423,7 +429,6 @@ public class JobContext implements Closeable {
         this.jobState.setState(JobState.RunningState.FAILED);
         throw new IOException("Failed to commit dataset state for some dataset(s) of job " + this.jobId);
       }
-
     } catch (InterruptedException exc) {
       throw new IOException(exc);
     }
@@ -433,7 +438,8 @@ public class JobContext implements Closeable {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     this.jobBroker.close();
   }
 
@@ -448,8 +454,8 @@ public class JobContext implements Closeable {
   @VisibleForTesting
   protected Callable<Void> createSafeDatasetCommit(boolean shouldCommitDataInJob, DeliverySemantics deliverySemantics,
       String datasetUrn, JobState.DatasetState datasetState, boolean isMultithreaded, JobContext jobContext) {
-    return new SafeDatasetCommit(shouldCommitDataInJob, deliverySemantics, datasetUrn, datasetState,
-        isMultithreaded, jobContext);
+    return new SafeDatasetCommit(shouldCommitDataInJob, deliverySemantics, datasetUrn, datasetState, isMultithreaded,
+        jobContext);
   }
 
   protected Map<String, JobState.DatasetState> computeDatasetStatesByUrns() {
@@ -460,16 +466,15 @@ public class JobContext implements Closeable {
   public static Optional<Class<? extends DataPublisher>> getJobDataPublisherClass(State state)
       throws ReflectiveOperationException {
     if (!Strings.isNullOrEmpty(state.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE))) {
-      return Optional.<Class<? extends DataPublisher>> of(
+      return Optional.<Class<? extends DataPublisher>>of(
           (Class<? extends DataPublisher>) Class.forName(state.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE)));
     } else if (!Strings.isNullOrEmpty(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE))) {
-      return Optional.<Class<? extends DataPublisher>> of(
+      return Optional.<Class<? extends DataPublisher>>of(
           (Class<? extends DataPublisher>) Class.forName(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE)));
     } else {
       LOG.info("Property " + ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE + " not specified");
-      return Optional.<Class<? extends DataPublisher>> absent();
+      return Optional.<Class<? extends DataPublisher>>absent();
     }
-
   }
 
   /**
@@ -489,11 +494,7 @@ public class JobContext implements Closeable {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(JobContext.class.getSimpleName())
-        .add("jobName", getJobName())
-        .add("jobId", getJobId())
-        .add("jobState", getJobState())
-        .toString();
+    return Objects.toStringHelper(JobContext.class.getSimpleName()).add("jobName", getJobName())
+        .add("jobId", getJobId()).add("jobState", getJobState()).toString();
   }
-
 }

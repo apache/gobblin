@@ -25,6 +25,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.ZkStateStore;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -111,6 +112,12 @@ public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
 
     put(jobName, tableName, datasetState);
     createAlias(jobName, tableName, getAliasName(datasetUrn));
+  }
+
+  @Override
+  public void persistDatasetURNs(String storeName, Collection<String> datasetUrns)
+      throws IOException {
+    // do nothing for now
   }
 
   private static String getAliasName(String datasetUrn) {

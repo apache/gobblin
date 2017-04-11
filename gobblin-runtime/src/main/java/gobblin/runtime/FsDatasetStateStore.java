@@ -20,6 +20,7 @@ package gobblin.runtime;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,9 @@ import com.google.common.base.CharMatcher;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -50,11 +54,14 @@ import com.typesafe.config.ConfigValue;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.FsStateStore;
+import gobblin.metastore.nameParser.DatasetUrnStateStoreNameParser;
+import gobblin.metastore.nameParser.SimpleDatasetUrnStateStoreNameParser;
 import gobblin.util.ConfigUtils;
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.WritableShimSerialization;
 import gobblin.util.executors.IteratorExecutor;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -77,6 +84,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FsDatasetStateStore.class);
   private int threadPoolOfGettingDatasetState;
+  private static final long CACHE_SIZE = 100;
+  private LoadingCache<Path, DatasetUrnStateStoreNameParser> stateStoreNameParserLoadingCache;
 
   protected static DatasetStateStore<JobState.DatasetState> createStateStore(Config config, String className) {
     // Add all job configuration properties so they are picked up by Hadoop
@@ -88,15 +97,31 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     try {
       String stateStoreFsUri =
           ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
-      FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
+      final FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
       String stateStoreRootDir = config.getString(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
       Integer threadPoolOfGettingDatasetState = ConfigUtils
           .getInt(config, ConfigurationKeys.THREADPOOL_SIZE_OF_LISTING_FS_DATASET_STATESTORE,
               ConfigurationKeys.DEFAULT_THREADPOOL_SIZE_OF_LISTING_FS_DATASET_STATESTORE);
 
-      return (DatasetStateStore<JobState.DatasetState>) Class.forName(className)
-          .getConstructor(FileSystem.class, String.class, Integer.class)
-          .newInstance(stateStoreFs, stateStoreRootDir, threadPoolOfGettingDatasetState);
+      final String datasetUrnStateStoreNameParserClass = ConfigUtils
+          .getString(config, ConfigurationKeys.DATASETURN_STATESTORE_NAME_PARSER,
+              SimpleDatasetUrnStateStoreNameParser.class.getName());
+
+      LoadingCache<Path, DatasetUrnStateStoreNameParser> stateStoreNameParserLoadingCache =
+          CacheBuilder.newBuilder().maximumSize(CACHE_SIZE)
+              .build(new CacheLoader<Path, DatasetUrnStateStoreNameParser>() {
+                @Override
+                public DatasetUrnStateStoreNameParser load(Path stateStoreDirWithStoreName)
+                    throws Exception {
+                  return (DatasetUrnStateStoreNameParser) GobblinConstructorUtils
+                      .invokeLongestConstructor(Class.forName(datasetUrnStateStoreNameParserClass), stateStoreFs,
+                          stateStoreDirWithStoreName);
+                }
+              });
+
+      return (DatasetStateStore<JobState.DatasetState>) GobblinConstructorUtils
+          .invokeLongestConstructor(Class.forName(className), stateStoreFs, stateStoreRootDir,
+              threadPoolOfGettingDatasetState, stateStoreNameParserLoadingCache);
     } catch (IOException e) {
       throw new RuntimeException(e);
     } catch (ReflectiveOperationException e) {
@@ -111,10 +136,16 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     this.threadPoolOfGettingDatasetState = ConfigurationKeys.DEFAULT_THREADPOOL_SIZE_OF_LISTING_FS_DATASET_STATESTORE;
   }
 
-  public FsDatasetStateStore(FileSystem fs, String storeRootDir, Integer threadPoolSize) {
+  public FsDatasetStateStore(FileSystem fs, String storeRootDir, Integer threadPoolSize,
+      LoadingCache<Path, DatasetUrnStateStoreNameParser> stateStoreNameParserLoadingCache) {
     super(fs, storeRootDir, JobState.DatasetState.class);
     this.useTmpFileForPut = false;
     this.threadPoolOfGettingDatasetState = threadPoolSize;
+    this.stateStoreNameParserLoadingCache = stateStoreNameParserLoadingCache;
+  }
+
+  public FsDatasetStateStore(FileSystem fs, String storeRootDir, Integer threadPoolSize) {
+    this(fs, storeRootDir, threadPoolSize, null);
   }
 
   public FsDatasetStateStore(FileSystem fs, String storeRootDir) {
@@ -127,10 +158,26 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     this.useTmpFileForPut = false;
   }
 
+  private String santinizeDatasetStatestoreNameFromDatasetURN(String storeName, String datasetURN)
+      throws IOException {
+    if (this.stateStoreNameParserLoadingCache == null) {
+      return datasetURN;
+    }
+    try {
+      Path statestoreDirWithStoreName = new Path(this.storeRootDir, storeName);
+      DatasetUrnStateStoreNameParser datasetUrnBasedStateStoreNameParser =
+          this.stateStoreNameParserLoadingCache.get(statestoreDirWithStoreName);
+      return datasetUrnBasedStateStoreNameParser.getStateStoreNameFromDatasetUrn(datasetURN);
+    } catch (ExecutionException e) {
+      throw new IOException("Failed to load dataset state store name parser: " + e, e);
+    }
+  }
+
   @Override
   public JobState.DatasetState get(String storeName, String tableName, String stateId)
       throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+
     if (!this.fs.exists(tablePath)) {
       return null;
     }
@@ -283,9 +330,11 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
    */
   public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn)
       throws IOException {
+
     String alias =
         Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-            : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
+            : santinizeDatasetStatestoreNameFromDatasetURN(storeName, datasetUrn) + "-"
+                + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
     return get(storeName, alias, datasetUrn);
   }
 
@@ -302,15 +351,38 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     String jobId = datasetState.getJobId();
 
     datasetUrn = CharMatcher.is(':').replaceFrom(datasetUrn, '.');
+    String datasetStatestoreName = santinizeDatasetStatestoreNameFromDatasetURN(jobName, datasetUrn);
     String tableName = Strings.isNullOrEmpty(datasetUrn) ? jobId + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetUrn + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
+        : datasetStatestoreName + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
     LOGGER.info("Persisting " + tableName + " to the job state store");
     put(jobName, tableName, datasetState);
-    createAlias(jobName, tableName, getAliasName(datasetUrn));
+    createAlias(jobName, tableName, getAliasName(datasetStatestoreName));
+
+    Path originalDatasetUrnPath = new Path(new Path(this.storeRootDir, jobName), getAliasName(datasetUrn));
+    // This should only happen for the first time.
+    if (!Strings.isNullOrEmpty(datasetUrn) && !datasetStatestoreName.equals(datasetUrn) && this.fs
+        .exists(originalDatasetUrnPath)) {
+      LOGGER.info("Removing previous datasetUrn path: " + originalDatasetUrnPath);
+      fs.delete(originalDatasetUrnPath, true);
+    }
   }
 
-  private static String getAliasName(String datasetUrn) {
-    return Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
+  @Override
+  public void persistDatasetURNs(String storeName, Collection<String> datasetUrns)
+      throws IOException {
+    if (this.stateStoreNameParserLoadingCache == null) {
+      return;
+    }
+    try {
+      this.stateStoreNameParserLoadingCache.get(new Path(this.storeRootDir, storeName)).persistDatasetUrns(datasetUrns);
+    } catch (ExecutionException e) {
+      throw new IOException("Failed to persist datasetUrns.", e);
+    }
+  }
+
+  private static String getAliasName(String datasetStatestoreName) {
+    return Strings.isNullOrEmpty(datasetStatestoreName) ? CURRENT_DATASET_STATE_FILE_SUFFIX
+        + DATASET_STATE_STORE_TABLE_SUFFIX
+        : datasetStatestoreName + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
   }
 }

@@ -75,6 +75,8 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
   public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
 
+  public static final String DATASETURN_STATESTORE_NAME_PARSER = "state.store.datasetUrnStateStoreNameParser";
+
   /**
    * Job scheduler configuration properties.
    */
