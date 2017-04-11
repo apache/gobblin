@@ -114,7 +114,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   }
 
   private void configureSchema(Job job) throws IOException {
-    Schema newestSchema = getNewestSchemaFromSource(job);
+    Schema newestSchema = getNewestSchemaFromSource(job, this.fs);
     if (this.useSingleInputSchema) {
       AvroJob.setInputKeySchema(job, newestSchema);
     }
@@ -221,19 +221,19 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
         .equals(SchemaCompatibilityType.COMPATIBLE);
   }
 
-  private Schema getNewestSchemaFromSource(Job job) throws IOException {
+  public static Schema getNewestSchemaFromSource(Job job, FileSystem fs) throws IOException {
     Path[] sourceDirs = FileInputFormat.getInputPaths(job);
 
     List<FileStatus> files = new ArrayList<FileStatus>();
 
     for (Path sourceDir : sourceDirs) {
-      files.addAll(Arrays.asList(this.fs.listStatus(sourceDir)));
+      files.addAll(Arrays.asList(fs.listStatus(sourceDir)));
     }
 
     Collections.sort(files, new LastModifiedDescComparator());
 
     for (FileStatus file : files) {
-      Schema schema = getNewestSchemaFromSource(file.getPath());
+      Schema schema = getNewestSchemaFromSource(file.getPath(), fs);
       if (schema != null) {
         return schema;
       }
@@ -241,16 +241,16 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     return null;
   }
 
-  private Schema getNewestSchemaFromSource(Path sourceDir) throws IOException {
-    FileStatus[] files = this.fs.listStatus(sourceDir);
+  public static Schema getNewestSchemaFromSource(Path sourceDir, FileSystem fs) throws IOException {
+    FileStatus[] files = fs.listStatus(sourceDir);
     Arrays.sort(files, new LastModifiedDescComparator());
     for (FileStatus status : files) {
       if (status.isDirectory()) {
-        Schema schema = getNewestSchemaFromSource(status.getPath());
+        Schema schema = getNewestSchemaFromSource(status.getPath(), fs);
         if (schema != null)
           return schema;
       } else if (FilenameUtils.isExtension(status.getPath().getName(), AVRO)) {
-        return AvroUtils.getSchemaFromDataFile(status.getPath(), this.fs);
+        return AvroUtils.getSchemaFromDataFile(status.getPath(), fs);
       }
     }
     return null;

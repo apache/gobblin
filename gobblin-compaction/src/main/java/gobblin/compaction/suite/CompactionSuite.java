@@ -16,32 +16,57 @@ import java.util.List;
 
 /**
  * This class provides major components required by {@link gobblin.compaction.source.CompactionSource}
- * and {@link gobblin.compaction.mapreduce.MRCompactionTask} to use during the compaction. Some major components are:
+ * and {@link gobblin.compaction.mapreduce.MRCompactionTask} during the compaction.
  *
- * {@link DatasetsFinder}, {@link CompactionParser}, {@link CompactionVerifier} and {@link CompactionCompleteAction}.
+ * Some major components are:
+ *
+ * {@link CompactionParser}, {@link CompactionVerifier} and {@link CompactionCompleteAction}.
  *
  * The class also handles how to create a map-reduce job and how to serialized and deserialize a {@link Dataset}
- * to a {@link State} so that we serialize and deserialized a dataset to {@link gobblin.source.workunit.WorkUnit} properly.
+ * to and from a {@link gobblin.source.workunit.WorkUnit} properly.
  */
 @Slf4j
 @AllArgsConstructor
 public abstract class CompactionSuite<D extends Dataset> {
+
+  /**
+   * A job level state
+   */
   protected final State state;
 
-  public abstract DatasetsFinder<D> getDatasetFinder ();
-
+  /**
+   * Provides a parser which has parsing capability to a given dataset
+   */
   public abstract CompactionParser<D> getParser ();
 
+  /**
+   * Deserialize and create a new dataset from existing state
+   */
   public abstract D load (State state);
 
+  /**
+   * Serialize an existing dataset to a state
+   */
   public abstract void save (D dataset, State state);
 
+  /**
+   * Get a list of verifiers for dataset validation. Verifiers are executed for each dataset returned by DatasetFinder
+   */
   public abstract List<CompactionVerifier<D>> getDatasetsFinderVerifiers();
 
+  /**
+   * Get a list of verifiers for dataset validation. Verifiers are executed for each dataset returned by DatasetFinder
+   */
   public abstract List<CompactionVerifier<D>> getMapReduceVerifiers();
 
+  /**
+   * Map-reduce job creation
+   */
   public abstract Job createJob(D dataset) throws IOException;
 
+  /**
+   * Get a list of completion actions after compaction is finished. Actions are listed in order
+   */
   public abstract List<CompactionCompleteAction<D>> getCompactionCompleteActions();
 
 }

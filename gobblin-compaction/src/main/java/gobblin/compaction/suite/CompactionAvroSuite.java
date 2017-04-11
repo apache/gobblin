@@ -42,22 +42,7 @@ public class CompactionAvroSuite extends CompactionSuite<FileSystemDataset> {
   }
 
   /**
-   * Implementation of {@link CompactionSuite#getDatasetFinder()}
-   * @return A {@link CompactionFileSystemGlobFinder} instance which finds all paths based a glob pattern
-   */
-  public DatasetsFinder getDatasetFinder () {
-    try {
-      Configuration conf = HadoopUtils.getConfFromState(state);
-      String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
-      FileSystem fs = FileSystem.get(URI.create(uri), conf);
-      return new CompactionFileSystemGlobFinder(fs, state);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  /**
-   * Implementation of {@link CompactionSuite#getDatasetFinder()}
+   * Implementation of {@link CompactionSuite#getParser()}
    * @return A {@link CompactionPathParser} instance which parses a given {@link FileSystemDataset}
    *         to a {@link gobblin.compaction.parser.CompactionPathParser.CompactionParserResult}
    */

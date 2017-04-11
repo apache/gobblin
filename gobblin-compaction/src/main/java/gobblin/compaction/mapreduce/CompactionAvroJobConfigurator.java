@@ -65,47 +65,6 @@ public class CompactionAvroJobConfigurator {
     this.state = state;
     this.fs = getFileSystem(state);
     this.shouldDeduplicate = state.getPropAsBoolean(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, true);
-}
-
-  /**
-   * Refer to {@link MRCompactorAvroKeyDedupJobRunner#getNewestSchemaFromSource(Job)}
-   */
-  private Schema getNewestSchemaFromSource(Job job) throws IOException {
-    Path[] sourceDirs = FileInputFormat.getInputPaths(job);
-
-    List<FileStatus> files = new ArrayList<>();
-
-    for (Path sourceDir : sourceDirs) {
-      files.addAll(Arrays.asList(this.fs.listStatus(sourceDir)));
-    }
-
-    Collections.sort(files, new MRCompactorAvroKeyDedupJobRunner.LastModifiedDescComparator());
-
-    for (FileStatus file : files) {
-      Schema schema = getNewestSchemaFromSource(file.getPath());
-      if (schema != null) {
-        return schema;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Refer to {@link MRCompactorAvroKeyDedupJobRunner#getNewestSchemaFromSource(Path)}
-   */
-  private Schema getNewestSchemaFromSource(Path sourceDir) throws IOException {
-    FileStatus[] files = this.fs.listStatus(sourceDir);
-    Arrays.sort(files, new MRCompactorAvroKeyDedupJobRunner.LastModifiedDescComparator());
-    for (FileStatus status : files) {
-      if (status.isDirectory()) {
-        Schema schema = getNewestSchemaFromSource(status.getPath());
-        if (schema != null)
-          return schema;
-      } else if (FilenameUtils.isExtension(status.getPath().getName(), "avro")) {
-        return AvroUtils.getSchemaFromDataFile(status.getPath(), this.fs);
-      }
-    }
-    return null;
   }
 
   /**
@@ -161,11 +120,8 @@ public class CompactionAvroJobConfigurator {
     return keySchema;
   }
 
-  /**
-   * Refer to {@link MRCompactorAvroKeyDedupJobRunner#configureSchema(Job)}
-   */
   private void configureSchema(Job job) throws IOException {
-    Schema newestSchema = getNewestSchemaFromSource(job);
+    Schema newestSchema = MRCompactorAvroKeyDedupJobRunner.getNewestSchemaFromSource(job, this.fs);
     if (this.state.getPropAsBoolean(MRCompactorAvroKeyDedupJobRunner.COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, true)) {
       AvroJob.setInputKeySchema(job, newestSchema);
     }
@@ -174,9 +130,6 @@ public class CompactionAvroJobConfigurator {
     AvroJob.setOutputKeySchema(job, newestSchema);
   }
 
-  /**
-   * Refer to {@link MRCompactorAvroKeyDedupJobRunner#configureMapper(Job)}
-   */
   protected void configureMapper(Job job) {
     job.setInputFormatClass(AvroKeyRecursiveCombineFileInputFormat.class);
     job.setMapperClass(AvroKeyMapper.class);
@@ -184,9 +137,6 @@ public class CompactionAvroJobConfigurator {
     job.setMapOutputValueClass(AvroValue.class);
   }
 
-  /**
-   * Refer to {@link MRCompactorAvroKeyDedupJobRunner#configureReducer(Job)}
-   */
   protected void configureReducer(Job job) throws IOException {
     job.setOutputFormatClass(AvroKeyCompactorOutputFormat.class);
     job.setReducerClass(AvroKeyDedupReducer.class);
