@@ -281,8 +281,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    */
   public Extractor<S, D> build() throws ExtractPrepareException {
     String watermarkColumn = this.workUnitState.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
-    long lwm = this.workUnit.getLowWatermark(LongWatermark.class).getValue();
-    long hwm = this.workUnit.getExpectedHighWatermark(LongWatermark.class).getValue();
+    long lwm = partition.getLowWatermark();
+    long hwm = partition.getHighWatermark();
     log.info("Low water mark: " + lwm + "; and High water mark: " + hwm);
 
     WatermarkType watermarkType;
@@ -378,8 +378,11 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       log.info("Getting high watermark");
       List<Predicate> list = new ArrayList<>();
       WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
-      Predicate lwmPredicate = watermark.getPredicate(this, lwmValue, ">=", Predicate.PredicateType.LWM);
-      Predicate hwmPredicate = watermark.getPredicate(this, hwmValue, "<=", Predicate.PredicateType.HWM);
+      String lwmOperator = partition.isLowWatermarkInclusive() ? ">=" : ">";
+      String hwmOperator = (partition.isLastPartition() || partition.isHighWatermarkInclusive()) ? "<=" : "<";
+
+      Predicate lwmPredicate = watermark.getPredicate(this, lwmValue, lwmOperator, Predicate.PredicateType.LWM);
+      Predicate hwmPredicate = watermark.getPredicate(this, hwmValue, hwmOperator, Predicate.PredicateType.HWM);
       if (lwmPredicate != null) {
         list.add(lwmPredicate);
       }
