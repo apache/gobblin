@@ -17,7 +17,6 @@
 
 package gobblin.service.modules.core;
 
-import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -51,6 +50,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.google.common.collect.Lists;
@@ -115,12 +115,13 @@ public class GobblinServiceManager implements ApplicationLauncher {
   protected TopologyCatalog topologyCatalog;
   @Getter
   protected FlowCatalog flowCatalog;
+  @Getter
   protected GobblinServiceJobScheduler scheduler;
   protected Orchestrator orchestrator;
   protected EmbeddedRestliServer restliServer;
   protected TopologySpecFactory topologySpecFactory;
 
-  protected HelixManager helixManager;
+  protected Optional<HelixManager> helixManager;
 
   protected ClassAliasResolver<TopologySpecFactory> aliasResolver;
 
@@ -162,9 +163,10 @@ public class GobblinServiceManager implements ApplicationLauncher {
     if (zkConnectionString.isPresent()) {
       LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
       // This will create and register a Helix controller in ZooKeeper
-      this.helixManager = buildHelixManager(config, zkConnectionString.get());
+      this.helixManager = Optional.fromNullable(buildHelixManager(config, zkConnectionString.get()));
     } else {
       LOGGER.info("No ZooKeeper connection string. Running in single instance mode.");
+      this.helixManager = Optional.absent();
     }
 
     // Initialize ServiceScheduler
@@ -173,7 +175,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
     if (isSchedulerEnabled) {
       this.orchestrator = new Orchestrator(config, Optional.of(this.topologyCatalog), Optional.of(LOGGER));
       SchedulerService schedulerService = new SchedulerService(properties);
-      this.scheduler = new GobblinServiceJobScheduler(config, Optional.fromNullable(this.helixManager),
+      this.scheduler = new GobblinServiceJobScheduler(config, this.helixManager,
           Optional.of(this.flowCatalog), Optional.of(this.topologyCatalog), this.orchestrator,
           schedulerService, Optional.of(LOGGER));
     }
@@ -223,6 +225,12 @@ public class GobblinServiceManager implements ApplicationLauncher {
     }
   }
 
+  public boolean isLeader() {
+    // If helix manager is absent, then this standalone instance hence leader
+    // .. else check if this master of cluster
+    return !helixManager.isPresent() || helixManager.get().isLeader();
+  }
+
   /**
    * Build the {@link HelixManager} for the Service Master.
    */
@@ -231,7 +239,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
     String helixInstanceName = ConfigUtils.getString(config, ServiceConfigKeys.HELIX_INSTANCE_NAME_KEY,
         GobblinServiceManager.class.getSimpleName());
 
-    return HelixUtils.buildHelixManager(helixClusterName, helixInstanceName, zkConnectionString);
+    return HelixUtils.buildHelixManager(helixInstanceName, helixClusterName, zkConnectionString);
   }
 
   private FileSystem buildFileSystem(Config config)
@@ -250,17 +258,19 @@ public class GobblinServiceManager implements ApplicationLauncher {
    * @param changeContext notification context
    */
   private void handleLeadershipChange(NotificationContext changeContext) {
-    if (this.helixManager.isLeader()) {
-      LOGGER.info("Leader notification for {} HM.isLeader {}", this.helixManager.getInstanceName(),
-          this.helixManager.isLeader());
+    if (this.helixManager.isPresent() && this.helixManager.get().isLeader()) {
+      LOGGER.info("Leader notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
+          this.helixManager.get().isLeader());
 
       if (this.isSchedulerEnabled) {
+        LOGGER.info("Gobblin Service is now running in master instance mode, enabling Scheduler.");
         this.scheduler.setActive(true);
       }
-    } else {
-      LOGGER.info("Leader lost notification for {} HM.isLeader {}", this.helixManager.getInstanceName(),
-          this.helixManager.isLeader());
+    } else if (this.helixManager.isPresent()) {
+      LOGGER.info("Leader lost notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
+          this.helixManager.get().isLeader());
       if (this.isSchedulerEnabled) {
+        LOGGER.info("Gobblin Service is now running in slave instance mode, disabling Scheduler.");
         this.scheduler.setActive(false);
       }
     }
@@ -268,26 +278,40 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
   @Override
   public void start() throws ApplicationException {
-    LOGGER.info("Starting the Gobblin Service Manager");
+    LOGGER.info("[Init] Starting the Gobblin Service Manager");
 
-    connectHelixManager();
+    if (this.helixManager.isPresent()) {
+      connectHelixManager();
+    }
 
     this.eventBus.register(this);
     this.serviceLauncher.start();
 
-    // Subscribe to leadership changes
-    this.helixManager.addControllerListener(new ControllerChangeListener() {
-      @Override
-      public void onControllerChange(NotificationContext changeContext) {
-        handleLeadershipChange(changeContext);
-      }
-    });
+    if (this.helixManager.isPresent()) {
+      // Subscribe to leadership changes
+      this.helixManager.get().addControllerListener(new ControllerChangeListener() {
+        @Override
+        public void onControllerChange(NotificationContext changeContext) {
+          handleLeadershipChange(changeContext);
+        }
+      });
 
-    // Update for first time since there might be no notification
-    if (helixManager.isLeader()) {
-      if (this.isSchedulerEnabled) {
-        this.scheduler.setActive(true);
+      // Update for first time since there might be no notification
+      if (helixManager.get().isLeader()) {
+        if (this.isSchedulerEnabled) {
+          LOGGER.info("[Init] Gobblin Service is running in master instance mode, enabling Scheduler.");
+          this.scheduler.setActive(true);
+        }
+      } else {
+        if (this.isSchedulerEnabled) {
+          LOGGER.info("[Init] Gobblin Service is running in slave instance mode, not enabling Scheduler.");
+        }
       }
+    } else {
+      // No Helix manager, hence standalone service instance
+      // .. designate scheduler to itself
+      LOGGER.info("[Init] Gobblin Service is running in single instance mode, enabling Scheduler.");
+      this.scheduler.setActive(true);
     }
 
     // Populate TopologyCatalog with all Topologies generated by TopologySpecFactory
@@ -319,9 +343,13 @@ public class GobblinServiceManager implements ApplicationLauncher {
   @VisibleForTesting
   void connectHelixManager() {
     try {
-      this.helixManager.connect();
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(
-          Message.MessageType.USER_DEFINE_MSG.toString(), getUserDefinedMessageHandlerFactory());
+      if (this.helixManager.isPresent()) {
+        this.helixManager.get().connect();
+        this.helixManager.get()
+            .getMessagingService()
+            .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
+                getUserDefinedMessageHandlerFactory());
+      }
     } catch (Exception e) {
       LOGGER.error("HelixManager failed to connect", e);
       throw Throwables.propagate(e);
@@ -341,13 +369,15 @@ public class GobblinServiceManager implements ApplicationLauncher {
   @VisibleForTesting
   void disconnectHelixManager() {
     if (isHelixManagerConnected()) {
-      this.helixManager.disconnect();
+      if (this.helixManager.isPresent()) {
+        this.helixManager.get().disconnect();
+      }
     }
   }
 
   @VisibleForTesting
   boolean isHelixManagerConnected() {
-    return this.helixManager.isConnected();
+    return this.helixManager.isPresent() && this.helixManager.get().isConnected();
   }
 
   @Override
