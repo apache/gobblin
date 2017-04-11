@@ -1,9 +1,27 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.runtime.api;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
 
+import org.apache.commons.lang3.SerializationUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -91,5 +109,44 @@ public class TestJobSpec {
     b = new JobSpec.Builder().withConfig(cfg2).withJobCatalogURI("my-jobs:/");
     JobSpec js5 = b.build();
     Assert.assertEquals(js5.getUri(), new URI("my-jobs:/myGroup/myJob"));
+  }
+
+  @Test
+  public void testSerDe() {
+    JobSpec.Builder b = new JobSpec.Builder("test:job");
+
+    JobSpec js1 = b.build();
+    byte[] serializedBytes = SerializationUtils.serialize(js1);
+    JobSpec js1Deserialized = SerializationUtils.deserialize(serializedBytes);
+
+    Assert.assertEquals(js1Deserialized.getUri().toString(), js1.getUri().toString());
+    Assert.assertEquals(js1Deserialized.getVersion(), js1.getVersion());
+    Assert.assertNotNull(js1Deserialized.getDescription());
+    Assert.assertTrue(js1Deserialized.getDescription().contains(js1.getDescription()));
+    Assert.assertEquals(js1Deserialized.getConfig().entrySet().size(), 0);
+    Assert.assertEquals(js1Deserialized.getConfigAsProperties().size(), 0);
+
+    Properties props = new Properties();
+    props.put("a1", "a_value");
+    props.put("a2.b", "1");
+    props.put("a2.c.d", "12.34");
+    props.put("a2.c.d2", "true");
+
+    b = new JobSpec.Builder("test:job2")
+        .withVersion("2")
+        .withDescription("A test job")
+        .withConfigAsProperties(props);
+
+    JobSpec js2 = b.build();
+    serializedBytes = SerializationUtils.serialize(js2);
+    JobSpec js2Deserialized = SerializationUtils.deserialize(serializedBytes);
+
+    Assert.assertEquals(js2Deserialized.getUri().toString(), js2.getUri().toString());
+    Assert.assertEquals(js2Deserialized.getVersion(), js2.getVersion());
+    Assert.assertEquals(js2Deserialized.getDescription(), js2.getDescription());
+    Assert.assertEquals(js2Deserialized.getConfig().getString("a1"), "a_value");
+    Assert.assertEquals(js2Deserialized.getConfig().getLong("a2.b"), 1L);
+    Assert.assertEquals(js2Deserialized.getConfig().getDouble("a2.c.d"), 12.34);
+    Assert.assertTrue(js2Deserialized.getConfig().getBoolean("a2.c.d2"));
   }
 }

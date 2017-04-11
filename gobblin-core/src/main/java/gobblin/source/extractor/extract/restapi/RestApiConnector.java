@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.extract.restapi;
@@ -18,16 +23,14 @@ import java.util.List;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.conn.params.ConnRoutePNames;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
 
+import com.google.common.base.Charsets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -35,11 +38,13 @@ import com.google.gson.JsonObject;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.http.HttpClientConfiguratorLoader;
 import gobblin.source.extractor.exception.RestApiConnectionException;
 import gobblin.source.extractor.exception.RestApiProcessingException;
 import gobblin.source.extractor.extract.Command;
 import gobblin.source.extractor.extract.CommandOutput;
 import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
+
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -96,7 +101,7 @@ public abstract class RestApiConnector {
           log.error("entity class: " + httpEntity.getClass().getName());
           log.error("entity string size: " + EntityUtils.toString(httpEntity).length());
           log.error("content length: " + httpEntity.getContentLength());
-          log.error("content: " + IOUtils.toString(httpEntity.getContent()));
+          log.error("content: " + IOUtils.toString(httpEntity.getContent(), Charsets.UTF_8));
           throw new RestApiConnectionException(
               "JSON is NULL ! Failed on authentication with the following HTTP response received:\n"
                   + EntityUtils.toString(httpEntity));
@@ -104,14 +109,7 @@ public abstract class RestApiConnector {
 
         JsonObject jsonRet = json.getAsJsonObject();
         log.info("jsonRet: " + jsonRet.toString());
-        if (!hasId(jsonRet)) {
-          throw new RestApiConnectionException("Failed on authentication with the following HTTP response received:"
-              + json.toString().length() + ", string value: " + json.toString());
-        }
-
-        this.instanceUrl = jsonRet.get("instance_url").getAsString();
-        this.accessToken = jsonRet.get("access_token").getAsString();
-        this.createdAt = System.currentTimeMillis();
+        parseAuthenticationResponse(jsonRet);
       }
     } catch (IOException e) {
       throw new RestApiConnectionException("Failed to get rest api connection; error - " + e.getMessage(), e);
@@ -130,16 +128,11 @@ public abstract class RestApiConnector {
 
   protected HttpClient getHttpClient() {
     if (this.httpClient == null) {
-      this.httpClient = new DefaultHttpClient();
-
-      if (this.state.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL)
-          && !this.state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL).isEmpty()) {
-        log.info("Connecting via proxy: " + this.state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL));
-
-        HttpHost proxy = new HttpHost(this.state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
-            this.state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
-        this.httpClient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, proxy);
-      }
+      HttpClientConfiguratorLoader configuratorLoader = new HttpClientConfiguratorLoader(this.state);
+      this.httpClient = configuratorLoader.getConfigurator()
+          .setStatePropertiesPrefix(ConfigurationKeys.SOURCE_CONN_PREFIX)
+          .configure(this.state)
+          .createClient();
     }
     return this.httpClient;
   }
@@ -195,7 +188,7 @@ public abstract class RestApiConnector {
     return output;
   }
 
-  private void addHeaders(HttpRequestBase httpRequest) {
+  protected void addHeaders(HttpRequestBase httpRequest) {
     if (this.accessToken != null) {
       httpRequest.addHeader("Authorization", "OAuth " + this.accessToken);
     }
@@ -253,4 +246,14 @@ public abstract class RestApiConnector {
    */
   public abstract HttpEntity getAuthentication() throws RestApiConnectionException;
 
+  protected void parseAuthenticationResponse(JsonObject jsonRet) throws RestApiConnectionException {
+    if (!hasId(jsonRet)) {
+      throw new RestApiConnectionException("Failed on authentication with the following HTTP response received:"
+          + jsonRet.toString());
+    }
+
+    this.instanceUrl = jsonRet.get("instance_url").getAsString();
+    this.accessToken = jsonRet.get("access_token").getAsString();
+    this.createdAt = System.currentTimeMillis();
+  }
 }

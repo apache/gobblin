@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util.commit;
@@ -20,6 +25,8 @@ import java.util.Properties;
 import java.util.Set;
 
 import javax.annotation.Nullable;
+import lombok.Getter;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -42,6 +49,7 @@ import gobblin.util.PathUtils;
  * If {@link #parentDeletionLimit} is present, will also delete newly empty parent directories up to but not including
  * that limit.
  */
+@Getter
 public class DeleteFileCommitStep implements CommitStep {
 
   private final Collection<FileStatus> pathsToDelete;
@@ -63,7 +71,15 @@ public class DeleteFileCommitStep implements CommitStep {
     return new DeleteFileCommitStep(fs, toFileStatus(fs, paths), properties, Optional.of(parentDeletionLimit));
   }
 
-  private DeleteFileCommitStep(FileSystem fs, Collection<FileStatus> paths, Properties properties,
+  /**
+   * @param fs {@link FileSystem} where files need to be deleted.
+   * @param paths Collection of {@link FileStatus}es to deleted.
+   * @param properties {@link Properties} object including {@link Trash} configuration.
+   * @param parentDeletionLimit if present, will delete empty parent directories up to but not including this path. If
+   *                            absent, will not delete empty parent directories.
+   * @throws IOException
+   */
+  public DeleteFileCommitStep(FileSystem fs, Collection<FileStatus> paths, Properties properties,
       Optional<Path> parentDeletionLimit) throws IOException {
     this.fsUri = fs.getUri();
     this.pathsToDelete = paths;

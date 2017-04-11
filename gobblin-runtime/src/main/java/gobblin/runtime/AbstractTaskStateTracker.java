@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime;
@@ -18,14 +23,17 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.conf.Configuration;
+import org.slf4j.MDC;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.runtime.fork.Fork;
 import gobblin.util.ExecutorsUtils;
 
 
@@ -38,14 +46,15 @@ import gobblin.util.ExecutorsUtils;
 public abstract class AbstractTaskStateTracker extends AbstractIdleService implements TaskStateTracker {
 
   // This is used to schedule and run task metrics updaters
-  private final ScheduledThreadPoolExecutor taskMetricsUpdaterExecutor;
+  private final ListeningScheduledExecutorService taskMetricsUpdaterExecutor;
 
   private final Logger logger;
 
   public AbstractTaskStateTracker(int coreThreadPoolSize, Logger logger) {
     Preconditions.checkArgument(coreThreadPoolSize > 0, "Thread pool size should be positive");
-    this.taskMetricsUpdaterExecutor = new ScheduledThreadPoolExecutor(coreThreadPoolSize,
-        ExecutorsUtils.newThreadFactory(Optional.of(logger), Optional.of("TaskStateTracker-%d")));
+    this.taskMetricsUpdaterExecutor = ExecutorsUtils.loggingDecorator(
+            new ScheduledThreadPoolExecutor(coreThreadPoolSize,
+        ExecutorsUtils.newThreadFactory(Optional.of(logger), Optional.of("TaskStateTracker-%d"))));
     this.logger = logger;
   }
 
@@ -99,6 +108,7 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
 
     @Override
     public void run() {
+      MDC.put(ConfigurationKeys.TASK_KEY_KEY, task.getTaskKey());
       updateTaskMetrics();
       // Log record queue stats/metrics of each fork
       for (Optional<Fork> fork : this.task.getForks()) {

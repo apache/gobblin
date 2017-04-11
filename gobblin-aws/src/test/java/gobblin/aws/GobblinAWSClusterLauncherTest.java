@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.aws;
@@ -30,6 +35,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -48,8 +54,10 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.cluster.GobblinClusterConfigurationKeys;
+import gobblin.cluster.GobblinHelixConstants;
 import gobblin.cluster.HelixMessageSubTypes;
 import gobblin.cluster.HelixMessageTestBase;
 import gobblin.cluster.HelixUtils;
@@ -67,7 +75,7 @@ import gobblin.testing.AssertWithBackoff;
 @PrepareForTest({ AWSSdkClient.class, GobblinAWSClusterLauncher.class})
 @PowerMockIgnore({"javax.*", "org.apache.*", "org.w3c.*", "org.xml.*"})
 public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements HelixMessageTestBase  {
-  private static final int TEST_ZK_PORT = 3087;
+  public final static Logger LOG = LoggerFactory.getLogger(GobblinAWSClusterLauncherTest.class);
 
   private CuratorFramework curatorFramework;
   private Config config;
@@ -158,16 +166,21 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
         .addPermissionsToSecurityGroup(Mockito.any(String.class), Mockito.any(String.class), Mockito.any(String.class),
             Mockito.any(Integer.class), Mockito.any(Integer.class));
 
+    // Local test Zookeeper
+    final TestingServer testingZKServer = this.closer.register(new TestingServer(-1));
+    LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
+    this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
+
     // Load configuration
     final URL url = GobblinAWSClusterLauncherTest.class.getClassLoader().getResource(
         GobblinAWSClusterLauncherTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
-    this.config = ConfigFactory.parseURL(url).resolve();
+    this.config = ConfigFactory.parseURL(url)
+        .withValue("gobblin.cluster.zk.connection.string",
+                   ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+        .resolve();
     this.helixClusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
 
-    // Local test Zookeeper
-    final TestingServer testingZKServer = this.closer.register(new TestingServer(TEST_ZK_PORT));
-    this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
     final String zkConnectionString = this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     this.helixManager = HelixManagerFactory
         .getZKHelixManager(this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
@@ -208,7 +221,7 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
   public void testSendShutdownRequest() throws Exception {
     // Connect to Helix as Controller and register a shutdown request handler
     this.helixManager.connect();
-    this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
+    this.helixManager.getMessagingService().registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
         new TestShutdownMessageHandlerFactory(this));
 
     // Make Gobblin AWS Cluster launcher start a shutdown
@@ -248,7 +261,7 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
   @Test(enabled = false)
   @Override
   public void assertMessageReception(Message message) {
-    Assert.assertEquals(message.getMsgType(), Message.MessageType.SHUTDOWN.toString());
+    Assert.assertEquals(message.getMsgType(), GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE);
     Assert.assertEquals(message.getMsgSubType(), HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
   }
 

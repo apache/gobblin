@@ -1,0 +1,88 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+## Job properties
+job.name=GoogleSearchConsole_DataFetchJob
+job.description=Download Google Search Analytics data on a daily basis
+job.group=GoogleAPI
+job.schedule=0 0 18 ? * Sunday
+#job.runonce=true
+workunit.retry.policy=never
+workunit.retry.enabled=false
+task.maxretries=0
+job.commit.policy=full
+
+
+## Network Connection
+source.google.privatekey_fs_uri=file://localhost/
+source.google.api_scopes=https://www.googleapis.com/auth/webmasters.readonly
+source.conn.private.key=[Complete This]
+#source.conn.use.proxy.url=
+#source.conn.use.proxy.port=
+
+## Source properties
+source.entity=[Complete This]
+source.schema=[{"columnName":"Date","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Country","isNullable":"true","dataType":{"type":"string"}},{"columnName":"Page","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Query","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Clicks","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Impressions","isNullable":"false","dataType":{"type":"string"}},{"columnName":"CTR","isNullable":"true","dataType":{"type":"string"}},{"columnName":"Position","isNullable":"false","dataType":{"type":"string"}}]
+
+
+## Extract properties
+extract.namespace=${source.entity}
+extract.table.type=snapshot_only
+extract.delta.fields=dummy
+source.querybased.start.value=20161127000000
+source.querybased.end.value=20161127235959
+source.querybased.is.watermark.override=false
+source.timezone=America/Los_Angeles
+source.max.number.of.partitions=3650
+source.querybased.extract.type=append_batch
+source.querybased.append.max.watermark.limit=CURRENTDATE-0
+
+extract.table.name=DailyPull
+source.querybased.watermark.type=hour
+source.querybased.partition.interval=23
+source.class=gobblin.ingestion.google.webmaster.GoogleWebMasterSourceDaily
+
+#Webmaster Specific
+source.google_webmasters.property_url=[Complete This]
+source.google_webmasters.request.dimensions=Date,Country,Page,Query
+source.google_webmasters.request.metrics=Clicks,Impressions,CTR,Position
+source.google_webmasters.request.filters=Country.deu,Country.ind,Country.all,Country.usa
+source.google_webmasters.request.page_limit=5000
+source.google_webmasters.request.query_limit=5000
+source.google_webmasters.request.tuning.get_queries.apply_trie=true
+
+## Converter properties
+converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.avro.JsonIntermediateToAvroConverter
+
+
+## Writer properties
+writer.output.format=AVRO
+writer.partitioner.google_webmasters.prefix=daily
+writer.partitioner.google_webmasters.column_names.include=false
+writer.partitioner.class=gobblin.ingestion.google.webmaster.GoogleWebmasterDayPartitioner
+writer.include.record.count.in.file.names=true
+
+## Publisher properties
+data.publisher.type=gobblin.publisher.BaseDataPublisher
+
+
+## Configurations for saving to HDFS
+#fs.uri=hdfs://localhost:9000
+#writer.destination.type=HDFS
+#writer.fs.uri=${fs.uri}
+#state.store.fs.uri=${fs.uri}
+#data.publisher.fs.uri=${fs.uri}

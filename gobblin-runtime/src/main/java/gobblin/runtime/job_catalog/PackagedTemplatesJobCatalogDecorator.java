@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.runtime.job_catalog;
 
 import java.io.IOException;
@@ -7,15 +24,11 @@ import java.util.Collection;
 
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobCatalogWithTemplates;
-
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecNotFoundException;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.template.ResourceBasedJobTemplate;
 import gobblin.util.Decorator;
 
-import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
 
 
@@ -31,7 +44,6 @@ import lombok.experimental.Delegate;
  * * Any other scheme will be delegated to the underlying job catalog if it implements {@link JobCatalogWithTemplates},
  *    or a {@link SpecNotFoundException} will be thrown.
  */
-@AllArgsConstructor
 public class PackagedTemplatesJobCatalogDecorator implements Decorator, JobCatalogWithTemplates {
 
   public static final String RESOURCE = "resource";
@@ -46,6 +58,10 @@ public class PackagedTemplatesJobCatalogDecorator implements Decorator, JobCatal
 
   @Delegate
   private final JobCatalog underlying;
+
+  public PackagedTemplatesJobCatalogDecorator(JobCatalog underlying) {
+    this.underlying = underlying != null ? underlying : new InMemoryJobCatalog();
+  }
 
   @Override
   public Object getDecoratedObject() {
@@ -72,7 +88,7 @@ public class PackagedTemplatesJobCatalogDecorator implements Decorator, JobCatal
         throw new SpecNotFoundException(uri, roe);
       }
     }
-    if (this.underlying instanceof JobCatalogWithTemplates) {
+    if (this.underlying != null && this.underlying instanceof JobCatalogWithTemplates) {
       JobTemplate template = ((JobCatalogWithTemplates) this.underlying).getTemplate(uri);
       if (template == null) {
         throw new SpecNotFoundException(uri);

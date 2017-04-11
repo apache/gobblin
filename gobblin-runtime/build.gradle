@@ -1,26 +1,52 @@
-// Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-// this file except in compliance with the License. You may obtain a copy of the
-// License at  http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied.
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+plugins {
+  id "com.commercehub.gradle.plugin.avro-base" version "0.9.0"
+}
 
 apply plugin: 'java'
+apply plugin: 'me.champeau.gradle.jmh'
+apply plugin: "com.commercehub.gradle.plugin.avro-base"
+
+avro {
+  stringType = "string"
+}
+
+task generateAvro(type: com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask) {
+  source("src/main/avro")
+  outputDir = file("src/main/gen-java")
+}
+
+compileJava {
+  dependsOn tasks.generateAvro
+}
 
 dependencies {
   compile project(":gobblin-admin")
   compile project(":gobblin-api")
   compile project(":gobblin-core")
   compile project(":gobblin-hive-registration")
-  compile project(":gobblin-metrics")
+  compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-metastore")
   compile project(":gobblin-utility")
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
-  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate', classifier: 'data-template')
+  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate')
   compile project(":gobblin-rest-service:gobblin-rest-server")
+  compile project(":gobblin-modules:google-ingestion")
 
   compile externalDependency.avro
   compile externalDependency.avroMapredH2
@@ -44,7 +70,6 @@ dependencies {
   compile externalDependency.javaxInject
   compile externalDependency.jodaTime
   compile externalDependency.log4j
-  compile externalDependency.log4jextras
   compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
@@ -52,8 +77,11 @@ dependencies {
   compile externalDependency.quartz
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
-  compile externalDependency.kafka
+  compile externalDependency.kafka08
   compile externalDependency.scala
+  compile externalDependency.guavaretrying
+  compile externalDependency.hiveExec
+  compile externalDependency.parquet
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile externalDependency.calciteCore
@@ -68,6 +96,7 @@ dependencies {
   testCompile externalDependency.mockito
   testRuntime externalDependency.derby
 
+  jmh 'org.openjdk.jmh:jmh-core:1.17.3'
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
@@ -100,8 +129,25 @@ configurations {
     }
 }
 
+sourceSets {
+  main {
+    java {
+      srcDir 'src/main/gen-java'
+    }
+    resources {
+      srcDir 'src/main/avro'
+    }
+  }
+}
+
 artifacts {
     tests testJar
+}
+
+jmh {
+    include = ""
+    zip64 = true
+    duplicateClassesStrategy = "EXCLUDE"
 }
 
 test {
@@ -115,3 +161,40 @@ clean {
 }
 
 ext.classification="library"
+
+/**
+ * Converts old style pull files into *.conf with templates
+ *
+ * Usage:
+ * ./gradlew :gobblin-runtime:pullFileConverter -PpullFilesRootPath=... -PpullFilesToConvertGlob=... -PtemplatePath=...
+ *           -PsysConfigPath=... -PoutputDir=...
+ */
+task pullFileConverter(type: JavaExec) {
+  dependsOn jar
+  doFirst {
+    main = "gobblin.runtime.template.PullFileToConfigConverter"
+
+    def pullFilesRootPath = "pullFilesRootPath"
+    def pullFilesToConvertGlob = "pullFilesToConvertGlob"
+    def templatePath = "templatePath"
+    def sysConfigPath = "sysConfigPath"
+    def outputDir = "outputDir"
+
+    def props = [pullFilesRootPath, pullFilesToConvertGlob, templatePath, sysConfigPath, outputDir]
+
+    for (prop in props) {
+      if (!project.hasProperty(prop)) {
+        throw new RuntimeException("Missing property " + prop)
+      }
+    }
+
+    def templateFile = file(project.property(templatePath))
+    def templateClasspath = templateFile.getParent()
+
+    classpath = files(sourceSets.main.runtimeClasspath, templateClasspath)
+    args = [project.property(pullFilesRootPath), project.property(pullFilesToConvertGlob),
+            "resource:///" + templateFile.getName(),
+            project.property(sysConfigPath), project.property(outputDir)]
+  }
+
+}

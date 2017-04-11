@@ -1,11 +1,17 @@
 language: java
 
+dist: trusty
+sudo: required
+
 addons:
   apt:
     packages:
       - libaio-dev
       - libdbus-glib-1-dev
       - xsltproc
+      - mysql-server-5.6
+      - mysql-client-core-5.6
+      - mysql-client-5.6
 
 before_cache:
   - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
@@ -20,10 +26,15 @@ before_install:
   - "sh -e /etc/init.d/xvfb start"
   - sleep 3 # give xvfb some time to start
 
+before_script:
+  - mysql -uroot -e "create user testUser identified by 'testPassword';"
+
 script: ./travis/test.sh
 
 after_success: ./gradlew coveralls
 after_failure: ./travis/junit-errors-to-stdout.sh
+
+
 
 env:
   - RUN_TEST_GROUP=build

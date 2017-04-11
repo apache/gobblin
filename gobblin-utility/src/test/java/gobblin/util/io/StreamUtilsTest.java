@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util.io;
@@ -15,7 +20,10 @@ package gobblin.util.io;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.isIn;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -33,6 +41,7 @@ import org.apache.hadoop.fs.Path;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
@@ -130,6 +139,45 @@ public class StreamUtilsTest {
       if (localFs.exists(testOutFile)) {
         localFs.delete(testOutFile, true);
       }
+    }
+  }
+
+  @Test
+  public void testRegularByteBufferToStream() throws IOException {
+    final int BUF_LEN = 128000;
+    Random random = new Random();
+    byte[] srcBytes = new byte[BUF_LEN];
+    random.nextBytes(srcBytes);
+
+    // allocate a larger size than we actually use to make sure we don't copy off the end of the used portion of the
+    // buffer
+    ByteBuffer buffer = ByteBuffer.allocate(BUF_LEN * 2);
+    verifyBuffer(srcBytes, buffer);
+
+    // now try with direct buffers; they aren't array backed so codepath is different
+    buffer = ByteBuffer.allocateDirect(BUF_LEN * 2);
+    verifyBuffer(srcBytes, buffer);
+  }
+
+  private void verifyBuffer(byte[] srcBytes, ByteBuffer buffer) throws IOException {
+    buffer.put(srcBytes);
+    buffer.flip();
+
+    ByteArrayOutputStream bOs = new ByteArrayOutputStream();
+    StreamUtils.byteBufferToOutputStream(buffer, bOs);
+    Assert.assertEquals(bOs.toByteArray(), srcBytes);
+
+    bOs = new ByteArrayOutputStream();
+    buffer.rewind();
+
+    // consume one character from the buf; make sure it is not included in the output by
+    // byteBufferToOutputStream
+    buffer.getChar();
+    StreamUtils.byteBufferToOutputStream(buffer, bOs);
+    byte[] offByTwo = bOs.toByteArray();
+    Assert.assertEquals(offByTwo.length, srcBytes.length - 2);
+    for (int i = 0; i < offByTwo.length; i++) {
+      Assert.assertEquals(offByTwo[i], srcBytes[i+2]);
     }
   }
 }

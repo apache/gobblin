@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime;
@@ -33,6 +38,7 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.test.TestExtractor;
 import gobblin.test.TestSource;
+import gobblin.util.ClusterNameTags;
 import gobblin.util.JobLauncherUtils;
 
 
@@ -58,13 +64,20 @@ public class JobLauncherTestHelper {
     String jobId = JobLauncherUtils.newJobId(jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
+    JobContext jobContext = null;
     Closer closer = Closer.create();
     try {
       JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
       jobLauncher.launchJob(null);
+      jobContext = ((AbstractJobLauncher) jobLauncher).getJobContext();
     } finally {
       closer.close();
     }
+
+    Assert.assertTrue(jobContext.getJobMetricsOptional().isPresent());
+    String jobMetricContextTags = jobContext.getJobMetricsOptional().get().getMetricContext().getTags().toString();
+    Assert.assertTrue(jobMetricContextTags.contains(ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME),
+        ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME + " tag missing in job metric context tags.");
 
     List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
     DatasetState datasetState = datasetStateList.get(0);
@@ -82,7 +95,7 @@ public class JobLauncherTestHelper {
 
   public void runTestWithPullLimit(Properties jobProps, long limit) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
     Closer closer = Closer.create();
@@ -109,7 +122,7 @@ public class JobLauncherTestHelper {
 
   public void runTestWithCancellation(final Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
     Closer closer = Closer.create();
@@ -144,7 +157,7 @@ public class JobLauncherTestHelper {
 
   public void runTestWithFork(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
     try (JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps)) {
@@ -179,7 +192,7 @@ public class JobLauncherTestHelper {
 
   public void runTestWithMultipleDatasets(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
     jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, MultiDatasetTestSource.class.getName());
 
@@ -211,7 +224,7 @@ public class JobLauncherTestHelper {
 
   public void runTestWithCommitSuccessfulTasksPolicy(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
     jobProps.setProperty(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, Boolean.FALSE.toString());
     jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "successful");
@@ -245,7 +258,7 @@ public class JobLauncherTestHelper {
   public void runTestWithMultipleDatasetsAndFaultyExtractor(Properties jobProps, boolean usePartialCommitPolicy)
       throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
     jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, MultiDatasetTestSourceWithFaultyExtractor.class.getName());
     jobProps.setProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");

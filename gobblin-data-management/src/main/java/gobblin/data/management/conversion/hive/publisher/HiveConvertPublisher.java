@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.data.management.conversion.hive.publisher;
 
@@ -18,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import java.util.Set;
 import javax.annotation.Nonnull;
 
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +40,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -49,7 +56,7 @@ import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarkerFactory;
 import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
-import gobblin.hive.util.HiveJdbcConnector;
+import gobblin.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
@@ -106,76 +113,118 @@ public class HiveConvertPublisher extends DataPublisher {
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
 
-    List<String> cleanUpQueries = Lists.newArrayList();
+    Set<String> cleanUpQueries = Sets.newLinkedHashSet();
+    Set<String> publishQueries = Sets.newLinkedHashSet();
     List<String> directoriesToDelete = Lists.newArrayList();
 
-    if (Iterables.tryFind(states, UNSUCCESSFUL_WORKUNIT).isPresent()) {
-      for (WorkUnitState wus : states) {
-        QueryBasedHivePublishEntity publishEntity = HiveAvroORCQueryGenerator.deserializePublishCommands(wus);
+    try {
+      if (Iterables.tryFind(states, UNSUCCESSFUL_WORKUNIT).isPresent()) {
+        /////////////////////////////////////////
+        // Prepare cleanup and ignore publish
+        /////////////////////////////////////////
+        for (WorkUnitState wus : states) {
+          QueryBasedHivePublishEntity publishEntity = HiveAvroORCQueryGenerator.deserializePublishCommands(wus);
 
-        EventWorkunitUtils.setBeginPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
-        // Add cleanup commands - to be executed later
-        cleanUpQueries.addAll(publishEntity.getCleanupQueries());
-        directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
+          // Add cleanup commands - to be executed later
+          if (publishEntity.getCleanupQueries() != null) {
+            cleanUpQueries.addAll(publishEntity.getCleanupQueries());
+          }
 
-        wus.setWorkingState(WorkingState.FAILED);
-        if (!Boolean.valueOf(wus.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {
-          try {
-            new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_FAILED_EVENT, wus.getProperties()).submit();
-          } catch (Exception e) {
-            log.error("Failed while emitting SLA event, but ignoring and moving forward to curate "
-                + "all clean up comamnds", e);
+          if (publishEntity.getCleanupDirectories() != null) {
+            directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
+          }
+
+          EventWorkunitUtils.setBeginPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
+          wus.setWorkingState(WorkingState.FAILED);
+          if (!wus.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY)) {
+            try {
+              new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_FAILED_EVENT, wus.getProperties()).submit();
+            } catch (Exception e) {
+              log.error("Failed while emitting SLA event, but ignoring and moving forward to curate " + "all clean up comamnds", e);
+            }
+          }
+        }
+      } else {
+        /////////////////////////////////////////
+        // Prepare publish and cleanup commands
+        /////////////////////////////////////////
+        for (WorkUnitState wus : PARTITION_PUBLISH_ORDERING.sortedCopy(states)) {
+          QueryBasedHivePublishEntity publishEntity = HiveAvroORCQueryGenerator.deserializePublishCommands(wus);
+
+          // Add cleanup commands - to be executed later
+          if (publishEntity.getCleanupQueries() != null) {
+            cleanUpQueries.addAll(publishEntity.getCleanupQueries());
+          }
+
+          if (publishEntity.getCleanupDirectories() != null) {
+            directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
+          }
+
+          if (publishEntity.getPublishDirectories() != null) {
+            // Publish snapshot / partition directories
+            Map<String, String> publishDirectories = publishEntity.getPublishDirectories();
+            for (Map.Entry<String, String> publishDir : publishDirectories.entrySet()) {
+              moveDirectory(publishDir.getKey(), publishDir.getValue());
+            }
+          }
+
+          if (publishEntity.getPublishQueries() != null) {
+            publishQueries.addAll(publishEntity.getPublishQueries());
+          }
+        }
+
+        /////////////////////////////////////////
+        // Core publish
+        /////////////////////////////////////////
+
+        // Update publish start timestamp on all workunits
+        for (WorkUnitState wus : PARTITION_PUBLISH_ORDERING.sortedCopy(states)) {
+          if (HiveAvroORCQueryGenerator.deserializePublishCommands(wus).getPublishQueries() != null) {
+            EventWorkunitUtils.setBeginPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
+          }
+        }
+
+        // Actual publish: Register snapshot / partition
+        executeQueries(Lists.newArrayList(publishQueries));
+
+        // Update publish completion timestamp on all workunits
+        for (WorkUnitState wus : PARTITION_PUBLISH_ORDERING.sortedCopy(states)) {
+          if (HiveAvroORCQueryGenerator.deserializePublishCommands(wus).getPublishQueries() != null) {
+            EventWorkunitUtils.setEndPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
+          }
+
+          wus.setWorkingState(WorkingState.COMMITTED);
+          this.watermarker.setActualHighWatermark(wus);
+
+          // Emit an SLA event for conversion successful
+          if (!wus.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY)) {
+            EventWorkunitUtils.setIsFirstPublishMetadata(wus);
+            try {
+              new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
+                  .submit();
+            } catch (Exception e) {
+              log.error("Failed while emitting SLA event, but ignoring and moving forward to curate " + "all clean up commands", e);
+            }
           }
         }
       }
-    } else {
-      for (WorkUnitState wus : PARTITION_PUBLISH_ORDERING.sortedCopy(states)) {
-        QueryBasedHivePublishEntity publishEntity = HiveAvroORCQueryGenerator.deserializePublishCommands(wus);
+    } finally {
+      /////////////////////////////////////////
+      // Post publish cleanup
+      /////////////////////////////////////////
 
-        // Add cleanup commands - to be executed later
-        if (publishEntity.getCleanupQueries() != null) {
-          cleanUpQueries.addAll(publishEntity.getCleanupQueries());
-        }
-
-        if (publishEntity.getCleanupDirectories() != null) {
-          directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
-        }
-
-        if (publishEntity.getPublishDirectories() != null) {
-          // Publish snapshot / partition directories
-          Map<String, String> publishDirectories = publishEntity.getPublishDirectories();
-          for (Map.Entry<String, String> publishDir : publishDirectories.entrySet()) {
-            moveDirectory(publishDir.getKey(), publishDir.getValue());
-          }
-        }
-
-        if (publishEntity.getPublishQueries() != null) {
-          // Register snapshot / partition
-          List<String> publishQueries = publishEntity.getPublishQueries();
-          EventWorkunitUtils.setBeginPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
-          executeQueries(publishQueries);
-          EventWorkunitUtils.setEndPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
-        }
-
-        wus.setWorkingState(WorkingState.COMMITTED);
-        this.watermarker.setActualHighWatermark(wus);
-
-        // Emit an SLA event
-        if (!Boolean.valueOf(wus.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {
-          try {
-            new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
-                .submit();
-          } catch (Exception e) {
-            log.error("Failed while emitting SLA event, but ignoring and moving forward to curate "
-                + "all clean up commands", e);
-          }
-        }
+      // Execute cleanup commands
+      try {
+        executeQueries(Lists.newArrayList(cleanUpQueries));
+      } catch (Exception e) {
+        log.error("Failed to cleanup staging entities in Hive metastore.", e);
+      }
+      try {
+        deleteDirectories(directoriesToDelete);
+      } catch (Exception e) {
+        log.error("Failed to cleanup staging directories.", e);
       }
     }
-
-    // Execute cleanup commands
-    executeQueries(cleanUpQueries);
-    deleteDirectories(directoriesToDelete);
   }
 
   private void moveDirectory(String sourceDir, String targetDir) throws IOException {

@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.rest;
@@ -19,19 +24,18 @@ import java.util.Collections;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
-
 import com.linkedin.common.callback.FutureCallback;
 import com.linkedin.common.util.None;
 import com.linkedin.r2.RemoteInvocationException;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
-import com.linkedin.restli.client.BatchGetRequest;
+import com.linkedin.restli.client.BatchGetKVRequest;
 import com.linkedin.restli.client.ErrorHandlingBehavior;
 import com.linkedin.restli.client.GetRequest;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.RestClient;
-import com.linkedin.restli.common.BatchResponse;
+import com.linkedin.restli.client.response.BatchKVResponse;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 
@@ -89,10 +93,12 @@ public class JobExecutionInfoClient implements Closeable {
       ids.add(new ComplexResourceKey<JobExecutionQuery, EmptyRecord>(query, new EmptyRecord()));
     }
 
-    BatchGetRequest<JobExecutionQueryResult> batchGetRequest = new JobExecutionsBuilders().batchGet().ids(ids).build();
+    BatchGetKVRequest<ComplexResourceKey<JobExecutionQuery, EmptyRecord>, JobExecutionQueryResult>
+        batchGetRequest =  new JobExecutionsBuilders().batchGet().ids(ids).buildKV();
 
-    BatchResponse<JobExecutionQueryResult> response =
-        this.restClient.sendRequest(batchGetRequest, ErrorHandlingBehavior.TREAT_SERVER_ERROR_AS_SUCCESS)
+    BatchKVResponse<ComplexResourceKey<JobExecutionQuery, EmptyRecord>, JobExecutionQueryResult>
+      response = this.restClient.sendRequest(batchGetRequest,
+                                             ErrorHandlingBehavior.TREAT_SERVER_ERROR_AS_SUCCESS)
             .getResponseEntity();
     return response.getResults().values();
   }

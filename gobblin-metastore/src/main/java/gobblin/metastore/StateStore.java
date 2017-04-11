@@ -1,17 +1,24 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metastore;
 
+import com.google.common.base.Predicate;
+import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -25,7 +32,7 @@ import gobblin.configuration.State;
  * <p>
  *     Each such store consists of zero or more tables, and each table
  *     stores zero or more {@link State}s keyed on the state IDs (see
- *     {@link State#getId()).
+ *     {@link State#getId()}).
  * </p>
  *
  * @param <T> state object type
@@ -33,6 +40,10 @@ import gobblin.configuration.State;
  * @author Yinan Li
  */
 public interface StateStore<T extends State> {
+
+  interface Factory {
+    <T extends State> StateStore<T> createStateStore(Config config, Class<T> stateClass);
+  }
 
   /**
    * Create a new store.
@@ -140,6 +151,17 @@ public interface StateStore<T extends State> {
    * @throws IOException
    */
   public List<T> getAll(String storeName)
+      throws IOException;
+
+  /**
+   * Get table names under the storeName
+   *
+   * @param storeName store name
+   * @param predicate only returns names matching predicate
+   * @return (possibly empty) list of state names from the given store
+   * @throws IOException
+   */
+  public List<String> getTableNames(String storeName, Predicate<String> predicate)
       throws IOException;
 
   /**

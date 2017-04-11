@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util;
@@ -28,6 +33,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -37,7 +44,10 @@ import gobblin.source.workunit.WorkUnit;
 /**
  * Utility class for use with the {@link gobblin.writer.DataWriter} class.
  */
+@Slf4j
 public class WriterUtils {
+
+  public static final String WRITER_ENCRYPTED_CONFIG_PATH = ConfigurationKeys.WRITER_PREFIX + ".encrypted";
 
   /**
    * TABLENAME should be used for jobs that pull from multiple tables/topics and intend to write the records
@@ -67,6 +77,14 @@ public class WriterUtils {
         state.getProp(
             ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, numBranches, branchId)),
         WriterUtils.getWriterFilePath(state, numBranches, branchId));
+  }
+
+  /**
+   * Get the staging {@link Path} for {@link gobblin.writer.DataWriter} that has attemptId in the path.
+   */
+  public static Path getWriterStagingDir(State state, int numBranches, int branchId, String attemptId) {
+    Preconditions.checkArgument(attemptId != null && !attemptId.isEmpty(), "AttemptId cannot be null or empty: " + attemptId);
+    return new Path(getWriterStagingDir(state, numBranches, branchId), attemptId);
   }
 
   /**
@@ -101,9 +119,15 @@ public class WriterUtils {
     Preconditions.checkArgument(state.contains(dataPublisherFinalDirKey),
         "Missing required property " + dataPublisherFinalDirKey);
 
-    return new Path(state.getProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)),
-        WriterUtils.getWriterFilePath(state, numBranches, branchId));
+    if (state.getPropAsBoolean(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR,
+        ConfigurationKeys.DEFAULT_DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR)) {
+      return new Path(state.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)),
+          WriterUtils.getWriterFilePath(state, numBranches, branchId));
+    } else {
+      return new Path(state.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)));
+    }
   }
 
   /**
@@ -240,29 +264,72 @@ public class WriterUtils {
     }
   }
 
-  public static FileSystem getWriterFS(State state, int numBranches, int branchId) throws IOException {
+  public static FileSystem getWriterFS(State state, int numBranches, int branchId)
+      throws IOException {
     URI uri = URI.create(state.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
         ConfigurationKeys.LOCAL_FS_URI));
 
+    Configuration hadoopConf = getFsConfiguration(state);
     if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
-      // Initialize file system as a proxy user.
-      try {
-        String user = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
-        Optional<Token<?>> token = ProxiedFileSystemUtils.getTokenFromSeqFile(user,
-            new Path(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE)));
-        if (!token.isPresent()) {
-          throw new IOException("No token found for user " + user);
-        }
-        return ProxiedFileSystemCache.fromToken().userNameToken(token.get())
-            .userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri)
-            .conf(HadoopUtils.newConfiguration()).build();
-      } catch (ExecutionException e) {
-        throw new IOException(e);
+      // Initialize file system for a proxy user.
+      String authMethod =
+          state.getProp(ConfigurationKeys.FS_PROXY_AUTH_METHOD, ConfigurationKeys.DEFAULT_FS_PROXY_AUTH_METHOD);
+      if (authMethod.equalsIgnoreCase(ConfigurationKeys.TOKEN_AUTH)) {
+        return getWriterFsUsingToken(state, uri);
+      } else if (authMethod.equalsIgnoreCase(ConfigurationKeys.KERBEROS_AUTH)) {
+        return getWriterFsUsingKeytab(state, uri);
       }
     }
     // Initialize file system as the current user.
-    return FileSystem.get(uri, new Configuration());
+    return FileSystem.get(uri, hadoopConf);
+  }
+
+  public static FileSystem getWriterFs(State state)
+      throws IOException {
+    return getWriterFS(state, 1, 0);
+  }
+
+  private static FileSystem getWriterFsUsingToken(State state, URI uri)
+      throws IOException {
+    try {
+      String user = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
+      Optional<Token<?>> token = ProxiedFileSystemUtils
+          .getTokenFromSeqFile(user, new Path(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE)));
+      if (!token.isPresent()) {
+        throw new IOException("No token found for user " + user);
+      }
+      return ProxiedFileSystemCache.fromToken().userNameToken(token.get())
+          .userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri)
+          .conf(HadoopUtils.newConfiguration()).build();
+    } catch (ExecutionException e) {
+      throw new IOException(e);
+    }
+  }
+
+  private static FileSystem getWriterFsUsingKeytab(State state, URI uri)
+      throws IOException {
+    FileSystem fs = FileSystem.newInstance(uri, new Configuration());
+    try {
+      Preconditions.checkArgument(state.contains(ConfigurationKeys.FS_PROXY_AS_USER_NAME),
+          "Missing required property " + ConfigurationKeys.FS_PROXY_AS_USER_NAME);
+      Preconditions.checkArgument(state.contains(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS),
+          "Missing required property " + ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS);
+      Preconditions.checkArgument(state.contains(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION),
+          "Missing required property " + ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION);
+      String user = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
+      String superUser = state.getProp(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS);
+      Path keytabLocation = new Path(state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION));
+      return ProxiedFileSystemCache.fromKeytab().userNameToProxyAs(user).fsURI(uri)
+          .superUserKeytabLocation(keytabLocation).superUserName(superUser).conf(HadoopUtils.newConfiguration())
+          .referenceFS(fs).build();
+    } catch (ExecutionException e) {
+      throw new IOException(e);
+    }
+  }
+
+  public static Configuration getFsConfiguration(State state) {
+    return HadoopUtils.getConfFromState(state, Optional.of(WRITER_ENCRYPTED_CONFIG_PATH));
   }
 }

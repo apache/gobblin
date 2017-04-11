@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util;
@@ -16,6 +21,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,22 +29,12 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.Properties;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Queues;
-import com.google.common.io.BaseEncoding;
-
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -46,11 +42,26 @@ import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Queues;
+import com.google.common.io.BaseEncoding;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -83,6 +94,7 @@ public class HadoopUtils {
       ImmutableSortedSet.orderedBy(String.CASE_INSENSITIVE_ORDER).add("s3").add("s3a").add("s3n").build();
   public static final String MAX_FILESYSTEM_QPS = "filesystem.throttling.max.filesystem.qps";
   private static final List<String> DEPRECATED_KEYS = Lists.newArrayList("gobblin.copy.max.filesystem.qps");
+  private static final int MAX_RENAME_TRIES = 3;
 
   public static Configuration newConfiguration() {
     Configuration conf = new Configuration();
@@ -153,6 +165,31 @@ public class HadoopUtils {
       } else {
         break;
       }
+    }
+  }
+
+  /**
+   * Renames a src {@link Path} on fs {@link FileSystem} to a dst {@link Path}. If fs is a {@link LocalFileSystem} and
+   * src is a directory then {@link File#renameTo} is called directly to avoid a directory rename race condition where
+   * {@link org.apache.hadoop.fs.RawLocalFileSystem#rename} copies the conflicting src directory into dst resulting in
+   * an extra nested level, such as /root/a/b/c/e/e where e is repeated.
+   *
+   * @param fs the {@link FileSystem} where the src {@link Path} exists
+   * @param src the source {@link Path} which will be renamed
+   * @param dst the {@link Path} to rename to
+   * @return true if rename succeeded, false if rename failed.
+   * @throws IOException if rename failed for reasons other than target exists.
+   */
+  public static boolean renamePathHandleLocalFSRace(FileSystem fs, Path src, Path dst) throws IOException {
+    if (DecoratorUtils.resolveUnderlyingObject(fs) instanceof LocalFileSystem && fs.isDirectory(src)) {
+      LocalFileSystem localFs = (LocalFileSystem) DecoratorUtils.resolveUnderlyingObject(fs);
+      File srcFile = localFs.pathToFile(src);
+      File dstFile = localFs.pathToFile(dst);
+
+      return srcFile.renameTo(dstFile);
+    }
+    else {
+      return fs.rename(src, dst);
     }
   }
 
@@ -287,7 +324,14 @@ public class HadoopUtils {
         String.format("Cannot copy from %s to %s because dst exists", src, dst));
 
     try {
-      if (!FileUtil.copy(srcFs, src, dstFs, dst, deleteSource, overwrite, conf)) {
+      boolean isSourceFileSystemLocal = srcFs instanceof LocalFileSystem || srcFs instanceof RawLocalFileSystem;
+      if (isSourceFileSystemLocal) {
+        try {
+          dstFs.copyFromLocalFile(deleteSource, overwrite, src, dst);
+        } catch (IOException e) {
+          throw new IOException(String.format("Failed to copy %s to %s", src, dst), e);
+        }
+      } else if (!FileUtil.copy(srcFs, src, dstFs, dst, deleteSource, overwrite, conf)) {
         throw new IOException(String.format("Failed to copy %s to %s", src, dst));
       }
     } catch (Throwable t1) {
@@ -549,8 +593,13 @@ public class HadoopUtils {
       if (!fs.exists(to.getParent())) {
         fs.mkdirs(to.getParent());
       }
-      if (!fs.rename(from, to)) {
-        throw new IOException(String.format("Failed to rename %s to %s.", from, to));
+
+      if (!renamePathHandleLocalFSRace(fs, from, to)) {
+        if (!fs.exists(to)) {
+          throw new IOException(String.format("Failed to rename %s to %s.", from, to));
+        }
+
+        return false;
       }
       return true;
     }
@@ -585,7 +634,22 @@ public class HadoopUtils {
       Path toFilePath = new Path(to, relativeFilePath);
 
       if (!fileSystem.exists(toFilePath)) {
-        if (!fileSystem.rename(fromFile.getPath(), toFilePath)) {
+        boolean renamed = false;
+
+        // underlying file open can fail with file not found error due to some race condition
+        // when the parent directory is created in another thread, so retry a few times
+        for (int i = 0; !renamed && i < MAX_RENAME_TRIES; i++) {
+          try {
+            renamed = fileSystem.rename(fromFile.getPath(), toFilePath);
+            break;
+          } catch (FileNotFoundException e) {
+            if (i + 1 >= MAX_RENAME_TRIES) {
+              throw e;
+            }
+          }
+        }
+
+        if (!renamed) {
           throw new IOException(String.format("Failed to rename %s to %s.", fromFile.getPath(), toFilePath));
         }
         log.info(String.format("Renamed %s to %s", fromFile.getPath(), toFilePath));
@@ -596,9 +660,37 @@ public class HadoopUtils {
   }
 
   public static Configuration getConfFromState(State state) {
+    return getConfFromState(state, Optional.<String> absent());
+  }
+
+  /**
+   * Provides Hadoop configuration given state.
+   * It also supports decrypting values on "encryptedPath".
+   * Note that this encryptedPath path will be removed from full path of each config key and leaving only child path on the key(s).
+   * If there's same config path as child path, the one stripped will have higher priority.
+   *
+   * e.g:
+   * - encryptedPath: writer.fs.encrypted
+   *   before: writer.fs.encrypted.secret
+   *   after: secret
+   *
+   * Common use case for these encryptedPath:
+   *   When there's have encrypted credential in job property but you'd like Filesystem to get decrypted value.
+   *
+   * @param srcConfig source config.
+   * @param encryptedPath Optional. If provided, config that is on this path will be decrypted. @see ConfigUtils.resolveEncrypted
+   *                      Note that config on encryptedPath will be included in the end result even it's not part of includeOnlyPath
+   * @return Hadoop Configuration.
+   */
+  public static Configuration getConfFromState(State state, Optional<String> encryptedPath) {
+    Config config = ConfigFactory.parseProperties(state.getProperties());
+    if (encryptedPath.isPresent()) {
+      config = ConfigUtils.resolveEncrypted(config, encryptedPath);
+    }
     Configuration conf = newConfiguration();
-    for (String propName : state.getPropertyNames()) {
-      conf.set(propName, state.getProp(propName));
+
+    for (Entry<String, ConfigValue> entry : config.entrySet()) {
+      conf.set(entry.getKey(), entry.getValue().unwrapped().toString());
     }
     return conf;
   }
@@ -780,5 +872,52 @@ public class HadoopUtils {
    */
   public static Path sanitizePath(Path path, String substitute) {
     return new Path(sanitizePath(path.toString(), substitute));
+  }
+
+  /**
+   * Try to set owner and permissions for the path. Will not throw exception.
+   */
+  public static void setPermissions(Path location, Optional<String> owner, Optional<String> group, FileSystem fs,
+      FsPermission permission) {
+    try {
+      if (!owner.isPresent()) {
+        return;
+      }
+      if (!group.isPresent()) {
+        return;
+      }
+      fs.setOwner(location, owner.get(), group.get());
+      fs.setPermission(location, permission);
+      if (!fs.isDirectory(location)) {
+        return;
+      }
+      for (FileStatus fileStatus : fs.listStatus(location)) {
+        setPermissions(fileStatus.getPath(), owner, group, fs, permission);
+      }
+    } catch (IOException e) {
+      log.warn("Exception occurred while trying to change permissions : " + e.getMessage());
+    }
+  }
+
+  public static boolean hasContent(FileSystem fs, Path path)
+      throws IOException {
+    if (!fs.isDirectory(path)) {
+      return true;
+    }
+    boolean content = false;
+    for (FileStatus fileStatus : fs.listStatus(path)) {
+      content = content || hasContent(fs, fileStatus.getPath());
+      if (content) {
+        break;
+      }
+    }
+    return content;
+  }
+
+  /**
+   * Add "gobblin-site.xml" as a {@link Configuration} resource.
+   */
+  public static void addGobblinSite() {
+    Configuration.addDefaultResource("gobblin-site.xml");
   }
 }

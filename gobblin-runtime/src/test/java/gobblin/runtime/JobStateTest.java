@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime;
@@ -20,6 +25,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import org.testng.Assert;
@@ -34,6 +40,7 @@ import gobblin.rest.JobExecutionInfo;
 import gobblin.rest.TaskExecutionInfo;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -63,7 +70,14 @@ public class JobStateTest {
     this.jobState.setTaskCount(3);
     this.jobState.setProp("foo", "bar");
     for (int i = 0; i < 3; i++) {
-      WorkUnitState workUnitState = new WorkUnitState();
+      WorkUnit workUnit = WorkUnit.createEmpty();
+      Properties initialProps = new Properties();
+      initialProps.setProperty("common1", "1");
+      initialProps.setProperty("common2", "2");
+      initialProps.setProperty("spec1", String.valueOf(i));
+      initialProps.setProperty("spec2", "spec" + i);
+      workUnit.setProps(new Properties(), initialProps);
+      WorkUnitState workUnitState = new WorkUnitState(workUnit);
       workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, "TestJob-1");
       workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, "TestTask-" + i);
       workUnitState.setProp(ConfigurationKeys.DATASET_URN_KEY, "TestDataset" + i);
@@ -75,10 +89,11 @@ public class JobStateTest {
       taskState.setTaskDuration(1000);
       taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
       taskState.setProp("foo", "bar");
+
       this.jobState.addTaskState(taskState);
     }
 
-    doAsserts(this.jobState, true);
+    doAsserts(this.jobState, true, true);
   }
 
   @Test(dependsOnMethods = {"testSetAndGet"})
@@ -94,8 +109,7 @@ public class JobStateTest {
       DataInputStream dis = closer.register((new DataInputStream(bais)));
       JobState newJobState = new JobState();
       newJobState.readFields(dis);
-
-      doAsserts(this.jobState, true);
+      doAsserts(newJobState, true, false);
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
@@ -103,7 +117,7 @@ public class JobStateTest {
     }
   }
 
-  private void doAsserts(JobState jobState, boolean considerTaskStates) {
+  private void doAsserts(JobState jobState, boolean considerTaskStates, boolean initial) {
     Assert.assertEquals(jobState.getJobName(), "TestJob");
     Assert.assertEquals(jobState.getJobId(), "TestJob-1");
     Assert.assertEquals(jobState.getId(), "TestJob-1");
@@ -128,6 +142,25 @@ public class JobStateTest {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       Assert.assertTrue(taskState.getProp(ConfigurationKeys.DATASET_URN_KEY).startsWith("TestDataset"));
       Assert.assertEquals(taskState.getProp("foo"), "bar");
+      if (initial) {
+        Assert.assertEquals(taskState.getWorkunit().getCommonProperties().size(), 0);
+        Assert.assertEquals(taskState.getWorkunit().getSpecProperties().size(), 4);
+        Assert.assertEquals(taskState.getProp("common1"), "1");
+        Assert.assertEquals(taskState.getProp("common2"), "2");
+        Assert.assertEquals(taskState.getProp("spec1"), String.valueOf(i));
+        Assert.assertEquals(taskState.getProp("spec2"), "spec" + i);
+      } else {
+        Assert.assertEquals(taskState.getWorkunit().getCommonProperties().size(), 2);
+        Assert.assertEquals(taskState.getWorkunit().getCommonProperties().getProperty("common1"), "1");
+        Assert.assertEquals(taskState.getWorkunit().getCommonProperties().getProperty("common2"), "2");
+        Assert.assertEquals(taskState.getWorkunit().getSpecProperties().size(), 2);
+        Assert.assertEquals(taskState.getWorkunit().getSpecProperties().getProperty("spec1"), String.valueOf(i));
+        Assert.assertEquals(taskState.getWorkunit().getSpecProperties().getProperty("spec2"), "spec" + i);
+        Assert.assertEquals(taskState.getProp("common1"), "1");
+        Assert.assertEquals(taskState.getProp("common2"), "2");
+        Assert.assertEquals(taskState.getProp("spec1"), String.valueOf(i));
+        Assert.assertEquals(taskState.getProp("spec2"), "spec" + i);
+      }
       taskStateIds.add(taskState.getTaskId());
     }
 

@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util;
@@ -63,6 +68,26 @@ public class ProxiedFileSystemWrapper {
   }
 
   /**
+   * Same as @see #getProxiedFileSystem(State, AuthType, String, String, Configuration) where state properties will be copied
+   * into Configuration.
+   *
+   * @param properties
+   * @param authType
+   * @param authPath
+   * @param uri
+   * @return
+   * @throws IOException
+   * @throws InterruptedException
+   * @throws URISyntaxException
+   */
+  public FileSystem getProxiedFileSystem(State properties, AuthType authType, String authPath, String uri)
+      throws IOException, InterruptedException, URISyntaxException {
+    Configuration conf = new Configuration();
+    JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
+    return getProxiedFileSystem(properties, authType, authPath, uri, conf);
+  }
+
+  /**
    * Getter for proxiedFs, using the passed parameters to create an instance of a proxiedFs.
    * @param properties
    * @param authType is either TOKEN or KEYTAB.
@@ -73,7 +98,7 @@ public class ProxiedFileSystemWrapper {
    * @throws URISyntaxException
    * @return proxiedFs
    */
-  public FileSystem getProxiedFileSystem(State properties, AuthType authType, String authPath, String uri)
+  public FileSystem getProxiedFileSystem(State properties, AuthType authType, String authPath, String uri, final Configuration conf)
       throws IOException, InterruptedException, URISyntaxException {
     Preconditions.checkArgument(StringUtils.isNotBlank(properties.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)),
         "State does not contain a proper proxy user name");
@@ -103,8 +128,6 @@ public class ProxiedFileSystemWrapper {
         break;
     }
 
-    final Configuration conf = new Configuration();
-    JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
     final URI fsURI = URI.create(uri);
     proxyUser.doAs(new PrivilegedExceptionAction<Void>() {
       @Override

@@ -1,26 +1,35 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.List;
+import java.util.ArrayList;
+import java.util.Collection;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.extract.LongWatermark;
@@ -35,26 +44,55 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
   @Getter
   private final HadoopFsReplicaConfig rc;
 
-  public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc) {
+  @Getter
+  private final Config selectionConfig;
+
+  private boolean initialized = false;
+  private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
+  private Collection<FileStatus> allFileStatus = new ArrayList<>();
+
+  public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc, Config selectionConfig) {
     this.rc = rc;
+    this.selectionConfig = selectionConfig;
   }
 
   @Override
-  public ComparableWatermark getWatermark() {
-    LongWatermark result = new LongWatermark(-1);
+  public synchronized Collection<FileStatus> getFiles() throws IOException{
+    if(!this.initialized){
+      this.getWatermark();
+    }
+    return this.allFileStatus;
+  }
+
+  @Override
+  public synchronized Optional<ComparableWatermark> getWatermark() {
+    if(this.initialized) {
+      return this.cachedWatermark;
+    }
+
+    this.initialized = true;
+
     try {
+      long curTs = -1;
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
-      List<FileStatus> allFileStatus = FileListUtils.listFilesRecursively(fs, rc.getPath());
-      for (FileStatus f : allFileStatus) {
-        if (f.getModificationTime() > result.getValue()) {
-          result = new LongWatermark(f.getModificationTime());
+
+      Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(this);
+      for(Path p: validPaths){
+        this.allFileStatus.addAll(FileListUtils.listFilesRecursively(fs, p));
+      }
+
+      for (FileStatus f : this.allFileStatus) {
+        if (f.getModificationTime() > curTs) {
+          curTs = f.getModificationTime();
         }
       }
 
-      return result;
+      ComparableWatermark result = new LongWatermark(curTs);
+      this.cachedWatermark = Optional.of(result);
+      return this.cachedWatermark;
     } catch (IOException e) {
       log.error("Error while retrieve the watermark for " + this);
-      return result;
+      return this.cachedWatermark;
     }
   }
 
@@ -72,18 +110,22 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
   public String getClusterName() {
     return this.rc.getClustername();
   }
-  
+
   @Override
   public String toString() {
     return Objects.toStringHelper(this.getClass()).add("is source", this.isSource()).add("end point name", this.getEndPointName())
         .add("hadoopfs config", this.rc).toString();
   }
-  
+
   @Override
   public URI getFsURI() {
     return this.rc.getFsURI();
   }
-  
+
+  @Override
+  public Path getDatasetPath(){
+    return this.rc.getPath();
+  }
 
   @Override
   public int hashCode() {

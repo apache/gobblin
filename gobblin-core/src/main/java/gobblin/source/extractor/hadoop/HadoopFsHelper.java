@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.hadoop;
@@ -27,6 +32,7 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 
 import com.google.common.base.Strings;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.source.extractor.filebased.FileBasedHelper;
@@ -45,7 +51,7 @@ public class HadoopFsHelper implements TimestampAwareFileBasedHelper {
   private FileSystem fs;
 
   public HadoopFsHelper(State state) {
-    this(state, HadoopUtils.newConfiguration());
+    this(state, HadoopUtils.getConfFromState(state));
   }
 
   public HadoopFsHelper(State state, Configuration configuration) {
@@ -111,7 +117,7 @@ public class HadoopFsHelper implements TimestampAwareFileBasedHelper {
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       // Initialize file system as a proxy user.
       this.fs = new ProxiedFileSystemWrapper().getProxiedFileSystem(this.state, ProxiedFileSystemWrapper.AuthType.TOKEN,
-          this.state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
+          this.state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri, configuration);
 
     } else {
       // Initialize file system as the current user.
@@ -165,12 +171,7 @@ public class HadoopFsHelper implements TimestampAwareFileBasedHelper {
   }
 
   @Override
-  public void close() throws FileBasedHelperException {
-    try {
-      this.getFileSystem().close();
-    } catch (IOException e) {
-      throw new FileBasedHelperException("Failed to close filesystem", e);
-    }
+  public void close() throws IOException {
+    this.getFileSystem().close();
   }
-
 }

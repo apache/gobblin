@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.hive.metastore;
@@ -15,6 +20,8 @@ package gobblin.hive.metastore;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.hadoop.fs.Path;
@@ -24,12 +31,12 @@ import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.yarn.webapp.hamlet.HamletSpec;
 import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.primitives.Ints;
 
 import gobblin.annotation.Alpha;
@@ -48,8 +55,6 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.util.AutoCloseableLock;
 import gobblin.util.AutoReturnableObject;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -203,7 +208,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       try {
         client.createTable(getTableWithCreateTimeNow(table));
         log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
-      } catch (TException e) {
+      } catch (AlreadyExistsException e) {
+        log.info("Table {} already exists in db {}.", tableName, dbName);
         try {
           HiveTable existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
           if (needToUpdateTable(existingTable, spec.getTable())) {
@@ -212,10 +218,14 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           }
         } catch (TException e2) {
           log.error(
-              String.format("Unable to create or alter Hive table %s in db %s: " + e.getMessage(), tableName, dbName),
+              String.format("Unable to create or alter Hive table %s in db %s: " + e2.getMessage(), tableName, dbName),
               e2);
           throw e2;
         }
+      } catch (TException e) {
+        log.error(
+            String.format("Unable to create Hive table %s in db %s: " + e.getMessage(), tableName, dbName), e);
+        throw e;
       }
     }
   }
@@ -292,16 +302,21 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
               .getHivePartition(client.getPartition(table.getDbName(), table.getTableName(), partition.getValues()));
 
           if (needToUpdatePartition(existingPartition, spec.getPartition().get())) {
-            client.alter_partition(table.getDbName(), table.getTableName(), getPartitionWithCreateTime(partition, existingPartition));
-            log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(partition),
+            log.info(String.format("Partition update required. ExistingPartition %s, newPartition %s",
+                stringifyPartition(existingPartition), stringifyPartition(spec.getPartition().get())));
+            Partition newPartition = getPartitionWithCreateTime(partition, existingPartition);
+            log.info(String.format("Altering partition %s", newPartition));
+            client.alter_partition(table.getDbName(), table.getTableName(), newPartition);
+            log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(newPartition),
                 table.getTableName(), partition.getSd().getLocation()));
           } else {
             log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
                 stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()));
           }
-        } catch (TException e2) {
-          log.error(String.format("Unable to add or alter partition %s in table %s with location %s: " + e.getMessage(),
-              stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()), e);
+        } catch (Throwable e2) {
+          log.error(String.format(
+              "Unable to add or alter partition %s in table %s with location %s: " + e2.getMessage(),
+              stringifyPartitionVerbose(partition), table.getTableName(), partition.getSd().getLocation()), e2);
           throw e2;
         }
       }
@@ -310,9 +325,17 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
   private static String stringifyPartition(Partition partition) {
     if (log.isDebugEnabled()) {
-      return partition.toString();
+      return stringifyPartitionVerbose(partition);
     }
     return Arrays.toString(partition.getValues().toArray());
+  }
+
+  private static String stringifyPartition(HivePartition partition) {
+    return partition.toString();
+  }
+
+  private static String stringifyPartitionVerbose(Partition partition) {
+    return partition.toString();
   }
 
   @Override

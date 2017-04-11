@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy.converter;
@@ -20,12 +25,14 @@ import java.util.UUID;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.jasypt.util.text.BasicTextEncryptor;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 
@@ -39,7 +46,7 @@ import gobblin.data.management.copy.FileAwareInputStream;
 /**
  * Unit tests for {@link DecryptConverter}.
  */
-@Test(groups = { "gobblin.data.management.copy.converter" })
+@Test(groups = { "gobblin.data.management.copy.converter", "disabledOnTravis" })
 public class DecryptConverterTest {
 
   private final File masterPwdFile = new File("masterPwd");
@@ -59,25 +66,24 @@ public class DecryptConverterTest {
       FileSystem fs = FileSystem.getLocal(new Configuration());
 
       URL url = getClass().getClassLoader().getResource("decryptConverterTest/decrypt-test.txt.gpg");
-      if (url == null) {
-        Assert.fail();
-      }
+      Assert.assertNotNull(url);
 
       String gpgFilePath =url.getFile();
-      FileAwareInputStream fileAwareInputStream =
-          new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(), fs.open(new Path(gpgFilePath)));
+      try (FSDataInputStream gpgFileInput = fs.open(new Path(gpgFilePath))) {
+	      FileAwareInputStream fileAwareInputStream =
+	          new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(), gpgFileInput);
 
-      Iterable<FileAwareInputStream> iterable =
-          converter.convertRecord("outputSchema", fileAwareInputStream, workUnitState);
-      fileAwareInputStream = Iterables.getFirst(iterable, null);
-      if (fileAwareInputStream == null) {
-        Assert.fail();
+	      Iterable<FileAwareInputStream> iterable =
+	          converter.convertRecord("outputSchema", fileAwareInputStream, workUnitState);
+	      fileAwareInputStream = Iterables.getFirst(iterable, null);
+	      Assert.assertNotNull(fileAwareInputStream);
+
+	      String actual = IOUtils.toString(fileAwareInputStream.getInputStream(), Charsets.UTF_8);
+	      Assert.assertEquals(actual, expectedFileContents);
       }
-
-      String actual = IOUtils.toString(fileAwareInputStream.getInputStream());
-      Assert.assertEquals(actual, expectedFileContents);
     } finally {
       deleteMasterPwdFile();
+      converter.close();
     }
   }
 
@@ -93,17 +99,13 @@ public class DecryptConverterTest {
   }
 
   private void createMasterPwdFile(String masterPwd) throws IOException {
-    if (!this.masterPwdFile.createNewFile()) {
-      Assert.fail();
-    }
+    Assert.assertTrue(this.masterPwdFile.createNewFile());
 
     Files.write(masterPwd, this.masterPwdFile, Charset.defaultCharset());
   }
 
   private void deleteMasterPwdFile() {
-    if (!this.masterPwdFile.delete()) {
-      Assert.fail();
-    }
+    Assert.assertTrue(this.masterPwdFile.delete());
   }
 
 }

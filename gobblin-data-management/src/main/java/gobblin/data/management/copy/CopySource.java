@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy;
@@ -34,9 +39,8 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.collect.Multimaps;
+import com.google.common.collect.SetMultimap;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
@@ -82,6 +86,9 @@ import gobblin.util.request_allocation.HierarchicalPrioritizer;
 import gobblin.util.request_allocation.RequestAllocator;
 import gobblin.util.request_allocation.RequestAllocatorConfig;
 import gobblin.util.request_allocation.RequestAllocatorUtils;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -140,6 +147,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       final FileSystem sourceFs = getSourceFileSystem(state);
       final FileSystem targetFs = getTargetFileSystem(state);
+
+      log.info("Identified source file system at {} and target file system at {}.",
+          sourceFs.getUri(), targetFs.getUri());
+
       long maxSizePerBin = state.getPropAsLong(MAX_SIZE_MULTI_WORKUNITS, 0);
       long maxWorkUnitsPerMultiWorkUnit = state.getPropAsLong(MAX_WORK_UNITS_PER_BIN, 50);
       final long minWorkUnitWeight = Math.max(1, maxSizePerBin / maxWorkUnitsPerMultiWorkUnit);
@@ -163,7 +174,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       Iterator<CopyableDatasetRequestor> requestorIterator = Iterators.filter(requestorIteratorWithNulls,
           Predicates.<CopyableDatasetRequestor>notNull());
 
-      final HashMultimap<FileSet<CopyEntity>, WorkUnit> workUnitsMap = HashMultimap.create();
+      final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitsMap =
+          Multimaps.<FileSet<CopyEntity>, WorkUnit>synchronizedSetMultimap(
+              HashMultimap.<FileSet<CopyEntity>, WorkUnit>create());
 
       RequestAllocator<FileSet<CopyEntity>> allocator = createRequestAllocator(copyConfiguration, maxThreads);
       Iterator<FileSet<CopyEntity>> prioritizedFileSets = allocator.allocateRequests(requestorIterator, copyConfiguration.getMaxToCopy());
@@ -254,7 +267,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     private final CopyableDatasetBase copyableDataset;
     private final FileSet<CopyEntity> fileSet;
     private final State state;
-    private final HashMultimap<FileSet<CopyEntity>, WorkUnit> workUnitList;
+    private final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitList;
     private final Optional<CopyableFileWatermarkGenerator> watermarkGenerator;
     private final long minWorkUnitWeight;
 
@@ -310,14 +323,14 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
     if (CopyableFile.class.isAssignableFrom(copyEntityClass)) {
       CopyableFile copyEntity = (CopyableFile) deserializeCopyEntity(state);
-      return extractorForCopyableFile(getSourceFileSystem(state), copyEntity);
+      return extractorForCopyableFile(getSourceFileSystem(state), copyEntity, state);
     }
     return new EmptyExtractor<>("empty");
   }
 
-  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf)
+  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf, WorkUnitState state)
       throws IOException {
-    return new FileAwareInputStreamExtractor(fs, cf);
+    return new FileAwareInputStreamExtractor(fs, cf, state);
   }
 
   @Override

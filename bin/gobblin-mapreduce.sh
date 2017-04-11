@@ -1,5 +1,22 @@
 #!/bin/bash
 
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 ##############################################################
 ############### Run Gobblin Jobs on Hadoop MR ################
 ##############################################################
@@ -129,19 +146,29 @@ set_user_jars "$JARS"
 function join { local IFS="$1"; shift; echo "$*"; }
 LIBJARS=(
   $USER_JARS
+  $FWDIR_LIB/gobblin-api-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-avro-json-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-codecs-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-core-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-core-base-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-crypto-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-crypto-provider-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-data-management-$GOBBLIN_VERSION.jar
   $FWDIR_LIB/gobblin-metastore-$GOBBLIN_VERSION.jar
   $FWDIR_LIB/gobblin-metrics-$GOBBLIN_VERSION.jar
-  $FWDIR_LIB/gobblin-core-$GOBBLIN_VERSION.jar
-  $FWDIR_LIB/gobblin-api-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-metrics-base-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-metadata-$GOBBLIN_VERSION.jar
   $FWDIR_LIB/gobblin-utility-$GOBBLIN_VERSION.jar
-  $FWDIR_LIB/guava-15.0.jar
-  $FWDIR_LIB/avro-1.7.7.jar
-  $FWDIR_LIB/avro-mapred-1.7.7-hadoop2.jar
+  $FWDIR_LIB/avro-1.8.1.jar
+  $FWDIR_LIB/avro-mapred-1.8.1.jar
   $FWDIR_LIB/commons-lang3-3.4.jar
   $FWDIR_LIB/config-1.2.1.jar
-  $FWDIR_LIB/data-1.15.9.jar
+  $FWDIR_LIB/data-2.6.0.jar
   $FWDIR_LIB/gson-2.6.2.jar
+  $FWDIR_LIB/guava-15.0.jar
+  $FWDIR_LIB/guava-retrying-2.0.0.jar
   $FWDIR_LIB/joda-time-2.9.3.jar
+  $FWDIR_LIB/javassist-3.18.2-GA.jar
   $FWDIR_LIB/kafka_2.11-0.8.2.2.jar
   $FWDIR_LIB/kafka-clients-0.8.2.2.jar
   $FWDIR_LIB/metrics-core-2.2.0.jar
@@ -152,6 +179,7 @@ LIBJARS=(
   $FWDIR_LIB/okhttp-2.4.0.jar
   $FWDIR_LIB/okio-1.4.0.jar
   $FWDIR_LIB/retrofit-1.9.0.jar
+  $FWDIR_LIB/reflections-0.9.10.jar
 )
 LIBJARS=$(join , "${LIBJARS[@]}")
 

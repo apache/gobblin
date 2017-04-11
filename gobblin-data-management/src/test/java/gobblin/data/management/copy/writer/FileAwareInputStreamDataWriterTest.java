@@ -1,29 +1,22 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.data.management.copy.writer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyableDatasetMetadata;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.CopyableFileUtils;
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.data.management.copy.OwnerAndPermission;
-import gobblin.data.management.copy.PreserveAttributes;
-import gobblin.data.management.copy.TestCopyableDataset;
-import gobblin.util.io.StreamUtils;
-
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -47,6 +40,21 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.WorkUnitState;
+import gobblin.crypto.EncryptionConfigParser;
+import gobblin.data.management.copy.CopyConfiguration;
+import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.CopyableDatasetMetadata;
+import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.CopyableFileUtils;
+import gobblin.data.management.copy.FileAwareInputStream;
+import gobblin.data.management.copy.OwnerAndPermission;
+import gobblin.data.management.copy.PreserveAttributes;
+import gobblin.data.management.copy.TestCopyableDataset;
+import gobblin.util.TestUtils;
+import gobblin.util.io.StreamUtils;
+
 
 public class FileAwareInputStreamDataWriterTest {
 
@@ -56,7 +64,7 @@ public class FileAwareInputStreamDataWriterTest {
   @BeforeClass
   public void setup() throws Exception {
     fs = FileSystem.getLocal(new Configuration());
-    testTempPath = new Path(this.getClass().getClassLoader().getResource("").getFile(), "InputStreamDataWriterTest");
+    testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "InputStreamDataWriterTest");
     fs.mkdirs(testTempPath);
   }
 
@@ -71,7 +79,7 @@ public class FileAwareInputStreamDataWriterTest {
 
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
 
-    WorkUnitState state = new WorkUnitState();
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
@@ -86,6 +94,44 @@ public class FileAwareInputStreamDataWriterTest {
     Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
         cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
     Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString);
+  }
+
+  @Test
+  public void testWriteWithEncryption() throws Exception {
+    byte[] streamString = "testEncryptedContents".getBytes("UTF-8");
+    byte[] expectedContents = new byte[streamString.length];
+    for (int i = 0; i < streamString.length; i++) {
+      expectedContents[i] = (byte)((streamString[i] + 1) % 256);
+    }
+
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "insecure_shift");
+
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
+
+    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(
+        new ByteArrayInputStream(streamString)));
+    dataWriter.write(fileAwareInputStream);
+    dataWriter.commit();
+
+    Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
+    Assert.assertTrue(writtenFilePath.getName().endsWith("insecure_shift"),
+        "Expected encryption name to be appended to destination");
+    Assert.assertEquals(IOUtils.toByteArray(new FileInputStream(writtenFilePath.toString())), expectedContents);
   }
 
   @Test
@@ -138,7 +184,7 @@ public class FileAwareInputStreamDataWriterTest {
         .build();
 
     // create work unit state
-    WorkUnitState state = new WorkUnitState();
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir.toUri().getPath());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir.toUri().getPath());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));

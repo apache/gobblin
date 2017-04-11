@@ -1,25 +1,29 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.example.wikipedia;
 
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -27,7 +31,14 @@ import java.util.Map;
 import java.util.Queue;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.message.BasicNameValuePair;
@@ -50,6 +61,8 @@ import com.google.gson.JsonObject;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.http.HttpClientConfigurator;
+import gobblin.http.HttpClientConfiguratorLoader;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.LongWatermark;
@@ -70,8 +83,10 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
   private static final Logger LOG = LoggerFactory.getLogger(WikipediaExtractor.class);
   private static final DateTimeFormatter WIKIPEDIA_TIMESTAMP_FORMAT = DateTimeFormat.forPattern("YYYYMMddHHmmss");
 
-  public static final String MAX_REVISION_PER_PAGE = "gobblin.wikipediaSource.maxRevisionsPerPage";
+  public static final String CONFIG_PREFIX = "gobblin.wikipediaSource.";
+  public static final String MAX_REVISION_PER_PAGE = CONFIG_PREFIX+ "maxRevisionsPerPage";
   public static final int DEFAULT_MAX_REVISIONS_PER_PAGE = -1;
+  public static final String HTTP_CLIENT_CONFIG_PREFIX = CONFIG_PREFIX + "httpClient.";
 
   public static final String SOURCE_PAGE_TITLES = "source.page.titles";
   public static final String BOOTSTRAP_PERIOD = "wikipedia.source.bootstrap.lookback";
@@ -98,6 +113,8 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
   private final ImmutableMap<String, String> baseQuery;
   private final WorkUnitState workUnitState;
   private final int maxRevisionsPulled;
+  private final HttpClientConfigurator httpClientConfigurator;
+  private HttpClient httpClient;
 
   private class WikiResponseReader implements Iterator<JsonElement> {
 
@@ -181,6 +198,12 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
     this.baseQuery =
         ImmutableMap.<String, String>builder().put("format", "json").put("action","query").put("prop","revisions").build();
 
+    HttpClientConfiguratorLoader httpClientConfiguratorLoader
+        = new HttpClientConfiguratorLoader(workUnitState);
+    this.httpClientConfigurator = httpClientConfiguratorLoader.getConfigurator();
+    this.httpClientConfigurator.setStatePropertiesPrefix(HTTP_CLIENT_CONFIG_PREFIX)
+                               .configure(workUnitState);
+
     try {
       Queue<JsonElement> lastRevision = retrievePageRevisions(ImmutableMap.<String, String>builder().putAll(this.baseQuery)
           .put("rvprop","ids").put("titles",this.requestedTitle).put("rvlimit","1").build());
@@ -247,30 +270,23 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
     return value;
   }
 
-  private boolean isPropPresent(String key, WorkUnitState workUnitState) {
-    return workUnitState.contains(key)
-        || workUnitState.getWorkunit().contains(key)
-        || workUnitState.getJobState().contains(key);
-  }
-
   private JsonElement performHttpQuery(String rootUrl, Map<String, String> query) throws URISyntaxException, IOException {
-
-    List<NameValuePair> queryTokens = Lists.newArrayList();
-    for (Map.Entry<String, String> entry : query.entrySet()) {
-      queryTokens.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
+    if (null == this.httpClient) {
+      this.httpClient = createHttpClient();
     }
-    String encodedQuery = URLEncodedUtils.format(queryTokens, Charsets.UTF_8);
-
-    URL actualURL = new URIBuilder(rootUrl).setQuery(encodedQuery).build().toURL();
+    HttpUriRequest req = createHttpRequest(rootUrl, query);
 
     Closer closer = Closer.create();
-    HttpURLConnection conn = null;
+
     StringBuilder sb = new StringBuilder();
     try {
-      conn = getHttpConnection(actualURL);
-      conn.connect();
+      HttpResponse response = sendHttpRequest(req, this.httpClient);
+      if (response instanceof CloseableHttpResponse) {
+        closer.register((CloseableHttpResponse)response);
+      }
       BufferedReader br = closer.register(
-          new BufferedReader(new InputStreamReader(conn.getInputStream(), ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
+          new BufferedReader(new InputStreamReader(response.getEntity().getContent(),
+                                                   ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
       String line;
       while ((line = br.readLine()) != null) {
         sb.append(line + "\n");
@@ -281,21 +297,52 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
       try {
         closer.close();
       } catch (IOException e) {
-        LOG.error("IOException in Closer.close() while performing query " + actualURL);
-      }
-      if (conn != null) {
-        conn.disconnect();
+        LOG.error("IOException in Closer.close() while performing query " + req + ": " + e, e);
       }
     }
 
     if (Strings.isNullOrEmpty(sb.toString())) {
-      LOG.warn("Received empty response for query: " + actualURL);
+      LOG.warn("Received empty response for query: " + req);
       return new JsonObject();
     }
 
     JsonElement jsonElement = GSON.fromJson(sb.toString(), JsonElement.class);
     return jsonElement;
 
+  }
+
+  public static URI createRequestURI(String rootUrl, Map<String, String> query)
+      throws MalformedURLException, URISyntaxException {
+    List<NameValuePair> queryTokens = Lists.newArrayList();
+    for (Map.Entry<String, String> entry : query.entrySet()) {
+      queryTokens.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
+    }
+    String encodedQuery = URLEncodedUtils.format(queryTokens, Charsets.UTF_8);
+
+    URI actualURL = new URIBuilder(rootUrl).setQuery(encodedQuery).build();
+    return actualURL;
+  }
+
+  HttpUriRequest createHttpRequest(String rootUrl, Map<String, String> query)
+              throws MalformedURLException, URISyntaxException {
+    URI requestUri = createRequestURI(rootUrl, query);
+    HttpGet req = new HttpGet(requestUri);
+
+    return req;
+  }
+
+  HttpResponse sendHttpRequest(HttpUriRequest req, HttpClient httpClient)
+      throws ClientProtocolException, IOException {
+    LOG.debug("Sending request {}", req);
+    HttpResponse response = httpClient.execute(req);
+    if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK ||
+        null == response.getEntity()) {
+      if (response instanceof CloseableHttpResponse) {
+        ((CloseableHttpResponse)response).close();
+      }
+      throw new IOException("HTTP Request " + req + " returned unexpected response " + response);
+    }
+    return response;
   }
 
   private Queue<JsonElement> retrievePageRevisions(Map<String, String> query)
@@ -350,23 +397,15 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
     return retrievedRevisions;
   }
 
-  private HttpURLConnection getHttpConnection(URL url) throws IOException {
-    Proxy proxy = Proxy.NO_PROXY;
-    if (isPropPresent(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL, this.workUnitState)
-        && isPropPresent(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, this.workUnitState)) {
-      LOG.info("Use proxy host: " + readProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL, this.workUnitState));
-      LOG.info("Use proxy port: " + readProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, this.workUnitState));
-      InetSocketAddress proxyAddress =
-          new InetSocketAddress(readProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL, this.workUnitState),
-              Integer.parseInt(readProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, this.workUnitState)));
-      proxy = new Proxy(Proxy.Type.HTTP, proxyAddress);
-    }
-    return (HttpURLConnection) url.openConnection(proxy);
+  protected HttpClient createHttpClient() {
+     return this.httpClientConfigurator.createClient();
   }
 
   @Override
   public void close() throws IOException {
-    // There's nothing to close
+    if (null != this.httpClient && this.httpClient instanceof Closeable) {
+      ((Closeable)this.httpClient).close();
+    }
   }
 
   @Override

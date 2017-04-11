@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.hive;
@@ -17,8 +22,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-
-import lombok.Getter;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
@@ -36,6 +40,8 @@ import com.google.common.io.Closer;
 import gobblin.configuration.State;
 import gobblin.util.AutoReturnableObject;
 
+import lombok.Getter;
+
 
 /**
  * A pool of {@link IMetaStoreClient} for querying the Hive metastore.
@@ -49,8 +55,11 @@ public class HiveMetastoreClientPool {
   @Getter
   private final HiveRegProps hiveRegProps;
 
+  private static final long DEFAULT_POOL_CACHE_TTL_MINUTES = 30;
   private static final Cache<Optional<String>, HiveMetastoreClientPool> poolCache =
-      CacheBuilder.newBuilder().removalListener(new RemovalListener<Optional<String>, HiveMetastoreClientPool>() {
+      CacheBuilder.newBuilder()
+          .expireAfterAccess(DEFAULT_POOL_CACHE_TTL_MINUTES, TimeUnit.MINUTES)
+          .removalListener(new RemovalListener<Optional<String>, HiveMetastoreClientPool>() {
         @Override
         public void onRemoval(RemovalNotification<Optional<String>, HiveMetastoreClientPool> notification) {
           if (notification.getValue() != null) {

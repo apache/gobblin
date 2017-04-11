@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util;
@@ -21,8 +26,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
@@ -40,10 +47,12 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
+import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
@@ -72,6 +81,13 @@ public class AvroUtils {
 
   private static final String AVRO_SUFFIX = ".avro";
 
+  public static class AvroPathFilter implements PathFilter {
+    @Override
+    public boolean accept(Path path) {
+      return path.getName().endsWith(AVRO_SUFFIX);
+    }
+  }
+
   /**
    * Given a GenericRecord, this method will return the schema of the field specified by the path parameter. The
    * fieldLocation parameter is an ordered string specifying the location of the nested field to retrieve. For example,
@@ -96,19 +112,31 @@ public class AvroUtils {
 
   /**
    * Helper method that does the actual work for {@link #getFieldSchema(Schema, String)}
-   * @param schema passed from {@link #getFieldValue(Schema, String)}
-   * @param pathList passed from {@link #getFieldValue(Schema, String)}
+   * @param schema passed from {@link #getFieldSchema(Schema, String)}
+   * @param pathList passed from {@link #getFieldSchema(Schema, String)}
    * @param field keeps track of the index used to access the list pathList
    * @return the schema of the field
    */
   private static Optional<Schema> getFieldSchemaHelper(Schema schema, List<String> pathList, int field) {
-    if (schema.getField(pathList.get(field)) == null) {
+    if (schema.getType() == Type.RECORD && schema.getField(pathList.get(field)) == null) {
       return Optional.absent();
     }
-    if ((field + 1) == pathList.size()) {
-      return Optional.fromNullable(schema.getField(pathList.get(field)).schema());
+    switch (schema.getType()) {
+      case UNION:
+        throw new AvroRuntimeException("Union of complex types cannot be handled : " + schema);
+      case MAP:
+        if ((field + 1) == pathList.size()) {
+          return Optional.fromNullable(schema.getValueType());
+        }
+        return AvroUtils.getFieldSchemaHelper(schema.getValueType(), pathList, ++field);
+      case RECORD:
+        if ((field + 1) == pathList.size()) {
+          return Optional.fromNullable(schema.getField(pathList.get(field)).schema());
+        }
+        return AvroUtils.getFieldSchemaHelper(schema.getField(pathList.get(field)).schema(), pathList, ++field);
+      default:
+        throw new AvroRuntimeException("Invalid type in schema : " + schema);
     }
-    return AvroUtils.getFieldSchemaHelper(schema.getField(pathList.get(field)).schema(), pathList, ++field);
   }
 
   /**
@@ -146,9 +174,28 @@ public class AvroUtils {
     }
 
     if ((field + 1) == pathList.size()) {
+      if (data instanceof Map) {
+        return Optional.fromNullable(getObjectFromMap((Map) data, pathList.get(field)));
+      }
       return Optional.fromNullable(((Record) data).get(pathList.get(field)));
     }
+    if (data instanceof Map) {
+      return AvroUtils.getFieldHelper(getObjectFromMap((Map) data, pathList.get(field)), pathList, ++field);
+    }
     return AvroUtils.getFieldHelper(((Record) data).get(pathList.get(field)), pathList, ++field);
+  }
+
+  /**
+   * This method is to get object from map given a key as string.
+   * Avro persists string as Utf8
+   * @param map passed from {@link #getFieldHelper(Object, List, int)}
+   * @param key passed from {@link #getFieldHelper(Object, List, int)}
+   * @return This could again be a GenericRecord
+   */
+
+  private static Object getObjectFromMap(Map map, String key) {
+    Utf8 utf8Key = new Utf8(key);
+    return map.get(utf8Key);
   }
 
   /**

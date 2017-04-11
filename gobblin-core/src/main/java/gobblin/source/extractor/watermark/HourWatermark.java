@@ -1,18 +1,25 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.watermark;
 
 import gobblin.source.extractor.extract.QueryBasedExtractor;
+import gobblin.source.extractor.utils.Utils;
+
 import java.math.RoundingMode;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -36,14 +43,14 @@ public class HourWatermark implements Watermark {
   // output format of hour water mark example: 2014030105
   private static final String OUTPUTFORMAT = "yyyyMMddHH";
   private static final int deltaForNextWatermark = 60 * 60;
-  private static final SimpleDateFormat INPUTFORMATPARSER = new SimpleDateFormat(INPUTFORMAT);
-
+  private final SimpleDateFormat inputFormatParser;
   private String watermarkColumn;
   private String watermarkFormat;
 
   public HourWatermark(String watermarkColumn, String watermarkFormat) {
     this.watermarkColumn = watermarkColumn;
     this.watermarkFormat = watermarkFormat;
+    inputFormatParser = new SimpleDateFormat(INPUTFORMAT);
   }
 
   @Override
@@ -60,8 +67,8 @@ public class HourWatermark implements Watermark {
   synchronized public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue,
       long partitionIntervalInHours, int maxIntervals) {
     Preconditions.checkArgument(maxIntervals > 0, "Invalid value for maxIntervals, positive value expected.");
-    Preconditions.checkArgument(partitionIntervalInHours > 0,
-        "Invalid value for partitionInterval, should be at least 1.");
+    Preconditions
+        .checkArgument(partitionIntervalInHours > 0, "Invalid value for partitionInterval, should be at least 1.");
     HashMap<Long, Long> intervalMap = Maps.newHashMap();
 
     if (lowWatermarkValue > highWatermarkValue) {
@@ -84,16 +91,15 @@ public class HourWatermark implements Watermark {
     LOG.debug("Start time:" + startTime + "; End time:" + endTime);
     long lwm;
     long hwm;
-    while (startTime.getTime() <= endTime.getTime()) {
-      lwm = Long.parseLong(INPUTFORMATPARSER.format(startTime));
+    while (startTime.getTime() < endTime.getTime()) {
+      lwm = Long.parseLong(inputFormatParser.format(startTime));
       calendar.setTime(startTime);
-      calendar.add(Calendar.HOUR, interval - 1);
+      calendar.add(Calendar.HOUR, interval);
       nextTime = calendar.getTime();
-      hwm = Long.parseLong(INPUTFORMATPARSER.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
+      hwm = Long.parseLong(inputFormatParser.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
       LOG.debug("Partition - low:" + lwm + "; high:" + hwm);
-      calendar.add(Calendar.SECOND, deltaForNextWatermark);
-      startTime = calendar.getTime();
+      startTime = nextTime;
     }
     return intervalMap;
   }
@@ -112,7 +118,7 @@ public class HourWatermark implements Watermark {
     if (totalIntervals > maxIntervals) {
       hourInterval = DoubleMath.roundToInt((double) totalHours / maxIntervals, RoundingMode.CEILING);
     }
-    return Ints.checkedCast(hourInterval) + 1;
+    return Ints.checkedCast(hourInterval);
   }
 
   /**
@@ -133,5 +139,18 @@ public class HourWatermark implements Watermark {
       LOG.error(e.getMessage(), e);
     }
     return outDate;
+  }
+
+  /**
+   * Adjust the given watermark by diff
+   *
+   * @param baseWatermark the original watermark
+   * @param diff the amount to change
+   * @return the adjusted watermark value
+   */
+  public static long adjustWatermark(String baseWatermark, int diff) {
+    SimpleDateFormat parser = new SimpleDateFormat(INPUTFORMAT);
+    Date date = Utils.toDate(baseWatermark, INPUTFORMAT, OUTPUTFORMAT);
+    return Long.parseLong(parser.format(Utils.addHoursToDate(date, diff)));
   }
 }

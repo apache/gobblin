@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metastore.database;
@@ -279,13 +284,13 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
         case JOB_ID:
           List<JobExecutionInfo> jobExecutionInfos = Lists.newArrayList();
           JobExecutionInfo jobExecutionInfo =
-              processQueryById(connection, query.getId().getString(), query, Optional.<String> absent());
+              processQueryById(connection, query.getId().getString(), query, Filter.MISSING);
           if (jobExecutionInfo != null) {
             jobExecutionInfos.add(jobExecutionInfo);
           }
           return jobExecutionInfos;
         case JOB_NAME:
-          return processQueryByJobName(connection, query.getId().getString(), query, Optional.<String> absent());
+          return processQueryByJobName(connection, query.getId().getString(), query, Filter.MISSING);
         case TABLE:
           return processQueryByTable(connection, query);
         case LIST_TYPE:
@@ -520,7 +525,7 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
   }
 
   private JobExecutionInfo processQueryById(Connection connection, String jobId, JobExecutionQuery query,
-                        Optional<String> tableFilter) throws SQLException {
+                        Filter tableFilter) throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(jobId));
 
     // Query job execution information
@@ -576,11 +581,14 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
           TaskExecutionInfoArray taskExecutionInfos = new TaskExecutionInfoArray();
           String taskExecutionQuery = TASK_EXECUTION_QUERY_STATEMENT_TEMPLATE;
           // Add table filter if applicable
-          if (tableFilter.isPresent() && !Strings.isNullOrEmpty(tableFilter.get())) {
-            taskExecutionQuery += " AND " + tableFilter.get();
+          if (tableFilter.isPresent()) {
+            taskExecutionQuery += " AND " + tableFilter;
           }
           try (PreparedStatement taskExecutionQueryStatement = connection.prepareStatement(taskExecutionQuery)) {
             taskExecutionQueryStatement.setString(1, jobId);
+            if (tableFilter.isPresent()) {
+              tableFilter.addParameters(taskExecutionQueryStatement, 2);
+            }
             try (ResultSet taskRs = taskExecutionQueryStatement.executeQuery()) {
               while (taskRs.next()) {
                 TaskExecutionInfo taskExecutionInfo = resultSetToTaskExecutionInfo(taskRs);
@@ -636,16 +644,17 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
   }
 
   private List<JobExecutionInfo> processQueryByJobName(Connection connection, String jobName, JobExecutionQuery query,
-                             Optional<String> tableFilter) throws SQLException {
+                             Filter tableFilter) throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(jobName));
 
     // Construct the query for job IDs by a given job name
+    Filter timeRangeFilter = Filter.MISSING;
     String jobIdByNameQuery = JOB_ID_QUERY_BY_JOB_NAME_STATEMENT_TEMPLATE;
     if (query.hasTimeRange()) {
       // Add time range filter if applicable
       try {
-        String timeRangeFilter = constructTimeRangeFilter(query.getTimeRange());
-        if (!Strings.isNullOrEmpty(timeRangeFilter)) {
+          timeRangeFilter = constructTimeRangeFilter(query.getTimeRange());
+        if (timeRangeFilter.isPresent()) {
           jobIdByNameQuery += " AND " + timeRangeFilter;
         }
       } catch (ParseException pe) {
@@ -665,6 +674,9 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
         queryStatement.setMaxRows(limit);
       }
       queryStatement.setString(1, jobName);
+      if (timeRangeFilter.isPresent()) {
+        timeRangeFilter.addParameters(queryStatement, 2);
+      }
       try (ResultSet rs = queryStatement.executeQuery()) {
         while (rs.next()) {
           jobExecutionInfos.add(processQueryById(connection, rs.getString(1), query, tableFilter));
@@ -678,7 +690,7 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
       throws SQLException {
     Preconditions.checkArgument(query.getId().isTable());
 
-    String tableFilter = constructTableFilter(query.getId().getTable());
+    Filter tableFilter = constructTableFilter(query.getId().getTable());
 
     // Construct the query for job names by table definition
     String jobNameByTableQuery = String.format(JOB_NAME_QUERY_BY_TABLE_STATEMENT_TEMPLATE, tableFilter);
@@ -686,9 +698,12 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
     List<JobExecutionInfo> jobExecutionInfos = Lists.newArrayList();
     // Query job names by table definition
     try (PreparedStatement queryStatement = connection.prepareStatement(jobNameByTableQuery)) {
+      if (tableFilter.isPresent()) {
+        tableFilter.addParameters(queryStatement, 1);
+      }
       try (ResultSet rs = queryStatement.executeQuery()) {
         while (rs.next()) {
-          jobExecutionInfos.addAll(processQueryByJobName(connection, rs.getString(1), query, Optional.of(tableFilter)));
+          jobExecutionInfos.addAll(processQueryByJobName(connection, rs.getString(1), query, tableFilter));
         }
       }
     }
@@ -699,14 +714,15 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
   private List<JobExecutionInfo> processListQuery(Connection connection, JobExecutionQuery query) throws SQLException {
     Preconditions.checkArgument(query.getId().isQueryListType());
 
+    Filter timeRangeFilter = Filter.MISSING;
     QueryListType queryType = query.getId().getQueryListType();
     String listJobExecutionsQuery = "";
     if (queryType == QueryListType.DISTINCT) {
       listJobExecutionsQuery = LIST_DISTINCT_JOB_EXECUTION_QUERY_TEMPLATE;
       if (query.hasTimeRange()) {
         try {
-          String timeRangeFilter = constructTimeRangeFilter(query.getTimeRange());
-          if (!Strings.isNullOrEmpty(timeRangeFilter)) {
+          timeRangeFilter = constructTimeRangeFilter(query.getTimeRange());
+          if (timeRangeFilter.isPresent()) {
             listJobExecutionsQuery += " AND " + timeRangeFilter;
           }
         } catch (ParseException pe) {
@@ -724,11 +740,13 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
       if (limit > 0) {
         queryStatement.setMaxRows(limit);
       }
-
+      if (timeRangeFilter.isPresent()) {
+        timeRangeFilter.addParameters(queryStatement, 1);
+      }
       try (ResultSet rs = queryStatement.executeQuery()) {
         List<JobExecutionInfo> jobExecutionInfos = Lists.newArrayList();
         while (rs.next()) {
-          jobExecutionInfos.add(processQueryById(connection, rs.getString(1), query, Optional.<String>absent()));
+          jobExecutionInfos.add(processQueryById(connection, rs.getString(1), query, Filter.MISSING));
         }
         return jobExecutionInfos;
       }
@@ -827,39 +845,45 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
     return new AbstractMap.SimpleEntry<>(rs.getString(1), rs.getString(2));
   }
 
-  private static String constructTimeRangeFilter(TimeRange timeRange) throws ParseException {
+  private Filter constructTimeRangeFilter(TimeRange timeRange) throws ParseException {
+    List<String> values = Lists.newArrayList();
     StringBuilder sb = new StringBuilder();
 
     if (!timeRange.hasTimeFormat()) {
       LOGGER.warn("Skipping the time range filter as there is no time format in: " + timeRange);
-      return "";
+      return Filter.MISSING;
     }
 
     DateFormat dateFormat = new SimpleDateFormat(timeRange.getTimeFormat());
 
     boolean hasStartTime = timeRange.hasStartTime();
     if (hasStartTime) {
-      Timestamp startTimestamp = new Timestamp(dateFormat.parse(timeRange.getStartTime()).getTime());
-      sb.append("start_time>'").append(startTimestamp.toString()).append("'");
+      sb.append("start_time>?");
+      values.add(new Timestamp(dateFormat.parse(timeRange.getStartTime()).getTime()).toString());
     }
 
     if (timeRange.hasEndTime()) {
       if (hasStartTime) {
         sb.append(" AND ");
       }
-      Timestamp endTimestamp = new Timestamp(dateFormat.parse(timeRange.getEndTime()).getTime());
-      sb.append("end_time<'").append(endTimestamp.toString()).append("'");
+      sb.append("end_time<?");
+      values.add(new Timestamp(dateFormat.parse(timeRange.getEndTime()).getTime()).toString());
     }
 
-    return sb.toString();
+    if (sb.length() > 0) {
+      return new Filter(sb.toString(), values);
+    }
+    return Filter.MISSING;
   }
 
-  private String constructTableFilter(Table table) {
+  private Filter constructTableFilter(Table table) {
+    List<String> values = Lists.newArrayList();
     StringBuilder sb = new StringBuilder();
 
     boolean hasNamespace = table.hasNamespace();
     if (hasNamespace) {
-      sb.append("table_namespace='").append(table.getNamespace()).append("'");
+      sb.append("table_namespace=?");
+      values.add(table.getNamespace());
     }
 
     boolean hasName = table.hasName();
@@ -867,17 +891,22 @@ public class DatabaseJobHistoryStoreV100 implements VersionedDatabaseJobHistoryS
       if (hasNamespace) {
         sb.append(" AND ");
       }
-      sb.append("table_name='").append(table.getName()).append("'");
+      sb.append("table_name=?");
+      values.add(table.getName());
     }
 
     if (table.hasType()) {
       if (hasName) {
         sb.append(" AND ");
       }
-      sb.append("table_type='").append(table.getType().name()).append("'");
+      sb.append("table_type=?");
+      values.add(table.getType().name());
     }
 
-    return sb.toString();
+    if (sb.length() > 0) {
+      return new Filter(sb.toString(), values);
+    }
+    return Filter.MISSING;
   }
 
   private static Calendar getCalendarUTCInstance() {

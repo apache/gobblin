@@ -1,19 +1,26 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metastore;
 
 import static gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
 
+import com.google.common.base.Predicate;
+import gobblin.util.HadoopUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -33,7 +40,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
-import gobblin.util.HadoopUtils;
+import gobblin.util.WritableShimSerialization;
 
 
 /**
@@ -68,23 +75,39 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   private final Class<T> stateClass;
 
   public FsStateStore(String fsUri, String storeRootDir, Class<T> stateClass) throws IOException {
-    this.conf = new Configuration();
+    this.conf = getConf(null);
     this.fs = FileSystem.get(URI.create(fsUri), this.conf);
     this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
     this.storeRootDir = storeRootDir;
     this.stateClass = stateClass;
   }
 
+  /**
+   * Get a Hadoop configuration that understands how to (de)serialize WritableShim objects.
+   */
+  private Configuration getConf(Configuration otherConf) {
+    Configuration conf;
+    if (otherConf == null) {
+      conf = new Configuration();
+    } else {
+      conf = new Configuration(otherConf);
+    }
+
+    WritableShimSerialization.addToHadoopConfiguration(conf);
+
+    return conf;
+  }
+
   public FsStateStore(FileSystem fs, String storeRootDir, Class<T> stateClass) {
     this.fs = fs;
     this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
-    this.conf = this.fs.getConf();
+    this.conf = getConf(this.fs.getConf());
     this.storeRootDir = storeRootDir;
     this.stateClass = stateClass;
   }
 
   public FsStateStore(String storeUrl, Class<T> stateClass) throws IOException {
-    this.conf = new Configuration();
+    this.conf = getConf(null);
     Path storePath = new Path(storeUrl);
     this.fs = storePath.getFileSystem(this.conf);
     this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
@@ -138,6 +161,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
 
     Closer closer = Closer.create();
     try {
+      @SuppressWarnings("deprecation")
       SequenceFile.Writer writer = closer.register(SequenceFile.createWriter(this.fs, this.conf, tmpTablePath,
           Text.class, this.stateClass, SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
       writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
@@ -172,6 +196,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
 
     Closer closer = Closer.create();
     try {
+      @SuppressWarnings("deprecation")
       SequenceFile.Writer writer = closer.register(SequenceFile.createWriter(this.fs, this.conf, tmpTablePath,
           Text.class, this.stateClass, SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
       for (T state : states) {
@@ -190,6 +215,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public T get(String storeName, String tableName, String stateId) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath)) {
@@ -203,13 +229,14 @@ public class FsStateStore<T extends State> implements StateStore<T> {
       try {
         Text key = new Text();
         T state = this.stateClass.newInstance();
-        while (reader.next(key, state)) {
+        while (reader.next(key)) {
+          state = (T)reader.getCurrentValue(state);
           if (key.toString().equals(stateId)) {
             return state;
           }
         }
       } catch (Exception e) {
-        throw new IOException(e);
+        throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
       }
     } catch (Throwable t) {
       throw closer.rethrow(t);
@@ -221,6 +248,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public List<T> getAll(String storeName, String tableName) throws IOException {
     List<T> states = Lists.newArrayList();
 
@@ -236,13 +264,14 @@ public class FsStateStore<T extends State> implements StateStore<T> {
       try {
         Text key = new Text();
         T state = this.stateClass.newInstance();
-        while (reader.next(key, state)) {
+        while (reader.next(key)) {
+          state = (T)reader.getCurrentValue(state);
           states.add(state);
           // We need a new object for each read state
           state = this.stateClass.newInstance();
         }
       } catch (Exception e) {
-        throw new IOException(e);
+        throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
       }
     } catch (Throwable t) {
       throw closer.rethrow(t);
@@ -267,6 +296,24 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     }
 
     return states;
+  }
+
+  @Override
+  public List<String> getTableNames(String storeName, Predicate<String> predicate) throws IOException {
+    List<String> names = Lists.newArrayList();
+
+    Path storePath = new Path(this.storeRootDir, storeName);
+    if (!this.fs.exists(storePath)) {
+      return names;
+    }
+
+    for (FileStatus status : this.fs.listStatus(storePath)) {
+      if (predicate.apply(status.getPath().getName())) {
+        names.add(status.getPath().getName());
+      }
+    }
+
+    return names;
   }
 
   @Override

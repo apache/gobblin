@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util;
@@ -25,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -90,8 +96,8 @@ public class ParallelRunner implements Closeable {
   }
 
   public ParallelRunner(int threads, FileSystem fs, FailPolicy failPolicy) {
-    this.executor = Executors.newFixedThreadPool(threads,
-        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ParallelRunner")));
+    this.executor = ExecutorsUtils.loggingDecorator(Executors.newFixedThreadPool(threads,
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ParallelRunner"))));
     this.fs = fs;
     this.failPolicy = failPolicy;
   }
@@ -181,12 +187,14 @@ public class ParallelRunner implements Closeable {
     this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        try (@SuppressWarnings("deprecation")
-        SequenceFile.Reader reader =
-            new SequenceFile.Reader(ParallelRunner.this.fs, inputFilePath, ParallelRunner.this.fs.getConf())) {
+        Configuration conf = new Configuration(ParallelRunner.this.fs.getConf());
+        WritableShimSerialization.addToHadoopConfiguration(conf);
+        try (@SuppressWarnings("deprecation") SequenceFile.Reader reader = new SequenceFile.Reader(
+            ParallelRunner.this.fs, inputFilePath, conf)) {
           Writable key = keyClass.newInstance();
           T state = stateClass.newInstance();
-          while (reader.next(key, state)) {
+          while (reader.next(key)) {
+            state = (T) reader.getCurrentValue(state);
             states.add(state);
             state = stateClass.newInstance();
           }
@@ -317,6 +325,20 @@ public class ParallelRunner implements Closeable {
         }
       }
     }), "Move " + src + " to " + dst));
+  }
+
+  /**
+   * Submit a callable to the thread pool
+   *
+   * <p>
+   *   This method submits a task and returns immediately
+   * </p>
+   *
+   * @param callable the callable to submit
+   * @param name for the future
+   */
+  public void submitCallable(Callable<Void> callable, String name) {
+    this.futures.add(new NamedFuture(this.executor.submit(callable), name));
   }
 
   @Override

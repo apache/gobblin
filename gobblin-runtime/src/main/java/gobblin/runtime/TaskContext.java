@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime;
@@ -19,6 +24,8 @@ import java.util.List;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
@@ -44,6 +51,7 @@ import gobblin.util.limiter.NonRefillableLimiter;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.Destination;
+import gobblin.writer.WatermarkStorage;
 import gobblin.writer.WriterOutputFormat;
 
 
@@ -52,10 +60,12 @@ import gobblin.writer.WriterOutputFormat;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class TaskContext {
 
   private final TaskState taskState;
   private final TaskMetrics taskMetrics;
+  private Extractor rawSourceExtractor;
 
   public TaskContext(WorkUnitState workUnitState) {
     this.taskState = new TaskState(workUnitState);
@@ -106,6 +116,7 @@ public class TaskContext {
    */
   public Extractor getExtractor() {
     try {
+      this.rawSourceExtractor = getSource().getExtractor(this.taskState);
       boolean throttlingEnabled = this.taskState.getPropAsBoolean(ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY,
           ConfigurationKeys.DEFAULT_EXTRACT_LIMIT_ENABLED);
       if (throttlingEnabled) {
@@ -114,13 +125,20 @@ public class TaskContext {
           throw new IllegalArgumentException("The Limiter used with an Extractor should be an instance of "
               + NonRefillableLimiter.class.getSimpleName());
         }
-        return new LimitingExtractorDecorator<>(getSource().getExtractor(this.taskState), limiter);
+        return new LimitingExtractorDecorator<>(this.rawSourceExtractor, limiter, this.taskState);
       }
-      return getSource().getExtractor(this.taskState);
+      return this.rawSourceExtractor;
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
     }
   }
+
+
+  public Extractor getRawSourceExtractor() {
+    return this.rawSourceExtractor;
+  }
+
+
 
   /**
    * Get the interval for status reporting.
@@ -156,9 +174,12 @@ public class TaskContext {
     String writerOutputFormatValue = this.taskState.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, branches, index),
         WriterOutputFormat.OTHER.name());
+    log.debug("Found writer output format value = {}", writerOutputFormatValue);
 
-    return Enums.getIfPresent(WriterOutputFormat.class, writerOutputFormatValue.toUpperCase())
+    WriterOutputFormat wof = Enums.getIfPresent(WriterOutputFormat.class, writerOutputFormatValue.toUpperCase())
         .or(WriterOutputFormat.OTHER);
+    log.debug("Returning writer output format = {}", wof);
+    return wof;
   }
 
   /**
@@ -270,7 +291,6 @@ public class TaskContext {
    *
    * @param taskState {@link TaskState} of a {@link Task}
    * @param results Task-level policy checking results
-   * @param index branch index
    * @return a {@link TaskPublisher}
    */
   public TaskPublisher getTaskPublisher(TaskState taskState, TaskLevelPolicyCheckResults results) throws Exception {
@@ -285,9 +305,18 @@ public class TaskContext {
    * @return a {@link DataWriterBuilder}
    */
   public DataWriterBuilder getDataWriterBuilder(int branches, int index) {
-    String dataWriterBuilderClassName = this.taskState.getProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
-        ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS);
+    String writerBuilderPropertyName = ForkOperatorUtils
+        .getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index);
+    log.debug("Using property {} to get a writer builder for branches:{}, index:{}", writerBuilderPropertyName,
+        branches, index);
+
+    String dataWriterBuilderClassName = this.taskState.getProp(writerBuilderPropertyName, null);
+    if (dataWriterBuilderClassName == null) {
+      dataWriterBuilderClassName = ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS;
+      log.info("No configured writer builder found, using {} as the default builder", dataWriterBuilderClassName);
+    } else {
+      log.info("Found configured writer builder as {}", dataWriterBuilderClassName);
+    }
     try {
       return DataWriterBuilder.class.cast(Class.forName(dataWriterBuilderClassName).newInstance());
     } catch (ClassNotFoundException cnfe) {
@@ -297,5 +326,9 @@ public class TaskContext {
     } catch (IllegalAccessException iae) {
       throw new RuntimeException(iae);
     }
+  }
+
+  public WatermarkStorage getWatermarkStorage() {
+    return new StateStoreBasedWatermarkStorage(taskState);
   }
 }

@@ -1,0 +1,78 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: 'java'
+
+dependencies {
+  compile project(":gobblin-modules:gobblin-kafka-common")
+  compile project(":gobblin-core-base")
+  compile project(":gobblin-utility")
+  compile project(":gobblin-metrics-libs:gobblin-metrics")
+
+  compile externalDependency.avro
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
+  compile externalDependency.commonsHttpClient
+  compile externalDependency.commonsPool
+  compile externalDependency.commonsLang3
+  compile externalDependency.guava
+  compile externalDependency.slf4j
+  compile externalDependency.httpclient
+  compile externalDependency.httpcore
+  compile(externalDependency.kafka09){
+    exclude group: "com.sun.jmx", module: "jmxri"
+    exclude group: "com.sun.jdmk", module: "jmxtools"
+    exclude group: "javax.jms", module: "jms"
+  }
+  compile externalDependency.kafka09Client
+  compile externalDependency.scala
+  compile externalDependency.lombok
+  compile externalDependency.metricsCore
+  compile externalDependency.typesafeConfig
+  compile externalDependency.findBugsAnnotations
+
+  runtime externalDependency.confluentAvroSerializer
+  runtime externalDependency.confluentJsonSerializer
+  runtime externalDependency.confluentSchemaRegistryClient
+  runtime externalDependency.protobuf
+
+  testCompile project(":gobblin-runtime")
+  testCompile project(":gobblin-test-utils")
+  testCompile externalDependency.jsonAssert
+  testCompile externalDependency.mockito
+  testCompile externalDependency.testng
+  testCompile(externalDependency.kafka09Test){
+    exclude group: "com.sun.jmx", module: "jmxri"
+    exclude group: "com.sun.jdmk", module: "jmxtools"
+    exclude group: "javax.jms", module: "jms"
+  }
+}
+
+configurations {
+  compile { transitive = false }
+  // Remove xerces dependencies because of versioning issues. Standard JRE implementation should
+  // work. See also http://stackoverflow.com/questions/11677572/dealing-with-xerces-hell-in-java-maven
+  // HADOOP-5254 and MAPREDUCE-5664
+  all*.exclude group: 'xml-apis'
+  all*.exclude group: 'xerces'
+}
+
+test {
+  workingDir rootProject.rootDir
+}
+
+ext.classification="library"

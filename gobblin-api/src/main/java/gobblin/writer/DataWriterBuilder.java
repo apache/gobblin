@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.writer;
@@ -15,6 +20,7 @@ package gobblin.writer;
 import java.io.IOException;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -26,6 +32,7 @@ import lombok.Getter;
  * @author Yinan Li
  */
 @Getter
+@Slf4j
 public abstract class DataWriterBuilder<S, D> {
 
   protected Destination destination;
@@ -34,6 +41,7 @@ public abstract class DataWriterBuilder<S, D> {
   protected S schema;
   protected int branches;
   protected int branch;
+  protected String writerAttemptId;
 
   /**
    * Tell the writer the destination to write to.
@@ -43,6 +51,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> writeTo(Destination destination) {
     this.destination = destination;
+    log.debug("For destination: {}", destination);
     return this;
   }
 
@@ -54,6 +63,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> writeInFormat(WriterOutputFormat format) {
     this.format = format;
+    log.debug("writeInFormat : {}", this.format);
     return this;
   }
 
@@ -65,6 +75,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> withWriterId(String writerId) {
     this.writerId = writerId;
+    log.debug("withWriterId : {}", this.writerId);
     return this;
   }
 
@@ -76,6 +87,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> withSchema(S schema) {
     this.schema = schema;
+    log.debug("withSchema : {}", this.schema);
     return this;
   }
 
@@ -87,6 +99,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> withBranches(int branches) {
     this.branches = branches;
+    log.debug("With branches: {}", this.branches);
     return this;
   }
 
@@ -98,6 +111,17 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> forBranch(int branch) {
     this.branch = branch;
+    log.debug("For branch: {}", this.branch);
+    return this;
+  }
+
+  /**
+   * Attempt Id for this writer. There could be two duplicate writers with the same {@link #writerId},
+   * their writerAttemptId should be different.
+   */
+  public DataWriterBuilder<S, D> withAttemptId(String attemptId) {
+    this.writerAttemptId = attemptId;
+    log.debug("With writerAttemptId: {}", this.writerAttemptId);
     return this;
   }
 

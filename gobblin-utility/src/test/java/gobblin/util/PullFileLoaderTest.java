@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util;
@@ -76,7 +81,7 @@ public class PullFileLoaderTest {
     sysProps.put("key1", "sysProps1");
 
     path = new Path(this.basePath, "ajob.pull");
-    pullFile = loader.loadPullFile(path, ConfigFactory.parseProperties(sysProps), false);
+    pullFile = loader.loadPullFile(path, ConfigUtils.propertiesToConfig(sysProps), false);
     Assert.assertEquals(pullFile.getString("key1"), "sysProps1");
     Assert.assertEquals(pullFile.getString("key2"), "aValue");
     Assert.assertEquals(pullFile.getString("key10"), "aValue");
@@ -84,7 +89,7 @@ public class PullFileLoaderTest {
     Assert.assertEquals(pullFile.entrySet().size(), 4);
 
     path = new Path(this.basePath, "dir1/job.pull");
-    pullFile = loader.loadPullFile(path, ConfigFactory.parseProperties(sysProps), false);
+    pullFile = loader.loadPullFile(path, ConfigUtils.propertiesToConfig(sysProps), false);
     Assert.assertEquals(pullFile.getString("key1"), "jobValue1,jobValue2,jobValue3");
     Assert.assertEquals(pullFile.getString("key2"), "jobValue2");
     Assert.assertEquals(pullFile.getString(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), path.toString());
@@ -107,7 +112,7 @@ public class PullFileLoaderTest {
     Properties sysProps = new Properties();
     sysProps.put("key1", "sysProps1");
     Collection<Config> configs =
-        loader.loadPullFilesRecursively(this.basePath, ConfigFactory.parseProperties(sysProps), false);
+        loader.loadPullFilesRecursively(this.basePath, ConfigUtils.propertiesToConfig(sysProps), false);
 
     path = new Path(this.basePath, "ajob.pull");
     pullFile = pullFileFromPath(configs, path);
@@ -142,7 +147,7 @@ public class PullFileLoaderTest {
     sysProps.put("key1", "sysProps1");
 
     path = new Path(this.basePath, "ajob.pull");
-    pullFile = loader.loadPullFile(path, ConfigFactory.parseProperties(sysProps), true);
+    pullFile = loader.loadPullFile(path, ConfigUtils.propertiesToConfig(sysProps), true);
     Assert.assertEquals(pullFile.getString("key1"), "rootValue1");
     Assert.assertEquals(pullFile.getString("key2"), "aValue");
     Assert.assertEquals(pullFile.getString("key10"), "aValue");
@@ -151,7 +156,7 @@ public class PullFileLoaderTest {
     Assert.assertEquals(pullFile.entrySet().size(), 5);
 
     path = new Path(this.basePath, "dir1/job.pull");
-    pullFile = loader.loadPullFile(path, ConfigFactory.parseProperties(sysProps), true);
+    pullFile = loader.loadPullFile(path, ConfigUtils.propertiesToConfig(sysProps), true);
     Assert.assertEquals(pullFile.getString("key1"), "jobValue1,jobValue2,jobValue3");
     Assert.assertEquals(pullFile.getString("key2"), "jobValue2");
     Assert.assertEquals(pullFile.getString("key3"), "rootValue3");
@@ -178,7 +183,7 @@ public class PullFileLoaderTest {
     Properties sysProps = new Properties();
     sysProps.put("key1", "sysProps1");
     Collection<Config> configs =
-        loader.loadPullFilesRecursively(this.basePath, ConfigFactory.parseProperties(sysProps), true);
+        loader.loadPullFilesRecursively(this.basePath, ConfigUtils.propertiesToConfig(sysProps), true);
 
     path = new Path(this.basePath, "ajob.pull");
     pullFile = pullFileFromPath(configs, path);

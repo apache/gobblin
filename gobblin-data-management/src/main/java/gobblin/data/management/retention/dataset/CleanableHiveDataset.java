@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.data.management.retention.dataset;
 
@@ -20,14 +25,13 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
-import org.apache.thrift.TException;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -37,6 +41,7 @@ import com.typesafe.config.ConfigRenderOptions;
 import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.policy.SelectBeforeTimeBasedPolicy;
 import gobblin.data.management.policy.VersionSelectionPolicy;
+import gobblin.data.management.retention.version.HiveDatasetVersionCleaner;
 import gobblin.data.management.version.HiveDatasetVersion;
 import gobblin.data.management.version.finder.AbstractHiveDatasetVersionFinder;
 import gobblin.data.management.version.finder.DatePartitionHiveVersionFinder;
@@ -60,6 +65,7 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 @SuppressWarnings({ "rawtypes", "unchecked" })
+@Getter
 public class CleanableHiveDataset extends HiveDataset implements CleanableDataset {
 
   private static final String SHOULD_DELETE_DATA_KEY = "gobblin.retention.hive.shouldDeleteData";
@@ -79,30 +85,30 @@ public class CleanableHiveDataset extends HiveDataset implements CleanableDatase
   private final FsCleanableHelper fsCleanableHelper;
 
   public CleanableHiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties jobProps,
-      Config datasetConfig) throws IOException {
-    super(fs, clientPool, table, jobProps, datasetConfig);
+      Config config) throws IOException {
+    super(fs, clientPool, table, jobProps, config);
 
     try {
       this.hiveSelectionPolicy =
           (VersionSelectionPolicy) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(ConfigUtils.getString(
-              datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS)), ImmutableList.<Object> of(
-              datasetConfig, jobProps), ImmutableList.<Object> of(datasetConfig), ImmutableList.<Object> of(jobProps));
+              this.datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS)), ImmutableList.<Object> of(
+              this.datasetConfig, jobProps), ImmutableList.<Object> of(this.datasetConfig), ImmutableList.<Object> of(jobProps));
 
       log.info(String.format("Configured selection policy %s for dataset:%s with config %s",
-          ConfigUtils.getString(datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS),
-          datasetURN(), datasetConfig.root().render(ConfigRenderOptions.concise())));
+          ConfigUtils.getString(this.datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS),
+          datasetURN(), this.datasetConfig.root().render(ConfigRenderOptions.concise())));
 
       this.hiveDatasetVersionFinder =
           (AbstractHiveDatasetVersionFinder) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(ConfigUtils
-              .getString(datasetConfig, VERSION_FINDER_CLASS_KEY, DEFAULT_VERSION_FINDER_CLASS)), ImmutableList
-              .<Object> of(this.fs, datasetConfig), ImmutableList.<Object> of(this.fs, jobProps));
+              .getString(this.datasetConfig, VERSION_FINDER_CLASS_KEY, DEFAULT_VERSION_FINDER_CLASS)), ImmutableList
+              .<Object> of(this.fs, this.datasetConfig), ImmutableList.<Object> of(this.fs, jobProps));
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       log.error("Failed to instantiate CleanableHiveDataset", e);
       throw new IllegalArgumentException(e);
     }
 
-    this.fsCleanableHelper = new FsCleanableHelper(fs, jobProps, datasetConfig, log);
+    this.fsCleanableHelper = new FsCleanableHelper(fs, jobProps, this.datasetConfig, log);
 
     this.shouldDeleteData = Boolean.valueOf(jobProps.getProperty(SHOULD_DELETE_DATA_KEY, SHOULD_DELETE_DATA_DEFAULT));
     this.simulate = Boolean.valueOf(jobProps.getProperty(FsCleanableHelper.SIMULATE_KEY, FsCleanableHelper.SIMULATE_DEFAULT));
@@ -133,29 +139,23 @@ public class CleanableHiveDataset extends HiveDataset implements CleanableDatase
         versions.size()));
 
     List<Exception> exceptions = Lists.newArrayList();
-    Set<Path> possiblyEmptyDirectories = new HashSet<>();
 
-    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
+    for (HiveDatasetVersion hiveDatasetVersion : deletableVersions) {
+      try {
+        // Initialize the version cleaner
+        HiveDatasetVersionCleaner hiveDatasetVersionCleaner = new HiveDatasetVersionCleaner(hiveDatasetVersion, this);
 
-      for (HiveDatasetVersion hiveDatasetVersion : deletableVersions) {
-        Partition partition = hiveDatasetVersion.getPartition();
-        try {
-          if (!this.simulate) {
-            client.get().dropPartition(partition.getTable().getDbName(), partition.getTable().getTableName(), partition.getValues(), false);
-            log.info("Successfully dropped partition " + partition.getCompleteName());
-          } else {
-            log.info("Simulating drop partition " + partition.getCompleteName());
-          }
-          if (this.shouldDeleteData) {
-            this.fsCleanableHelper.clean(hiveDatasetVersion, possiblyEmptyDirectories);
-          }
-        } catch (TException | IOException e) {
-          log.warn(String.format("Failed to completely delete partition %s.", partition.getCompleteName()), e);
-          exceptions.add(e);
-        }
+        // Perform pre-clean actions
+        hiveDatasetVersionCleaner.preCleanAction();
+
+        // Perform actual cleaning
+        hiveDatasetVersionCleaner.clean();
+
+        // Perform post-clean actions eg. swap partitions
+        hiveDatasetVersionCleaner.postCleanAction();
+      } catch (IOException e) {
+        exceptions.add(e);
       }
-
-      this.fsCleanableHelper.cleanEmptyDirectories(possiblyEmptyDirectories, this);
     }
 
     if (!exceptions.isEmpty()) {

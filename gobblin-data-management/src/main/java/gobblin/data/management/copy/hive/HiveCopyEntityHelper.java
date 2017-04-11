@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy.hive;
@@ -17,6 +22,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +60,7 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.hive.avro.HiveAvroCopyEntityHelper;
+import gobblin.data.management.partition.CopyableDatasetRequestor;
 import gobblin.data.management.partition.FileSet;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HiveRegProps;
@@ -68,6 +75,7 @@ import gobblin.metrics.event.MultiTimingEvent;
 import gobblin.util.PathUtils;
 import gobblin.util.commit.DeleteFileCommitStep;
 import gobblin.util.reflection.GobblinConstructorUtils;
+import gobblin.util.request_allocation.PushDownRequestor;
 
 import lombok.Builder;
 import lombok.Data;
@@ -340,6 +348,13 @@ public class HiveCopyEntityHelper {
   }
 
   /**
+   * See {@link #getCopyEntities(CopyConfiguration, Comparator, PushDownRequestor)}. This method does not pushdown any prioritizer.
+   */
+  Iterator<FileSet<CopyEntity>> getCopyEntities(CopyConfiguration configuration) throws IOException {
+    return getCopyEntities(configuration, null, null);
+  }
+
+  /**
    * Finds all files read by the table and generates {@link CopyEntity}s for duplicating the table. The semantics are as follows:
    * 1. Find all valid {@link org.apache.hadoop.hive.metastore.api.StorageDescriptor}. If the table is partitioned, the
    *    {@link org.apache.hadoop.hive.metastore.api.StorageDescriptor} of the base
@@ -351,9 +366,10 @@ public class HiveCopyEntityHelper {
    *
    * For computation of target locations see {@link HiveTargetPathHelper#getTargetPath}
    */
-  Iterator<FileSet<CopyEntity>> getCopyEntities(CopyConfiguration configuration) throws IOException {
+  Iterator<FileSet<CopyEntity>> getCopyEntities(CopyConfiguration configuration, Comparator<FileSet<CopyEntity>> prioritizer,
+      PushDownRequestor<FileSet<CopyEntity>> requestor) throws IOException {
     if (HiveUtils.isPartitioned(this.dataset.table)) {
-      return new PartitionIterator(this.sourcePartitions, configuration);
+      return new PartitionIterator(this.sourcePartitions, configuration, prioritizer, requestor);
     } else {
       FileSet<CopyEntity> fileSet = new UnpartitionedTableFileSet(this.dataset.table.getCompleteName(), this.dataset, this);
       return Iterators.singletonIterator(fileSet);
@@ -371,10 +387,14 @@ public class HiveCopyEntityHelper {
     private final List<FileSet<CopyEntity>> allFileSets;
     private final Iterator<FileSet<CopyEntity>> fileSetIterator;
 
-    public PartitionIterator(Map<List<String>, Partition> partitionMap, CopyConfiguration configuration) {
+    public PartitionIterator(Map<List<String>, Partition> partitionMap, CopyConfiguration configuration,
+        Comparator<FileSet<CopyEntity>> prioritizer, PushDownRequestor<FileSet<CopyEntity>> requestor) {
       this.allFileSets = generateAllFileSets(partitionMap);
-      if (configuration.getPrioritizer().isPresent()) {
-        Collections.sort(this.allFileSets, configuration.getPrioritizer().get());
+      for (FileSet<CopyEntity> fileSet : this.allFileSets) {
+        fileSet.setRequestor(requestor);
+      }
+      if (prioritizer != null) {
+        Collections.sort(this.allFileSets, prioritizer);
       }
       this.fileSetIterator = this.allFileSets.iterator();
     }

@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.writer;
 
@@ -28,16 +33,18 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.util.FinalState;
 
 /**
  * Throttle writer follows decorator pattern that throttles inner writer by either QPS or by bytes.
  * @param <D>
  */
-public class ThrottleWriter<D> implements DataWriter<D>, Retriable {
+public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
   private static final Logger LOG = LoggerFactory.getLogger(ThrottleWriter.class);
   public static final String WRITER_THROTTLE_TYPE_KEY = "gobblin.writer.throttle_type";
   public static final String WRITER_LIMIT_RATE_LIMIT_KEY = "gobblin.writer.throttle_rate";
   public static final String WRITES_THROTTLED_TIMER = "gobblin.writer.throttled_time";
+  public static final String THROTTLED_TIME_KEY = "ThrottledTime";
 
   private static final String LOCAL_JOB_LAUNCHER_TYPE = "LOCAL";
 
@@ -51,6 +58,7 @@ public class ThrottleWriter<D> implements DataWriter<D>, Retriable {
   private final Limiter limiter;
   private final ThrottleType type;
   private final Optional<Timer> throttledTimer;
+  private long throttledTime;
 
   public ThrottleWriter(DataWriter<D> writer, State state) {
     Preconditions.checkNotNull(writer, "DataWriter is required.");
@@ -137,14 +145,13 @@ public class ThrottleWriter<D> implements DataWriter<D>, Retriable {
    * @throws InterruptedException
    */
   private void acquirePermits(long permits) throws InterruptedException {
-    if (!throttledTimer.isPresent()) { //Metrics is not enabled
-      limiter.acquirePermits(permits);
-      return;
-    }
-
     long startMs = System.currentTimeMillis(); //Measure in milliseconds. (Nanoseconds are more precise but expensive and not worth for this case)
     limiter.acquirePermits(permits);
-    Instrumented.updateTimer(throttledTimer, System.currentTimeMillis() - startMs, TimeUnit.MILLISECONDS);
+    long permitAcquisitionTime = System.currentTimeMillis() - startMs;
+    if (throttledTimer.isPresent()) { // Metrics enabled
+      Instrumented.updateTimer(throttledTimer, permitAcquisitionTime, TimeUnit.MILLISECONDS);
+    }
+    this.throttledTime += permitAcquisitionTime;
   }
 
 
@@ -181,5 +188,19 @@ public class ThrottleWriter<D> implements DataWriter<D>, Retriable {
       return ((Retriable) writer).getRetryerBuilder();
     }
     return RetryWriter.createRetryBuilder(state);
+  }
+
+  @Override
+  public State getFinalState() {
+    State state = new State();
+
+    if (this.writer instanceof FinalState) {
+      state.addAll(((FinalState)this.writer).getFinalState());
+    } else {
+      LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
+    }
+
+    state.setProp(THROTTLED_TIME_KEY, this.throttledTime);
+    return state;
   }
 }

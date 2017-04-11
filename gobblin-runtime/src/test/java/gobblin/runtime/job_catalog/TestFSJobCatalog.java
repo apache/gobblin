@@ -1,22 +1,31 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime.job_catalog;
 
+import gobblin.config.ConfigBuilder;
+import gobblin.runtime.job_spec.ResolvedJobSpec;
 import java.io.File;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
@@ -30,7 +39,7 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.util.ConfigUtils;
 import gobblin.util.filesystem.PathAlterationObserver;
 
-import junit.framework.Assert;
+import org.testng.Assert;
 
 
 /**
@@ -49,12 +58,19 @@ public class TestFSJobCatalog {
         String.format("gobblin-test_%s_job-conf", this.getClass().getSimpleName())).toFile();
     this.jobConfigDirPath = new Path(this.jobConfigDir.getPath());
 
+    try (PrintWriter printWriter = new PrintWriter(new Path(jobConfigDirPath, "job3.template").toString(), "UTF-8")) {
+      printWriter.println("param1 = value1");
+      printWriter.println("param2 = value2");
+    }
+
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getPath());
     PathAlterationObserver observer = new PathAlterationObserver(this.jobConfigDirPath);
 
     /* Exposed the observer so that checkAndNotify can be manually invoked. */
     FSJobCatalog cat = new FSJobCatalog(ConfigUtils.propertiesToConfig(properties), observer);
+    cat.startAsync();
+    cat.awaitRunning(10, TimeUnit.SECONDS);
 
     final Map<URI, JobSpec> specs = new Hashtable<>();
 
@@ -91,6 +107,8 @@ public class TestFSJobCatalog {
     JobSpec js1_1 = JobSpec.builder("test_job1").withVersion("1").build();
     JobSpec js1_2 = JobSpec.builder("test_job1").withVersion("2").build();
     JobSpec js2 = JobSpec.builder("test_job2").withVersion("1").build();
+    JobSpec js3 = JobSpec.builder("test_job3").withVersion("1").withTemplate(new URI("FS:///job3.template"))
+    .withConfig(ConfigBuilder.create().addPrimitive("job.template", "FS:///job3.template").build()).build();
 
     cat.addListener(l);
     observer.initialize();
@@ -128,5 +146,19 @@ public class TestFSJobCatalog {
     // enough time for file deletion.
     observer.checkAndNotify();
     Assert.assertFalse(specs.containsKey(js2.getUri()));
+
+    Thread.sleep(1000);
+    cat.put(js3);
+    observer.checkAndNotify();
+    Assert.assertTrue(specs.containsKey(js3.getUri()));
+    JobSpec js3_notified = specs.get(js3.getUri());
+    Assert.assertTrue(ConfigUtils.verifySubset(js3_notified.getConfig(), js3.getConfig()));
+    Assert.assertEquals(js3.getVersion(), js3_notified.getVersion());
+    ResolvedJobSpec js3_resolved = new ResolvedJobSpec(js3_notified, cat);
+    Assert.assertEquals(js3_resolved.getConfig().getString("param1"), "value1");
+    Assert.assertEquals(js3_resolved.getConfig().getString("param2"), "value2");
+
+    cat.stopAsync();
+    cat.awaitTerminated(10, TimeUnit.SECONDS);
   }
 }

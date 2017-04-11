@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.compaction.mapreduce;
@@ -15,6 +20,7 @@ package gobblin.compaction.mapreduce;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -41,16 +47,20 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 
 import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.event.CompactionRecordCountEvent;
+import gobblin.compaction.dataset.DatasetHelper;
 import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.sla.SlaEventSubmitter;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.FileListUtils;
 import gobblin.util.HadoopUtils;
@@ -58,6 +68,7 @@ import gobblin.util.RecordCountProvider;
 import gobblin.util.WriterUtils;
 import gobblin.util.executors.ScalingThreadPoolExecutor;
 import gobblin.util.recordcount.LateFileRecordCountProvider;
+
 
 
 /**
@@ -130,16 +141,20 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   protected final boolean shouldDeduplicate;
   protected final boolean outputDeduplicated;
   protected final boolean recompactFromDestPaths;
+  protected final boolean recompactAllData;
+  protected final boolean renameSourceDir;
   protected final boolean usePrimeReducers;
   protected final EventSubmitter eventSubmitter;
   private final RecordCountProvider inputRecordCountProvider;
   private final RecordCountProvider outputRecordCountProvider;
   private final LateFileRecordCountProvider lateInputRecordCountProvider;
   private final LateFileRecordCountProvider lateOutputRecordCountProvider;
+  private final DatasetHelper datasetHelper;
   private final int copyLateDataThreadPoolSize;
 
   private volatile Policy policy = Policy.DO_NOT_PUBLISH_DATA;
   private volatile Status status = Status.RUNNING;
+  private final Cache<Path, List<Path>> applicablePathCache;
 
   protected MRCompactorJobRunner(Dataset dataset, FileSystem fs) {
     this.dataset = dataset;
@@ -148,6 +163,10 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         FsPermission.getDefault());
     this.recompactFromDestPaths = this.dataset.jobProps().getPropAsBoolean(
         MRCompactor.COMPACTION_RECOMPACT_FROM_DEST_PATHS, MRCompactor.DEFAULT_COMPACTION_RECOMPACT_FROM_DEST_PATHS);
+    this.recompactAllData = this.dataset.jobProps().getPropAsBoolean(
+        MRCompactor.COMPACTION_RECOMPACT_ALL_DATA, MRCompactor.DEFAULT_COMPACTION_RECOMPACT_ALL_DATA);
+    this.renameSourceDir = this.dataset.jobProps().getPropAsBoolean(
+        MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED, MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
 
     Preconditions.checkArgument(this.dataset.jobProps().contains(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE),
         String.format("Missing property %s for dataset %s", MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, this.dataset));
@@ -180,6 +199,10 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     } catch (Exception e) {
       throw new RuntimeException("Failed to instantiate RecordCountProvider", e);
     }
+
+    this.applicablePathCache = CacheBuilder.newBuilder().maximumSize(2000).build();
+    this.datasetHelper = new DatasetHelper(this.dataset, this.fs, this.getApplicableFileExtensions());
+
   }
 
   @Override
@@ -198,6 +221,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
     try {
       DateTime compactionTimestamp = getCompactionTimestamp();
+      LOG.info("MR Compaction Job Timestamp " + compactionTimestamp.getMillis());
       if (this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, false)) {
         List<Path> newLateFilePaths = Lists.newArrayList();
         for (String filePathString : this.dataset.jobProps()
@@ -219,17 +243,13 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         }
         this.copyDataFiles(lateDataOutputPath, newLateFilePaths);
         if (this.outputDeduplicated) {
-          LOG.info("Getting late record count from: " + this.dataset.outputLatePath());
-          this.dataset.checkIfNeedToRecompact(
-              this.lateOutputRecordCountProvider
-                  .getRecordCount(this.getApplicableFilePaths(this.dataset.outputLatePath())),
-              this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath())));
+          dataset.checkIfNeedToRecompact (datasetHelper);
         }
         this.status = Status.COMMITTED;
       } else {
         if (this.fs.exists(this.dataset.outputPath()) && !canOverwriteOutputDir()) {
-          LOG.warn(String.format("Output path %s exists. Will not compact %s.", this.dataset.outputPath(),
-              this.dataset.inputPath()));
+          LOG.warn(String.format("Output paths %s exists. Will not compact %s.", this.dataset.outputPath(),
+              this.dataset.inputPaths()));
           this.status = Status.COMMITTED;
           return;
         }
@@ -238,25 +258,37 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         this.configureJob(job);
         this.submitAndWait(job);
         if (shouldPublishData(compactionTimestamp)) {
-          moveTmpPathToOutputPath();
-          if (this.recompactFromDestPaths) {
-            deleteAdditionalInputPaths();
+          if (!this.recompactAllData && this.recompactFromDestPaths) {
+            // append new files without deleting output directory
+            addFilesInTmpPathToOutputPath();
+            // clean up late data from outputLateDirectory, which has been set to inputPath
+            deleteFilesByPaths(this.dataset.inputPaths());
+          } else {
+            moveTmpPathToOutputPath();
+            if (this.recompactFromDestPaths) {
+              deleteFilesByPaths(this.dataset.additionalInputPaths());
+            }
           }
           submitSlaEvent(job);
-          LOG.info("Successfully published data for input folder " + this.dataset.inputPath());
+          LOG.info("Successfully published data for input folder " + this.dataset.inputPaths());
           this.status = Status.COMMITTED;
         } else {
-          LOG.info("Data not published for input folder " + this.dataset.inputPath() + " due to incompleteness");
+          LOG.info("Data not published for input folder " + this.dataset.inputPaths() + " due to incompleteness");
           this.status = Status.ABORTED;
           return;
         }
       }
-      this.markOutputDirAsCompleted(compactionTimestamp);
+      if (renameSourceDir) {
+        MRCompactor.renameSourceDirAsCompactionComplete (this.fs, this.dataset);
+      } else {
+        this.markOutputDirAsCompleted(compactionTimestamp);
+      }
       this.submitRecordsCountsEvent();
     } catch (Throwable t) {
       throw Throwables.propagate(t);
     }
   }
+
 
   /**
    * For regular compactions, compaction timestamp is the time the compaction job starts.
@@ -273,8 +305,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     if (!this.recompactFromDestPaths) {
       return new DateTime(timeZone);
     }
-    List<Path> inputPaths = Lists.newArrayList(this.dataset.inputPath());
-    inputPaths.addAll(this.dataset.additionalInputPaths());
+
+    Set<Path> inputPaths = getInputPaths();
     long maxTimestamp = Long.MIN_VALUE;
     for (FileStatus status : FileListUtils.listFilesRecursively(this.fs, inputPaths)) {
       maxTimestamp = Math.max(maxTimestamp, status.getModificationTime());
@@ -351,10 +383,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     FileOutputFormat.setOutputPath(job, this.dataset.outputTmpPath());
   }
 
-  private List<Path> getInputPaths() {
-    List<Path> inputPaths = Lists.newArrayList(this.dataset.inputPath());
-    inputPaths.addAll(this.dataset.additionalInputPaths());
-    return inputPaths;
+  private Set<Path> getInputPaths() {
+    return ImmutableSet.<Path> builder().addAll(this.dataset.inputPaths()).addAll(this.dataset.additionalInputPaths())
+        .build();
   }
 
   public Dataset getDataset() {
@@ -484,7 +515,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
   private void moveTmpPathToOutputPath() throws IOException {
     LOG.info(String.format("Moving %s to %s", this.dataset.outputTmpPath(), this.dataset.outputPath()));
+
     this.fs.delete(this.dataset.outputPath(), true);
+
     WriterUtils.mkdirsWithRecursivePermission(this.fs, this.dataset.outputPath().getParent(), this.perm);
     if (!this.fs.rename(this.dataset.outputTmpPath(), this.dataset.outputPath())) {
       throw new IOException(
@@ -492,15 +525,26 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     }
   }
 
-  private void deleteAdditionalInputPaths() throws IOException {
-    for (Path path : this.dataset.additionalInputPaths()) {
-      HadoopUtils.deletePathAndEmptyAncestors(this.fs, path, true);
+  private void addFilesInTmpPathToOutputPath () throws IOException {
+    List<Path> paths = this.getApplicableFilePaths(this.dataset.outputTmpPath());
+    for (Path path: paths) {
+      String fileName = path.getName();
+      LOG.info(String.format("Adding %s to %s", path.toString(), this.dataset.outputPath()));
+      Path outPath = MRCompactorJobRunner.this.lateOutputRecordCountProvider.constructLateFilePath(fileName,
+          MRCompactorJobRunner.this.fs, this.dataset.outputPath());
+
+      if (!this.fs.rename(path, outPath)) {
+        throw new IOException(
+            String.format("Unable to move %s to %s", path.toString(), outPath.toString()));
+      }
     }
   }
 
-  private void submitSlaEvent(Job job) {
-    CompactionSlaEventHelper.populateState(this.dataset, Optional.of(job), this.fs);
-    new SlaEventSubmitter(this.eventSubmitter, "CompactionCompleted", this.dataset.jobProps().getProperties()).submit();
+
+  private void deleteFilesByPaths(Set<Path> paths) throws IOException {
+    for (Path path : paths) {
+      HadoopUtils.deletePathAndEmptyAncestors(this.fs, path, true);
+    }
   }
 
   /**
@@ -531,44 +575,85 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
    * Get the list of file {@link Path}s in the given dataDir, which satisfy the extension requirements
    *  of {@link #getApplicableFileExtensions()}.
    */
-  private List<Path> getApplicableFilePaths(Path dataDir) throws IOException {
-    if (!this.fs.exists(dataDir)) {
-      return Lists.newArrayList();
-    }
-    List<Path> paths = Lists.newArrayList();
-    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(this.fs, dataDir, new PathFilter() {
-      @Override
-      public boolean accept(Path path) {
-        for (String validExtention : getApplicableFileExtensions()) {
-          if (path.getName().endsWith(validExtention)) {
-            return true;
+  private List<Path> getApplicableFilePaths(final Path dataDir) throws IOException {
+    try {
+      return applicablePathCache.get(dataDir, new Callable<List<Path>>() {
+
+        @Override
+        public List<Path> call() throws Exception {
+          if (!MRCompactorJobRunner.this.fs.exists(dataDir)) {
+            return Lists.newArrayList();
           }
+          List<Path> paths = Lists.newArrayList();
+          for (FileStatus fileStatus : FileListUtils.listFilesRecursively(MRCompactorJobRunner.this.fs, dataDir,
+              new PathFilter() {
+            @Override
+            public boolean accept(Path path) {
+              for (String validExtention : getApplicableFileExtensions()) {
+                if (path.getName().endsWith(validExtention)) {
+                  return true;
+                }
+              }
+              return false;
+            }
+          })) {
+            paths.add(fileStatus.getPath());
+          }
+          return paths;
         }
-        return false;
-      }
-    })) {
-      paths.add(fileStatus.getPath());
+      });
+    } catch (ExecutionException e) {
+      throw new IOException(e);
     }
-    return paths;
+  }
+
+  /**
+   * Submit an event when compaction MR job completes
+   */
+  private void submitSlaEvent(Job job) {
+    try {
+      CompactionSlaEventHelper
+          .getEventSubmitterBuilder(this.dataset, Optional.of(job), this.fs)
+          .eventSubmitter(this.eventSubmitter)
+          .eventName(CompactionSlaEventHelper.COMPACTION_COMPLETED_EVENT_NAME)
+          .additionalMetadata(
+              CompactionSlaEventHelper.LATE_RECORD_COUNT,
+              Long.toString(this.lateOutputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
+                  .outputLatePath()))))
+          .additionalMetadata(
+              CompactionSlaEventHelper.REGULAR_RECORD_COUNT,
+              Long.toString(this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
+                  .outputPath()))))
+          .additionalMetadata(CompactionSlaEventHelper.RECOMPATED_METADATA_NAME,
+              Boolean.toString(this.dataset.needToRecompact())).build().submit();
+    } catch (Throwable e) {
+      LOG.warn("Failed to submit compcation completed event:" + e, e);
+    }
   }
 
   /**
    * Submit an event reporting late record counts and non-late record counts.
    */
   private void submitRecordsCountsEvent() {
+    long lateOutputRecordCount = this.datasetHelper.getLateOutputRecordCount();
+    long outputRecordCount = this.datasetHelper.getOutputRecordCount();
+
     try {
-      long lateOutputRecordCount = 0l;
-      Path outputLatePath = this.dataset.outputLatePath();
-      if (this.fs.exists(outputLatePath)) {
-        lateOutputRecordCount = this.lateOutputRecordCountProvider
-            .getRecordCount(this.getApplicableFilePaths(this.dataset.outputLatePath()));
-      }
-      long outputRecordCount =
-          this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath()));
-      new CompactionRecordCountEvent(this.dataset, outputRecordCount, lateOutputRecordCount, this.eventSubmitter)
-          .submit();
-    } catch (Exception e) {
-      LOG.error("Failed to submit late event count:" + e, e);
+      CompactionSlaEventHelper
+          .getEventSubmitterBuilder(this.dataset, Optional.<Job> absent(), this.fs)
+          .eventSubmitter(this.eventSubmitter)
+          .eventName(CompactionSlaEventHelper.COMPACTION_RECORD_COUNT_EVENT)
+          .additionalMetadata(CompactionSlaEventHelper.DATASET_OUTPUT_PATH, this.dataset.outputPath().toString())
+          .additionalMetadata(
+              CompactionSlaEventHelper.LATE_RECORD_COUNT,
+              Long.toString(lateOutputRecordCount))
+          .additionalMetadata(
+              CompactionSlaEventHelper.REGULAR_RECORD_COUNT,
+              Long.toString(outputRecordCount))
+          .additionalMetadata(CompactionSlaEventHelper.NEED_RECOMPACT, Boolean.toString(this.dataset.needToRecompact()))
+          .build().submit();
+    } catch (Throwable e) {
+      LOG.warn("Failed to submit late event count:" + e, e);
     }
   }
 }

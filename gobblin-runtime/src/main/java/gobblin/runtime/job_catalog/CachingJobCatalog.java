@@ -1,26 +1,33 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.runtime.job_catalog;
 
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.util.concurrent.AbstractIdleService;
 
-import gobblin.configuration.State;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.runtime.api.JobCatalog;
@@ -32,7 +39,7 @@ import gobblin.runtime.api.JobSpecNotFoundException;
  * A JobCatalog decorator that caches all JobSpecs in memory.
  *
  */
-public class CachingJobCatalog implements JobCatalog {
+public class CachingJobCatalog extends AbstractIdleService implements JobCatalog {
   protected final JobCatalog _fallback;
   protected final InMemoryJobCatalog _cache;
   protected final Logger _log;
@@ -58,6 +65,26 @@ public class CachingJobCatalog implements JobCatalog {
     }
     catch (RuntimeException e) {
       return _fallback.getJobSpec(uri);
+    }
+  }
+
+  @Override
+  protected void startUp() {
+    _cache.startAsync();
+    try {
+      _cache.awaitRunning(2, TimeUnit.SECONDS);
+    } catch (TimeoutException te) {
+      throw new RuntimeException("Failed to start " + CachingJobCatalog.class.getName(), te);
+    }
+  }
+
+  @Override
+  protected void shutDown() {
+    _cache.stopAsync();
+    try {
+      _cache.awaitTerminated(2, TimeUnit.SECONDS);
+    } catch (TimeoutException te) {
+      throw new RuntimeException("Failed to stop " + CachingJobCatalog.class.getName(), te);
     }
   }
 
@@ -106,7 +133,7 @@ public class CachingJobCatalog implements JobCatalog {
     return _fallback.isInstrumentationEnabled();
   }
 
-  @Override public List<Tag<?>> generateTags(State state) {
+  @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
     return _fallback.generateTags(state);
   }
 

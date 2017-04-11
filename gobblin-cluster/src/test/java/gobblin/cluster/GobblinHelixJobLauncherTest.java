@@ -1,17 +1,24 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.cluster;
 
+import gobblin.metastore.DatasetStateStore;
+import gobblin.util.ClassAliasResolver;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -20,17 +27,15 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
-
 import org.apache.curator.test.TestingServer;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -39,9 +44,9 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
@@ -68,8 +73,7 @@ import gobblin.util.ConfigUtils;
  */
 @Test(groups = { "gobblin.cluster" })
 public class GobblinHelixJobLauncherTest {
-
-  private static final int TEST_ZK_PORT = 3084;
+  public final static Logger LOG = LoggerFactory.getLogger(GobblinHelixJobLauncherTest.class);
 
   private HelixManager helixManager;
 
@@ -85,7 +89,7 @@ public class GobblinHelixJobLauncherTest {
 
   private GobblinTaskRunner gobblinTaskRunner;
 
-  private FsDatasetStateStore fsDatasetStateStore;
+  private DatasetStateStore datasetStateStore;
 
   private Thread thread;
 
@@ -93,13 +97,17 @@ public class GobblinHelixJobLauncherTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    this.closer.register(new TestingServer(TEST_ZK_PORT));
+    TestingServer testingZKServer = this.closer.register(new TestingServer(-1));
+    LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
     URL url = GobblinHelixJobLauncherTest.class.getClassLoader().getResource(
         GobblinHelixJobLauncherTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
-    Config config = ConfigFactory.parseURL(url).resolve();
+    Config config = ConfigFactory.parseURL(url)
+        .withValue("gobblin.cluster.zk.connection.string",
+                   ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+        .resolve();
 
     String zkConnectingString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     String helixClusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
@@ -149,8 +157,16 @@ public class GobblinHelixJobLauncherTest {
         new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_HELIX_INSTANCE_NAME,
             TestHelper.TEST_APPLICATION_ID, TestHelper.TEST_TASK_RUNNER_ID, config, Optional.of(appWorkDir));
 
-    this.fsDatasetStateStore =
-        new FsDatasetStateStore(this.localFs, config.getString(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY));
+    String stateStoreType = properties.getProperty(ConfigurationKeys.STATE_STORE_TYPE_KEY,
+        ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
+
+    ClassAliasResolver<DatasetStateStore.Factory> resolver =
+        new ClassAliasResolver<>(DatasetStateStore.Factory.class);
+
+    DatasetStateStore.Factory stateStoreFactory =
+        resolver.resolveClass(stateStoreType).newInstance();
+
+    this.datasetStateStore = stateStoreFactory.createStateStore(config);
 
     this.thread = new Thread(new Runnable() {
       @Override
@@ -169,7 +185,7 @@ public class GobblinHelixJobLauncherTest {
     Schema schema = new Schema.Parser().parse(TestHelper.SOURCE_SCHEMA);
     TestHelper.assertGenericRecords(this.jobOutputFile, schema);
 
-    List<JobState.DatasetState> datasetStates = this.fsDatasetStateStore.getAll(this.jobName,
+    List<JobState.DatasetState> datasetStates = this.datasetStateStore.getAll(this.jobName,
         FsDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + FsDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
     Assert.assertEquals(datasetStates.size(), 1);
     JobState.DatasetState datasetState = datasetStates.get(0);

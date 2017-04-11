@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy.hive;
@@ -52,7 +57,7 @@ import gobblin.data.management.hive.HiveConfigClientUtils;
 import gobblin.dataset.IterableDatasetFinder;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.sla.SlaEventKeys;
+import gobblin.metrics.event.sla.SlaEventSubmitter;
 import gobblin.util.AutoReturnableObject;
 import gobblin.util.ConfigUtils;
 
@@ -242,13 +247,21 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
             if (ConfigUtils.getBoolean(datasetConfig, HIVE_DATASET_IS_BLACKLISTED_KEY, DEFAULT_HIVE_DATASET_IS_BLACKLISTED_KEY)) {
               continue;
             }
-            EventSubmitter.submit(HiveDatasetFinder.this.eventSubmitter, DATASET_FOUND, SlaEventKeys.DATASET_URN_KEY, dbAndTable.toString());
+
+            if (HiveDatasetFinder.this.eventSubmitter.isPresent()) {
+              SlaEventSubmitter.builder().datasetUrn(dbAndTable.toString())
+              .eventSubmitter(HiveDatasetFinder.this.eventSubmitter.get()).eventName(DATASET_FOUND).build().submit();
+            }
+
             return createHiveDataset(table, datasetConfig);
           } catch (Throwable t) {
             log.error(String.format("Failed to create HiveDataset for table %s.%s", dbAndTable.getDb(), dbAndTable.getTable()), t);
-            EventSubmitter.submit(HiveDatasetFinder.this.eventSubmitter, DATASET_ERROR,
-                SlaEventKeys.DATASET_URN_KEY, dbAndTable.toString(),
-                FAILURE_CONTEXT, t.toString());
+
+            if (HiveDatasetFinder.this.eventSubmitter.isPresent()) {
+              SlaEventSubmitter.builder().datasetUrn(dbAndTable.toString())
+                  .eventSubmitter(HiveDatasetFinder.this.eventSubmitter.get()).eventName(DATASET_ERROR)
+                  .additionalMetadata(FAILURE_CONTEXT, t.toString()).build().submit();
+            }
           }
         }
         return endOfData();

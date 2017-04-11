@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime.mapreduce;
@@ -20,6 +25,8 @@ import java.util.Properties;
 import org.apache.commons.io.FileUtils;
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
 import org.jboss.byteman.contrib.bmunit.BMRule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -45,12 +52,14 @@ import gobblin.writer.WriterOutputFormat;
 @Test(groups = { "gobblin.runtime.mapreduce", "gobblin.runtime" }, singleThreaded=true)
 public class MRJobLauncherTest extends BMNGRunner {
 
+  private final Logger testLogger = LoggerFactory.getLogger(MRJobLauncherTest.class);
   private Properties launcherProps;
   private JobLauncherTestHelper jobLauncherTestHelper;
   private ITestMetastoreDatabase testMetastoreDatabase;
 
   @BeforeClass
   public void startUp() throws Exception {
+    this.testLogger.info("startUp: in");
     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     this.launcherProps = new Properties();
@@ -70,13 +79,18 @@ public class MRJobLauncherTest extends BMNGRunner {
 
     this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, datasetStateStore);
 
-    // Other tests may not clean up properly, clean up outputDir or some of these tests might fail.
+    // Other tests may not clean up properly, clean up outputDir and stagingDir or some of these tests might fail.
     String outputDir = this.launcherProps.getProperty(ConfigurationKeys.WRITER_OUTPUT_DIR);
+    String stagingDir = this.launcherProps.getProperty(ConfigurationKeys.WRITER_STAGING_DIR);
     FileUtils.deleteDirectory(new File(outputDir));
+    FileUtils.deleteDirectory(new File(stagingDir));
+    this.testLogger.info("startUp: out");
   }
 
   @Test
   public void testLaunchJob() throws Exception {
+    final Logger log = LoggerFactory.getLogger(getClass().getName() + ".testLaunchJob");
+    log.info("in");
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJob");
@@ -85,10 +99,13 @@ public class MRJobLauncherTest extends BMNGRunner {
     } finally {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
+    log.info("out");
   }
 
   @Test
   public void testLaunchJobWithConcurrencyLimit() throws Exception {
+    final Logger log = LoggerFactory.getLogger(getClass().getName() + ".testLaunchJobWithConcurrencyLimit");
+    log.info("in");
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithConcurrencyLimit");
@@ -102,6 +119,7 @@ public class MRJobLauncherTest extends BMNGRunner {
     } finally {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
+    log.info("out");
   }
 
   @Test

@@ -1,11 +1,27 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.util.filesystem;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Map;
 
 import org.apache.commons.io.IOCase;
 import org.apache.hadoop.conf.Configuration;
@@ -14,10 +30,17 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
+import com.google.common.collect.Maps;
 
+import gobblin.util.DecoratorUtils;
+
+import lombok.extern.slf4j.Slf4j;
+
+
+@Slf4j
 public class PathAlterationObserver {
 
-  private final List<PathAlterationListener> listeners = new CopyOnWriteArrayList<>();
+  private final Map<PathAlterationListener, PathAlterationListener> listeners = Maps.newConcurrentMap();
   private final FileStatusEntry rootEntry;
   private final PathFilter pathFilter;
   private final Comparator<Path> comparator;
@@ -105,7 +128,7 @@ public class PathAlterationObserver {
    */
   public void addListener(final PathAlterationListener listener) {
     if (listener != null) {
-      listeners.add(listener);
+      this.listeners.put(listener, new ExceptionCatchingPathAlterationListenerDecorator(listener));
     }
   }
 
@@ -116,8 +139,7 @@ public class PathAlterationObserver {
    */
   public void removeListener(final PathAlterationListener listener) {
     if (listener != null) {
-      while (listeners.remove(listener)) {
-      }
+      this.listeners.remove(listener);
     }
   }
 
@@ -127,7 +149,7 @@ public class PathAlterationObserver {
    * @return The file system listeners
    */
   public Iterable<PathAlterationListener> getListeners() {
-    return listeners;
+    return listeners.keySet();
   }
 
   /**
@@ -146,7 +168,7 @@ public class PathAlterationObserver {
   public void checkAndNotify()
       throws IOException {
     /* fire onStart() */
-    for (final PathAlterationListener listener : listeners) {
+    for (final PathAlterationListener listener : listeners.values()) {
       listener.onStart(this);
     }
 
@@ -164,7 +186,7 @@ public class PathAlterationObserver {
     }
 
     /* fire onStop() */
-    for (final PathAlterationListener listener : listeners) {
+    for (final PathAlterationListener listener : listeners.values()) {
       listener.onStop(this);
     }
   }
@@ -247,7 +269,7 @@ public class PathAlterationObserver {
    */
   private void doCreate(final FileStatusEntry entry) {
 
-    for (final PathAlterationListener listener : listeners) {
+    for (final PathAlterationListener listener : listeners.values()) {
       if (entry.isDirectory()) {
         listener.onDirectoryCreate(entry.getPath());
       } else {
@@ -269,7 +291,7 @@ public class PathAlterationObserver {
   private void doMatch(final FileStatusEntry entry, final Path path)
       throws IOException {
     if (entry.refresh(path)) {
-      for (final PathAlterationListener listener : listeners) {
+      for (final PathAlterationListener listener : listeners.values()) {
         if (entry.isDirectory()) {
           listener.onDirectoryChange(path);
         } else {
@@ -285,7 +307,7 @@ public class PathAlterationObserver {
    * @param entry The file entry
    */
   private void doDelete(final FileStatusEntry entry) {
-    for (final PathAlterationListener listener : listeners) {
+    for (final PathAlterationListener listener : listeners.values()) {
       if (entry.isDirectory()) {
         listener.onDirectoryDelete(entry.getPath());
       } else {

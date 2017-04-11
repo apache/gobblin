@@ -1,24 +1,27 @@
--- Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
 --
--- Licensed under the Apache License, Version 2.0 (the "License"); you may not use
--- this file except in compliance with the License. You may obtain a copy of the
--- License at  http://www.apache.org/licenses/LICENSE-2.0
+--  Licensed to the Apache Software Foundation (ASF) under one or more
+--  contributor license agreements.  See the NOTICE file distributed with
+--  this work for additional information regarding copyright ownership.
+--  The ASF licenses this file to You under the Apache License, Version 2.0
+--  (the "License"); you may not use this file except in compliance with
+--  the License.  You may obtain a copy of the License at
 --
--- Unless required by applicable law or agreed to in writing, software distributed
--- under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
--- CONDITIONS OF ANY KIND, either express or implied.
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+--  Unless required by applicable law or agreed to in writing, software
+--  distributed under the License is distributed on an "AS IS" BASIS,
+--  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+--  See the License for the specific language governing permissions and
+--  limitations under the License.
+--
 
---
--- Version: 1.0.0
---
--- The initial schema for the job execution history MySql database.
---
+SET SESSION time_zone = '+00:00';
 
 CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 	job_name VARCHAR(128) NOT NULL,
 	job_id VARCHAR(128) NOT NULL,
-	start_time TIMESTAMP,
-	end_time TIMESTAMP,
+	start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	end_time TIMESTAMP NOT NULL DEFAULT '1970-01-01 00:00:01',
 	duration BIGINT(21),
 	state ENUM('PENDING', 'RUNNING', 'SUCCESSFUL', 'COMMITTED', 'FAILED', 'CANCELLED'),
 	launched_tasks INT,
@@ -35,8 +38,8 @@ CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 CREATE TABLE IF NOT EXISTS gobblin_task_executions (
 	task_id VARCHAR(128) NOT NULL,
 	job_id VARCHAR(128) NOT NULL,
-	start_time TIMESTAMP,
-	end_time TIMESTAMP,
+	start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	end_time TIMESTAMP NOT NULL DEFAULT '1970-01-01 00:00:01',
 	duration BIGINT(21),
 	state ENUM('PENDING', 'RUNNING', 'SUCCESSFUL', 'COMMITTED', 'FAILED', 'CANCELLED'),
 	failure_exception TEXT,

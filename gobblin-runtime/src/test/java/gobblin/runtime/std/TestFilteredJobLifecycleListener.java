@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.runtime.std;
 
@@ -19,7 +24,11 @@ import static org.mockito.Mockito.verify;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobExecutionStateListener;
@@ -32,8 +41,10 @@ import gobblin.runtime.api.JobSpec;
 public class TestFilteredJobLifecycleListener {
 
   @Test public void testSimple() {
-    JobSpec js1_1 = JobSpec.builder("gobblin:/testSimple/job1").withVersion("1").build();
-    JobSpec js1_2 = JobSpec.builder("gobblin:/testSimple/job1").withVersion("2").build();
+    Config config = ConfigFactory.empty()
+        .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef("myJob"));
+    JobSpec js1_1 = JobSpec.builder("gobblin:/testSimple/job1").withVersion("1").withConfig(config).build();
+    JobSpec js1_2 = JobSpec.builder("gobblin:/testSimple/job1").withVersion("2").withConfig(config).build();
 
     JobLifecycleListener mockListener = mock(JobLifecycleListener.class);
 

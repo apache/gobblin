@@ -1,17 +1,27 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
+import gobblin.annotation.Alias;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.DatasetStateStore;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -27,6 +37,20 @@ import com.google.common.collect.Maps;
  * An extension of {@link FsDatasetStateStore} where all operations are noop. Used to disable the state store.
  */
 public class NoopDatasetStateStore extends FsDatasetStateStore {
+
+  @Alias("noop")
+  public static class Factory implements DatasetStateStore.Factory {
+    @Override
+    public DatasetStateStore<JobState.DatasetState> createStateStore(Config config) {
+      // dummy root dir for noop state store
+      Config config2 = config.withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(""));
+      return FsDatasetStateStore.createStateStore(config2, NoopDatasetStateStore.class.getName());
+    }
+  }
+
+  public NoopDatasetStateStore(FileSystem fs, String storeRootDir, Integer threadPoolSize) {
+    super(fs, storeRootDir, threadPoolSize);
+  }
 
   public NoopDatasetStateStore(FileSystem fs, String storeRootDir) {
     super(fs, storeRootDir);

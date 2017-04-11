@@ -1,5 +1,22 @@
 #!/bin/bash
 
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 ##############################################################
 ############ Run Gobblin Compaction on Hadoop MR #############
 ##############################################################
@@ -95,20 +112,20 @@ done
 export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS -Dgobblin.logs.dir=$GOBBLIN_LOG_DIR -Dlog4j.configuration=file:$FWDIR_CONF/log4j-compaction.xml"
 # Honor Gobblin dependencies
 export HADOOP_USER_CLASSPATH_FIRST=true
-export HADOOP_CLASSPATH=$GOBBLIN_DEP_JARS:$HADOOP_CLASSPATH  
+export HADOOP_CLASSPATH=$GOBBLIN_DEP_JARS:$HADOOP_CLASSPATH
 
 if [ "$TYPE" == "hive" ]; then
-  
+
   $HADOOP_BIN_DIR/hadoop jar \
         $FWDIR_LIB/gobblin-compaction-$GOBBLIN_VERSION.jar \
         "gobblin.compaction.hive.CompactionRunner" \
         --jobconfig $COMP_CONFIG_FILE
-        
+
 else
-  
+
   LIBJARS=(
-    $FWDIR_LIB/avro-1.7.7.jar
-    $FWDIR_LIB/avro-mapred-1.7.7-hadoop2.jar
+    $FWDIR_LIB/avro-1.8.1.jar
+    $FWDIR_LIB/avro-mapred-1.8.1.jar
     $FWDIR_LIB/commons-cli-1.3.1.jar
     $FWDIR_LIB/commons-lang3-3.4.jar
     $FWDIR_LIB/gobblin-api-$GOBBLIN_VERSION.jar
@@ -117,7 +134,7 @@ else
     $FWDIR_LIB/guava-15.0.jar
   )
   LIBJARS=$(join , "${LIBJARS[@]}")
-  
+
   $HADOOP_BIN_DIR/hadoop jar \
         $FWDIR_LIB/gobblin-compaction-$GOBBLIN_VERSION.jar \
         "gobblin.compaction.mapreduce.MRCompactionRunner" \
@@ -125,5 +142,5 @@ else
         -D mapreduce.job.user.classpath.first=true \
         -libjars $LIBJARS \
         --jobconfig $COMP_CONFIG_FILE
-        
+
 fi

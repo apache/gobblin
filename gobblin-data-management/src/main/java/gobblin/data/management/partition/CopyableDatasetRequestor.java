@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.partition;
@@ -35,6 +40,7 @@ import gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
 import gobblin.util.request_allocation.PushDownRequestor;
 
 import javax.annotation.Nullable;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +53,6 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor
 @Getter
 public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyEntity>> {
-
   @AllArgsConstructor
   public static class Factory implements Function<CopyableDatasetBase, CopyableDatasetRequestor> {
     private final FileSystem targetFs;
@@ -80,8 +85,11 @@ public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyE
   public Iterator<FileSet<CopyEntity>> iterator() {
     try {
       return injectRequestor(this.dataset.getFileSetIterator(this.targetFs, this.copyConfiguration));
-    } catch (IOException ioe) {
-      log.error(String.format("Could not get FileSets for dataset %s. Skipping.", this.dataset.datasetURN()));
+    } catch (Throwable exc) {
+      if (copyConfiguration.isAbortOnSingleDatasetFailure()) {
+        throw new RuntimeException(String.format("Could not get FileSets for dataset %s", this.dataset.datasetURN()), exc);
+      }
+      log.error(String.format("Could not get FileSets for dataset %s. Skipping.", this.dataset.datasetURN()), exc);
       return Iterators.emptyIterator();
     }
   }
@@ -89,12 +97,14 @@ public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyE
   @Override
   public Iterator<FileSet<CopyEntity>> getRequests(Comparator<FileSet<CopyEntity>> prioritizer) throws IOException {
     if (this.dataset instanceof PrioritizedCopyableDataset) {
-      return injectRequestor(((PrioritizedCopyableDataset) this.dataset).getFileSetIterator(this.targetFs, this.copyConfiguration, prioritizer));
+      return ((PrioritizedCopyableDataset) this.dataset)
+          .getFileSetIterator(this.targetFs, this.copyConfiguration, prioritizer, this);
     }
 
-    List<FileSet<CopyEntity>> entities = Lists.newArrayList(this.dataset.getFileSetIterator(this.targetFs, this.copyConfiguration));
+    List<FileSet<CopyEntity>> entities =
+        Lists.newArrayList(injectRequestor(this.dataset.getFileSetIterator(this.targetFs, this.copyConfiguration)));
     Collections.sort(entities, prioritizer);
-    return injectRequestor(entities.iterator());
+    return entities.iterator();
   }
 
   private Iterator<FileSet<CopyEntity>> injectRequestor(Iterator<FileSet<CopyEntity>> iterator) {

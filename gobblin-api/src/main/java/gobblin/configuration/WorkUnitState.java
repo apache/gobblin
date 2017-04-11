@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.configuration;
@@ -24,10 +29,15 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.broker.iface.SubscopedBrokerBuilder;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.ImmutableWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+
+import javax.annotation.Nullable;
 import lombok.Getter;
 
 
@@ -67,7 +77,8 @@ public class WorkUnitState extends State {
     SUCCESSFUL,
     COMMITTED,
     FAILED,
-    CANCELLED
+    CANCELLED,
+    SKIPPED
   }
 
   private final WorkUnit workUnit;
@@ -75,12 +86,16 @@ public class WorkUnitState extends State {
   @Getter
   private State jobState;
 
+  transient private final SharedResourcesBroker<GobblinScopeTypes> taskBroker;
+
   /**
    * Default constructor used for deserialization.
    */
   public WorkUnitState() {
     this.workUnit = WorkUnit.createEmpty();
     this.jobState = new State();
+    // Not available on deserialization
+    this.taskBroker = null;
   }
 
   /**
@@ -94,11 +109,48 @@ public class WorkUnitState extends State {
   public WorkUnitState(WorkUnit workUnit) {
     this.workUnit = workUnit;
     this.jobState = new State();
+    this.taskBroker = null;
   }
 
+  /**
+   * If creating a {@link WorkUnitState} for use by a task, use {@link #WorkUnitState(WorkUnit, State, SharedResourcesBroker)}
+   * instead.
+   */
   public WorkUnitState(WorkUnit workUnit, State jobState) {
+    this(workUnit, jobState, buildTaskBroker(null, jobState, workUnit));
+  }
+
+  public WorkUnitState(WorkUnit workUnit, State jobState, SubscopedBrokerBuilder<GobblinScopeTypes, ?> taskBrokerBuilder) {
+    this(workUnit, jobState, buildTaskBroker(taskBrokerBuilder, jobState, workUnit));
+  }
+
+  public WorkUnitState(WorkUnit workUnit, State jobState, SharedResourcesBroker<GobblinScopeTypes> taskBroker) {
     this.workUnit = workUnit;
     this.jobState = jobState;
+    this.taskBroker = taskBroker;
+  }
+
+  private static SharedResourcesBroker<GobblinScopeTypes> buildTaskBroker(
+      SubscopedBrokerBuilder<GobblinScopeTypes, ?> taskBrokerBuilder, State jobState, WorkUnit workUnit) {
+    return taskBrokerBuilder == null ? null : taskBrokerBuilder.build();
+  }
+
+  /**
+   * Get a {@link SharedResourcesBroker} scoped for this task.
+   */
+  public SharedResourcesBroker<GobblinScopeTypes> getTaskBroker() {
+    if (this.taskBroker == null) {
+      throw new UnsupportedOperationException("Task broker is only available within a task. If this exception was thrown "
+          + "from within a task, the JobLauncher did not specify a task broker.");
+    }
+    return this.taskBroker;
+  }
+
+  /**
+   * Get a {@link SharedResourcesBroker} scoped for this task or null if it doesn't exist. This is used for internal calls.
+   */
+  @Nullable public SharedResourcesBroker<GobblinScopeTypes> getTaskBrokerNullable() {
+    return this.taskBroker;
   }
 
   /**
@@ -108,6 +160,13 @@ public class WorkUnitState extends State {
    */
   public WorkUnit getWorkunit() {
     return new ImmutableWorkUnit(this.workUnit);
+  }
+
+  /**
+   * Override {@link #workUnit}'s properties with new commonProps and specProps.
+   */
+  public void setWuProperties(Properties commonProps, Properties specProps) {
+    this.workUnit.setProps(commonProps, specProps);
   }
 
   /**

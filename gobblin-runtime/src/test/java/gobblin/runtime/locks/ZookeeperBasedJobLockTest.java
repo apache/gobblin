@@ -1,13 +1,31 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.runtime.locks;
 
-import gobblin.configuration.ConfigurationKeys;
+import java.io.IOException;
+import java.util.Properties;
+
 import org.apache.curator.test.TestingServer;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-import java.util.Properties;
+import gobblin.configuration.ConfigurationKeys;
 
 /**
  * Unit test for {@link ZookeeperBasedJobLock}.
@@ -16,12 +34,11 @@ import java.util.Properties;
  */
 @Test(groups = {"gobblin.runtime"})
 public class ZookeeperBasedJobLockTest extends JobLockTest {
-  private static final int TEST_ZK_PORT = 22222;
   private TestingServer testingServer;
 
   @BeforeClass
   public void setUp() throws Exception {
-    testingServer = new TestingServer(TEST_ZK_PORT);
+    testingServer = new TestingServer(-1);
   }
 
   @Override
@@ -39,6 +56,7 @@ public class ZookeeperBasedJobLockTest extends JobLockTest {
     return lock;
   }
 
+  @Override
   @AfterClass
   public void tearDown() throws IOException {
     if (testingServer != null) {

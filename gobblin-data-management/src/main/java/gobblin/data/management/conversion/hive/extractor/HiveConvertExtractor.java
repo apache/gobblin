@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.data.management.conversion.hive.extractor;
 
@@ -35,12 +40,8 @@ import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
 import gobblin.data.management.conversion.hive.entities.SchemaAwareHiveTable;
-import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
 import gobblin.util.AutoReturnableObject;
 
 
@@ -57,46 +58,40 @@ import gobblin.util.AutoReturnableObject;
  * </p>
  */
 @Slf4j
-public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveConversionEntity> {
+public class HiveConvertExtractor extends HiveBaseExtractor<Schema, QueryBasedHiveConversionEntity> {
 
   private List<QueryBasedHiveConversionEntity> conversionEntities = Lists.newArrayList();
 
   public HiveConvertExtractor(WorkUnitState state, FileSystem fs) throws IOException, TException, HiveException {
+    super(state);
 
     if (Boolean.valueOf(state.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {
       log.info("Ignoring Watermark workunit for {}", state.getProp(ConfigurationKeys.DATASET_URN_KEY));
       return;
     }
 
-    HiveWorkUnit hiveWokUnit = new HiveWorkUnit(state.getWorkunit());
-
-    if (!(hiveWokUnit.getHiveDataset() instanceof ConvertibleHiveDataset)) {
+    if (!(this.hiveDataset instanceof ConvertibleHiveDataset)) {
       throw new IllegalStateException("HiveConvertExtractor is only compatible with ConvertibleHiveDataset");
     }
 
-    ConvertibleHiveDataset hiveDataset = (ConvertibleHiveDataset) hiveWokUnit.getHiveDataset();
-    String dbName = hiveDataset.getDbAndTable().getDb();
-    String tableName = hiveDataset.getDbAndTable().getTable();
+    ConvertibleHiveDataset convertibleHiveDataset = (ConvertibleHiveDataset) this.hiveDataset;
 
-    HiveMetastoreClientPool pool =
-        HiveMetastoreClientPool.get(state.getJobState().getProperties(),
-            Optional.fromNullable(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
-    try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
-      Table table = client.get().getTable(dbName, tableName);
+    try (AutoReturnableObject<IMetaStoreClient> client = this.pool.getClient()) {
+      Table table = client.get().getTable(this.dbName, this.tableName);
 
-      SchemaAwareHiveTable schemaAwareHiveTable = new SchemaAwareHiveTable(table, AvroSchemaManager.getSchemaFromUrl(hiveWokUnit.getTableSchemaUrl(), fs));
+      SchemaAwareHiveTable schemaAwareHiveTable = new SchemaAwareHiveTable(table, AvroSchemaManager.getSchemaFromUrl(this.hiveWorkUnit.getTableSchemaUrl(), fs));
 
       SchemaAwareHivePartition schemaAwareHivePartition = null;
 
-      if (hiveWokUnit.getPartitionName().isPresent() && hiveWokUnit.getPartitionSchemaUrl().isPresent()) {
+      if (this.hiveWorkUnit.getPartitionName().isPresent() && this.hiveWorkUnit.getPartitionSchemaUrl().isPresent()) {
 
-        Partition partition = client.get().getPartition(dbName, tableName, hiveWokUnit.getPartitionName().get());
+        Partition partition = client.get().getPartition(this.dbName, this.tableName, this.hiveWorkUnit.getPartitionName().get());
         schemaAwareHivePartition =
-            new SchemaAwareHivePartition(table, partition, AvroSchemaManager.getSchemaFromUrl(hiveWokUnit.getPartitionSchemaUrl().get(), fs));
+            new SchemaAwareHivePartition(table, partition, AvroSchemaManager.getSchemaFromUrl(this.hiveWorkUnit.getPartitionSchemaUrl().get(), fs));
       }
 
       QueryBasedHiveConversionEntity entity =
-          new QueryBasedHiveConversionEntity(hiveDataset, schemaAwareHiveTable, Optional.fromNullable(schemaAwareHivePartition));
+          new QueryBasedHiveConversionEntity(convertibleHiveDataset, schemaAwareHiveTable, Optional.fromNullable(schemaAwareHivePartition));
       this.conversionEntities.add(entity);
     }
 
@@ -125,22 +120,4 @@ public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveCon
 
     return this.conversionEntities.remove(0);
   }
-
-  @Override
-  public long getExpectedRecordCount() {
-    return 1;
-  }
-
-  /**
-   * Watermark is not managed by this extractor.
-   */
-  @Override
-  public long getHighWatermark() {
-    return 0;
-  }
-
-  @Override
-  public void close() throws IOException {
-  }
-
 }

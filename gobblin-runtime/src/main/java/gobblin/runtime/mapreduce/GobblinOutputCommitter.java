@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime.mapreduce;
@@ -15,6 +20,8 @@ package gobblin.runtime.mapreduce;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -34,10 +41,13 @@ import com.google.common.io.Closer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.runtime.AbstractJobLauncher;
+import gobblin.runtime.GobblinMultiTaskAttempt;
 import gobblin.runtime.listeners.JobListener;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
+
+import lombok.Getter;
 
 
 /**
@@ -52,6 +62,9 @@ import gobblin.util.JobLauncherUtils;
 public class GobblinOutputCommitter extends OutputCommitter {
 
   private static final Logger LOG = LoggerFactory.getLogger(GobblinOutputFormat.class);
+
+  @Getter
+  private Map<String, GobblinMultiTaskAttempt> attemptIdToMultiTaskAttempt = new ConcurrentHashMap<>();
 
   @Override
   public void abortJob(JobContext jobContext, JobStatus.State state) throws IOException {
@@ -113,11 +126,15 @@ public class GobblinOutputCommitter extends OutputCommitter {
   public void abortTask(TaskAttemptContext arg0) throws IOException {}
 
   @Override
-  public void commitTask(TaskAttemptContext arg0) throws IOException {}
+  public void commitTask(TaskAttemptContext arg0) throws IOException {
+    String taskAttemptId = arg0.getTaskAttemptID().toString();
+    LOG.info("Committing task attempt: "+ taskAttemptId);
+    this.attemptIdToMultiTaskAttempt.get(taskAttemptId).commit();
+  }
 
   @Override
   public boolean needsTaskCommit(TaskAttemptContext arg0) throws IOException {
-    return false;
+    return this.attemptIdToMultiTaskAttempt.containsKey(arg0.getTaskAttemptID().toString());
   }
 
   @Override

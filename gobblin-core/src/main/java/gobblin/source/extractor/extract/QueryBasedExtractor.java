@@ -1,27 +1,22 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.extract;
 
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.exception.ExtractPrepareException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.schema.ArrayDataType;
-import gobblin.source.extractor.schema.DataType;
-import gobblin.source.extractor.schema.EnumDataType;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkType;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,17 +27,31 @@ import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.MDC;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.watermark.WatermarkPredicate;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.exception.ExtractPrepareException;
+import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.exception.RecordCountException;
 import gobblin.source.extractor.exception.SchemaException;
+import gobblin.source.extractor.partition.Partition;
+import gobblin.source.extractor.partition.Partitioner;
+import gobblin.source.extractor.schema.ArrayDataType;
+import gobblin.source.extractor.schema.DataType;
+import gobblin.source.extractor.schema.EnumDataType;
 import gobblin.source.extractor.schema.MapDataType;
+import gobblin.source.extractor.utils.Utils;
+import gobblin.source.extractor.watermark.Predicate;
+import gobblin.source.extractor.watermark.WatermarkPredicate;
+import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.WorkUnit;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -58,6 +67,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   protected final WorkUnit workUnit;
   private final String entity;
   private final String schema;
+  private final Partition partition;
 
   private boolean fetchStatus = true;
   private S outputSchema;
@@ -66,7 +76,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 
   private Iterator<D> iterator;
   protected final List<String> columnList = new ArrayList<>();
-  private final List<Predicate> predicateList = new ArrayList<>();
+  @VisibleForTesting
+  protected final List<Predicate> predicateList = new ArrayList<>();
 
   private S getOutputSchema() {
     return this.outputSchema;
@@ -96,7 +107,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     return getFetchStatus();
   }
 
-  private boolean isInitialPull() {
+  protected boolean isInitialPull() {
     return this.iterator == null;
   }
 
@@ -105,6 +116,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     this.workUnit = this.workUnitState.getWorkunit();
     this.schema = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
     this.entity = this.workUnitState.getProp(ConfigurationKeys.SOURCE_ENTITY);
+    partition = Partition.deserialize(workUnit);
     MDC.put("tableName", getWorkUnitName());
   }
 
@@ -140,6 +152,10 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     try {
       if (isInitialPull()) {
         log.info("Initial pull");
+
+        if (shouldRemoveDataPullUpperBounds()) {
+          this.removeDataPullUpperBounds();
+        }
         this.iterator = this.getIterator();
       }
 
@@ -158,6 +174,45 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       throw new DataRecordException("Failed to get records using rest api; error - " + e.getMessage(), e);
     }
     return nextElement;
+  }
+
+  /**
+   * Check if it's appropriate to remove data pull upper bounds in the last work unit, fetching as much data as possible
+   * from the source. As between the time when data query was created and that was executed, there might be some
+   * new data generated in the source. Removing the upper bounds will help us grab the new data.
+   *
+   * Note: It's expected that there might be some duplicate data between runs because of removing the upper bounds
+   *
+   * @return should remove or not
+   */
+  private boolean shouldRemoveDataPullUpperBounds() {
+    // Only consider the last work unit
+    if (!partition.isLastPartition()) {
+      return false;
+    }
+
+    // Don't remove if user specifies one or is recorded in previous run
+    if (partition.getHasUserSpecifiedHighWatermark() ||
+        this.workUnitState.getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY) != null) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Remove all upper bounds in the predicateList used for pulling data
+   */
+  private void removeDataPullUpperBounds() {
+    log.info("Removing data pull upper bound for last work unit");
+    Iterator<Predicate> it = predicateList.iterator();
+    while (it.hasNext()) {
+      Predicate predicate = it.next();
+      if (predicate.getType() == Predicate.PredicateType.HWM) {
+        log.info("Remove predicate: " + predicate.condition);
+        it.remove();
+      }
+    }
   }
 
   /**
@@ -229,7 +284,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     long lwm = this.workUnit.getLowWatermark(LongWatermark.class).getValue();
     long hwm = this.workUnit.getExpectedHighWatermark(LongWatermark.class).getValue();
     log.info("Low water mark: " + lwm + "; and High water mark: " + hwm);
-    
+
     WatermarkType watermarkType;
     if (StringUtils.isBlank(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE))) {
       watermarkType = null;
@@ -245,16 +300,22 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       this.extractMetadata(this.schema, this.entity, this.workUnit);
 
       if (StringUtils.isNotBlank(watermarkColumn)) {
-        this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
-        log.info("High water mark from source: " + this.highWatermark);
-        // If high water mark is found, then consider the same as runtime high water mark.
-        // Else, consider the low water mark as high water mark(with no delta).i.e, don't move the pointer
-        long currentRunHighWatermark = (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE
-            ? this.highWatermark : this.getLowWatermarkWithNoDelta(lwm));
+        if (partition.isLastPartition()) {
+          // Get a more accurate high watermark from the source
+          long adjustedHighWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
+          log.info("High water mark from source: " + adjustedHighWatermark);
+          // If the source reports a finer high watermark, then consider the same as runtime high watermark.
+          // Else, consider the low watermark as high water mark(with no delta).i.e, don't move the pointer
+          if (adjustedHighWatermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
+            adjustedHighWatermark = getLowWatermarkWithNoDelta(lwm);
+          }
+          this.highWatermark = adjustedHighWatermark;
+        } else {
+          this.highWatermark = hwm;
+        }
 
-        log.info("High water mark for the current run: " + currentRunHighWatermark);
-        this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
-        this.highWatermark = currentRunHighWatermark;
+        log.info("High water mark for the current run: " + highWatermark);
+        this.setRangePredicates(watermarkColumn, watermarkType, lwm, highWatermark);
       }
 
       // if it is set to true, skip count calculation and set source count to -1
@@ -335,27 +396,27 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 
   /**
    * range predicates for watermark column and transaction columns.
-   * @param string
-   * @param watermarkType
-   * @param watermark column
-   * @param date column(for appends)
-   * @param hour column(for appends)
-   * @param batch column(for appends)
-   * @param low watermark value
-   * @param high watermark value
+   *
+   * @param watermarkColumn name of the column used as watermark
+   * @param watermarkType watermark type
+   * @param lwmValue estimated low watermark value
+   * @param hwmValue estimated high watermark value
    */
   private void setRangePredicates(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue) {
     log.debug("Getting range predicates");
+    String lwmOperator = partition.isLowWatermarkInclusive() ? ">=" : ">";
+    String hwmOperator = (partition.isLastPartition() || partition.isHighWatermarkInclusive()) ? "<=" : "<";
+
     WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
-    this.addPredicates(watermark.getPredicate(this, lwmValue, ">=", Predicate.PredicateType.LWM));
-    this.addPredicates(watermark.getPredicate(this, hwmValue, "<=", Predicate.PredicateType.HWM));
+    this.addPredicates(watermark.getPredicate(this, lwmValue, lwmOperator, Predicate.PredicateType.LWM));
+    this.addPredicates(watermark.getPredicate(this, hwmValue, hwmOperator, Predicate.PredicateType.HWM));
 
     if (Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_HOURLY_EXTRACT))) {
       String hourColumn = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_HOUR_COLUMN);
       if (StringUtils.isNotBlank(hourColumn)) {
         WatermarkPredicate hourlyWatermark = new WatermarkPredicate(hourColumn, WatermarkType.HOUR);
-        this.addPredicates(hourlyWatermark.getPredicate(this, lwmValue, ">=", Predicate.PredicateType.LWM));
-        this.addPredicates(hourlyWatermark.getPredicate(this, hwmValue, "<=", Predicate.PredicateType.HWM));
+        this.addPredicates(hourlyWatermark.getPredicate(this, lwmValue, lwmOperator, Predicate.PredicateType.LWM));
+        this.addPredicates(hourlyWatermark.getPredicate(this, hwmValue, hwmOperator, Predicate.PredicateType.HWM));
       }
     }
   }

@@ -1,27 +1,33 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime;
 
+import com.google.common.base.Predicate;
+import gobblin.metastore.FsStateStore;
+import gobblin.metastore.StateStore;
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 import java.util.Queue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
-import org.apache.hadoop.io.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +37,6 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractScheduledService;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.FsStateStore;
 import gobblin.util.ParallelRunner;
 
 
@@ -49,8 +54,6 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
   private final JobState jobState;
 
-  private final FileSystem fs;
-
   private final EventBus eventBus;
 
   // Number of ParallelRunner threads to be used for state serialization/deserialization
@@ -59,13 +62,15 @@ public class TaskStateCollectorService extends AbstractScheduledService {
   // Interval in seconds between two runs of the collector of output TaskStates
   private final int outputTaskStatesCollectorIntervalSeconds;
 
+  private final StateStore<TaskState> taskStateStore;
+
   private final Path outputTaskStateDir;
 
-  public TaskStateCollectorService(Properties jobProps, JobState jobState, EventBus eventBus, FileSystem fs,
-      Path outputTaskStateDir) {
+  public TaskStateCollectorService(Properties jobProps, JobState jobState, EventBus eventBus,
+      StateStore<TaskState> taskStateStore, Path outputTaskStateDir) {
     this.jobState = jobState;
     this.eventBus = eventBus;
-    this.fs = fs;
+    this.taskStateStore = taskStateStore;
     this.outputTaskStateDir = outputTaskStateDir;
 
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
@@ -115,30 +120,32 @@ public class TaskStateCollectorService extends AbstractScheduledService {
    * @throws IOException if it fails to collect the output {@link TaskState}s
    */
   private void collectOutputTaskStates() throws IOException {
-    if (!this.fs.exists(this.outputTaskStateDir)) {
-      LOGGER.warn(String.format("Output task state path %s does not exist", this.outputTaskStateDir));
-      return;
-    }
-
-    FileStatus[] fileStatuses = this.fs.listStatus(this.outputTaskStateDir, new PathFilter() {
+    List<String> taskStateNames = taskStateStore.getTableNames(outputTaskStateDir.getName(), new Predicate<String>() {
       @Override
-      public boolean accept(Path path) {
-        return path.getName().endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)
-            && !path.getName().startsWith(FsStateStore.TMP_FILE_PREFIX);
-      }
-    });
-    if (fileStatuses == null || fileStatuses.length == 0) {
+      public boolean apply(String input) {
+        return input.endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)
+        && !input.startsWith(FsStateStore.TMP_FILE_PREFIX);
+      }});
+
+    if (taskStateNames == null || taskStateNames.size() == 0) {
       LOGGER.warn("No output task state files found in " + this.outputTaskStateDir);
       return;
     }
 
-    Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
-    try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
-      for (FileStatus status : fileStatuses) {
-        LOGGER.debug("Found output task state file " + status.getPath());
+    final Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
+    try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, null)) {
+      for (final String taskStateName : taskStateNames) {
+        LOGGER.debug("Found output task state file " + taskStateName);
         // Deserialize the TaskState and delete the file
-        stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(), taskStateQueue,
-            true);
+        stateSerDeRunner.submitCallable(new Callable<Void>() {
+          @Override
+          public Void call() throws Exception {
+            TaskState taskState = taskStateStore.getAll(outputTaskStateDir.getName(), taskStateName).get(0);
+            taskStateQueue.add(taskState);
+            taskStateStore.delete(outputTaskStateDir.getName(), taskStateName);
+            return null;
+          }
+        }, "Deserialize state for " + taskStateName);
       }
     } catch (IOException ioe) {
       LOGGER.warn("Could not read all task state files.");

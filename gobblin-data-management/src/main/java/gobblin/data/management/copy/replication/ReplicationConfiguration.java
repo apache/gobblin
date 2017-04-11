@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy.replication;
@@ -60,18 +65,37 @@ public class ReplicationConfiguration {
   public static final String DEFAULT_DATA_FLOW_TOPOLOGIES_PUSHMODE = "defaultDataFlowTopologies_PushMode";
   public static final String DEFAULT_DATA_FLOW_TOPOLOGIES_PULLMODE = "defaultDataFlowTopologies_PullMode";
 
-  public static final String DATA_FLOW_TOPOLOGY_PICKER = "dataFlowTopologyPicker";
+  public static final String REPLICATION_DATA_CATETORY_TYPE = "replicationDataCategoryType";
+  public static final String REPLICATION_DATA_FINITE_INSTANCE = "replicationDataFiniteInstance";
+
+  //copy route generator
+  public static final String DELETE_TARGET_IFNOT_ON_SOURCE = "deleteTarget";
+
+  // data flow picker
+  public static final String DATA_FLOW_TOPOLOGY_PICKER_CLASS = "dataFlowTopologyPickerClass";
   public static final String DEFAULT_DATA_FLOW_TOPOLOGY_PICKER_CLASS =
       DataFlowTopologyPickerByHadoopFsSource.class.getCanonicalName();
+  public static final ClassAliasResolver<DataFlowTopologyPickerBySource> dataFlowTopologyPickerResolver =
+      new ClassAliasResolver<>(DataFlowTopologyPickerBySource.class);
 
+  // end point factory
   public static final String END_POINT_FACTORY_CLASS = "endPointFactoryClass";
   public static final String DEFAULT_END_POINT_FACTORY_CLASS = HadoopFsEndPointFactory.class.getCanonicalName();
-
   public static final ClassAliasResolver<EndPointFactory> endPointFactoryResolver =
       new ClassAliasResolver<>(EndPointFactory.class);
 
+  // copy route generator
+  public static final String COPYROUTE_OPTIMIZER_CLASS = "copyRouteOptimizerClass";
+  public static final String DEFAULT_COPYROUTE_OPTIMIZER_CLASS = CopyRouteGeneratorOptimizedNetworkBandwidth.class.getCanonicalName();
+  public static final ClassAliasResolver<CopyRouteGenerator> copyRouteGeneratorResolver =
+      new ClassAliasResolver<>(CopyRouteGenerator.class);
+
+
   @Getter
   private final ReplicationCopyMode copyMode;
+
+  @Getter
+  private final Config selectionConfig;
 
   @Getter
   private final ReplicationMetaData metaData;
@@ -85,16 +109,29 @@ public class ReplicationConfiguration {
   @Getter
   private final DataFlowTopology dataFlowToplogy;
 
+  @Getter
+  private final CopyRouteGenerator copyRouteGenerator;
+
+  @Getter
+  private final boolean deleteTargetIfNotExistOnSource;
+
   public static ReplicationConfiguration buildFromConfig(Config input)
       throws InstantiationException, IllegalAccessException, ClassNotFoundException {
     Preconditions.checkArgument(input != null, "can not build ReplicationConfig from null");
-    
+
     Config config = input.resolve();
 
     return new Builder().withReplicationMetaData(ReplicationMetaData.buildMetaData(config))
-        .withReplicationCopyMode(ReplicationCopyMode.getReplicationCopyMode(config)).withReplicationSource(config)
-        .withReplicationReplica(config).withDefaultDataFlowTopologyConfig_PullMode(config)
-        .withDefaultDataFlowTopologyConfig_PushMode(config).withDataFlowTopologyConfig(config).build();
+        .withReplicationCopyMode(ReplicationCopyMode.getReplicationCopyMode(config))
+        .withSelectionConfig(config.getConfig("gobblin.selected.policy"))
+        .withReplicationSource(config)
+        .withReplicationReplica(config)
+        .withDefaultDataFlowTopologyConfig_PullMode(config)
+        .withDefaultDataFlowTopologyConfig_PushMode(config)
+        .withDataFlowTopologyConfig(config)
+        .withCopyRouteGenerator(config)
+        .withDeleteTarget(config)
+        .build();
   }
 
   private ReplicationConfiguration(Builder builder) {
@@ -102,12 +139,13 @@ public class ReplicationConfiguration {
     this.source = builder.source;
     this.replicas = builder.replicas;
     this.copyMode = builder.copyMode;
+    this.selectionConfig = builder.selectionConfig;
     this.dataFlowToplogy = builder.dataFlowTopology;
+    this.copyRouteGenerator = builder.copyRouteGenerator;
+    this.deleteTargetIfNotExistOnSource = builder.deleteTargetIfNotExistOnSource;
   }
 
   private static class Builder {
-    public static final ClassAliasResolver<DataFlowTopologyPickerBySource> dataFlowTopologyPickerResolver =
-        new ClassAliasResolver<>(DataFlowTopologyPickerBySource.class);
 
     private ReplicationMetaData metaData;
 
@@ -117,6 +155,8 @@ public class ReplicationConfiguration {
 
     private ReplicationCopyMode copyMode;
 
+    private Config selectionConfig;
+
     private Config dataFlowTopologyConfig;
 
     private Optional<Config> defaultDataFlowTopology_PushModeConfig;
@@ -125,8 +165,28 @@ public class ReplicationConfiguration {
 
     private DataFlowTopology dataFlowTopology = new DataFlowTopology();
 
+    private CopyRouteGenerator copyRouteGenerator;
+
+    private boolean deleteTargetIfNotExistOnSource = false;
+
     public Builder withReplicationMetaData(ReplicationMetaData metaData) {
       this.metaData = metaData;
+      return this;
+    }
+
+    public Builder withDeleteTarget(Config config){
+      if(config.hasPath(DELETE_TARGET_IFNOT_ON_SOURCE)){
+        this.deleteTargetIfNotExistOnSource = config.getBoolean(DELETE_TARGET_IFNOT_ON_SOURCE);
+      }
+      return this;
+    }
+
+    public Builder withCopyRouteGenerator(Config config)
+        throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+
+      String copyRouteGeneratorStr = config.hasPath(COPYROUTE_OPTIMIZER_CLASS)?
+          config.getString(COPYROUTE_OPTIMIZER_CLASS): DEFAULT_COPYROUTE_OPTIMIZER_CLASS;
+      this.copyRouteGenerator = copyRouteGeneratorResolver.resolveClass(copyRouteGeneratorStr).newInstance();
       return this;
     }
 
@@ -140,7 +200,7 @@ public class ReplicationConfiguration {
           ? sourceConfig.getString(END_POINT_FACTORY_CLASS) : DEFAULT_END_POINT_FACTORY_CLASS;
 
       EndPointFactory factory = endPointFactoryResolver.resolveClass(endPointFactory).newInstance();
-      this.source = factory.buildSource(sourceConfig);
+      this.source = factory.buildSource(sourceConfig, this.selectionConfig);
       return this;
     }
 
@@ -158,11 +218,11 @@ public class ReplicationConfiguration {
         Preconditions.checkArgument(replicasConfig.hasPath(replicaName), "missing replica name " + replicaName);
         Config subConfig = replicasConfig.getConfig(replicaName);
 
-        // each replica could have own EndPointFactory resolver 
+        // each replica could have own EndPointFactory resolver
         String endPointFactory = subConfig.hasPath(END_POINT_FACTORY_CLASS)
             ? subConfig.getString(END_POINT_FACTORY_CLASS) : DEFAULT_END_POINT_FACTORY_CLASS;
         EndPointFactory factory = endPointFactoryResolver.resolveClass(endPointFactory).newInstance();
-        this.replicas.add(factory.buildReplica(subConfig, replicaName));
+        this.replicas.add(factory.buildReplica(subConfig, replicaName, this.selectionConfig));
       }
       return this;
     }
@@ -200,6 +260,11 @@ public class ReplicationConfiguration {
       return this;
     }
 
+    public Builder withSelectionConfig(Config selectionConfig) {
+      this.selectionConfig = selectionConfig;
+      return this;
+    }
+
     private void constructDataFlowTopology()
         throws InstantiationException, IllegalAccessException, ClassNotFoundException {
       if (this.dataFlowTopologyConfig.hasPath(DATA_FLOW_TOPOLOGY_ROUTES)) {
@@ -209,8 +274,8 @@ public class ReplicationConfiguration {
       }
 
       // topology not specified in literal, need to pick one topology from the defaults
-      String topologyPickerStr = this.dataFlowTopologyConfig.hasPath(DATA_FLOW_TOPOLOGY_PICKER)?
-          this.dataFlowTopologyConfig.getString(DATA_FLOW_TOPOLOGY_PICKER): DEFAULT_DATA_FLOW_TOPOLOGY_PICKER_CLASS;
+      String topologyPickerStr = this.dataFlowTopologyConfig.hasPath(DATA_FLOW_TOPOLOGY_PICKER_CLASS)?
+          this.dataFlowTopologyConfig.getString(DATA_FLOW_TOPOLOGY_PICKER_CLASS): DEFAULT_DATA_FLOW_TOPOLOGY_PICKER_CLASS;
       DataFlowTopologyPickerBySource picker =
           dataFlowTopologyPickerResolver.resolveClass(topologyPickerStr).newInstance();
 
@@ -261,7 +326,7 @@ public class ReplicationConfiguration {
               copyFromStrings.add(s);
             }
           }
-          
+
           List<CopyRoute> copyPairs = Lists.transform(copyFromStrings, new Function<String, CopyRoute>() {
             @Override
             public CopyRoute apply(String t) {
@@ -281,13 +346,13 @@ public class ReplicationConfiguration {
           if (routesConfig.hasPath(valid.getKey())) {
             List<String> copyToStringsRaw = routesConfig.getStringList(valid.getKey());
             List<String> copyToStrings = new ArrayList<>();
-            
+
             for(String s: copyToStringsRaw){
               if(!s.equals(this.source.getEndPointName()) &&validEndPoints.containsKey(s)){
                 copyToStrings.add(s);
               }
             }
-            
+
             // filter out invalid entries
             for (String s : copyToStrings) {
               Preconditions.checkArgument(!currentCopyTo.contains(s),

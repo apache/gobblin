@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util;
@@ -22,7 +27,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
-import lombok.Getter;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -45,7 +49,7 @@ import com.typesafe.config.ConfigSyntax;
 
 import gobblin.configuration.ConfigurationKeys;
 
-import javax.annotation.Nullable;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -236,16 +240,19 @@ public class PullFileLoader {
    * @return The {@link Config} in path with fallback as fallback.
    * @throws IOException
    */
-  private Config loadJavaPropsWithFallback(Path path, Config fallback) throws IOException {
+  private Config loadJavaPropsWithFallback(Path propertiesPath, Config fallback) throws IOException {
 
     PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
-    try (InputStreamReader inputStreamReader = new InputStreamReader(this.fs.open(path),
+    try (InputStreamReader inputStreamReader = new InputStreamReader(this.fs.open(propertiesPath),
         Charsets.UTF_8)) {
       propertiesConfiguration.load(inputStreamReader);
 
+      Config configFromProps =
+          ConfigUtils.propertiesToConfig(ConfigurationConverter.getProperties(propertiesConfiguration));
+
       return ConfigFactory.parseMap(ImmutableMap.of(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
-          PathUtils.getPathWithoutSchemeAndAuthority(path).toString()))
-          .withFallback(ConfigFactory.parseProperties(ConfigurationConverter.getProperties(propertiesConfiguration)))
+          PathUtils.getPathWithoutSchemeAndAuthority(propertiesPath).toString()))
+          .withFallback(configFromProps)
           .withFallback(fallback);
     } catch (ConfigurationException ce) {
       throw new IOException(ce);

@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.utils;
@@ -30,6 +35,8 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -42,7 +49,7 @@ import gobblin.source.extractor.watermark.WatermarkType;
 
 
 public class Utils {
-
+  private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
   private static final Gson GSON = new Gson();
   private static final String CURRENT_DAY = "CURRENTDAY";
   private static final String CURRENT_HOUR = "CURRENTHOUR";
@@ -91,6 +98,20 @@ public class Utils {
     return outFormat.format(date);
   }
 
+  public static Date toDate(String input, String inputfmt, String outputfmt) {
+    final SimpleDateFormat inputFormat = new SimpleDateFormat(inputfmt);
+    final SimpleDateFormat outputFormat = new SimpleDateFormat(outputfmt);
+    Date outDate = null;
+    try {
+      Date date = inputFormat.parse(input);
+      String dateStr = outputFormat.format(date);
+      outDate = outputFormat.parse(dateStr);
+    } catch (ParseException e) {
+      LOG.error("Parse to date failed", e);
+    }
+    return outDate;
+  }
+
   public static String epochToDate(long epoch, String format) {
     SimpleDateFormat sdf = new SimpleDateFormat(format);
     Date date = new Date(epoch);
@@ -137,6 +158,13 @@ public class Utils {
   public static String dateToString(Date datetime, String format) {
     SimpleDateFormat fmt = new SimpleDateFormat(format);
     return fmt.format(datetime);
+  }
+
+  public static Date addDaysToDate(Date datetime, int days) {
+    Calendar calendar = Calendar.getInstance();
+    calendar.setTime(datetime);
+    calendar.add(Calendar.DATE, days);
+    return calendar.getTime();
   }
 
   public static Date addHoursToDate(Date datetime, int hours) {
@@ -217,7 +245,7 @@ public class Utils {
   public static boolean getPropAsBoolean(Properties properties, String key, String defaultValue) {
     return Boolean.valueOf(properties.getProperty(key, defaultValue));
   }
-  
+
   // escape characters in column name or table name
   public static String escapeSpecialCharacters(String columnName, String escapeChars, String character) {
     if (Strings.isNullOrEmpty(columnName)) {

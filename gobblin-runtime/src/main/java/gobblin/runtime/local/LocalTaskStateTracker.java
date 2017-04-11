@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime.local;
@@ -77,7 +82,24 @@ public class LocalTaskStateTracker extends AbstractTaskStateTracker {
   }
 
   @Override
-  public void onTaskCompletion(Task task) {
+  public void onTaskRunCompletion(Task task) {
+    try {
+      // Check the task state and handle task retry if task failed and
+      // it has not reached the maximum number of retries
+      WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
+      if (state == WorkUnitState.WorkingState.FAILED && task.getRetryCount() < this.maxTaskRetries) {
+        this.taskExecutor.retry(task);
+        return;
+      }
+    } catch (Throwable t) {
+      LOG.error("Failed to process a task completion callback", t);
+    }
+    // Mark the completion of this task
+    task.markTaskCompletion();
+  }
+
+  @Override
+  public void onTaskCommitCompletion(Task task) {
     try {
       if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
         // Update record-level metrics after the task is done
@@ -91,14 +113,6 @@ public class LocalTaskStateTracker extends AbstractTaskStateTracker {
       if (this.scheduledReporters.containsKey(task.getTaskId())) {
         this.scheduledReporters.remove(task.getTaskId()).cancel(false);
       }
-
-      // Check the task state and handle task retry if task failed and
-      // it has not reached the maximum number of retries
-      WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
-      if (state == WorkUnitState.WorkingState.FAILED && task.getRetryCount() < this.maxTaskRetries) {
-        this.taskExecutor.retry(task);
-        return;
-      }
     } catch (Throwable t) {
       LOG.error("Failed to process a task completion callback", t);
     }
@@ -106,9 +120,6 @@ public class LocalTaskStateTracker extends AbstractTaskStateTracker {
     // Add the TaskState of the completed task to the JobState so when the control
     // returns to the launcher, it sees the TaskStates of all completed tasks.
     this.jobState.addTaskState(task.getTaskState());
-
-    // Mark the completion of this task
-    task.markTaskCompletion();
 
     // Notify the listeners for the completion of the task
     this.eventBus.post(new NewTaskCompletionEvent(ImmutableList.of(task.getTaskState())));

@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.runtime.instance;
 
@@ -23,6 +28,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
@@ -40,9 +47,12 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecMonitorFactory;
 import gobblin.runtime.api.JobSpecScheduler;
 import gobblin.runtime.api.MutableJobCatalog;
+import gobblin.runtime.job_spec.ResolvedJobSpec;
 import gobblin.runtime.std.DefaultJobCatalogListenerImpl;
 import gobblin.runtime.std.DefaultJobExecutionStateListenerImpl;
 import gobblin.runtime.std.JobLifecycleListenersList;
+import gobblin.util.ExecutorsUtils;
+
 
 /**
  * A default implementation of {@link GobblinInstanceDriver}. It accepts already instantiated
@@ -65,13 +75,15 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   protected final MetricContext _metricCtx;
   protected JobSpecListener _jobSpecListener;
   private final StandardMetrics _metrics;
+  private final SharedResourcesBroker<GobblinScopeTypes> _instanceBroker;
 
   public DefaultGobblinInstanceDriverImpl(String instanceName,
       Configurable sysConfig, JobCatalog jobCatalog,
       JobSpecScheduler jobScheduler,
       JobExecutionLauncher jobLauncher,
       Optional<MetricContext> baseMetricContext,
-      Optional<Logger> log) {
+      Optional<Logger> log,
+      SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
     Preconditions.checkNotNull(jobCatalog);
     Preconditions.checkNotNull(jobScheduler);
     Preconditions.checkNotNull(jobLauncher);
@@ -87,6 +99,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     _sysConfig = sysConfig;
     _instanceCfg = ConfigAccessor.createFromGlobalConfig(_sysConfig.getConfig());
     _callbacksDispatcher = new JobLifecycleListenersList(_jobCatalog, _jobScheduler, _log);
+    _instanceBroker = instanceBroker;
 
     _metrics = new StandardMetrics(this);
   }
@@ -124,6 +137,11 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   }
 
   /** {@inheritDoc} */
+  @Override public SharedResourcesBroker<GobblinScopeTypes> getInstanceBroker() {
+    return _instanceBroker;
+  }
+
+  /** {@inheritDoc} */
   @Override public Logger getLog() {
     return _log;
   }
@@ -140,6 +158,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     if (null != _jobSpecListener) {
       _jobCatalog.removeListener(_jobSpecListener);
     }
+    _callbacksDispatcher.close();
     getLog().info("Default driver: shut down.");
   }
 
@@ -177,18 +196,20 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   /** The runnable invoked by the Job scheduler */
   class JobSpecRunnable implements Runnable {
     private final JobSpec _jobSpec;
+    private final GobblinInstanceDriver _instanceDriver;
 
-    public JobSpecRunnable(JobSpec jobSpec) {
+    public JobSpecRunnable(JobSpec jobSpec, GobblinInstanceDriver instanceDriver) {
       _jobSpec = jobSpec;
+      _instanceDriver = instanceDriver;
     }
 
     @Override
     public void run() {
       try {
-         JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
+         JobExecutionDriver driver = _jobLauncher.launchJob(new ResolvedJobSpec(_jobSpec, _instanceDriver));
          _callbacksDispatcher.onJobLaunch(driver);
          driver.registerStateListener(new JobStateTracker());
-         driver.startAsync();
+        ExecutorsUtils.newThreadFactory(Optional.of(_log), Optional.of("gobblin-instance-driver")).newThread(driver).start();
       }
       catch (Throwable t) {
         _log.error("Job launch failed: " + t, t);
@@ -224,7 +245,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   }
 
   @VisibleForTesting JobSpecRunnable createJobSpecRunnable(JobSpec addedJob) {
-    return new JobSpecRunnable(addedJob);
+    return new JobSpecRunnable(addedJob, this);
   }
 
   ConfigAccessor getInstanceCfg() {

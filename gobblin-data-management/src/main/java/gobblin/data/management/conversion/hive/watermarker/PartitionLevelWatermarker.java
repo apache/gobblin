@@ -1,36 +1,49 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.data.management.conversion.hive.watermarker;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+
 import javax.annotation.Nonnull;
 
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -46,10 +59,20 @@ import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
 import gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
 import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
 import gobblin.data.management.conversion.hive.source.HiveSource;
+import gobblin.data.management.copy.hive.HiveDatasetFinder;
+import gobblin.data.management.copy.hive.HiveUtils;
+import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.AutoReturnableObject;
+
+import javax.annotation.Nonnull;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -69,6 +92,9 @@ import gobblin.source.workunit.WorkUnit;
  *  The default is {@link HiveSource#DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS}. If a previous watermark is not found for
  *  as partition, it returns 0 as the watermark
  *  </p>
+ *  <p>
+ *  Watermark workunits are not created for non partitioned tables
+ *  </p>
  */
 @Slf4j
 public class PartitionLevelWatermarker implements HiveSourceWatermarker {
@@ -84,9 +110,11 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
     }
   };
 
-  private final long leastWatermarkToPersistInState;
+  @Setter(AccessLevel.PACKAGE)
+  @VisibleForTesting
+  private long leastWatermarkToPersistInState;
   // Keep an additional 2 days of updates
-  private static int BUFFER_WATERMARK_DAYS_TO_PERSIST = 2;
+  private static final int BUFFER_WATERMARK_DAYS_TO_PERSIST = 2;
 
   /**
    * Watermarks from previous state
@@ -102,6 +130,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
   @VisibleForTesting
   private final TableWatermarks expectedHighWatermarks;
 
+  private final HiveMetastoreClientPool pool;
   /**
    * Delegates watermarking logic to {@link TableLevelWatermarker} for Non partitioned tables
    */
@@ -118,6 +147,13 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
     this.previousWatermarks = new TableWatermarks();
     this.tableLevelWatermarker = new TableLevelWatermarker(state);
     this.updateProvider = UpdateProviderFactory.create(state);
+    try {
+      this.pool =
+          HiveMetastoreClientPool.get(state.getProperties(),
+              Optional.fromNullable(state.getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
+    } catch (IOException e) {
+      throw new RuntimeException("Could not initialize metastore client pool", e);
+    }
 
     int maxLookBackDays =
         state.getPropAsInt(HiveSource.HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY,
@@ -142,7 +178,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
           throw new IllegalStateException(
               String
                   .format(
-                      "Each table should have only 1 watermark workunit that contains watermarks for all it's partitions. Found %s",
+                      "Each table should have only 1 watermark workunit that contains watermarks for all its partitions. Found %s",
                       watermarkWorkUnits.size()));
         } else {
           MultiKeyValueLongWatermark multiKeyValueLongWatermark =
@@ -157,7 +193,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
         }
       }
 
-      log.info("Loaded partition watermarks from previous state " + this.previousWatermarks);
+      log.debug("Loaded partition watermarks from previous state " + this.previousWatermarks);
 
       for (String tableKey : this.previousWatermarks.keySet()) {
         this.expectedHighWatermarks.setPartitionWatermarks(tableKey,
@@ -248,12 +284,13 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
   }
 
   /**
-   * Adds watermark workunits to <code>workunits</code>.
+   * Adds watermark workunits to <code>workunits</code>. A watermark workunit is a dummy workunit that is skipped by extractor/converter/writer.
+   * It stores a map of watermarks. The map has one entry per partition with partition watermark as value.
    * <ul>
    * <li>Add one NoOp watermark workunit for each {@link Table}
-   * <li>The workunit has and identifier property {@link #IS_WATERMARK_WORKUNIT_KEY} set to true.
-   * <li>Watermarks for all {@link Partition}s that belong to this {@link Table} as added as {@link Map}
-   * <li>A maximum of {@link #maxPartitionsPerDataset} most recently modified {@link Partition} watermarks are added.
+   * <li>The workunit has an identifier property {@link #IS_WATERMARK_WORKUNIT_KEY} set to true.
+   * <li>Watermarks for all {@link Partition}s that belong to this {@link Table} are added as {@link Map}
+   * <li>A maximum of {@link #maxPartitionsPerDataset} are persisted. Watermarks are ordered by most recently modified {@link Partition}s
    *
    * </ul>
    * {@inheritDoc}
@@ -261,30 +298,40 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
    */
   @Override
   public void onGetWorkunitsEnd(List<WorkUnit> workunits) {
-    for (Map.Entry<String, Map<String, Long>> tableWatermark : this.expectedHighWatermarks.entrySet()) {
+    try (AutoReturnableObject<IMetaStoreClient> client = this.pool.getClient()) {
+      for (Map.Entry<String, Map<String, Long>> tableWatermark : this.expectedHighWatermarks.entrySet()) {
 
-      String tableKey = tableWatermark.getKey();
-      Map<String, Long> partitionWatermarks = tableWatermark.getValue();
+        String tableKey = tableWatermark.getKey();
+        Map<String, Long> partitionWatermarks = tableWatermark.getValue();
 
-      // We only keep watermarks for partitions that were updated after leastWatermarkToPersistInState
-      Map<String, Long> expectedPartitionWatermarks =
-          ImmutableMap.copyOf(Maps.filterEntries(partitionWatermarks, new Predicate<Map.Entry<String, Long>>() {
+        // Watermark workunits are required only for Partitioned tables
+        // tableKey is table complete name in the format db@table
+        if (!HiveUtils.isPartitioned(new org.apache.hadoop.hive.ql.metadata.Table(client.get().getTable(
+            tableKey.split("@")[0], tableKey.split("@")[1])))) {
+          continue;
+        }
+        // We only keep watermarks for partitions that were updated after leastWatermarkToPersistInState
+        Map<String, Long> expectedPartitionWatermarks =
+            ImmutableMap.copyOf(Maps.filterEntries(partitionWatermarks, new Predicate<Map.Entry<String, Long>>() {
 
-            @Override
-            public boolean apply(@Nonnull Map.Entry<String, Long> input) {
-              return Long.compare(input.getValue(), PartitionLevelWatermarker.this.leastWatermarkToPersistInState) >= 0;
-            }
-          }));
+              @Override
+              public boolean apply(@Nonnull Map.Entry<String, Long> input) {
+                return Long.compare(input.getValue(), PartitionLevelWatermarker.this.leastWatermarkToPersistInState) >= 0;
+              }
+            }));
 
-      // Create dummy workunit to track all the partition watermarks for this table
-      WorkUnit watermarkWorkunit = WorkUnit.createEmpty();
-      watermarkWorkunit.setProp(IS_WATERMARK_WORKUNIT_KEY, true);
-      watermarkWorkunit.setProp(ConfigurationKeys.DATASET_URN_KEY, tableKey);
+        // Create dummy workunit to track all the partition watermarks for this table
+        WorkUnit watermarkWorkunit = WorkUnit.createEmpty();
+        watermarkWorkunit.setProp(IS_WATERMARK_WORKUNIT_KEY, true);
+        watermarkWorkunit.setProp(ConfigurationKeys.DATASET_URN_KEY, tableKey);
 
-      watermarkWorkunit.setWatermarkInterval(new WatermarkInterval(new MultiKeyValueLongWatermark(
-          this.previousWatermarks.get(tableKey)), new MultiKeyValueLongWatermark(expectedPartitionWatermarks)));
+        watermarkWorkunit.setWatermarkInterval(new WatermarkInterval(new MultiKeyValueLongWatermark(
+            this.previousWatermarks.get(tableKey)), new MultiKeyValueLongWatermark(expectedPartitionWatermarks)));
 
-      workunits.add(watermarkWorkunit);
+        workunits.add(watermarkWorkunit);
+      }
+    } catch (IOException | TException e) {
+      Throwables.propagate(e);
     }
   }
 

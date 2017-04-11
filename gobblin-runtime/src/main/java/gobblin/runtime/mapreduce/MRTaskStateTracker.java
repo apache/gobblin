@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime.mapreduce;
@@ -62,25 +67,26 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
   }
 
   @Override
-  public void onTaskCompletion(Task task) {
+  public void onTaskRunCompletion(Task task) {
+    task.markTaskCompletion();
+  }
+
+  @Override
+  public void onTaskCommitCompletion(Task task) {
     WorkUnit workUnit = task.getTaskState().getWorkunit();
 
-    try {
-      if (GobblinMetrics.isEnabled(workUnit)) {
-        task.updateRecordMetrics();
-        task.updateByteMetrics();
+    if (GobblinMetrics.isEnabled(workUnit)) {
+      task.updateRecordMetrics();
+      task.updateByteMetrics();
 
-        if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_REPORT_METRICS_AS_COUNTERS_KEY,
-            ConfigurationKeys.DEFAULT_MR_REPORT_METRICS_AS_COUNTERS)) {
-          updateCounters(task);
-        }
+      if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_REPORT_METRICS_AS_COUNTERS_KEY,
+          ConfigurationKeys.DEFAULT_MR_REPORT_METRICS_AS_COUNTERS)) {
+        updateCounters(task);
       }
-    } finally {
-      task.markTaskCompletion();
     }
-
-    LOG.info(String.format("Task %s completed in %dms with state %s",
-        task.getTaskId(), task.getTaskState().getTaskDuration(), task.getTaskState().getWorkingState()));
+    LOG.info(String
+        .format("Task %s completed running in %dms with state %s", task.getTaskId(), task.getTaskState().getTaskDuration(),
+            task.getTaskState().getWorkingState()));
   }
 
   /**

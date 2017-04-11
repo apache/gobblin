@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.cluster;
@@ -64,26 +69,28 @@ public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
   }
 
   @Override
-  public void onTaskCompletion(Task task) {
-    try {
-      if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
-        // Update record-level metrics after the task is done
-        task.updateRecordMetrics();
-        task.updateByteMetrics();
-      }
+  public void onTaskRunCompletion(Task task) {
+    task.markTaskCompletion();
+  }
 
-      // Cancel the task state reporter associated with this task. The reporter might
-      // not be found  for the given task because the task fails before the task is
-      // registered. So we need to make sure the reporter exists before calling cancel.
-      if (this.scheduledReporters.containsKey(task.getTaskId())) {
-        this.scheduledReporters.remove(task.getTaskId()).cancel(false);
-      }
-    } finally {
-      task.markTaskCompletion();
+  @Override
+  public void onTaskCommitCompletion(Task task) {
+    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+      // Update record-level metrics after the task is done
+      task.updateRecordMetrics();
+      task.updateByteMetrics();
     }
 
-    LOGGER.info(String.format("Task %s completed in %dms with state %s",
-        task.getTaskId(), task.getTaskState().getTaskDuration(), task.getTaskState().getWorkingState()));
+    // Cancel the task state reporter associated with this task. The reporter might
+    // not be found  for the given task because the task fails before the task is
+    // registered. So we need to make sure the reporter exists before calling cancel.
+    if (this.scheduledReporters.containsKey(task.getTaskId())) {
+      this.scheduledReporters.remove(task.getTaskId()).cancel(false);
+    }
+
+    LOGGER.info(String
+        .format("Task %s completed in %dms with state %s", task.getTaskId(), task.getTaskState().getTaskDuration(),
+            task.getTaskState().getWorkingState()));
   }
 
   /**

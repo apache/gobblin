@@ -1,0 +1,185 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
+
+// Set group for Maven
+if (!project.hasProperty('group') || project.group.length() == 0) {
+  project.ext.group = 'com.linkedin.gobblin'
+}
+
+// Maven publishing
+ext.buildProperties.ensureDefined('publishToMaven')
+if (ext.publishToMaven) {
+  plugins.apply('maven')
+  // Workaround for a bug in gradle's "maven" plugin. See https://discuss.gradle.org/t/error-in-parallel-build/7215/3
+  project.setProperty("org.gradle.parallel", "false")
+}
+
+ext.signArtifacts = !project.doNotSignArtifacts
+
+// Maven POM generation is not thread safe, so serialize all the Upload tasks we can use `--parallel`.
+// https://issues.gradle.org/browse/GRADLE-2492
+// When we start building with 2.3 and later we should remove this and just add a common output dir for all tasks and let Gradle serialize them
+def lock = new ReentrantLock()
+def available = lock.newCondition()
+def busy = new AtomicBoolean()
+def serializedTasks = []
+allprojects {
+  tasks.matching { it.name == "generatePom" || it instanceof Upload }.all {
+    serializedTasks << it
+    doFirst {
+      lock.lock()
+      while (busy.get()) {
+        available.await()
+      }
+      busy.set(true)
+    }
+  }
+}
+
+gradle.taskGraph.afterTask {
+  if (it in serializedTasks && lock.heldByCurrentThread) {
+    busy.set(false)
+    available.signal()
+    lock.unlock()
+  }
+}
+
+ext.pomAttributes = {
+  name "${project.name}"
+  packaging 'jar'
+  // optionally artifactId can be defined here
+  description 'Gobblin Ingestion Framework'
+  url 'https://github.com/linkedin/gobblin/'
+
+  scm {
+    connection 'scm:git:git@github.com:linkedin/gobblin.git'
+    developerConnection 'scm:git:git@github.com:linkedin/gobblin.git'
+    url 'git@github.com:linkedin/gobblin.git'
+  }
+
+  licenses {
+    license {
+      name 'The Apache License, Version 2.0'
+      url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    }
+  }
+
+  developers {
+    developer {
+      name 'Abhishek Tiwari'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Chavdar Botev'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Issac Buenrostro'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Min Tu'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Narasimha Veeramreddy'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Pradhan Cadabam'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Sahil Takiar'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Shirshanka Das'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Yinan Li'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Ying Dai'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Ziyang Liu'
+      organization 'LinkedIn'
+    }
+  }
+}
+
+subprojects {
+  plugins.withType(JavaPlugin) {
+    plugins.apply('maven')
+
+    install {
+      repositories {
+        mavenInstaller {
+          mavenLocal()
+          pom.project {
+            name "${project.name}"
+            packaging 'jar'
+            description 'Gobblin Ingestion Framework'
+            url 'https://github.com/linkedin/gobblin/'
+          }
+        }
+      }
+    }
+
+    // Publishing of maven artifacts for subprojects
+    if (rootProject.ext.publishToMaven) {
+      if (rootProject.ext.signArtifacts) {
+        plugins.apply('signing')
+      }
+
+      uploadArchives {
+        repositories {
+          mavenDeployer {
+            beforeDeployment { MavenDeployment deployment ->
+              if (rootProject.ext.signArtifacts) {
+                signing.signPom(deployment)
+              }
+            }
+
+            repository(url: rootProject.artifactRepository) {
+              authentication(userName: rootProject.ext.ossrhUsername, password: rootProject.ext.ossrhPassword)
+            }
+
+            snapshotRepository(url: rootProject.artifactSnapshotRepository) {
+              authentication(userName: rootProject.ext.ossrhUsername, password: rootProject.ext.ossrhPassword)
+            }
+
+            pom.project pomAttributes
+          }
+        }
+      }
+
+      if (rootProject.ext.signArtifacts) {
+        signing {
+          sign configurations.archives
+        }
+      }
+    }
+  }
+}

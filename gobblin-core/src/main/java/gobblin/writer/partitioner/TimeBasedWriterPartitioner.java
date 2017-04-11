@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.writer.partitioner;
@@ -32,6 +37,7 @@ import com.google.common.base.Strings;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.DatePartitionType;
 import gobblin.util.ForkOperatorUtils;
 
 
@@ -40,7 +46,7 @@ import gobblin.util.ForkOperatorUtils;
  *
  * There are two ways to partition a timestamp: (1) specify a {@link DateTimeFormat} using
  * {@link #WRITER_PARTITION_PATTERN}, e.g., 'yyyy/MM/dd/HH'; (2) specify a
- * {@link TimeBasedWriterPartitioner.Granularity} using {@link #WRITER_PARTITION_GRANULARITY}.
+ * {@link DatePartitionType} using {@link #WRITER_PARTITION_GRANULARITY}.
  *
  * A prefix and a suffix can be added to the partition, e.g., the partition path can be
  * 'prefix/2015/11/05/suffix'.
@@ -55,23 +61,15 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
   public static final String WRITER_PARTITION_TIMEZONE = ConfigurationKeys.WRITER_PREFIX + ".partition.timezone";
   public static final String DEFAULT_WRITER_PARTITION_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
   public static final String WRITER_PARTITION_GRANULARITY = ConfigurationKeys.WRITER_PREFIX + ".partition.granularity";
-  public static final Granularity DEFAULT_WRITER_PARTITION_GRANULARITY = Granularity.HOUR;
+  public static final DatePartitionType DEFAULT_WRITER_PARTITION_GRANULARITY = DatePartitionType.HOUR;
 
   public static final String PARTITIONED_PATH = "partitionedPath";
   public static final String PREFIX = "prefix";
   public static final String SUFFIX = "suffix";
 
-  public enum Granularity {
-    YEAR,
-    MONTH,
-    DAY,
-    HOUR,
-    MINUTE;
-  }
-
   private final String writerPartitionPrefix;
   private final String writerPartitionSuffix;
-  private final Granularity granularity;
+  private final DatePartitionType granularity;
   private final DateTimeZone timeZone;
   private final Optional<DateTimeFormatter> timestampToPathFormatter;
   private final Schema schema;
@@ -95,10 +93,11 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     return state.getProp(propName, StringUtils.EMPTY);
   }
 
-  private static Granularity getGranularity(State state, int numBranches, int branchId) {
+  private static DatePartitionType getGranularity(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_GRANULARITY, numBranches, branchId);
     String granularityValue = state.getProp(propName, DEFAULT_WRITER_PARTITION_GRANULARITY.toString());
-    Optional<Granularity> granularity = Enums.getIfPresent(Granularity.class, granularityValue.toUpperCase());
+    Optional<DatePartitionType> granularity =
+        Enums.getIfPresent(DatePartitionType.class, granularityValue.toUpperCase());
     Preconditions.checkState(granularity.isPresent(),
         granularityValue + " is not a valid writer partition granularity");
     return granularity.get();
@@ -147,20 +146,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
       partition.put(PARTITIONED_PATH, partitionedPath);
     } else {
       DateTime dateTime = new DateTime(timestamp, this.timeZone);
-      switch (this.granularity) {
-        case MINUTE:
-          partition.put(Granularity.MINUTE.toString(), dateTime.getMinuteOfHour());
-        case HOUR:
-          partition.put(Granularity.HOUR.toString(), dateTime.getHourOfDay());
-        case DAY:
-          partition.put(Granularity.DAY.toString(), dateTime.getDayOfMonth());
-        case MONTH:
-          partition.put(Granularity.MONTH.toString(), dateTime.getMonthOfYear());
-        case YEAR:
-          partition.put(Granularity.YEAR.toString(), dateTime.getYear());
-        default:
-          break;
-      }
+      partition.put(this.granularity.toString(), this.granularity.getField(dateTime));
     }
 
     return partition;
@@ -190,21 +176,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     if (!Strings.isNullOrEmpty(this.writerPartitionSuffix)) {
       assembler = assembler.name(SUFFIX).type(Schema.create(Schema.Type.STRING)).noDefault();
     }
-
-    switch (this.granularity) {
-      case MINUTE:
-        assembler = assembler.name(Granularity.MINUTE.toString()).type(Schema.create(Schema.Type.STRING)).noDefault();
-      case HOUR:
-        assembler = assembler.name(Granularity.HOUR.toString()).type(Schema.create(Schema.Type.STRING)).noDefault();
-      case DAY:
-        assembler = assembler.name(Granularity.DAY.toString()).type(Schema.create(Schema.Type.STRING)).noDefault();
-      case MONTH:
-        assembler = assembler.name(Granularity.MONTH.toString()).type(Schema.create(Schema.Type.STRING)).noDefault();
-      case YEAR:
-        assembler = assembler.name(Granularity.YEAR.toString()).type(Schema.create(Schema.Type.STRING)).noDefault();
-      default:
-        break;
-    }
+    assembler = assembler.name(this.granularity.toString()).type(Schema.create(Schema.Type.STRING)).noDefault();
 
     if (!Strings.isNullOrEmpty(this.writerPartitionPrefix)) {
       assembler = assembler.name(PREFIX).type(Schema.create(Schema.Type.STRING)).noDefault();

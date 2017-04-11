@@ -20,8 +20,8 @@
 **/*.log
 */bin
 **/bin
-build
-**/build
+build/
+**/build/
 .gradle
 **/.gradle
 test-output
@@ -42,11 +42,13 @@ gobblin-test/mr-jobs
 /eclipse_build
 .project
 .classpath
-/build
-*/build
 out/
 */bin/
 **/mainGeneratedDataTemplate
 **/mainGeneratedRest
-gobblin-dist*
+gobblin-dist/
+gobblin-distribution-*.tar.gz
 gobblin.tar.gz
+*~
+metastore_db/
+GobblinKey_*.pem

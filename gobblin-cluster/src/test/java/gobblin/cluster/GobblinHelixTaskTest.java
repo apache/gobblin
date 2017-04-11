@@ -1,17 +1,24 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.cluster;
 
+import com.typesafe.config.ConfigFactory;
+import gobblin.metastore.FsStateStore;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -45,6 +52,7 @@ import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskExecutor;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.Id;
 import gobblin.util.SerializationUtils;
 import gobblin.writer.AvroDataWriterBuilder;
 import gobblin.writer.Destination;
@@ -115,14 +123,21 @@ public class GobblinHelixTaskTest {
     workUnit.setProp(SimpleJsonSource.SOURCE_FILE_KEY, sourceJsonFile.getAbsolutePath());
 
     // Serialize the WorkUnit into a file
-    Path workUnitFilePath = new Path(this.appWorkDir, TestHelper.TEST_JOB_NAME + ".wu");
-    SerializationUtils.serializeState(this.localFs, workUnitFilePath, workUnit);
+    // expected path is appWorkDir/_workunits/job_id/job_id.wu
+    Path workUnitDirPath = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
+    FsStateStore<WorkUnit> wuStateStore = new FsStateStore<>(this.localFs, workUnitDirPath.toString(), WorkUnit.class);
+    Path workUnitFilePath = new Path(new Path(workUnitDirPath, TestHelper.TEST_JOB_ID),
+        TestHelper.TEST_JOB_NAME + ".wu");
+    wuStateStore.put(TestHelper.TEST_JOB_ID, TestHelper.TEST_JOB_NAME + ".wu", workUnit);
+
     Assert.assertTrue(this.localFs.exists(workUnitFilePath));
 
     // Prepare the GobblinHelixTask
     Map<String, String> taskConfigMap = Maps.newHashMap();
     taskConfigMap.put(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH, workUnitFilePath.toString());
+    taskConfigMap.put(ConfigurationKeys.JOB_NAME_KEY, TestHelper.TEST_JOB_NAME);
     taskConfigMap.put(ConfigurationKeys.JOB_ID_KEY, TestHelper.TEST_JOB_ID);
+    taskConfigMap.put(ConfigurationKeys.TASK_KEY_KEY, Long.toString(Id.parse(TestHelper.TEST_JOB_ID).getSequence()));
 
     TaskConfig taskConfig = new TaskConfig("", taskConfigMap, true);
     TaskCallbackContext taskCallbackContext = Mockito.mock(TaskCallbackContext.class);
@@ -131,7 +146,7 @@ public class GobblinHelixTaskTest {
 
     GobblinHelixTaskFactory gobblinHelixTaskFactory =
         new GobblinHelixTaskFactory(Optional.<ContainerMetrics>absent(), this.taskExecutor, this.taskStateTracker,
-            this.localFs, this.appWorkDir);
+            this.localFs, this.appWorkDir, ConfigFactory.empty());
     this.gobblinHelixTask = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
   }
 
@@ -163,6 +178,7 @@ public class GobblinHelixTaskTest {
 
   private void prepareWorkUnit(WorkUnit workUnit) {
     workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, TestHelper.TEST_TASK_ID);
+    workUnit.setProp(ConfigurationKeys.TASK_KEY_KEY, Long.toString(Id.parse(TestHelper.TEST_TASK_ID).getSequence()));
     workUnit.setProp(ConfigurationKeys.SOURCE_CLASS_KEY, SimpleJsonSource.class.getName());
     workUnit.setProp(ConfigurationKeys.CONVERTER_CLASSES_KEY, SimpleJsonConverter.class.getName());
     workUnit.setProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, WriterOutputFormat.AVRO.toString());

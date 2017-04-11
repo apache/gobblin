@@ -513,7 +513,7 @@ The name of the host to connect to.
 ###### Default Value
 None
 ###### Required
-Required for SftpExtractor, MySQLExtractor, and SQLServerExtractor.
+Required for SftpExtractor, MySQLExtractor, OracleExtractor, SQLServerExtractor and TeradataExtractor.
 #### source.conn.rest.url 
 ###### Description
 URL to connect to for REST requests. This parameter is only used for the Salesforce source.
@@ -541,7 +541,14 @@ The value of the port to connect to.
 ###### Default Value
 None
 ###### Required
-Required for SftpExtractor, MySQLExtractor, SqlServerExtractor.
+Required for SftpExtractor, MySQLExtractor, OracleExtractor, SQLServerExtractor and TeradataExtractor.
+#### source.conn.sid
+###### Description
+The Oracle System ID (SID) that identifies the database to connect to.
+###### Default Value
+None
+###### Required
+Required for OracleExtractor.
 #### extract.table.name 
 ###### Description
 Table name in Hadoop which is different table name in source.
@@ -961,7 +968,7 @@ No
 # Writer Properties <a name="Writer-Properties"></a>
 #### writer.destination.type 
 ###### Description
-Writer destination type; currently only writing to HDFS is supported.
+Writer destination type. Can be HDFS, KAFKA, MYSQL or TERADATA
 ###### Default Value
 HDFS 
 ###### Required
@@ -1234,7 +1241,7 @@ Batch size for Insert operation
 No
 #### writer.jdbc.insert_max_param_size
 ###### Description
-Maximum number of parameters for JDBC insert operation.
+Maximum number of parameters for JDBC insert operation (for MySQL Writer).
 ###### Default Value
 100,000 (MySQL limitation)
 ###### Required

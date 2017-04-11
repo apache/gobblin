@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.publisher;
@@ -26,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
@@ -36,6 +42,7 @@ import gobblin.hive.HiveRegProps;
 import gobblin.hive.HiveRegister;
 import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
+import gobblin.hive.metastore.HiveMetaStoreUtils;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.util.ExecutorsUtils;
 
@@ -58,6 +65,7 @@ import lombok.extern.slf4j.Slf4j;
 public class HiveRegistrationPublisher extends DataPublisher {
 
   private static final String DATA_PUBLISH_TIME = HiveRegistrationPublisher.class.getName() + ".lastDataPublishTime";
+  private static final Splitter LIST_SPLITTER_COMMA = Splitter.on(",").trimResults().omitEmptyStrings();
   private final Closer closer = Closer.create();
   private final HiveRegister hiveRegister;
   private final ExecutorService hivePolicyExecutor;
@@ -65,8 +73,8 @@ public class HiveRegistrationPublisher extends DataPublisher {
   public HiveRegistrationPublisher(State state) {
     super(state);
     this.hiveRegister = this.closer.register(HiveRegister.get(state));
-    this.hivePolicyExecutor = Executors.newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
-        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d")));
+    this.hivePolicyExecutor = ExecutorsUtils.loggingDecorator(Executors.newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d"))));
   }
 
   @Override
@@ -87,23 +95,45 @@ public class HiveRegistrationPublisher extends DataPublisher {
     CompletionService<Collection<HiveSpec>> completionService =
         new ExecutorCompletionService<>(this.hivePolicyExecutor);
 
-    //addRuntimeHiveRegistrationProperties(super.state);
-    final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(super.state);
+    // Each state in states is task-level State, while superState is the Job-level State.
+    // Using both State objects to distinguish each HiveRegistrationPolicy so that
+    // they can carry task-level information to pass into Hive Partition and its corresponding Hive Table.
 
-    Set<String> pathsToRegister = getUniquePathsToRegister(states);
-    log.info("Number of paths to be registered in Hive: " + pathsToRegister.size());
-    for (final String path : pathsToRegister) {
-      completionService.submit(new Callable<Collection<HiveSpec>>() {
+    // Here all runtime task-level props are injected into superstate which installed in each Policy Object.
+    // runtime.props are comma-separated props collected in runtime.
+    Set<String> pathsToRegisterFromSingleState = Sets.newHashSet() ;
+    for (State state:states) {
+      State taskSpecificState = state;
+      if (state.contains(ConfigurationKeys.PUBLISHER_DIRS)) {
 
-        @Override
-        public Collection<HiveSpec> call() throws Exception {
-          return policy.getHiveSpecs(new Path(path));
+        // Upstream data attribute is specified, need to inject these info into superState as runtimeTableProps.
+        if (this.hiveRegister.getProps().getUpstreamDataAttrName().isPresent()) {
+          for (String attrName:
+              LIST_SPLITTER_COMMA.splitToList(this.hiveRegister.getProps().getUpstreamDataAttrName().get())){
+            if (state.contains(attrName)) {
+              taskSpecificState.appendToListProp(HiveMetaStoreUtils.RUNTIME_PROPS,
+                    attrName + ":" + state.getProp(attrName));
+            }
+          }
         }
-      });
 
+        final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(taskSpecificState);
+        for ( final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS) ) {
+          if (pathsToRegisterFromSingleState.contains(path)){
+            continue;
+          }
+          pathsToRegisterFromSingleState.add(path);
+          completionService.submit(new Callable<Collection<HiveSpec>>() {
+            @Override
+            public Collection<HiveSpec> call() throws Exception {
+              return policy.getHiveSpecs(new Path(path));
+            }
+          });
+        }
+      }
+      else continue;
     }
-
-    for (int i = 0; i < pathsToRegister.size(); i++) {
+    for (int i = 0; i < pathsToRegisterFromSingleState.size(); i++) {
       try {
         for (HiveSpec spec : completionService.take().get()) {
           this.hiveRegister.register(spec);
@@ -113,17 +143,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
         throw new IOException(e);
       }
     }
-    log.info("Finished generating all HiveSpecs");
-  }
-
-  private static Set<String> getUniquePathsToRegister(Collection<? extends WorkUnitState> states) {
-    Set<String> paths = Sets.newHashSet();
-    for (State state : states) {
-      if (state.contains(ConfigurationKeys.PUBLISHER_DIRS)) {
-        paths.addAll(state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS));
-      }
-    }
-    return paths;
+    log.info("Finished registering all HiveSpecs");
   }
 
   @Override

@@ -1,53 +1,21 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metastore.database;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.linkedin.data.template.GetMode;
-import com.linkedin.data.template.StringMap;
-import gobblin.metastore.JobHistoryStore;
-import gobblin.rest.JobExecutionInfo;
-import gobblin.rest.JobExecutionQuery;
-import gobblin.rest.JobStateEnum;
-import gobblin.rest.LauncherTypeEnum;
-import gobblin.rest.Metric;
-import gobblin.rest.MetricArray;
-import gobblin.rest.MetricTypeEnum;
-import gobblin.rest.QueryListType;
-import gobblin.rest.Table;
-import gobblin.rest.TableTypeEnum;
-import gobblin.rest.TaskExecutionInfo;
-import gobblin.rest.TaskExecutionInfoArray;
-import gobblin.rest.TaskStateEnum;
-import gobblin.rest.TimeRange;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import org.apache.commons.lang.StringUtils;
-import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.FlywayException;
-import org.flywaydb.core.api.MigrationInfo;
-import org.flywaydb.core.api.MigrationInfoService;
-import org.flywaydb.core.api.MigrationVersion;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.io.IOException;
@@ -66,6 +34,38 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
+
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.linkedin.data.template.GetMode;
+import com.linkedin.data.template.StringMap;
+
+import gobblin.metastore.JobHistoryStore;
+import gobblin.rest.JobExecutionInfo;
+import gobblin.rest.JobExecutionQuery;
+import gobblin.rest.JobStateEnum;
+import gobblin.rest.LauncherTypeEnum;
+import gobblin.rest.Metric;
+import gobblin.rest.MetricArray;
+import gobblin.rest.MetricTypeEnum;
+import gobblin.rest.QueryListType;
+import gobblin.rest.Table;
+import gobblin.rest.TableTypeEnum;
+import gobblin.rest.TaskExecutionInfo;
+import gobblin.rest.TaskExecutionInfoArray;
+import gobblin.rest.TaskStateEnum;
+import gobblin.rest.TimeRange;
 
 
 /**
@@ -215,9 +215,9 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
 
       switch (query.getIdType()) {
         case JOB_ID:
-          return processQueryByIds(connection, query, Optional.<String>absent(), Lists.newArrayList(query.getId().getString()));
+          return processQueryByIds(connection, query, Filter.MISSING, Lists.newArrayList(query.getId().getString()));
         case JOB_NAME:
-          return processQueryByJobName(connection, query.getId().getString(), query, Optional.<String>absent());
+          return processQueryByJobName(connection, query.getId().getString(), query, Filter.MISSING);
         case TABLE:
           return processQueryByTable(connection, query);
         case LIST_TYPE:
@@ -243,20 +243,6 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
   public void close()
       throws IOException {
     // Nothing to do
-  }
-
-  private static DatabaseVersion getDatabaseVersions(DataSource dataSource)
-          throws FlywayException {
-    Flyway flyway = new Flyway();
-    flyway.setDataSource(dataSource);
-    MigrationInfoService info = flyway.info();
-    MigrationInfo[] all = info.all();
-    MigrationVersion latestVersion = all[all.length - 1].getVersion();
-    MigrationVersion currentVersion = MigrationVersion.EMPTY;
-    if (info.current() != null) {
-      currentVersion = info.current().getVersion();
-    }
-    return new DatabaseVersion(currentVersion, latestVersion);
   }
 
   private Connection getConnection()
@@ -457,8 +443,8 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
   }
 
   private List<JobExecutionInfo> processQueryByIds(Connection connection, JobExecutionQuery query,
-                                                   Optional<String> tableFilter, List<String> jobIds)
-          throws SQLException {
+                                                   Filter tableFilter, List<String> jobIds)
+      throws SQLException {
     Map<String, JobExecutionInfo> jobExecutionInfos = getJobExecutionInfos(connection, jobIds);
     addMetricsToJobExecutions(connection, query, jobExecutionInfos);
     addPropertiesToJobExecutions(connection, query, jobExecutionInfos);
@@ -467,7 +453,8 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
     return ImmutableList.copyOf(jobExecutionInfos.values());
   }
 
-  private Map<String, JobExecutionInfo> getJobExecutionInfos(Connection connection, List<String> jobIds) throws SQLException {
+  private Map<String, JobExecutionInfo> getJobExecutionInfos(Connection connection, List<String> jobIds)
+      throws SQLException {
     Map<String, JobExecutionInfo> jobExecutionInfos = Maps.newLinkedHashMap();
     if (jobIds != null && jobIds.size() > 0) {
       String template = String.format(JOB_EXECUTION_QUERY_BY_JOB_ID_STATEMENT_TEMPLATE, getInPredicate(jobIds.size()));
@@ -561,9 +548,10 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
     }
   }
 
-  private void addTasksToJobExecutions(Connection connection, JobExecutionQuery query, Optional<String> tableFilter,
-                                                                              Map<String, JobExecutionInfo> jobExecutionInfos) throws SQLException {
-    Map<String, Map<String, TaskExecutionInfo>> tasksExecutions = getTasksForJobExecutions(connection, query, tableFilter, jobExecutionInfos);
+  private void addTasksToJobExecutions(Connection connection, JobExecutionQuery query, Filter tableFilter,
+                                       Map<String, JobExecutionInfo> jobExecutionInfos) throws SQLException {
+    Map<String, Map<String, TaskExecutionInfo>> tasksExecutions =
+        getTasksForJobExecutions(connection, query, tableFilter, jobExecutionInfos);
     addMetricsToTasks(connection, query, tableFilter, tasksExecutions);
     addPropertiesToTasks(connection, query, tableFilter, tasksExecutions);
     for (Map.Entry<String, Map<String, TaskExecutionInfo>> taskExecution : tasksExecutions.entrySet()) {
@@ -577,19 +565,22 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
   }
 
   private Map<String, Map<String, TaskExecutionInfo>> getTasksForJobExecutions(Connection connection,
-                                       JobExecutionQuery query, Optional<String> tableFilter,
+                                       JobExecutionQuery query, Filter tableFilter,
                                        Map<String, JobExecutionInfo> jobExecutionInfos) throws SQLException {
     Map<String, Map<String, TaskExecutionInfo>> taskExecutionInfos = Maps.newLinkedHashMap();
     if (query.isIncludeTaskExecutions() && jobExecutionInfos.size() > 0) {
       String template = String.format(TASK_EXECUTION_QUERY_STATEMENT_TEMPLATE,
               getInPredicate(jobExecutionInfos.size()));
-      if (tableFilter.isPresent() && !Strings.isNullOrEmpty(tableFilter.get())) {
-        template += " AND " + tableFilter.get();
+      if (tableFilter.isPresent()) {
+        template += " AND " + tableFilter;
       }
       int index = 1;
       try (PreparedStatement taskExecutionQueryStatement = connection.prepareStatement(template)) {
         for (String jobId : jobExecutionInfos.keySet()) {
           taskExecutionQueryStatement.setString(index++, jobId);
+        }
+        if (tableFilter.isPresent()) {
+          tableFilter.addParameters(taskExecutionQueryStatement, index);
         }
         try (ResultSet taskRs = taskExecutionQueryStatement.executeQuery()) {
           while (taskRs.next()) {
@@ -605,17 +596,20 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
     return taskExecutionInfos;
   }
 
-  private void addMetricsToTasks(Connection connection, JobExecutionQuery query, Optional<String> tableFilter,
+  private void addMetricsToTasks(Connection connection, JobExecutionQuery query, Filter tableFilter,
                                  Map<String, Map<String, TaskExecutionInfo>> taskExecutionInfos) throws SQLException {
     if (query.isIncludeTaskMetrics() && taskExecutionInfos.size() > 0) {
       int index = 1;
       String template = String.format(TASK_METRIC_QUERY_STATEMENT_TEMPLATE, getInPredicate(taskExecutionInfos.size()));
-      if (tableFilter.isPresent() && !Strings.isNullOrEmpty(tableFilter.get())) {
-        template += " AND t." + tableFilter.get();
+      if (tableFilter.isPresent()) {
+        template += " AND t." + tableFilter;
       }
       try (PreparedStatement taskMetricQueryStatement = connection.prepareStatement(template)) {
         for (String jobId : taskExecutionInfos.keySet()) {
           taskMetricQueryStatement.setString(index++, jobId);
+        }
+        if (tableFilter.isPresent()) {
+          tableFilter.addParameters(taskMetricQueryStatement, index);
         }
         try (ResultSet taskMetricRs = taskMetricQueryStatement.executeQuery()) {
           while (taskMetricRs.next()) {
@@ -634,7 +628,7 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
     }
   }
 
-  private void addPropertiesToTasks(Connection connection, JobExecutionQuery query, Optional<String> tableFilter,
+  private void addPropertiesToTasks(Connection connection, JobExecutionQuery query, Filter tableFilter,
                                     Map<String, Map<String, TaskExecutionInfo>> taskExecutionInfos)
           throws SQLException {
     if (taskExecutionInfos.size() > 0) {
@@ -654,8 +648,8 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
         if (propertyKeys != null && propertyKeys.size() > 0) {
           template += String.format("AND property_key IN (%s)", getInPredicate(propertyKeys.size()));
         }
-        if (tableFilter.isPresent() && !Strings.isNullOrEmpty(tableFilter.get())) {
-          template += " AND t." + tableFilter.get();
+        if (tableFilter.isPresent()) {
+          template += " AND t." + tableFilter;
         }
         int index = 1;
         try (PreparedStatement taskPropertiesQueryStatement = connection.prepareStatement(template)) {
@@ -666,6 +660,9 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
             for (String propertyKey : propertyKeys) {
               taskPropertiesQueryStatement.setString(index++, propertyKey);
             }
+          }
+          if (tableFilter.isPresent()) {
+            tableFilter.addParameters(taskPropertiesQueryStatement, index);
           }
           try (ResultSet taskPropertiesRs = taskPropertiesQueryStatement.executeQuery()) {
             while (taskPropertiesRs.next()) {
@@ -689,18 +686,19 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
   }
 
   private List<JobExecutionInfo> processQueryByJobName(Connection connection, String jobName, JobExecutionQuery query,
-      Optional<String> tableFilter)
+      Filter tableFilter)
       throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(jobName));
 
     // Construct the query for job IDs by a given job name
+    Filter filter = Filter.MISSING;
     String jobIdByNameQuery = JOB_ID_QUERY_BY_JOB_NAME_STATEMENT_TEMPLATE;
     if (query.hasTimeRange()) {
       // Add time range filter if applicable
       try {
-        String timeRangeFilter = constructTimeRangeFilter(query.getTimeRange());
-        if (!Strings.isNullOrEmpty(timeRangeFilter)) {
-          jobIdByNameQuery += " AND " + timeRangeFilter;
+        filter = constructTimeRangeFilter(query.getTimeRange());
+        if (filter.isPresent()) {
+          jobIdByNameQuery += " AND " + filter;
         }
       } catch (ParseException pe) {
         LOGGER.error("Failed to parse the query time range", pe);
@@ -719,6 +717,9 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
         queryStatement.setMaxRows(limit);
       }
       queryStatement.setString(1, jobName);
+      if (filter.isPresent()) {
+        filter.addParameters(queryStatement, 2);
+      }
       try (ResultSet rs = queryStatement.executeQuery()) {
         while (rs.next()) {
           jobIds.add(rs.getString(1));
@@ -732,17 +733,20 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
       throws SQLException {
     Preconditions.checkArgument(query.getId().isTable());
 
-    String tableFilter = constructTableFilter(query.getId().getTable());
+    Filter tableFilter = constructTableFilter(query.getId().getTable());
 
     // Construct the query for job names by table definition
-    String jobNameByTableQuery = String.format(JOB_NAME_QUERY_BY_TABLE_STATEMENT_TEMPLATE, tableFilter);
+    String jobNameByTableQuery = String.format(JOB_NAME_QUERY_BY_TABLE_STATEMENT_TEMPLATE, tableFilter.getFilter());
 
     List<JobExecutionInfo> jobExecutionInfos = Lists.newArrayList();
     // Query job names by table definition
     try (PreparedStatement queryStatement = connection.prepareStatement(jobNameByTableQuery)) {
+      if (tableFilter.isPresent()) {
+        tableFilter.addParameters(queryStatement, 1);
+      }
       try (ResultSet rs = queryStatement.executeQuery()) {
         while (rs.next()) {
-          jobExecutionInfos.addAll(processQueryByJobName(connection, rs.getString(1), query, Optional.of(tableFilter)));
+          jobExecutionInfos.addAll(processQueryByJobName(connection, rs.getString(1), query, tableFilter));
         }
       }
 
@@ -754,14 +758,15 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
       throws SQLException {
     Preconditions.checkArgument(query.getId().isQueryListType());
 
+    Filter timeRangeFilter = Filter.MISSING;
     QueryListType queryType = query.getId().getQueryListType();
     String listJobExecutionsQuery;
     if (queryType == QueryListType.DISTINCT) {
       listJobExecutionsQuery = LIST_DISTINCT_JOB_EXECUTION_QUERY_TEMPLATE;
       if (query.hasTimeRange()) {
         try {
-          String timeRangeFilter = constructTimeRangeFilter(query.getTimeRange());
-          if (!Strings.isNullOrEmpty(timeRangeFilter)) {
+          timeRangeFilter = constructTimeRangeFilter(query.getTimeRange());
+          if (timeRangeFilter.isPresent()) {
             listJobExecutionsQuery += " AND " + timeRangeFilter;
           }
         } catch (ParseException pe) {
@@ -779,13 +784,15 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
       if (limit > 0) {
         queryStatement.setMaxRows(limit);
       }
-
+      if (timeRangeFilter.isPresent()) {
+        timeRangeFilter.addParameters(queryStatement, 1);
+      }
       try (ResultSet rs = queryStatement.executeQuery()) {
         List<String> jobIds = Lists.newArrayList();
         while (rs.next()) {
           jobIds.add(rs.getString(1));
         }
-        return processQueryByIds(connection, query, Optional.<String>absent(), jobIds);
+        return processQueryByIds(connection, query, Filter.MISSING, jobIds);
       }
     }
   }
@@ -898,40 +905,46 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
     return new AbstractMap.SimpleEntry<>(rs.getString("property_key"), rs.getString("property_value"));
   }
 
-  private String constructTimeRangeFilter(TimeRange timeRange)
+  private Filter constructTimeRangeFilter(TimeRange timeRange)
       throws ParseException {
+    List<String> values = Lists.newArrayList();
     StringBuilder sb = new StringBuilder();
 
     if (!timeRange.hasTimeFormat()) {
       LOGGER.warn("Skipping the time range filter as there is no time format in: " + timeRange);
-      return "";
+      return Filter.MISSING;
     }
 
     DateFormat dateFormat = new SimpleDateFormat(timeRange.getTimeFormat());
 
     boolean hasStartTime = timeRange.hasStartTime();
     if (hasStartTime) {
-      Timestamp startTimestamp = new Timestamp(dateFormat.parse(timeRange.getStartTime()).getTime());
-      sb.append("start_time>'").append(startTimestamp.toString()).append("'");
+      sb.append("start_time>?");
+      values.add(new Timestamp(dateFormat.parse(timeRange.getStartTime()).getTime()).toString());
     }
 
     if (timeRange.hasEndTime()) {
       if (hasStartTime) {
         sb.append(" AND ");
       }
-      Timestamp endTimestamp = new Timestamp(dateFormat.parse(timeRange.getEndTime()).getTime());
-      sb.append("end_time<'").append(endTimestamp.toString()).append("'");
+      sb.append("end_time<?");
+      values.add(new Timestamp(dateFormat.parse(timeRange.getEndTime()).getTime()).toString());
     }
 
-    return sb.toString();
+    if (sb.length() > 0) {
+      return new Filter(sb.toString(), values);
+    }
+    return Filter.MISSING;
   }
 
-  private String constructTableFilter(Table table) {
+  private Filter constructTableFilter(Table table) {
+    List<String> values = Lists.newArrayList();
     StringBuilder sb = new StringBuilder();
 
     boolean hasNamespace = table.hasNamespace();
     if (hasNamespace) {
-      sb.append("table_namespace='").append(table.getNamespace()).append("'");
+      sb.append("table_namespace=?");
+      values.add(table.getNamespace());
     }
 
     boolean hasName = table.hasName();
@@ -939,17 +952,22 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
       if (hasNamespace) {
         sb.append(" AND ");
       }
-      sb.append("table_name='").append(table.getName()).append("'");
+      sb.append("table_name=?");
+      values.add(table.getName());
     }
 
     if (table.hasType()) {
       if (hasName) {
         sb.append(" AND ");
       }
-      sb.append("table_type='").append(table.getType().name()).append("'");
+      sb.append("table_type=?");
+      values.add(table.getType().name());
     }
 
-    return sb.toString();
+    if (sb.length() > 0) {
+      return new Filter(sb.toString(), values);
+    }
+    return Filter.MISSING;
   }
 
   private static Calendar getCalendarUTCInstance() {
@@ -958,18 +976,5 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
 
   private static String getInPredicate(int count) {
     return StringUtils.join(Iterables.limit(Iterables.cycle("?"), count).iterator(), ",");
-  }
-
-  @AllArgsConstructor
-  private static class DatabaseVersion {
-    @Getter
-    private final MigrationVersion current;
-
-    @Getter
-    private final MigrationVersion expected;
-
-    public boolean isUpToDate() {
-      return current.compareTo(expected) >= 0;
-    }
   }
 }

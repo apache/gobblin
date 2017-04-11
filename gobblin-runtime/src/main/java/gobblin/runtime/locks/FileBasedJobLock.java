@@ -1,25 +1,30 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime.locks;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Properties;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.HadoopUtils;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
+import com.google.common.annotations.VisibleForTesting;
+
+import gobblin.configuration.ConfigurationKeys;
 
 
 /**
@@ -33,24 +38,21 @@ import org.apache.hadoop.fs.Path;
  * @author Yinan Li
  */
 public class FileBasedJobLock implements JobLock {
+  /** Legacy */
   public static final String JOB_LOCK_DIR = "job.lock.dir";
   public static final String LOCK_FILE_EXTENSION = ".lock";
 
-  private FileSystem fs;
-  // Empty file associated with the lock
-  private Path lockFile;
+  private final FileBasedJobLockFactory parent;
+  private final Path lockFile;
 
   public FileBasedJobLock(Properties properties) throws JobLockException {
-    try {
-      this.fs = FileSystem.get(
-          URI.create(properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI)),
-          HadoopUtils.getConfFromProperties(properties));
-      String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-      String lockFileDir = properties.getProperty(JOB_LOCK_DIR);
-      this.lockFile = new Path(lockFileDir, jobName + LOCK_FILE_EXTENSION);
-    } catch (IOException e) {
-      throw new JobLockException(e);
-    }
+    this(properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
+         FileBasedJobLockFactory.createForProperties(properties));
+  }
+
+  FileBasedJobLock(String jobName, FileBasedJobLockFactory parent) {
+    this.parent = parent;
+    this.lockFile = parent.getLockFile(jobName);
   }
 
     /**
@@ -60,13 +62,7 @@ public class FileBasedJobLock implements JobLock {
    */
   @Override
   public void lock() throws JobLockException {
-    try {
-      if (!this.fs.createNewFile(this.lockFile)) {
-        throw new JobLockException("Failed to create lock file " + this.lockFile.getName());
-      }
-    } catch (IOException e) {
-      throw new JobLockException(e);
-    }
+    this.parent.lock(this.lockFile);
   }
 
   /**
@@ -76,15 +72,7 @@ public class FileBasedJobLock implements JobLock {
    */
   @Override
   public void unlock() throws JobLockException {
-    if (!isLocked()) {
-      return;
-    }
-
-    try {
-      this.fs.delete(this.lockFile, false);
-    } catch (IOException e) {
-      throw new JobLockException(e);
-    }
+    this.parent.unlock(this.lockFile);
   }
 
   /**
@@ -96,11 +84,7 @@ public class FileBasedJobLock implements JobLock {
    */
   @Override
   public boolean tryLock() throws JobLockException {
-    try {
-      return this.fs.createNewFile(this.lockFile);
-    } catch (IOException e) {
-      throw new JobLockException(e);
-    }
+    return this.parent.tryLock(this.lockFile);
   }
 
   /**
@@ -111,11 +95,7 @@ public class FileBasedJobLock implements JobLock {
    */
   @Override
   public boolean isLocked() throws JobLockException {
-    try {
-      return this.fs.exists(this.lockFile);
-    } catch (IOException e) {
-      throw new JobLockException(e);
-    }
+    return this.parent.isLocked(this.lockFile);
   }
 
   /**
@@ -127,5 +107,10 @@ public class FileBasedJobLock implements JobLock {
    */
   @Override
   public void close() throws IOException {
+  }
+
+  @VisibleForTesting
+  Path getLockFile() {
+    return lockFile;
   }
 }

@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.conversion.hive.query;
@@ -319,12 +324,11 @@ public class HiveAvroORCQueryGenerator {
    * @param tableName Hive table name.
    * @param partitionLocation Physical location of partition.
    * @param partitionsDMLInfo Partitions DML info - a map of partition name and partition value.
+   * @param format Hive partition file format
    * @return Commands to create a partition.
    */
-  public static List<String> generateCreatePartitionDDL(String dbName,
-      String tableName,
-      String partitionLocation,
-      Map<String, String> partitionsDMLInfo) {
+  public static List<String> generateCreatePartitionDDL(String dbName, String tableName, String partitionLocation,
+      Map<String, String> partitionsDMLInfo, Optional<String> format) {
 
     if (null == partitionsDMLInfo || partitionsDMLInfo.size() == 0) {
       return Collections.emptyList();
@@ -350,10 +354,22 @@ public class HiveAvroORCQueryGenerator {
     // .. hence specifying 'use dbName' as a precursor to rename
     // Refer: HIVE-2496
     ddls.add(String.format("USE %s%n", dbName));
-    ddls.add(String.format("ALTER TABLE `%s` ADD IF NOT EXISTS %s LOCATION '%s' ", tableName, partitionSpecs,
-        partitionLocation));
+    if (format.isPresent()) {
+      ddls.add(String
+          .format("ALTER TABLE `%s` ADD IF NOT EXISTS %s FILEFORMAT %s LOCATION '%s' ", tableName, partitionSpecs,
+              format.get(), partitionLocation));
+    } else {
+      ddls.add(String.format("ALTER TABLE `%s` ADD IF NOT EXISTS %s LOCATION '%s' ", tableName, partitionSpecs,
+          partitionLocation));
+    }
 
     return ddls;
+  }
+
+  public static List<String> generateCreatePartitionDDL(String dbName, String tableName, String partitionLocation,
+      Map<String, String> partitionsDMLInfo) {
+    return generateCreatePartitionDDL(dbName, tableName, partitionLocation, partitionsDMLInfo,
+        Optional.<String>absent());
   }
 
   /***
@@ -816,6 +832,11 @@ public class HiveAvroORCQueryGenerator {
 
     // Evolve schema
     Table destinationTable = destinationTableMeta.get();
+    if (destinationTable.getSd().getCols().size() == 0) {
+      log.warn("Desination Table: " + destinationTable + " does not has column details in StorageDescriptor. "
+          + "It is probably of Avro type. Cannot evolve via traditional HQL, so skipping evolution checks.");
+      return ddl;
+    }
     for (Map.Entry<String, String> evolvedColumn : evolvedColumns.entrySet()) {
       // Find evolved column in destination table
       boolean found = false;
@@ -912,6 +933,107 @@ public class HiveAvroORCQueryGenerator {
     // Join the partition specs
     ddls.add(String.format("ALTER TABLE %s DROP IF EXISTS %s", finalTableName,
         Joiner.on(",").join(Iterables.transform(partitionDMLInfos, PARTITION_SPEC_GENERATOR))));
+
+    return ddls;
+  }
+
+  /***
+   * Generate DDL for creating and updating view over a table.
+   *
+   * Create view:
+   * <p>
+   *   CREATE VIEW IF NOT EXISTS db.viewName AS SELECT * FROM db.tableName
+   * </p>
+   *
+   * Update view:
+   * <p>
+   *   ALTER VIEW db.viewName AS SELECT * FROM db.tableName
+   * </p>
+   *
+   * @param tableDbName       Database for the table over which view has to be created.
+   * @param tableName         Table over which view has to be created.
+   * @param viewDbName        Database for the view to be created.
+   * @param viewName          View to be created.
+   * @param shouldUpdateView  If view should be forced re-built.
+   * @return DDLs to create and / or update view over a table
+   */
+  public static List<String> generateCreateOrUpdateViewDDL(final String tableDbName, final String tableName,
+      final String viewDbName, final String viewName, final boolean shouldUpdateView) {
+
+    Preconditions.checkArgument(StringUtils.isNotBlank(tableName), "Table name should not be empty");
+    Preconditions.checkArgument(StringUtils.isNotBlank(viewName), "View name should not be empty");
+
+    // Resolve defaults
+    String resolvedTableDbName = (StringUtils.isBlank(tableDbName)) ? DEFAULT_DB_NAME : tableDbName;
+    String resolvedViewDbName = (StringUtils.isBlank(viewDbName)) ? DEFAULT_DB_NAME : viewDbName;
+
+    List<String> ddls = Lists.newArrayList();
+
+    // No-op if view already exists
+    ddls.add(String.format("CREATE VIEW IF NOT EXISTS `%s`.`%s` AS SELECT * FROM `%s`.`%s`",
+        resolvedViewDbName, viewName,
+        resolvedTableDbName, tableName));
+
+    // This will force re-build the view
+    if (shouldUpdateView) {
+      ddls.add(String.format("ALTER VIEW `%s`.`%s` AS SELECT * FROM `%s`.`%s`",
+          resolvedViewDbName, viewName,
+          resolvedTableDbName, tableName));
+    }
+
+    return ddls;
+  }
+
+  /***
+   * Generate DDL for updating file format of table or partition.
+   * If partition spec is absent, DDL query to change storage format of Table is generated.
+   *
+   * Query syntax:
+   * <p>
+   *   ALTER TABLE tableName [PARTITION partition_spec] SET FILEFORMAT fileFormat
+   * </p>
+   *
+   * @param dbName            Database for the table for which storage format needs to be changed.
+   * @param tableName         Table for which storage format needs to be changed.
+   * @param partitionsDMLInfo Optional partition spec for which storage format needs to be changed.
+   * @param format            Storage format.
+   * @return DDL to change storage format for Table or Partition.
+   */
+  public static List<String> generateAlterTableOrPartitionStorageFormatDDL(final String dbName,
+      final String tableName,
+      final Optional<Map<String, String>> partitionsDMLInfo,
+      String format) {
+    Preconditions.checkArgument(StringUtils.isNotBlank(tableName), "Table name should not be empty");
+    Preconditions.checkArgument(StringUtils.isNotBlank(format), "Format should not be empty");
+
+    // Resolve defaults
+    String resolvedDbName = (StringUtils.isBlank(dbName)) ? DEFAULT_DB_NAME : dbName;
+
+    // Partition details
+    StringBuilder partitionSpecs = new StringBuilder();
+
+    if (partitionsDMLInfo.isPresent()) {
+      partitionSpecs.append("PARTITION (");
+      boolean isFirstPartitionSpec = true;
+      for (Map.Entry<String, String> partition : partitionsDMLInfo.get().entrySet()) {
+        if (isFirstPartitionSpec) {
+          isFirstPartitionSpec = false;
+        } else {
+          partitionSpecs.append(", ");
+        }
+        partitionSpecs.append(String.format("`%s`='%s'", partition.getKey(), partition.getValue()));
+      }
+      partitionSpecs.append(") ");
+    }
+
+    List<String> ddls = Lists.newArrayList();
+
+
+    // Note: Hive does not support fully qualified Hive table names such as db.table for ALTER TABLE in v0.13
+    // .. hence specifying 'use dbName' as a precursor to rename
+    // Refer: HIVE-2496
+    ddls.add(String.format("USE %s%n", resolvedDbName));
+    ddls.add(String.format("ALTER TABLE %s %s SET FILEFORMAT %s", tableName, partitionSpecs, format));
 
     return ddls;
   }

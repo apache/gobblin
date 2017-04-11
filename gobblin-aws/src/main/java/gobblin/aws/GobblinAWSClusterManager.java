@@ -1,4 +1,24 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.aws;
+
+import java.util.Collections;
+import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -25,6 +45,7 @@ import gobblin.cluster.GobblinClusterManager;
 import gobblin.cluster.GobblinHelixJobScheduler;
 import gobblin.cluster.HelixMessageSubTypes;
 import gobblin.cluster.JobConfigurationManager;
+import gobblin.util.JvmUtils;
 
 
 /**
@@ -75,6 +96,10 @@ public class GobblinAWSClusterManager extends GobblinClusterManager {
     @Override
     public String getMessageType() {
       return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
     }
 
     @Override
@@ -140,6 +165,8 @@ public class GobblinAWSClusterManager extends GobblinClusterManager {
 
       Log4jConfigHelper.updateLog4jConfiguration(GobblinAWSClusterManager.class,
           GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE);
+
+      LOGGER.info(JvmUtils.getJvmInputArguments());
 
       // Note: Application id is required param for {@link GobblinClusterManager} super class
       // .. but has not meaning in AWS cluster context, so defaulting to a fixed value

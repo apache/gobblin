@@ -1,9 +1,27 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.runtime.job_catalog;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collections;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Set;
 
@@ -17,21 +35,16 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.JobCatalog;
-import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecNotFoundException;
 import gobblin.util.PathUtils;
@@ -43,14 +56,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 
-public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCatalog {
+public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog {
 
   protected final FileSystem fs;
   protected final Config sysConfig;
-  protected final MetricContext metricContext;
-  protected final StandardMetrics metrics;
 
-  protected final JobCatalogListenersList listeners;
   protected static final Logger LOGGER = LoggerFactory.getLogger(ImmutableFSJobCatalog.class);
 
   protected final PullFileLoader loader;
@@ -62,6 +72,7 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
   // A monitor for changes to job conf files for general FS
   // This embedded monitor is monitoring job configuration files instead of JobSpec Object.
   protected final PathAlterationDetector pathAlterationDetector;
+  public static final String FS_CATALOG_KEY_PREFIX = "gobblin.fsJobCatalog";
   public static final String VERSION_KEY_IN_JOBSPEC = "gobblin.fsJobCatalog.version";
   // Key used in the metadata of JobSpec.
   public static final String DESCRIPTION_KEY_IN_JOBSPEC = "gobblin.fsJobCatalog.description";
@@ -91,12 +102,12 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
   public ImmutableFSJobCatalog(Config sysConfig, PathAlterationObserver observer, Optional<MetricContext> parentMetricContext,
       boolean instrumentationEnabled)
       throws IOException {
+    super(Optional.of(LOGGER), parentMetricContext, instrumentationEnabled);
     this.sysConfig = sysConfig;
     ConfigAccessor cfgAccessor = new ConfigAccessor(this.sysConfig);
 
     this.jobConfDirPath = cfgAccessor.getJobConfDirPath();
     this.fs = cfgAccessor.getJobConfDirFileSystem();
-    this.listeners = new JobCatalogListenersList(Optional.of(LOGGER));
 
     this.loader = new PullFileLoader(jobConfDirPath, jobConfDirPath.getFileSystem(new Configuration()),
         cfgAccessor.getJobConfigurationFileExtensions(),
@@ -104,38 +115,43 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
     this.converter = new ImmutableFSJobCatalog.JobSpecConverter(this.jobConfDirPath, getInjectedExtension());
 
     long pollingInterval = cfgAccessor.getPollingInterval();
-    this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
 
-    // If absent, the Optional object will be created automatically by addPathAlterationObserver
-    Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(observer);
-    FSPathAlterationListenerAdaptor configFilelistener =
-        new FSPathAlterationListenerAdaptor(this.jobConfDirPath, this.loader, this.sysConfig, this.listeners,
-            this.converter);
-    this.pathAlterationDetector.addPathAlterationObserver(configFilelistener, observerOptional,
-        this.jobConfDirPath);
-
-    if (instrumentationEnabled) {
-      MetricContext realParentCtx =
-          parentMetricContext.or(Instrumented.getMetricContext(new gobblin.configuration.State(), getClass()));
-      this.metricContext = realParentCtx.childBuilder("JobCatalog").build();
-      this.metrics = new StandardMetrics(this);
+    if (pollingInterval == ConfigurationKeys.DISABLED_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL) {
+      this.pathAlterationDetector = null;
     }
     else {
-      this.metricContext = null;
-      this.metrics = null;
+      this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
+
+      // If absent, the Optional object will be created automatically by addPathAlterationObserver
+      Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(observer);
+      FSPathAlterationListenerAdaptor configFilelistener =
+          new FSPathAlterationListenerAdaptor(this.jobConfDirPath, this.loader, this.sysConfig, this.listeners,
+              this.converter);
+      this.pathAlterationDetector.addPathAlterationObserver(configFilelistener, observerOptional, this.jobConfDirPath);
     }
   }
 
   @Override
   protected void startUp()
       throws IOException {
-    this.pathAlterationDetector.start();
+    super.startUp();
+
+    if (this.pathAlterationDetector != null) {
+      this.pathAlterationDetector.start();
+    }
   }
 
   @Override
   protected void shutDown()
-      throws IOException, InterruptedException {
-    this.pathAlterationDetector.stop();
+      throws IOException {
+    try {
+      if (this.pathAlterationDetector != null) {
+        this.pathAlterationDetector.stop();
+      }
+    } catch (InterruptedException exc) {
+      throw new RuntimeException("Failed to stop " + ImmutableFSJobCatalog.class.getName(), exc);
+    }
+    super.shutDown();
   }
 
   /**
@@ -161,50 +177,11 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
     try {
       Path targetJobSpecFullPath = getPathForURI(this.jobConfDirPath, uri);
       return this.converter.apply(loader.loadPullFile(targetJobSpecFullPath, this.sysConfig, shouldLoadGlobalConf()));
+    } catch (FileNotFoundException e) {
+      throw new JobSpecNotFoundException(uri);
     } catch (IOException e) {
       throw new RuntimeException("IO exception thrown on loading single job configuration file:" + e.getMessage());
     }
-  }
-
-  /**
-   * For each new coming JobCatalogListener, react accordingly to add all existing JobSpec.
-   * @param jobListener
-   */
-  @Override
-  public synchronized void addListener(JobCatalogListener jobListener) {
-    Preconditions.checkNotNull(jobListener);
-
-    this.listeners.addListener(jobListener);
-
-    List<JobSpec> currentJobSpecList = this.getJobs();
-    if (currentJobSpecList == null || currentJobSpecList.size() == 0) {
-      return;
-    } else {
-      for (JobSpec jobSpecEntry : currentJobSpecList) {
-        JobCatalogListener.AddJobCallback addJobCallback = new JobCatalogListener.AddJobCallback(jobSpecEntry);
-        this.listeners.callbackOneListener(addJobCallback, jobListener);
-      }
-    }
-  }
-
-  @Override
-  public void registerWeakJobCatalogListener(JobCatalogListener jobListener) {
-    this.listeners.registerWeakJobCatalogListener(jobListener);
-
-    List<JobSpec> currentJobSpecList = this.getJobs();
-    if (currentJobSpecList == null || currentJobSpecList.size() == 0) {
-      return;
-    } else {
-      for (JobSpec jobSpecEntry : currentJobSpecList) {
-        JobCatalogListener.AddJobCallback addJobCallback = new JobCatalogListener.AddJobCallback(jobSpecEntry);
-        this.listeners.callbackOneListener(addJobCallback, jobListener);
-      }
-    }
-  }
-
-  @Override
-  public synchronized void removeListener(JobCatalogListener jobListener) {
-    this.listeners.removeListener(jobListener);
   }
 
   /**
@@ -227,30 +204,6 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
 
   protected Optional<String> getInjectedExtension() {
     return Optional.absent();
-  }
-
-  @Override public MetricContext getMetricContext() {
-    return this.metricContext;
-  }
-
-  @Override public boolean isInstrumentationEnabled() {
-    return null != this.metricContext;
-  }
-
-  @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
-    return Collections.emptyList();
-  }
-
-  @Override public void switchMetricContext(List<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override public void switchMetricContext(MetricContext context) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override public StandardMetrics getMetrics() {
-    return this.metrics;
   }
 
   @Getter
@@ -347,12 +300,21 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
         description = "Gobblin job " + jobConfigURI;
       }
 
+      Config filteredConfig = rawConfig.withoutPath(FS_CATALOG_KEY_PREFIX);
       // The builder has null-checker. Leave the checking there.
-      return JobSpec.builder(jobConfigURI)
-          .withConfig(rawConfig)
+      JobSpec.Builder builder = JobSpec.builder(jobConfigURI).withConfig(filteredConfig)
           .withDescription(description)
-          .withVersion(version)
-          .build();
+          .withVersion(version);
+
+      if (rawConfig.hasPath(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+        try {
+          builder.withTemplate(new URI(rawConfig.getString(ConfigurationKeys.JOB_TEMPLATE_PATH)));
+        } catch (URISyntaxException e) {
+          throw new RuntimeException("Bad job template URI " + e, e);
+        }
+      }
+
+      return builder.build();
     }
   }
 }

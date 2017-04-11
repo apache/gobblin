@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.extract.sftp;
@@ -205,7 +210,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
     try {
       ChannelSftp channelSftp = this.fsHelper.getSftpChannel();
       InputStream is = channelSftp.get(HadoopUtils.toUriPath(path), monitor);
-      return new FSDataInputStream(new BufferedFSInputStream(new SftpFsFileInputStream(is, channelSftp), bufferSize));
+      return new FSDataInputStream(new BufferedFSInputStream(new SftpFsHelper.SftpFsFileInputStream(is, channelSftp), bufferSize));
     } catch (SftpException e) {
       throw new IOException(e);
     }
@@ -259,26 +264,6 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public FSDataOutputStream create(Path arg0, FsPermission arg1, boolean arg2, int arg3, short arg4, long arg5,
       Progressable arg6) throws IOException {
     throw new UnsupportedOperationException("Not implemented");
-  }
-
-  /**
-   * A {@link SeekableFSInputStream} that holds a handle on the Sftp {@link Channel} used to open the
-   * {@link InputStream}. The {@link Channel} is disconnected when {@link InputStream#close()} is called.
-   */
-  private static class SftpFsFileInputStream extends SeekableFSInputStream {
-
-    private final Channel channel;
-
-    public SftpFsFileInputStream(InputStream in, Channel channel) {
-      super(in);
-      this.channel = channel;
-    }
-
-    @Override
-    public void close() throws IOException {
-      super.close();
-      this.channel.disconnect();
-    }
   }
 
   /**

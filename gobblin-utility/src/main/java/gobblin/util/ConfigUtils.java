@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util;
@@ -17,14 +22,14 @@ import java.io.StringReader;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.commons.lang3.StringUtils;
-
-import au.com.bytecode.opencsv.CSVReader;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -32,6 +37,8 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.opencsv.CSVReader;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
@@ -39,6 +46,7 @@ import com.typesafe.config.ConfigList;
 import com.typesafe.config.ConfigValue;
 
 import gobblin.configuration.State;
+import gobblin.password.PasswordManager;
 
 
 /**
@@ -51,6 +59,12 @@ public class ConfigUtils {
    * Usually, it is the key that is both the parent object of a value and a value, which is disallowed by Typesafe.
    */
   private static final String GOBBLIN_CONFIG_BLACKLIST_KEYS = "gobblin.config.blacklistKeys";
+
+  /**
+   * A suffix that is automatically appended to property keys that are prefixes of other
+   * property keys. This is used during Properties -> Config -> Properties conversion since
+   * typesafe config does not allow such properties. */
+  public static final String STRIP_SUFFIX = ".ROOT_VALUE";
 
   /**
    * Convert a given {@link Config} instance to a {@link Properties} instance.
@@ -72,10 +86,13 @@ public class ConfigUtils {
    */
   public static Properties configToProperties(Config config, Optional<String> prefix) {
     Properties properties = new Properties();
-    Config resolvedConfig = config.resolve();
-    for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
-      if (!prefix.isPresent() || entry.getKey().startsWith(prefix.get())) {
-        properties.setProperty(entry.getKey(), resolvedConfig.getString(entry.getKey()));
+    if (config != null) {
+      Config resolvedConfig = config.resolve();
+      for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
+        if (!prefix.isPresent() || entry.getKey().startsWith(prefix.get())) {
+          String propKey = desanitizeKey(entry.getKey());
+          properties.setProperty(propKey, resolvedConfig.getString(entry.getKey()));
+        }
       }
     }
 
@@ -131,6 +148,37 @@ public class ConfigUtils {
   }
 
   /**
+   * Finds a list of properties whose keys are complete prefix of other keys. This function is
+   * meant to be used during conversion from Properties to typesafe Config as the latter does not
+   * support this scenario.
+   * @param     properties      the Properties collection to inspect
+   * @param     keyPrefix       an optional key prefix which limits which properties are inspected.
+   * */
+  public static Set<String> findFullPrefixKeys(Properties properties,
+                                               Optional<String> keyPrefix) {
+    TreeSet<String> propNames = new TreeSet<>();
+    for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+      String entryKey = entry.getKey().toString();
+      if (StringUtils.startsWith(entryKey, keyPrefix.or(StringUtils.EMPTY))) {
+        propNames.add(entryKey);
+      }
+    }
+
+    Set<String> result = new HashSet<>();
+    String lastKey = null;
+    Iterator<String> sortedKeysIter = propNames.iterator();
+    while(sortedKeysIter.hasNext()) {
+      String propName = sortedKeysIter.next();
+      if (null != lastKey && propName.startsWith(lastKey + ".")) {
+        result.add(lastKey);
+      }
+      lastKey = propName;
+    }
+
+    return result;
+  }
+
+  /**
    * Convert all the keys that start with a <code>prefix</code> in {@link Properties} to a {@link Config} instance.
    *
    * <p>
@@ -149,15 +197,38 @@ public class ConfigUtils {
       blacklistedKeys = new HashSet<>(Splitter.on(',').omitEmptyStrings().trimResults()
           .splitToList(properties.getProperty(GOBBLIN_CONFIG_BLACKLIST_KEYS)));
     }
+
+    Set<String> fullPrefixKeys = findFullPrefixKeys(properties, prefix);
+
     ImmutableMap.Builder<String, Object> immutableMapBuilder = ImmutableMap.builder();
     for (Map.Entry<Object, Object> entry : properties.entrySet()) {
       String entryKey = entry.getKey().toString();
-      if (StringUtils.startsWith(entryKey, prefix.or(StringUtils.EMPTY)) && !blacklistedKeys.contains(entryKey)) {
+      if (StringUtils.startsWith(entryKey, prefix.or(StringUtils.EMPTY)) &&
+          !blacklistedKeys.contains(entryKey)) {
+        if (fullPrefixKeys.contains(entryKey)) {
+          entryKey = sanitizeFullPrefixKey(entryKey);
+        } else if (entryKey.endsWith(STRIP_SUFFIX)) {
+          throw new RuntimeException("Properties are not allowed to end in " + STRIP_SUFFIX);
+        }
         immutableMapBuilder.put(entryKey, entry.getValue());
       }
     }
     return ConfigFactory.parseMap(immutableMapBuilder.build());
   }
+
+  public static String sanitizeFullPrefixKey(String propKey) {
+    return propKey + STRIP_SUFFIX;
+  }
+
+  public static String desanitizeKey(String propKey) {
+    propKey =  propKey.endsWith(STRIP_SUFFIX) ?
+        propKey.substring(0, propKey.length() - STRIP_SUFFIX.length()) : propKey;
+
+    // Also strip quotes that can get introduced by TypeSafe.Config
+    propKey = propKey.replace("\"", "");
+    return propKey;
+  }
+
 
   /**
    * Convert all the keys that start with a <code>prefix</code> in {@link Properties} to a
@@ -396,5 +467,36 @@ public class ConfigUtils {
       }
     }
     return true;
+  }
+
+  /**
+   * Resolves encrypted config value(s) by considering on the path with "encConfigPath" as encrypted.
+   * (If encConfigPath is absent or encConfigPath does not exist in config, config will be just returned untouched.)
+   * It will use Password manager via given config. Thus, convention of PasswordManager need to be followed in order to be decrypted.
+   * Note that "encConfigPath" path will be removed from the config key, leaving child path on the config key.
+   * e.g:
+   *  encConfigPath = enc.conf
+   *  - Before : { enc.conf.secret_key : ENC(rOF43721f0pZqAXg#63a) }
+   *  - After  : { secret_key : decrypted_val }
+   *
+   * @param config
+   * @param encConfigPath
+   * @return
+   */
+  public static Config resolveEncrypted(Config config, Optional<String> encConfigPath) {
+    if (!encConfigPath.isPresent() || !config.hasPath(encConfigPath.get())) {
+      return config;
+    }
+
+    Config encryptedConfig = config.getConfig(encConfigPath.get());
+
+    PasswordManager passwordManager = PasswordManager.getInstance(configToProperties(config));
+    Map<String, String> tmpMap = Maps.newHashMap();
+    for (Map.Entry<String, ConfigValue> entry : encryptedConfig.entrySet()) {
+      String val = entry.getValue().unwrapped().toString();
+      val = passwordManager.readPassword(val);
+      tmpMap.put(entry.getKey(), val);
+    }
+    return ConfigFactory.parseMap(tmpMap).withFallback(config);
   }
 }

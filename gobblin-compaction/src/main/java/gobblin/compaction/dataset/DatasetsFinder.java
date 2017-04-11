@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.compaction.dataset;
@@ -15,7 +20,6 @@ package gobblin.compaction.dataset;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -24,12 +28,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import lombok.extern.slf4j.Slf4j;
 
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.configuration.State;
@@ -40,14 +41,11 @@ import gobblin.util.HadoopUtils;
 /**
  * {@link Dataset}s finder to identify datasets, using given properties.
  */
-@Slf4j
 public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<Dataset> {
   public static final double HIGH_PRIORITY = 3.0;
   public static final double NORMAL_PRIORITY = 2.0;
   public static final double LOW_PRIORITY = 1.0;
-  public static final char DATASETS_WITH_DIFFERENT_RECOMPACT_THRESHOLDS_SEPARATOR = ';';
-  public static final char DATASETS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR = ',';
-  public static final char DATASETS_AND_RECOMPACT_THRESHOLD_SEPARATOR = ':';
+  public static final String TMP_OUTPUT_SUBDIR = "output";
 
   protected final State state;
   protected final Configuration conf;
@@ -62,9 +60,14 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
   protected final boolean recompactDatasets;
 
   public DatasetsFinder(State state) {
+    this(state, getFileSystem(state));
+  }
+
+  @VisibleForTesting
+  DatasetsFinder(State state, FileSystem fs) {
     this.state = state;
     this.conf = HadoopUtils.getConfFromState(state);
-    this.fs = getFileSystem();
+    this.fs = fs;
     this.inputDir = getInputDir();
     this.destDir = getDestDir();
     this.tmpOutputDir = getTmpOutputDir();
@@ -106,16 +109,17 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
   }
 
   private String getTmpOutputDir() {
-    return this.state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR, MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR);
+    return new Path(this.state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR,
+        MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR), TMP_OUTPUT_SUBDIR).toString();
   }
 
-  private FileSystem getFileSystem() {
+  private static FileSystem getFileSystem(State state) {
     try {
-      if (this.state.contains(MRCompactor.COMPACTION_FILE_SYSTEM_URI)) {
-        URI uri = URI.create(this.state.getProp(MRCompactor.COMPACTION_FILE_SYSTEM_URI));
-        return FileSystem.get(uri, this.conf);
+      if (state.contains(MRCompactor.COMPACTION_FILE_SYSTEM_URI)) {
+        URI uri = URI.create(state.getProp(MRCompactor.COMPACTION_FILE_SYSTEM_URI));
+        return FileSystem.get(uri, HadoopUtils.getConfFromState(state));
       }
-      return FileSystem.get(this.conf);
+      return FileSystem.get(HadoopUtils.getConfFromState(state));
     } catch (IOException e) {
       throw new RuntimeException("Failed to get filesystem for datasetsFinder.", e);
     }
@@ -146,33 +150,4 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
     return priority;
   }
 
-  private static Map<String, Double> getDatasetRegexAndRecompactThreshold(String datasetsAndRecompactThresholds) {
-    Map<String, Double> topicRegexAndRecompactThreshold = Maps.newHashMap();
-    for (String entry : Splitter.on(DATASETS_WITH_DIFFERENT_RECOMPACT_THRESHOLDS_SEPARATOR).trimResults()
-        .omitEmptyStrings().splitToList(datasetsAndRecompactThresholds)) {
-      List<String> topicsAndRecompactThreshold =
-          Splitter.on(DATASETS_AND_RECOMPACT_THRESHOLD_SEPARATOR).trimResults().omitEmptyStrings().splitToList(entry);
-      if (topicsAndRecompactThreshold.size() != 2) {
-        log.error("Invalid form (DATASET_NAME:THRESHOLD) in "
-            + MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET + ".");
-      } else {
-        topicRegexAndRecompactThreshold.put(topicsAndRecompactThreshold.get(0),
-            Double.parseDouble(topicsAndRecompactThreshold.get(1)));
-      }
-    }
-    return topicRegexAndRecompactThreshold;
-  }
-
-  protected double getDatasetRecompactThreshold(String datasetName) {
-    Map<String, Double> datasetRegexAndRecompactThreshold = getDatasetRegexAndRecompactThreshold(
-        this.state.getProp(MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET, StringUtils.EMPTY));
-    for (Map.Entry<String, Double> topicRegexEntry : datasetRegexAndRecompactThreshold.entrySet()) {
-      if (DatasetFilterUtils.stringInPatterns(datasetName,
-          DatasetFilterUtils.getPatternsFromStrings(Splitter.on(DATASETS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR)
-              .trimResults().omitEmptyStrings().splitToList(topicRegexEntry.getKey())))) {
-        return topicRegexEntry.getValue();
-      }
-    }
-    return MRCompactor.DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET;
-  }
 }

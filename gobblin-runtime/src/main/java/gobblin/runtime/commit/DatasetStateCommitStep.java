@@ -1,21 +1,26 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime.commit;
 
+import com.typesafe.config.ConfigFactory;
+import gobblin.metastore.DatasetStateStore;
+import gobblin.util.ClassAliasResolver;
 import java.io.IOException;
-import java.net.URI;
-
-import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Preconditions;
 
@@ -24,9 +29,7 @@ import gobblin.commit.CommitSequence;
 import gobblin.commit.CommitStep;
 import gobblin.commit.CommitStepBase;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.FsDatasetStateStore;
 import gobblin.runtime.JobState.DatasetState;
-import gobblin.util.HadoopUtils;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -41,7 +44,7 @@ public class DatasetStateCommitStep extends CommitStepBase {
 
   private final String datasetUrn;
   private final DatasetState datasetState;
-  private transient FsDatasetStateStore stateStore;
+  private transient DatasetStateStore stateStore;
 
   private DatasetStateCommitStep(Builder<? extends Builder<?>> builder) {
     super(builder);
@@ -97,13 +100,24 @@ public class DatasetStateCommitStep extends CommitStepBase {
     getDatasetStateStore().persistDatasetState(this.datasetUrn, this.datasetState);
   }
 
-  private FsDatasetStateStore getDatasetStateStore() throws IOException {
+  private DatasetStateStore getDatasetStateStore() throws IOException {
     if (this.stateStore == null) {
-      FileSystem fs = FileSystem.get(
-          URI.create(this.props.getProp(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI)),
-          HadoopUtils.getConfFromState(this.props));
+      ClassAliasResolver<DatasetStateStore.Factory> resolver =
+          new ClassAliasResolver<>(DatasetStateStore.Factory.class);
 
-      this.stateStore = new FsDatasetStateStore(fs, this.props.getProp(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY));
+      String stateStoreType = this.props.getProp(ConfigurationKeys.STATE_STORE_TYPE_KEY,
+            ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
+
+      try {
+        DatasetStateStore.Factory stateStoreFactory =
+            resolver.resolveClass(stateStoreType).newInstance();
+
+        this.stateStore = stateStoreFactory.createStateStore(ConfigFactory.parseProperties(props.getProperties()));
+      } catch (RuntimeException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
     }
     return this.stateStore;
   }

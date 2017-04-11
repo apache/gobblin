@@ -1,27 +1,54 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.hive.metastore;
 
+import com.google.common.base.Splitter;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
+import org.apache.avro.SchemaParseException;
+import org.apache.commons.lang.reflect.MethodUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.serde2.Deserializer;
+import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.SerDeUtils;
+import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
+import org.apache.hadoop.util.ReflectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
@@ -44,10 +71,16 @@ import gobblin.hive.HiveTable;
 @Alpha
 public class HiveMetaStoreUtils {
 
-  private static final TableType DEFAULT_TABLE_TYPE = TableType.EXTERNAL_TABLE;
-  private static final String EXTERNAL = "EXTERNAL";
+  private static final Logger LOG = LoggerFactory.getLogger(HiveMetaStoreUtils.class);
 
-  private HiveMetaStoreUtils() {}
+  private static final TableType DEFAULT_TABLE_TYPE = TableType.EXTERNAL_TABLE;
+  private static final Splitter LIST_SPLITTER_COMMA = Splitter.on(",").trimResults().omitEmptyStrings();
+  private static final Splitter LIST_SPLITTER_COLON = Splitter.on(":").trimResults().omitEmptyStrings();
+  private static final String EXTERNAL = "EXTERNAL";
+  public static final String RUNTIME_PROPS = "runtime.props";
+
+  private HiveMetaStoreUtils() {
+  }
 
   /**
    * Convert a {@link HiveTable} into a {@link Table}.
@@ -77,6 +110,15 @@ public class HiveMetaStoreUtils {
     }
     if (table.getTableType().equals(TableType.EXTERNAL_TABLE.toString())) {
       table.getParameters().put(EXTERNAL, Boolean.TRUE.toString().toUpperCase());
+    }
+    if (hiveTable.getProps().contains(RUNTIME_PROPS)) {
+      String runtimePropsString = hiveTable.getProps().getProp(RUNTIME_PROPS);
+      for (String propValue : LIST_SPLITTER_COMMA.splitToList(runtimePropsString)) {
+        List<String> tokens = LIST_SPLITTER_COLON.splitToList(propValue);
+        Preconditions.checkState(tokens.size() == 2,
+            propValue + " is not a valid Hive table/partition property");
+        table.getParameters().put(tokens.get(0), tokens.get(1));
+      }
     }
     table.setPartitionKeys(getFieldSchemas(hiveTable.getPartitionKeys()));
     table.setSd(getStorageDescriptor(hiveTable));
@@ -134,9 +176,10 @@ public class HiveMetaStoreUtils {
     State partitionProps = getPartitionProps(partition);
     State storageProps = getStorageProps(partition.getSd());
     State serDeProps = getSerDeProps(partition.getSd().getSerdeInfo());
-    HivePartition hivePartition = new HivePartition.Builder().withDbName(partition.getDbName())
-        .withTableName(partition.getTableName()).withPartitionValues(partition.getValues()).withProps(partitionProps)
-        .withStorageProps(storageProps).withSerdeProps(serDeProps).build();
+    HivePartition hivePartition =
+        new HivePartition.Builder().withDbName(partition.getDbName()).withTableName(partition.getTableName())
+            .withPartitionValues(partition.getValues()).withProps(partitionProps).withStorageProps(storageProps)
+            .withSerdeProps(serDeProps).build();
     if (partition.getCreateTime() > 0) {
       hivePartition.setCreateTime(partition.getCreateTime());
     }
@@ -161,7 +204,7 @@ public class HiveMetaStoreUtils {
     State props = unit.getStorageProps();
     StorageDescriptor sd = new StorageDescriptor();
     sd.setParameters(getParameters(props));
-    sd.setCols(getFieldSchemas(unit.getColumns()));
+    sd.setCols(getFieldSchemas(unit));
     if (unit.getLocation().isPresent()) {
       sd.setLocation(unit.getLocation().get());
     }
@@ -256,8 +299,9 @@ public class HiveMetaStoreUtils {
       storageProps.setProp(HiveConstants.NUM_BUCKETS, sd.getNumBuckets());
     }
     if (sd.isSetBucketCols()) {
-      for (String bucketColumn : sd.getBucketCols())
+      for (String bucketColumn : sd.getBucketCols()) {
         storageProps.appendToListProp(HiveConstants.BUCKET_COLUMNS, bucketColumn);
+      }
     }
     if (sd.isSetStoredAsSubDirectories()) {
       storageProps.setProp(HiveConstants.STORED_AS_SUB_DIRS, sd.isStoredAsSubDirectories());
@@ -292,4 +336,92 @@ public class HiveMetaStoreUtils {
     return fieldSchemas;
   }
 
+  /**
+   * First tries getting the {@code FieldSchema}s from the {@code HiveRegistrationUnit}'s columns, if set.
+   * Else, gets the {@code FieldSchema}s from the deserializer.
+   */
+  private static List<FieldSchema> getFieldSchemas(HiveRegistrationUnit unit) {
+    List<Column> columns = unit.getColumns();
+    List<FieldSchema> fieldSchemas = new ArrayList<>();
+    if (columns != null && columns.size() > 0) {
+      fieldSchemas = getFieldSchemas(columns);
+    } else {
+      Deserializer deserializer = getDeserializer(unit);
+      if (deserializer != null) {
+        try {
+          fieldSchemas = MetaStoreUtils.getFieldsFromDeserializer(unit.getTableName(), deserializer);
+        } catch (SerDeException | MetaException e) {
+          LOG.warn("Encountered exception while getting fields from deserializer.", e);
+        }
+      }
+    }
+    return fieldSchemas;
+  }
+
+  /**
+   * Returns a Deserializer from HiveRegistrationUnit if present and successfully initialized. Else returns null.
+   */
+  private static Deserializer getDeserializer(HiveRegistrationUnit unit) {
+    Optional<String> serdeClass = unit.getSerDeType();
+    if (!serdeClass.isPresent()) {
+      return null;
+    }
+
+    String serde = serdeClass.get();
+    HiveConf hiveConf = new HiveConf();
+
+    Deserializer deserializer;
+    try {
+      deserializer =
+          ReflectionUtils.newInstance(hiveConf.getClassByName(serde).asSubclass(Deserializer.class), hiveConf);
+    } catch (ClassNotFoundException e) {
+      LOG.warn("Serde class " + serde + " not found!", e);
+      return null;
+    }
+
+    Properties props = new Properties();
+    props.putAll(unit.getProps().getProperties());
+    props.putAll(unit.getStorageProps().getProperties());
+    props.putAll(unit.getSerDeProps().getProperties());
+
+    try {
+      SerDeUtils.initializeSerDe(deserializer, hiveConf, props, null);
+
+      // Temporary check that's needed until Gobblin is upgraded to Hive 1.1.0+, which includes the improved error
+      // handling in AvroSerDe added in HIVE-7868.
+      if (deserializer instanceof AvroSerDe) {
+        try {
+          inVokeDetermineSchemaOrThrowExceptionMethod(props, new Configuration());
+        } catch (SchemaParseException | InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
+          LOG.warn("Failed to initialize AvroSerDe.");
+          throw new SerDeException(e);
+        }
+      }
+    } catch (SerDeException e) {
+      LOG.warn("Failed to initialize serde " + serde + " with properties " + props + " for table " + unit.getDbName() +
+          "." + unit.getTableName());
+      return null;
+    }
+
+    return deserializer;
+  }
+
+  @VisibleForTesting
+  protected static void inVokeDetermineSchemaOrThrowExceptionMethod(Properties props, Configuration conf)
+      throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+    String methodName = "determineSchemaOrThrowException";
+    Method method = MethodUtils.getAccessibleMethod(AvroSerdeUtils.class, methodName, Properties.class);
+    boolean withConf = false;
+    if (method == null) {
+      method = MethodUtils
+          .getAccessibleMethod(AvroSerdeUtils.class, methodName, new Class[]{Configuration.class, Properties.class});
+      withConf = true;
+    }
+    Preconditions.checkNotNull(method, "Cannot find matching " + methodName);
+    if (!withConf) {
+      MethodUtils.invokeStaticMethod(AvroSerdeUtils.class, methodName, props);
+    } else {
+      MethodUtils.invokeStaticMethod(AvroSerdeUtils.class, methodName, new Object[]{conf, props});
+    }
+  }
 }

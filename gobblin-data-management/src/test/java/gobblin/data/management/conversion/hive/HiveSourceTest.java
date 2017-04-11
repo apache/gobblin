@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.data.management.conversion.hive;
 
@@ -65,17 +70,11 @@ public class HiveSourceTest {
 
     List<WorkUnit> workUnits = hiveSource.getWorkunits(testState);
 
-    // One workunit for the table + 1 dummy watermark workunit
-    Assert.assertEquals(workUnits.size(), 2);
+    // One workunit for the table, no dummy workunits
+    Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
-    WorkUnit wu2 = workUnits.get(1);
 
-    HiveWorkUnit hwu = null;
-    if (!wu.contains(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY)) {
-      hwu = new HiveWorkUnit(wu);
-    } else {
-      hwu = new HiveWorkUnit(wu2);
-    }
+    HiveWorkUnit hwu = new HiveWorkUnit(wu);
 
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), tableName);

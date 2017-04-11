@@ -1,22 +1,31 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.compaction.dataset;
 
-import java.io.IOException;
-import java.util.Set;
-
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Sets;
+import gobblin.compaction.mapreduce.MRCompactor;
+import gobblin.configuration.State;
+import gobblin.util.DatasetFilterUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -26,13 +35,8 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 
-import com.google.common.collect.Sets;
-
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.State;
-import gobblin.util.DatasetFilterUtils;
-
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.util.Set;
 
 
 /**
@@ -55,24 +59,42 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   /**
    * Configuration properties related to time based compaction jobs.
    */
-  private static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_TIMEBASED_PREFIX + "folder.pattern";
-  private static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
+  public static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_TIMEBASED_PREFIX + "folder.pattern";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
+
+  public static final String COMPACTION_TIMEBASED_SUBDIR_PATTERN = COMPACTION_TIMEBASED_PREFIX + "subdir.pattern";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_SUBDIR_PATTERN = "*";
 
   // The earliest dataset timestamp to be processed. Format = ?m?d?h.
-  private static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "max.time.ago";
-  private static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "3d";
+  public static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "max.time.ago";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "3d";
 
   // The latest dataset timestamp to be processed. Format = ?m?d?h.
-  private static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "min.time.ago";
-  private static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
+  public static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "min.time.ago";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
 
-  private final String folderTimePattern;
-  private final DateTimeZone timeZone;
-  private final DateTimeFormatter timeFormatter;
-  private final String inputSubDir;
-  private final String inputLateSubDir;
-  private final String destSubDir;
-  private final String destLateSubDir;
+  protected final String folderTimePattern;
+  protected final String subDirPattern;
+  protected final DateTimeZone timeZone;
+  protected final DateTimeFormatter timeFormatter;
+  protected final String inputSubDir;
+  protected final String inputLateSubDir;
+  protected final String destSubDir;
+  protected final String destLateSubDir;
+
+  @VisibleForTesting
+  public TimeBasedSubDirDatasetsFinder(State state, FileSystem fs) throws Exception {
+    super(state, fs);
+    this.inputSubDir = getInputSubDir();
+    this.inputLateSubDir = getInputLateSubDir();
+    this.destSubDir = getDestSubDir();
+    this.destLateSubDir = getDestLateSubDir();
+    this.folderTimePattern = getFolderPattern();
+    this.subDirPattern = getSubDirPattern();
+    this.timeZone = DateTimeZone
+        .forID(this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
+    this.timeFormatter = DateTimeFormat.forPattern(this.folderTimePattern).withZone(this.timeZone);
+  }
 
   public TimeBasedSubDirDatasetsFinder(State state) throws Exception {
     super(state);
@@ -81,9 +103,15 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
     this.destSubDir = getDestSubDir();
     this.destLateSubDir = getDestLateSubDir();
     this.folderTimePattern = getFolderPattern();
+    this.subDirPattern = getSubDirPattern();
     this.timeZone = DateTimeZone
         .forID(this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
     this.timeFormatter = DateTimeFormat.forPattern(this.folderTimePattern).withZone(this.timeZone);
+  }
+
+  protected String getDatasetName(String path, String basePath) {
+    int startPos = path.indexOf(basePath) + basePath.length();
+    return StringUtils.removeStart(path.substring(startPos), "/");
   }
 
   /**
@@ -92,18 +120,18 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   @Override
   public Set<Dataset> findDistinctDatasets() throws IOException {
     Set<Dataset> datasets = Sets.newHashSet();
-    for (FileStatus datasetsFileStatus : this.fs.listStatus(new Path(this.inputDir))) {
+    for (FileStatus datasetsFileStatus : this.fs.globStatus(new Path(inputDir, subDirPattern))) {
+      log.info("Scanning directory : " + datasetsFileStatus.getPath().toString());
       if (datasetsFileStatus.isDirectory()) {
-        String datasetName = datasetsFileStatus.getPath().getName();
+        String datasetName = getDatasetName(datasetsFileStatus.getPath().toString(), inputDir);
         if (DatasetFilterUtils.survived(datasetName, this.blacklist, this.whitelist)) {
-          log.info("Found dataset: " + datasetsFileStatus.getPath().getName());
+          log.info("Found dataset: " + datasetName);
           Path inputPath = new Path(this.inputDir, new Path(datasetName, this.inputSubDir));
           Path inputLatePath = new Path(this.inputDir, new Path(datasetName, this.inputLateSubDir));
           Path outputPath = new Path(this.destDir, new Path(datasetName, this.destSubDir));
           Path outputLatePath = new Path(this.destDir, new Path(datasetName, this.destLateSubDir));
           Path outputTmpPath = new Path(this.tmpOutputDir, new Path(datasetName, this.destSubDir));
           double priority = this.getDatasetPriority(datasetName);
-          double lateDataThresholdForRecompact = this.getDatasetRecompactThreshold(datasetName);
 
           String folderStructure = getFolderStructure();
           for (FileStatus status : this.fs.globStatus(new Path(inputPath, folderStructure))) {
@@ -112,7 +140,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
             try {
               folderTime = getFolderTime(jobInputPath, inputPath);
             } catch (RuntimeException e) {
-              log.warn(jobInputPath + " is not a valid folder. Will be skipped.");
+              log.warn("{} is not a valid folder. Will be skipped due to exception.", jobInputPath, e);
               continue;
             }
 
@@ -123,9 +151,9 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
               Path jobOutputTmpPath = appendFolderTime(outputTmpPath, folderTime);
 
               Dataset timeBasedDataset = new Dataset.Builder().withPriority(priority)
-                  .withLateDataThresholdForRecompact(lateDataThresholdForRecompact)
-                  .withInputPath(this.recompactDatasets ? jobOutputPath : jobInputPath)
-                  .withInputLatePath(this.recompactDatasets ? jobOutputLatePath : jobInputLatePath)
+                  .withDatasetName(datasetName)
+                  .addInputPath(this.recompactDatasets ? jobOutputPath : jobInputPath)
+                  .addInputLatePath(this.recompactDatasets ? jobOutputLatePath : jobInputLatePath)
                   .withOutputPath(jobOutputPath).withOutputLatePath(jobOutputLatePath)
                   .withOutputTmpPath(jobOutputTmpPath).build();
               // Stores the extra information for timeBasedDataset
@@ -159,8 +187,8 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
     return this.state.getProp(MRCompactor.COMPACTION_DEST_SUBDIR, MRCompactor.DEFAULT_COMPACTION_DEST_SUBDIR);
   }
 
-  private String getFolderStructure() {
-    return this.folderTimePattern.replaceAll("[a-zA-Z0-9]+", "*");
+  protected String getFolderStructure() {
+    return this.folderTimePattern.replaceAll("[a-zA-Z0-9='-]+", "*");
   }
 
   private String getFolderPattern() {
@@ -170,7 +198,14 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
     return folderPattern;
   }
 
-  private DateTime getFolderTime(Path path, Path basePath) {
+  private String getSubDirPattern() {
+    String subdirPattern =
+        this.state.getProp(COMPACTION_TIMEBASED_SUBDIR_PATTERN, DEFAULT_COMPACTION_TIMEBASED_SUBDIR_PATTERN);
+    log.info("Compaction subdir pattern: " + subdirPattern);
+    return subdirPattern;
+  }
+
+  protected DateTime getFolderTime(Path path, Path basePath) {
     int startPos = path.toString().indexOf(basePath.toString()) + basePath.toString().length();
     return this.timeFormatter.parseDateTime(StringUtils.removeStart(path.toString().substring(startPos), "/"));
   }
@@ -179,7 +214,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
    * Return true iff input folder time is between compaction.timebased.min.time.ago and
    * compaction.timebased.max.time.ago.
    */
-  private boolean folderWithinAllowedPeriod(Path inputFolder, DateTime folderTime) {
+  protected boolean folderWithinAllowedPeriod(Path inputFolder, DateTime folderTime) {
     DateTime currentTime = new DateTime(this.timeZone);
     PeriodFormatter periodFormatter = getPeriodFormatter();
     DateTime earliestAllowedFolderTime = getEarliestAllowedFolderTime(currentTime, periodFormatter);
@@ -198,9 +233,9 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
     }
   }
 
-  private static PeriodFormatter getPeriodFormatter() {
+  public static PeriodFormatter getPeriodFormatter() {
     return new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
-        .appendSuffix("h").toFormatter();
+        .appendSuffix("h").appendMinutes().appendSuffix("min").toFormatter();
   }
 
   private DateTime getEarliestAllowedFolderTime(DateTime currentTime, PeriodFormatter periodFormatter) {
@@ -217,7 +252,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
     return currentTime.minus(minTimeAgo);
   }
 
-  private Path appendFolderTime(Path path, DateTime folderTime) {
+  protected Path appendFolderTime(Path path, DateTime folderTime) {
     return new Path(path, folderTime.toString(this.timeFormatter));
   }
 }

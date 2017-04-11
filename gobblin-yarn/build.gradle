@@ -1,13 +1,23 @@
-// (c) 2014 LinkedIn Corp. All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-// this file except in compliance with the License. You may obtain a copy of the
-// License at  http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied.
-//
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+  id 'com.github.johnrengelman.shadow' version '1.2.3'
+}
 
 apply plugin: 'java'
 
@@ -16,7 +26,7 @@ dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-cluster")
   compile project(":gobblin-core")
-  compile project(":gobblin-metrics")
+  compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-metastore")
   compile project(":gobblin-runtime")
   compile project(":gobblin-utility")
@@ -30,6 +40,7 @@ dependencies {
   compile externalDependency.commonsLang
   compile externalDependency.slf4j
   compile externalDependency.log4j
+  compile externalDependency.lombok
   compile externalDependency.commonsCli
   compile externalDependency.gson
   compile externalDependency.hiveCommon
@@ -46,6 +57,7 @@ dependencies {
   compile externalDependency.hadoopYarnClient
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
+  compile externalDependency.helix
 
   testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")
@@ -54,13 +66,33 @@ dependencies {
   testCompile externalDependency.hadoopYarnMiniCluster
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
-
-  compile files('./src/main/resources/helix-core-0.6.6-SNAPSHOT.jar')
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
   baseName = "test-${project.archivesBaseName}"
   from sourceSets.test.output
+}
+
+// create a single Jar with all dependencies
+shadowJar {
+  zip64 true
+  dependencies {
+    exclude dependency('org.eclipse.jetty:.*')
+    exclude dependency('org.mortbay.jetty:.*')
+    exclude dependency('org.projectlombok:.*')
+    exclude dependency('org.codehaus.groovy:.*')
+    exclude dependency('org.apache.kafka:.*')
+    exclude dependency('mysql:.*')
+    exclude dependency('com.linkedin.pegasus:.*')
+    exclude dependency('org.bouncycastle:.*')
+    exclude dependency('org.testng:.*')
+    exclude dependency('org.mockito:.*')
+    exclude dependency('org.datanucleus:.*')
+    exclude dependency('org.apache.hive:.*')
+    exclude dependency('org.scala-lang:scala-library:.*')
+    exclude dependency('org.apache.derby:.*')
+  }
+  mergeServiceFiles()
 }
 
 configurations {
@@ -85,6 +117,7 @@ artifacts {
 }
 
 test {
+  dependsOn shadowJar
   workingDir rootProject.rootDir
   maxParallelForks = 1
 }

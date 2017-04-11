@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.extract.jdbc;
@@ -101,7 +106,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   /**
-   * @param metadata column mapping
+   * @param metadataColumnMap metadata column mapping
    */
   public void setMetadataColumnMap(Map<String, Schema> metadataColumnMap) {
     this.metadataColumnMap = metadataColumnMap;
@@ -117,7 +122,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   /**
-   * @param metadata column list
+   * @param metadataColumnList metadata column list
    */
   public void setMetadataColumnList(List<String> metadataColumnList) {
     this.metadataColumnList = metadataColumnList;
@@ -133,7 +138,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   /**
-   * @param sample record count
+   * @param sampleRecordCount sample record count
    */
   public void setSampleRecordCount(long sampleRecordCount) {
     this.sampleRecordCount = sampleRecordCount;
@@ -149,7 +154,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   /**
-   * @param extract query
+   * @param extractSql extract query
    */
   public void setExtractSql(String extractSql) {
     this.extractSql = extractSql;
@@ -165,7 +170,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   /**
-   * @param output column projection
+   * @param outputColumnProjection output column projection
    */
   public void setOutputColumnProjection(String outputColumnProjection) {
     this.outputColumnProjection = outputColumnProjection;
@@ -181,7 +186,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   /**
-   * @param input column projection
+   * @param inputColumnProjection input column projection
    */
   public void setInputColumnProjection(String inputColumnProjection) {
     this.inputColumnProjection = inputColumnProjection;
@@ -199,7 +204,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   /**
    * add column and alias mapping
    *
-   * @param column mapping
+   * @param columnAliasMap column alias mapping
    */
   public void addToColumnAliasMap(ColumnAttributes columnAliasMap) {
     this.columnAliasMap.add(columnAliasMap);
@@ -232,7 +237,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   /**
-   * @param list of column names
+   * @param headerRecord list of column names
    */
   protected void setHeaderRecord(List<String> headerRecord) {
     this.headerRecord = headerRecord;
@@ -253,18 +258,25 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   /**
-   * @param set next Record
+   * @param nextRecord next Record
    */
   public void setNextRecord(boolean nextRecord) {
     this.nextRecord = nextRecord;
   }
 
   /**
-   * @param set connection timeout
+   * @param timeOut connection timeout
    */
   @Override
   public void setTimeOut(int timeOut) {
     this.timeOut = timeOut;
+  }
+
+  /**
+   * @return private static final Gson factory
+   */
+  public Gson getGson() {
+    return this.gson;
   }
 
   public JdbcExtractor(WorkUnitState workUnitState) {
@@ -448,7 +460,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * Build metadata column map with column name and column schema object.
    * Build metadata column list with list columns in metadata
    *
-   * @param Schema of all columns
+   * @param array Schema of all columns
    */
   private void buildMetadataColumnMap(JsonArray array) {
     if (array != null) {
@@ -464,8 +476,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   /**
    * Update water mark column property if there is an alias defined in query
    *
-   * @param source column name
-   * @param target column name
+   * @param srcColumnName source column name
+   * @param tgtColumnName target column name
    */
   private void updateDeltaFieldConfig(String srcColumnName, String tgtColumnName) {
     if (this.workUnitState.contains(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY)) {
@@ -478,8 +490,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   /**
    * Update primary key column property if there is an alias defined in query
    *
-   * @param source column name
-   * @param target column name
+   * @param srcColumnName source column name
+   * @param tgtColumnName target column name
    */
   private void updatePrimaryKeyConfig(String srcColumnName, String tgtColumnName) {
     if (this.workUnitState.contains(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY)) {
@@ -507,7 +519,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * projection in the input query Set columnAlias map - column and its alias
    * mentioned in input query
    *
-   * @param input query
+   * @param query input query
    */
   private void parseInputQuery(String query) {
     List<String> projectedColumns = new ArrayList<>();
@@ -587,7 +599,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   /**
    * Execute query using JDBC simple Statement Set fetch size
    *
-   * @param commands - query, fetch size
+   * @param cmds commands - query, fetch size
    * @return JDBC ResultSet
    * @throws Exception
    */
@@ -640,7 +652,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * Execute query using JDBC PreparedStatement to pass query parameters Set
    * fetch size
    *
-   * @param commands - query, fetch size, query parameters
+   * @param cmds commands - query, fetch size, query parameters
    * @return JDBC ResultSet
    * @throws Exception
    */
@@ -788,7 +800,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (itr.hasNext()) {
       resultset = itr.next();
     } else {
-      throw new SchemaException("Failed to get schema from Mysql - Resultset has no records");
+      throw new SchemaException("Failed to get schema from database - Resultset has no records");
     }
 
     JsonArray fieldJsonArray = new JsonArray();
@@ -818,7 +830,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         fieldJsonArray.add(obj);
       }
     } catch (Exception e) {
-      throw new SchemaException("Failed to get schema from Mysql; error - " + e.getMessage(), e);
+      throw new SchemaException("Failed to get schema from database; error - " + e.getMessage(), e);
     }
 
     return fieldJsonArray;
@@ -833,7 +845,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (itr.hasNext()) {
       resultset = itr.next();
     } else {
-      throw new HighWatermarkException("Failed to get high watermark from Mysql - Resultset has no records");
+      throw new HighWatermarkException("Failed to get high watermark from database - Resultset has no records");
     }
 
     Long HighWatermark;
@@ -863,7 +875,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         HighWatermark = Long.parseLong(watermark);
       }
     } catch (Exception e) {
-      throw new HighWatermarkException("Failed to get high watermark from Mysql; error - " + e.getMessage(), e);
+      throw new HighWatermarkException("Failed to get high watermark from database; error - " + e.getMessage(), e);
     }
 
     return HighWatermark;
@@ -883,10 +895,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
           count = resultset.getLong(1);
         }
       } catch (Exception e) {
-        throw new RecordCountException("Failed to get source record count from MySql; error - " + e.getMessage(), e);
+        throw new RecordCountException("Failed to get source record count from database; error - " + e.getMessage(), e);
       }
     } else {
-      throw new RuntimeException("Failed to get source record count from Mysql - Resultset has no records");
+      throw new RuntimeException("Failed to get source record count from database - Resultset has no records");
     }
 
     return count;
@@ -907,7 +919,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (itr.hasNext()) {
       resultset = itr.next();
     } else {
-      throw new DataRecordException("Failed to get source record count from Mysql - Resultset has no records");
+      throw new DataRecordException("Failed to get source record count from database - Resultset has no records");
     }
 
     try {
@@ -943,7 +955,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       this.log.info("Total number of records processed so far: " + this.totalRecordCount);
       return recordSet.iterator();
     } catch (Exception e) {
-      throw new DataRecordException("Failed to get records from MySql; error - " + e.getMessage(), e);
+      throw new DataRecordException("Failed to get records from database; error - " + e.getMessage(), e);
     }
   }
 
@@ -963,11 +975,36 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     return baString;
   }
 
+  /**
+   * HACK: there is a bug in the MysqlExtractor where tinyint columns are always treated as ints.
+   * There are MySQL jdbc driver setting (tinyInt1isBit=true and transformedBitIsBoolean=false) that
+   * can cause tinyint(1) columns to be treated as BIT/BOOLEAN columns. The default behavior is to
+   * treat tinyint(1) as BIT.
+   *
+   * Currently, {@link MysqlExtractor#getDataTypeMap()} uses the information_schema to check types.
+   * That does not do the above conversion. {@link #parseColumnAsString(ResultSet, ResultSetMetaData, int)}
+   * which does the above type mapping.
+   *
+   * On the other hand, SqlServerExtractor treats BIT columns as Booleans. So we can be in a bind
+   * where sometimes BIT has to be converted to an int (for backwards compatibility in MySQL) and
+   * sometimes to a Boolean (for SqlServer).
+   *
+   * This function adds configurable behavior depending on the Extractor type.
+   **/
+  protected boolean convertBitToBoolean() {
+    return true;
+  }
+
   private String parseColumnAsString(final ResultSet resultset, final ResultSetMetaData resultsetMetadata, int i)
       throws SQLException {
 
     if (isBlob(resultsetMetadata.getColumnType(i))) {
       return readBlobAsString(resultset.getBlob(i));
+    }
+    if ((resultsetMetadata.getColumnType(i) == Types.BIT
+         || resultsetMetadata.getColumnType(i) == Types.BOOLEAN)
+        && convertBitToBoolean()) {
+      return Boolean.toString(resultset.getBoolean(i));
     }
     return resultset.getString(i);
   }
@@ -991,7 +1028,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   /**
    * Concatenate all predicates with "and" clause
    *
-   * @param list of predicate(filter) conditions
+   * @param predicateList list of predicate(filter) conditions
    * @return predicate
    */
   protected String concatPredicates(List<Predicate> predicateList) {
@@ -1108,7 +1145,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
   @Override
   public void closeConnection() throws Exception {
-    this.jdbcSource.close();
     if (this.dataConnection != null) {
       try {
         this.dataConnection.close();
@@ -1116,5 +1152,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         this.log.error("Failed to close connection ;error-" + e.getMessage(), e);
       }
     }
+
+    this.jdbcSource.close();
   }
 }

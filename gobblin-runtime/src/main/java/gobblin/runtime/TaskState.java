@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime;
@@ -46,6 +51,8 @@ import gobblin.source.workunit.Extract;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.metrics.GobblinMetrics;
 
+import lombok.Getter;
+
 
 /**
  * An extension to {@link WorkUnitState} with run-time task state information.
@@ -78,6 +85,9 @@ public class TaskState extends WorkUnitState {
 
   private String jobId;
   private String taskId;
+  private String taskKey;
+  @Getter
+  private Optional<String> taskAttemptId;
   private long startTime = 0;
   private long endTime = 0;
   private long duration;
@@ -88,18 +98,21 @@ public class TaskState extends WorkUnitState {
   public TaskState(WorkUnitState workUnitState) {
     // Since getWorkunit() returns an immutable WorkUnit object,
     // the WorkUnit object in this object is also immutable.
-    super(workUnitState.getWorkunit(), workUnitState.getJobState());
+    super(workUnitState.getWorkunit(), workUnitState.getJobState(), workUnitState.getTaskBrokerNullable());
     addAll(workUnitState);
     this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
+    this.taskKey = workUnitState.getProp(ConfigurationKeys.TASK_KEY_KEY, "unknown_task_key");
+    this.taskAttemptId = Optional.fromNullable(workUnitState.getProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY));
     this.setId(this.taskId);
   }
 
   public TaskState(TaskState taskState) {
-    super(taskState.getWorkunit(), taskState.getJobState());
+    super(taskState.getWorkunit(), taskState.getJobState(), taskState.getTaskBrokerNullable());
     addAll(taskState);
     this.jobId = taskState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = taskState.getProp(ConfigurationKeys.TASK_ID_KEY);
+    this.taskAttemptId = taskState.getTaskAttemptId();
     this.setId(this.taskId);
   }
 
@@ -119,6 +132,15 @@ public class TaskState extends WorkUnitState {
    */
   public void setJobId(String jobId) {
     this.jobId = jobId;
+  }
+
+  /**
+   * Get the sequence number of the task this {@link TaskState} is for.
+   *
+   * @return Sequence number of the task this {@link TaskState} is for
+   */
+  public String getTaskKey() {
+    return this.taskKey;
   }
 
   /**
@@ -231,7 +253,9 @@ public class TaskState extends WorkUnitState {
    */
   public synchronized void updateRecordMetrics(long recordsWritten, int branchIndex) {
     TaskMetrics metrics = TaskMetrics.get(this);
-    String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
+    // chopping branch index from metric name
+    // String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
+    String forkBranchId = TaskMetrics.taskInstanceRemoved(this.taskId);
 
     Counter taskRecordCounter = metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, RECORDS);
     long inc = recordsWritten - taskRecordCounter.getCount();
@@ -251,7 +275,7 @@ public class TaskState extends WorkUnitState {
    */
   public synchronized void updateByteMetrics(long bytesWritten, int branchIndex) {
     TaskMetrics metrics = TaskMetrics.get(this);
-    String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
+    String forkBranchId = TaskMetrics.taskInstanceRemoved(this.taskId);
 
     Counter taskByteCounter = metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, BYTES);
     long inc = bytesWritten - taskByteCounter.getCount();

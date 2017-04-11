@@ -1,20 +1,27 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.hive;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -26,9 +33,9 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
@@ -67,12 +74,12 @@ public abstract class HiveRegister implements Closeable {
 
   protected final Optional<String> hiveDbRootDir;
   protected final ListeningExecutorService executor;
-  protected final List<Future<Void>> futures = Lists.newArrayList();
+  protected final Map<String, Future<Void>> futures = Maps.newConcurrentMap();
 
   protected HiveRegister(State state) {
     this.props = new HiveRegProps(state);
     this.hiveDbRootDir = this.props.getDbRootDir();
-    this.executor = MoreExecutors.listeningDecorator(
+    this.executor = ExecutorsUtils.loggingDecorator(
         ScalingThreadPoolExecutor.newScalingThreadPool(0, this.props.getNumThreads(), TimeUnit.SECONDS.toMillis(10),
             ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of(getClass().getSimpleName()))));
   }
@@ -114,8 +121,18 @@ public abstract class HiveRegister implements Closeable {
       }
 
     });
-    this.futures.add(future);
+    this.futures.put(getSpecId(spec), future);
     return future;
+  }
+
+  private String getSpecId(HiveSpec spec) {
+    Optional<HivePartition> partition = spec.getPartition();
+    if (partition.isPresent()) {
+      return String.format("%s.%s@%s", spec.getTable().getDbName(), spec.getTable().getTableName(),
+          Arrays.toString(partition.get().getValues().toArray()));
+    } else {
+      return String.format("%s.%s", spec.getTable().getDbName(), spec.getTable().getTableName());
+    }
   }
 
   private boolean evaluatePredicates(HiveSpecWithPredicates spec) {
@@ -314,13 +331,15 @@ public abstract class HiveRegister implements Closeable {
   @Override
   public void close() throws IOException {
     try {
-      for (Future<Void> future : this.futures) {
-        future.get();
+      for (Map.Entry<String, Future<Void>> entry : this.futures.entrySet()) {
+        try {
+          entry.getValue().get();
+        } catch (ExecutionException ee) {
+          throw new IOException("Failed to finish registration for " + entry.getKey(), ee.getCause());
+        }
       }
     } catch (InterruptedException e) {
       throw new IOException(e);
-    } catch (ExecutionException e) {
-      throw new IOException(e.getCause());
     } finally {
       ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log));
     }

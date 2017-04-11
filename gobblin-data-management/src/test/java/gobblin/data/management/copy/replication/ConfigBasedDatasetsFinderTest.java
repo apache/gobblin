@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy.replication;
@@ -32,7 +37,7 @@ import org.testng.annotations.Test;
  */
 @Test(groups = {"gobblin.data.management.copy.replication"})
 public class ConfigBasedDatasetsFinderTest {
-  
+
   @Test
   public void testGetLeafDatasetURIs() throws URISyntaxException, IOException {
     Collection<URI> allDatasetURIs = new ArrayList<URI>();
@@ -41,12 +46,12 @@ public class ConfigBasedDatasetsFinderTest {
     allDatasetURIs.add(new URI("/data/derived/browsemaps/entities/comp"));
     allDatasetURIs.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily"));
     allDatasetURIs.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily_dedup"));
-    
+
     // None leaf URI
     allDatasetURIs.add(new URI("/data/derived"));
     allDatasetURIs.add(new URI("/data/derived/browsemaps"));
     allDatasetURIs.add(new URI("/data/derived/browsemaps/entities/"));
-    
+
     allDatasetURIs.add(new URI("/data/derived/gowl/"));
     allDatasetURIs.add(new URI("/data/derived/gowl/pymk/"));
     allDatasetURIs.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/"));
@@ -54,13 +59,13 @@ public class ConfigBasedDatasetsFinderTest {
 
     // wrong root
     allDatasetURIs.add(new URI("/data/derived2"));
-    
+
     // disabled
     Set<URI> disabled = new HashSet<URI>();
     disabled.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily"));
-    
+
     Set<URI> validURIs = ConfigBasedDatasetsFinder.getValidDatasetURIs(allDatasetURIs, disabled, new Path("/data/derived"));
-    
+
     Assert.assertTrue(validURIs.size() == 3);
     Assert.assertTrue(validURIs.contains(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily_dedup")));
     Assert.assertTrue(validURIs.contains(new URI("/data/derived/browsemaps/entities/comp")));

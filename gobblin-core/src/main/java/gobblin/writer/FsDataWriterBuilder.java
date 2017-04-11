@@ -1,21 +1,30 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.writer;
+
+import java.util.Collections;
+import java.util.List;
 
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 
+import gobblin.codec.StreamCodec;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.AvroUtils;
@@ -38,6 +47,7 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
       ConfigurationKeys.WRITER_PREFIX + ".include.partition.in.file.names";
   public static final String WRITER_REPLACE_PATH_SEPARATORS_IN_PARTITIONS =
       ConfigurationKeys.WRITER_PREFIX + ".replace.path.separators.in.partitions";
+  private List<StreamCodec> encoders;
 
   /**
    * Get the file name to be used by the writer. If a {@link gobblin.writer.partitioner.WriterPartioner} is used,
@@ -53,6 +63,17 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
       fileName = getPartitionedFileName(properties, fileName);
     }
 
+    List<StreamCodec> encoders = getEncoders();
+    if (!encoders.isEmpty()) {
+      StringBuilder filenameBuilder = new StringBuilder(fileName);
+      for (StreamCodec codec : encoders) {
+        filenameBuilder.append('.');
+        filenameBuilder.append(codec.getTag());
+      }
+
+      fileName = filenameBuilder.toString();
+    }
+
     return fileName;
   }
 
@@ -60,15 +81,22 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
     return properties.getProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, StringUtils.EMPTY);
   }
 
-  protected String getPartitionedFileName(State properties, String originalFileName) {
-    boolean includePartitionerFieldNames = properties.getPropAsBoolean(
-        ForkOperatorUtils.getPropertyNameForBranch(WRITER_INCLUDE_PARTITION_IN_FILE_NAMES, this.branches, this.branch),
-        false);
-    boolean removePathSeparators = properties.getPropAsBoolean(ForkOperatorUtils
-        .getPropertyNameForBranch(WRITER_REPLACE_PATH_SEPARATORS_IN_PARTITIONS, this.branches, this.branch), false);
+  protected String getPartitionPath(State properties) {
+    if (this.partition.isPresent()) {
+      boolean includePartitionerFieldNames = properties.getPropAsBoolean(ForkOperatorUtils
+          .getPropertyNameForBranch(WRITER_INCLUDE_PARTITION_IN_FILE_NAMES, this.branches, this.branch), false);
+      boolean removePathSeparators = properties.getPropAsBoolean(ForkOperatorUtils
+          .getPropertyNameForBranch(WRITER_REPLACE_PATH_SEPARATORS_IN_PARTITIONS, this.branches, this.branch), false);
 
+      return AvroUtils.serializeAsPath(this.partition.get(), includePartitionerFieldNames, removePathSeparators).toString();
+    } else {
+      return null;
+    }
+  }
+
+  protected String getPartitionedFileName(State properties, String originalFileName) {
     return new Path(
-        AvroUtils.serializeAsPath(this.partition.get(), includePartitionerFieldNames, removePathSeparators).toString(),
+        getPartitionPath(properties),
         originalFileName).toString();
   }
 
@@ -76,4 +104,25 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
   public boolean validatePartitionSchema(Schema partitionSchema) {
     return true;
   }
-}
+
+  /**
+   * Get list of encoders configured for the writer.
+   */
+  public synchronized List<StreamCodec> getEncoders() {
+    if (encoders == null) {
+      encoders = buildEncoders();
+    }
+
+    return encoders;
+  }
+
+  /**
+   * Build and cache encoders for the writer based on configured options as encoder
+   * construction can potentially be expensive.
+   */
+  protected List<StreamCodec> buildEncoders() {
+    // Should be overridden by subclasses if their associated writers are
+    // encoder aware
+    return Collections.emptyList();
+  }
+ }

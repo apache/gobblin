@@ -1,19 +1,25 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.data.management.conversion.hive.converter;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -78,6 +84,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    */
   private static final String PUBLISHED_TABLE_SUBDIRECTORY = "final";
 
+  private static final String ORC_FORMAT = "orc";
+
   /**
    * Hive runtime property key names for tracking
    */
@@ -119,6 +127,18 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * The dataset being converted.
    */
   protected ConvertibleHiveDataset hiveDataset;
+
+  /**
+   * If the property is set to true then in the destination dir permissions, group won't be explicitly set.
+   */
+  public static final String HIVE_DATASET_DESTINATION_SKIP_SETGROUP = "hive.dataset.destination.skip.setGroup";
+  public static final boolean DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP = false;
+
+  /**
+   * If set to true, a set format DDL will be separate from add partition DDL
+   */
+  public static final String HIVE_CONVERSION_SETSERDETOAVROEXPLICITELY = "hive.conversion.setSerdeToAvroExplicitly";
+  public static final boolean DEFAULT_HIVE_CONVERSION_SETSERDETOAVROEXPLICITELY = true;
 
   /**
    * Subclasses can convert the {@link Schema} if required.
@@ -192,6 +212,12 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     Optional<Table> destinationTableMeta = destinationMeta.getLeft();
 
     // Optional
+    // wrapperViewName          : If specified view with 'wrapperViewName' is created if not already exists
+    //                            over destination table
+    // isUpdateViewAlwaysEnabled: If false 'wrapperViewName' is only updated when schema evolves; if true
+    //                            'wrapperViewName' is always updated (everytime publish happens)
+    Optional<String> wrapperViewName = getConversionConfig().getDestinationViewName();
+    boolean shouldUpdateView = getConversionConfig().isUpdateViewAlwaysEnabled();
     Optional<List<String>> clusterBy =
         getConversionConfig().getClusterBy().isEmpty()
             ? Optional.<List<String>> absent()
@@ -231,8 +257,11 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       } else {
         this.fs.setPermission(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission);
         // Set the same group as source
-        this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), null,
-            sourceDataFileStatus.getGroup());
+        if (!workUnit.getPropAsBoolean(HIVE_DATASET_DESTINATION_SKIP_SETGROUP,
+            DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP)) {
+          this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), null,
+              sourceDataFileStatus.getGroup());
+        }
         log.info(String.format("Created %s with permissions %s and group %s", new Path(getConversionConfig()
             .getDestinationDataPath()), sourceDataPermission, sourceDataFileStatus.getGroup()));
       }
@@ -256,7 +285,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             workUnit.getWorkunit().getProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY)));
 
     // Create DDL statement for table
-    Map<String, String> hiveColumns = new HashMap<>();
+    Map<String, String> hiveColumns = new LinkedHashMap<>();
     String createStagingTableDDL =
         HiveAvroORCQueryGenerator.generateCreateTableDDL(outputAvroSchema,
             orcStagingTableName,
@@ -381,6 +410,9 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     log.debug("Evolve final table DDLs: " + evolutionDDLs);
     EventWorkunitUtils.setEvolutionMetadata(workUnit, evolutionDDLs);
 
+    // View (if present) must be updated if evolution happens
+    shouldUpdateView |= evolutionDDLs.size() > 0;
+
     publishQueries.addAll(evolutionDDLs);
 
 
@@ -426,16 +458,40 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       publishDirectories.put(orcStagingDataPartitionLocation, orcFinalDataPartitionLocation);
 
       // Step:
-      // A.2.3.3, B.2.3.3: Create partition with location
+      // A.2.3.3, B.2.3.3: Create partition with location (and update storage format if not in ORC already)
       String orcDataPartitionLocation = orcDataLocation + Path.SEPARATOR + orcStagingDataPartitionDirName;
-      List<String> createFinalPartitionDDL =
-          HiveAvroORCQueryGenerator.generateCreatePartitionDDL(orcTableDatabase,
-              orcTableName,
-              orcDataPartitionLocation,
-              partitionsDMLInfo);
+      if (workUnit.getPropAsBoolean(HIVE_CONVERSION_SETSERDETOAVROEXPLICITELY,
+          DEFAULT_HIVE_CONVERSION_SETSERDETOAVROEXPLICITELY)) {
+        List<String> createFinalPartitionDDL =
+            HiveAvroORCQueryGenerator.generateCreatePartitionDDL(orcTableDatabase,
+                orcTableName,
+                orcDataPartitionLocation,
+                partitionsDMLInfo,
+                Optional.<String>absent());
 
-      log.debug("Create final partition DDL: " + createFinalPartitionDDL);
-      publishQueries.addAll(createFinalPartitionDDL);
+        log.debug("Create final partition DDL: " + createFinalPartitionDDL);
+        publishQueries.addAll(createFinalPartitionDDL);
+
+        // Updating storage format non-transactionally is a stop gap measure until Hive supports transactionally update
+        // .. storage format in ADD PARITTION command (today it only supports specifying location)
+        List<String> updatePartitionStorageFormatDDL =
+            HiveAvroORCQueryGenerator.generateAlterTableOrPartitionStorageFormatDDL(orcTableDatabase,
+                orcTableName,
+                Optional.of(partitionsDMLInfo),
+                ORC_FORMAT);
+        log.debug("Update final partition storage format to ORC (if not already in ORC)");
+        publishQueries.addAll(updatePartitionStorageFormatDDL);
+      } else {
+        List<String> createFinalPartitionDDL =
+            HiveAvroORCQueryGenerator.generateCreatePartitionDDL(orcTableDatabase,
+                orcTableName,
+                orcDataPartitionLocation,
+                partitionsDMLInfo,
+                Optional.fromNullable(ORC_FORMAT));
+
+        log.debug("Create final partition DDL: " + createFinalPartitionDDL);
+        publishQueries.addAll(createFinalPartitionDDL);
+      }
 
       // Step:
       // A.2.3.4, B.2.3.4: Drop this staging table and delete directories
@@ -457,6 +513,18 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     publishQueries.addAll(HiveAvroORCQueryGenerator.generateDropPartitionsDDL(orcTableDatabase,
         orcTableName,
         getDropPartitionsDDLInfo(conversionEntity)));
+
+    /*
+     * Create or update view over the ORC table if specified in the config (ie. wrapper view name is present in config)
+     */
+    if (wrapperViewName.isPresent()) {
+      String viewName = wrapperViewName.get();
+      List<String> createOrUpdateViewDDLs = HiveAvroORCQueryGenerator.generateCreateOrUpdateViewDDL(orcTableDatabase,
+          orcTableName, orcTableDatabase, viewName, shouldUpdateView);
+      log.debug("Create or update View DDLs: " + createOrUpdateViewDDLs);
+      publishQueries.addAll(createOrUpdateViewDDLs);
+
+    }
 
     HiveAvroORCQueryGenerator.serializePublishCommands(workUnit, publishEntity);
     log.debug("Publish partition entity: " + publishEntity);

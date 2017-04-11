@@ -1,27 +1,41 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.extract.sftp;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-
+import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.ChannelSftp.LsEntry;
@@ -33,19 +47,12 @@ import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.SftpProgressMonitor;
 import com.jcraft.jsch.UserInfo;
 
-import org.apache.commons.io.IOUtils;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.password.PasswordManager;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
-import lombok.extern.slf4j.Slf4j;
+import gobblin.util.io.SeekableFSInputStream;
 
 
 /**
@@ -203,7 +210,8 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
   public InputStream getFileStream(String file) throws FileBasedHelperException {
     SftpGetMonitor monitor = new SftpGetMonitor();
     try {
-      return getSftpChannel().get(file, monitor);
+      ChannelSftp channel = getSftpChannel();
+      return new SftpFsFileInputStream(channel.get(file, monitor), channel);
     } catch (SftpException e) {
       throw new FileBasedHelperException("Cannot download file " + file + " due to " + e.getMessage(), e);
     }
@@ -466,5 +474,25 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
 	      channelSftp.disconnect();
 	  }
       }
+  }
+
+  /**
+   * A {@link SeekableFSInputStream} that holds a handle on the Sftp {@link Channel} used to open the
+   * {@link InputStream}. The {@link Channel} is disconnected when {@link InputStream#close()} is called.
+   */
+  static class SftpFsFileInputStream extends SeekableFSInputStream {
+
+    private final Channel channel;
+
+    public SftpFsFileInputStream(InputStream in, Channel channel) {
+      super(in);
+      this.channel = channel;
+    }
+
+    @Override
+    public void close() throws IOException {
+      super.close();
+      this.channel.disconnect();
+    }
   }
 }

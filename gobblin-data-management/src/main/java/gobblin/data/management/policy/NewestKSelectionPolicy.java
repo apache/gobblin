@@ -1,14 +1,19 @@
 /*
-* Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-* this file except in compliance with the License. You may obtain a copy of the
-* License at  http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software distributed
-* under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-* CONDITIONS OF ANY KIND, either express or implied.
-*/
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package gobblin.data.management.policy;
 
@@ -34,7 +39,7 @@ import gobblin.data.management.version.DatasetVersion;
  * Select the newest k versions of the dataset.
  */
 @ToString
-public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVersion> {
+public class NewestKSelectionPolicy<T extends DatasetVersion> implements VersionSelectionPolicy<T> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NewestKSelectionPolicy.class);
 
@@ -118,14 +123,14 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
   }
 
   @Override
-  public Collection<DatasetVersion> listSelectedVersions(List<DatasetVersion> allVersions) {
+  public Collection<T> listSelectedVersions(List<T> allVersions) {
     if (this.isExcludeMode()) {
       return getBoundarySafeSublist(allVersions, this.getVersionsSelected(), allVersions.size());
     }
     return getBoundarySafeSublist(allVersions, 0, this.getVersionsSelected());
   }
 
-  static List<DatasetVersion> getBoundarySafeSublist(List<DatasetVersion> l, int fromIndex, int toIndex) {
+  private List<T> getBoundarySafeSublist(List<T> l, int fromIndex, int toIndex) {
     fromIndex = Math.min(fromIndex, l.size());
     toIndex = Math.min(toIndex, l.size());
 

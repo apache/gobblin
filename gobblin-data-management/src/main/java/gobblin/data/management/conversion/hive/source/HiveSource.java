@@ -1,16 +1,22 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.data.management.conversion.hive.source;
 
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -18,18 +24,19 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
@@ -41,7 +48,6 @@ import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.avro.SchemaNotFoundException;
 import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
-import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
 import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
 import gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
 import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
@@ -51,6 +57,7 @@ import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWaterma
 import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
+import gobblin.data.management.copy.hive.filter.LookbackPartitionFilterGenerator;
 import gobblin.dataset.IterableDatasetFinder;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
@@ -64,6 +71,9 @@ import gobblin.util.AutoReturnableObject;
 import gobblin.util.HadoopUtils;
 import gobblin.util.io.GsonInterfaceAdapter;
 import gobblin.util.reflection.GobblinConstructorUtils;
+import gobblin.util.ClassAliasResolver;
+import gobblin.data.management.conversion.hive.extractor.HiveBaseExtractorFactory;
+import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractorFactory;
 
 
 /**
@@ -100,7 +110,26 @@ public class HiveSource implements Source {
   public static final String HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY = "hive.source.watermarker.factoryClass";
   public static final String DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS = PartitionLevelWatermarker.Factory.class.getName();
 
+  public static final String HIVE_SOURCE_EXTRACTOR_TYPE = "hive.source.extractorType";
+  public static final String DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE = HiveConvertExtractorFactory.class.getName();
+
+  public static final String HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS = "hive.source.createWorkunitsForPartitions";
+  public static final boolean DEFAULT_HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS = true;
+
+  /***
+   * Comma separated list of keywords to look for in path of table (in non-partitioned case) / partition (in partitioned case)
+   * and if the keyword is found then ignore the table / partition from processing.
+   *
+   * This is useful in scenarios like:
+   * - when the user wants to ignore hourly partitions and only process daily partitions and only way to identify that
+   *   is by the path both store there data. eg: /foo/bar/2016/12/01/hourly/00
+   * - when the user wants to ignore partitions that refer to partitions pointing to /tmp location (for debug reasons)
+   */
+  public static final String HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER_KEY = "hive.source.ignoreDataPathIdentifier";
+  public static final String DEFAULT_HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER = StringUtils.EMPTY;
+
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
+  public static final Splitter COMMA_BASED_SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
 
   private MetricContext metricContext;
   private EventSubmitter eventSubmitter;
@@ -112,6 +141,10 @@ public class HiveSource implements Source {
   private List<WorkUnit> workunits;
   private long maxLookBackTime;
   private long beginGetWorkunitsTime;
+  private List<String> ignoreDataPathIdentifierList;
+
+  private final ClassAliasResolver<HiveBaseExtractorFactory> classAliasResolver =
+      new ClassAliasResolver<>(HiveBaseExtractorFactory.class);
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -130,7 +163,9 @@ public class HiveSource implements Source {
           log.debug(String.format("Processing dataset: %s", hiveDataset));
 
           // Create workunits for partitions
-          if (HiveUtils.isPartitioned(hiveDataset.getTable())) {
+          if (HiveUtils.isPartitioned(hiveDataset.getTable())
+              && state.getPropAsBoolean(HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS,
+              DEFAULT_HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS)) {
             createWorkunitsForPartitionedTable(hiveDataset, client);
           } else {
             createWorkunitForNonPartitionedTable(hiveDataset);
@@ -171,6 +206,8 @@ public class HiveSource implements Source {
         this.eventSubmitter);
     int maxLookBackDays = state.getPropAsInt(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS);
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
+    this.ignoreDataPathIdentifierList = COMMA_BASED_SPLITTER.splitToList(state.getProp(HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER_KEY,
+        DEFAULT_HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER));
 
     silenceHiveLoggers();
   }
@@ -188,9 +225,19 @@ public class HiveSource implements Source {
 
       LongWatermark lowWatermark = this.watermarker.getPreviousHighWatermark(hiveDataset.getTable());
 
-      if (shouldCreateWorkunit(hiveDataset.getTable().getTTable().getCreateTime(), updateTime, lowWatermark)) {
+      if (!shouldCreateWorkUnit(hiveDataset.getTable().getPath())) {
+        log.info(String.format(
+            "Not creating workunit for table %s as partition path %s contains data path tokens to ignore %s",
+            hiveDataset.getTable().getCompleteName(), hiveDataset.getTable().getPath(), this.ignoreDataPathIdentifierList));
+        return;
+      }
 
-        log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
+      if (shouldCreateWorkunit(getCreateTime(hiveDataset.getTable()), updateTime, lowWatermark)) {
+
+        log.info(String.format(
+            "Creating workunit for table %s as updateTime %s or createTime %s is greater than low watermark %s",
+            hiveDataset.getTable().getCompleteName(), updateTime, hiveDataset.getTable().getTTable().getCreateTime(),
+            lowWatermark.getValue()));
         LongWatermark expectedDatasetHighWatermark =
             this.watermarker.getExpectedHighWatermark(hiveDataset.getTable(), tableProcessTime);
         HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
@@ -203,8 +250,11 @@ public class HiveSource implements Source {
         log.debug(String.format("Workunit added for table: %s", hiveWorkUnit));
 
       } else {
-        log.info(String.format("Not creating workunit for table %s as updateTime %s is not greater than low watermark %s",
-            hiveDataset.getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
+        log.info(String
+            .format(
+                "Not creating workunit for table %s as updateTime %s and createTime %s is not greater than low watermark %s",
+                hiveDataset.getTable().getCompleteName(), updateTime, hiveDataset.getTable().getTTable()
+                    .getCreateTime(), lowWatermark.getValue()));
       }
     } catch (UpdateNotFoundException e) {
       log.error(String.format("Not Creating workunit for %s as update time was not found. %s", hiveDataset.getTable()
@@ -220,8 +270,20 @@ public class HiveSource implements Source {
     long tableProcessTime = new DateTime().getMillis();
     this.watermarker.onTableProcessBegin(hiveDataset.getTable(), tableProcessTime);
 
+    Optional<String> partitionFilter = Optional.absent();
+
+    // If the table is date partitioned, use the partition name to filter partitions older than lookback
+    if (hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.PARTITION_COLUMN)
+        && hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.DATETIME_FORMAT)
+        && hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.LOOKBACK)) {
+      partitionFilter =
+          Optional.of(new LookbackPartitionFilterGenerator(hiveDataset.getProperties()).getFilter(hiveDataset));
+      log.info(String.format("Getting partitions for %s using partition filter %s", hiveDataset.getTable()
+          .getCompleteName(), partitionFilter.get()));
+    }
+
     List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(),
-        Optional.<String>absent());
+        partitionFilter);
 
     for (Partition sourcePartition : sourcePartitions) {
 
@@ -232,8 +294,14 @@ public class HiveSource implements Source {
       LongWatermark lowWatermark = watermarker.getPreviousHighWatermark(sourcePartition);
 
       try {
-        long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
+        if (!shouldCreateWorkUnit(new Path(sourcePartition.getLocation()))) {
+          log.info(String.format(
+              "Not creating workunit for partition %s as partition path %s contains data path tokens to ignore %s",
+              sourcePartition.getCompleteName(), sourcePartition.getLocation(), this.ignoreDataPathIdentifierList));
+          continue;
+        }
 
+        long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
         if (shouldCreateWorkunit(sourcePartition, lowWatermark)) {
           log.debug(String.format("Processing partition: %s", sourcePartition));
 
@@ -261,13 +329,33 @@ public class HiveSource implements Source {
               sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
         }
       } catch (UpdateNotFoundException e) {
-        log.error(String.format("Not Creating workunit for %s as update time was not found. %s",
+        log.error(String.format("Not creating workunit for %s as update time was not found. %s",
             sourcePartition.getCompleteName(), e.getMessage()));
       } catch (SchemaNotFoundException e) {
-        log.error(String.format("Not Creating workunit for %s as schema was not found. %s",
+        log.error(String.format("Not creating workunit for %s as schema was not found. %s",
+            sourcePartition.getCompleteName(), e.getMessage()));
+      } catch (UncheckedExecutionException e) {
+        log.error(String.format("Not creating workunit for %s because an unchecked exception occurred. %s",
             sourcePartition.getCompleteName(), e.getMessage()));
       }
     }
+  }
+
+  /***
+   * Check if path of Hive entity (table / partition) contains location token that should be ignored. If so, ignore
+   * the partition.
+   */
+  protected boolean shouldCreateWorkUnit(Path dataLocation) {
+    if (null == this.ignoreDataPathIdentifierList || this.ignoreDataPathIdentifierList.size() == 0) {
+      return true;
+    }
+    for (String pathToken : this.ignoreDataPathIdentifierList) {
+      if (dataLocation.toString().toLowerCase().contains(pathToken.toLowerCase())) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   protected boolean shouldCreateWorkunit(Partition sourcePartition, LongWatermark lowWatermark) throws UpdateNotFoundException {
@@ -277,26 +365,12 @@ public class HiveSource implements Source {
   }
 
   /**
-   * Check if workunit needs to be created. Returns <code>true</code> If either the <code>createTime</code> or the
-   * <code>updateTime</code> is greater than the <code>lowWatermark</code>
+   * Check if workunit needs to be created. Returns <code>true</code> If the
+   * <code>updateTime</code> is greater than the <code>lowWatermark</code>.
+   * <code>createTime</code> is not used. It exists for backward compatibility
    */
   protected boolean shouldCreateWorkunit(long createTime, long updateTime, LongWatermark lowWatermark) {
-    /*
-     * [2016-08-08]
-     * Need to check both updateTime and createTime.
-     *
-     * Distcp ng published data with an older modified time. In Distcp-ng, the modified time of data on HDFS is the time
-     * when data was created in staging and not final publish path, hence this time difference between HDFS mod time and
-     * hive registration time can be in the order of minutes. This may lead to missing updates by the Avro to ORC job.
-     * E.g. Let's say table level watermark for a dataset is 1:30 from the previous run.
-     * Now distcp-np published data for a partition at 1:33 with an HDFS modTime of 1:27.
-     * The watermark is 1:30 and the update is at 1:27 hence a workunit is not created for this partition.
-     *
-     * Summary -
-     * - Check for update time is required when new files are added to existing partitions
-     * - Check for create time is required when a new partition is created both in hive and HDFS
-     */
-    return new DateTime(updateTime).isAfter(lowWatermark.getValue()) || new DateTime(createTime).isAfter(createTime);
+    return new DateTime(updateTime).isAfter(lowWatermark.getValue());
   }
 
   /**
@@ -327,11 +401,17 @@ public class HiveSource implements Source {
     }
   }
 
+  // Convert createTime from seconds to milliseconds
+  private static long getCreateTime(Table table) {
+    return TimeUnit.MILLISECONDS.convert(table.getTTable().getCreateTime(), TimeUnit.SECONDS);
+  }
+
   @Override
   public Extractor getExtractor(WorkUnitState state) throws IOException {
     try {
-      return new HiveConvertExtractor(state, getSourceFs());
-    } catch (TException | HiveException e) {
+      return classAliasResolver.resolveClass(state.getProp(HIVE_SOURCE_EXTRACTOR_TYPE, DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE))
+          .newInstance().createExtractor(state, getSourceFs());
+    } catch (Exception e) {
       throw new IOException(e);
     }
   }

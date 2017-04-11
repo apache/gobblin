@@ -1,25 +1,27 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.concurrent.Callable;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.io.Closer;
-
 import gobblin.commit.CommitSequence;
 import gobblin.commit.CommitStep;
 import gobblin.commit.DeliverySemantics;
@@ -29,9 +31,16 @@ import gobblin.publisher.CommitSequencePublisher;
 import gobblin.publisher.DataPublisher;
 import gobblin.publisher.UnpublishedHandling;
 import gobblin.runtime.commit.DatasetStateCommitStep;
+import gobblin.runtime.task.TaskFactory;
+import gobblin.runtime.task.TaskUtils;
 import gobblin.source.extractor.JobCommitPolicy;
-
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -43,6 +52,8 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor
 @Slf4j
 final class SafeDatasetCommit implements Callable<Void> {
+
+  private static final Object GLOBAL_LOCK = new Object();
 
   private final boolean shouldCommitDataInJob;
   private final DeliverySemantics deliverySemantics;
@@ -79,18 +90,32 @@ final class SafeDatasetCommit implements Callable<Void> {
       if (this.shouldCommitDataInJob) {
         log.info(String.format("Committing dataset %s of job %s with commit policy %s and state %s", this.datasetUrn,
             this.jobContext.getJobId(), this.jobContext.getJobCommitPolicy(), this.datasetState.getState()));
-        if (this.deliverySemantics == DeliverySemantics.EXACTLY_ONCE) {
-          generateCommitSequenceBuilder(this.datasetState);
-        } else {
-          DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, this.jobContext.getJobState()));
-          if (this.isMultithreaded && !publisher.isThreadSafe()) {
-            log.warn(String.format("Gobblin is set up to parallelize publishing, however the publisher %s is not thread-safe. "
-                + "Falling back to serial publishing.", publisher.getClass().getName()));
-            safeCommitDataset(this.datasetState, publisher);
+
+        ListMultimap<TaskFactoryWrapper, TaskState> taskStatesByFactory = groupByTaskFactory(this.datasetState);
+
+        for (Map.Entry<TaskFactoryWrapper, Collection<TaskState>> entry : taskStatesByFactory.asMap().entrySet()) {
+          TaskFactory taskFactory = entry.getKey().getTaskFactory();
+
+          if (this.deliverySemantics == DeliverySemantics.EXACTLY_ONCE) {
+            if (taskFactory != null) {
+              throw new RuntimeException("Custom task factories do not support exactly once delivery semantics.");
+            }
+            generateCommitSequenceBuilder(this.datasetState, entry.getValue());
           } else {
-            commitDataset(this.datasetState, publisher);
+            DataPublisher publisher = taskFactory == null ?
+                closer.register(DataPublisher.getInstance(dataPublisherClass, this.jobContext.getJobState())) :
+                taskFactory.createDataPublisher(this.datasetState);
+            if (this.isMultithreaded && !publisher.isThreadSafe()) {
+              log.warn(String.format(
+                  "Gobblin is set up to parallelize publishing, however the publisher %s is not thread-safe. "
+                      + "Falling back to serial publishing.", publisher.getClass().getName()));
+              safeCommitDataset(entry.getValue(), publisher);
+            } else {
+              commitDataset(entry.getValue(), publisher);
+            }
           }
         }
+        this.datasetState.setState(JobState.RunningState.COMMITTED);
       } else {
         if (this.datasetState.getState() == JobState.RunningState.SUCCESSFUL) {
           this.datasetState.setState(JobState.RunningState.COMMITTED);
@@ -100,10 +125,10 @@ final class SafeDatasetCommit implements Callable<Void> {
       log.error(String.format("Failed to instantiate data publisher for dataset %s of job %s.", this.datasetUrn,
               this.jobContext.getJobId()), roe);
       throw new RuntimeException(roe);
-    } catch (IOException ioe) {
+    } catch (Throwable throwable) {
       log.error(String.format("Failed to commit dataset state for dataset %s of job %s", this.datasetUrn,
-          this.jobContext.getJobId()), ioe);
-      throw new RuntimeException(ioe);
+          this.jobContext.getJobId()), throwable);
+      throw new RuntimeException(throwable);
     } finally {
       try {
         finalizeDatasetState(datasetState, datasetUrn);
@@ -124,27 +149,58 @@ final class SafeDatasetCommit implements Callable<Void> {
   }
 
   /**
-   * Synchronized version of {@link #commitDataset(JobState.DatasetState, DataPublisher)} used when publisher is not
+   * Synchronized version of {@link #commitDataset(Collection, DataPublisher)} used when publisher is not
    * thread safe.
    */
-  private synchronized void safeCommitDataset(JobState.DatasetState datasetState, DataPublisher publisher) {
-    commitDataset(datasetState, publisher);
+  private void safeCommitDataset(Collection<TaskState> taskStates, DataPublisher publisher) {
+    synchronized (GLOBAL_LOCK) {
+      commitDataset(taskStates, publisher);
+    }
   }
 
   /**
    * Commit the output data of a dataset.
    */
-  private void commitDataset(JobState.DatasetState datasetState, DataPublisher publisher) {
+  private void commitDataset(Collection<TaskState> taskStates, DataPublisher publisher) {
 
     try {
-      publisher.publish(datasetState.getTaskStates());
+      publisher.publish(taskStates);
     } catch (Throwable t) {
       log.error("Failed to commit dataset", t);
-      setTaskFailureException(datasetState.getTaskStates(), t);
+      setTaskFailureException(taskStates, t);
+    }
+  }
+
+  private ListMultimap<TaskFactoryWrapper, TaskState> groupByTaskFactory(JobState.DatasetState datasetState) {
+    ListMultimap<TaskFactoryWrapper, TaskState> groupsMap = ArrayListMultimap.create();
+    for (TaskState taskState : datasetState.getTaskStates()) {
+      groupsMap.put(new TaskFactoryWrapper(TaskUtils.getTaskFactory(taskState).orNull()), taskState);
+    }
+    return groupsMap;
+  }
+
+  @Data
+  private static class TaskFactoryWrapper {
+    private final TaskFactory taskFactory;
+
+    public boolean equals(Object other) {
+      if (!(other instanceof TaskFactoryWrapper)) {
+        return false;
+      }
+      if (this.taskFactory == null) {
+        return ((TaskFactoryWrapper) other).taskFactory == null;
+      }
+      return ((TaskFactoryWrapper) other).taskFactory != null && this.taskFactory.getClass()
+          .equals(((TaskFactoryWrapper) other).taskFactory.getClass());
     }
 
-    // Set the dataset state to COMMITTED upon successful commit
-    datasetState.setState(JobState.RunningState.COMMITTED);
+    public int hashCode() {
+      final int PRIME = 59;
+      int result = 1;
+      final Class<?> klazz = this.taskFactory == null ? null : this.taskFactory.getClass();
+      result = result * PRIME + (klazz == null ? 43 : klazz.hashCode());
+      return result;
+    }
   }
 
   private synchronized void buildAndExecuteCommitSequence(CommitSequence.Builder builder, JobState.DatasetState datasetState,
@@ -200,14 +256,15 @@ final class SafeDatasetCommit implements Callable<Void> {
   }
 
   @SuppressWarnings("unchecked")
-  private Optional<CommitSequence.Builder> generateCommitSequenceBuilder(JobState.DatasetState datasetState) {
+  private Optional<CommitSequence.Builder> generateCommitSequenceBuilder(JobState.DatasetState datasetState,
+      Collection<TaskState> taskStates) {
     try (Closer closer = Closer.create()) {
       Class<? extends CommitSequencePublisher> dataPublisherClass =
           (Class<? extends CommitSequencePublisher>) Class.forName(datasetState
               .getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
       CommitSequencePublisher publisher =
           (CommitSequencePublisher) closer.register(DataPublisher.getInstance(dataPublisherClass, this.jobContext.getJobState()));
-      publisher.publish(datasetState.getTaskStates());
+      publisher.publish(taskStates);
       return publisher.getCommitSequenceBuilder();
     } catch (Throwable t) {
       log.error("Failed to generate commit sequence", t);

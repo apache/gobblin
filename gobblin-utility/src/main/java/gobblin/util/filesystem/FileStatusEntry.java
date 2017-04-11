@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.util.filesystem;
 
 import com.google.common.base.Optional;
@@ -18,48 +35,48 @@ public class FileStatusEntry extends FileStatus {
   private FileStatusEntry[] children;
 
   private boolean exists;
+  private final FileSystem fs;
 
   public Optional<FileStatus> _fileStatus;
 
   public FileStatusEntry(final Path path)
       throws IOException {
-    this(null, path);
+    this(null, path, path.getFileSystem(new Configuration()));
   }
 
-  public FileStatusEntry(final FileStatusEntry parent, final Path path)
+  private FileStatusEntry(final FileStatusEntry parent, final Path path, FileSystem fs)
       throws IOException {
     if (path == null) {
       throw new IllegalArgumentException("Path is missing");
     }
     this.parent = parent;
-    this._fileStatus = Optional.fromNullable(path.getFileSystem(new Configuration()).getFileStatus(path));
+    this.fs = fs;
+    this._fileStatus = Optional.fromNullable(this.fs.getFileStatus(path));
   }
 
   public boolean refresh(final Path path)
       throws IOException {
-    try (FileSystem fs = path.getFileSystem(new Configuration())) {
-      if (_fileStatus.isPresent()) {
-        Optional<FileStatus> oldStatus = this._fileStatus;
-        try {
-          this._fileStatus = Optional.of(fs.getFileStatus(path));
-          this.exists = this._fileStatus.isPresent();
+    if (_fileStatus.isPresent()) {
+      Optional<FileStatus> oldStatus = this._fileStatus;
+      try {
+        this._fileStatus = Optional.of(this.fs.getFileStatus(path));
+        this.exists = this._fileStatus.isPresent();
 
-          return (oldStatus.isPresent() != this._fileStatus.isPresent()
-              || oldStatus.get().getModificationTime() != this._fileStatus.get().getModificationTime()
-              || oldStatus.get().isDirectory() != this._fileStatus.get().isDirectory()
-              || oldStatus.get().getLen() != this._fileStatus.get().getLen());
-        } catch (FileNotFoundException e) {
-          _fileStatus = Optional.absent();
-          this.exists = false;
-          return true;
-        }
+        return (oldStatus.isPresent() != this._fileStatus.isPresent()
+            || oldStatus.get().getModificationTime() != this._fileStatus.get().getModificationTime()
+            || oldStatus.get().isDirectory() != this._fileStatus.get().isDirectory()
+            || oldStatus.get().getLen() != this._fileStatus.get().getLen());
+      } catch (FileNotFoundException e) {
+        _fileStatus = Optional.absent();
+        this.exists = false;
+        return true;
+      }
+    } else {
+      if (path.getFileSystem(new Configuration()).exists(path)) {
+        _fileStatus = Optional.of(this.fs.getFileStatus(path));
+        return true;
       } else {
-        if (path.getFileSystem(new Configuration()).exists(path)) {
-          _fileStatus = Optional.of(fs.getFileStatus(path));
-          return true;
-        } else {
-          return false;
-        }
+        return false;
       }
     }
   }
@@ -75,7 +92,7 @@ public class FileStatusEntry extends FileStatus {
    */
   public FileStatusEntry newChildInstance(final Path path)
       throws IOException {
-    return new FileStatusEntry(this, path);
+    return new FileStatusEntry(this, path, this.fs);
   }
 
   /**

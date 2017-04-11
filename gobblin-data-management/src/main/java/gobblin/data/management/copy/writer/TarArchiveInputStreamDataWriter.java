@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy.writer;
@@ -15,6 +20,7 @@ package gobblin.data.management.copy.writer;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
+import gobblin.util.io.StreamCopier;
 import gobblin.util.io.StreamUtils;
 
 import java.io.IOException;
@@ -55,7 +61,7 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
    * @see gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter#write(gobblin.data.management.copy.FileAwareInputStream)
    */
   @Override
-  public void writeImpl(FSDataInputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
+  public void writeImpl(InputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
     this.closer.register(inputStream);
 
     TarArchiveInputStream tarIn = new TarArchiveInputStream(inputStream);
@@ -81,7 +87,16 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
           FSDataOutputStream out = this.fs.create(tarEntryStagingPath, true);
           final WritableByteChannel outputChannel = Channels.newChannel(out);
           try {
-            this.bytesWritten.addAndGet(StreamUtils.copy(inputChannel, outputChannel));
+            StreamCopier copier = new StreamCopier(inputChannel, outputChannel);
+            if (isInstrumentationEnabled()) {
+              copier.withCopySpeedMeter(this.copySpeedMeter);
+            }
+            this.bytesWritten.addAndGet(copier.copy());
+            if (isInstrumentationEnabled()) {
+              log.info("File {}: copied {} bytes, average rate: {} B/s", copyableFile.getOrigin().getPath(), this.copySpeedMeter.getCount(), this.copySpeedMeter.getMeanRate());
+            } else {
+              log.info("File {} copied.", copyableFile.getOrigin().getPath());
+            }
           } finally {
             out.close();
             outputChannel.close();
