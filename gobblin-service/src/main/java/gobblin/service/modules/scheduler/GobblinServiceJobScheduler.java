@@ -70,6 +70,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Optional<FlowCatalog> flowCatalog;
   protected final Optional<HelixManager> helixManager;
   protected final Orchestrator orchestrator;
+  @Getter
   protected final Map<String, Spec> scheduledFlowSpecs;
 
   @Getter
@@ -101,14 +102,17 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       return;
     }
 
-    if (!isActive) {
+    // Since we are going to change status to isActive=true, schedule all flows
+    if (isActive) {
       if (this.flowCatalog.isPresent()) {
         Collection<Spec> specs = this.flowCatalog.get().getSpecs();
         for (Spec spec : specs) {
           onAddSpec(spec);
         }
       }
-    } else {
+    }
+    // Since we are going to change status to isActive=false, unschedule all flows
+    else {
       for (Spec spec : this.scheduledFlowSpecs.values()) {
         onDeleteSpec(spec.getUri(), spec.getVersion());
       }
@@ -150,10 +154,18 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /** {@inheritDoc} */
   @Override
   public void onAddSpec(Spec addedSpec) {
+    if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
+      // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
+      // .. Specs if in cluster mode and Helix is not yet initialized
+      _log.info("System not yet initialized. Skipping Spec Addition: " + addedSpec);
+      return;
+    }
+
     _log.info("New Spec detected: " + addedSpec);
 
     if (addedSpec instanceof FlowSpec) {
       if (!isActive && helixManager.isPresent()) {
+        _log.info("Scheduler running in slave mode, forward Spec add via Helix message to master: " + addedSpec);
         HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_ADD, addedSpec.getUri().toString(),
             UUID.randomUUID().toString(), InstanceType.CONTROLLER, helixManager.get(), _log);
         return;
@@ -164,9 +176,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         jobConfig.putAll(this.properties);
         jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, addedSpec.getUri().toString());
 
+        this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
+
         if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
           _log.info("Scheduling flow spec: " + addedSpec);
-          this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
           scheduleJob(jobConfig, null);
           if (jobConfig.containsKey(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)) {
             _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
@@ -185,15 +198,21 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /** {@inheritDoc} */
   @Override
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+    if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
+      // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
+      // .. Specs if in cluster mode and Helix is not yet initialized
+      _log.info("System not yet initialized. Skipping Spec Deletion: " + deletedSpecURI);
+      return;
+    }
     _log.info("Spec deletion detected: " + deletedSpecURI + "/" + deletedSpecVersion);
 
     if (!isActive && helixManager.isPresent()) {
+      _log.info("Scheduler running in slave mode, forward Spec delete via Helix message to master: " + deletedSpecURI);
       HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE, deletedSpecURI.toString() + ":" +
               deletedSpecVersion, UUID.randomUUID().toString(), InstanceType.CONTROLLER, helixManager.get(), _log);
       return;
     }
 
-    // To determine if the call was made via TopologyCatalog or FlowCatalog, iterate over StackTrace
     try {
       this.scheduledFlowSpecs.remove(deletedSpecURI.toString());
       unscheduleJob(deletedSpecURI.toString());
@@ -201,20 +220,18 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       _log.warn(String.format("Spec with URI: %s was not unscheduled cleaning",
           deletedSpecURI), e);
     }
-
-    try {
-      if (flowCatalog.isPresent()) {
-        flowCatalog.get().remove(deletedSpecURI);
-      }
-    } catch (RuntimeException e) {
-      _log.warn(String.format("Spec with URI: %s was not removed from FlowCatalog cleanly",
-          deletedSpecURI), e);
-    }
   }
 
   /** {@inheritDoc} */
   @Override
   public void onUpdateSpec(Spec updatedSpec) {
+    if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
+      // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
+      // .. Specs if in cluster mode and Helix is not yet initialized
+      _log.info("System not yet initialized. Skipping Spec Update: " + updatedSpec);
+      return;
+    }
+
     _log.info("Spec changed: " + updatedSpec);
 
     if (!(updatedSpec instanceof FlowSpec)) {
@@ -222,6 +239,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
 
     if (!isActive && helixManager.isPresent()) {
+      _log.info("Scheduler running in slave mode, forward Spec update via Helix message to master: " + updatedSpec);
       HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_UPDATE, updatedSpec.getUri().toString(),
           UUID.randomUUID().toString(), InstanceType.CONTROLLER, helixManager.get(), _log);
       return;
