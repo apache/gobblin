@@ -111,16 +111,8 @@ public class Orchestrator implements SpecCatalogListener {
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
     _log.info("Spec deletion detected: " + deletedSpecURI + "/" + deletedSpecVersion);
 
-    // To determine if the call was made via TopologyCatalog or FlowCatalog, iterate over StackTrace
-    // Todo: Add an mechanism for easy discoverability of caller since URI can be of ToplogySpec or FlowSpec
-
-    try {
-      if (topologyCatalog.isPresent()) {
-        topologyCatalog.get().remove(deletedSpecURI);
-        this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion);
-      }
-    } catch (RuntimeException e) {
-      _log.info(String.format("Spec with URI: %s was not found in TopologyCatalog", deletedSpecURI), e);
+    if (topologyCatalog.isPresent()) {
+      this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion);
     }
   }
 
@@ -161,8 +153,10 @@ public class Orchestrator implements SpecCatalogListener {
         try {
           producer = specsToExecute.getValue();
           Spec jobSpec = specsToExecute.getKey();
+
+          _log.info(String.format("Going to orchestrate JobSpc: %s on Executor: %s", jobSpec, producer));
           producer.addSpec(jobSpec);
-        } catch(Exception e){
+        } catch(Exception e) {
           _log.error("Cannot successfully setup spec: " + specsToExecute.getKey() + " on executor: " + producer +
             " for flow: " + spec);
         }
