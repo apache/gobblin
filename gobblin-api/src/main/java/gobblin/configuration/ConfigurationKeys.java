@@ -441,6 +441,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED = "source.querybased.is.compression.enabled";
   public static final String SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE =
       "source.querybased.jdbc.resultset.fetch.size";
+  public static final String SOURCE_QUERYBASED_ALLOW_REMOVE_UPPER_BOUNDS = "source.querybased.allowRemoveUpperBounds";
 
   /**
    * Configuration properties used by the FileBasedExtractor

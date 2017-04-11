@@ -42,7 +42,6 @@ import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.exception.RecordCountException;
 import gobblin.source.extractor.exception.SchemaException;
 import gobblin.source.extractor.partition.Partition;
-import gobblin.source.extractor.partition.Partitioner;
 import gobblin.source.extractor.schema.ArrayDataType;
 import gobblin.source.extractor.schema.DataType;
 import gobblin.source.extractor.schema.EnumDataType;
@@ -186,6 +185,10 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    * @return should remove or not
    */
   private boolean shouldRemoveDataPullUpperBounds() {
+    if (!this.workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_QUERYBASED_ALLOW_REMOVE_UPPER_BOUNDS, true)) {
+      return false;
+    }
+
     // Only consider the last work unit
     if (!partition.isLastPartition()) {
       return false;
