@@ -50,6 +50,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.exception.ExtractPrepareException;
+import gobblin.source.extractor.exception.RestApiClientException;
 import gobblin.source.extractor.exception.RestApiConnectionException;
 import gobblin.source.extractor.exception.RestApiProcessingException;
 import gobblin.source.extractor.extract.Command;
@@ -107,12 +108,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     }
 
     Partition partition = new Partitioner(state).getGlobalPartition(previousWatermark);
-    Histogram histogram;
-    try {
-      histogram = getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
-    } catch (DataRecordException e) {
-      throw new RuntimeException(e);
-    }
+    Histogram histogram = getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
 
     int maxPartitions = state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS,
         ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
@@ -186,7 +182,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   }
 
   private Histogram getHistogram(String entity, String watermarkColumn, SourceState state,
-      Partition partition) throws DataRecordException {
+      Partition partition) {
     Histogram histogram = new Histogram();
 
     Calendar calendar = new GregorianCalendar();
@@ -222,10 +218,8 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         List<Command> commands = RestApiConnector.constructGetCommand(connector.getFullUri(soqlQuery));
         CommandOutput<?, ?> response = connector.getResponse(commands);
         histogram.add(parseHistogram(response));
-      } catch (DataRecordException e) {
-        throw e;
-      } catch (Exception e) {
-        throw new DataRecordException("Fail to get data of year " + year + " from salesforce", e);
+      } catch (RestApiClientException | RestApiProcessingException | DataRecordException e) {
+        throw new RuntimeException("Fail to get data of year " + year + " from salesforce", e);
       }
     }
 
