@@ -62,6 +62,7 @@ import gobblin.util.NoopCloseable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -91,11 +92,13 @@ class BatchedPermitsRequester {
 
   private static final long RETRY_DELAY_ON_NON_RETRIABLE_EXCEPTION = 60000; // 10 minutes
   private static final double MAX_DEPLETION_RATE = 1e20;
+  public static final int MAX_GROWTH_REQUEST = 2;
 
   private static final ScheduledExecutorService SCHEDULE_EXECUTOR_SERVICE =
       Executors.newScheduledThreadPool(1, ExecutorsUtils.newDaemonThreadFactory(Optional.of(log),
           Optional.of(BatchedPermitsRequester.class.getName() + "-schedule-%d")));
 
+  @Getter(AccessLevel.PROTECTED) @VisibleForTesting
   private final PermitBatchContainer permitBatchContainer;
   private final RestClient restClient;
   private final Lock lock;
@@ -194,7 +197,7 @@ class BatchedPermitsRequester {
         BatchedPermitsRequester.this.restRequestHistogram.update(permits);
       }
 
-      log.info("Sending permit request " + permitRequest);
+      log.debug("Sending permit request " + permitRequest);
 
       this.requestSender.sendRequest(permitRequest, new AllocationCallback(
           BatchedPermitsRequester.this.restRequestTimer == null ? NoopCloseable.INSTANCE :
@@ -232,7 +235,8 @@ class BatchedPermitsRequester {
 
       double averageDepletionRate = firstBatch.getAverageDepletionRate();
       long candidatePermitsByDepletion =
-          Math.min((long) (averageDepletionRate * this.targetMillisBetweenRequests), 2 * firstBatch.getInitialPermits());
+          Math.min((long) (averageDepletionRate * this.targetMillisBetweenRequests), MAX_GROWTH_REQUEST *
+              firstBatch.getInitialPermits());
       return Math.max(candidatePermits, candidatePermitsByDepletion);
     } else {
       return candidatePermits;
@@ -254,7 +258,7 @@ class BatchedPermitsRequester {
         if (exc instanceof RestLiResponseException) {
           int errorCode = ((RestLiResponseException) exc).getStatus();
           if (NON_RETRIABLE_ERRORS.contains(errorCode)) {
-            nonRetriableFail(exc, "Encountered non retriable error.");
+            nonRetriableFail(exc, "Encountered non retriable error. HTTP response code: " + errorCode);
           }
         }
 
@@ -286,7 +290,7 @@ class BatchedPermitsRequester {
       try {
         PermitAllocation allocation = result.getEntity();
 
-        log.info("Received permit allocation " + allocation);
+        log.debug("Received permit allocation " + allocation);
 
         Long retryDelay = allocation.getMinRetryDelayMillis(GetMode.NULL);
         if (retryDelay != null) {
@@ -377,13 +381,14 @@ class BatchedPermitsRequester {
   /**
    * A container for {@link PermitBatch}es obtained from the server.
    */
-  private static class PermitBatchContainer {
+  static class PermitBatchContainer {
     private final TreeMultimap<Long, PermitBatch> batches = TreeMultimap.create(Ordering.natural(), new Comparator<PermitBatch>() {
       @Override
       public int compare(PermitBatch o1, PermitBatch o2) {
         return Long.compare(o1.autoIncrementKey, o2.autoIncrementKey);
       }
     });
+    @Getter
     private volatile long totalPermits = 0;
 
     private synchronized boolean tryTake(long permits) {

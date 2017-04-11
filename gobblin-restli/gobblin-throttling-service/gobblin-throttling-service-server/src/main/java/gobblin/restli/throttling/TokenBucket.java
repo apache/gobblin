@@ -21,6 +21,9 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Preconditions;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+
 
 /**
  * An implementation of Token Bucket (https://en.wikipedia.org/wiki/Token_bucket).
@@ -29,6 +32,7 @@ import com.google.common.base.Preconditions;
  */
 public class TokenBucket {
 
+  @Getter(AccessLevel.PROTECTED)
   private double tokensPerMilli;
   private double maxBucketSizeInTokens;
 

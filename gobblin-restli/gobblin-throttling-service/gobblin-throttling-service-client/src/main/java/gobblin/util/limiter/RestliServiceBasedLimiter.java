@@ -19,6 +19,7 @@ package gobblin.util.limiter;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.linkedin.restli.client.RestClient;
 
@@ -27,7 +28,10 @@ import gobblin.metrics.MetricContext;
 import gobblin.util.NoopCloseable;
 import java.io.Closeable;
 import java.io.IOException;
+
+import lombok.AccessLevel;
 import lombok.Builder;
+import lombok.Getter;
 
 
 /**
@@ -38,6 +42,7 @@ public class RestliServiceBasedLimiter implements Limiter {
   public static final String PERMITS_REQUESTED_METER_NAME = "limiter.restli.permitsRequested";
   public static final String PERMITS_GRANTED_METER_NAME = "limiter.restli.permitsGranted";
 
+  @Getter @VisibleForTesting
   private final BatchedPermitsRequester bachedPermitsContainer;
 
   private final Optional<MetricContext> metricContext;
@@ -47,9 +52,9 @@ public class RestliServiceBasedLimiter implements Limiter {
 
   @Builder
   private RestliServiceBasedLimiter(RestClient restClient, String resourceLimited, String serviceIdentifier,
-      MetricContext metricContext) {
+      MetricContext metricContext, BatchedPermitsRequester.RequestSender requestSender) {
     this.bachedPermitsContainer = BatchedPermitsRequester.builder().restClient(restClient).resourceId(resourceLimited)
-        .requestorIdentifier(serviceIdentifier).build();
+        .requestorIdentifier(serviceIdentifier).requestSender(requestSender).build();
 
     this.metricContext = Optional.fromNullable(metricContext);
     if (this.metricContext.isPresent()) {
@@ -79,5 +84,13 @@ public class RestliServiceBasedLimiter implements Limiter {
   @Override
   public void stop() {
     // Do nothing
+  }
+
+  /**
+   * @return the number of permits acquired from the server and not yet used.
+   */
+  @VisibleForTesting
+  public long getUnusedPermits() {
+    return this.bachedPermitsContainer.getPermitBatchContainer().getTotalPermits();
   }
 }

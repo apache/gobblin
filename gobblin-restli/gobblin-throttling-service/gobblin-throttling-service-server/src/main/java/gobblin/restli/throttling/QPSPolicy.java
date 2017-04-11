@@ -17,6 +17,7 @@
 
 package gobblin.restli.throttling;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.linkedin.data.template.GetMode;
 import com.typesafe.config.Config;
@@ -26,11 +27,15 @@ import gobblin.annotation.Alpha;
 import gobblin.broker.SimpleScopeType;
 import gobblin.broker.iface.SharedResourcesBroker;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * A {@link ThrottlingPolicy} based on a QPS (queries per second). It internally uses a {@link DynamicTokenBucket}.
  */
 @Alpha
+@Slf4j
 public class QPSPolicy implements ThrottlingPolicy {
 
   public static final String FACTORY_ALIAS = "qps";
@@ -50,6 +55,8 @@ public class QPSPolicy implements ThrottlingPolicy {
   public static final String MAX_BUCKET_SIZE_MILLIS = "maxBucketSizeMillis";
   public static final long DEFAULT_MAX_BUCKET_SIZE = 10000;
 
+  @VisibleForTesting
+  @Getter
   private final DynamicTokenBucket tokenBucket;
 
   @Alias(FACTORY_ALIAS)

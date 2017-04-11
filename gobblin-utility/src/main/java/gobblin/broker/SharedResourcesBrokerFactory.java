@@ -143,7 +143,7 @@ public class SharedResourcesBrokerFactory {
     return config;
   }
 
-  private static <S, T> void addBrokerKeys(Map<String, String> configMap, Iterable<Map.Entry<S, T>> entries) {
+  public static <S, T> void addBrokerKeys(Map<String, String> configMap, Iterable<Map.Entry<S, T>> entries) {
     for (Map.Entry<S, T> entry : entries) {
       Object key = entry.getKey();
       if (key instanceof String && ((String) key).startsWith(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX)) {
