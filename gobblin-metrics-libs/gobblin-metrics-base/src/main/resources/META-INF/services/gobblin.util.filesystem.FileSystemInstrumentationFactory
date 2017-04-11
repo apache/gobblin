@@ -15,5 +15,4 @@
 # limitations under the License.
 #
 
-gobblin.filesystem.InstrumentedHDFSFileSystem
-gobblin.filesystem.InstrumentedWebHdfsFileSystem
+gobblin.filesystem.MetricsFileSystemInstrumentation$Factory

@@ -38,7 +38,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
-public class InstrumentedHDFSFileSystemTest {
+public class MetricsFileSystemInstrumentationTest {
 
   private final String originalURI = "hdfs://localhost:9000";
   private final String instrumentedURI = "instrumented-hdfs://localhost:9000";
@@ -136,7 +136,7 @@ public class InstrumentedHDFSFileSystemTest {
 
   /**
    * This test is disabled because it requires a local hdfs cluster at localhost:8020, which requires installation and setup.
-   * Changes to {@link InstrumentedHDFSFileSystem} should be followed by a manual run of this tests.
+   * Changes to {@link MetricsFileSystemInstrumentation} should be followed by a manual run of this tests.
    *
    * TODO: figure out how to fully automate this test.
    * @throws Exception
@@ -174,7 +174,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testListStatusPath() throws IOException, URISyntaxException  {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/ListStatusPath");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path rootPath = hdfsRoot.getRootPath();
     FileStatus[] status = fs.listStatus(rootPath);
     Assert.assertEquals(fs.listStatusTimer.getCount(), 1);
@@ -186,7 +187,8 @@ public class InstrumentedHDFSFileSystemTest {
   public void testListStatusPathError() throws IOException, URISyntaxException {
 
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/ListStatusPathError");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     try {
       fs.listStatus(new Path("/tmp/nonexistence"));
     } catch (Exception e) {
@@ -200,7 +202,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testListStatusPaths() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/ListStatusPaths");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
 
     Path[] paths = {hdfsRoot.filePath2, hdfsRoot.dirPath2};
     FileStatus[] status = fs.listStatus(paths);
@@ -213,7 +216,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testListStatusPathsError() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/ListStatusPathsError");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
 
     try {
       Path[] paths = {hdfsRoot.dirPath2, new Path("/tmp/nonexistence"), hdfsRoot.filePath2};
@@ -229,7 +233,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testListStatusPathWithFilter() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/ListStatusPathWithFilter");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     FileStatus[] status = fs.listStatus(hdfsRoot.getDirPath3(), new PathFilter() {
       @Override
       public boolean accept(Path path) {
@@ -244,7 +249,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testListStatusPathsWithFilter() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/ListStatusPathsWithFilter");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
 
     Path[] paths = {hdfsRoot.filePath2, hdfsRoot.dirPath2, hdfsRoot.dirPath3};
     FileStatus[] status = fs.listStatus(paths, new PathFilter() {
@@ -262,7 +268,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testListFiles() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/ListFiles");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
 
     fs.listFiles(hdfsRoot.getRootPath(), true);
     Assert.assertEquals(fs.listFilesTimer.getCount(), 1);
@@ -273,7 +280,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testGlobStatus() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/GlobStatus");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
 
     FileStatus[] status = fs.globStatus(new Path("/tmp/GlobStatus/*/*.ext"));
     Assert.assertEquals(fs.globStatusTimer.getCount(), 1);
@@ -284,7 +292,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testGlobStatusWithFilter() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/GlobStatusWithFilter");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
 
     FileStatus[] status = fs.globStatus(new Path("/tmp/GlobStatusWithFilter/*/*"), new PathFilter() {
       @Override
@@ -300,10 +309,11 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testMakeDirWithPermission() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/mkdirWithPermission");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
 
     Path newDir = new Path (hdfsRoot.getRootPath(), new Path("X"));
-    fs.mkdir(newDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ));
+    fs.mkdirs(newDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ));
     Assert.assertEquals(fs.mkdirTimer.getCount(), 1);
     hdfsRoot.cleanupRoot();
   }
@@ -311,7 +321,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testMakeDirs() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/mkdirs");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
 
     Path newDir = new Path (hdfsRoot.getRootPath(), new Path("X/Y/Z"));
     fs.mkdirs(newDir);
@@ -322,7 +333,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testMakeDirsWithPermission() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/mkdirsWithPermission");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
 
     Path newDir = new Path (hdfsRoot.getRootPath(), new Path("X/Y/Z"));
     fs.mkdirs(newDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ));
@@ -333,7 +345,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testDelete() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/delete");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
 
     fs.delete(hdfsRoot.getDirPath3(), true);
     Assert.assertEquals(fs.deleteTimer.getCount(), 1);
@@ -343,7 +356,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testRename() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/rename");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newDir = new Path("/tmp/rename/AfterRename");
     fs.rename(hdfsRoot.getDirPath3(), newDir);
     Assert.assertEquals(fs.renameTimer.getCount(), 1);
@@ -356,7 +370,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testCreate1() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path("/tmp/create/newFile");
     FSDataOutputStream fstream = fs.create(newFile);
     Assert.assertEquals(fs.createTimer.getCount(), 1);
@@ -367,7 +382,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testCreate2() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path("/tmp/create/newFile");
     FSDataOutputStream fstream = fs.create(newFile, true);
     Assert.assertEquals(fs.createTimer.getCount(), 1);
@@ -378,7 +394,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testCreate3() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path("/tmp/create/newFile");
     FSDataOutputStream fstream = fs.create(newFile, true, 300);
     Assert.assertEquals(fs.createTimer.getCount(), 1);
@@ -389,7 +406,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testCreate4() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path("/tmp/create/newFile");
     FSDataOutputStream fstream = fs.create(newFile, true, 300, null);
     Assert.assertEquals(fs.createTimer.getCount(), 1);
@@ -400,7 +418,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testCreate5() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path("/tmp/create/newFile");
     FSDataOutputStream fstream = fs.create(newFile, true, 300, (short)1, 1048576);
     Assert.assertEquals(fs.createTimer.getCount(), 1);
@@ -411,7 +430,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testCreate6() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path("/tmp/create/newFile");
     FSDataOutputStream fstream = fs.create(newFile, true, 300, (short)1, 1048576, null);
     Assert.assertEquals(fs.createTimer.getCount(), 1);
@@ -422,7 +442,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testCreate7() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ);
     Path newFile = new Path("/tmp/create/newFile");
     FSDataOutputStream fstream = fs.create(newFile, permission, true, 100, (short)2, 1048576, null);
@@ -434,7 +455,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testCreate8() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path("/tmp/create/newFile");
     FSDataOutputStream fstream = fs.create(newFile, (short)2);
     Assert.assertEquals(fs.createTimer.getCount(), 1);
@@ -445,7 +467,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testCreate9() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path("/tmp/create/newFile");
     FSDataOutputStream fstream = fs.create(newFile, (short)2, null);
     Assert.assertEquals(fs.createTimer.getCount(), 1);
@@ -456,7 +479,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testCreate10() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/create");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path("/tmp/create/newFile");
     FSDataOutputStream fstream = fs.create(newFile, null);
     Assert.assertEquals(fs.createTimer.getCount(), 1);
@@ -467,7 +491,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testOpen1() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/Open");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path(hdfsRoot.getRootPath(), new Path("file8.ext"));
     FSDataInputStream fstream = fs.open(newFile);
     Assert.assertEquals(fs.openTimer.getCount(), 1);
@@ -479,7 +504,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testOpen2() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/Open");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path(hdfsRoot.getRootPath(), new Path("file8.ext"));
     FSDataInputStream fstream = fs.open(newFile, 100);
     Assert.assertEquals(fs.openTimer.getCount(), 1);
@@ -491,7 +517,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testSetOwner() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/setOwner");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     Path newFile = new Path(hdfsRoot.getRootPath(), new Path("file8.ext"));
     fs.setOwner(newFile, "someone", "linkedin");
     Assert.assertEquals(fs.setOwnerTimer.getCount(), 1);
@@ -501,7 +528,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testGetFileStatus() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/getFileStatus");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     fs.getFileStatus(hdfsRoot.getFilePath8());
     Assert.assertEquals(fs.getFileStatusTimer.getCount(), 1);
     hdfsRoot.cleanupRoot();
@@ -510,7 +538,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testSetPermission() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/permission");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ);
     fs.setPermission(hdfsRoot.getFilePath8(), permission);
     Assert.assertEquals(fs.setPermissionTimer.getCount(), 1);
@@ -520,7 +549,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testSetTimes() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/setTimes");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     fs.setTimes(hdfsRoot.getFilePath8(), System.currentTimeMillis(), System.currentTimeMillis());
     Assert.assertEquals(fs.setTimesTimer.getCount(), 1);
     hdfsRoot.cleanupRoot();
@@ -529,7 +559,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testAppend1() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/append");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     FSDataOutputStream fstream = fs.append(hdfsRoot.getFilePath8());
     Assert.assertEquals(fs.appendTimer.getCount(), 1);
     fstream.close();
@@ -539,7 +570,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testAppend2() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/append");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     FSDataOutputStream fstream = fs.append(hdfsRoot.getFilePath8(), 100);
     Assert.assertEquals(fs.appendTimer.getCount(), 1);
     fstream.close();
@@ -549,7 +581,8 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void testAppend3() throws IOException, URISyntaxException {
     HDFSRoot hdfsRoot = new HDFSRoot("/tmp/append");
-    InstrumentedHDFSFileSystem fs = (InstrumentedHDFSFileSystem) FileSystem.get(new URI(instrumentedURI), new Configuration());
+    MetricsFileSystemInstrumentation
+        fs = (MetricsFileSystemInstrumentation) FileSystem.get(new URI(instrumentedURI), new Configuration());
     FSDataOutputStream fstream = fs.append(hdfsRoot.getFilePath8(), 100, null);
     Assert.assertEquals(fs.appendTimer.getCount(), 1);
     fstream.close();

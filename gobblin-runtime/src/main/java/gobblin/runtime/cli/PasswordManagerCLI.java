@@ -15,27 +15,24 @@
  * limitations under the License.
  */
 
-package gobblin.filesystem;
+package gobblin.runtime.cli;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import gobblin.annotation.Alias;
+import gobblin.util.CLIPasswordEncryptor;
 
 
 /**
- * Common methods for Instrumented {@link org.apache.hadoop.fs.FileSystem}s.
+ * An application that uses {@link gobblin.password.PasswordManager} to encrypt and decrypt strings.
  */
-public class InstrumentedFileSystemUtils {
+@Alias(value = "passwordManager", description = "Encrypt or decrypt strings for the password manager.")
+public class PasswordManagerCLI implements CliApplication {
 
-  public static URI replaceScheme(URI uri, String replace, String replacement) {
+  @Override
+  public void run(String[] args) {
     try {
-      if (replace != null && replace.equals(uri.getScheme())) {
-        return new URI(replacement, uri.getUserInfo(), uri.getHost(), uri.getPort(), uri.getPath(), uri.getQuery(), uri.getFragment());
-      } else {
-        return uri;
-      }
-    } catch (URISyntaxException use) {
-      throw new RuntimeException("Failed to replace scheme.");
+      CLIPasswordEncryptor.main(args);
+    } catch (Throwable t) {
+      throw new RuntimeException(t);
     }
   }
-
 }
