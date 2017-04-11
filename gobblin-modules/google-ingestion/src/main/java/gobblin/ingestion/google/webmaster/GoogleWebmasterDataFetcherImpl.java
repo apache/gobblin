@@ -65,9 +65,9 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final GoogleWebmasterClient _client;
   private final List<ProducerJob> _jobs;
 
-  GoogleWebmasterDataFetcherImpl(GoogleWebmasterClient client, State wuState)
+  GoogleWebmasterDataFetcherImpl(String siteProperty, GoogleWebmasterClient client, State wuState)
       throws IOException {
-    _siteProperty = wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY);
+    _siteProperty = siteProperty;
     Preconditions.checkArgument(_siteProperty.endsWith("/"), "The site property must end in \"/\"");
     _client = client;
     _jobs = getHotStartJobs(wuState);
@@ -233,8 +233,6 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       //wait for jobs to finish and start next round if necessary.
       try {
         es.shutdown();
-        log.info(String.format("Wait for get-all-pages jobs to finish at round %d... Next round now has size %d.", r,
-            nextRound.size()));
         boolean terminated = es.awaitTermination(5, TimeUnit.MINUTES);
         if (!terminated) {
           es.shutdownNow();
