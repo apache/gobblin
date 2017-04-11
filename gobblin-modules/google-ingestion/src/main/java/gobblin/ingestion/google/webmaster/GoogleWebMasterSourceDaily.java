@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -51,7 +52,7 @@ import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL;
 @Slf4j
 public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
 
-  private final DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
+  private final DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyyMMdd");
 
   @Override
   GoogleWebmasterExtractor createExtractor(WorkUnitState state, Map<String, Integer> columnPositionMap,
@@ -70,20 +71,22 @@ public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
       2. Google Search Console API only cares about Dates, and are both side inclusive.
       Therefore, do the following processing.
      */
-    lowWatermark /= 1000000;
     expectedHighWatermark /= 1000000;
-    DateTime lowWaterMarkDate = watermarkFormatter.parseDateTime(Long.toString(lowWatermark));
-    DateTime highWaterMarkDate = watermarkFormatter.parseDateTime(Long.toString(expectedHighWatermark));
+    DateTime highWaterMarkDate = dateFormatter.parseDateTime(Long.toString(expectedHighWatermark));
     if (!partition.isHighWatermarkInclusive()) {
-      highWaterMarkDate.minusDays(1);
+      highWaterMarkDate = highWaterMarkDate.minusDays(1);
     }
-    long updatedLowWatermark = lowWaterMarkDate.getMillis();
-    long updatedExpectedHighWatermark = highWaterMarkDate.getMillis();
+    String yearString = Integer.toString(highWaterMarkDate.getYear());
+    String monthString = StringUtils.leftPad(Integer.toString(highWaterMarkDate.getMonthOfYear()), 2, '0');
+    String dayString = StringUtils.leftPad(Integer.toString(highWaterMarkDate.getDayOfMonth()), 2, '0');
+
+    long updatedExpectedHighWatermark =
+        Long.parseLong(String.format("%s%s%s235959", yearString, monthString, dayString));
 
     GoogleWebmasterClientImpl gscClient =
         new GoogleWebmasterClientImpl(getCredential(state), state.getProp(ConfigurationKeys.SOURCE_ENTITY));
-    return new GoogleWebmasterExtractor(gscClient, state, updatedLowWatermark, updatedExpectedHighWatermark,
-        columnPositionMap, requestedDimensions, requestedMetrics, schemaJson);
+    return new GoogleWebmasterExtractor(gscClient, state, lowWatermark, updatedExpectedHighWatermark, columnPositionMap,
+        requestedDimensions, requestedMetrics, schemaJson);
   }
 
   private static Credential getCredential(State wuState) {
