@@ -26,7 +26,8 @@ public class EventhubAccumulatorTest {
 
     this.latchEmpty.await();
     // The spawned thread should unblock current thread because it removes some front batches
-    Assert.assertEquals(accumulator.getNumOfBatches(), 2);
+    Assert.assertTrue(accumulator.getNumOfBatches() >=2);
+    Assert.assertTrue(accumulator.getNumOfBatches() <=5);
   }
 
   @Test

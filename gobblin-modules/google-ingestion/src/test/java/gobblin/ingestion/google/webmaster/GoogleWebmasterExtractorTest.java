@@ -43,7 +43,8 @@ public class GoogleWebmasterExtractorTest {
    * Test that positionMaps and iterators are constructed correctly in the constructor
    */
   @Test
-  public void testConstructor() throws IOException, DataRecordException {
+  public void testConstructor()
+      throws IOException, DataRecordException {
     WorkUnitState wuState = getWorkUnitState1();
     wuState.setProp(GoogleWebMasterSource.KEY_REQUEST_FILTERS, "Country.USA,Country.ALL");
 
@@ -55,26 +56,27 @@ public class GoogleWebmasterExtractorTest {
     positionMap.put(GoogleWebmasterFilter.Dimension.COUNTRY.toString(), 1);
     positionMap.put(GoogleWebmasterFilter.Dimension.PAGE.toString(), 2);
 
-    GoogleWebmasterDataFetcher dataFetcher = Mockito.mock(GoogleWebmasterDataFetcher.class);
+    GoogleWebmasterDataFetcher dataFetcher1 = Mockito.mock(GoogleWebmasterDataFetcher.class);
+    GoogleWebmasterDataFetcher dataFetcher2 = Mockito.mock(GoogleWebmasterDataFetcher.class);
 
     GoogleWebmasterExtractor extractor =
         new GoogleWebmasterExtractor(wuState, wuState.getWorkunit().getLowWatermark(LongWatermark.class).getValue(),
             wuState.getWorkunit().getExpectedHighWatermark(LongWatermark.class).getValue(), positionMap, dimensions,
-            metrics, dataFetcher);
+            metrics, null, Arrays.asList(dataFetcher1, dataFetcher2));
 
     Queue<GoogleWebmasterExtractorIterator> iterators = extractor.getIterators();
-    GoogleWebmasterExtractorIterator iteratorUSA = iterators.poll();
-    Assert.assertEquals("USA", iteratorUSA.getCountry());
-    GoogleWebmasterExtractorIterator iteratorALL = iterators.poll();
-    Assert.assertEquals("ALL", iteratorALL.getCountry());
+    Assert.assertEquals("USA", iterators.poll().getCountry());
+    Assert.assertEquals("ALL", iterators.poll().getCountry());
+    Assert.assertEquals("USA", iterators.poll().getCountry());
+    Assert.assertEquals("ALL", iterators.poll().getCountry());
     Assert.assertTrue(iterators.isEmpty());
 
     Queue<int[]> responseToOutputSchema = extractor.getPositionMaps();
-    int[] positionMap1 = responseToOutputSchema.poll(); //country is Country.USA
-    Assert.assertEquals(new int[]{2, 1, 0}, positionMap1);
-    int[] positionMap2 =
-        responseToOutputSchema.poll(); //country is Country.ALL, so the country request will be removed.
-    Assert.assertEquals(new int[]{2, 0}, positionMap2);
+    Assert.assertEquals(new int[]{2, 1, 0}, responseToOutputSchema.poll()); //country is Country.USA
+    Assert.assertEquals(new int[]{2, 0},
+        responseToOutputSchema.poll()); //country is Country.ALL, so the country request will be removed.
+    Assert.assertEquals(new int[]{2, 1, 0}, responseToOutputSchema.poll());
+    Assert.assertEquals(new int[]{2, 0}, responseToOutputSchema.poll());
     Assert.assertTrue(responseToOutputSchema.isEmpty());
   }
 

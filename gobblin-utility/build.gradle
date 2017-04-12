@@ -45,10 +45,10 @@ dependencies {
   compile externalDependency.commonsLang3
   compile externalDependency.gson
   compile externalDependency.opencsv
+  compile externalDependency.hadoopHdfs
 
   runtime externalDependency.hadoopCommon
   runtime externalDependency.hadoopClientCore
-  runtime externalDependency.hadoopHdfs
   runtime externalDependency.hadoopAuth
 
   testCompile externalDependency.hamcrest
