@@ -265,8 +265,8 @@ public class OrchestratorTest {
     Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Flow that was added in last test");
     // Orchestrator is a no-op listener for any new FlowSpecs, so no FlowSpecs should be around
     int specsInSEI = ((List)(sei.listSpecs().get())).size();
-    Assert.assertTrue(specsInSEI == 0, "SpecExecutorInstanceProducer should contain 1 "
-        + "Spec after addition");
+    Assert.assertTrue(specsInSEI == 0, "SpecExecutorInstanceProducer should contain 0 "
+        + "Spec after addition because Orchestrator is a no-op listener for any new FlowSpecs");
 
     // Remove the flow
     this.flowCatalog.remove(flowSpec.getUri());

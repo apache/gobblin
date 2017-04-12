@@ -244,12 +244,8 @@ public class GobblinServiceHATest {
 
     // Try create on both nodes
     long schedulingStartTime = System.currentTimeMillis();
-    try {
-      this.node1FlowConfigClient.createFlowConfig(flowConfig1);
-      this.node2FlowConfigClient.createFlowConfig(flowConfig2);
-    } catch (Exception e) {
-
-    }
+    this.node1FlowConfigClient.createFlowConfig(flowConfig1);
+    this.node2FlowConfigClient.createFlowConfig(flowConfig2);
 
     // Check if created on master
     GobblinServiceManager master;
