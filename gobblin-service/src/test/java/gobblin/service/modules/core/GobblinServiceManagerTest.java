@@ -47,13 +47,14 @@ import gobblin.runtime.spec_catalog.TopologyCatalog;
 import gobblin.service.FlowConfig;
 import gobblin.service.FlowConfigClient;
 import gobblin.service.FlowConfigId;
+import gobblin.service.ServiceConfigKeys;
 import gobblin.service.modules.orchestration.Orchestrator;
 import gobblin.util.ConfigUtils;
 
 
 public class GobblinServiceManagerTest {
 
-  private static final Logger logger = LoggerFactory.getLogger(TopologyCatalog.class);
+  private static final Logger logger = LoggerFactory.getLogger(GobblinServiceManagerTest.class);
   private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
   private static final String SERVICE_WORK_DIR = "/tmp/serviceWorkDir/";
@@ -69,6 +70,9 @@ public class GobblinServiceManagerTest {
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
   private static final String TEST_DUMMY_GROUP_NAME = "dummyGroup";
   private static final String TEST_DUMMY_FLOW_NAME = "dummyFlow";
+  private static final String TEST_GOBBLIN_EXECUTOR_NAME = "testGobblinExecutor";
+  private static final String TEST_SOURCE_NAME = "testSource";
+  private static final String TEST_SINK_NAME = "testSink";
 
   private ServiceBasedAppLauncher serviceLauncher;
   private TopologyCatalog topologyCatalog;
@@ -90,6 +94,17 @@ public class GobblinServiceManagerTest {
     Properties serviceCoreProperties = new Properties();
     serviceCoreProperties.put(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY, TOPOLOGY_SPEC_STORE_DIR);
     serviceCoreProperties.put(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, FLOW_SPEC_STORE_DIR);
+    serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_TOPOLOGY_NAMES_KEY , TEST_GOBBLIN_EXECUTOR_NAME);
+    serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".description",
+        "StandaloneTestExecutor");
+    serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".version",
+        "1");
+    serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".uri",
+        "gobblinExecutor");
+    serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".specExecutorInstanceProducer",
+        "gobblin.service.InMemorySpecExecutorInstanceProducer");
+    serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".specExecInstance.capabilities",
+        TEST_SOURCE_NAME + ":" + TEST_SINK_NAME);
 
     this.gobblinServiceManager = new GobblinServiceManager("CoreService", "1",
         ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
@@ -109,16 +124,31 @@ public class GobblinServiceManagerTest {
   @AfterClass
   public void cleanUp() throws Exception {
     // Shutdown Service
-    this.gobblinServiceManager.stop();
+    try {
+      this.gobblinServiceManager.stop();
+    } catch (Exception e) {
+      logger.warn("Could not cleanly stop Gobblin Service Manager", e);
+    }
 
-    cleanUpDir(SERVICE_WORK_DIR);
-    cleanUpDir(SPEC_STORE_PARENT_DIR);
+    try {
+      cleanUpDir(SERVICE_WORK_DIR);
+    } catch (Exception e) {
+      logger.warn("Could not completely cleanup Work Dir");
+    }
+
+    try {
+      cleanUpDir(SPEC_STORE_PARENT_DIR);
+    } catch (Exception e) {
+      logger.warn("Could not completely cleanup Spec Store Parent Dir");
+    }
   }
 
   @Test
   public void testCreate() throws Exception {
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
+    flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
+    flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
 
     FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setRunImmediately(true)
@@ -133,6 +163,8 @@ public class GobblinServiceManagerTest {
   public void testCreateAgain() throws Exception {
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
+    flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
+    flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
 
     FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setProperties(new StringMap(flowProperties));
@@ -170,6 +202,8 @@ public class GobblinServiceManagerTest {
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1b");
     flowProperties.put("param2", "value2b");
+    flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
+    flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
 
     FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setProperties(new StringMap(flowProperties));
