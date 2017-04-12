@@ -89,7 +89,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected final FileSystem fs;
   protected final Path stagingDir;
   protected final Path outputDir;
-  protected final Closer closer = Closer.create();
   private final Map<String, Object> encryptionConfig;
   protected CopyableDatasetMetadata copyableDatasetMetadata;
   protected final RecoveryHelper recoveryHelper;
@@ -341,12 +340,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public long bytesWritten()
       throws IOException {
     return this.bytesWritten.get();
-  }
-
-  @Override
-  public void close()
-      throws IOException {
-    this.closer.close();
   }
 
   /**

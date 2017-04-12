@@ -35,7 +35,9 @@ public class ClustersNamesTest {
                         "cluster1-rm.some.company.com");
     Assert.assertEquals(clustersNames.getClusterName("http://cluster3-rm.some.company.com:12345"),
         "cluster3-rm.some.company.com");
+    Assert.assertEquals(clustersNames.getClusterName("file:///"),
+        "file");
     Assert.assertEquals(clustersNames.getClusterName("uri:fancy-uri"),
-        "uri:fancy-uri");
+        "uri_fancy-uri");
   }
 }

@@ -17,6 +17,7 @@
 
 package gobblin.service;
 
+import com.google.common.util.concurrent.AbstractIdleService;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -40,7 +41,7 @@ import gobblin.util.CompletedFuture;
 import gobblin.util.ConfigUtils;
 
 
-public class SimpleKafkaSpecExecutorInstance implements SpecExecutorInstance {
+public class SimpleKafkaSpecExecutorInstance extends AbstractIdleService implements SpecExecutorInstance {
   public static final String SPEC_KAFKA_TOPICS_KEY = "spec.kafka.topics";
   protected static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
   protected static final Splitter SPLIT_BY_COLON = Splitter.on(":").omitEmptyStrings().trimResults();
@@ -98,6 +99,16 @@ public class SimpleKafkaSpecExecutorInstance implements SpecExecutorInstance {
   @Override
   public Future<? extends Map<String, String>> getCapabilities() {
     return new CompletedFuture<>(_capabilities, null);
+  }
+
+  @Override
+  protected void startUp() throws Exception {
+    // nothing to do in default implementation
+  }
+
+  @Override
+  protected void shutDown() throws Exception {
+    // nothing to do in default implementation
   }
 
   public static class SpecExecutorInstanceDataPacket implements Serializable {

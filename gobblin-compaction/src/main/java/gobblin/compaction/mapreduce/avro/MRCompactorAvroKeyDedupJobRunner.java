@@ -73,19 +73,19 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
    * If true, the latest schema, determined from the input files, will be used as single schema for all input files,
    * otherwise, the avro each input file will be determined and splits will be created with respect to the input file's schema
    */
-  private static final String COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA =
+  public static final String COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA =
       COMPACTION_JOB_PREFIX + "avro.single.input.schema";
 
   /**
    * Properties related to the avro dedup compaction job of a dataset.
    */
-  private static final String COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC = COMPACTION_JOB_PREFIX + "avro.key.schema.loc";
-  private static final String COMPACTION_JOB_DEDUP_KEY = COMPACTION_JOB_PREFIX + "dedup.key";
+  public static final String COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC = COMPACTION_JOB_PREFIX + "avro.key.schema.loc";
+  public static final String COMPACTION_JOB_DEDUP_KEY = COMPACTION_JOB_PREFIX + "dedup.key";
 
   private static final String AVRO = "avro";
   private static final String SCHEMA_DEDUP_FIELD_ANNOTATOR = "primarykey";
 
-  private enum DedupKeyOption {
+  public enum DedupKeyOption {
 
     // Use all fields in the topic schema
     ALL,
@@ -98,7 +98,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     CUSTOM
   }
 
-  private static final DedupKeyOption DEFAULT_DEDUP_KEY_OPTION = DedupKeyOption.KEY;
+  public static final DedupKeyOption DEFAULT_DEDUP_KEY_OPTION = DedupKeyOption.KEY;
 
   private final boolean useSingleInputSchema;
 
@@ -114,7 +114,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   }
 
   private void configureSchema(Job job) throws IOException {
-    Schema newestSchema = getNewestSchemaFromSource(job);
+    Schema newestSchema = getNewestSchemaFromSource(job, this.fs);
     if (this.useSingleInputSchema) {
       AvroJob.setInputKeySchema(job, newestSchema);
     }
@@ -168,7 +168,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
    * Returns a schema composed of all fields in topicSchema whose doc match "(?i).*primarykey".
    * If there's no such field, topicSchema itself will be returned.
    */
-  private Schema getKeySchema(Schema topicSchema) {
+  public static Schema getKeySchema(Schema topicSchema) {
     Preconditions.checkArgument(topicSchema.getType() == Schema.Type.RECORD);
 
     Optional<Schema> newSchema = getKeySchemaFromRecord(topicSchema);
@@ -181,7 +181,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     }
   }
 
-  private Optional<Schema> getKeySchema(Field field) {
+  public static Optional<Schema> getKeySchema(Field field) {
     switch (field.schema().getType()) {
       case RECORD:
         return getKeySchemaFromRecord(field.schema());
@@ -194,7 +194,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     }
   }
 
-  private Optional<Schema> getKeySchemaFromRecord(Schema record) {
+  public static Optional<Schema> getKeySchemaFromRecord(Schema record) {
     Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
 
     List<Field> fields = Lists.newArrayList();
@@ -216,24 +216,24 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   /**
    * keySchema is valid if a record with newestSchema can be converted to a record with keySchema.
    */
-  private static boolean isKeySchemaValid(Schema keySchema, Schema topicSchema) {
+  public static boolean isKeySchemaValid(Schema keySchema, Schema topicSchema) {
     return SchemaCompatibility.checkReaderWriterCompatibility(keySchema, topicSchema).getType()
         .equals(SchemaCompatibilityType.COMPATIBLE);
   }
 
-  private Schema getNewestSchemaFromSource(Job job) throws IOException {
+  public static Schema getNewestSchemaFromSource(Job job, FileSystem fs) throws IOException {
     Path[] sourceDirs = FileInputFormat.getInputPaths(job);
 
     List<FileStatus> files = new ArrayList<FileStatus>();
 
     for (Path sourceDir : sourceDirs) {
-      files.addAll(Arrays.asList(this.fs.listStatus(sourceDir)));
+      files.addAll(Arrays.asList(fs.listStatus(sourceDir)));
     }
 
     Collections.sort(files, new LastModifiedDescComparator());
 
     for (FileStatus file : files) {
-      Schema schema = getNewestSchemaFromSource(file.getPath());
+      Schema schema = getNewestSchemaFromSource(file.getPath(), fs);
       if (schema != null) {
         return schema;
       }
@@ -241,16 +241,16 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     return null;
   }
 
-  private Schema getNewestSchemaFromSource(Path sourceDir) throws IOException {
-    FileStatus[] files = this.fs.listStatus(sourceDir);
+  public static Schema getNewestSchemaFromSource(Path sourceDir, FileSystem fs) throws IOException {
+    FileStatus[] files = fs.listStatus(sourceDir);
     Arrays.sort(files, new LastModifiedDescComparator());
     for (FileStatus status : files) {
       if (status.isDirectory()) {
-        Schema schema = getNewestSchemaFromSource(status.getPath());
+        Schema schema = getNewestSchemaFromSource(status.getPath(), fs);
         if (schema != null)
           return schema;
       } else if (FilenameUtils.isExtension(status.getPath().getName(), AVRO)) {
-        return AvroUtils.getSchemaFromDataFile(status.getPath(), this.fs);
+        return AvroUtils.getSchemaFromDataFile(status.getPath(), fs);
       }
     }
     return null;
@@ -321,7 +321,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   /**
    * A Comparator for reverse order comparison of modification time of two FileStatus.
    */
-  private static class LastModifiedDescComparator implements Comparator<FileStatus>, Serializable {
+  public static class LastModifiedDescComparator implements Comparator<FileStatus>, Serializable {
 
     private static final long serialVersionUID = 1L;
 
