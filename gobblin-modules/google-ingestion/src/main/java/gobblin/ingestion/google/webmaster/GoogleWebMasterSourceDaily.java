@@ -23,11 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.apache.commons.lang3.StringUtils;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.services.webmasters.WebmastersScopes;
 import com.google.common.base.Preconditions;
@@ -38,10 +33,11 @@ import lombok.extern.slf4j.Slf4j;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.extractor.extract.google.GoogleCommon;
 import gobblin.source.extractor.extract.google.GoogleCommonKeys;
 import gobblin.source.extractor.partition.Partition;
+import gobblin.source.extractor.watermark.DateWatermark;
+import gobblin.source.extractor.watermark.TimestampWatermark;
 
 import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY;
 import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USERNAME;
@@ -49,16 +45,23 @@ import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT
 import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL;
 
 
+/**
+ * The logic of calculating the watermarks in this GoogleWebMasterSourceDaily only works with the configuration below:
+ *
+ * source.querybased.watermark.type=hour
+ * source.querybased.partition.interval=24
+ */
 @Slf4j
 public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
-
-  private final DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyyMMdd");
 
   @Override
   GoogleWebmasterExtractor createExtractor(WorkUnitState state, Map<String, Integer> columnPositionMap,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, JsonArray schemaJson)
       throws IOException {
+    Preconditions.checkArgument(
+        state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE).compareToIgnoreCase("Hour") == 0);
+    Preconditions.checkArgument(state.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_PARTITION_INTERVAL) == 24);
 
     Partition partition = Partition.deserialize(state.getWorkunit());
     long lowWatermark = partition.getLowWatermark();
@@ -71,17 +74,10 @@ public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
       2. Google Search Console API only cares about Dates, and are both side inclusive.
       Therefore, do the following processing.
      */
-    expectedHighWatermark /= 1000000;
-    DateTime highWaterMarkDate = dateFormatter.parseDateTime(Long.toString(expectedHighWatermark));
-    if (!partition.isHighWatermarkInclusive()) {
-      highWaterMarkDate = highWaterMarkDate.minusDays(1);
-    }
-    String yearString = Integer.toString(highWaterMarkDate.getYear());
-    String monthString = StringUtils.leftPad(Integer.toString(highWaterMarkDate.getMonthOfYear()), 2, '0');
-    String dayString = StringUtils.leftPad(Integer.toString(highWaterMarkDate.getDayOfMonth()), 2, '0');
-
-    long updatedExpectedHighWatermark =
-        Long.parseLong(String.format("%s%s%s235959", yearString, monthString, dayString));
+    int dateDiff = partition.isHighWatermarkInclusive() ? 1 : 0;
+    long highWatermarkDate = DateWatermark.adjustWatermark(Long.toString(expectedHighWatermark), dateDiff);
+    long updatedExpectedHighWatermark = TimestampWatermark.adjustWatermark(Long.toString(highWatermarkDate), -1);
+    updatedExpectedHighWatermark = Math.max(lowWatermark, updatedExpectedHighWatermark);
 
     GoogleWebmasterClientImpl gscClient =
         new GoogleWebmasterClientImpl(getCredential(state), state.getProp(ConfigurationKeys.SOURCE_ENTITY));
