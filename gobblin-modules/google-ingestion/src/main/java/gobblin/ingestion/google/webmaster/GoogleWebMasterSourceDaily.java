@@ -28,12 +28,16 @@ import com.google.api.services.webmasters.WebmastersScopes;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.extractor.extract.google.GoogleCommon;
 import gobblin.source.extractor.extract.google.GoogleCommonKeys;
+import gobblin.source.extractor.partition.Partition;
+import gobblin.source.extractor.watermark.DateWatermark;
+import gobblin.source.extractor.watermark.TimestampWatermark;
 
 import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY;
 import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USERNAME;
@@ -41,6 +45,13 @@ import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT
 import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL;
 
 
+/**
+ * The logic of calculating the watermarks in this GoogleWebMasterSourceDaily only works with the configuration below:
+ *
+ * source.querybased.watermark.type=hour
+ * source.querybased.partition.interval=24
+ */
+@Slf4j
 public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
 
   @Override
@@ -48,13 +59,29 @@ public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, JsonArray schemaJson)
       throws IOException {
+    Preconditions.checkArgument(
+        state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE).compareToIgnoreCase("Hour") == 0);
+    Preconditions.checkArgument(state.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_PARTITION_INTERVAL) == 24);
 
-    long lowWatermark = state.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
-    long expectedHighWatermark = state.getWorkunit().getExpectedHighWatermark(LongWatermark.class).getValue();
+    Partition partition = Partition.deserialize(state.getWorkunit());
+    long lowWatermark = partition.getLowWatermark();
+    long expectedHighWatermark = partition.getHighWatermark();
+
+    /*
+      This change is needed because
+      1. The partition behavior changed due to commit 7d730fcb0263b8ca820af0366818160d638d1336 [7d730fc]
+       by zxcware <zxcware@gmail.com> on April 3, 2017 at 11:47:41 AM PDT
+      2. Google Search Console API only cares about Dates, and are both side inclusive.
+      Therefore, do the following processing.
+     */
+    int dateDiff = partition.isHighWatermarkInclusive() ? 1 : 0;
+    long highWatermarkDate = DateWatermark.adjustWatermark(Long.toString(expectedHighWatermark), dateDiff);
+    long updatedExpectedHighWatermark = TimestampWatermark.adjustWatermark(Long.toString(highWatermarkDate), -1);
+    updatedExpectedHighWatermark = Math.max(lowWatermark, updatedExpectedHighWatermark);
+
     GoogleWebmasterClientImpl gscClient =
         new GoogleWebmasterClientImpl(getCredential(state), state.getProp(ConfigurationKeys.SOURCE_ENTITY));
-
-    return new GoogleWebmasterExtractor(gscClient, state, lowWatermark, expectedHighWatermark, columnPositionMap,
+    return new GoogleWebmasterExtractor(gscClient, state, lowWatermark, updatedExpectedHighWatermark, columnPositionMap,
         requestedDimensions, requestedMetrics, schemaJson);
   }
 
