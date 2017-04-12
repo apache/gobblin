@@ -36,8 +36,6 @@ dependencies {
   compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.guice
-  compile externalDependency.bcpgJdk15on
-  compile externalDependency.bcprovJdk15on
   compile externalDependency.typesafeConfig
   compile externalDependency.commonsPool
   compile externalDependency.hadoopClientCommon
