@@ -16,6 +16,7 @@
  */
 package gobblin.data.management.conversion.hive.source;
 
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -327,10 +328,13 @@ public class HiveSource implements Source {
               sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
         }
       } catch (UpdateNotFoundException e) {
-        log.error(String.format("Not Creating workunit for %s as update time was not found. %s",
+        log.error(String.format("Not creating workunit for %s as update time was not found. %s",
             sourcePartition.getCompleteName(), e.getMessage()));
       } catch (SchemaNotFoundException e) {
-        log.error(String.format("Not Creating workunit for %s as schema was not found. %s",
+        log.error(String.format("Not creating workunit for %s as schema was not found. %s",
+            sourcePartition.getCompleteName(), e.getMessage()));
+      } catch (UncheckedExecutionException e) {
+        log.error(String.format("Not creating workunit for %s because an unchecked exception occurred. %s",
             sourcePartition.getCompleteName(), e.getMessage()));
       }
     }

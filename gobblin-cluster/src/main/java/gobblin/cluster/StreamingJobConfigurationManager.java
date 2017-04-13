@@ -18,32 +18,32 @@
 package gobblin.cluster;
 
 import java.lang.reflect.InvocationTargetException;
-import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Maps;
+import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
 import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecExecutorInstance;
 import gobblin.runtime.api.SpecExecutorInstanceConsumer;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.reflection.GobblinConstructorUtils;
+
 
 /**
  * A {@link JobConfigurationManager} that fetches job specs from a {@link SpecExecutorInstanceConsumer} in a loop
@@ -57,7 +57,7 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
   private final SpecExecutorInstanceConsumer specExecutorInstanceConsumer;
 
-  public StreamingJobConfigurationManager(EventBus eventBus, Config config) {
+  public StreamingJobConfigurationManager(EventBus eventBus, Config config, MutableJobCatalog jobCatalog) {
     super(eventBus, config);
 
     this.fetchJobSpecExecutor = Executors.newSingleThreadExecutor(
@@ -74,8 +74,10 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
       ClassAliasResolver<SpecExecutorInstanceConsumer> aliasResolver =
           new ClassAliasResolver<>(SpecExecutorInstanceConsumer.class);
 
-      this.specExecutorInstanceConsumer = (SpecExecutorInstanceConsumer) ConstructorUtils
-          .invokeConstructor(Class.forName(aliasResolver.resolve(specExecutorInstanceConsumerClassName)), config);
+      this.specExecutorInstanceConsumer = (SpecExecutorInstanceConsumer) GobblinConstructorUtils.invokeFirstConstructor(
+          Class.forName(aliasResolver.resolve(specExecutorInstanceConsumerClassName)),
+          ImmutableList.<Object>of(config, jobCatalog),
+          ImmutableList.<Object>of(config));
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
           | ClassNotFoundException e) {
       throw new RuntimeException("Could not construct SpecExecutorInstanceConsumer " +
@@ -108,6 +110,11 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
   private void fetchJobSpecs() throws ExecutionException, InterruptedException {
     List<Pair<SpecExecutorInstance.Verb, Spec>> changesSpecs =
         (List<Pair<SpecExecutorInstance.Verb, Spec>>) this.specExecutorInstanceConsumer.changedSpecs().get();
+
+    // propagate thread interruption so that caller will exit from loop
+    if (Thread.interrupted()) {
+      throw new InterruptedException();
+    }
 
     for (Pair<SpecExecutorInstance.Verb, Spec> entry : changesSpecs) {
       SpecExecutorInstance.Verb verb = entry.getKey();

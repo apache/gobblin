@@ -112,8 +112,10 @@ public class ParallelRunnerTest {
   @SuppressWarnings("deprecation")
   public void testSerializeToSequenceFile() throws IOException {
     Closer closer = Closer.create();
+    Configuration conf = new Configuration();
+    WritableShimSerialization.addToHadoopConfiguration(conf);
     try {
-      SequenceFile.Writer writer1 = closer.register(SequenceFile.createWriter(this.fs, new Configuration(),
+      SequenceFile.Writer writer1 = closer.register(SequenceFile.createWriter(this.fs, conf,
           new Path(this.outputPath, "seq1"), Text.class, WorkUnitState.class));
 
       Text key = new Text();
@@ -124,7 +126,7 @@ public class ParallelRunnerTest {
       workUnitState.setActualHighWatermark(watermark);
       writer1.append(key, workUnitState);
 
-      SequenceFile.Writer writer2 = closer.register(SequenceFile.createWriter(this.fs, new Configuration(),
+      SequenceFile.Writer writer2 = closer.register(SequenceFile.createWriter(this.fs, conf,
           new Path(this.outputPath, "seq2"), Text.class, WorkUnitState.class));
 
       watermark.setLongWatermark(100L);

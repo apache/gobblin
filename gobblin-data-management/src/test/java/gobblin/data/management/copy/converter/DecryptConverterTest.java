@@ -39,6 +39,8 @@ import com.google.common.io.Files;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.DataConversionException;
+import gobblin.crypto.EncryptionConfigParser;
 import gobblin.data.management.copy.CopyableFileUtils;
 import gobblin.data.management.copy.FileAwareInputStream;
 
@@ -52,8 +54,7 @@ public class DecryptConverterTest {
   private final File masterPwdFile = new File("masterPwd");
 
   @Test
-  public void testConvertRecord() throws Exception {
-
+  public void testConvertGpgRecord() throws Exception {
     final String expectedFileContents = "123456789";
     final String passphrase = "12";
     DecryptConverter converter = new DecryptConverter();
@@ -68,7 +69,7 @@ public class DecryptConverterTest {
       URL url = getClass().getClassLoader().getResource("decryptConverterTest/decrypt-test.txt.gpg");
       Assert.assertNotNull(url);
 
-      String gpgFilePath =url.getFile();
+      String gpgFilePath = url.getFile();
       try (FSDataInputStream gpgFileInput = fs.open(new Path(gpgFilePath))) {
 	      FileAwareInputStream fileAwareInputStream =
 	          new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(), gpgFileInput);
@@ -84,6 +85,39 @@ public class DecryptConverterTest {
     } finally {
       deleteMasterPwdFile();
       converter.close();
+    }
+  }
+
+  @Test
+  public void testConvertDifferentEncryption()
+      throws IOException, DataConversionException {
+    final String expectedFileContents = "2345678";
+
+    WorkUnitState workUnitState = new WorkUnitState();
+    workUnitState.getJobState()
+        .setProp("converter.encrypt." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "insecure_shift");
+
+    try (DecryptConverter converter = new DecryptConverter()) {
+      converter.init(workUnitState);
+      FileSystem fs = FileSystem.getLocal(new Configuration());
+
+      URL url = getClass().getClassLoader().getResource("decryptConverterTest/decrypt-test.txt.insecure_shift");
+      Assert.assertNotNull(url);
+
+      String testFilePath = url.getFile();
+      try (FSDataInputStream testFileInput = fs.open(new Path(testFilePath))) {
+        FileAwareInputStream fileAwareInputStream =
+            new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(), testFileInput);
+        fileAwareInputStream.getFile().setDestination(new Path("file:///tmp/decrypt-test.txt.insecure_shift"));
+        Iterable<FileAwareInputStream> iterable =
+            converter.convertRecord("outputSchema", fileAwareInputStream, workUnitState);
+        FileAwareInputStream decryptedStream = Iterables.getFirst(iterable, null);
+        Assert.assertNotNull(decryptedStream);
+
+        String actual = IOUtils.toString(decryptedStream.getInputStream(), Charsets.UTF_8);
+        Assert.assertEquals(actual, expectedFileContents);
+        Assert.assertEquals(decryptedStream.getFile().getDestination().getName(), "decrypt-test.txt");
+      }
     }
   }
 

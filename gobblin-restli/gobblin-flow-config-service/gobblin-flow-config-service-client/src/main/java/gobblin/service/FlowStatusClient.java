@@ -63,6 +63,19 @@ public class FlowStatusClient implements Closeable {
   }
 
   /**
+   * Construct a {@link FlowStatusClient} to communicate with http flow status server at URI serverUri
+   * @param restClient restClient to send restli request
+   */
+  public FlowStatusClient(RestClient restClient) {
+    LOG.debug("FlowConfigClient with restClient " + restClient);
+
+    _httpClientFactory = Optional.absent();
+    _restClient = Optional.of(restClient);
+
+    _flowstatusesRequestBuilders = new FlowstatusesRequestBuilders();
+  }
+
+  /**
    * Get a flow status
    * @param flowStatusId identifier of flow status to get
    * @return a {@link FlowStatus} with the flow status

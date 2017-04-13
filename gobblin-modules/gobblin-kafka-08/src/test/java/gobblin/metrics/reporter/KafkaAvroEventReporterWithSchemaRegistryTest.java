@@ -22,8 +22,8 @@ import java.io.DataInputStream;
 import java.util.Map;
 
 import org.apache.avro.Schema;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.bouncycastle.util.encoders.Hex;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -92,7 +92,7 @@ public class KafkaAvroEventReporterWithSchemaRegistryTest {
     Assert.assertEquals(is.readByte(), KafkaAvroSchemaRegistry.MAGIC_BYTE);
     byte[] readId = new byte[20];
     Assert.assertEquals(is.read(readId), 20);
-    String readStringId = Hex.toHexString(readId);
+    String readStringId = Hex.encodeHexString(readId);
     Assert.assertTrue(this.schemas.containsKey(readStringId));
 
     Schema schema = this.schemas.get(readStringId);

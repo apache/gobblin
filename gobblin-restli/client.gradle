@@ -46,4 +46,5 @@ dependencies {
   testCompile project(":gobblin-restli:gobblin-restli-utils")
   testCompile serverProject
   testCompile externalDependency.testng
+  testCompile externalDependency.mockito
 }

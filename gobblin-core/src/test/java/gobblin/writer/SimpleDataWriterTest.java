@@ -59,6 +59,7 @@ public class SimpleDataWriterTest {
   private final String schema = "";
   private final int newLine = "\n".getBytes()[0];
   private State properties;
+  private static final String ENCRYPT_PREFIX = "writer.encrypt.";
 
   @BeforeMethod
   public void setUp() throws Exception {
@@ -94,9 +95,7 @@ public class SimpleDataWriterTest {
   public void testWriteBytesNoDelim() throws IOException {
     properties.setProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, "");
     // Build a writer to write test records
-    SimpleDataWriter writer = (SimpleDataWriter) new SimpleDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
-        .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0).build();
+    SimpleDataWriter writer = buildSimpleDataWriter();
     byte[] rec1 = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
     byte[] rec2 = { 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25 };
     byte[] rec3 = { 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45 };
@@ -134,9 +133,7 @@ public class SimpleDataWriterTest {
   public void testPrependSizeWithoutDelimiter() throws IOException {
     properties.setProp(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, true);
     properties.setProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, "");
-    SimpleDataWriter writer = (SimpleDataWriter) new SimpleDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
-        .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0).build();
+    SimpleDataWriter writer = buildSimpleDataWriter();
     byte[] rec1 = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
     byte[] rec2 = { 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25 };
     byte[] rec3 = { 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45 };
@@ -172,9 +169,7 @@ public class SimpleDataWriterTest {
   @Test
   public void testWriteRandomBytes() throws IOException {
     // Build a writer to write test records
-    SimpleDataWriter writer = (SimpleDataWriter) new SimpleDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
-        .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0).build();
+    SimpleDataWriter writer = buildSimpleDataWriter();
     byte[] rec1 = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
     byte[] rec2 = { 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25 };
     byte[] rec3 = { 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45 };
@@ -212,9 +207,7 @@ public class SimpleDataWriterTest {
   @Test
   public void testPrependSizeWithDelimiter() throws IOException {
     properties.setProp(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, true);
-    SimpleDataWriter writer = (SimpleDataWriter) new SimpleDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
-        .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0).build();
+    SimpleDataWriter writer = buildSimpleDataWriter();
     byte[] rec1 = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
     byte[] rec2 = { 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25 };
     byte[] rec3 = { 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45 };
@@ -249,9 +242,7 @@ public class SimpleDataWriterTest {
 
     byte[] toWrite = new byte[] { 'a', 'b', 'c', 'd'};
 
-    SimpleDataWriter writer = (SimpleDataWriter) new SimpleDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
-        .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0).build();
+    SimpleDataWriter writer = buildSimpleDataWriter();
 
     writer.write(toWrite);
     writer.close();
@@ -271,15 +262,13 @@ public class SimpleDataWriterTest {
     final String COMPRESSION_TYPE = "gzip";
 
     properties.setProp(ConfigurationKeys.WRITER_CODEC_TYPE, COMPRESSION_TYPE);
-    properties.setProp(EncryptionConfigParser.ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY,
+    properties.setProp(ENCRYPT_PREFIX + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY,
         ENCRYPTION_TYPE);
     properties.setProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, "");
 
     byte[] toWrite = new byte[] { 'a', 'b', 'c', 'd'};
 
-    SimpleDataWriter writer = (SimpleDataWriter) new SimpleDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
-        .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0).build();
+    SimpleDataWriter writer = buildSimpleDataWriter();
 
     writer.write(toWrite);
     writer.close();
@@ -296,11 +285,7 @@ public class SimpleDataWriterTest {
 
     byte[] contents = IOUtils.toByteArray(uncompressedFile);
     Assert.assertEquals(contents, toWrite, "expected to decode same contents");
-
-    String serializedMetadata = properties.getProp(ConfigurationKeys.WRITER_METADATA_KEY);
-    GlobalMetadata md = GlobalMetadata.fromJson(serializedMetadata);
-    Assert.assertEquals(md.getTransferEncoding(), ImmutableList.of(COMPRESSION_TYPE, ENCRYPTION_TYPE));
- }
+}
 
   /**
    * Use the simple writer to write json entries to a file and ensure that
@@ -310,9 +295,7 @@ public class SimpleDataWriterTest {
    */
   @Test
   public void testWrite() throws IOException {
-    SimpleDataWriter writer = (SimpleDataWriter) new SimpleDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
-        .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0).build();
+    SimpleDataWriter writer = buildSimpleDataWriter();
     int totalBytes = 3; // 3 extra bytes for the newline character
     // Write all test records
     for (String record : TestConstants.JSON_RECORDS) {
@@ -340,6 +323,15 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(lineNumber, 3);
   }
 
+  private SimpleDataWriter buildSimpleDataWriter()
+      throws IOException {
+    SimpleDataWriterBuilder b = (SimpleDataWriterBuilder)new SimpleDataWriterBuilder()
+          .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
+          .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0);
+
+    return new SimpleDataWriter(b, properties);
+  }
+
   /**
    * If the staging file exists, the simple data writer should overwrite its contents.
    *
@@ -363,9 +355,7 @@ public class SimpleDataWriterTest {
     os.flush();
     os.close();
 
-    SimpleDataWriter writer = (SimpleDataWriter) new SimpleDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
-        .withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema).forBranch(0).build();
+    SimpleDataWriter writer = buildSimpleDataWriter();
 
     writer.write(randomBytesWrite);
     writer.close();

@@ -7,6 +7,7 @@ import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.exception.RecordCountException;
 import gobblin.source.extractor.exception.SchemaException;
+import gobblin.source.extractor.partition.Partition;
 import gobblin.source.extractor.partition.Partitioner;
 import gobblin.source.extractor.watermark.Predicate;
 import gobblin.source.extractor.watermark.WatermarkPredicate;
@@ -17,6 +18,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.hadoop.yarn.webapp.hamlet.HamletSpec;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -30,7 +33,7 @@ public class QueryBasedExtractorTest {
     ArrayList<DataRecord> records = this.generateRecords(totalCount);
 
     WorkUnit workUnit = WorkUnit.createEmpty();
-    workUnit.setProp(QueryBasedSource.IS_LAST_WORK_UNIT, true);
+    workUnit.setProp(Partition.IS_LAST_PARTIITON, true);
     workUnit.setProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE, "SNAPSHOT");
     WorkUnitState workUnitState = new WorkUnitState(workUnit, new State());
     workUnitState.setId("testDataPullUpperBoundsRemovedInLastWorkUnit");
@@ -55,14 +58,14 @@ public class QueryBasedExtractorTest {
     this.verify(testExtractor, 3);
 
     // It's a last work unit but user specifies high watermark
-    workUnit.setProp(QueryBasedSource.IS_LAST_WORK_UNIT, true);
-    workUnit.setProp(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK, true);
+    workUnit.setProp(Partition.IS_LAST_PARTIITON, true);
+    workUnit.setProp(Partition.HAS_USER_SPECIFIED_HIGH_WATERMARK, true);
     testExtractor.reset();
     testExtractor.setRangePredicates(1, 3);
     this.verify(testExtractor, 3);
 
     // It's a last work unit but it has WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY on record
-    workUnit.removeProp(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK);
+    workUnit.removeProp(Partition.HAS_USER_SPECIFIED_HIGH_WATERMARK);
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, "3");
     testExtractor.reset();
     testExtractor.setRangePredicates(1, 3);

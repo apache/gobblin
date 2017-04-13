@@ -17,14 +17,15 @@
 
 package gobblin.runtime;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValue;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.util.ConfigUtils;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -33,18 +34,27 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.FsStateStore;
+import gobblin.util.ConfigUtils;
+import gobblin.util.Either;
+import gobblin.util.ExecutorsUtils;
+import gobblin.util.WritableShimSerialization;
+import gobblin.util.executors.IteratorExecutor;
 
 
 /**
@@ -63,10 +73,10 @@ import gobblin.metastore.FsStateStore;
  *
  * @author Yinan Li
  */
-public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
-    implements DatasetStateStore<JobState.DatasetState> {
+public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> implements DatasetStateStore<JobState.DatasetState> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FsDatasetStateStore.class);
+  private int threadPoolOfGettingDatasetState;
 
   protected static DatasetStateStore<JobState.DatasetState> createStateStore(Config config, String className) {
     // Add all job configuration properties so they are picked up by Hadoop
@@ -76,14 +86,17 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
     }
 
     try {
-      String stateStoreFsUri = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FS_URI_KEY,
-          ConfigurationKeys.LOCAL_FS_URI);
+      String stateStoreFsUri =
+          ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
       FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
       String stateStoreRootDir = config.getString(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
+      Integer threadPoolOfGettingDatasetState = ConfigUtils
+          .getInt(config, ConfigurationKeys.THREADPOOL_SIZE_OF_LISTING_FS_DATASET_STATESTORE,
+              ConfigurationKeys.DEFAULT_THREADPOOL_SIZE_OF_LISTING_FS_DATASET_STATESTORE);
 
       return (DatasetStateStore<JobState.DatasetState>) Class.forName(className)
-          .getConstructor(FileSystem.class, String.class)
-          .newInstance(stateStoreFs, stateStoreRootDir);
+          .getConstructor(FileSystem.class, String.class, Integer.class)
+          .newInstance(stateStoreFs, stateStoreRootDir, threadPoolOfGettingDatasetState);
     } catch (IOException e) {
       throw new RuntimeException(e);
     } catch (ReflectiveOperationException e) {
@@ -91,37 +104,49 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
     }
   }
 
-  public FsDatasetStateStore(String fsUri, String storeRootDir) throws IOException {
+  public FsDatasetStateStore(String fsUri, String storeRootDir)
+      throws IOException {
     super(fsUri, storeRootDir, JobState.DatasetState.class);
     this.useTmpFileForPut = false;
+    this.threadPoolOfGettingDatasetState = ConfigurationKeys.DEFAULT_THREADPOOL_SIZE_OF_LISTING_FS_DATASET_STATESTORE;
+  }
+
+  public FsDatasetStateStore(FileSystem fs, String storeRootDir, Integer threadPoolSize) {
+    super(fs, storeRootDir, JobState.DatasetState.class);
+    this.useTmpFileForPut = false;
+    this.threadPoolOfGettingDatasetState = threadPoolSize;
   }
 
   public FsDatasetStateStore(FileSystem fs, String storeRootDir) {
-    super(fs, storeRootDir, JobState.DatasetState.class);
-    this.useTmpFileForPut = false;
+    this(fs, storeRootDir, ConfigurationKeys.DEFAULT_THREADPOOL_SIZE_OF_LISTING_FS_DATASET_STATESTORE);
   }
 
-  public FsDatasetStateStore(String storeUrl) throws IOException {
+  public FsDatasetStateStore(String storeUrl)
+      throws IOException {
     super(storeUrl, JobState.DatasetState.class);
     this.useTmpFileForPut = false;
   }
 
   @Override
-  public JobState.DatasetState get(String storeName, String tableName, String stateId) throws IOException {
+  public JobState.DatasetState get(String storeName, String tableName, String stateId)
+      throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath)) {
       return null;
     }
 
-    try (@SuppressWarnings("deprecation")
-    SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath, this.conf)) {
+    Configuration deserializeConf = new Configuration(this.conf);
+    WritableShimSerialization.addToHadoopConfiguration(deserializeConf);
+    try (@SuppressWarnings("deprecation") SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath,
+        deserializeConf)) {
       // This is necessary for backward compatibility as existing jobs are using the JobState class
-      Writable writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
+      Object writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
 
       try {
         Text key = new Text();
 
-        while (reader.next(key, writable)) {
+        while (reader.next(key)) {
+          writable = reader.getCurrentValue(writable);
           if (key.toString().equals(stateId)) {
             if (writable instanceof JobState.DatasetState) {
               return (JobState.DatasetState) writable;
@@ -138,22 +163,25 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
   }
 
   @Override
-  public List<JobState.DatasetState> getAll(String storeName, String tableName) throws IOException {
+  public List<JobState.DatasetState> getAll(String storeName, String tableName)
+      throws IOException {
     List<JobState.DatasetState> states = Lists.newArrayList();
-
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath)) {
       return states;
     }
 
-    try (@SuppressWarnings("deprecation")
-    SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath, this.conf)) {
+    Configuration deserializeConfig = new Configuration(this.conf);
+    WritableShimSerialization.addToHadoopConfiguration(deserializeConfig);
+    try (@SuppressWarnings("deprecation") SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath,
+        deserializeConfig)) {
       // This is necessary for backward compatibility as existing jobs are using the JobState class
-      Writable writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
+      Object writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
 
       try {
         Text key = new Text();
-        while (reader.next(key, writable)) {
+        while (reader.next(key)) {
+          writable = reader.getCurrentValue(writable);
           if (writable instanceof JobState.DatasetState) {
             states.add((JobState.DatasetState) writable);
             writable = new JobState.DatasetState();
@@ -171,7 +199,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
   }
 
   @Override
-  public List<JobState.DatasetState> getAll(String storeName) throws IOException {
+  public List<JobState.DatasetState> getAll(String storeName)
+      throws IOException {
     return super.getAll(storeName);
   }
 
@@ -182,7 +211,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
    * @return a {@link Map} from dataset URNs to the latest {@link JobState.DatasetState}s
    * @throws IOException if there's something wrong reading the {@link JobState.DatasetState}s
    */
-  public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(String jobName) throws IOException {
+  public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(final String jobName)
+      throws IOException {
     Path stateStorePath = new Path(this.storeRootDir, jobName);
     if (!this.fs.exists(stateStorePath)) {
       return ImmutableMap.of();
@@ -199,14 +229,39 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
       return ImmutableMap.of();
     }
 
-    Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
-    for (FileStatus stateStoreFileStatus : stateStoreFileStatuses) {
-      List<JobState.DatasetState> previousDatasetStates = getAll(jobName, stateStoreFileStatus.getPath().getName());
-      if (!previousDatasetStates.isEmpty()) {
-        // There should be a single dataset state on the list if the list is not empty
-        JobState.DatasetState previousDatasetState = previousDatasetStates.get(0);
-        datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
-      }
+    final Map<String, JobState.DatasetState> datasetStatesByUrns = new ConcurrentHashMap<>();
+
+    Iterator<Callable<Void>> callableIterator = Iterators
+        .transform(Arrays.asList(stateStoreFileStatuses).iterator(), new Function<FileStatus, Callable<Void>>() {
+          @Override
+          public Callable<Void> apply(final FileStatus stateStoreFileStatus) {
+            return new Callable<Void>() {
+              @Override
+              public Void call()
+                  throws Exception {
+                Path stateStoreFilePath = stateStoreFileStatus.getPath();
+                LOGGER.info("Getting dataset states from: {}", stateStoreFilePath);
+                List<JobState.DatasetState> previousDatasetStates = getAll(jobName, stateStoreFilePath.getName());
+                if (!previousDatasetStates.isEmpty()) {
+                  // There should be a single dataset state on the list if the list is not empty
+                  JobState.DatasetState previousDatasetState = previousDatasetStates.get(0);
+                  datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
+                }
+                return null;
+              }
+            };
+          }
+        });
+
+    try {
+      List<Either<Void, ExecutionException>> results =
+          new IteratorExecutor<>(callableIterator, this.threadPoolOfGettingDatasetState,
+              ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOGGER), Optional.of("GetFsDatasetStateStore-")))
+              .executeAndGetResults();
+      int maxNumberOfErrorLogs = 10;
+      IteratorExecutor.logFailures(results, LOGGER, maxNumberOfErrorLogs);
+    } catch (InterruptedException e) {
+      throw new IOException("Failed to get latest dataset states.", e);
     }
 
     // The dataset (job) state from the deprecated "current.jst" will be read even though
@@ -226,7 +281,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
    * @return the latest {@link JobState.DatasetState} of the dataset or {@link null} if it is not found
    * @throws IOException
    */
-  public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
+  public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn)
+      throws IOException {
     String alias =
         Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
             : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
@@ -240,7 +296,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
    * @param datasetState the {@link JobState.DatasetState} to persist
    * @throws IOException if there's something wrong persisting the {@link JobState.DatasetState}
    */
-  public void persistDatasetState(String datasetUrn, JobState.DatasetState datasetState) throws IOException {
+  public void persistDatasetState(String datasetUrn, JobState.DatasetState datasetState)
+      throws IOException {
     String jobName = datasetState.getJobName();
     String jobId = datasetState.getJobId();
 

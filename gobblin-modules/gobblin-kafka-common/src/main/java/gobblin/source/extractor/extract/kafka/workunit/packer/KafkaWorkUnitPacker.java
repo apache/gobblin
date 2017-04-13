@@ -81,11 +81,25 @@ public abstract class KafkaWorkUnitPacker {
 
   protected final AbstractSource<?, ?> source;
   protected final SourceState state;
+  protected final Extract.TableType tableType;
+  protected final String extractNameSpace;
+  protected final boolean isFullExtract;
   protected final KafkaWorkUnitSizeEstimator sizeEstimator;
 
   protected KafkaWorkUnitPacker(AbstractSource<?, ?> source, SourceState state) {
     this.source = source;
     this.state = state;
+    if (state.getPropAsBoolean(KafkaSource.GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION)) {
+      String tableTypeStr = state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY,
+          KafkaSource.DEFAULT_TABLE_TYPE.toString());
+      tableType = Extract.TableType.valueOf(tableTypeStr);
+      extractNameSpace = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, KafkaSource.DEFAULT_NAMESPACE_NAME);
+    } else {
+      // To be compatible, reject table type and namespace configuration keys as previous implementation
+      tableType = KafkaSource.DEFAULT_TABLE_TYPE;
+      extractNameSpace = KafkaSource.DEFAULT_NAMESPACE_NAME;
+    }
+    isFullExtract = state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY);
     this.sizeEstimator = getWorkUnitSizeEstimator();
   }
 
@@ -212,8 +226,11 @@ public abstract class KafkaWorkUnitPacker {
     WatermarkInterval interval = getWatermarkIntervalFromMultiWorkUnit(multiWorkUnit);
     List<KafkaPartition> partitions = getPartitionsFromMultiWorkUnit(multiWorkUnit);
     Preconditions.checkArgument(!partitions.isEmpty(), "There must be at least one partition in the multiWorkUnit");
-    Extract extract = this.source.createExtract(KafkaSource.DEFAULT_TABLE_TYPE, KafkaSource.DEFAULT_NAMESPACE_NAME,
-        partitions.get(0).getTopicName());
+
+    Extract extract = this.source.createExtract(tableType, extractNameSpace, partitions.get(0).getTopicName());
+    if (isFullExtract) {
+      extract.setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, true);
+    }
     WorkUnit workUnit = WorkUnit.create(extract, interval);
     populateMultiPartitionWorkUnit(partitions, workUnit);
     workUnit.setProp(ESTIMATED_WORKUNIT_SIZE, multiWorkUnit.getProp(ESTIMATED_WORKUNIT_SIZE));

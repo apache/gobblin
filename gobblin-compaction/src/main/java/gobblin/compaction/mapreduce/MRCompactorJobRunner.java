@@ -97,11 +97,11 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
    * Properties related to the compaction job of a dataset.
    */
   private static final String COMPACTION_JOB_OUTPUT_DIR_PERMISSION = COMPACTION_JOB_PREFIX + "output.dir.permission";
-  private static final String COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE =
+  public static final String COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE =
       COMPACTION_JOB_PREFIX + "target.output.file.size";
-  private static final long DEFAULT_COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE = 536870912;
-  private static final String COMPACTION_JOB_MAX_NUM_REDUCERS = COMPACTION_JOB_PREFIX + "max.num.reducers";
-  private static final int DEFAULT_COMPACTION_JOB_MAX_NUM_REDUCERS = 900;
+  public static final long DEFAULT_COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE = 536870912;
+  public static final String COMPACTION_JOB_MAX_NUM_REDUCERS = COMPACTION_JOB_PREFIX + "max.num.reducers";
+  public static final int DEFAULT_COMPACTION_JOB_MAX_NUM_REDUCERS = 900;
   private static final String COMPACTION_JOB_OVERWRITE_OUTPUT_DIR = COMPACTION_JOB_PREFIX + "overwrite.output.dir";
   private static final boolean DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR = false;
   private static final String COMPACTION_JOB_ABORT_UPON_NEW_DATA = COMPACTION_JOB_PREFIX + "abort.upon.new.data";
@@ -111,8 +111,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private static final int DEFAULT_COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE = 5;
 
   // If true, the MR job will use either 1 reducer or a prime number of reducers.
-  private static final String COMPACTION_JOB_USE_PRIME_REDUCERS = COMPACTION_JOB_PREFIX + "use.prime.reducers";
-  private static final boolean DEFAULT_COMPACTION_JOB_USE_PRIME_REDUCERS = true;
+  public static final String COMPACTION_JOB_USE_PRIME_REDUCERS = COMPACTION_JOB_PREFIX + "use.prime.reducers";
+  public static final boolean DEFAULT_COMPACTION_JOB_USE_PRIME_REDUCERS = true;
 
   private static final String HADOOP_JOB_NAME = "Gobblin MR Compaction";
   private static final long MR_JOB_CHECK_COMPLETE_INTERVAL_MS = 5000;

@@ -69,8 +69,9 @@ public class GlobalMetadataTest {
       numChildren++;
     }
 
-    Assert.assertEquals(numChildren, 2, "expected only 3 child nodes - file, dataset, record");
+    Assert.assertEquals(numChildren, 3, "expected only 3 child nodes - file, dataset, id");
     Assert.assertEquals(root.get("file").size(), 0, "expected no children in file node");
+    Assert.assertTrue(root.get("id").isTextual(), "expected ID to be textual");
 
     JsonNode transferEncoding = root.get("dataset").get("Transfer-Encoding");
     Assert.assertEquals(transferEncoding.size(), m.getTransferEncoding().size());
@@ -88,5 +89,43 @@ public class GlobalMetadataTest {
     Assert.assertEquals(transferEncoding, ImmutableList.of("gzip", "aes_rotating"));
 
     Assert.assertEquals(md.getFileMetadata("part.task_hello-world_1488584636479_1.json.gzip.aes_rotating", "exists"), "true");
+  }
+
+  @Test
+  public void testGetId() {
+    GlobalMetadata m1 = buildMetadata();
+    GlobalMetadata m2 = buildMetadata();
+
+    Assert.assertEquals(m1.getId(), m2.getId());
+    m1.addTransferEncoding("baz");
+    Assert.assertNotEquals(m1.getId(), m2.getId());
+  }
+
+  @Test(expectedExceptions = UnsupportedOperationException.class)
+  public void testImmutableGlobal() {
+    GlobalMetadata md = new GlobalMetadata();
+    md.setDatasetUrn("Hello");
+    md.markImmutable();
+
+    Assert.assertEquals(md.getDatasetUrn(), "Hello");
+    md.setDatasetUrn("World"); // should throw
+  }
+
+  @Test(expectedExceptions = UnsupportedOperationException.class)
+  public void testImmutableDataset() {
+    GlobalMetadata md = new GlobalMetadata();
+    md.setFileMetadata("file1", "key1", "val1");
+    md.markImmutable();
+
+    Assert.assertEquals(md.getFileMetadata("file1", "key1"), "val1");
+    md.setFileMetadata("file1", "key1", "val2"); // should throw
+
+  }
+  protected GlobalMetadata buildMetadata() {
+    GlobalMetadata m = new GlobalMetadata();
+    m.addTransferEncoding("foo");
+    m.addTransferEncoding("bar");
+
+    return m;
   }
 }

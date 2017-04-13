@@ -18,9 +18,12 @@
  */
 package gobblin.type;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import lombok.extern.slf4j.Slf4j;
+
+import gobblin.metadata.types.Metadata;
 
 
 /**
@@ -56,6 +59,22 @@ public class ContentTypeUtils {
   }
 
   /**
+   * Heuristic to infer if content is printable from metadata.
+   */
+  public boolean inferPrintableFromMetadata(Metadata md) {
+    String inferredCharset = "BINARY";
+    List<String> transferEncoding = md.getGlobalMetadata().getTransferEncoding();
+
+    if (transferEncoding != null) {
+      inferredCharset = getCharset(transferEncoding.get(transferEncoding.size() - 1));
+    } else if (md.getGlobalMetadata().getContentType() != null) {
+      inferredCharset = getCharset(md.getGlobalMetadata().getContentType());
+    }
+
+    return inferredCharset.equals("UTF-8");
+  }
+
+  /**
    * Register a new contentType to charSet mapping.
    * @param contentType Content-type to register
    * @param charSet charSet associated with the content-type
@@ -71,6 +90,8 @@ public class ContentTypeUtils {
   private ContentTypeUtils() {
     knownCharsets = new ConcurrentHashMap<>();
     knownCharsets.put("base64", "UTF-8");
+    knownCharsets.put("aes_rotating", "UTF-8");
+    knownCharsets.put("gzip", "BINARY");
     knownCharsets.put("application/xml", "UTF-8");
     knownCharsets.put("application/json", "UTF-8");
   }

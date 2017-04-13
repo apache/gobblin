@@ -49,6 +49,7 @@ dependencies {
   compile externalDependency.guice
   compile externalDependency.hadoopClientCommon
   compile externalDependency.hadoopCommon
+  compile externalDependency.helix
   compile externalDependency.hiveCommon
   compile externalDependency.httpclient
   compile externalDependency.httpcore

@@ -24,8 +24,8 @@ import org.testng.Assert;
 
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.copy.extractor.EmptyExtractor;
 import gobblin.source.Source;
+import gobblin.source.extractor.DummyExtractor;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 
@@ -56,7 +56,7 @@ public class TestSkipWorkUnitsSource implements Source {
 
   public Extractor getExtractor(WorkUnitState state)
       throws IOException {
-    return new EmptyExtractor(null);
+    return new DummyExtractor(state);
   }
 
   public void testSkipWorkUnitPersistence(SourceState state) {

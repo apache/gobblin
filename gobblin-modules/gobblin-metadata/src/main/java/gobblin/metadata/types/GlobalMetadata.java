@@ -19,6 +19,8 @@ package gobblin.metadata.types;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,8 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.bind.DatatypeConverter;
+
 
 /**
  * Represents metadata for a pipeline. There are two 'levels' of metadata - one that is global to an entire
@@ -41,6 +45,7 @@ public class GlobalMetadata {
   private static final Logger log = LoggerFactory.getLogger(GlobalMetadata.class);
   private static final ObjectMapper objectMapper = new ObjectMapper();
   private static final JsonFactory jsonFactory = new JsonFactory();
+  private static final String EMPTY_ID = "0";
 
   @JsonProperty("dataset")
   private final Map<String, Object> datasetLevel;
@@ -48,15 +53,36 @@ public class GlobalMetadata {
   @JsonProperty("file")
   private final Map<String, Map<String, Object>> fileLevel;
 
+  @JsonProperty("id")
+  private String cachedId;
+
+  private transient boolean markedImmutable;
+
   private final static String DATASET_URN_KEY = "Dataset-URN";
   private final static String TRANSFER_ENCODING_KEY = "Transfer-Encoding";
+  private final static String CONTENT_TYPE_KEY = "Content-Type";
+  private final static String INNER_CONTENT_TYPE_KEY = "Inner-Content-Type";
+
 
   /**
    * Create a new, empty, metadata descriptor.
    */
   public GlobalMetadata() {
-    datasetLevel = new ConcurrentHashMap<>();
-    fileLevel = new ConcurrentHashMap<>();
+    this.datasetLevel = new ConcurrentHashMap<>();
+    this.fileLevel = new ConcurrentHashMap<>();
+    this.markedImmutable = false;
+  }
+
+  /**
+   * Mark the metadata as immutable. Once this flag is set all attempts to modify the object
+   * will fail with {@link UnsupportedOperationException}.
+   */
+  public void markImmutable() {
+    this.markedImmutable = true;
+  }
+
+  public boolean isImmutable() {
+    return this.markedImmutable;
   }
 
   /**
@@ -74,12 +100,16 @@ public class GlobalMetadata {
    * @param other Metadata object to add
    */
   public void addAll(GlobalMetadata other) {
+    throwIfImmutable();
+
     datasetLevel.putAll(other.datasetLevel);
     for (Map.Entry<String, Map<String, Object>> e : other.fileLevel.entrySet()) {
       Map<String, Object> val = new ConcurrentHashMap<>();
       val.putAll(e.getValue());
       fileLevel.put(e.getKey(), val);
     }
+
+    cachedId = null;
   }
 
   /**
@@ -87,32 +117,27 @@ public class GlobalMetadata {
    * special treatment; the 'default' transfer-encoding settings are appended to any transfer-encoding
    * already set (vs simply overwriting them).
    */
-  public static GlobalMetadata metadataMergedWithDefaults(GlobalMetadata orig, GlobalMetadata defaults) {
-    GlobalMetadata newMd = new GlobalMetadata();
-    newMd.addAll(orig);
-
+  public void mergeWithDefaults(GlobalMetadata defaults) {
     List<String> defaultTransferEncoding = defaults.getTransferEncoding();
-    List<String> myEncoding = orig.getTransferEncoding();
+    List<String> myEncoding = getTransferEncoding();
 
     if (defaultTransferEncoding != null) {
       if (myEncoding == null) {
-        newMd.setDatasetMetadata(TRANSFER_ENCODING_KEY, defaultTransferEncoding);
+        setDatasetMetadata(TRANSFER_ENCODING_KEY, defaultTransferEncoding);
       } else {
         List<String> combinedEncoding = new ArrayList<>();
         combinedEncoding.addAll(myEncoding);
         combinedEncoding.addAll(defaultTransferEncoding);
 
-        newMd.setDatasetMetadata(TRANSFER_ENCODING_KEY, combinedEncoding);
+        setDatasetMetadata(TRANSFER_ENCODING_KEY, combinedEncoding);
       }
     }
 
     for (Map.Entry<String, Object> entry : defaults.datasetLevel.entrySet()) {
-      if (!newMd.datasetLevel.containsKey(entry.getKey())) {
-        newMd.datasetLevel.put(entry.getKey(), entry.getValue());
+      if (!datasetLevel.containsKey(entry.getKey())) {
+        setDatasetMetadata(entry.getKey(), entry.getValue());
       }
     }
-
-    return newMd;
   }
 
   /**
@@ -147,12 +172,18 @@ public class GlobalMetadata {
     return writer.toString();
   }
 
+  protected void toJsonUtf8(JsonGenerator generator) throws IOException {
+    generator.writeStartObject();
+    generator.writeStringField("id", getId());
+    bodyToJsonUtf8(generator);
+    generator.writeEndObject();
+    generator.flush();
+  }
   /**
    * Write this object out to an existing JSON stream
    */
-  protected void toJsonUtf8(JsonGenerator generator)
+  protected void bodyToJsonUtf8(JsonGenerator generator)
       throws IOException {
-    generator.writeStartObject();
 
     generator.writeObjectField("dataset", datasetLevel);
     generator.writeObjectFieldStart("file");
@@ -160,8 +191,7 @@ public class GlobalMetadata {
       generator.writeObjectField(entry.getKey(), entry.getValue());
     }
     generator.writeEndObject();
-    generator.writeEndObject();
-    generator.flush();
+
   }
 
   // Dataset-level metadata
@@ -181,6 +211,34 @@ public class GlobalMetadata {
   }
 
   /**
+   * Convenience method to set the Content-Type property
+   */
+  public void setContentType(String contentType) {
+    setDatasetMetadata(CONTENT_TYPE_KEY, contentType);
+  }
+
+  /**
+   * Convenience method to retrieve the Content-Type property
+   * @return
+   */
+  public String getContentType() {
+    return (String)getDatasetMetadata(CONTENT_TYPE_KEY);
+  }
+
+  /**
+   * Convenience method to set the Inner-Content-Type property
+   */
+  public void setInnerContentType(String innerContentType) {
+    setDatasetMetadata(INNER_CONTENT_TYPE_KEY, innerContentType);
+  }
+
+  /**
+   * Convenience method to retrieve the Inner-Content-Type property
+   */
+  public String getInnerContentType() {
+    return (String)getDatasetMetadata(INNER_CONTENT_TYPE_KEY);
+  }
+  /**
    * Get an arbitrary dataset-level metadata key
    */
   public Object getDatasetMetadata(String key) {
@@ -191,7 +249,9 @@ public class GlobalMetadata {
    * Set an arbitrary dataset-level metadata key
    */
   public void setDatasetMetadata(String key, Object val) {
+    throwIfImmutable();
     datasetLevel.put(key, val);
+    cachedId = null;
   }
 
   /**
@@ -206,6 +266,7 @@ public class GlobalMetadata {
    * Convenience method to add a new transfer-encoding to a dataset
    */
   public synchronized void addTransferEncoding(String encoding) {
+    throwIfImmutable();
     List<String> encodings = getTransferEncoding();
     if (encodings == null) {
       encodings = new ArrayList<>();
@@ -234,6 +295,7 @@ public class GlobalMetadata {
    * Set an arbitrary file-level metadata key
    */
   public void setFileMetadata(String file, String key, Object val) {
+    throwIfImmutable();
     Map<String, Object> fileKeys = fileLevel.get(file);
     if (fileKeys == null) {
       fileKeys = new ConcurrentHashMap<>();
@@ -241,6 +303,7 @@ public class GlobalMetadata {
     }
 
     fileKeys.put(key, val);
+    cachedId = null;
   }
 
   @Override
@@ -253,17 +316,50 @@ public class GlobalMetadata {
     }
 
     GlobalMetadata that = (GlobalMetadata) o;
-
-    if (!datasetLevel.equals(that.datasetLevel)) {
-      return false;
-    }
-    return fileLevel.equals(that.fileLevel);
+    return this.getId().equals(that.getId());
   }
 
   @Override
   public int hashCode() {
-    int result = datasetLevel.hashCode();
-    result = 31 * result + fileLevel.hashCode();
-    return result;
+    return getId().hashCode();
+  }
+
+  public String getId() {
+    if (cachedId != null) {
+      return cachedId;
+    }
+
+    if (datasetLevel.size() == 0 && fileLevel.size() == 0) {
+      cachedId = EMPTY_ID;
+      return cachedId;
+    }
+
+    try {
+      // ID is calculated by serializing body to JSON and then taking that hash
+      ByteArrayOutputStream bOs = new ByteArrayOutputStream(512);
+      MessageDigest md5Digest = MessageDigest.getInstance("MD5");
+
+      try (JsonGenerator generator = jsonFactory.createJsonGenerator(bOs, JsonEncoding.UTF8).setCodec(objectMapper)) {
+        generator.writeStartObject();
+        bodyToJsonUtf8(generator);
+        generator.writeEndObject();
+      }
+
+      byte[] digestBytes = md5Digest.digest(bOs.toByteArray());
+      cachedId = DatatypeConverter.printHexBinary(digestBytes);
+      return cachedId;
+    } catch (IOException|NoSuchAlgorithmException e) {
+      throw new RuntimeException("Unexpected exception generating id", e);
+    }
+  }
+
+  public boolean isEmpty() {
+    return getId().equals(EMPTY_ID);
+  }
+
+  private void throwIfImmutable() {
+    if (this.markedImmutable) {
+      throw new UnsupportedOperationException("Metadata is marked as immutable -- cannot modify");
+    }
   }
 }

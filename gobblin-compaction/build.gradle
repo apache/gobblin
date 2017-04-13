@@ -24,6 +24,7 @@ dependencies {
   compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-core")
   compile project(":gobblin-data-management")
+  compile project(":gobblin-runtime")
 
   compile externalDependency.calciteCore
   compile externalDependency.calciteAvatica

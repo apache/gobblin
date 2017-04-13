@@ -224,7 +224,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
 
-      log.info(String.format("Adding TopologySpec with URI: %s and Config: %s", spec.getUri(),
+      log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", spec.getUri(),
           ((FlowSpec) spec).getConfigAsProperties()));
       if (specStore.exists(spec.getUri())) {
         specStore.updateSpec(spec);
@@ -245,7 +245,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(uri);
 
-      log.info(String.format("Adding TopologySpec with URI: %s", uri));
+      log.info(String.format("Removing FlowSpec with URI: %s", uri));
       Spec spec = specStore.getSpec(uri);
       this.listeners.onDeleteSpec(spec.getUri(), spec.getVersion());
       specStore.deleteSpec(uri);

@@ -32,7 +32,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.math.DoubleMath;
 import com.google.common.primitives.Ints;
+
 import gobblin.source.extractor.extract.QueryBasedExtractor;
+import gobblin.source.extractor.utils.Utils;
 
 
 public class DateWatermark implements Watermark {
@@ -41,8 +43,7 @@ public class DateWatermark implements Watermark {
   private static final String INPUTFORMAT = "yyyyMMddHHmmss";
   // output format of date water mark example: 20140301
   private static final String OUTPUTFORMAT = "yyyyMMdd";
-  private static final SimpleDateFormat INPUTFORMATPARSER = new SimpleDateFormat(INPUTFORMAT);
-
+  private final SimpleDateFormat inputFormatParser;
   private static final int deltaForNextWatermark = 24 * 60 * 60;
   private String watermarkColumn;
   private String watermarkFormat;
@@ -50,6 +51,7 @@ public class DateWatermark implements Watermark {
   public DateWatermark(String watermarkColumn, String watermarkFormat) {
     this.watermarkColumn = watermarkColumn;
     this.watermarkFormat = watermarkFormat;
+    inputFormatParser = new SimpleDateFormat(INPUTFORMAT);
   }
 
   @Override
@@ -90,16 +92,15 @@ public class DateWatermark implements Watermark {
     LOG.debug("Start time:" + startTime + "; End time:" + endTime);
     long lwm;
     long hwm;
-    while (startTime.getTime() <= endTime.getTime()) {
-      lwm = Long.parseLong(INPUTFORMATPARSER.format(startTime));
+    while (startTime.getTime() < endTime.getTime()) {
+      lwm = Long.parseLong(inputFormatParser.format(startTime));
       calendar.setTime(startTime);
-      calendar.add(Calendar.DATE, interval - 1);
+      calendar.add(Calendar.DATE, interval);
       nextTime = calendar.getTime();
-      hwm = Long.parseLong(INPUTFORMATPARSER.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
+      hwm = Long.parseLong(inputFormatParser.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
       LOG.debug("Partition - low:" + lwm + "; high:" + hwm);
-      calendar.add(Calendar.SECOND, deltaForNextWatermark);
-      startTime = calendar.getTime();
+      startTime = nextTime;
     }
     return intervalMap;
   }
@@ -118,9 +119,9 @@ public class DateWatermark implements Watermark {
     int totalIntervals = DoubleMath.roundToInt((double) totalHours / (dayInterval * 24), RoundingMode.CEILING);
     if (totalIntervals > maxIntervals) {
       hourInterval = DoubleMath.roundToInt((double) totalHours / maxIntervals, RoundingMode.CEILING);
-      dayInterval = TimeUnit.HOURS.toDays(hourInterval);
+      dayInterval = DoubleMath.roundToInt((double) hourInterval / 24, RoundingMode.CEILING);
     }
-    return Ints.checkedCast(dayInterval) + 1;
+    return Ints.checkedCast(dayInterval);
   }
 
   /**
@@ -141,5 +142,18 @@ public class DateWatermark implements Watermark {
       LOG.error(e.getMessage(), e);
     }
     return outDate;
+  }
+
+  /**
+   * Adjust the given watermark by diff
+   *
+   * @param baseWatermark the original watermark
+   * @param diff the amount to change
+   * @return the adjusted watermark value
+   */
+  public static long adjustWatermark(String baseWatermark, int diff) {
+    SimpleDateFormat parser = new SimpleDateFormat(INPUTFORMAT);
+    Date date = Utils.toDate(baseWatermark, INPUTFORMAT, OUTPUTFORMAT);
+    return Long.parseLong(parser.format(Utils.addDaysToDate(date, diff)));
   }
 }
