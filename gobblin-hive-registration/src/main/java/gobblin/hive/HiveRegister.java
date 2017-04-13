@@ -66,6 +66,7 @@ public abstract class HiveRegister implements Closeable {
   public static final String DEFAULT_HIVE_TABLE_COMPARATOR_TYPE = HiveTableComparator.class.getName();
   public static final String HIVE_PARTITION_COMPARATOR_TYPE = "hive.partition.comparator.type";
   public static final String DEFAULT_HIVE_PARTITION_COMPARATOR_TYPE = HivePartitionComparator.class.getName();
+  public static final String HIVE_REGISTRATION_BLACKWORD = "hive.registration.blackword";
 
   protected static final String HIVE_DB_EXTENSION = ".db";
 
@@ -107,6 +108,13 @@ public abstract class HiveRegister implements Closeable {
           for (Activity activity : ((HiveSpecWithPreActivities) spec).getPreActivities()) {
             activity.execute(HiveRegister.this);
           }
+        }
+
+        if (props.contains(HIVE_REGISTRATION_BLACKWORD)) {
+          System.out.println("[debug]Blackwords:" + props.getProp(HIVE_REGISTRATION_BLACKWORD));
+        }
+        if (spec.getTable().getTableName().contains(props.getProp(HIVE_REGISTRATION_BLACKWORD))) {
+          System.out.println("[debug]Table gonna be blacklisted:" + spec.getTable().getTableName());
         }
 
         registerPath(spec);

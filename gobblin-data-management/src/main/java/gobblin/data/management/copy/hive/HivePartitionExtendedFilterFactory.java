@@ -17,15 +17,17 @@
 
 package gobblin.data.management.copy.hive;
 
+
 import com.typesafe.config.Config;
 /**
  * A factory for {@link HivePartitionExtendedFilter} instances.
  */
 public interface HivePartitionExtendedFilterFactory {
   /**
-   * Filter requires information provided by {@link Config} like condition for filtering.
-   * @param config
-   * @return
+   * @param config Config object contains partition condition.
+   *               e.g. config could contain several keywords. Those partitions with any of these keywords
+   *               appearing in its path will be filtered out.
+   * @return Return a partition filter based filtering condition contained in Config.
    */
   HivePartitionExtendedFilter createFilter(Config config);
 }

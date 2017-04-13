@@ -289,14 +289,16 @@ public class HiveCopyEntityHelper {
         try {
           Config config = ConfigFactory.parseProperties(this.dataset.getProperties());
           this.hivePartitionExtendedFilter =
-              Optional.fromNullable(new ClassAliasResolver<>(HivePartitionExtendedFilterFactory.class).resolveClass(filterType).newInstance().createFilter(config));
+              Optional.of(new ClassAliasResolver<>(HivePartitionExtendedFilterFactory.class).resolveClass(filterType).newInstance().createFilter(config));
         } catch (ReflectiveOperationException roe) {
-          log.error("Error: Could not find job with alias " + filterType);
+          log.error("Error: Could not find filter with alias " + filterType);
           closer.close();
           throw new IOException(roe);
         }
       }
-      else this.hivePartitionExtendedFilter = Optional.absent();
+      else {
+        this.hivePartitionExtendedFilter = Optional.absent();
+      }
 
       try {
         this.fastPartitionSkip = this.dataset.getProperties().containsKey(FAST_PARTITION_SKIP_PREDICATE)

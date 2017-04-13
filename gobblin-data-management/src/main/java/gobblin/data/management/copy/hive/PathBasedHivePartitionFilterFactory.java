@@ -28,7 +28,7 @@ import gobblin.annotation.Alias;
  * A path based specific filter factory for generation of {@link PathBasedPartitionFilter}
  */
 @Alias("PathPartition")
-public class PathBasedHivePartitionExtendedFactory implements HivePartitionExtendedFilterFactory {
+public class PathBasedHivePartitionFilterFactory implements HivePartitionExtendedFilterFactory {
   @Override
   public HivePartitionExtendedFilter createFilter(Config config){
     Properties props = ConfigUtils.configToProperties(config);

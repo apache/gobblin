@@ -15,12 +15,15 @@
  * limitations under the License.
  */
 
+
 package gobblin.data.management.copy.hive;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hive.metastore.api.Partition;
-
 
 /**
  * One simple implementation for {@link HivePartitionExtendedFilter},
@@ -35,10 +38,12 @@ public class PathBasedPartitionFilter implements HivePartitionExtendedFilter {
    * For example, if you specify "Path" as the filter type and "Hourly" as the policy,
    * partitions with Path containing '/Hourly/' will be kept.
    */
-  public static final String HIVE_PARTITION_EXTENDED_FILTER_TYPE = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".extended.filter.type";
-  public static final String HIVE_PARTITION_PATH_FILTER_POLICY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".path.filter.policy";
+  public static final String HIVE_PARTITION_EXTENDED_FILTER_TYPE = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".extended.filterType";
+  public static final String HIVE_PARTITION_PATH_FILTER_POLICY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".pathFilterCondition";
 
   private String filterPolicy;
+  private static Pattern pattern;
+  private static Matcher matcher;
 
   public PathBasedPartitionFilter(String filterPolicy) {
     this.filterPolicy = filterPolicy;
@@ -49,7 +54,10 @@ public class PathBasedPartitionFilter implements HivePartitionExtendedFilter {
     PathFilter pathFilter = new PathFilter() {
       @Override
       public boolean accept(Path path) {
-        return path.toString().contains("/" + filterPolicy +"/");
+        /* For partitions with path that contains filterPolicy as part of it, will be filtered out. */
+        pattern = Pattern.compile(".*\\/"+ filterPolicy +"\\/.*");
+        matcher = pattern.matcher(path.toString());
+        return matcher.matches();
       }
     };
     return pathFilter.accept(new Path(partition.getSd().getLocation()));

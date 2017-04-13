@@ -24,13 +24,11 @@ import org.apache.hadoop.hive.metastore.api.Partition;
  * The {@link org.apache.hadoop.hive.metastore.IMetaStoreClient} provides `listPartitionsByFilter` method which
  * contains a String-type filter parameter. Given the fact that this filter is limited on simple arithmetic filtering
  * on partition column, the {@link HivePartitionExtendedFilter} interface extends the semantics of partition filters.
- * One example is that you can filter partitions based on the granularity it is partitioned.
+ * One example is that you can filter partitions based on the partition location.
  */
 public interface HivePartitionExtendedFilter {
 
   /**
-   * Given some filtering metric from partition, return the filter result.
-   * @param partition
    * @return If a partition should be accepted or not.
    */
   public boolean accept(Partition partition);
