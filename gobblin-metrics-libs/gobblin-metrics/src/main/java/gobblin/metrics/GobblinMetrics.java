@@ -559,6 +559,7 @@ public class GobblinMetrics {
     GraphiteConnectionType connectionType;
     String type = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_SENDING_TYPE,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_SENDING_TYPE).toUpperCase();
+    String prefix = properties.getProperty(ConfigurationKeys.METICS_REPORTING_GRAPHITE_PREFIX);
     try {
       connectionType = GraphiteConnectionType.valueOf(type);
     } catch (IllegalArgumentException exception) {
@@ -572,6 +573,7 @@ public class GobblinMetrics {
         GraphiteReporter.Factory.newBuilder().withConnectionType(connectionType)
             .withConnection(hostname, port).withMetricContextName(
             this.metricContext.getName()) //contains the current job id
+            .withMetricsPrefix(prefix)
             .build(properties);
       } catch (IOException e) {
         LOGGER.error("Failed to create Graphite metrics reporter. Will not report metrics to Graphite.", e);
@@ -590,6 +592,7 @@ public class GobblinMetrics {
             GraphiteEventReporter.Factory.forContext(RootMetricContext.get())
               .withConnectionType(connectionType)
               .withConnection(hostname, eventsPort)
+              .withPrefix(prefix)
               .withEmitValueAsKey(emitValueAsKey)
               .build();
         this.codahaleScheduledReporters.add(this.codahaleReportersCloser.register(eventReporter));

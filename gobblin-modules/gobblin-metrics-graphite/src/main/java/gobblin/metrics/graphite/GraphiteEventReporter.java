@@ -54,6 +54,7 @@ public class GraphiteEventReporter extends EventReporter {
 
   private static final String EMTPY_VALUE = "0";
   private static final Logger LOGGER = LoggerFactory.getLogger(GraphiteEventReporter.class);
+  private String prefix;
 
   public GraphiteEventReporter(Builder<?> builder) throws IOException {
     super(builder);
@@ -64,6 +65,7 @@ public class GraphiteEventReporter extends EventReporter {
           this.closer.register(new GraphitePusher(builder.hostname, builder.port, builder.connectionType));
     }
     this.emitValueAsKey = builder.emitValueAsKey;
+    this.prefix = builder.prefix;
   }
 
   @Override
@@ -99,19 +101,19 @@ public class GraphiteEventReporter extends EventReporter {
     long timestamp = event.getTimestamp() / 1000l;
     MultiPartEvent multipartEvent = MultiPartEvent.getEvent(metadata.get(EventSubmitter.EVENT_TYPE));
     if (multipartEvent == null) {
-      graphitePusher.push(name, EMTPY_VALUE, timestamp);
+      graphitePusher.push(JOINER.join(prefix, name), EMTPY_VALUE, timestamp);
     }
     else {
       for (String field : multipartEvent.getMetadataFields()) {
         String value = metadata.get(field);
         if (value == null) {
-          graphitePusher.push(JOINER.join(name, field), EMTPY_VALUE, timestamp);
+          graphitePusher.push(JOINER.join(prefix, name, field), EMTPY_VALUE, timestamp);
         } else {
           if (emitAsKey(field)) {
             // metric value is emitted as part of the keys
-            graphitePusher.push(JOINER.join(name, field, value), EMTPY_VALUE, timestamp);
+            graphitePusher.push(JOINER.join(prefix, name, field, value), EMTPY_VALUE, timestamp);
           } else {
-            graphitePusher.push(JOINER.join(name, field), convertValue(field, value), timestamp);
+            graphitePusher.push(JOINER.join(prefix, name, field), convertValue(field, value), timestamp);
           }
         }
       }
@@ -125,7 +127,7 @@ public class GraphiteEventReporter extends EventReporter {
 
   /**
    * Non-numeric event values may be emitted as part of the key by applying them to the end of the key if
-   * {@link ConfigurationKeys#METRICS_REPORTING_GRAPHITE_EVENT_VALUE_AS_KEY} is set. Thus such events can be still
+   * {@link ConfigurationKeys#METRICS_REPORTING_GRAPHITE_EVENTS_VALUE_AS_KEY} is set. Thus such events can be still
    * reported even when the backend doesn't accept text values through Graphite
    *
    * @param field name of the metric's metadata fields
@@ -184,6 +186,7 @@ public class GraphiteEventReporter extends EventReporter {
     protected GraphiteConnectionType connectionType;
     protected Optional<GraphitePusher> graphitePusher;
     protected boolean emitValueAsKey;
+    protected String prefix;
 
     protected Builder(MetricContext context) {
       super(context);
@@ -205,6 +208,11 @@ public class GraphiteEventReporter extends EventReporter {
     public T withConnection(String hostname, int port) {
       this.hostname = hostname;
       this.port = port;
+      return self();
+    }
+
+    public T withPrefix(String prefix) {
+      this.prefix = prefix;
       return self();
     }
 
