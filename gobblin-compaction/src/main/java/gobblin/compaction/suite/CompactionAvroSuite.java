@@ -1,5 +1,6 @@
 package gobblin.compaction.suite;
 
+import gobblin.annotation.Alias;
 import gobblin.compaction.action.CompactionCompleteAction;
 import gobblin.compaction.action.CompactionCompleteFileOperationAction;
 import gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
@@ -20,6 +21,7 @@ import java.util.*;
  * A type of {@link CompactionSuite} which implements all components needed for avro file compaction.
  */
 @Slf4j
+@Alias("CompactionAvroSuite")
 public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
 
   public static final String SERIALIZE_COMPACTION_FILE_PATH_NAME = "compaction-file-path-name";

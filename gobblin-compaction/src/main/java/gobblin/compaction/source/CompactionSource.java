@@ -1,10 +1,10 @@
 package gobblin.compaction.source;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
-import gobblin.compaction.suite.CompactionAvroSuite;
 import gobblin.compaction.suite.CompactionSuite;
 import gobblin.compaction.verify.CompactionVerifier;
 import gobblin.compaction.mapreduce.MRCompactionTaskFactory;
@@ -18,7 +18,9 @@ import gobblin.runtime.task.TaskUtils;
 import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.ClassAliasResolver;
 import gobblin.util.HadoopUtils;
+import gobblin.util.reflection.GobblinConstructorUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -35,16 +37,19 @@ import java.util.List;
 @Slf4j
 public class CompactionSource implements Source<String, String> {
   private CompactionSuite suite;
+  private ClassAliasResolver<CompactionSuite> suiteAliasResolver = new ClassAliasResolver<>(CompactionSuite.class);
 
   public List<WorkUnit> getWorkunits(SourceState state) {
     List<WorkUnit> workUnits = Lists.newArrayList();
+    String suiteName = state.getProp(ConfigurationKeys.COMPACTION_SUITE_NAME, ConfigurationKeys.DEFAULT_COMPACTION_SUITE_NAME);
 
     try {
-      suite = new CompactionAvroSuite(state);
+      suite = GobblinConstructorUtils.invokeLongestConstructor(
+              suiteAliasResolver.resolveClass(suiteName), ImmutableList.of(state).toArray());
+
       DatasetsFinder finder  = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
                getSourceFileSystem(state),
                DefaultFileSystemGlobFinder.class.getName());
-
 
       List<CompactionVerifier> verifiers = suite.getDatasetsFinderVerifiers();
       List<Dataset> datasets = finder.findDatasets();
@@ -65,8 +70,8 @@ public class CompactionSource implements Source<String, String> {
           workUnits.add(workUnit);
         }
       }
-    } catch (IOException e) {
-      return null;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
 
     return workUnits;

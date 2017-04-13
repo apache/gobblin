@@ -56,7 +56,7 @@ public class MRCompactionTask extends MRTask {
 
     List<CompactionCompleteAction> actions = this.suite.getCompactionCompleteActions();
     for (CompactionCompleteAction action: actions) {
-      action.onCompactionJobCompelete(dataset);
+      action.onCompactionJobComplete(dataset);
     }
   }
 
