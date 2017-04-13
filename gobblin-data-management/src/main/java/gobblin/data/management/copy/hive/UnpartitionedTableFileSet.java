@@ -65,23 +65,31 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
     Optional<Table> existingTargetTable = this.helper.getExistingTargetTable();
     if (existingTargetTable.isPresent()) {
       if (!this.helper.getTargetTable().getDataLocation().equals(existingTargetTable.get().getDataLocation())) {
-        if (this.helper.getExistingEntityPolicy() != HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_TABLE) {
-          log.error("Source and target table are not compatible. Aborting copy of table " + this.helper.getTargetTable(),
-              new HiveTableLocationNotMatchException(this.helper.getTargetTable().getDataLocation(),
-                  existingTargetTable.get().getDataLocation()));
-          multiTimer.close();
+        switch (this.helper.getExistingEntityPolicy()){
+          case UPDATE_TABLE:
+            // Update the location of files while keep the existing table entity.
+            log.warn("Source table will not be deregistered while file locaiton has been changed, update source table's"
+                + " file location to" + this.helper.getTargetTable().getDataLocation());
+            break ;
+          case REPLACE_TABLE:
+            // Required to de-register the original table.
+            log.warn("Source and target table are not compatible. Will override target table " + existingTargetTable.get()
+                .getDataLocation());
+            stepPriority = this.helper.addTableDeregisterSteps(copyEntities, fileSet, stepPriority, this.helper.getTargetTable());
+            break ;
+          default:
+            log.error("Source and target table are not compatible. Aborting copy of table " + this.helper.getTargetTable(),
+                new HiveTableLocationNotMatchException(this.helper.getTargetTable().getDataLocation(),
+                    existingTargetTable.get().getDataLocation()));
+            multiTimer.close();
 
-          return Lists.newArrayList();
+            return Lists.newArrayList();
         }
-
-        log.warn("Source and target table are not compatible. Will override target table "
-            + existingTargetTable.get().getDataLocation());
-        stepPriority = this.helper.addTableDeregisterSteps(copyEntities, fileSet, stepPriority, this.helper.getTargetTable());
-        existingTargetTable = Optional.absent();
       }
     }
 
     stepPriority = this.helper.addSharedSteps(copyEntities, fileSet, stepPriority);
+
     HiveLocationDescriptor sourceLocation =
         HiveLocationDescriptor.forTable(getTable(), getHiveDataset().getFs(), getHiveDataset().getProperties());
     HiveLocationDescriptor desiredTargetLocation =

@@ -181,9 +181,10 @@ public class HadoopUtils {
    * @throws IOException if rename failed for reasons other than target exists.
    */
   public static boolean renamePathHandleLocalFSRace(FileSystem fs, Path src, Path dst) throws IOException {
-    if (fs instanceof LocalFileSystem && fs.isDirectory(src)) {
-      File srcFile = ((LocalFileSystem) fs).pathToFile(src);
-      File dstFile = ((LocalFileSystem) fs).pathToFile(dst);
+    if (DecoratorUtils.resolveUnderlyingObject(fs) instanceof LocalFileSystem && fs.isDirectory(src)) {
+      LocalFileSystem localFs = (LocalFileSystem) DecoratorUtils.resolveUnderlyingObject(fs);
+      File srcFile = localFs.pathToFile(src);
+      File dstFile = localFs.pathToFile(dst);
 
       return srcFile.renameTo(dstFile);
     }
@@ -911,5 +912,12 @@ public class HadoopUtils {
       }
     }
     return content;
+  }
+
+  /**
+   * Add "gobblin-site.xml" as a {@link Configuration} resource.
+   */
+  public static void addGobblinSite() {
+    Configuration.addDefaultResource("gobblin-site.xml");
   }
 }

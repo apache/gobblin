@@ -22,8 +22,10 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -31,10 +33,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.linkedin.common.callback.Callback;
+import com.linkedin.data.template.GetMode;
 import com.linkedin.restli.client.Request;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.RestClient;
@@ -48,8 +52,11 @@ import gobblin.restli.throttling.PermitAllocation;
 import gobblin.restli.throttling.PermitRequest;
 import gobblin.restli.throttling.PermitsGetRequestBuilder;
 import gobblin.restli.throttling.PermitsRequestBuilders;
+import gobblin.util.ExecutorsUtils;
 import gobblin.util.NoopCloseable;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -81,6 +88,10 @@ class BatchedPermitsRequester {
   private static final long RETRY_DELAY_ON_NON_RETRIABLE_EXCEPTION = 60000; // 10 minutes
   private static final double MAX_DEPLETION_RATE = 1e20;
 
+  private static final ScheduledExecutorService SCHEDULE_EXECUTOR_SERVICE =
+      Executors.newScheduledThreadPool(1, ExecutorsUtils.newDaemonThreadFactory(Optional.of(log),
+          Optional.of(BatchedPermitsRequester.class.getName() + "-schedule-%d")));
+
   private final PermitBatchContainer permitBatchContainer;
   private final RestClient restClient;
   private final Lock lock;
@@ -93,7 +104,7 @@ class BatchedPermitsRequester {
 
   private volatile int retries = 0;
   private final RetryStatus retryStatus;
-  private final AtomicLong permitsOutstanding;
+  private final SynchronizedAverager permitsOutstanding;
   private final long targetMillisBetweenRequests;
 
   @Builder
@@ -111,7 +122,7 @@ class BatchedPermitsRequester {
     /** Ensures there is only one in-flight request at a time. */
     this.requestSemaphore = new Semaphore(1);
     /** Number of not-yet-satisfied permits. */
-    this.permitsOutstanding = new AtomicLong();
+    this.permitsOutstanding = new SynchronizedAverager();
     this.targetMillisBetweenRequests = targetMillisBetweenRequests > 0 ? targetMillisBetweenRequests :
         DEFAULT_TARGET_MILLIS_BETWEEN_REQUESTS;
     this.requestSender = requestSender == null ? new RequestSender(this.restClient) : requestSender;
@@ -133,15 +144,15 @@ class BatchedPermitsRequester {
     if (permits <= 0) {
       return true;
     }
-    this.permitsOutstanding.addAndGet(permits);
+    this.permitsOutstanding.addEntryWithWeight(permits);
     this.lock.lock();
     try {
       while (true) {
         if (this.permitBatchContainer.tryTake(permits)) {
-          this.permitsOutstanding.addAndGet(-1 * permits);
+          this.permitsOutstanding.removeEntryWithWeight(permits);
           return true;
         }
-        if (this.retryStatus.canRetry()) {
+        if (this.retryStatus.canRetryWithinMillis(10000)) {
           maybeSendNewPermitRequest();
           this.newPermitsAvailable.await();
         } else {
@@ -158,7 +169,11 @@ class BatchedPermitsRequester {
    * Send a new permit request to the server.
    */
   private void maybeSendNewPermitRequest() {
-    if (!this.requestSemaphore.tryAcquire() || !this.retryStatus.canRetry()) {
+    if (!this.requestSemaphore.tryAcquire()) {
+      return;
+    }
+    if (!this.retryStatus.canRetryNow()) {
+      this.requestSemaphore.release();
       return;
     }
     try {
@@ -170,9 +185,12 @@ class BatchedPermitsRequester {
 
       PermitRequest permitRequest = this.basePermitRequest.copy();
       permitRequest.setPermits(permits);
+      permitRequest.setMinPermits((long) this.permitsOutstanding.getAverageWeightOrZero());
       if (BatchedPermitsRequester.this.restRequestHistogram != null) {
         BatchedPermitsRequester.this.restRequestHistogram.update(permits);
       }
+
+      log.info("Sending permit request " + permitRequest);
 
       this.requestSender.sendRequest(permitRequest, new AllocationCallback(
           BatchedPermitsRequester.this.restRequestTimer == null ? NoopCloseable.INSTANCE :
@@ -191,7 +209,7 @@ class BatchedPermitsRequester {
 
     long candidatePermits = 0;
 
-    long unsatisfiablePermits = this.permitsOutstanding.get() - this.permitBatchContainer.totalPermits;
+    long unsatisfiablePermits = this.permitsOutstanding.getTotalWeight() - this.permitBatchContainer.totalPermits;
     if (unsatisfiablePermits > 0) {
       candidatePermits = unsatisfiablePermits;
     }
@@ -238,6 +256,7 @@ class BatchedPermitsRequester {
         }
 
         BatchedPermitsRequester.this.retries++;
+
         if (BatchedPermitsRequester.this.retries >= MAX_RETRIES) {
           nonRetriableFail(exc, "Too many failures trying to communicate with throttling service.");
         } else {
@@ -248,12 +267,12 @@ class BatchedPermitsRequester {
       } catch (Throwable t) {
         log.error("Error on batched permits container.", t);
       } finally {
+        BatchedPermitsRequester.this.lock.unlock();
         try {
           this.timerContext.close();
         } catch (IOException ioe) {
           // Do nothing
         }
-        BatchedPermitsRequester.this.lock.unlock();
       }
     }
 
@@ -264,13 +283,20 @@ class BatchedPermitsRequester {
       try {
         PermitAllocation allocation = result.getEntity();
 
-        if (allocation.getPermits() <= 0) {
-          onError(new IllegalStateException("Server returned no permits."));
+        log.info("Received permit allocation " + allocation);
+
+        Long retryDelay = allocation.getMinRetryDelayMillis(GetMode.NULL);
+        if (retryDelay != null) {
+          BatchedPermitsRequester.this.retryStatus.blockRetries(retryDelay, null);
         }
 
-        BatchedPermitsRequester.this.permitBatchContainer.addPermitAllocation(allocation);
+        if (allocation.getPermits() > 0) {
+          BatchedPermitsRequester.this.permitBatchContainer.addPermitAllocation(allocation);
+        }
         BatchedPermitsRequester.this.requestSemaphore.release();
-        BatchedPermitsRequester.this.newPermitsAvailable.signalAll();
+        if (allocation.getPermits() > 0) {
+          BatchedPermitsRequester.this.newPermitsAvailable.signalAll();
+        }
       } finally {
         try {
           this.timerContext.close();
@@ -400,20 +426,65 @@ class BatchedPermitsRequester {
     }
   }
 
+  private static class SynchronizedAverager {
+    private volatile long weight;
+    private volatile long entries;
+
+    @SuppressFBWarnings(value = "VO_VOLATILE_INCREMENT", justification = "All methods updating volatile variables are synchronized")
+    public synchronized void addEntryWithWeight(long weight) {
+      this.entries++;
+      this.weight += weight;
+    }
+
+    @SuppressFBWarnings(value = "VO_VOLATILE_INCREMENT", justification = "All methods updating volatile variables are synchronized")
+    public synchronized void removeEntryWithWeight(long weight) {
+      if (this.entries == 0) {
+        throw new IllegalStateException("Cannot have a negative number of entries.");
+      }
+      this.entries--;
+      this.weight -= weight;
+    }
+
+    public synchronized double getAverageWeightOrZero() {
+      if (this.entries == 0) {
+        return 0;
+      }
+      return (double) this.weight / this.entries;
+    }
+
+    public long getTotalWeight() {
+      return this.weight;
+    }
+
+    public long getNumEntries() {
+      return this.entries;
+    }
+  }
+
   /**
    * Stores the retry state of a {@link BatchedPermitsRequester}, e.g. whether it can keep retrying.
    */
-  private static class RetryStatus {
+  private class RetryStatus {
     private long retryAt;
-    private Throwable exception;
+    @Nullable private Throwable exception;
 
-    public boolean canRetry() {
-      return System.currentTimeMillis() > this.retryAt;
+    public boolean canRetryNow() {
+      return canRetryWithinMillis(0);
+    }
+
+    public boolean canRetryWithinMillis(long millis) {
+      return System.currentTimeMillis() + millis >= this.retryAt;
     }
 
     public void blockRetries(long millis, Throwable exception) {
       this.exception = exception;
       this.retryAt = System.currentTimeMillis() + millis;
+      SCHEDULE_EXECUTOR_SERVICE.schedule(new Runnable() {
+        @Override
+        public void run() {
+          maybeSendNewPermitRequest();
+        }
+      }, millis, TimeUnit.MILLISECONDS);
     }
   }
 }

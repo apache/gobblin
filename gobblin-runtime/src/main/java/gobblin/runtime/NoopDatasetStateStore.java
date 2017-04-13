@@ -48,6 +48,10 @@ public class NoopDatasetStateStore extends FsDatasetStateStore {
     }
   }
 
+  public NoopDatasetStateStore(FileSystem fs, String storeRootDir, Integer threadPoolSize) {
+    super(fs, storeRootDir, threadPoolSize);
+  }
+
   public NoopDatasetStateStore(FileSystem fs, String storeRootDir) {
     super(fs, storeRootDir);
   }

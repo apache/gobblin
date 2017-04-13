@@ -48,7 +48,6 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.extractor.partition.Partition;
 import gobblin.source.extractor.partition.Partitioner;
 import gobblin.source.extractor.utils.Utils;
@@ -79,7 +78,6 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   public static final boolean DEFAULT_SOURCE_OBTAIN_TABLE_PROPS_FROM_CONFIG_STORE = false;
   private static final String QUERY_BASED_SOURCE = "query_based_source";
   public static final String WORK_UNIT_STATE_VERSION_KEY = "source.querybased.workUnitState.version";
-  public static final String IS_LAST_WORK_UNIT = "source.querybased.isLastWorkUnit";
   /**
    * WorkUnit Version 3:
    *    SOURCE_ENTITY = as specified in job config
@@ -170,7 +168,6 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     initLogger(state);
 
     List<WorkUnit> workUnits = Lists.newArrayList();
-    String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
 
     // Map<String, String> tableNameToEntityMap = Maps.newHashMap();
     Set<SourceEntity> entities = getFilteredSourceEntities(state);
@@ -186,9 +183,6 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
                sourceEntity, !entities.contains(sourceEntity));
 
       SourceState combinedState = getCombinedState(state, tableSpecificPropsMap.get(sourceEntity));
-      TableType tableType =
-          TableType.valueOf(combinedState.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
-
       long previousWatermark = prevWatermarksByTable.containsKey(sourceEntity) ?
           prevWatermarksByTable.get(sourceEntity)
           : ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
@@ -200,36 +194,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
         combinedState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_END_VALUE, previousWatermark);
       }
 
-      List<Partition> partitions = new Partitioner(combinedState).getPartitionList(previousWatermark);
-      Collections.sort(partitions, Partitioner.ascendingComparator);
-
-      // {@link ConfigurationKeys.EXTRACT_TABLE_NAME_KEY} specify the output path for Extract
-      String outputTableName = sourceEntity.getDestTableName();
-
-      log.info("Create extract output with table name is " + outputTableName);
-      Extract extract = createExtract(tableType, nameSpaceName, outputTableName);
-
-      // Setting current time for the full extract
-      if (Boolean.valueOf(combinedState.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY))) {
-        extract.setFullTrue(System.currentTimeMillis());
-      }
-
-      for (Partition partition : partitions) {
-        WorkUnit workunit = WorkUnit.create(extract);
-        workunit.setProp(ConfigurationKeys.SOURCE_ENTITY, sourceEntity.getSourceEntityName());
-        workunit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, sourceEntity.getDestTableName());
-        workunit.setWatermarkInterval(
-            new WatermarkInterval(
-                new LongWatermark(partition.getLowWatermark()), new LongWatermark(partition.getHighWatermark())));
-        workunit.setProp(WORK_UNIT_STATE_VERSION_KEY, CURRENT_WORK_UNIT_STATE_VERSION);
-        if (partition.getHasUserSpecifiedHighWatermark()) {
-          workunit.setProp(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK, true);
-        }
-        workUnits.add(workunit);
-      }
-
-      // Mark last work unit of the current source entity
-      workUnits.get(workUnits.size() - 1).setProp(IS_LAST_WORK_UNIT, true);
+      workUnits.addAll(generateWorkUnits(sourceEntity, state, previousWatermark));
     }
 
     log.info("Total number of workunits for the current run: " + workUnits.size());
@@ -241,6 +206,39 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
         state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
 
     return pack(workUnits, numOfMultiWorkunits);
+  }
+
+  protected List<WorkUnit> generateWorkUnits(SourceEntity sourceEntity, SourceState state, long previousWatermark) {
+    List<WorkUnit> workUnits = Lists.newArrayList();
+
+    String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
+    TableType tableType =
+        TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
+
+    List<Partition> partitions = new Partitioner(state).getPartitionList(previousWatermark);
+    Collections.sort(partitions, Partitioner.ascendingComparator);
+
+    // {@link ConfigurationKeys.EXTRACT_TABLE_NAME_KEY} specify the output path for Extract
+    String outputTableName = sourceEntity.getDestTableName();
+
+    log.info("Create extract output with table name is " + outputTableName);
+    Extract extract = createExtract(tableType, nameSpaceName, outputTableName);
+
+    // Setting current time for the full extract
+    if (Boolean.valueOf(state.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY))) {
+      extract.setFullTrue(System.currentTimeMillis());
+    }
+
+    for (Partition partition : partitions) {
+      WorkUnit workunit = WorkUnit.create(extract);
+      workunit.setProp(ConfigurationKeys.SOURCE_ENTITY, sourceEntity.getSourceEntityName());
+      workunit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, sourceEntity.getDestTableName());
+      workunit.setProp(WORK_UNIT_STATE_VERSION_KEY, CURRENT_WORK_UNIT_STATE_VERSION);
+      partition.serialize(workunit);
+      workUnits.add(workunit);
+    }
+
+    return workUnits;
   }
 
   protected Set<SourceEntity> getFilteredSourceEntities(SourceState state) {

@@ -128,7 +128,7 @@ public class TimestampWatermarkTest {
     Date endTime = inputFormat.parse(String.valueOf(highWatermarkValue));
     Calendar cal = Calendar.getInstance();
 
-    while (startTime.compareTo(endTime) <= 0) {
+    while (startTime.compareTo(endTime) < 0) {
       cal.setTime(startTime);
       cal.add(Calendar.HOUR, partitionInterval);
       Date nextTime = cal.getTime();
@@ -136,8 +136,7 @@ public class TimestampWatermarkTest {
         nextTime = endTime;
       }
       intervals.put(Long.parseLong(inputFormat.format(startTime)), Long.parseLong(inputFormat.format(nextTime)));
-      cal.add(Calendar.SECOND, 1);
-      startTime = cal.getTime();
+      startTime = nextTime;
     }
     return intervals;
   }

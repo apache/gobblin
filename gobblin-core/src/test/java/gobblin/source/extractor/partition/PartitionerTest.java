@@ -26,7 +26,7 @@ public class PartitionerTest {
 
     TestPartitioner partitioner = new TestPartitioner(sourceState);
     long defaultValue = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-    expectedPartitions.add(new Partition(defaultValue, defaultValue));
+    expectedPartitions.add(new Partition(defaultValue, defaultValue, true, false));
 
     // Watermark doesn't exist
     Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
@@ -41,7 +41,7 @@ public class PartitionerTest {
     sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_WATERMARK_OVERRIDE, true);
 
     expectedPartitions.clear();
-    expectedPartitions.add(new Partition(defaultValue, Long.parseLong(TestPartitioner.currentTimeString)));
+    expectedPartitions.add(new Partition(defaultValue, Long.parseLong(TestPartitioner.currentTimeString), true, false));
     // No user specified watermarks
     Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
 
@@ -51,10 +51,53 @@ public class PartitionerTest {
 
     expectedPartitions.clear();
     expectedPartitions.add(new Partition(20170101000000L, 20170101060000L));
-    expectedPartitions.add(new Partition(20170101070000L, 20170101120000L, true));
+    expectedPartitions.add(new Partition(20170101060000L, 20170101120000L, true, true));
     List<Partition> partitions = partitioner.getPartitionList(-1);
     Collections.sort(partitions, Partitioner.ascendingComparator);
     Assert.assertEquals(partitions, expectedPartitions);
+  }
+
+  @Test
+  public void testGetUserSpecifiedPartitionList() {
+    List<Partition> expectedPartitions = new ArrayList<>();
+    SourceState sourceState = new SourceState();
+    sourceState.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
+
+    TestPartitioner partitioner = new TestPartitioner(sourceState);
+    long defaultValue = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+    expectedPartitions.add(new Partition(defaultValue, defaultValue, true, true));
+    sourceState.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, "");
+    // Partition list doesn't exist
+    Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
+
+    // Date partitions
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "date");
+
+    // Only one partition point
+    sourceState.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, "20140101030201");
+    expectedPartitions.clear();
+    expectedPartitions.add(new Partition(20140101000000L, 20170101000000L, true, false));
+    Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
+
+    // Keep upper bounds for append_daily job
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE, "APPEND_DAILY");
+    sourceState.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, "20140101030201, 20140102040201");
+    expectedPartitions.clear();
+    expectedPartitions.add(new Partition(20140101000000L, 20140102000000L, true, true));
+    Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
+
+    // Hour partitions, snapshot extract
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "hour");
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE, "SNAPSHOT");
+    expectedPartitions.clear();
+    expectedPartitions.add(new Partition(20140101030000L, 20140102040000L,  true, false));
+    Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
+
+    // Hour partitions, timestamp extract
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "timestamp");
+    expectedPartitions.clear();
+    expectedPartitions.add(new Partition(20140101030201L, 20140102040201L, true,false));
+    Assert.assertEquals(partitioner.getPartitionList(-1), expectedPartitions);
   }
 
   /**

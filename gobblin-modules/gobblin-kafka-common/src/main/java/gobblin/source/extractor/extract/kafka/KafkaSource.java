@@ -92,6 +92,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final String AVG_RECORD_SIZE = "avg.record.size";
   public static final String AVG_RECORD_MILLIS = "avg.record.millis";
   public static final String GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS = "gobblin.kafka.consumerClient.class";
+  public static final String GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION =
+      "gobblin.kafka.extract.allowTableTypeAndNamspaceCustomization";
   public static final String DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS =
       "gobblin.kafka.client.Kafka08ConsumerClient$Factory";
 
@@ -109,6 +111,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       new ClassAliasResolver<>(GobblinKafkaConsumerClientFactory.class);
 
   private volatile boolean doneGettingAllPreviousOffsets = false;
+  private Extract.TableType tableType;
+  private String extractNameSpace;
+  private boolean isFullExtract;
 
   private List<String> getLimiterExtractorReportKeys () {
     List<String> keyNames = new ArrayList<>();
@@ -129,6 +134,17 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     Map<String, List<WorkUnit>> workUnits = Maps.newConcurrentMap();
+    if (state.getPropAsBoolean(KafkaSource.GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION)) {
+      String tableTypeStr = state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY,
+          KafkaSource.DEFAULT_TABLE_TYPE.toString());
+      tableType = Extract.TableType.valueOf(tableTypeStr);
+      extractNameSpace = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, KafkaSource.DEFAULT_NAMESPACE_NAME);
+    } else {
+      // To be compatible, reject table type and namespace configuration keys as previous implementation
+      tableType = KafkaSource.DEFAULT_TABLE_TYPE;
+      extractNameSpace = KafkaSource.DEFAULT_NAMESPACE_NAME;
+    }
+    isFullExtract = state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY);
 
     try {
       this.kafkaConsumerClient =
@@ -430,7 +446,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   private WorkUnit getWorkUnitForTopicPartition(KafkaPartition partition, Offsets offsets,
       Optional<State> topicSpecificState) {
-    Extract extract = this.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, partition.getTopicName());
+    Extract extract = this.createExtract(tableType, extractNameSpace, partition.getTopicName());
+    if (isFullExtract) {
+      extract.setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, true);
+    }
+
     WorkUnit workUnit = WorkUnit.create(extract);
     if (topicSpecificState.isPresent()) {
       workUnit.addAll(topicSpecificState.get());

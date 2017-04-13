@@ -88,9 +88,11 @@ import gobblin.runtime.job_catalog.StaticJobCatalog;
 import gobblin.runtime.job_spec.ResolvedJobSpec;
 import gobblin.runtime.plugins.GobblinInstancePluginUtils;
 import gobblin.runtime.plugins.PluginStaticKeys;
+import gobblin.runtime.plugins.metrics.GobblinMetricsPlugin;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
 import gobblin.state.ConstructState;
+import gobblin.util.HadoopUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.PullFileLoader;
 
@@ -146,6 +148,7 @@ public class EmbeddedGobblin {
 
   @EmbeddedGobblinCliSupport(argumentNames = {"jobName"})
   public EmbeddedGobblin(String name) {
+    HadoopUtils.addGobblinSite();
     this.specBuilder = new JobSpec.Builder(name);
     this.userConfigMap = Maps.newHashMap();
     this.builtConfigMap = Maps.newHashMap();
@@ -360,6 +363,15 @@ public class EmbeddedGobblin {
   }
 
   /**
+   * Enable metrics. Does not start any reporters.
+   */
+  public EmbeddedGobblin enableMetrics() {
+    this.usePlugin(new GobblinMetricsPlugin.Factory());
+    this.sysConfig(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
+    return this;
+  }
+
+  /**
    * This is the base {@link Config} used for the job, containing all default configurations. Subclasses can override
    * default configurations (for example setting a particular {@link gobblin.runtime.JobLauncherFactory.JobLauncherType}.
    */
@@ -447,6 +459,9 @@ public class EmbeddedGobblin {
 
     boolean started = listener.awaitStarted(this.launchTimeout.getTimeout(), this.launchTimeout.getTimeUnit());
     if (!started) {
+      log.warn("Timeout waiting for job to start. Aborting.");
+      driver.stopAsync();
+      driver.awaitTerminated(this.shutdownTimeout.getTimeout(), this.shutdownTimeout.getTimeUnit());
       throw new TimeoutException("Timeout waiting for job to start.");
     }
 

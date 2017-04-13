@@ -55,6 +55,7 @@ import gobblin.runtime.app.ApplicationLauncher;
 import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.runtime.listeners.EmailNotificationJobListener;
 import gobblin.runtime.listeners.JobListener;
+import gobblin.util.HadoopUtils;
 import gobblin.util.TimeRangeChecker;
 import gobblin.util.hadoop.TokenUtils;
 
@@ -101,6 +102,8 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
   public AzkabanJobLauncher(String jobId, Properties props) throws Exception {
     super(jobId, LOG);
+
+    HadoopUtils.addGobblinSite();
 
     if (props.containsKey(GOBBLIN_LOG_LEVEL_KEY)) {
       Level logLevel = Level.toLevel(props.getProperty(GOBBLIN_LOG_LEVEL_KEY), Level.INFO);

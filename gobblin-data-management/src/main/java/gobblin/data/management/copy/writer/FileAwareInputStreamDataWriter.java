@@ -41,6 +41,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import com.google.common.io.Closer;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.broker.EmptyKey;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.NotConfiguredException;
@@ -68,14 +70,9 @@ import gobblin.util.ForkOperatorUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.WriterUtils;
 import gobblin.util.io.StreamCopier;
-import gobblin.util.io.StreamCopierSharedLimiterKey;
 import gobblin.util.io.StreamThrottler;
 import gobblin.util.io.ThrottledInputStream;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.writer.DataWriter;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -92,7 +89,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected final FileSystem fs;
   protected final Path stagingDir;
   protected final Path outputDir;
-  protected final Closer closer = Closer.create();
   private final Map<String, Object> encryptionConfig;
   protected CopyableDatasetMetadata copyableDatasetMetadata;
   protected final RecoveryHelper recoveryHelper;
@@ -143,7 +139,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.copySpeedMeter = getMetricContext().meter(GOBBLIN_COPY_BYTES_COPIED_METER);
 
     this.bufferSize = state.getPropAsInt(CopyConfiguration.BUFFER_SIZE, StreamCopier.DEFAULT_BUFFER_SIZE);
-    this.encryptionConfig = EncryptionConfigParser.getConfigForBranch(this.state, numBranches, branchId);
+    this.encryptionConfig = EncryptionConfigParser
+        .getConfigForBranch(EncryptionConfigParser.EntityType.WRITER, this.state, numBranches, branchId);
   }
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId)
@@ -343,12 +340,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public long bytesWritten()
       throws IOException {
     return this.bytesWritten.get();
-  }
-
-  @Override
-  public void close()
-      throws IOException {
-    this.closer.close();
   }
 
   /**

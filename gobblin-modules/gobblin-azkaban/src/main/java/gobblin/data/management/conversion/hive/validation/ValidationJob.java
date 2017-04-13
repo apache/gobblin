@@ -117,6 +117,8 @@ public class ValidationJob extends AbstractJob {
   private static final String DEFAULT_HIVE_VALIDATION_IGNORE_DATA_PATH_IDENTIFIER = org.apache.commons.lang.StringUtils.EMPTY;
   private static final Splitter COMMA_BASED_SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
   private static final String VALIDATION_FILE_FORMAT_KEY = "hive.validation.fileFormat";
+  private static final String IS_NESTED_ORC = "hive.validation.isNestedORC";
+  private static final String DEFAULT_IS_NESTED_ORC = "false";
 
   private final ValidationType validationType;
   private List<String> ignoreDataPathIdentifierList;
@@ -132,6 +134,7 @@ public class ValidationJob extends AbstractJob {
   private final FileSystem fs;
   private final ExecutorService exec;
   private final List<Future<Void>> futures;
+  private final Boolean isNestedORC;
 
   private Map<String, String> successfulConversions;
   private Map<String, String> failedConversions;
@@ -172,6 +175,7 @@ public class ValidationJob extends AbstractJob {
         .getProperty(HIVE_VALIDATION_IGNORE_DATA_PATH_IDENTIFIER_KEY,
             DEFAULT_HIVE_VALIDATION_IGNORE_DATA_PATH_IDENTIFIER));
     this.throwables = new ArrayList<>();
+    this.isNestedORC = Boolean.parseBoolean(props.getProperty(IS_NESTED_ORC, DEFAULT_IS_NESTED_ORC));
   }
 
   @Override
@@ -194,26 +198,24 @@ public class ValidationJob extends AbstractJob {
     while (iterator.hasNext()) {
       HiveDataset hiveDataset = iterator.next();
       if (!HiveUtils.isPartitioned(hiveDataset.getTable())) {
-        return;
+        continue;
       }
       for (Partition partition : hiveDataset.getPartitionsFromDataset()) {
         if (!shouldValidate(partition)) {
-          return;
+          continue;
         }
         String fileFormat = this.props.getProperty(VALIDATION_FILE_FORMAT_KEY);
-        if (!partition.getDataLocation().toString().endsWith(fileFormat)) {
-          throwables.add(new Throwable("Format of " + partition.getCompleteName() + "is not " + fileFormat));
-          return;
-        }
         Optional<HiveSerDeWrapper.BuiltInHiveSerDe> hiveSerDe =
             Enums.getIfPresent(HiveSerDeWrapper.BuiltInHiveSerDe.class, fileFormat.toUpperCase());
         if (!hiveSerDe.isPresent()) {
           throwables.add(new Throwable("Partition SerDe is either not supported or absent"));
-          return;
+          continue;
         }
-        String serdeLib = partition.getTPartition().getSd().getSerdeInfo().getName();
+
+        String serdeLib = partition.getTPartition().getSd().getSerdeInfo().getSerializationLib();
         if (!hiveSerDe.get().toString().equalsIgnoreCase(serdeLib)) {
-          throwables.add(new Throwable("Partition SerDe " + serdeLib +"doesn't match with the required SerDe " + hiveSerDe.get().toString()));
+          throwables.add(new Throwable(
+              "Partition SerDe " + serdeLib + " doesn't match with the required SerDe " + hiveSerDe.get().toString()));
         }
       }
     }
@@ -331,7 +333,7 @@ public class ValidationJob extends AbstractJob {
               HiveValidationQueryGenerator.generateCountValidationQueries(hiveDataset, Optional.<Partition> absent(), conversionConfig);
           final List<String> dataValidationQueries =
               Lists.newArrayList(HiveValidationQueryGenerator.generateDataValidationQuery(hiveDataset.getTable().getTableName(), hiveDataset.getTable()
-                  .getDbName(), destinationMeta.getKey().get(), Optional.<Partition> absent()));
+                  .getDbName(), destinationMeta.getKey().get(), Optional.<Partition> absent(), this.isNestedORC));
 
           this.futures.add(this.exec.submit(new Callable<Void>() {
             @Override
@@ -394,7 +396,7 @@ public class ValidationJob extends AbstractJob {
                   HiveValidationQueryGenerator.generateCountValidationQueries(hiveDataset, Optional.of(sourcePartition), conversionConfig);
               final List<String> dataValidationQueries =
                   Lists.newArrayList(HiveValidationQueryGenerator.generateDataValidationQuery(hiveDataset.getTable().getTableName(), hiveDataset.getTable()
-                      .getDbName(), destinationMeta.getKey().get(), Optional.of(sourcePartition)));
+                      .getDbName(), destinationMeta.getKey().get(), Optional.of(sourcePartition), this.isNestedORC));
 
               this.futures.add(this.exec.submit(new Callable<Void>() {
                 @Override
@@ -503,17 +505,20 @@ public class ValidationJob extends AbstractJob {
         query = "INSERT OVERWRITE DIRECTORY '" + hiveTempDir + "' " + query;
         log.info("Executing query: " + query);
         try {
-
-          hiveJdbcConnector.executeStatements("SET hive.exec.compress.output=false", query);
-
-          FileStatus[] files = this.fs.listStatus(hiveTempDir);
-          if (files.length > 0) {
-            log.warn("Found more than one output file. Should have been one.");
+          hiveJdbcConnector.executeStatements("SET hive.exec.compress.output=false","SET hive.auto.convert.join=false", query);
+          FileStatus[] fileStatusList = this.fs.listStatus(hiveTempDir);
+          List<FileStatus> files = new ArrayList<>();
+          for (FileStatus fileStatus : fileStatusList) {
+            if (fileStatus.isFile()) {
+              files.add(fileStatus);
+            }
           }
-          if (files.length == 0) {
+          if (files.size() > 1) {
+            log.warn("Found more than one output file. Should have been one.");
+          } else if (files.size() == 0) {
             log.warn("Found no output file. Should have been one.");
           } else {
-            String theString = IOUtils.toString(new InputStreamReader(this.fs.open(files[0].getPath()), Charsets.UTF_8));
+            String theString = IOUtils.toString(new InputStreamReader(this.fs.open(files.get(0).getPath()), Charsets.UTF_8));
             log.info("Found row count: " + theString.trim());
             if (StringUtils.isBlank(theString.trim())) {
               rowCounts.add(0l);

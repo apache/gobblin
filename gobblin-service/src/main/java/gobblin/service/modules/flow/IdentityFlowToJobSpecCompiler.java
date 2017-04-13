@@ -29,7 +29,10 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
+import com.typesafe.config.ConfigValueFactory;
 
+import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.JobSpec;
@@ -49,6 +52,7 @@ import gobblin.service.ServiceConfigKeys;
  * Take in a logical {@link Spec} ie flow and compile corresponding materialized job {@link Spec}
  * and its mapping to {@link SpecExecutorInstance}.
  */
+@Alpha
 public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
 
   private final Map<URI, TopologySpec> topologySpecMap;
@@ -116,6 +120,10 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
       log.info("Unresolved JobSpec properties are: " + jobSpec.getConfigAsProperties());
     }
 
+    // Remove schedule
+    jobSpec.setConfig(jobSpec.getConfig()
+        .withValue(ConfigurationKeys.JOB_SCHEDULE_KEY, ConfigValueFactory.fromAnyRef("")));
+
     for (TopologySpec topologySpec : topologySpecMap.values()) {
       try {
         Map<String, String> capabilities = (Map<String, String>) topologySpec.getSpecExecutorInstanceProducer().getCapabilities().get();
@@ -125,6 +133,12 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
               topologySpec.getUri(), capability.getKey(), capability.getValue()));
           if (source.equals(capability.getKey()) && destination.equals(capability.getValue())) {
             specExecutorInstanceMap.put(jobSpec, topologySpec.getSpecExecutorInstanceProducer());
+            log.info(String.format("Current JobSpec: %s is executable on TopologySpec: %s. Added TopologySpec as candidate.",
+                jobSpec.getUri(), topologySpec.getUri()));
+
+            log.info("Since we found a candidate executor, we will not try to compute more. "
+                + "(Intended limitation for IdentityFlowToJobSpecCompiler)");
+            return specExecutorInstanceMap;
           }
         }
       } catch (InterruptedException | ExecutionException e) {

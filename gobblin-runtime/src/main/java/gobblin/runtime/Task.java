@@ -17,8 +17,6 @@
 
 package gobblin.runtime;
 
-import gobblin.configuration.State;
-import gobblin.runtime.task.TaskIFace;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,9 +42,12 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.NoArgsConstructor;
+
 import gobblin.Constructs;
 import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.fork.CopyHelper;
@@ -64,6 +66,7 @@ import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.runtime.fork.AsynchronousFork;
 import gobblin.runtime.fork.Fork;
 import gobblin.runtime.fork.SynchronousFork;
+import gobblin.runtime.task.TaskIFace;
 import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.JobCommitPolicy;
@@ -75,13 +78,11 @@ import gobblin.writer.AcknowledgableRecordEnvelope;
 import gobblin.writer.AcknowledgableWatermark;
 import gobblin.writer.DataWriter;
 import gobblin.writer.FineGrainedWatermarkTracker;
+import gobblin.writer.MultiWriterWatermarkManager;
 import gobblin.writer.TrackerBasedWatermarkManager;
 import gobblin.writer.WatermarkAwareWriter;
-import gobblin.writer.MultiWriterWatermarkManager;
 import gobblin.writer.WatermarkManager;
 import gobblin.writer.WatermarkStorage;
-
-import lombok.NoArgsConstructor;
 
 
 /**
@@ -233,7 +234,6 @@ public class Task implements TaskIFace {
       this.watermarkStorage = Optional.absent();
     }
   }
-
 
   private ExecutionModel getTaskMode(TaskContext taskContext) {
     String mode = taskContext.getTaskState()

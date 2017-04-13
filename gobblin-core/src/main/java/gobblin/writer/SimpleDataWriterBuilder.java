@@ -36,7 +36,7 @@ import gobblin.crypto.EncryptionFactory;
  *
  * @author akshay@nerdwallet.com
  */
-public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, byte[]> {
+public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, Object> {
   /**
    * Build a {@link gobblin.writer.DataWriter}.
    *
@@ -44,8 +44,12 @@ public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, byte[]>
    * @throws java.io.IOException if there is anything wrong building the writer
    */
   @Override
-  public DataWriter<byte[]> build() throws IOException {
-    return new SimpleDataWriter(this, this.destination.getProperties());
+  public DataWriter<Object> build() throws IOException {
+    return new MetadataWriterWrapper<byte[]>(new SimpleDataWriter(this, this.destination.getProperties()),
+        byte[].class,
+        this.branches,
+        this.branch,
+        this.destination.getProperties());
   }
 
   @Override
@@ -63,8 +67,9 @@ public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, byte[]>
       encoders.add(CompressionFactory.buildStreamCompressor(compressionConfig));
     }
 
-    Map<String, Object> encryptionConfig =
-        EncryptionConfigParser.getConfigForBranch(this.destination.getProperties(), this.branches, this.branch);
+    Map<String, Object> encryptionConfig = EncryptionConfigParser
+        .getConfigForBranch(EncryptionConfigParser.EntityType.WRITER, this.destination.getProperties(), this.branches,
+            this.branch);
     if (encryptionConfig != null) {
       encoders.add(EncryptionFactory.buildStreamCryptoProvider(encryptionConfig));
     }

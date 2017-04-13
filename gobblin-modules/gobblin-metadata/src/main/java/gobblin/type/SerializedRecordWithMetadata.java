@@ -24,15 +24,15 @@ import java.util.Map;
 
 import com.google.common.collect.ImmutableList;
 
+import gobblin.metadata.types.Metadata;
+
 
 /**
  * A holder for serialized records with Metadata.
  */
-public class SerializedRecordWithMetadata extends RecordWithMetadata<SerializedRecord> {
-  public static final List<String> CONTENT_TYPE = ImmutableList.of("application/vnd.lnkd.serializedRecordWithMetadata");
-  public static final List<String> CONTENT_TYPE_JSON = ImmutableList.of(CONTENT_TYPE.get(0) + "+json");
+public class SerializedRecordWithMetadata extends RecordWithMetadata<byte[]> {
 
-  public SerializedRecordWithMetadata(SerializedRecord record, Map<String, Object> metadata) {
+  public SerializedRecordWithMetadata(byte[] record, Metadata metadata) {
     super(record, metadata);
   }
 }

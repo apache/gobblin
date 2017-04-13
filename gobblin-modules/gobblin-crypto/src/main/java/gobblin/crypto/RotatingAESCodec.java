@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.Random;
 
 import org.apache.commons.codec.binary.Base64;
-import org.apache.hadoop.io.IOUtils;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

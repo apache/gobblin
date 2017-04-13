@@ -149,11 +149,11 @@ public class SimpleWatermarkTest {
     if (lowWatermarkValue > highWatermarkValue || partitionInterval <= 0)
       return intervals;
     boolean overflow = false;
-    for (Long i = lowWatermarkValue; i <= highWatermarkValue && !overflow;) {
+    for (Long i = lowWatermarkValue; i < highWatermarkValue && !overflow;) {
       overflow = (Long.MAX_VALUE - partitionInterval < i);
       long end = overflow ? Long.MAX_VALUE : Math.min(i + partitionInterval, highWatermarkValue);
       intervals.put(i, end);
-      i = end + 1;
+      i = end;
     }
     return intervals;
   }
