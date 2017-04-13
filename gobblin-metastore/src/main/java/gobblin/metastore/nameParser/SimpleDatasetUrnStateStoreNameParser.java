@@ -15,29 +15,31 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package gobblin.metastore.nameParser;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Map;
 
-import com.typesafe.config.Config;
 
-import gobblin.configuration.State;
-
-public interface DatasetStateStore<T extends State> extends StateStore<T> {
-  String DATASET_STATE_STORE_TABLE_SUFFIX = ".jst";
-  String CURRENT_DATASET_STATE_FILE_SUFFIX = "current";
-
-  interface Factory {
-    <T extends State> DatasetStateStore<T> createStateStore(Config config);
+/**
+ * Simple implementation of {@link DatasetUrnStateStoreNameParser}, in which datasetUrn is identical to dataset state store name.
+ */
+public class SimpleDatasetUrnStateStoreNameParser implements DatasetUrnStateStoreNameParser {
+  @Override
+  public String getStateStoreNameFromDatasetUrn(String datasetUrn)
+      throws IOException {
+    return datasetUrn;
   }
 
-  public Map<String, T> getLatestDatasetStatesByUrns(String jobName) throws IOException;
+  @Override
+  public String getDatasetUrnFromStateStoreName(String stateStoreName)
+      throws IOException {
+    return stateStoreName;
+  }
 
-  public T getLatestDatasetState(String storeName, String datasetUrn) throws IOException;
-
-  public void persistDatasetState(String datasetUrn, T datasetState) throws IOException;
-
-  public void persistDatasetURNs(String storeName, Collection<String> datasetUrns) throws IOException;
+  @Override
+  public void persistDatasetUrns(Collection<String> datasetUrns)
+      throws IOException {
+    //do nothing.
+  }
 }
