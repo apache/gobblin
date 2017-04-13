@@ -29,8 +29,7 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
 
     CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
     DateTime folderTime = result.getTime();
-    DateTimeZone timeZone = DateTimeZone.forID (this.state.getProp(MRCompactor.COMPACTION_TIMEZONE,
-                                                MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
+    DateTimeZone timeZone = DateTimeZone.forID (this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
     DateTime current = new DateTime(timeZone);
     PeriodFormatter formatter = new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
             .appendSuffix("h").toFormatter();

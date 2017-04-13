@@ -1,6 +1,7 @@
 package gobblin.compaction.mapreduce;
 
 import com.google.common.io.Files;
+import gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import gobblin.compaction.source.CompactionSource;
 import gobblin.compaction.verify.InputRecordCountHelper;
 import gobblin.configuration.ConfigurationKeys;
@@ -60,7 +61,9 @@ public class MRCompactionTaskTest {
             .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")
             .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
             .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
-            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/output/test1");
+            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/output/test1")
+            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
+            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
 
     JobExecutionResult result = embeddedGobblin.run();
     Assert.assertTrue(result.isSuccessful());
@@ -90,7 +93,9 @@ public class MRCompactionTaskTest {
             .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
             .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
             .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/output/test2")
-            .setConfiguration(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, "false");
+            .setConfiguration(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, "false")
+            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
+            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
 
     JobExecutionResult result = embeddedGobblin.run();
     Assert.assertTrue(result.isSuccessful());
@@ -117,7 +122,9 @@ public class MRCompactionTaskTest {
             .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")
             .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
             .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
-            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/output/test1");
+            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/output/test1")
+            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
+            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
 
     JobExecutionResult result = embeddedGobblin.run();
     long recordCount = InputRecordCountHelper.readRecordCount(fs, (new Path (basePath, new Path("Identity/MemberAccount/hourly/2017/04/03/10"))));
