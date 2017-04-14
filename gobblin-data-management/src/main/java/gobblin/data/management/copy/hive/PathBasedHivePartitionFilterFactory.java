@@ -33,8 +33,8 @@ public class PathBasedHivePartitionFilterFactory implements HivePartitionExtende
   @Override
   public HivePartitionExtendedFilter createFilter(Config config){
     Properties props = ConfigUtils.configToProperties(config);
-    return props.containsKey(PathBasedPartitionFilter.HIVE_PARTITION_PATH_FILTER_POLICY)?
-        new PathBasedPartitionFilter(props.getProperty(PathBasedPartitionFilter.HIVE_PARTITION_PATH_FILTER_POLICY))
+    return props.containsKey(HiveCopyEntityHelper.HIVE_PARTITION_PATH_FILTER_REGEX)?
+        new PathBasedPartitionFilter(props.getProperty(HiveCopyEntityHelper.HIVE_PARTITION_PATH_FILTER_REGEX))
         :null;
   }
 }

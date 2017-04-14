@@ -32,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -129,6 +130,15 @@ public class HiveCopyEntityHelper {
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.deregister.fileDeleteMethod";
   public static final DeregisterFileDeleteMethod DEFAULT_DEREGISTER_DELETE_METHOD =
       DeregisterFileDeleteMethod.NO_DELETE;
+
+  /**
+   * K-V pair to specify if {@link IMetaStoreClient }'s filtering method {@link listPartitionsByFilter} is not enough
+   * for filtering out specific partitions.
+   * For example, if you specify "Path" as the filter type and "Hourly" as the policy,
+   * partitions with Path containing '/Hourly/' will be kept.
+   */
+  public static final String HIVE_PARTITION_EXTENDED_FILTER_TYPE = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".extendedFilterType";
+  public static final String HIVE_PARTITION_PATH_FILTER_REGEX = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".pathFilterRegex";
 
   static final Gson gson = new Gson();
 
@@ -286,8 +296,8 @@ public class HiveCopyEntityHelper {
       }
 
       // Initialize extended partition filter
-      if ( this.dataset.getProperties().containsKey(PathBasedPartitionFilter.HIVE_PARTITION_EXTENDED_FILTER_TYPE)){
-        String filterType = dataset.getProperties().getProperty(PathBasedPartitionFilter.HIVE_PARTITION_EXTENDED_FILTER_TYPE);
+      if ( this.dataset.getProperties().containsKey(HIVE_PARTITION_EXTENDED_FILTER_TYPE)){
+        String filterType = dataset.getProperties().getProperty(HIVE_PARTITION_EXTENDED_FILTER_TYPE);
         try {
           Config config = ConfigFactory.parseProperties(this.dataset.getProperties());
           this.hivePartitionExtendedFilter =
