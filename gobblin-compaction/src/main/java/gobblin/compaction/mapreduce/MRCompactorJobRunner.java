@@ -96,7 +96,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   /**
    * Properties related to the compaction job of a dataset.
    */
-  private static final String COMPACTION_JOB_OUTPUT_DIR_PERMISSION = COMPACTION_JOB_PREFIX + "output.dir.permission";
+  public static final String COMPACTION_JOB_OUTPUT_DIR_PERMISSION = COMPACTION_JOB_PREFIX + "output.dir.permission";
   public static final String COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE =
       COMPACTION_JOB_PREFIX + "target.output.file.size";
   public static final long DEFAULT_COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE = 536870912;

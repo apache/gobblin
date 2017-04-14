@@ -40,6 +40,8 @@ import java.util.Set;
 @Slf4j
 public class CompactionAvroJobConfigurator {
   protected final State state;
+
+  @Getter
   protected final FileSystem fs;
 
   // Below attributes are MR related
