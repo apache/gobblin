@@ -30,11 +30,14 @@ import gobblin.annotation.Alias;
  */
 @Alias("PathPartition")
 public class PathBasedHivePartitionFilterFactory implements HivePartitionExtendedFilterFactory {
+  /* Regular expression components required for filtering partitions by their path */	
+  public static final String HIVE_PARTITION_PATH_FILTER_REGEX = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".pathFilterRegex";
+  
   @Override
   public HivePartitionExtendedFilter createFilter(Config config){
     Properties props = ConfigUtils.configToProperties(config);
     return props.containsKey(HiveCopyEntityHelper.HIVE_PARTITION_PATH_FILTER_REGEX)?
-        new PathBasedPartitionFilter(props.getProperty(HiveCopyEntityHelper.HIVE_PARTITION_PATH_FILTER_REGEX))
+        new PathBasedPartitionFilter(props.getProperty(PathBasedHivePartitionFilterFactory.HIVE_PARTITION_PATH_FILTER_REGEX))
         :null;
   }
 }

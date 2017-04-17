@@ -132,13 +132,12 @@ public class HiveCopyEntityHelper {
       DeregisterFileDeleteMethod.NO_DELETE;
 
   /**
-   * K-V pair to specify if {@link IMetaStoreClient }'s filtering method {@link listPartitionsByFilter} is not enough
+   * Config key to specify if {@link IMetaStoreClient }'s filtering method {@link listPartitionsByFilter} is not enough
    * for filtering out specific partitions.
-   * For example, if you specify "Path" as the filter type and "Hourly" as the policy,
+   * For example, if you specify "Path" as the filter type and "Hourly" as the filtering condition,
    * partitions with Path containing '/Hourly/' will be kept.
    */
   public static final String HIVE_PARTITION_EXTENDED_FILTER_TYPE = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".extendedFilterType";
-  public static final String HIVE_PARTITION_PATH_FILTER_REGEX = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".pathFilterRegex";
 
   static final Gson gson = new Gson();
 

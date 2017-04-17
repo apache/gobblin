@@ -30,15 +30,16 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 public class PathBasedPartitionFilter implements HivePartitionExtendedFilter {
 
   private String filterRegex;
+  private Pattern pattern; 
 
   public PathBasedPartitionFilter(String filterRegex) {
     this.filterRegex = filterRegex;
+    pattern = Pattern.compile(filterRegex);
   }
 
   @Override
   /* For partitions with path that contains filterRegex as part of it, will be filtered out. */
   public boolean accept(Partition partition){
-    Pattern pattern = Pattern.compile(filterRegex);
     Matcher matcher = pattern.matcher(partition.getSd().getLocation());
     return matcher.find();
   }
