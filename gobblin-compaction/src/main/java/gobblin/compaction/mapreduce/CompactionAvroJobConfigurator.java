@@ -202,7 +202,7 @@ public class CompactionAvroJobConfigurator {
       FileInputFormat.addInputPath(job, path);
     }
 
-    String mrOutputBase = this.state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR);
+    String mrOutputBase = this.state.getProp(MRCompactor.COMPACTION_JOB_DIR);
     CompactionPathParser parser = new CompactionPathParser(this.state);
     CompactionPathParser.CompactionParserResult rst = parser.parse(dataset);
     this.mrOutputPath = concatPaths (mrOutputBase, rst.getDatasetName(), rst.getDstSubDir(), rst.getTimeString());

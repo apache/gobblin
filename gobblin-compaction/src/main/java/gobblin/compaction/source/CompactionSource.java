@@ -30,6 +30,7 @@ import org.apache.hadoop.fs.Path;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * A compaction source derived from {@link Source} which uses {@link DefaultFileSystemGlobFinder} to find all
@@ -39,7 +40,7 @@ import java.util.List;
 @Slf4j
 public class CompactionSource implements Source<String, String> {
   private CompactionSuite suite;
-  private String tmpOutputDir;
+  private Path tmpJobDir;
   private FileSystem fs;
 
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -49,7 +50,9 @@ public class CompactionSource implements Source<String, String> {
       fs = getSourceFileSystem(state);
       suite = CompactionSuiteUtils.getCompactionSuiteFactory (state).createSuite(state);
 
-      copyJarDependencies (this.fs, state);
+      initJobDir (state);
+      copyJarDependencies (state);
+
       DatasetsFinder finder  = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
                getSourceFileSystem(state),
                DefaultFileSystemGlobFinder.class.getName());
@@ -94,7 +97,12 @@ public class CompactionSource implements Source<String, String> {
 
   @Override
   public void shutdown (SourceState state) {
-    log.info("Shutting down the compaction source and remove temporary folders");
+    try {
+      fs.delete(this.tmpJobDir, true);
+      log.info("Job dir is removed from {}", this.tmpJobDir);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   protected FileSystem getSourceFileSystem(State state)
@@ -104,18 +112,36 @@ public class CompactionSource implements Source<String, String> {
     return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
 
-  private void copyJarDependencies(FileSystem fs, State state) throws IOException {
+  /**
+   * Create a UUID based random job directory
+   */
+  private void initJobDir (State state) throws IOException {
+    String tmpBase = state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR, MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR);
+    this.tmpJobDir = new Path (tmpBase, UUID.randomUUID().toString());
+    this.fs.mkdirs(this.tmpJobDir);
+    state.setProp (MRCompactor.COMPACTION_JOB_DIR, tmpJobDir.toString());
+    log.info ("Job dir is created under {}", this.tmpJobDir);
+  }
+
+  /**
+   * Copy dependent jars to a temporary job directory on HDFS
+   */
+  private void copyJarDependencies (State state) throws IOException {
+    if (this.tmpJobDir == null) {
+      throw new RuntimeException("Job directory is not created");
+    }
 
     if (!state.contains(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
       return;
     }
 
-    this.tmpOutputDir = state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR, MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR);
+    // create sub-dir to save jar files
     LocalFileSystem lfs = FileSystem.getLocal(HadoopUtils.getConfFromState(state));
-    Path tmpJarFileDir = new Path(this.tmpOutputDir, "_gobblin_compaction_jars");
+    Path tmpJarFileDir = new Path(this.tmpJobDir, MRCompactor.COMPACTION_JAR_SUBDIR);
+    this.fs.mkdirs(tmpJarFileDir);
     state.setProp (MRCompactor.COMPACTION_JARS, tmpJarFileDir.toString());
 
-    fs.delete(tmpJarFileDir, true);
+    // copy jar files to hdfs
     for (String jarFile : state.getPropAsList(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
       for (FileStatus status : lfs.globStatus(new Path(jarFile))) {
         Path tmpJarFile = new Path(this.fs.makeQualified(tmpJarFileDir), status.getPath().getName());

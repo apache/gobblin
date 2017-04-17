@@ -22,11 +22,9 @@ public class CompactionSuiteUtils {
       String factoryName = state.getProp(ConfigurationKeys.COMPACTION_SUITE_FACTORY, ConfigurationKeys.DEFAULT_COMPACTION_SUITE_FACTORY);
 
       ClassAliasResolver<CompactionSuiteFactory> conditionClassAliasResolver = new ClassAliasResolver<>(CompactionSuiteFactory.class);
-      CompactionSuiteFactory factory = GobblinConstructorUtils.invokeFirstConstructor(
-              conditionClassAliasResolver.resolveClass(factoryName), ImmutableList.of());
+      CompactionSuiteFactory factory = conditionClassAliasResolver.resolveClass(factoryName).newInstance();
       return factory;
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-            | ClassNotFoundException e) {
+    } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
       throw new IllegalArgumentException(e);
     }
   }

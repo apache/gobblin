@@ -45,6 +45,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
     List<CompactionVerifier<FileSystemDataset>> list = new LinkedList<>();
     list.add(new CompactionTimeRangeVerifier(state));
     list.add(new CompactionThresholdVerifier(state));
+    list.add(new CompactionAuditCountVerifier(state));
     return list;
   }
 
