@@ -30,8 +30,6 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 public class PathBasedPartitionFilter implements HivePartitionExtendedFilter {
 
   private String filterRegex;
-  private static Pattern pattern;
-  private static Matcher matcher;
 
   public PathBasedPartitionFilter(String filterRegex) {
     this.filterRegex = filterRegex;
@@ -40,8 +38,8 @@ public class PathBasedPartitionFilter implements HivePartitionExtendedFilter {
   @Override
   /* For partitions with path that contains filterRegex as part of it, will be filtered out. */
   public boolean accept(Partition partition){
-    pattern = Pattern.compile(filterRegex);
-    matcher = pattern.matcher(partition.getSd().getLocation());
+    Pattern pattern = Pattern.compile(filterRegex);
+    Matcher matcher = pattern.matcher(partition.getSd().getLocation());
     return matcher.find();
   }
 }
