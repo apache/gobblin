@@ -72,7 +72,7 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
 
     this.limiter = new RateBasedLimiter(computeRateLimit(state));
     if (GobblinMetrics.isEnabled(state)) {
-      throttledTimer = Optional.of(Instrumented.getMetricContext(state, getClass()).timer(WRITES_THROTTLED_TIMER));
+      throttledTimer = Optional.<Timer>of(Instrumented.getMetricContext(state, getClass()).timer(WRITES_THROTTLED_TIMER));
     } else {
       throttledTimer = Optional.absent();
     }

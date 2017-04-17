@@ -19,13 +19,14 @@ package gobblin.util.limiter;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.Iterator;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -37,6 +38,9 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
+import com.google.common.collect.TreeMultimap;
 import com.linkedin.common.callback.Callback;
 import com.linkedin.data.template.GetMode;
 import com.linkedin.restli.client.Request;
@@ -218,18 +222,17 @@ class BatchedPermitsRequester {
       // If there are multiple batches in the queue, don't create a new request
       return candidatePermits;
     }
-    Map.Entry<Long, PermitBatch> firstEntry = this.permitBatchContainer.batches.firstEntry();
+    PermitBatch firstBatch = Iterables.getFirst(this.permitBatchContainer.batches.values(), null);
 
-    if (firstEntry != null) {
-      PermitBatch permitBatch = firstEntry.getValue();
+    if (firstBatch != null) {
       // If the current batch has more than 20% permits left, don't create a new request
-      if ((double) permitBatch.getPermits() / permitBatch.getInitialPermits() > 0.2) {
+      if ((double) firstBatch.getPermits() / firstBatch.getInitialPermits() > 0.2) {
         return candidatePermits;
       }
 
-      double averageDepletionRate = permitBatch.getAverageDepletionRate();
+      double averageDepletionRate = firstBatch.getAverageDepletionRate();
       long candidatePermitsByDepletion =
-          Math.min((long) (averageDepletionRate * this.targetMillisBetweenRequests), 2 * permitBatch.getInitialPermits());
+          Math.min((long) (averageDepletionRate * this.targetMillisBetweenRequests), 2 * firstBatch.getInitialPermits());
       return Math.max(candidatePermits, candidatePermitsByDepletion);
     } else {
       return candidatePermits;
@@ -323,8 +326,11 @@ class BatchedPermitsRequester {
   @NotThreadSafe
   @Getter
   private static class PermitBatch {
-    private long permits;
+    private static final AtomicLong NEXT_KEY = new AtomicLong(0);
+
+    private volatile long permits;
     private final long expiration;
+    private final long autoIncrementKey;
 
     private final long initialPermits;
     private long firstUseTime;
@@ -335,6 +341,7 @@ class BatchedPermitsRequester {
       this.permits = permits;
       this.expiration = expiration;
       this.initialPermits = permits;
+      this.autoIncrementKey = NEXT_KEY.getAndIncrement();
     }
 
     /**
@@ -371,7 +378,12 @@ class BatchedPermitsRequester {
    * A container for {@link PermitBatch}es obtained from the server.
    */
   private static class PermitBatchContainer {
-    private final TreeMap<Long, PermitBatch> batches = new TreeMap<>();
+    private final TreeMultimap<Long, PermitBatch> batches = TreeMultimap.create(Ordering.natural(), new Comparator<PermitBatch>() {
+      @Override
+      public int compare(PermitBatch o1, PermitBatch o2) {
+        return Long.compare(o1.autoIncrementKey, o2.autoIncrementKey);
+      }
+    });
     private volatile long totalPermits = 0;
 
     private synchronized boolean tryTake(long permits) {
@@ -395,12 +407,27 @@ class BatchedPermitsRequester {
       throw new RuntimeException("Total permits was unsynced! This is an error in code.");
     }
 
+    /** Print the state of the container. Useful for debugging. */
+    private synchronized void printState(String prefix) {
+      StringBuilder builder = new StringBuilder(prefix).append("->");
+      builder.append("BatchedPermitsRequester state (").append(hashCode()).append("): ");
+      builder.append("TotalPermits: ").append(this.totalPermits).append(" ");
+      builder.append("Batches(").append(this.batches.size()).append("): ");
+      for (PermitBatch batch : this.batches.values()) {
+        builder.append(batch.getPermits()).append(",");
+      }
+      log.info(builder.toString());
+    }
+
     private synchronized void purgeExpiredBatches() {
       long now = System.currentTimeMillis();
-      Iterator<PermitBatch> entries = this.batches.subMap(Long.MIN_VALUE, now).values().iterator();
+      Iterator<Collection<PermitBatch>> entries = this.batches.asMap().subMap(Long.MIN_VALUE, now).values().iterator();
       while (entries.hasNext()) {
-        Long permitsExpired = entries.next().getPermits();
-        this.totalPermits -= permitsExpired;
+        Collection<PermitBatch> batches = entries.next();
+        for (PermitBatch batch : batches) {
+          Long permitsExpired = batch.getPermits();
+          this.totalPermits -= permitsExpired;
+        }
         entries.remove();
       }
     }

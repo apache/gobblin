@@ -92,7 +92,7 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
           this.metricContext.meter(MetricNames.RowLevelPolicyMetrics.RECORDS_PASSED_METER));
       this.failedRecordsMeter = Optional.of(
           this.metricContext.meter(MetricNames.RowLevelPolicyMetrics.RECORDS_FAILED_METER));
-      this.policyTimer = Optional.of(
+      this.policyTimer = Optional.<Timer>of(
           this.metricContext.timer(MetricNames.RowLevelPolicyMetrics.CHECK_TIMER));
     } else {
       this.recordsMeter = Optional.absent();

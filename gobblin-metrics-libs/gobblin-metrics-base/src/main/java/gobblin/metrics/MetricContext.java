@@ -379,7 +379,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    * This is equivalent to {@link #contextAwareTimer(String)}.
    */
   @Override
-  public Timer timer(String name) {
+  public ContextAwareTimer timer(String name) {
     return contextAwareTimer(name);
   }
 
