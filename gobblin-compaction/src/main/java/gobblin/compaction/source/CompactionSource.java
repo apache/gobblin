@@ -98,8 +98,8 @@ public class CompactionSource implements Source<String, String> {
   @Override
   public void shutdown (SourceState state) {
     try {
-      fs.delete(this.tmpJobDir, true);
-      log.info("Job dir is removed from {}", this.tmpJobDir);
+      boolean f = fs.delete(this.tmpJobDir, true);
+      log.info("Job dir is removed from {} with status {}", this.tmpJobDir, f);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

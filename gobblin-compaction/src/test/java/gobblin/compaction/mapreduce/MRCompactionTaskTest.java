@@ -52,26 +52,13 @@ public class MRCompactionTaskTest {
     writeFileWithContent(jobDir, "file1", r1, 20);
     writeFileWithContent(jobDir, "file2", r2, 18);
 
-    String pattern = new Path(basePath.getAbsolutePath().toString(), "*/*/minutely/*/*/*/*").toString();
-
-    EmbeddedGobblin embeddedGobblin = new EmbeddedGobblin("Compaction")
-            .setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, CompactionSource.class.getName())
-            .setConfiguration(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY, pattern)
-            .setConfiguration(MRCompactor.COMPACTION_INPUT_DIR, basePath.toString())
-            .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")
-            .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
-            .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
-            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/test1")
-            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
-            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
-
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("dedup", basePath.getAbsolutePath().toString());
     JobExecutionResult result = embeddedGobblin.run();
     Assert.assertTrue(result.isSuccessful());
   }
 
   @Test
   public void testNonDedup() throws Exception {
-
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();
 
@@ -83,20 +70,7 @@ public class MRCompactionTaskTest {
     writeFileWithContent(jobDir, "file1", r1, 20);
     writeFileWithContent(jobDir, "file2", r2, 18);
 
-    String pattern = new Path(basePath.getAbsolutePath().toString(), "*/*/minutely/*/*/*/*").toString();
-
-    EmbeddedGobblin embeddedGobblin = new EmbeddedGobblin("Compaction")
-            .setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, CompactionSource.class.getName())
-            .setConfiguration(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY, pattern)
-            .setConfiguration(MRCompactor.COMPACTION_INPUT_DIR, basePath.toString())
-            .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")
-            .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
-            .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
-            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/test2")
-            .setConfiguration(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, "false")
-            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
-            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
-
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("non-dedup", basePath.getAbsolutePath().toString());
     JobExecutionResult result = embeddedGobblin.run();
     Assert.assertTrue(result.isSuccessful());
   }
@@ -113,19 +87,7 @@ public class MRCompactionTaskTest {
     GenericRecord r1 = createRandomRecord();
     writeFileWithContent(jobDir, "file1", r1, 20);
 
-    String pattern = new Path(basePath, "*/*/minutely/*/*/*/*").toString();
-
-    EmbeddedGobblin embeddedGobblin = new EmbeddedGobblin("Compaction")
-            .setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, CompactionSource.class.getName())
-            .setConfiguration(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY, pattern)
-            .setConfiguration(MRCompactor.COMPACTION_INPUT_DIR, basePath.toString())
-            .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")
-            .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
-            .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
-            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/test-recompaction")
-            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
-            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
-
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin ("Recompaction-First", basePath);
     JobExecutionResult result = embeddedGobblin.run();
     long recordCount = InputRecordCountHelper.readRecordCount(fs, (new Path (basePath, new Path("Identity/MemberAccount/hourly/2017/04/03/10"))));
     Assert.assertTrue(result.isSuccessful());
@@ -133,7 +95,8 @@ public class MRCompactionTaskTest {
 
     // Now write more avro files to input dir
     writeFileWithContent(jobDir, "file2", r1, 22);
-    embeddedGobblin.run();
+    EmbeddedGobblin embeddedGobblin_2 = createEmbeddedGobblin ("Recompaction-Second", basePath);
+    embeddedGobblin_2.run();
     Assert.assertTrue(result.isSuccessful());
 
     // If recompaction is succeeded, a new record count should be written.
@@ -177,4 +140,19 @@ public class MRCompactionTaskTest {
       writer.close();
   }
 
+  private EmbeddedGobblin createEmbeddedGobblin (String name, String basePath) {
+    String pattern = new Path(basePath, "*/*/minutely/*/*/*/*").toString();
+
+    return new EmbeddedGobblin(name)
+            .setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, CompactionSource.class.getName())
+            .setConfiguration(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY, pattern)
+            .setConfiguration(MRCompactor.COMPACTION_INPUT_DIR, basePath.toString())
+            .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")
+            .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
+            .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
+            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/" + name)
+            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
+            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
+
+  }
 }
