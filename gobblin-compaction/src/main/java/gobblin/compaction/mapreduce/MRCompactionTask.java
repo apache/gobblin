@@ -1,8 +1,8 @@
 package gobblin.compaction.mapreduce;
 
-import gobblin.compaction.suite.CompactionAvroSuite;
 import gobblin.compaction.action.CompactionCompleteAction;
 import gobblin.compaction.suite.CompactionSuite;
+import gobblin.compaction.suite.CompactionSuiteUtils;
 import gobblin.compaction.verify.CompactionVerifier;
 import gobblin.dataset.Dataset;
 import gobblin.runtime.TaskContext;
@@ -31,8 +31,8 @@ public class MRCompactionTask extends MRTask {
    */
   public MRCompactionTask(TaskContext taskContext) throws IOException {
     super(taskContext);
-    // TODO: should use reflection to get real suite
-    this.suite = new CompactionAvroSuite(taskContext.getTaskState());
+    this.suite = CompactionSuiteUtils.getCompactionSuiteFactory (taskContext.getTaskState()).
+            createSuite(taskContext.getTaskState());
     this.dataset = this.suite.load(taskContext.getTaskState());
   }
 

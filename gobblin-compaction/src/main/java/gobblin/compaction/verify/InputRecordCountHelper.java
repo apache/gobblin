@@ -8,6 +8,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.HadoopUtils;
 import gobblin.util.RecordCountProvider;
+import gobblin.util.recordcount.IngestionRecordCountProvider;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
@@ -21,6 +22,13 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.Collection;
 
+/**
+ * A class helps to calculate, serialize, deserialize record count.
+ *
+ * By using {@link IngestionRecordCountProvider}, the default input file name should in in format
+ * {file_name}.{record_count}.{extension}. For example, given a file path: "/a/b/c/file.123.avro",
+ * the record count will be 123.
+ */
 @Slf4j
 public class InputRecordCountHelper {
 
@@ -32,6 +40,9 @@ public class InputRecordCountHelper {
 
   public final static String RECORD_COUNT_FILE = "_record_count";
 
+  /**
+   * Constructor
+   */
   public InputRecordCountHelper(State state) {
     try {
       this.fs = getSourceFileSystem (state);

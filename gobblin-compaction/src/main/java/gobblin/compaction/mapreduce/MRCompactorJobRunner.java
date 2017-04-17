@@ -114,7 +114,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   public static final String COMPACTION_JOB_USE_PRIME_REDUCERS = COMPACTION_JOB_PREFIX + "use.prime.reducers";
   public static final boolean DEFAULT_COMPACTION_JOB_USE_PRIME_REDUCERS = true;
 
-  private static final String HADOOP_JOB_NAME = "Gobblin MR Compaction";
+  public static final String HADOOP_JOB_NAME = "Gobblin MR Compaction";
   private static final long MR_JOB_CHECK_COMPLETE_INTERVAL_MS = 5000;
 
   public enum Policy {

@@ -755,6 +755,6 @@ public class ConfigurationKeys {
   /***
    * Configuration properties related to Compaction Suite
    */
-  public static final String COMPACTION_SUITE_NAME = "compaction.suite.name";
-  public static final String DEFAULT_COMPACTION_SUITE_NAME = "CompactionAvroSuite";
+  public static final String COMPACTION_SUITE_FACTORY = "compaction.suite.factory";
+  public static final String DEFAULT_COMPACTION_SUITE_FACTORY = "CompactionAvroSuiteFactory";
 }

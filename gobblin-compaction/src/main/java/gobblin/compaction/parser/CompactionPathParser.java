@@ -1,6 +1,6 @@
 package gobblin.compaction.parser;
 
-import avro.shaded.com.google.common.base.Joiner;
+import com.google.common.base.Joiner;
 import gobblin.dataset.FileSystemDataset;
 import lombok.AllArgsConstructor;
 import org.apache.commons.lang.StringUtils;

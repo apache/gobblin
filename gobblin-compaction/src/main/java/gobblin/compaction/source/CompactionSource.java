@@ -1,8 +1,9 @@
 package gobblin.compaction.source;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+import gobblin.compaction.mapreduce.MRCompactor;
+import gobblin.compaction.suite.CompactionSuiteUtils;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
 import gobblin.compaction.suite.CompactionSuite;
@@ -18,12 +19,13 @@ import gobblin.runtime.task.TaskUtils;
 import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ClassAliasResolver;
 import gobblin.util.HadoopUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 import java.net.URI;
@@ -37,16 +39,17 @@ import java.util.List;
 @Slf4j
 public class CompactionSource implements Source<String, String> {
   private CompactionSuite suite;
-  private ClassAliasResolver<CompactionSuite> suiteAliasResolver = new ClassAliasResolver<>(CompactionSuite.class);
+  private String tmpOutputDir;
+  private FileSystem fs;
 
   public List<WorkUnit> getWorkunits(SourceState state) {
     List<WorkUnit> workUnits = Lists.newArrayList();
-    String suiteName = state.getProp(ConfigurationKeys.COMPACTION_SUITE_NAME, ConfigurationKeys.DEFAULT_COMPACTION_SUITE_NAME);
 
     try {
-      suite = GobblinConstructorUtils.invokeLongestConstructor(
-              suiteAliasResolver.resolveClass(suiteName), ImmutableList.of(state).toArray());
+      fs = getSourceFileSystem(state);
+      suite = CompactionSuiteUtils.getCompactionSuiteFactory (state).createSuite(state);
 
+      copyJarDependencies (this.fs, state);
       DatasetsFinder finder  = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
                getSourceFileSystem(state),
                DefaultFileSystemGlobFinder.class.getName());
@@ -91,7 +94,7 @@ public class CompactionSource implements Source<String, String> {
 
   @Override
   public void shutdown (SourceState state) {
-    throw new UnsupportedOperationException();
+    log.info("Shutting down the compaction source and remove temporary folders");
   }
 
   protected FileSystem getSourceFileSystem(State state)
@@ -101,4 +104,24 @@ public class CompactionSource implements Source<String, String> {
     return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
 
+  private void copyJarDependencies(FileSystem fs, State state) throws IOException {
+
+    if (!state.contains(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
+      return;
+    }
+
+    this.tmpOutputDir = state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR, MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR);
+    LocalFileSystem lfs = FileSystem.getLocal(HadoopUtils.getConfFromState(state));
+    Path tmpJarFileDir = new Path(this.tmpOutputDir, "_gobblin_compaction_jars");
+    state.setProp (MRCompactor.COMPACTION_JARS, tmpJarFileDir.toString());
+
+    fs.delete(tmpJarFileDir, true);
+    for (String jarFile : state.getPropAsList(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
+      for (FileStatus status : lfs.globStatus(new Path(jarFile))) {
+        Path tmpJarFile = new Path(this.fs.makeQualified(tmpJarFileDir), status.getPath().getName());
+        this.fs.copyFromLocalFile(status.getPath(), tmpJarFile);
+        log.info(String.format("%s will be added to classpath", tmpJarFile));
+      }
+    }
+  }
 }

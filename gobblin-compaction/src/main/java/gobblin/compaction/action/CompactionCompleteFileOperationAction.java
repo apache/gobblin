@@ -2,6 +2,7 @@ package gobblin.compaction.action;
 
 import gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
 import gobblin.compaction.mapreduce.MRCompactorJobRunner;
+import gobblin.compaction.mapreduce.avro.AvroKeyMapper;
 import gobblin.compaction.parser.CompactionPathParser;
 import gobblin.compaction.verify.InputRecordCountHelper;
 import gobblin.configuration.State;
@@ -13,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.mapreduce.Counter;
+import org.apache.hadoop.mapreduce.Job;
 
 import java.io.IOException;
 
@@ -47,6 +50,11 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       Path dstPath = new Path (result.getDstAbsoluteDir());
 
       try {
+        // get record count from map reduce job counter
+        Job job = this.configurator.getConfiguredJob();
+        Counter counter = job.getCounters().findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
+        long recordCount = counter.getValue();
+
         // move output from mapreduce to final destination defined by dataset
         this.fs.delete(dstPath, true);
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
@@ -59,10 +67,9 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
                   String.format("Unable to move %s to %s", tmpPath, dstPath));
         }
 
-        // get the record count from directories that map-reduce has processed
-        long count = helper.calculateRecordCount(configurator.getMapReduceInputPaths());
-        InputRecordCountHelper.writeRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()), count);
-        log.info("Writing record count {} to {}", count, dstPath);
+        // write record count
+        InputRecordCountHelper.writeRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()), recordCount);
+        log.info("Writing record count {} to {}", recordCount, dstPath);
       } catch (Exception e) {
         log.error(e.toString());
       }

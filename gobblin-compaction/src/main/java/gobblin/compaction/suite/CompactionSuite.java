@@ -1,10 +1,10 @@
 package gobblin.compaction.suite;
 
 import gobblin.compaction.action.CompactionCompleteAction;
+import gobblin.compaction.mapreduce.MRCompactionTask;
+import gobblin.configuration.SourceState;
 import gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
 import gobblin.dataset.Dataset;
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 import gobblin.compaction.verify.CompactionVerifier;
 import gobblin.configuration.State;
@@ -39,12 +39,14 @@ public interface CompactionSuite<D extends Dataset> {
   void save (D dataset, State state);
 
   /**
-   * Get a list of verifiers for dataset validation. Verifiers are executed for each dataset returned by DatasetFinder
+   * Get a list of verifiers for each dataset validation.
+   * Verifiers are executed by {@link gobblin.compaction.source.CompactionSource#getWorkunits(SourceState)}
    */
   List<CompactionVerifier<D>> getDatasetsFinderVerifiers();
 
   /**
-   * Get a list of verifiers for dataset validation. Verifiers are executed for each dataset returned by DatasetFinder
+   * Get a list of verifiers for each dataset validation.
+   * Verifiers are executed by {@link MRCompactionTask#run()}
    */
   List<CompactionVerifier<D>> getMapReduceVerifiers();
 

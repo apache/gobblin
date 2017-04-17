@@ -61,7 +61,7 @@ public class MRCompactionTaskTest {
             .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")
             .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
             .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
-            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/output/test1")
+            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/test1")
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
 
@@ -92,7 +92,7 @@ public class MRCompactionTaskTest {
             .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")
             .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
             .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
-            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/output/test2")
+            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/test2")
             .setConfiguration(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, "false")
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
@@ -122,7 +122,7 @@ public class MRCompactionTaskTest {
             .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")
             .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
             .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
-            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/output/test1")
+            .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/test-recompaction")
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
 
