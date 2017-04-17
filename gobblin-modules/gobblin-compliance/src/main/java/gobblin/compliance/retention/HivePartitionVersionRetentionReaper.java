@@ -92,8 +92,6 @@ public class HivePartitionVersionRetentionReaper extends HivePartitionVersionRet
     try (HiveProxyQueryExecutor queryExecutor = ProxyUtils
         .getQueryExecutor(state, this.versionOwner, this.backUpOwner)) {
 
-      Path newVersionLocation = getNewVersionLocation();
-
       if (!this.versionOwnerFs.exists(versionLocation)) {
         log.info("Data versionLocation doesn't exist. Metadata will be dropped for the version  " + completeName);
       } else if (datasetLocation.toString().equalsIgnoreCase(versionLocation.toString())) {
@@ -108,13 +106,14 @@ public class HivePartitionVersionRetentionReaper extends HivePartitionVersionRet
         this.versionOwnerFs.delete(versionLocation, true);
       } else if (completeName.contains(ComplianceConfigurationKeys.BACKUP)) {
         executeAlterQueries(queryExecutor);
-        log.info("Creating new dir " + newVersionLocation.getParent().toString());
-        this.versionOwnerFs.mkdirs(newVersionLocation.getParent());
-        log.info("Moving data from " + versionLocation + " to " + newVersionLocation);
-        this.versionOwnerFs.rename(versionLocation, newVersionLocation);
+        Path newVersionLocationParent = getNewVersionLocation().getParent();
+        log.info("Creating new dir " + newVersionLocationParent.toString());
+        this.versionOwnerFs.mkdirs(newVersionLocationParent);
+        log.info("Moving data from " + versionLocation + " to " + getNewVersionLocation());
+        this.versionOwnerFs.rename(versionLocation, newVersionLocationParent);
         FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.NONE);
         HadoopUtils
-            .setPermissions(newVersionLocation.getParent(), this.versionOwner, this.backUpOwner, this.versionOwnerFs,
+            .setPermissions(newVersionLocationParent, this.versionOwner, this.backUpOwner, this.versionOwnerFs,
                 permission);
       }
       executeDropVersionQueries(queryExecutor);
