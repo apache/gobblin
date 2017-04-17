@@ -32,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -41,6 +42,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.typesafe.config.ConfigFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -50,16 +52,17 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
+import com.typesafe.config.Config;
 
 import gobblin.commit.CommitStep;
 import gobblin.configuration.State;
+import gobblin.util.ClassAliasResolver;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.hive.avro.HiveAvroCopyEntityHelper;
-import gobblin.data.management.partition.CopyableDatasetRequestor;
 import gobblin.data.management.partition.FileSet;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HiveRegProps;
@@ -128,6 +131,14 @@ public class HiveCopyEntityHelper {
   public static final DeregisterFileDeleteMethod DEFAULT_DEREGISTER_DELETE_METHOD =
       DeregisterFileDeleteMethod.NO_DELETE;
 
+  /**
+   * Config key to specify if {@link IMetaStoreClient }'s filtering method {@link listPartitionsByFilter} is not enough
+   * for filtering out specific partitions.
+   * For example, if you specify "Path" as the filter type and "Hourly" as the filtering condition,
+   * partitions with Path containing '/Hourly/' will be kept.
+   */
+  public static final String HIVE_PARTITION_EXTENDED_FILTER_TYPE = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".extendedFilterType";
+
   static final Gson gson = new Gson();
 
   private static final String source_client = "source_client";
@@ -165,6 +176,7 @@ public class HiveCopyEntityHelper {
   private final ExistingEntityPolicy existingEntityPolicy;
   private final UnmanagedDataPolicy unmanagedDataPolicy;
   private final Optional<String> partitionFilter;
+  private Optional<? extends HivePartitionExtendedFilter> hivePartitionExtendedFilter;
   private final Optional<Predicate<HivePartitionFileSet>> fastPartitionSkip;
   private final Optional<Predicate<HiveCopyEntityHelper>> fastTableSkip;
 
@@ -282,6 +294,23 @@ public class HiveCopyEntityHelper {
             Optional.fromNullable(this.dataset.getProperties().getProperty(COPY_PARTITIONS_FILTER_CONSTANT));
       }
 
+      // Initialize extended partition filter
+      if ( this.dataset.getProperties().containsKey(HIVE_PARTITION_EXTENDED_FILTER_TYPE)){
+        String filterType = dataset.getProperties().getProperty(HIVE_PARTITION_EXTENDED_FILTER_TYPE);
+        try {
+          Config config = ConfigFactory.parseProperties(this.dataset.getProperties());
+          this.hivePartitionExtendedFilter =
+              Optional.of(new ClassAliasResolver<>(HivePartitionExtendedFilterFactory.class).resolveClass(filterType).newInstance().createFilter(config));
+        } catch (ReflectiveOperationException roe) {
+          log.error("Error: Could not find filter with alias " + filterType);
+          closer.close();
+          throw new IOException(roe);
+        }
+      }
+      else {
+        this.hivePartitionExtendedFilter = Optional.absent();
+      }
+
       try {
         this.fastPartitionSkip = this.dataset.getProperties().containsKey(FAST_PARTITION_SKIP_PREDICATE)
             ? Optional.of(GobblinConstructorUtils.invokeFirstConstructor(
@@ -329,15 +358,15 @@ public class HiveCopyEntityHelper {
         if (this.existingTargetTable.isPresent() && this.existingTargetTable.get().isPartitioned()) {
           checkPartitionedTableCompatibility(this.targetTable, this.existingTargetTable.get());
         }
-
         if (HiveUtils.isPartitioned(this.dataset.table)) {
           this.sourcePartitions = HiveUtils.getPartitionsMap(multiClient.getClient(source_client), this.dataset.table,
-              this.partitionFilter);
+              this.partitionFilter, this.hivePartitionExtendedFilter);
           // Note: this must be mutable, so we copy the map
           this.targetPartitions =
               this.existingTargetTable.isPresent() ? Maps.newHashMap(
                   HiveUtils.getPartitionsMap(multiClient.getClient(target_client),
-                      this.existingTargetTable.get(), this.partitionFilter)) : Maps.<List<String>, Partition> newHashMap();
+                      this.existingTargetTable.get(), this.partitionFilter, this.hivePartitionExtendedFilter))
+                  : Maps.<List<String>, Partition> newHashMap();
         } else {
           this.sourcePartitions = Maps.newHashMap();
           this.targetPartitions = Maps.newHashMap();
