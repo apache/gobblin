@@ -16,13 +16,10 @@
  */
 package gobblin.data.management.copy.converter;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.copy.CopyableFileUtils;
-import gobblin.data.management.copy.FileAwareInputStream;
-
+import java.io.IOException;
 import java.io.InputStream;
-
-import joptsimple.internal.Strings;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -34,7 +31,15 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+
+import joptsimple.internal.Strings;
+
+import gobblin.configuration.WorkUnitState;
+import gobblin.converter.DataConversionException;
+import gobblin.data.management.copy.CopyableFileUtils;
+import gobblin.data.management.copy.FileAwareInputStream;
 
 
 public class UnGzipConverterTest {
@@ -61,6 +66,32 @@ public class UnGzipConverterTest {
 
     String actual = readGzipStreamAsString(Iterables.getFirst(iterable, null).getInputStream());
     Assert.assertEquals(actual.trim(), expectedText);
+
+  }
+
+  @Test
+  public void testExtensionStripping() throws DataConversionException, IOException {
+    List<String> helloWorldFiles = ImmutableList.of("helloworld.txt.gzip", "helloworld.txt.gz");
+    UnGzipConverter converter = new UnGzipConverter();
+
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+
+    for (String fileName: helloWorldFiles) {
+      String filePath = "unGzipConverterTest/" + fileName;
+      String fullPath = getClass().getClassLoader().getResource(filePath).getFile();
+
+      FileAwareInputStream fileAwareInputStream =
+          new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(filePath, "/tmp/" + fileName, null, null),
+              fs.open(new Path(fullPath)));
+
+      Iterable<FileAwareInputStream> iterable = converter.convertRecord("outputSchema", fileAwareInputStream, new WorkUnitState());
+      FileAwareInputStream out = iterable.iterator().next();
+
+      Assert.assertEquals(out.getFile().getDestination().getName(), "helloworld.txt");
+      String contents = IOUtils.toString(out.getInputStream(), StandardCharsets.UTF_8);
+
+      Assert.assertEquals(contents, "helloworld\n");
+    }
 
   }
 
