@@ -18,7 +18,6 @@
 package gobblin.util.limiter;
 
 import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.linkedin.restli.client.RestClient;
@@ -27,9 +26,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.util.NoopCloseable;
 import java.io.Closeable;
-import java.io.IOException;
 
-import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -91,6 +88,6 @@ public class RestliServiceBasedLimiter implements Limiter {
    */
   @VisibleForTesting
   public long getUnusedPermits() {
-    return this.bachedPermitsContainer.getPermitBatchContainer().getTotalPermits();
+    return this.bachedPermitsContainer.getPermitBatchContainer().getTotalAvailablePermits();
   }
 }

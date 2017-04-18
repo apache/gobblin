@@ -216,7 +216,7 @@ class BatchedPermitsRequester {
 
     long candidatePermits = 0;
 
-    long unsatisfiablePermits = this.permitsOutstanding.getTotalWeight() - this.permitBatchContainer.totalPermits;
+    long unsatisfiablePermits = this.permitsOutstanding.getTotalWeight() - this.permitBatchContainer.totalAvailablePermits;
     if (unsatisfiablePermits > 0) {
       candidatePermits = unsatisfiablePermits;
     }
@@ -389,14 +389,14 @@ class BatchedPermitsRequester {
       }
     });
     @Getter
-    private volatile long totalPermits = 0;
+    private volatile long totalAvailablePermits = 0;
 
     private synchronized boolean tryTake(long permits) {
       purgeExpiredBatches();
-      if (this.totalPermits < permits) {
+      if (this.totalAvailablePermits < permits) {
         return false;
       }
-      this.totalPermits -= permits;
+      this.totalAvailablePermits -= permits;
       Iterator<PermitBatch> batchesIterator = this.batches.values().iterator();
       while (batchesIterator.hasNext()) {
         PermitBatch batch = batchesIterator.next();
@@ -408,7 +408,7 @@ class BatchedPermitsRequester {
           return true;
         }
       }
-      // This can only happen if totalPermits is not in sync with the actual batches
+      // This can only happen if totalAvailablePermits is not in sync with the actual batches
       throw new RuntimeException("Total permits was unsynced! This is an error in code.");
     }
 
@@ -416,7 +416,7 @@ class BatchedPermitsRequester {
     private synchronized void printState(String prefix) {
       StringBuilder builder = new StringBuilder(prefix).append("->");
       builder.append("BatchedPermitsRequester state (").append(hashCode()).append("): ");
-      builder.append("TotalPermits: ").append(this.totalPermits).append(" ");
+      builder.append("TotalPermits: ").append(this.totalAvailablePermits).append(" ");
       builder.append("Batches(").append(this.batches.size()).append("): ");
       for (PermitBatch batch : this.batches.values()) {
         builder.append(batch.getPermits()).append(",");
@@ -431,7 +431,7 @@ class BatchedPermitsRequester {
         Collection<PermitBatch> batches = entries.next();
         for (PermitBatch batch : batches) {
           Long permitsExpired = batch.getPermits();
-          this.totalPermits -= permitsExpired;
+          this.totalAvailablePermits -= permitsExpired;
         }
         entries.remove();
       }
@@ -440,7 +440,7 @@ class BatchedPermitsRequester {
     private synchronized void addPermitAllocation(PermitAllocation allocation) {
       this.batches.put(allocation.getExpiration(),
           new PermitBatch(allocation.getPermits(), allocation.getExpiration()));
-      this.totalPermits += allocation.getPermits();
+      this.totalAvailablePermits += allocation.getPermits();
     }
   }
 

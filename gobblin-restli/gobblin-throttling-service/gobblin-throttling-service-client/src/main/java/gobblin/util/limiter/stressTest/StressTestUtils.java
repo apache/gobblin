@@ -39,14 +39,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class StressTestUtils {
 
-  public static Option HELP_OPT = new Option("h", "Print help");
-  public static Option CONFIG_OPT = new Option("conf", true, "Set configuration for the stressor.");
-  public static Option STRESSOR_OPT = new Option("stressor", true, "Stressor class.");
+  public static final Option HELP_OPT = new Option("h", "Print help");
+  public static final Option CONFIG_OPT = new Option("conf", true, "Set configuration for the stressor.");
+  public static final Option STRESSOR_OPT = new Option("stressor", true, "Stressor class.");
 
   public static final String STRESSOR_CLASS = "stressTest.stressor.class";
   public static final Class<? extends Stressor> DEFAULT_STRESSOR_CLASS = FixedOperationsStressor.class;
 
-  public static Options OPTIONS = new Options().addOption(HELP_OPT).addOption(CONFIG_OPT);
+  public static final Options OPTIONS = new Options().addOption(HELP_OPT).addOption(CONFIG_OPT);
 
   /**
    * Parse command line.

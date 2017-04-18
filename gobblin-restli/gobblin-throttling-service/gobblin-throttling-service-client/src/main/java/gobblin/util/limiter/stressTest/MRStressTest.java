@@ -97,13 +97,13 @@ public class MRStressTest {
 
   public static final String NUM_MAPPERS = "stressTest.num.mappers";
 
-  public static String DEFAULT_MAPPERS = "10";
+  public static final String DEFAULT_MAPPERS = "10";
 
-  public static Option NUM_MAPPERS_OPT = new Option("mappers", true, "Num mappers");
-  public static Option THROTTLING_SERVER_URI = new Option("throttling", true, "Throttling server uri");
-  public static Option RESOURCE_ID_OPT = new Option("resource", true, "Resource id for throttling server");
-  public static Option LOCAL_QPS_OPT = new Option("localQps", true, "Locally enforced QPS");
-  public static Options OPTIONS = StressTestUtils.OPTIONS.addOption(NUM_MAPPERS_OPT).addOption(THROTTLING_SERVER_URI)
+  public static final Option NUM_MAPPERS_OPT = new Option("mappers", true, "Num mappers");
+  public static final Option THROTTLING_SERVER_URI = new Option("throttling", true, "Throttling server uri");
+  public static final Option RESOURCE_ID_OPT = new Option("resource", true, "Resource id for throttling server");
+  public static final Option LOCAL_QPS_OPT = new Option("localQps", true, "Locally enforced QPS");
+  public static final Options OPTIONS = StressTestUtils.OPTIONS.addOption(NUM_MAPPERS_OPT).addOption(THROTTLING_SERVER_URI)
       .addOption(RESOURCE_ID_OPT).addOption(LOCAL_QPS_OPT);
 
   public static void main(String[] args) throws Exception {
@@ -114,8 +114,8 @@ public class MRStressTest {
     if (cli.hasOption(THROTTLING_SERVER_URI.getOpt())) {
       configuration.setBoolean(USE_THROTTLING_SERVER, true);
       String resourceLimited = cli.getOptionValue(RESOURCE_ID_OPT.getOpt(), "MRStressTest");
-      configuration .set(RESOURCE_ID, resourceLimited);
-      configuration .set(
+      configuration.set(RESOURCE_ID, resourceLimited);
+      configuration.set(
           BrokerConfigurationKeyGenerator.generateKey(new SharedRestClientFactory(),
               new SharedRestClientKey(RestliLimiterFactory.RESTLI_SERVICE_NAME),
               null, SharedRestClientFactory.SERVER_URI_KEY), cli.getOptionValue(THROTTLING_SERVER_URI.getOpt()));
