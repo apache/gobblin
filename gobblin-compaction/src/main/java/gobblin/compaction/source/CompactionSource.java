@@ -15,6 +15,7 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
+import gobblin.runtime.JobState;
 import gobblin.runtime.task.TaskUtils;
 import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
@@ -113,11 +114,19 @@ public class CompactionSource implements Source<String, String> {
   }
 
   /**
-   * Create a UUID based random job directory
+   * Create a temporary job directory based on job id or (if not available) UUID
    */
-  private void initJobDir (State state) throws IOException {
+  private void initJobDir (SourceState state) throws IOException {
     String tmpBase = state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR, MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR);
-    this.tmpJobDir = new Path (tmpBase, UUID.randomUUID().toString());
+    String jobId;
+
+    if (state instanceof JobState) {
+      jobId = ((JobState) state).getJobId();
+    } else {
+      jobId = UUID.randomUUID().toString();
+    }
+
+    this.tmpJobDir = new Path (tmpBase, jobId);
     this.fs.mkdirs(this.tmpJobDir);
     state.setProp (MRCompactor.COMPACTION_JOB_DIR, tmpJobDir.toString());
     log.info ("Job dir is created under {}", this.tmpJobDir);
