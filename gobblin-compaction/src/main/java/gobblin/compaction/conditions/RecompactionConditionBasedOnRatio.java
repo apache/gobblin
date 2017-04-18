@@ -62,7 +62,7 @@ public class RecompactionConditionBasedOnRatio implements RecompactionCondition 
     }
   }
 
-  private static Map<String, Double> getDatasetRegexAndRecompactThreshold (String datasetsAndRecompactThresholds) {
+  public static Map<String, Double> getDatasetRegexAndRecompactThreshold (String datasetsAndRecompactThresholds) {
     Map<String, Double> topicRegexAndRecompactThreshold = Maps.newHashMap();
     for (String entry : Splitter.on(DATASETS_WITH_DIFFERENT_RECOMPACT_THRESHOLDS_SEPARATOR).trimResults()
         .omitEmptyStrings().splitToList(datasetsAndRecompactThresholds)) {
@@ -80,10 +80,14 @@ public class RecompactionConditionBasedOnRatio implements RecompactionCondition 
   }
 
   private double getOwnRatioThreshold (Dataset dataset, Map<String, Double> datasetRegexAndRecompactThreshold) {
+    return getRatioThresholdByDatasetName (dataset.getDatasetName(), datasetRegexAndRecompactThreshold);
+  }
+
+  public static double getRatioThresholdByDatasetName (String datasetName, Map<String, Double> datasetRegexAndRecompactThreshold) {
     for (Map.Entry<String, Double> topicRegexEntry : datasetRegexAndRecompactThreshold.entrySet()) {
-      if (DatasetFilterUtils.stringInPatterns(dataset.getDatasetName(),
-          DatasetFilterUtils.getPatternsFromStrings(Splitter.on(DATASETS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR)
-              .trimResults().omitEmptyStrings().splitToList(topicRegexEntry.getKey())))) {
+      if (DatasetFilterUtils.stringInPatterns(datasetName,
+              DatasetFilterUtils.getPatternsFromStrings(Splitter.on(DATASETS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR)
+                      .trimResults().omitEmptyStrings().splitToList(topicRegexEntry.getKey())))) {
         return topicRegexEntry.getValue();
       }
     }

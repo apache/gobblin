@@ -1,5 +1,6 @@
 package gobblin.compaction.parser;
 
+import com.google.common.base.Joiner;
 import gobblin.dataset.FileSystemDataset;
 import lombok.AllArgsConstructor;
 import org.apache.commons.lang.StringUtils;
@@ -43,6 +44,8 @@ public class CompactionPathParser {
     private String timeString;
     @Getter
     private String datasetName;
+    @Getter
+    private String dstAbsoluteDir;
   }
 
   /**
@@ -60,6 +63,10 @@ public class CompactionPathParser {
 
     parseTimeAndDatasetName(dataset, result);
 
+    result.dstAbsoluteDir = Joiner.on("/").join (result.dstBaseDir,
+                                                  result.datasetName,
+                                                  result.dstSubDir,
+                                                  result.timeString);
     return result;
   }
 

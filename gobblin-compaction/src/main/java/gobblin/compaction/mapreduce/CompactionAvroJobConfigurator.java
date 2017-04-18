@@ -21,6 +21,7 @@ import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.commons.math3.primes.Primes;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -40,9 +41,13 @@ import java.util.Set;
 @Slf4j
 public class CompactionAvroJobConfigurator {
   protected final State state;
+
+  @Getter
   protected final FileSystem fs;
 
   // Below attributes are MR related
+  @Getter
+  protected Job configuredJob;
   @Getter
   protected final boolean shouldDeduplicate;
   @Getter
@@ -197,7 +202,7 @@ public class CompactionAvroJobConfigurator {
       FileInputFormat.addInputPath(job, path);
     }
 
-    String mrOutputBase = this.state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR);
+    String mrOutputBase = this.state.getProp(MRCompactor.COMPACTION_JOB_DIR);
     CompactionPathParser parser = new CompactionPathParser(this.state);
     CompactionPathParser.CompactionParserResult rst = parser.parse(dataset);
     this.mrOutputPath = concatPaths (mrOutputBase, rst.getDatasetName(), rst.getDstSubDir(), rst.getTimeString());
@@ -215,7 +220,21 @@ public class CompactionAvroJobConfigurator {
    * @return A configured map-reduce job for avro compaction
    */
   public Job createJob(FileSystemDataset dataset) throws IOException {
-    Job job = Job.getInstance(new Configuration());
+    Configuration conf = HadoopUtils.getConfFromState(state);
+
+    // Turn on mapreduce output compression by default
+    if (conf.get("mapreduce.output.fileoutputformat.compress") == null && conf.get("mapred.output.compress") == null) {
+      conf.setBoolean("mapreduce.output.fileoutputformat.compress", true);
+    }
+
+    // Disable delegation token cancellation by default
+    if (conf.get("mapreduce.job.complete.cancel.delegation.tokens") == null) {
+      conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
+    }
+
+    addJars(conf);
+    Job job = Job.getInstance(conf);
+    job.setJobName(MRCompactorJobRunner.HADOOP_JOB_NAME);
     this.configureInputAndOutputPaths(job, dataset);
     this.configureMapper(job);
     this.configureReducer(job);
@@ -227,7 +246,18 @@ public class CompactionAvroJobConfigurator {
     // Configure schema at the last step because FilesInputFormat will be used internally
     this.configureSchema(job);
     this.isJobCreated = true;
+    this.configuredJob = job;
     return job;
+  }
+
+  private void addJars(Configuration conf) throws IOException {
+    if (!state.contains(MRCompactor.COMPACTION_JARS)) {
+      return;
+    }
+    Path jarFileDir = new Path(state.getProp(MRCompactor.COMPACTION_JARS));
+    for (FileStatus status : this.fs.listStatus(jarFileDir)) {
+      DistributedCache.addFileToClassPath(status.getPath(), conf, this.fs);
+    }
   }
 
   /**

@@ -753,4 +753,10 @@ public class ConfigurationKeys {
    */
   public static final String SPECEXECUTOR_INSTANCE_URI_KEY = "specExecInstance.uri";
   public static final String SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY = "specExecInstance.capabilities";
+
+  /***
+   * Configuration properties related to Compaction Suite
+   */
+  public static final String COMPACTION_SUITE_FACTORY = "compaction.suite.factory";
+  public static final String DEFAULT_COMPACTION_SUITE_FACTORY = "CompactionAvroSuiteFactory";
 }

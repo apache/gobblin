@@ -1,6 +1,5 @@
 package gobblin.data.management.dataset;
 
-import gobblin.configuration.State;
 import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
 import gobblin.dataset.FileSystemDataset;
 import org.apache.hadoop.fs.FileSystem;

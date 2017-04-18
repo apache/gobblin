@@ -121,7 +121,7 @@ public class MRCompactor implements Compactor {
   // The output dir for compaction MR job, which will be moved to the final output dir for data publishing.
   public static final String COMPACTION_TMP_DEST_DIR = COMPACTION_PREFIX + "tmp.dest.dir";
   public static final String DEFAULT_COMPACTION_TMP_DEST_DIR = "/tmp/gobblin-compaction";
-
+  public static final String COMPACTION_JOB_DIR = COMPACTION_PREFIX + "tmp.job.dir";
   public static final String COMPACTION_LATE_DIR_SUFFIX = "_late";
 
   public static final String COMPACTION_BLACKLIST = COMPACTION_PREFIX + "blacklist";
@@ -249,6 +249,7 @@ public class MRCompactor implements Compactor {
   public static final String COMPACTION_COMPLETE_FILE_NAME = "_COMPACTION_COMPLETE";
   public static final String COMPACTION_LATE_FILES_DIRECTORY = "late";
   public static final String COMPACTION_JARS = COMPACTION_PREFIX + "jars";
+  public static final String COMPACTION_JAR_SUBDIR = "_gobblin_compaction_jars";
   public static final String COMPACTION_TRACKING_EVENTS_NAMESPACE = COMPACTION_PREFIX + "tracking.events";
 
   public static final String COMPACTION_INPUT_PATH_TIME = COMPACTION_PREFIX + "input.path.time";

@@ -14,7 +14,9 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.List;
+import java.util.LinkedList;
+import java.util.ArrayList;
 
 /**
  * A type of {@link CompactionSuite} which implements all components needed for avro file compaction.
@@ -43,6 +45,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
     List<CompactionVerifier<FileSystemDataset>> list = new LinkedList<>();
     list.add(new CompactionTimeRangeVerifier(state));
     list.add(new CompactionThresholdVerifier(state));
+    list.add(new CompactionAuditCountVerifier(state));
     return list;
   }
 
