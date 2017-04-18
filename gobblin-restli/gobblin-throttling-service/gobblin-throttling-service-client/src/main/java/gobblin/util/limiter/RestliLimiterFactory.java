@@ -17,6 +17,7 @@
 
 package gobblin.util.limiter;
 
+import com.google.common.collect.ImmutableMap;
 import com.linkedin.restli.client.RestClient;
 
 import gobblin.broker.ResourceCoordinate;
@@ -30,6 +31,7 @@ import gobblin.broker.iface.SharedResourceFactoryResponse;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.metrics.broker.MetricContextFactory;
 import gobblin.metrics.broker.MetricContextKey;
+import gobblin.metrics.broker.SubTaggedMetricContextKey;
 import gobblin.restli.SharedRestClientFactory;
 import gobblin.restli.SharedRestClientKey;
 import gobblin.util.limiter.broker.SharedLimiterKey;
@@ -65,13 +67,17 @@ public class RestliLimiterFactory<S extends ScopeType<S>>
 
     String serviceIdentifier = config.getConfig().hasPath(SERVICE_IDENTIFIER_KEY) ?
         config.getConfig().getString(SERVICE_IDENTIFIER_KEY) : "UNKNOWN";
+    String resourceLimited = config.getKey().getResourceLimited();
 
     RestClient restClient = broker.getSharedResource(new SharedRestClientFactory<S>(), new SharedRestClientKey(RESTLI_SERVICE_NAME));
 
+    MetricContextKey metricContextKey = new SubTaggedMetricContextKey(RestliServiceBasedLimiter.class.getSimpleName() + resourceLimited,
+        ImmutableMap.of("resourceLimited", resourceLimited));
+
     return new ResourceInstance<>(
-        RestliServiceBasedLimiter.builder().restClient(restClient).resourceLimited(config.getKey().getResourceLimited())
+        RestliServiceBasedLimiter.builder().restClient(restClient).resourceLimited(resourceLimited)
             .serviceIdentifier(serviceIdentifier)
-            .metricContext(broker.getSharedResource(new MetricContextFactory<S>(), new MetricContextKey()))
+            .metricContext(broker.getSharedResource(new MetricContextFactory<S>(), metricContextKey))
             .build()
     );
   }

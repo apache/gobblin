@@ -15,20 +15,34 @@
  * limitations under the License.
  */
 
-apply plugin: 'com.github.johnrengelman.shadow'
+package gobblin.util.limiter.stressTest;
 
-shadowJar {
-  zip64 true
-  dependencies {
-    exclude(dependency {
-      it.moduleGroup.startsWith("org.apache.hadoop") || it.moduleGroup.startsWith("org.apache.hive")
-    })
+import java.util.Random;
+
+import org.apache.hadoop.conf.Configuration;
+
+import gobblin.util.limiter.Limiter;
+
+
+/**
+ * A {@link Stressor} that sleeps for a random delay between 0 and 30 seconds before starting.
+ */
+public abstract class RandomDelayStartStressor implements Stressor {
+
+  @Override
+  public void configure(Configuration configuration) {
+
   }
-  mergeServiceFiles()
-}
 
-dependencies {
-  compile project(":gobblin-runtime")
-  compile project(":gobblin-restli:gobblin-restli-utils")
-  compile project(':gobblin-utility')
+  @Override
+  public void run(Limiter limiter) throws InterruptedException {
+    long delayStartSeconds = new Random().nextInt(30);
+    Thread.sleep(delayStartSeconds * 1000);
+    doRun(limiter);
+  }
+
+  /**
+   * Run the actual logic in the {@link Stressor}.
+   */
+  public abstract void doRun(Limiter limiter) throws InterruptedException;
 }

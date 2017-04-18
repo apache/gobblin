@@ -15,20 +15,18 @@
  * limitations under the License.
  */
 
-apply plugin: 'com.github.johnrengelman.shadow'
+package gobblin.util.limiter.stressTest;
 
-shadowJar {
-  zip64 true
-  dependencies {
-    exclude(dependency {
-      it.moduleGroup.startsWith("org.apache.hadoop") || it.moduleGroup.startsWith("org.apache.hive")
-    })
-  }
-  mergeServiceFiles()
-}
+import org.apache.hadoop.conf.Configuration;
 
-dependencies {
-  compile project(":gobblin-runtime")
-  compile project(":gobblin-restli:gobblin-restli-utils")
-  compile project(':gobblin-utility')
+import gobblin.util.limiter.Limiter;
+
+
+/**
+ * An experiment for throttling service stress test. A {@link Stressor} should generate a pattern of requests to the input
+ * {@link Limiter}.
+ */
+public interface Stressor {
+  void configure(Configuration configuration);
+  void run(Limiter limiter) throws InterruptedException;
 }

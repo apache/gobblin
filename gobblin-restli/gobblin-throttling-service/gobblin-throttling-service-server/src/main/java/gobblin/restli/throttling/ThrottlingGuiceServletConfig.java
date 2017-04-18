@@ -43,6 +43,7 @@ import java.util.Enumeration;
 import java.util.Map;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -50,6 +51,7 @@ import lombok.extern.slf4j.Slf4j;
  * {@link GuiceServletContextListener} for creating an injector in a gobblin-throttling-server servlet.
  */
 @Slf4j
+@Getter
 public class ThrottlingGuiceServletConfig extends GuiceServletContextListener {
 
   private ServletContext _context;

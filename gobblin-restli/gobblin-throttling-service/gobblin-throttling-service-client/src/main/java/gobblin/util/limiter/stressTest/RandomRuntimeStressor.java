@@ -15,20 +15,35 @@
  * limitations under the License.
  */
 
-apply plugin: 'com.github.johnrengelman.shadow'
+package gobblin.util.limiter.stressTest;
 
-shadowJar {
-  zip64 true
-  dependencies {
-    exclude(dependency {
-      it.moduleGroup.startsWith("org.apache.hadoop") || it.moduleGroup.startsWith("org.apache.hive")
-    })
+import java.util.Random;
+
+import org.apache.hadoop.conf.Configuration;
+
+import gobblin.util.limiter.Limiter;
+
+import lombok.extern.slf4j.Slf4j;
+
+
+/**
+ * A {@link Stressor} that repeatedly requests 1 permits from {@link Limiter} for a random number of seconds between
+ * 1 and 181.
+ */
+@Slf4j
+public class RandomRuntimeStressor extends RandomDelayStartStressor {
+
+  @Override
+  public void configure(Configuration configuration) {
+    // Do nothing
   }
-  mergeServiceFiles()
-}
 
-dependencies {
-  compile project(":gobblin-runtime")
-  compile project(":gobblin-restli:gobblin-restli-utils")
-  compile project(':gobblin-utility')
+  @Override
+  public void doRun(Limiter limiter) throws InterruptedException {
+    long runForSeconds = new Random().nextInt(180) + 1;
+    long endTime = System.currentTimeMillis() + runForSeconds * 1000;
+    while (System.currentTimeMillis() < endTime) {
+      limiter.acquirePermits(1);
+    }
+  }
 }

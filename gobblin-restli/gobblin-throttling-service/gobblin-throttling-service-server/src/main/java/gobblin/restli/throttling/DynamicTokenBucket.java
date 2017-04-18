@@ -19,6 +19,11 @@ package gobblin.restli.throttling;
 
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * A wrapper around a {@link TokenBucket} that returns different number of tokens following an internal heuristic.
@@ -28,15 +33,17 @@ import java.util.concurrent.TimeUnit;
  * * If there is a large number of tokens stored (i.e. underutilization), this class may return more than the requested
  *   ideal number of tokens (up to 1/2 of the stored tokens). This reduces unnecessary slowdown when there is no
  *   contention.
- * * The object has a short ideal timeout for fulfilling the full request ({@link #fullRequestTimeout}). If it can fulfill
- *   the full request within that timeout, it will.
- * * If the full request cannot be satisfied within the timeout, the object will try to satisfy smaller requests up to
- *   the minimum number of tokens requested, increasing the timeout up to the caller specified timeout.
+ * * The object computes a target timeout equal to the minimum time needed to fulfill the minimum requested permits
+ *   (according to the configured qps) plus a {@link #baseTimeout}.
+ * * The object will return as many permits as it can using that timeout, bounded by minimum and desired number of permits.
  */
-class DynamicTokenBucket {
+@Slf4j
+public class DynamicTokenBucket {
 
+  @VisibleForTesting
+  @Getter
   private final TokenBucket tokenBucket;
-  private final long fullRequestTimeout;
+  private final long baseTimeout;
 
   /**
    * @param qps the average qps desired.
@@ -47,7 +54,7 @@ class DynamicTokenBucket {
    */
   DynamicTokenBucket(long qps, long fullRequestTimeoutMillis, long maxBucketSizeMillis) {
     this.tokenBucket = new TokenBucket(qps, maxBucketSizeMillis);
-    this.fullRequestTimeout = fullRequestTimeoutMillis;
+    this.baseTimeout = fullRequestTimeoutMillis;
   }
 
   /**
@@ -68,16 +75,20 @@ class DynamicTokenBucket {
         return eagerTokens;
       }
 
-      long actualTimeout = Math.min(this.fullRequestTimeout, timeoutMillis);
-      while (requestedPermits >= minPermits) {
-        if (this.tokenBucket.getTokens(requestedPermits, actualTimeout, TimeUnit.MILLISECONDS)) {
+      long millisToSatisfyMinPermits = (long) (minPermits / this.tokenBucket.getTokensPerMilli());
+      if (millisToSatisfyMinPermits > timeoutMillis) {
+        return 0;
+      }
+      long allowedTimeout = Math.min(millisToSatisfyMinPermits + this.baseTimeout, timeoutMillis);
+
+      while (requestedPermits > minPermits) {
+        if (this.tokenBucket.getTokens(requestedPermits, allowedTimeout, TimeUnit.MILLISECONDS)) {
           return requestedPermits;
         }
         requestedPermits /= 2;
-        actualTimeout = Math.min(2 * actualTimeout + 1, timeoutMillis);
       }
 
-      if (this.tokenBucket.getTokens(minPermits, timeoutMillis, TimeUnit.MILLISECONDS)) {
+      if (this.tokenBucket.getTokens(minPermits, allowedTimeout, TimeUnit.MILLISECONDS)) {
         return minPermits;
       }
     } catch (InterruptedException ie) {
