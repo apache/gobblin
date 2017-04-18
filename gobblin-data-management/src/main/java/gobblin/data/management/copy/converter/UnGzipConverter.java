@@ -42,6 +42,7 @@ import com.google.common.collect.Lists;
 public class UnGzipConverter extends DistcpConverter {
 
   private static final String TAR_EXTENSION = ".tar";
+  private static final String GZIP_EXTENSION = ".gzip";
   private static final String GZ_EXTENSION = ".gz";
   private static final String TGZ_EXTENSION = ".tgz";
 
@@ -58,6 +59,6 @@ public class UnGzipConverter extends DistcpConverter {
   }
 
   @Override public List<String> extensionsToRemove() {
-    return Lists.newArrayList(TAR_EXTENSION, GZ_EXTENSION, TGZ_EXTENSION);
+    return Lists.newArrayList(TAR_EXTENSION, GZIP_EXTENSION, GZ_EXTENSION, TGZ_EXTENSION);
   }
 }
