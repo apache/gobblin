@@ -57,7 +57,7 @@ public class FlowConfigTest {
   private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigTest/";
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
-  private static final String TEST_SCHEDULE = "";
+  private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
   private static final String TEST_DUMMY_GROUP_NAME = "dummyGroup";
   private static final String TEST_DUMMY_FLOW_NAME = "dummyFlow";
@@ -107,12 +107,53 @@ public class FlowConfigTest {
   }
 
   @Test
+  public void testCreateBadSchedule() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule("bad schedule").
+            setRunImmediately(true))
+        .setProperties(new StringMap(flowProperties));
+
+    try {
+      _client.createFlowConfig(flowConfig);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.UNPROCESSABLE_ENTITY_422);
+      return;
+    }
+
+    Assert.fail("Get should have gotten a 422 error");
+  }
+
+  @Test
+  public void testCreateBadTemplateUri() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris("FILE://bad/uri").setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(true))
+        .setProperties(new StringMap(flowProperties));
+
+    try {
+      _client.createFlowConfig(flowConfig);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.UNPROCESSABLE_ENTITY_422);
+      return;
+    }
+
+    Assert.fail("Get should have gotten a 422 error");
+  }
+
+  @Test
   public void testCreate() throws Exception {
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
 
-    FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME)
-        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setRunImmediately(true)
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
     _client.createFlowConfig(flowConfig);
@@ -123,8 +164,9 @@ public class FlowConfigTest {
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
 
-    FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME)
-        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setProperties(new StringMap(flowProperties));
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
+        .setProperties(new StringMap(flowProperties));
 
     try {
       _client.createFlowConfig(flowConfig);
@@ -138,15 +180,14 @@ public class FlowConfigTest {
 
   @Test (dependsOnMethods = "testCreateAgain")
   public void testGet() throws Exception {
-    FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
-    FlowConfig flowConfig = _client.getFlowConfig(flowConfigId);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+    FlowConfig flowConfig = _client.getFlowConfig(flowId);
 
-    Assert.assertEquals(flowConfig.getFlowGroup(), TEST_GROUP_NAME);
-    Assert.assertEquals(flowConfig.getFlowName(), TEST_FLOW_NAME);
-    Assert.assertEquals(flowConfig.getSchedule(), TEST_SCHEDULE );
+    Assert.assertEquals(flowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
+    Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME);
+    Assert.assertEquals(flowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE );
     Assert.assertEquals(flowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
-    Assert.assertTrue(flowConfig.hasRunImmediately());
-    Assert.assertTrue(flowConfig.isRunImmediately());
+    Assert.assertTrue(flowConfig.getSchedule().isRunImmediately());
     // Add this asssert back when getFlowSpec() is changed to return the raw flow spec
     //Assert.assertEquals(flowConfig.getProperties().size(), 1);
     Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
@@ -154,24 +195,24 @@ public class FlowConfigTest {
 
   @Test (dependsOnMethods = "testGet")
   public void testUpdate() throws Exception {
-    FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
 
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1b");
     flowProperties.put("param2", "value2b");
 
-    FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME)
-        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setProperties(new StringMap(flowProperties));
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
+        .setProperties(new StringMap(flowProperties));
 
     _client.updateFlowConfig(flowConfig);
 
-    FlowConfig retrievedFlowConfig = _client.getFlowConfig(flowConfigId);
+    FlowConfig retrievedFlowConfig = _client.getFlowConfig(flowId);
 
-    Assert.assertEquals(retrievedFlowConfig.getFlowGroup(), TEST_GROUP_NAME);
-    Assert.assertEquals(retrievedFlowConfig.getFlowName(), TEST_FLOW_NAME);
-    Assert.assertEquals(retrievedFlowConfig.getSchedule(), TEST_SCHEDULE );
+    Assert.assertEquals(retrievedFlowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
+    Assert.assertEquals(retrievedFlowConfig.getId().getFlowName(), TEST_FLOW_NAME);
+    Assert.assertEquals(retrievedFlowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE );
     Assert.assertEquals(retrievedFlowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
-    Assert.assertFalse(retrievedFlowConfig.hasRunImmediately());
     // Add this asssert when getFlowSpec() is changed to return the raw flow spec
     //Assert.assertEquals(flowConfig.getProperties().size(), 2);
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1b");
@@ -180,17 +221,17 @@ public class FlowConfigTest {
 
   @Test (dependsOnMethods = "testUpdate")
   public void testDelete() throws Exception {
-    FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
 
     // make sure flow config exists
-    FlowConfig flowConfig = _client.getFlowConfig(flowConfigId);
-    Assert.assertEquals(flowConfig.getFlowGroup(), TEST_GROUP_NAME);
-    Assert.assertEquals(flowConfig.getFlowName(), TEST_FLOW_NAME);
+    FlowConfig flowConfig = _client.getFlowConfig(flowId);
+    Assert.assertEquals(flowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
+    Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME);
 
-    _client.deleteFlowConfig(flowConfigId);
+    _client.deleteFlowConfig(flowId);
 
     try {
-      _client.getFlowConfig(flowConfigId);
+      _client.getFlowConfig(flowId);
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
       return;
@@ -201,10 +242,10 @@ public class FlowConfigTest {
 
   @Test
   public void testBadGet() throws Exception {
-    FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
 
     try {
-      _client.getFlowConfig(flowConfigId);
+      _client.getFlowConfig(flowId);
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
       return;
@@ -215,10 +256,10 @@ public class FlowConfigTest {
 
   @Test
   public void testBadDelete() throws Exception {
-    FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
 
     try {
-      _client.getFlowConfig(flowConfigId);
+      _client.getFlowConfig(flowId);
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
       return;
@@ -233,8 +274,10 @@ public class FlowConfigTest {
     flowProperties.put("param1", "value1b");
     flowProperties.put("param2", "value2b");
 
-    FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME)
-        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setProperties(new StringMap(flowProperties));
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME)
+        .setFlowName(TEST_DUMMY_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
+        .setProperties(new StringMap(flowProperties));
 
     try {
       _client.updateFlowConfig(flowConfig);

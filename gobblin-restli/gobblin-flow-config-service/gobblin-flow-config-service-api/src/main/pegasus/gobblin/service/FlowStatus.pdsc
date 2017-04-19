@@ -5,29 +5,19 @@
   "doc" : "Status of a flow",
   "fields" : [
     {
-      "name" : "flowName",
-      "type" : "string",
-      "doc" : "Name of the flow"
+      "name" : "id",
+      "type" : "FlowStatusId",
+      "doc" : "Flow status identifier"
     },
     {
-      "name" : "flowGroup",
-      "type" : "string",
-      "doc" : "Group of the flow. This defines the namespace for the flow."
-    },
-    {
-      "name" : "executionStartTime",
-      "type" : "long",
-      "doc" : "Epoch time of when the last execution began"
-    },
-    {
-      "name" : "executionEndTime",
-      "type" : "long",
-      "doc" : "Epoch time of when the last execution ended"
+      "name" : "executionStatistics",
+      "type" : "FlowStatistics",
+      "doc" : "Statistics for this execution of the flow"
     },
     {
       "name" : "executionStatus",
-      "type" : "string",
-      "doc" : "Execution status"
+      "type" : "ExecutionStatus",
+      "doc" : "Flow execution status"
     },
     {
       "name" : "message",

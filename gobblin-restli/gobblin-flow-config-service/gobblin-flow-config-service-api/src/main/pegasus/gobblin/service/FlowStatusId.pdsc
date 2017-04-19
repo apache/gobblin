@@ -2,7 +2,7 @@
   "type" : "record",
   "name" : "FlowStatusId",
   "namespace": "gobblin.service",
-  "doc" : "Identifier for a flow",
+  "doc" : "Identifier for a specific execution of a flow",
   "fields" : [
     {
       "name" : "flowName",
@@ -17,8 +17,7 @@
     {
       "name" : "flowExecutionId",
       "type" : "long",
-      "doc" : "Execution id for the flow",
-      "optional" : true
+      "doc" : "Execution id for the flow"
     }
   ]
 }

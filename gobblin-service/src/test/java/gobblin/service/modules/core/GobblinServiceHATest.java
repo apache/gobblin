@@ -16,6 +16,8 @@
  */
 package gobblin.service.modules.core;
 
+import gobblin.service.FlowId;
+import gobblin.service.Schedule;
 import java.io.File;
 import java.util.Map;
 import java.util.Properties;
@@ -47,7 +49,7 @@ import gobblin.runtime.spec_catalog.FlowCatalog;
 import gobblin.runtime.spec_catalog.TopologyCatalog;
 import gobblin.service.FlowConfig;
 import gobblin.service.FlowConfigClient;
-import gobblin.service.FlowConfigId;
+import gobblin.service.FlowId;
 import gobblin.service.HelixUtils;
 import gobblin.service.ServiceConfigKeys;
 import gobblin.service.modules.orchestration.Orchestrator;
@@ -75,14 +77,14 @@ public class GobblinServiceHATest {
 
   private static final String TEST_GROUP_NAME_1 = "testGroup1";
   private static final String TEST_FLOW_NAME_1 = "testFlow1";
-  private static final String TEST_SCHEDULE_1 = "";
+  private static final String TEST_SCHEDULE_1 = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI_1 = "FS:///templates/test.template";
   private static final String TEST_DUMMY_GROUP_NAME_1 = "dummyGroup";
   private static final String TEST_DUMMY_FLOW_NAME_1 = "dummyFlow";
 
   private static final String TEST_GROUP_NAME_2 = "testGroup2";
   private static final String TEST_FLOW_NAME_2 = "testFlow2";
-  private static final String TEST_SCHEDULE_2 = "";
+  private static final String TEST_SCHEDULE_2 = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI_2 = "FS:///templates/test.template";
   private static final String TEST_DUMMY_GROUP_NAME_2 = "dummyGroup";
   private static final String TEST_DUMMY_FLOW_NAME_2 = "dummyFlow";
@@ -235,11 +237,15 @@ public class GobblinServiceHATest {
     flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
     flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
 
-    FlowConfig flowConfig1 = new FlowConfig().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1)
-        .setTemplateUris(TEST_TEMPLATE_URI_1).setSchedule(TEST_SCHEDULE_1).setRunImmediately(true)
+    FlowConfig flowConfig1 = new FlowConfig()
+        .setId(new FlowId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1))
+        .setTemplateUris(TEST_TEMPLATE_URI_1).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE_1).
+            setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
-    FlowConfig flowConfig2 = new FlowConfig().setFlowGroup(TEST_GROUP_NAME_2).setFlowName(TEST_FLOW_NAME_2)
-        .setTemplateUris(TEST_TEMPLATE_URI_2).setSchedule(TEST_SCHEDULE_2).setRunImmediately(true)
+    FlowConfig flowConfig2 = new FlowConfig()
+        .setId(new FlowId().setFlowGroup(TEST_GROUP_NAME_2).setFlowName(TEST_FLOW_NAME_2))
+        .setTemplateUris(TEST_TEMPLATE_URI_2).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE_2).
+            setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
     // Try create on both nodes
@@ -282,11 +288,15 @@ public class GobblinServiceHATest {
     flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
     flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
 
-    FlowConfig flowConfig1 = new FlowConfig().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1)
-        .setTemplateUris(TEST_TEMPLATE_URI_1).setSchedule(TEST_SCHEDULE_1).setRunImmediately(true)
+    FlowConfig flowConfig1 = new FlowConfig()
+        .setId(new FlowId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1))
+        .setTemplateUris(TEST_TEMPLATE_URI_1).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE_1).
+            setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
-    FlowConfig flowConfig2 = new FlowConfig().setFlowGroup(TEST_GROUP_NAME_2).setFlowName(TEST_FLOW_NAME_2)
-        .setTemplateUris(TEST_TEMPLATE_URI_2).setSchedule(TEST_SCHEDULE_2).setRunImmediately(true)
+    FlowConfig flowConfig2 = new FlowConfig()
+        .setId(new FlowId().setFlowGroup(TEST_GROUP_NAME_2).setFlowName(TEST_FLOW_NAME_2))
+        .setTemplateUris(TEST_TEMPLATE_URI_2).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE_2).
+            setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
     // Try create on both nodes
@@ -307,31 +317,29 @@ public class GobblinServiceHATest {
 
   @Test (dependsOnMethods = "testCreateAgain")
   public void testGet() throws Exception {
-    FlowConfigId flowConfigId1 = new FlowConfigId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1);
+    FlowId flowId1 = new FlowId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1);
 
-    FlowConfig flowConfig1 = this.node1FlowConfigClient.getFlowConfig(flowConfigId1);
-    Assert.assertEquals(flowConfig1.getFlowGroup(), TEST_GROUP_NAME_1);
-    Assert.assertEquals(flowConfig1.getFlowName(), TEST_FLOW_NAME_1);
-    Assert.assertEquals(flowConfig1.getSchedule(), TEST_SCHEDULE_1);
+    FlowConfig flowConfig1 = this.node1FlowConfigClient.getFlowConfig(flowId1);
+    Assert.assertEquals(flowConfig1.getId().getFlowGroup(), TEST_GROUP_NAME_1);
+    Assert.assertEquals(flowConfig1.getId().getFlowName(), TEST_FLOW_NAME_1);
+    Assert.assertEquals(flowConfig1.getSchedule().getCronSchedule(), TEST_SCHEDULE_1);
     Assert.assertEquals(flowConfig1.getTemplateUris(), TEST_TEMPLATE_URI_1);
-    Assert.assertTrue(flowConfig1.hasRunImmediately());
-    Assert.assertTrue(flowConfig1.isRunImmediately());
+    Assert.assertTrue(flowConfig1.getSchedule().isRunImmediately());
     Assert.assertEquals(flowConfig1.getProperties().get("param1"), "value1");
 
-    flowConfig1 = this.node2FlowConfigClient.getFlowConfig(flowConfigId1);
-    Assert.assertEquals(flowConfig1.getFlowGroup(), TEST_GROUP_NAME_1);
-    Assert.assertEquals(flowConfig1.getFlowName(), TEST_FLOW_NAME_1);
-    Assert.assertEquals(flowConfig1.getSchedule(), TEST_SCHEDULE_1);
+    flowConfig1 = this.node2FlowConfigClient.getFlowConfig(flowId1);
+    Assert.assertEquals(flowConfig1.getId().getFlowGroup(), TEST_GROUP_NAME_1);
+    Assert.assertEquals(flowConfig1.getId().getFlowName(), TEST_FLOW_NAME_1);
+    Assert.assertEquals(flowConfig1.getSchedule().getCronSchedule(), TEST_SCHEDULE_1);
     Assert.assertEquals(flowConfig1.getTemplateUris(), TEST_TEMPLATE_URI_1);
-    Assert.assertTrue(flowConfig1.hasRunImmediately());
-    Assert.assertTrue(flowConfig1.isRunImmediately());
+    Assert.assertTrue(flowConfig1.getSchedule().isRunImmediately());
     Assert.assertEquals(flowConfig1.getProperties().get("param1"), "value1");
   }
 
   @Test (dependsOnMethods = "testGet")
   public void testUpdate() throws Exception {
     // Update on one node and retrieve from another
-    FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1);
 
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1b");
@@ -339,43 +347,45 @@ public class GobblinServiceHATest {
     flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
     flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
 
-    FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1)
-        .setTemplateUris(TEST_TEMPLATE_URI_1).setSchedule(TEST_SCHEDULE_1).setProperties(new StringMap(flowProperties));
+    FlowConfig flowConfig = new FlowConfig()
+        .setId(new FlowId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1))
+        .setTemplateUris(TEST_TEMPLATE_URI_1).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE_1))
+        .setProperties(new StringMap(flowProperties));
 
     this.node1FlowConfigClient.updateFlowConfig(flowConfig);
 
-    FlowConfig retrievedFlowConfig = this.node2FlowConfigClient.getFlowConfig(flowConfigId);
+    FlowConfig retrievedFlowConfig = this.node2FlowConfigClient.getFlowConfig(flowId);
 
-    Assert.assertEquals(retrievedFlowConfig.getFlowGroup(), TEST_GROUP_NAME_1);
-    Assert.assertEquals(retrievedFlowConfig.getFlowName(), TEST_FLOW_NAME_1);
-    Assert.assertEquals(retrievedFlowConfig.getSchedule(), TEST_SCHEDULE_1);
+    Assert.assertEquals(retrievedFlowConfig.getId().getFlowGroup(), TEST_GROUP_NAME_1);
+    Assert.assertEquals(retrievedFlowConfig.getId().getFlowName(), TEST_FLOW_NAME_1);
+    Assert.assertEquals(retrievedFlowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE_1);
     Assert.assertEquals(retrievedFlowConfig.getTemplateUris(), TEST_TEMPLATE_URI_1);
-    Assert.assertFalse(retrievedFlowConfig.hasRunImmediately());
+    Assert.assertFalse(retrievedFlowConfig.getSchedule().isRunImmediately());
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1b");
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param2"), "value2b");
   }
 
   @Test (dependsOnMethods = "testUpdate")
   public void testDelete() throws Exception {
-    FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1);
 
     // make sure flow config exists
-    FlowConfig flowConfig = this.node1FlowConfigClient.getFlowConfig(flowConfigId);
-    Assert.assertEquals(flowConfig.getFlowGroup(), TEST_GROUP_NAME_1);
-    Assert.assertEquals(flowConfig.getFlowName(), TEST_FLOW_NAME_1);
+    FlowConfig flowConfig = this.node1FlowConfigClient.getFlowConfig(flowId);
+    Assert.assertEquals(flowConfig.getId().getFlowGroup(), TEST_GROUP_NAME_1);
+    Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME_1);
 
-    this.node1FlowConfigClient.deleteFlowConfig(flowConfigId);
+    this.node1FlowConfigClient.deleteFlowConfig(flowId);
 
     // Check if deletion is reflected on both nodes
     try {
-      this.node1FlowConfigClient.getFlowConfig(flowConfigId);
+      this.node1FlowConfigClient.getFlowConfig(flowId);
       Assert.fail("Get should have gotten a 404 error");
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
 
     try {
-      this.node2FlowConfigClient.getFlowConfig(flowConfigId);
+      this.node2FlowConfigClient.getFlowConfig(flowId);
       Assert.fail("Get should have gotten a 404 error");
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
@@ -384,17 +394,17 @@ public class GobblinServiceHATest {
 
   @Test (dependsOnMethods = "testDelete")
   public void testBadGet() throws Exception {
-    FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_DUMMY_GROUP_NAME_1).setFlowName(TEST_DUMMY_FLOW_NAME_1);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME_1).setFlowName(TEST_DUMMY_FLOW_NAME_1);
 
     try {
-      this.node1FlowConfigClient.getFlowConfig(flowConfigId);
+      this.node1FlowConfigClient.getFlowConfig(flowId);
       Assert.fail("Get should have raised a 404 error");
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
 
     try {
-      this.node2FlowConfigClient.getFlowConfig(flowConfigId);
+      this.node2FlowConfigClient.getFlowConfig(flowId);
       Assert.fail("Get should have raised a 404 error");
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
@@ -403,17 +413,17 @@ public class GobblinServiceHATest {
 
   @Test (dependsOnMethods = "testBadGet")
   public void testBadDelete() throws Exception {
-    FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_DUMMY_GROUP_NAME_1).setFlowName(TEST_DUMMY_FLOW_NAME_1);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME_1).setFlowName(TEST_DUMMY_FLOW_NAME_1);
 
     try {
-      this.node1FlowConfigClient.getFlowConfig(flowConfigId);
+      this.node1FlowConfigClient.getFlowConfig(flowId);
       Assert.fail("Get should have raised a 404 error");
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
 
     try {
-      this.node2FlowConfigClient.getFlowConfig(flowConfigId);
+      this.node2FlowConfigClient.getFlowConfig(flowId);
       Assert.fail("Get should have raised a 404 error");
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
@@ -426,8 +436,10 @@ public class GobblinServiceHATest {
     flowProperties.put("param1", "value1b");
     flowProperties.put("param2", "value2b");
 
-    FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_DUMMY_GROUP_NAME_1).setFlowName(TEST_DUMMY_FLOW_NAME_1)
-        .setTemplateUris(TEST_TEMPLATE_URI_1).setSchedule(TEST_SCHEDULE_1).setProperties(new StringMap(flowProperties));
+    FlowConfig flowConfig = new FlowConfig()
+        .setId(new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME_1).setFlowName(TEST_DUMMY_FLOW_NAME_1))
+        .setTemplateUris(TEST_TEMPLATE_URI_1).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE_1))
+        .setProperties(new StringMap(flowProperties));
 
     try {
       this.node1FlowConfigClient.updateFlowConfig(flowConfig);

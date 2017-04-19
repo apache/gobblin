@@ -17,8 +17,12 @@
 
 package gobblin.service;
 
+import com.google.common.base.Preconditions;
+import com.linkedin.restli.client.FindRequest;
+import com.linkedin.restli.common.CollectionResponse;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.Collections;
 
 import org.slf4j.Logger;
@@ -92,6 +96,32 @@ public class FlowStatusClient implements Closeable {
     Response<FlowStatus> response =
         _restClient.get().sendRequest(getRequest).getResponse();
     return response.getEntity();
+  }
+
+  /**
+   * Get the latest flow status
+   * @param flowId identifier of flow status to get
+   * @return a {@link FlowStatus} with the flow status
+   * @throws RemoteInvocationException
+   */
+  public FlowStatus getLatestFlowStatus(FlowId flowId)
+      throws RemoteInvocationException {
+    LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
+        flowId.getFlowName());
+
+    FindRequest<FlowStatus> findRequest = _flowstatusesRequestBuilders.findByLatestFlowStatus().flowIdParam(flowId).build();
+
+    Response<CollectionResponse<FlowStatus>> response =
+        _restClient.get().sendRequest(findRequest).getResponse();
+
+    List<FlowStatus> flowStatusList = response.getEntity().getElements();
+
+    if (flowStatusList.isEmpty()) {
+      return null;
+    } else {
+      Preconditions.checkArgument(flowStatusList.size() == 1);
+      return flowStatusList.get(0);
+    }
   }
 
   @Override

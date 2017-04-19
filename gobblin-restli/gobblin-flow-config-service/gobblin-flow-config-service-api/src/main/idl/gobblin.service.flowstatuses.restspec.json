@@ -3,20 +3,27 @@
   "namespace" : "gobblin.service",
   "path" : "/flowstatuses",
   "schema" : "gobblin.service.FlowStatus",
-  "doc" : "generated from: gobblin.service.FlowStatusResource",
+  "doc" : "Resource for handling flow status requests\n\ngenerated from: gobblin.service.FlowStatusResource",
   "collection" : {
     "identifier" : {
-      "name" : "flowstatusesId",
+      "name" : "id",
       "type" : "gobblin.service.FlowStatusId",
       "params" : "com.linkedin.restli.common.EmptyRecord"
     },
     "supports" : [ "get" ],
     "methods" : [ {
       "method" : "get",
-      "doc" : "Retrieve the latest {@link FlowStatus} with the given key"
+      "doc" : "Retrieve the FlowStatus with the given key"
+    } ],
+    "finders" : [ {
+      "name" : "latestFlowStatus",
+      "parameters" : [ {
+        "name" : "flowId",
+        "type" : "gobblin.service.FlowId"
+      } ]
     } ],
     "entity" : {
-      "path" : "/flowstatuses/{flowstatusesId}"
+      "path" : "/flowstatuses/{id}"
     }
   }
 }
