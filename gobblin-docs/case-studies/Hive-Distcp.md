@@ -74,7 +74,8 @@ If distcp-ng finds that a partition or table it needs to create already exists i
 
 * ABORT: the conflicting table will not be copied (default)
 * REPLACE_PARTITIONS: replace any conflicting partitions, but not tables
-* REPLACE_TABLES: replace any conflicting tables
+* REPLACE_TABLES: replace any conflicting tables by deregistrating previous tables first.
+* UPDATE_TABLES: Keep the original-registered table but make modification.
 
 ## Deregistering tables / partitions
 
