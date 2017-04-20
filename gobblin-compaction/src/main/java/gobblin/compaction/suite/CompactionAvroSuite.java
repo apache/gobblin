@@ -56,7 +56,6 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
    */
   public List<CompactionVerifier<FileSystemDataset>> getMapReduceVerifiers() {
     List<CompactionVerifier<FileSystemDataset>> list = new ArrayList<>();
-    list.add(new CompactionAuditCountVerifier(state));
     return list;
   }
 
