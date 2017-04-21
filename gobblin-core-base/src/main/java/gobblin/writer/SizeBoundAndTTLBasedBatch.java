@@ -25,8 +25,8 @@ import java.util.List;
 
 
 /**
- * The Eventhub Batch which internally saves each record
- * For now we are using LinkedList as our internal memory storage
+ * A batch which internally saves each record in memory with bounded size limit
+ * Also a TTL value is configured, so that an eviction policy can be applied form upper layer.
  */
 @Alpha
 public class SizeBoundAndTTLBasedBatch<D> extends Batch<D>{

@@ -5,7 +5,7 @@ import gobblin.writer.SequentialAndTTLBasedBatchAccumulator;
 import java.util.Properties;
 
 /**
- * Created by kuyu on 4/21/17.
+ * Simply a ttl based batch accumulator for eventhub with string type
  */
 public class EventhubBatchAccumulator extends SequentialAndTTLBasedBatchAccumulator<String> {
   public EventhubBatchAccumulator (Properties properties) {

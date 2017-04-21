@@ -40,9 +40,10 @@ import gobblin.util.ConfigUtils;
 
 /**
  * Sequential and TTL based accumulator
- * A record is added one by one to a deque. Generate a batch on the first record arrival, all subsequent records are added to the
- * same batch until a batch size is reached. When iterating available batches, all complete batches (size reached to a limit)
- * will be popped out but an incomplete batch keeps in the deque until a TTL is expired.
+ * A producer can add a record to this accumulator. It generates a batch on the first record arrival. All subsequent records
+ * are added to the same batch until a batch size limit is reached. {@link BufferedAsyncDataWriter} keeps iterating available
+ * batches from this accumulator, all completed batches (full sized) will be popped out one by one but an incomplete batch
+ * keeps in the deque until a TTL is expired.
  */
 
 public abstract class SequentialAndTTLBasedBatchAccumulator<D> extends BatchAccumulator<D> {
