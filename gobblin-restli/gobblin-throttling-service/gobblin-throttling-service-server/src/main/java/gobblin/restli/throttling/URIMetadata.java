@@ -15,25 +15,24 @@
  * limitations under the License.
  */
 
-package gobblin.restli;
+package gobblin.restli.throttling;
 
-import gobblin.broker.iface.SharedResourceKey;
+import java.net.URI;
 
 import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
 
 /**
- * {@link SharedResourceKey} for {@link SharedRestClientFactory}. Contains an identifier for type of service
- * (e.g. throttling).
+ * A {@link gobblin.restli.throttling.LeaderFinder.Metadata} that contains the {@link URI} of the process.
  */
 @AllArgsConstructor
-@EqualsAndHashCode
-public class SharedRestClientKey implements SharedResourceKey {
-  public final String serviceName;
+public class URIMetadata implements LeaderFinder.Metadata {
+  @Getter
+  private final URI uri;
 
   @Override
-  public String toConfigurationKey() {
-    return this.serviceName;
+  public String getShortName() {
+    return this.uri.toString().replaceAll("[:/]", "_");
   }
 }

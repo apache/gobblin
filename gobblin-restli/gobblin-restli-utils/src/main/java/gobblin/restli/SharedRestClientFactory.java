@@ -20,6 +20,8 @@ package gobblin.restli;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Executors;
 
@@ -27,20 +29,24 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.linkedin.r2.filter.FilterChains;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
-import com.linkedin.r2.util.NamedThreadFactory;
 import com.linkedin.restli.client.RestClient;
+import com.typesafe.config.Config;
 
+import gobblin.broker.ResourceCoordinate;
 import gobblin.broker.ResourceInstance;
 import gobblin.broker.iface.ConfigView;
 import gobblin.broker.iface.NotConfiguredException;
 import gobblin.broker.iface.ScopeType;
 import gobblin.broker.iface.ScopedConfigView;
 import gobblin.broker.iface.SharedResourceFactory;
+import gobblin.broker.iface.SharedResourceFactoryResponse;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.util.ExecutorsUtils;
 
@@ -64,10 +70,17 @@ public class SharedRestClientFactory<S extends ScopeType<S>> implements SharedRe
   }
 
   @Override
-  public ResourceInstance<RestClient> createResource(SharedResourcesBroker<S> broker, ScopedConfigView<S, SharedRestClientKey> config)
-      throws NotConfiguredException {
+  public SharedResourceFactoryResponse<RestClient>
+    createResource(SharedResourcesBroker<S> broker, ScopedConfigView<S, SharedRestClientKey> config) throws NotConfiguredException {
     try {
-      String uriPrefix = resolveUriPrefix(config);
+      SharedRestClientKey key = config.getKey();
+
+      if (!(key instanceof UriRestClientKey)) {
+        return new ResourceCoordinate<>(this, new UriRestClientKey(key.serviceName, resolveUriPrefix(config.getConfig(), key)),
+            config.getScope());
+      }
+
+      String uriPrefix = ((UriRestClientKey) key).getUri();
 
       HttpClientFactory http = new HttpClientFactory(FilterChains.empty(),
           new NioEventLoopGroup(0 /* use default settings */,
@@ -89,17 +102,45 @@ public class SharedRestClientFactory<S extends ScopeType<S>> implements SharedRe
     return broker.selfScope().getType().rootScope();
   }
 
-  private String resolveUriPrefix(ScopedConfigView<?, SharedRestClientKey> config) throws URISyntaxException, NotConfiguredException {
-    if (!config.getConfig().hasPath(SERVER_URI_KEY)) {
+  /**
+   * Get a uri prefix from the input configuration.
+   */
+  public static String resolveUriPrefix(Config config, SharedRestClientKey key) throws URISyntaxException, NotConfiguredException {
+
+    List<String> connectionPrefixes = parseConnectionPrefixes(config, key);
+    Preconditions.checkArgument(connectionPrefixes.size() > 0, "No uris found for service " + key.serviceName);
+
+    return connectionPrefixes.get(new Random().nextInt(connectionPrefixes.size()));
+  }
+
+  /**
+   * Parse the list of available input prefixes from the input configuration.
+   */
+  public static List<String> parseConnectionPrefixes(Config config, SharedRestClientKey key) throws URISyntaxException, NotConfiguredException {
+    if (key instanceof UriRestClientKey) {
+      return Lists.newArrayList(((UriRestClientKey) key).getUri());
+    }
+
+    if (!config.hasPath(SERVER_URI_KEY)) {
       throw new NotConfiguredException("Missing key " + SERVER_URI_KEY);
     }
 
-    URI serverURI = new URI(config.getConfig().getString(SERVER_URI_KEY));
+    List<String> uris = Lists.newArrayList();
+    for (String uri : Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(SERVER_URI_KEY))) {
+      uris.add(resolveUriPrefix(new URI(uri)));
+    }
+    return uris;
+  }
 
+  /**
+   * Convert the input URI into a correctly formatted uri prefix. In the future, may also resolve d2 uris.
+   */
+  public static String resolveUriPrefix(URI serverURI)
+      throws URISyntaxException {
     if (RESTLI_SCHEMES.contains(serverURI.getScheme())) {
       return new URI(serverURI.getScheme(), serverURI.getAuthority(), null, null, null).toString() + "/";
     }
 
-    throw new RuntimeException("Could not parse URI prefix for key " + Optional.fromNullable(config.getKey().toConfigurationKey()).or("null"));
+    throw new RuntimeException("Unrecognized scheme for URI " + serverURI);
   }
 }

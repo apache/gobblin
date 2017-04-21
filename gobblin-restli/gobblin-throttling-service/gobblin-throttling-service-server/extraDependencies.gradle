@@ -17,5 +17,11 @@
 
 dependencies {
   compile project(':gobblin-metrics-libs:gobblin-metrics-base')
+  compile project(':gobblin-restli:gobblin-restli-utils')
+  compile project(":gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-api")
   compile externalDependency.guiceServlet
+  compile externalDependency.curatorFramework
+
+  testCompile externalDependency.curatorTest
+  testCompile externalDependency.mockito
 }

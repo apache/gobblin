@@ -104,6 +104,12 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
     }
   }
 
+  @Override
+  public <T, K extends SharedResourceKey> void bindSharedResourceAtScope(SharedResourceFactory<T, K, S> factory,
+      K key, S scopeType, T instance) throws NoSuchScopeException {
+    this.brokerCache.put(factory, key, getWrappedScope(scopeType), instance);
+  }
+
   /**
    * Get a {@link gobblin.broker.iface.ConfigView} for the input scope, key, and factory.
    */

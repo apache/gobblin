@@ -33,5 +33,8 @@ shadowJar {
 dependencies {
   compile project(":gobblin-runtime")
   compile project(":gobblin-restli:gobblin-restli-utils")
+  compile project(":gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-api")
   compile project(':gobblin-utility')
+
+  testCompile externalDependency.curatorTest
 }

@@ -20,11 +20,12 @@ package gobblin.util.limiter;
 import com.codahale.metrics.Meter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.linkedin.restli.client.RestClient;
+import com.google.common.base.Preconditions;
 
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.util.NoopCloseable;
+
 import java.io.Closeable;
 
 import lombok.Builder;
@@ -48,10 +49,12 @@ public class RestliServiceBasedLimiter implements Limiter {
   private final Optional<Meter> permitsGrantedMeter;
 
   @Builder
-  private RestliServiceBasedLimiter(RestClient restClient, String resourceLimited, String serviceIdentifier,
-      MetricContext metricContext, BatchedPermitsRequester.RequestSender requestSender) {
-    this.bachedPermitsContainer = BatchedPermitsRequester.builder().restClient(restClient).resourceId(resourceLimited)
-        .requestorIdentifier(serviceIdentifier).requestSender(requestSender).build();
+  private RestliServiceBasedLimiter(String resourceLimited, String serviceIdentifier,
+      MetricContext metricContext, RequestSender requestSender) {
+    Preconditions.checkNotNull(requestSender, "Request sender cannot be null.");
+
+    this.bachedPermitsContainer = BatchedPermitsRequester.builder()
+        .resourceId(resourceLimited).requestorIdentifier(serviceIdentifier).requestSender(requestSender).build();
 
     this.metricContext = Optional.fromNullable(metricContext);
     if (this.metricContext.isPresent()) {
@@ -89,5 +92,10 @@ public class RestliServiceBasedLimiter implements Limiter {
   @VisibleForTesting
   public long getUnusedPermits() {
     return this.bachedPermitsContainer.getPermitBatchContainer().getTotalAvailablePermits();
+  }
+
+  @VisibleForTesting
+  public void clearAllStoredPermits() {
+    this.bachedPermitsContainer.clearAllStoredPermits();
   }
 }

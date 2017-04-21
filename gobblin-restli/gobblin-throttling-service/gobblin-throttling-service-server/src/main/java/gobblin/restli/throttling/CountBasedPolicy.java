@@ -23,7 +23,6 @@ import com.linkedin.restli.server.RestLiServiceException;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alias;
-import gobblin.broker.SimpleScopeType;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.util.limiter.CountBasedLimiter;
 
@@ -39,7 +38,7 @@ public class CountBasedPolicy implements ThrottlingPolicy {
   @Alias(FACTORY_ALIAS)
   public static class Factory implements ThrottlingPolicyFactory.SpecificPolicyFactory {
     @Override
-    public ThrottlingPolicy createPolicy(SharedResourcesBroker<SimpleScopeType> broker, Config config) {
+    public ThrottlingPolicy createPolicy(SharedResourcesBroker<ThrottlingServerScopes> broker, Config config) {
       Preconditions.checkArgument(config.hasPath(COUNT_KEY), "Missing key " + COUNT_KEY);
       return new CountBasedPolicy(config.getLong(COUNT_KEY));
     }
