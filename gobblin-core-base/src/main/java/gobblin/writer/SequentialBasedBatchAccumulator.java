@@ -46,26 +46,26 @@ import gobblin.util.ConfigUtils;
  * keeps in the deque until a TTL is expired.
  */
 
-public abstract class SequentialAndTTLBasedBatchAccumulator<D> extends BatchAccumulator<D> {
+public abstract class SequentialBasedBatchAccumulator<D> extends BatchAccumulator<D> {
 
-  private Deque<SizeBoundAndTTLBasedBatch<D>> dq = new LinkedList<>();
+  private Deque<BytesBoundedBatch<D>> dq = new LinkedList<>();
   private IncompleteRecordBatches incomplete = new IncompleteRecordBatches();
   private final long batchSizeLimit;
   private final long memSizeLimit;
   private final double tolerance = 0.95;
   private final long expireInMilliSecond;
-  private static final Logger LOG = LoggerFactory.getLogger(SequentialAndTTLBasedBatchAccumulator.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SequentialBasedBatchAccumulator.class);
 
   private final ReentrantLock dqLock = new ReentrantLock();
   private final Condition notEmpty = dqLock.newCondition();
   private final Condition notFull = dqLock.newCondition();
   private final long capacity;
 
-  public SequentialAndTTLBasedBatchAccumulator() {
+  public SequentialBasedBatchAccumulator() {
     this (1024 * 256, 1000, 100);
   }
 
-  public SequentialAndTTLBasedBatchAccumulator(Properties properties) {
+  public SequentialBasedBatchAccumulator(Properties properties) {
     Config config = ConfigUtils.propertiesToConfig(properties);
     this.batchSizeLimit = ConfigUtils.getLong(config, Batch.BATCH_SIZE,
             Batch.BATCH_SIZE_DEFAULT);
@@ -79,7 +79,7 @@ public abstract class SequentialAndTTLBasedBatchAccumulator<D> extends BatchAccu
     this.memSizeLimit = (long) (this.tolerance * this.batchSizeLimit);
   }
 
-  public SequentialAndTTLBasedBatchAccumulator(long batchSizeLimit, long expireInMilliSecond, long capacity) {
+  public SequentialBasedBatchAccumulator(long batchSizeLimit, long expireInMilliSecond, long capacity) {
     this.batchSizeLimit = batchSizeLimit;
     this.expireInMilliSecond = expireInMilliSecond;
     this.capacity = capacity;
@@ -102,7 +102,7 @@ public abstract class SequentialAndTTLBasedBatchAccumulator<D> extends BatchAccu
     final ReentrantLock lock = this.dqLock;
     lock.lock();
     try {
-      SizeBoundAndTTLBasedBatch last = dq.peekLast();
+      BytesBoundedBatch last = dq.peekLast();
       if (last != null) {
         Future<RecordMetadata> future = last.tryAppend(record, callback);
         if (future != null) {
@@ -111,7 +111,7 @@ public abstract class SequentialAndTTLBasedBatchAccumulator<D> extends BatchAccu
       }
 
       // Create a new batch because previous one has no space
-      SizeBoundAndTTLBasedBatch batch = new SizeBoundAndTTLBasedBatch(this.memSizeLimit, this.expireInMilliSecond);
+      BytesBoundedBatch batch = new BytesBoundedBatch(this.memSizeLimit, this.expireInMilliSecond);
       LOG.debug("Batch " + batch.getId() + " is generated");
       Future<RecordMetadata> future = batch.tryAppend(record, callback);
 
@@ -183,23 +183,23 @@ public abstract class SequentialAndTTLBasedBatchAccumulator<D> extends BatchAccu
    *    3) if queue size > 1, remove and return the first batch element.
    */
   public Batch<D> getNextAvailableBatch () {
-    final ReentrantLock lock = SequentialAndTTLBasedBatchAccumulator.this.dqLock;
+    final ReentrantLock lock = SequentialBasedBatchAccumulator.this.dqLock;
     try {
       lock.lock();
-      if (SequentialAndTTLBasedBatchAccumulator.this.isClosed()) {
+      if (SequentialBasedBatchAccumulator.this.isClosed()) {
         return dq.poll();
       } else {
           while (dq.size() == 0) {
             LOG.info ("ready to sleep because of queue is empty");
-            SequentialAndTTLBasedBatchAccumulator.this.notEmpty.await();
-            if (SequentialAndTTLBasedBatchAccumulator.this.isClosed()) {
+            SequentialBasedBatchAccumulator.this.notEmpty.await();
+            if (SequentialBasedBatchAccumulator.this.isClosed()) {
               return dq.poll();
             }
           }
 
           if (dq.size() > 1) {
-            SizeBoundAndTTLBasedBatch candidate = dq.poll();
-            SequentialAndTTLBasedBatchAccumulator.this.notFull.signal();
+            BytesBoundedBatch candidate = dq.poll();
+            SequentialBasedBatchAccumulator.this.notFull.signal();
             LOG.debug ("retrieve batch " + candidate.getId());
             return candidate;
           }
@@ -207,8 +207,8 @@ public abstract class SequentialAndTTLBasedBatchAccumulator<D> extends BatchAccu
           if (dq.size() == 1) {
             if (dq.peekFirst().isTTLExpire()) {
               LOG.info ("Batch " + dq.peekFirst().getId() + " is expired");
-              SizeBoundAndTTLBasedBatch candidate = dq.poll();
-              SequentialAndTTLBasedBatchAccumulator.this.notFull.signal();
+              BytesBoundedBatch candidate = dq.poll();
+              SequentialBasedBatchAccumulator.this.notFull.signal();
               return candidate;
             } else {
               return null;

@@ -29,14 +29,14 @@ import java.util.List;
  * Also a TTL value is configured, so that an eviction policy can be applied form upper layer.
  */
 @Alpha
-public class SizeBoundAndTTLBasedBatch<D> extends Batch<D>{
+public class BytesBoundedBatch<D> extends Batch<D>{
   private RecordMemory memory;
   private final long creationTimestamp;
   private final long memSizeLimit;
   private final long ttlInMilliSeconds;
   public static final int OVERHEAD_SIZE_IN_BYTES = 15;
 
-  public SizeBoundAndTTLBasedBatch(long memSizeLimit, long ttlInMilliSeconds) {
+  public BytesBoundedBatch(long memSizeLimit, long ttlInMilliSeconds) {
     this.creationTimestamp = System.currentTimeMillis();
     this.memory = new RecordMemory();
     this.memSizeLimit = memSizeLimit;
@@ -61,13 +61,13 @@ public class SizeBoundAndTTLBasedBatch<D> extends Batch<D>{
     }
 
     void append (D record) {
-      byteSize += SizeBoundAndTTLBasedBatch.this.getInternalSize(record);
+      byteSize += BytesBoundedBatch.this.getInternalSize(record);
       records.add(record);
     }
 
     boolean hasRoom (D record) {
-      long recordLen = SizeBoundAndTTLBasedBatch.this.getInternalSize(record);
-      return (byteSize + recordLen) <= SizeBoundAndTTLBasedBatch.this.memSizeLimit;
+      long recordLen = BytesBoundedBatch.this.getInternalSize(record);
+      return (byteSize + recordLen) <= BytesBoundedBatch.this.memSizeLimit;
     }
 
     long getByteSize() {
