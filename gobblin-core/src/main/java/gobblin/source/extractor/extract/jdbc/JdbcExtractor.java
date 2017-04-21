@@ -966,6 +966,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *     byte[] foo = Base64.decodeBase64(tmp);
    */
   private String readBlobAsString(Blob logBlob) throws SQLException {
+    if (logBlob == null) {
+      return StringUtils.EMPTY;
+    }
+
     byte[] ba = logBlob.getBytes(1L, (int) (logBlob.length()));
 
     if (ba == null) {
