@@ -17,9 +17,8 @@
  * under the License.
  */
 
-package gobblin.eventhub.writer;
+package gobblin.writer;
 import gobblin.annotation.Alpha;
-import gobblin.writer.Batch;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -30,14 +29,14 @@ import java.util.List;
  * For now we are using LinkedList as our internal memory storage
  */
 @Alpha
-public class EventhubBatch extends Batch<String>{
+public class SizeBoundAndTTLBasedBatch<D> extends Batch<D>{
   private RecordMemory memory;
   private final long creationTimestamp;
   private final long memSizeLimit;
   private final long ttlInMilliSeconds;
   public static final int OVERHEAD_SIZE_IN_BYTES = 15;
 
-  public EventhubBatch (long memSizeLimit, long ttlInMilliSeconds) {
+  public SizeBoundAndTTLBasedBatch(long memSizeLimit, long ttlInMilliSeconds) {
     this.creationTimestamp = System.currentTimeMillis();
     this.memory = new RecordMemory();
     this.memSizeLimit = memSizeLimit;
@@ -48,12 +47,12 @@ public class EventhubBatch extends Batch<String>{
     return (System.currentTimeMillis() - creationTimestamp) >= ttlInMilliSeconds;
   }
 
-  private long getInternalSize(String record) {
-    return record.length() + this.OVERHEAD_SIZE_IN_BYTES;
+  private long getInternalSize(D record) {
+    return (record).toString().length() + this.OVERHEAD_SIZE_IN_BYTES;
   }
 
   public  class RecordMemory {
-    private List<String> records;
+    private List<D> records;
     private long byteSize;
 
     public RecordMemory () {
@@ -61,39 +60,39 @@ public class EventhubBatch extends Batch<String>{
       records = new LinkedList<>();
     }
 
-    void append (String record) {
-      byteSize += EventhubBatch.this.getInternalSize(record);
+    void append (D record) {
+      byteSize += SizeBoundAndTTLBasedBatch.this.getInternalSize(record);
       records.add(record);
     }
 
-    boolean hasRoom (String record) {
-      long recordLen = EventhubBatch.this.getInternalSize(record);
-      return (byteSize + recordLen) <= EventhubBatch.this.memSizeLimit;
+    boolean hasRoom (D record) {
+      long recordLen = SizeBoundAndTTLBasedBatch.this.getInternalSize(record);
+      return (byteSize + recordLen) <= SizeBoundAndTTLBasedBatch.this.memSizeLimit;
     }
 
     long getByteSize() {
       return byteSize;
     }
 
-    List<String> getRecords() {
+    List<D> getRecords() {
       return records;
     }
   }
 
-  public List<String> getRecords() {
+  public List<D> getRecords() {
     return memory.getRecords();
   }
 
-  public boolean hasRoom(String object) {
+  public boolean hasRoom (D object) {
     return memory.hasRoom(object);
   }
 
-  public void append(String object) {
+  public void append (D object) {
      memory.append(object);
   }
 
-  public int getRecordSizeInByte (String record) {
-    return record.length();
+  public int getRecordSizeInByte (D record) {
+    return (record).toString().length();
   }
 
   public long getCurrentSizeInByte() {
