@@ -78,7 +78,7 @@ Essentially, the system provides a mapping from a config key to a config object.
 
 A config key K can import one or more config keys I1, I2, ... . The config key K will inherit any properties from I1, I2, … that are not defined in K. The inheritance is resolved in the order of the keys I1, I2, … etc., i.e. the property will be resolved to the value in the last one that defines the property. This is similar to including configs in typesafe config. We will refer to resulting configuration as own config (object) and denote it though the function resolved_config(K, property_name) = property_value .
 
-We also use the path in the config key URI for implicit tagging. For example, `/data/tracking/TOPIC` implicitly imports `/data/tracking/`, which implicitly imports `/data/` which implicitly imports `/`. Note that all these URI are considered as config Key so their path level implicitly indicates importation. For a given config key, all implicit imports are before the explicit imports, i.e. they have lower priority in resolution.
+We also use the path in the config key URI for implicit tagging. For example, `/data/tracking/TOPIC` implicitly imports `/data/tracking/`, which implicitly imports `/data/` which implicitly imports `/`. Note that all these URI are considered as config Key so their path level implicitly indicates importation. For a given config key, all implicit imports are before the explicit imports, i.e. they have lower priority in resolution. Typical use case for this implicit importation can be a global default configuration file in root path applied to all files under it. Files in this root path can have their own setting overriding the default value inherited from root path's file. 
  
 **Tags**
 
