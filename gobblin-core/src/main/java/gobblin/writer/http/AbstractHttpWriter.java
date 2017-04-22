@@ -46,7 +46,10 @@ import gobblin.util.ExecutorsUtils;
 
 /**
  * Base class for HTTP writers. Defines the main extension points for different implementations.
+ *
+ * @deprecated Please use {@link HttpWriterBase}
  */
+@Deprecated
 public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> implements HttpWriterDecoration<D> {
 
   // Immutable state
@@ -103,7 +106,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
     this.client.close();
     ExecutorsUtils.shutdownExecutorService(this.singleThreadPool, Optional.of(log));
   }
- 
+
   /**
    * {@inheritDoc}
    */
@@ -112,7 +115,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
     cleanup();
     super.close();
   }
-  
+
   /**
    * {@inheritDoc}
    */

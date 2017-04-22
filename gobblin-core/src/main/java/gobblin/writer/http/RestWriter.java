@@ -28,7 +28,10 @@ import gobblin.converter.http.RestEntry;
 
 /**
  * Writes via RESTful API that accepts plain text as a body and resource path from RestEntry
+ *
+ * @deprecated Please use {@link RecordSyncHttpWriter}
  */
+@Deprecated
 public class RestWriter extends HttpWriter<RestEntry<String>> {
 
   public RestWriter(RestWriterBuilder builder) {

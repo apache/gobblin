@@ -38,7 +38,10 @@ import lombok.Getter;
 /**
  * Builder class that builds SalesForceRestWriter where it takes connection related parameter and type of operation along with the parameters
  * derived from AbstractHttpWriterBuilder
+ *
+ * @deprecated Please use {@link SalesforceWriterBuilder}
  */
+@Deprecated
 @Getter
 public class SalesForceRestWriterBuilder extends AbstractHttpWriterBuilder<Void, RestEntry<JsonObject>, SalesForceRestWriterBuilder>{
 

@@ -42,6 +42,10 @@ import gobblin.writer.FluentDataWriterBuilder;
 
 import lombok.Getter;
 
+/**
+ * @deprecated Please use {@link HttpWriterBaseBuilder}
+ */
+@Deprecated
 @Getter
 public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWriterBuilder<S, D, B>>
     extends FluentDataWriterBuilder<S, D, B> {
