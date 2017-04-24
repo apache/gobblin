@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Lists;
+import gobblin.compaction.dataset.DatasetHelper;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -228,40 +230,69 @@ public class MRCompactorJobPropCreator {
     } else {
       Set<Path> newDataFiles = new HashSet<>();
 
-      if (renameSourceDirEnabled) {
-        Set<Path> newUnrenamedDirs = MRCompactor.getDeepestLevelUnrenamedDirsWithFileExistence(this.fs, dataset.inputPaths());
-        if (newUnrenamedDirs.isEmpty()) {
-          LOG.info ("[{}] doesn't have unprocessed directories", dataset.getDatasetName());
-          return Optional.absent();
-        }
-        Set<Path> allFiles = getAllFilePathsRecursively(newUnrenamedDirs);
-        if (allFiles.isEmpty()) {
-          LOG.info ("[{}] has unprocessed directories but all empty: {}", dataset.getDatasetName(), newUnrenamedDirs);
-          return Optional.absent();
-        }
+      do {
+        if (renameSourceDirEnabled) {
+          Set<Path> newUnrenamedDirs = MRCompactor.getDeepestLevelUnrenamedDirsWithFileExistence(this.fs, dataset.inputPaths());
+          if (newUnrenamedDirs.isEmpty()) {
+            LOG.info("[{}] doesn't have unprocessed directories", dataset.getDatasetName());
+            break;
+          }
+          Set<Path> allFiles = getAllFilePathsRecursively(newUnrenamedDirs);
+          if (allFiles.isEmpty()) {
+            LOG.info("[{}] has unprocessed directories but all empty: {}", dataset.getDatasetName(), newUnrenamedDirs);
+            break;
+          }
 
-        dataset.setRenamePaths(newUnrenamedDirs);
-        newDataFiles.addAll(allFiles);
-        LOG.info ("[{}] has unprocessed directories: {}", dataset.getDatasetName(), newUnrenamedDirs);
+          dataset.setRenamePaths(newUnrenamedDirs);
+          newDataFiles.addAll(allFiles);
+          LOG.info("[{}] has unprocessed directories: {}", dataset.getDatasetName(), newUnrenamedDirs);
+        } else {
+          newDataFiles = getNewDataInFolder(dataset.inputPaths(), dataset.outputPath());
+          Set<Path> newDataFilesInLatePath = getNewDataInFolder(dataset.inputLatePaths(), dataset.outputPath());
+          newDataFiles.addAll(newDataFilesInLatePath);
+          if (newDataFiles.isEmpty()) {
+            break;
+          }
+          if (!newDataFilesInLatePath.isEmpty()) {
+            dataset.addAdditionalInputPaths(dataset.inputLatePaths());
+          }
+        }
+      } while (false);
+
+      if (newDataFiles.isEmpty()) {
+        // Although no new data come in, it is needed to check if late directory has remaining data for two reasons:
+        // 1) Previous compaction job may move data to the late directory but haven't compacted them before a job is killed or timed out.
+        // 2) Provide a chance to look at if late data has been existed too long, so the recompact condition will be set.
+        // When late data exists and it is required to move, we modify the dataset state to recompact state so only
+        // re-compaction flow will run.
+        if (isOutputLateDataExists (dataset)) {
+          LOG.info ("{} don't have new data, but previous late data still remains, check if it requires to move", dataset.getDatasetName());
+          dataset.setJobProps(jobProps);
+          dataset.checkIfNeedToRecompact(new DatasetHelper(dataset, this.fs, Lists.newArrayList("avro")));
+          if (dataset.needToRecompact()) {
+            MRCompactor.modifyDatasetStateToRecompact (dataset);
+          } else {
+            return Optional.absent();
+          }
+        } else {
+          return Optional.absent();
+        }
       } else {
-        newDataFiles = getNewDataInFolder(dataset.inputPaths(), dataset.outputPath());
-        Set<Path> newDataFilesInLatePath = getNewDataInFolder(dataset.inputLatePaths(), dataset.outputPath());
-        newDataFiles.addAll(newDataFilesInLatePath);
-        if (newDataFiles.isEmpty()) {
-          return Optional.absent();
-        }
-        if (!newDataFilesInLatePath.isEmpty()) {
-          dataset.addAdditionalInputPaths(dataset.inputLatePaths());
-        }
+        LOG.info(String.format("Will copy %d new data files for %s", newDataFiles.size(), dataset.outputPath()));
+        jobProps.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, true);
+        jobProps.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_FILES, Joiner.on(",").join(newDataFiles));
       }
-
-      LOG.info(String.format("Will copy %d new data files for %s", newDataFiles.size(), dataset.outputPath()));
-      jobProps.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, true);
-      jobProps.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_FILES, Joiner.on(",").join(newDataFiles));
     }
 
     dataset.setJobProps(jobProps);
     return Optional.of(dataset);
+  }
+
+  private boolean isOutputLateDataExists (Dataset dataset) throws IOException {
+    if (!this.fs.exists(dataset.outputLatePath())) {
+      return false;
+    }
+    return this.fs.listStatus(dataset.outputLatePath()).length > 0;
   }
 
   private Set<Path> getNewDataInFolder(Set<Path> inputFolders, Path outputFolder) throws IOException {

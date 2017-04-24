@@ -329,7 +329,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
           String targetFileName = convertedFilePath.getName();
           Path outPath = MRCompactorJobRunner.this.lateOutputRecordCountProvider.constructLateFilePath(targetFileName,
               MRCompactorJobRunner.this.fs, outputDirectory);
-          HadoopUtils.copyPath(MRCompactorJobRunner.this.fs, filePath, MRCompactorJobRunner.this.fs, outPath,
+          HadoopUtils.copyPath (MRCompactorJobRunner.this.fs, filePath, MRCompactorJobRunner.this.fs, outPath, true,
               MRCompactorJobRunner.this.fs.getConf());
           LOG.debug(String.format("Copied %s to %s.", filePath, outPath));
           return null;
