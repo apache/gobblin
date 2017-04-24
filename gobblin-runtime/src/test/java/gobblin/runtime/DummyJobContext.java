@@ -18,6 +18,7 @@
 package gobblin.runtime;
 
 import com.typesafe.config.Config;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
@@ -44,8 +45,8 @@ public class DummyJobContext extends JobContext {
 
   public DummyJobContext(Properties jobProps, Logger logger, Map<String, JobState.DatasetState> datasetStateMap)
       throws Exception {
-    super(jobProps, logger, SharedResourcesBrokerFactory.createDefaultTopLevelBroker(ConfigFactory.empty(),
-        GobblinScopeTypes.GLOBAL.defaultScopeInstance()));
+    super(jobProps, logger, SharedResourcesBrokerFactory
+        .createDefaultTopLevelBroker(ConfigFactory.empty(), GobblinScopeTypes.GLOBAL.defaultScopeInstance()));
     this.datasetStateMap = datasetStateMap;
   }
 
@@ -78,7 +79,7 @@ public class DummyJobContext extends JobContext {
   }
 
   @Override
-  protected Callable<Void> createSafeDatasetCommit(boolean shouldCommitDataInJob,
+  protected Callable<Void> createSafeDatasetCommit(boolean shouldCommitDataInJob, boolean isJobCancelled,
       DeliverySemantics deliverySemantics, String datasetUrn, JobState.DatasetState datasetState,
       boolean isMultithreaded, JobContext jobContext) {
     return new Callable<Void>() {

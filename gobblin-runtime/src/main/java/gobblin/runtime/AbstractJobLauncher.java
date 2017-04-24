@@ -44,8 +44,8 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.SharedResourcesBrokerFactory;
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.commit.CommitSequence;
 import gobblin.commit.CommitSequenceStore;
@@ -69,6 +69,7 @@ import gobblin.runtime.locks.JobLockEventListener;
 import gobblin.runtime.locks.JobLockException;
 import gobblin.runtime.locks.LegacyJobLockFactoryManager;
 import gobblin.runtime.util.JobMetrics;
+import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ClusterNameTags;
@@ -134,7 +135,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // A list of JobListeners that will be injected into the user provided JobListener
   private final List<JobListener> mandatoryJobListeners = Lists.newArrayList();
 
-  public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags) throws Exception {
+  public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
+      throws Exception {
     this(jobProps, metadataTags, null);
   }
 
@@ -154,9 +156,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.jobProps.putAll(jobProps);
 
     if (!tryLockJob(this.jobProps)) {
-      throw new JobException(String.format(
-          "Previous instance of job %s is still running, skipping this scheduled run",
-          this.jobProps .getProperty(ConfigurationKeys.JOB_NAME_KEY)));
+      throw new JobException(String.format("Previous instance of job %s is still running, skipping this scheduled run",
+          this.jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)));
     }
 
     try {
@@ -192,7 +193,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   private static SharedResourcesBroker<GobblinScopeTypes> createDefaultInstanceBroker(Properties jobProps) {
-    LOG.warn("Creating a job specific {}. Objects will only be shared at the job level.", SharedResourcesBroker.class.getSimpleName());
+    LOG.warn("Creating a job specific {}. Objects will only be shared at the job level.",
+        SharedResourcesBroker.class.getSimpleName());
     return SharedResourcesBrokerFactory.createDefaultTopLevelBroker(ConfigFactory.parseProperties(jobProps),
         GobblinScopeTypes.GLOBAL.defaultScopeInstance());
   }
@@ -245,7 +247,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           // Wait for the cancellation to be executed
           this.cancellationExecution.wait();
         }
+
         try {
+          LOG.info("Current job state is: " + this.jobContext.getJobState().getState());
+          if (this.jobContext.getJobState().getState() != JobState.RunningState.COMMITTED && (
+              this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS
+                  || this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS)) {
+            this.jobContext.finalizeJobStateBeforeCommit();
+            this.jobContext.commit(true);
+          }
           this.jobContext.close();
         } catch (IOException ioe) {
           LOG.error("Could not close job context.", ioe);
@@ -297,8 +307,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         return !skippedWorkUnits.contains(workUnit);
       }
     };
-    return Optional.fromNullable((List<WorkUnit>) (ImmutableList.<WorkUnit>builder().addAll(
-        Collections2.filter(workUnits.get(), executableWorkUnit)).build()));
+    return Optional.fromNullable((List<WorkUnit>) (ImmutableList.<WorkUnit>builder()
+        .addAll(Collections2.filter(workUnits.get(), executableWorkUnit)).build()));
   }
 
   @Override
@@ -430,8 +440,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
           // Write job execution info to the job history store upon job termination
           this.jobContext.storeJobExecutionInfo();
-        }
-        finally {
+        } finally {
           launchJobTimer.stop();
         }
       }
@@ -518,7 +527,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
     } finally {
-        unlockJob();
+      unlockJob();
     }
   }
 
@@ -651,7 +660,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           this.jobLockOptional.get().close();
         } catch (IOException e) {
           LOG.error(String.format("Failed to close job lock for job %s: %s", this.jobContext.getJobId(), e), e);
-
         } finally {
           this.jobLockOptional = Optional.absent();
         }
