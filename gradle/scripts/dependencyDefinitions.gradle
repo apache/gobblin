@@ -106,6 +106,7 @@ ext.externalDependency = [
     "salesforcePartner": "com.force.api:force-partner-api:" + salesforceVersion,
     "scala": "org.scala-lang:scala-library:2.11.8",
     "influxdbJava": "org.influxdb:influxdb-java:2.1",
+    "kryo": "com.esotericsoftware.kryo:kryo:2.22",
     "libthrift":"org.apache.thrift:libthrift:0.9.3",
     "lombok":"org.projectlombok:lombok:1.16.8",
     "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
