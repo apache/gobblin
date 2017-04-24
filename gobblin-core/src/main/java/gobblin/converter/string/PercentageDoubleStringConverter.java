@@ -14,8 +14,11 @@ import gobblin.converter.SingleRecordIterable;
 
 
 /**
- * This converter simply converts double string than ends with % to a validate double number.
+ * This converter converts a string that stands for a percentage number ending with %
+ * to a validate double number as specified by the OutputSchemaType
  * e.g. 99% -> 0.99
+ * 
+ * A detailed example can be found at PercentageDoubleStringConverterTest
  */
 public class PercentageDoubleStringConverter extends Converter<JsonArray, JsonArray, JsonObject, JsonObject> {
   private static final String JSON_KEY_COLUMN_NAME = "columnName";
