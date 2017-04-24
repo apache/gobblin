@@ -25,7 +25,6 @@ import gobblin.configuration.State;
 import gobblin.eventhub.EventhubMetricNames;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
-import gobblin.metrics.MetricNames;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -130,10 +129,10 @@ public class EventhubDataWriter implements SyncDataWriter<String>, BatchAsyncDat
   public EventhubDataWriter(Properties properties) {
     PasswordManager manager = PasswordManager.getInstance(properties);
 
-    namespaceName = properties.getProperty(EventhubWriterConfigurationKeys.EVH_NAMESPACE);
-    eventHubName =  properties.getProperty(EventhubWriterConfigurationKeys.EVH_HUBNAME);
-    sasKeyName = properties.getProperty(EventhubWriterConfigurationKeys.EVH_SAS_KEYNAME);
-    String encodedSasKey = properties.getProperty(EventhubWriterConfigurationKeys.EVH_SAS_KEYVALUE);
+    namespaceName = properties.getProperty(BatchedEventhubDataWriter.EVH_NAMESPACE);
+    eventHubName =  properties.getProperty(BatchedEventhubDataWriter.EVH_HUBNAME);
+    sasKeyName = properties.getProperty(BatchedEventhubDataWriter.EVH_SAS_KEYNAME);
+    String encodedSasKey = properties.getProperty(BatchedEventhubDataWriter.EVH_SAS_KEYVALUE);
     sasKey = manager.readPassword(encodedSasKey);
     targetURI = "https://" + namespaceName + ".servicebus.windows.net/" + eventHubName + "/messages";
     httpclient = HttpClients.createDefault();
