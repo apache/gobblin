@@ -239,6 +239,9 @@ public class GobblinServiceManager implements ApplicationLauncher {
     String helixInstanceName = ConfigUtils.getString(config, ServiceConfigKeys.HELIX_INSTANCE_NAME_KEY,
         GobblinServiceManager.class.getSimpleName());
 
+    LOGGER.info("Creating Helix cluster if not already present [overwrite = false]: " + zkConnectionString);
+    HelixUtils.createGobblinHelixCluster(zkConnectionString, helixClusterName, false);
+
     return HelixUtils.buildHelixManager(helixInstanceName, helixClusterName, zkConnectionString);
   }
 
