@@ -41,6 +41,15 @@ public class WriterOutputFormatIntegrationTest {
     GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
   }
 
+  @Test
+  public void textfileOutputFormatTest()
+      throws Exception {
+    Properties jobProperties = getProperties();
+    jobProperties.setProperty(HiveSerDeWrapper.SERDE_SERIALIZER_TYPE, "TEXTFILE");
+    jobProperties.setProperty(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, "TEXTFILE");
+    GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
+  }
+
   private Properties getProperties()
       throws IOException {
     Properties jobProperties =

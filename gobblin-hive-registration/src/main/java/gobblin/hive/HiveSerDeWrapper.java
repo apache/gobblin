@@ -19,6 +19,7 @@ package gobblin.hive;
 
 import java.io.IOException;
 
+import org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
@@ -29,6 +30,8 @@ import org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat;
 import org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
+import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
+import org.apache.hadoop.mapred.TextInputFormat;
 
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
@@ -65,7 +68,9 @@ public class HiveSerDeWrapper {
         AvroContainerOutputFormat.class.getName()),
     ORC(OrcSerde.class.getName(), OrcInputFormat.class.getName(), OrcOutputFormat.class.getName()),
     PARQUET(ParquetHiveSerDe.class.getName(), MapredParquetInputFormat.class.getName(),
-        MapredParquetOutputFormat.class.getName());
+        MapredParquetOutputFormat.class.getName()),
+    TEXTFILE(LazySimpleSerDe.class.getName(), TextInputFormat.class.getName(),
+        HiveIgnoreKeyTextOutputFormat.class.getName());
 
     private final String serDeClassName;
     private final String inputFormatClassName;
@@ -161,7 +166,6 @@ public class HiveSerDeWrapper {
    *
    * @param state The state should contain property {@link #SERDE_SERIALIZER_TYPE}, and optionally contain properties
    * {@link #SERDE_SERIALIZER_INPUT_FORMAT_TYPE}, {@link #SERDE_SERIALIZER_OUTPUT_FORMAT_TYPE} and
-   * {@link #SERDE_SERIALIZER_FILE_EXTENSION}.
    */
   public static HiveSerDeWrapper getSerializer(State state) {
     Preconditions.checkArgument(state.contains(SERDE_SERIALIZER_TYPE),
@@ -176,7 +180,6 @@ public class HiveSerDeWrapper {
    *
    * @param state The state should contain property {@link #SERDE_DESERIALIZER_TYPE}, and optionally contain properties
    * {@link #SERDE_DESERIALIZER_INPUT_FORMAT_TYPE}, {@link #SERDE_DESERIALIZER_OUTPUT_FORMAT_TYPE} and
-   * {@link #SERDE_DESERIALIZER_FILE_EXTENSION}.
    */
   public static HiveSerDeWrapper getDeserializer(State state) {
     Preconditions.checkArgument(state.contains(SERDE_DESERIALIZER_TYPE),
