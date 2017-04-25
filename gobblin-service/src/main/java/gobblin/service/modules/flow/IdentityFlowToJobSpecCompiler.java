@@ -124,6 +124,16 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
     jobSpec.setConfig(jobSpec.getConfig()
         .withValue(ConfigurationKeys.JOB_SCHEDULE_KEY, ConfigValueFactory.fromAnyRef("")));
 
+    // Add job.name and job.group
+    if (flowSpec.getConfig().hasPath(ConfigurationKeys.FLOW_NAME_KEY)) {
+      jobSpec.setConfig(jobSpec.getConfig()
+          .withValue(ConfigurationKeys.JOB_NAME_KEY, flowSpec.getConfig().getValue(ConfigurationKeys.FLOW_NAME_KEY)));
+    }
+    if (flowSpec.getConfig().hasPath(ConfigurationKeys.FLOW_GROUP_KEY)) {
+      jobSpec.setConfig(jobSpec.getConfig()
+          .withValue(ConfigurationKeys.JOB_GROUP_KEY, flowSpec.getConfig().getValue(ConfigurationKeys.FLOW_GROUP_KEY)));
+    }
+
     for (TopologySpec topologySpec : topologySpecMap.values()) {
       try {
         Map<String, String> capabilities = (Map<String, String>) topologySpec.getSpecExecutorInstanceProducer().getCapabilities().get();
