@@ -73,6 +73,11 @@ task testJar(type: Jar, dependsOn: testClasses) {
   from sourceSets.test.output
 }
 
+// This line is added as a work around to fix a bug. Without this line, the build
+// might fail intermittently with a 'Could not find property mavenDeployer' error.
+// More details: check TOOLS-123257
+tasks.remove(tasks.uploadShadow)
+
 // create a single Jar with all dependencies
 shadowJar {
   zip64 true
