@@ -126,12 +126,16 @@ public class IdentityFlowToJobSpecCompilerTest {
   }
 
   private FlowSpec initFlowSpec() {
+    return initFlowSpec(TEST_FLOW_GROUP, TEST_FLOW_NAME, TEST_SOURCE_NAME, TEST_SINK_NAME);
+  }
+
+  private FlowSpec initFlowSpec(String flowGroup, String flowName, String source, String destination) {
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.JOB_SCHEDULE_KEY, "* * * * *");
-    properties.put(ConfigurationKeys.FLOW_GROUP_KEY, TEST_FLOW_GROUP);
-    properties.put(ConfigurationKeys.FLOW_NAME_KEY, TEST_FLOW_NAME);
-    properties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
-    properties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
+    properties.put(ConfigurationKeys.FLOW_GROUP_KEY, flowGroup);
+    properties.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
+    properties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, source);
+    properties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, destination);
     Config config = ConfigUtils.propertiesToConfig(properties);
 
     FlowSpec.Builder flowSpecBuilder = null;
@@ -231,5 +235,17 @@ public class IdentityFlowToJobSpecCompilerTest {
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.JOB_GROUP_KEY), TEST_FLOW_GROUP);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), TEST_FLOW_NAME);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), TEST_FLOW_GROUP);
+  }
+
+  @Test
+  public void testNoJobSpecCompilation() {
+    FlowSpec flowSpec = initFlowSpec(TEST_FLOW_GROUP, TEST_FLOW_NAME, "unsupportedSource", "unsupportedSink");
+
+    // Run compiler on flowSpec
+    Map<Spec, SpecExecutorInstanceProducer> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
+
+    // Assert pre-requisites
+    Assert.assertNotNull(specExecutorMapping, "Expected non null mapping.");
+    Assert.assertTrue(specExecutorMapping.size() == 0, "Exepected 1 executor for FlowSpec.");
   }
 }
