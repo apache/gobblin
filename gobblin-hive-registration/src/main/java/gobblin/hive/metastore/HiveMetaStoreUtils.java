@@ -119,6 +119,9 @@ public class HiveMetaStoreUtils {
             propValue + " is not a valid Hive table/partition property");
         table.getParameters().put(tokens.get(0), tokens.get(1));
       }
+      if (table.getParameters().containsKey(RUNTIME_PROPS)) {
+        table.getParameters().remove(RUNTIME_PROPS);
+      }
     }
     table.setPartitionKeys(getFieldSchemas(hiveTable.getPartitionKeys()));
     table.setSd(getStorageDescriptor(hiveTable));
