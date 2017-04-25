@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
+import gobblin.writer.*;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -33,20 +34,15 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.writer.BufferedAsyncDataWriter;
-import gobblin.writer.RecordMetadata;
-import gobblin.writer.WriteCallback;
-import gobblin.writer.WriteResponse;
-
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.*;
 
 
-public class BufferedAsyncDataWriterTest {
+public class BatchedEventhubDataWriterTest {
 
   private CloseableHttpClient mockHttpClient;
 
-  public BufferedAsyncDataWriterTest() throws IOException{
+  public BatchedEventhubDataWriterTest() throws IOException{
     // mock httpclient
     CloseableHttpResponse mockHttpResponse = mock(CloseableHttpResponse.class);
     mockHttpClient = mock(CloseableHttpClient.class);
@@ -64,13 +60,13 @@ public class BufferedAsyncDataWriterTest {
     // mock buffered async data writer
     Properties props = new Properties();
     EventhubDataWriter eventhubDataWriter = Mockito.spy(new EventhubDataWriter(props, mockHttpClient));
-    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator();
-    BufferedAsyncDataWriter dataWriter = new BufferedAsyncDataWriter(accumulator, eventhubDataWriter);
+    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(props);
+    BatchedEventhubDataWriter dataWriter = new BatchedEventhubDataWriter (accumulator, eventhubDataWriter);
     Mockito.doNothing().when(eventhubDataWriter).refreshSignature();
 
     // mock record and callback
     WriteCallback callback = mock(WriteCallback.class);
-    List<Future<RecordMetadata>> futures = new LinkedList<>();
+    List<Future<WriteResponse>> futures = new LinkedList<>();
 
     int totalTimes = 500;
     try {

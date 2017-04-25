@@ -1,13 +1,13 @@
 package gobblin.eventhub.writer;
 
+import gobblin.writer.BufferedAsyncDataWriter;
+
 /**
- * Configuration keys for a Eventhub.
+ * A batch writer for eventhub, composed by {@link EventhubBatchAccumulator} and {@link EventhubDataWriter}
+ * {@link EventhubBatchAccumulator} provides a buffer to store pending records
+ * {@link EventhubDataWriter} is the actual writer ships data to eventhub
  */
-
-
-public class EventhubWriterConfigurationKeys {
-
-    /** Writer specific configuration keys go here **/
+public class BatchedEventhubDataWriter extends BufferedAsyncDataWriter<String> {
 
   public static final String COMMIT_TIMEOUT_MILLIS_CONFIG = "writer.eventhub.commitTimeoutMillis";
   public static final long   COMMIT_TIMEOUT_MILLIS_DEFAULT = 60000; // 1 minute
@@ -16,15 +16,12 @@ public class EventhubWriterConfigurationKeys {
   public static final String FAILURE_ALLOWANCE_PCT_CONFIG = "writer.eventhub.failureAllowancePercentage";
   public static final double FAILURE_ALLOWANCE_PCT_DEFAULT = 20.0;
 
-  public static final String BATCH_TTL = "writer.eventhub.batch.ttl";
-  public static final long   BATCH_TTL_DEFAULT = 1000; // 1 seconds
-  public static final String BATCH_SIZE = "writer.eventhub.batch.size";
-  public static final long   BATCH_SIZE_DEFAULT = 256 * 1024; // 256KB
-  public static final String BATCH_QUEUE_CAPACITY = "writer.eventhub.batch.queue.capacity";
-  public static final long   BATCH_QUEUE_CAPACITY_DEFAULT = 100;
-
   public final static String  EVH_NAMESPACE = "eventhub.namespace";
   public final static String  EVH_HUBNAME = "eventhub.hubname";
   public final static String  EVH_SAS_KEYNAME = "eventhub.sas.keyname";
   public final static String  EVH_SAS_KEYVALUE = "eventhub.sas.keyvalue";
+
+  public BatchedEventhubDataWriter (EventhubBatchAccumulator accumulator, EventhubDataWriter dataWriter) {
+    super (accumulator, dataWriter);
+  }
 }

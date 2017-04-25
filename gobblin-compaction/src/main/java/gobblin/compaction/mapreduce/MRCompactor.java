@@ -894,6 +894,16 @@ public class MRCompactor implements Compactor {
     }
   }
 
+  public static void modifyDatasetStateToRecompact (Dataset dataset) {
+    // Modify the dataset for recompaction
+    LOG.info ("{} changes to recompact mode", dataset.getDatasetName());
+    State recompactState = new State();
+    recompactState.setProp(MRCompactor.COMPACTION_RECOMPACT_FROM_DEST_PATHS, Boolean.TRUE);
+    recompactState.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, Boolean.FALSE);
+    dataset.modifyDatasetForRecompact(recompactState);
+    dataset.setState(VERIFIED);
+  }
+
   /**
    * A subclass of {@link ThreadPoolExecutor} for running compaction jobs, and performs necessary steps
    * after each compaction job finishes.
@@ -924,12 +934,7 @@ public class MRCompactor implements Compactor {
       if (t == null) {
         if (jobRunner.status() == COMMITTED) {
           if (jobRunner.getDataset().needToRecompact()) {
-            // Modify the dataset for recompaction
-            State recompactState = new State();
-            recompactState.setProp(MRCompactor.COMPACTION_RECOMPACT_FROM_DEST_PATHS, Boolean.TRUE);
-            recompactState.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, Boolean.FALSE);
-            jobRunner.getDataset().modifyDatasetForRecompact(recompactState);
-            jobRunner.getDataset().setState(VERIFIED);
+            modifyDatasetStateToRecompact (jobRunner.getDataset());
           } else {
             // Set the dataset status to COMPACTION_COMPLETE if compaction is successful.
             jobRunner.getDataset().setState(COMPACTION_COMPLETE);

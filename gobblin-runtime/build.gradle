@@ -82,6 +82,7 @@ dependencies {
   compile externalDependency.guavaretrying
   compile externalDependency.hiveExec
   compile externalDependency.parquet
+  compile externalDependency.kryo
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile externalDependency.calciteCore

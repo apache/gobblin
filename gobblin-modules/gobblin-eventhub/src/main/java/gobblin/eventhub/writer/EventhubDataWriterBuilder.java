@@ -44,8 +44,8 @@ public class EventhubDataWriterBuilder extends DataWriterBuilder {
   public AsyncDataWriter getAsyncDataWriter(Properties properties) {
     EventhubDataWriter eventhubDataWriter = new EventhubDataWriter(properties);
     EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(properties);
-    BufferedAsyncDataWriter bufferedAsyncDataWriter= new BufferedAsyncDataWriter(accumulator, eventhubDataWriter);
-    return bufferedAsyncDataWriter;
+    BatchedEventhubDataWriter batchedEventhubDataWriter = new BatchedEventhubDataWriter(accumulator, eventhubDataWriter);
+    return batchedEventhubDataWriter;
   }
 
     @Override
@@ -54,12 +54,12 @@ public class EventhubDataWriterBuilder extends DataWriterBuilder {
       State state = this.destination.getProperties();
       Properties taskProps = state.getProperties();
       Config config = ConfigUtils.propertiesToConfig(taskProps);
-      long commitTimeoutMillis = ConfigUtils.getLong(config, EventhubWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG,
-          EventhubWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_DEFAULT);
-      long commitStepWaitTimeMillis = ConfigUtils.getLong(config, EventhubWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_CONFIG,
-          EventhubWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_DEFAULT);
-      double failureAllowance = ConfigUtils.getDouble(config, EventhubWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_CONFIG,
-          EventhubWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_DEFAULT) / 100.0;
+      long commitTimeoutMillis = ConfigUtils.getLong(config, BatchedEventhubDataWriter.COMMIT_TIMEOUT_MILLIS_CONFIG,
+              BatchedEventhubDataWriter.COMMIT_TIMEOUT_MILLIS_DEFAULT);
+      long commitStepWaitTimeMillis = ConfigUtils.getLong(config, BatchedEventhubDataWriter.COMMIT_STEP_WAIT_TIME_CONFIG,
+              BatchedEventhubDataWriter.COMMIT_STEP_WAIT_TIME_DEFAULT);
+      double failureAllowance = ConfigUtils.getDouble(config, BatchedEventhubDataWriter.FAILURE_ALLOWANCE_PCT_CONFIG,
+              BatchedEventhubDataWriter.FAILURE_ALLOWANCE_PCT_DEFAULT) / 100.0;
 
       return AsyncWriterManager.builder()
           .config(config)

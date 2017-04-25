@@ -3,6 +3,7 @@ package gobblin.eventhub.writer;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
+import gobblin.writer.SequentialBasedBatchAccumulator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import gobblin.writer.WriteCallback;
@@ -14,7 +15,7 @@ public class EventhubAccumulatorTest {
 
   @Test
   public void testAccumulatorEmpty() throws IOException, InterruptedException{
-    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
+    SequentialBasedBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
 
     // Spawn a new thread to add new batches
     (new Thread(new AddBatchThread(accumulator))).start();
@@ -32,7 +33,7 @@ public class EventhubAccumulatorTest {
 
   @Test
   public void testAccumulatorCapacity () throws IOException, InterruptedException {
-    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
+    SequentialBasedBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
     StringBuffer buffer = new StringBuffer();
     for (int i = 0; i < 40; ++i) {
       buffer.append('a');
@@ -58,7 +59,7 @@ public class EventhubAccumulatorTest {
 
   @Test
   public void testCloseBeforeAwait () throws IOException, InterruptedException {
-    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
+    SequentialBasedBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
     (new Thread(new CloseAccumulatorThread(accumulator))).start();
     Thread.sleep(1000);
 
@@ -67,7 +68,7 @@ public class EventhubAccumulatorTest {
 
   @Test
   public void testCloseAfterAwait () throws IOException, InterruptedException {
-    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
+    SequentialBasedBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 1000, 5);
     (new Thread(new CloseAccumulatorThread(accumulator))).start();
 
     // this thread should be blocked and waked up by spawned thread
@@ -76,7 +77,7 @@ public class EventhubAccumulatorTest {
 
   @Test
   public void testClose () throws IOException, InterruptedException {
-    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 3000, 5);
+    SequentialBasedBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 3000, 5);
     StringBuffer buffer = new StringBuffer();
     for (int i = 0; i < 40; ++i) {
       buffer.append('a');
@@ -103,7 +104,7 @@ public class EventhubAccumulatorTest {
 
   @Test
   public void testExpiredBatch () throws IOException, InterruptedException {
-    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 3000, 5);
+    SequentialBasedBatchAccumulator accumulator = new EventhubBatchAccumulator(64, 3000, 5);
     String record = "1";
     accumulator.append(record, WriteCallback.EMPTY);
     Assert.assertNull(accumulator.getNextAvailableBatch());
@@ -112,8 +113,8 @@ public class EventhubAccumulatorTest {
   }
 
   public class CloseAccumulatorThread implements Runnable {
-    EventhubBatchAccumulator accumulator;
-    public CloseAccumulatorThread (EventhubBatchAccumulator accumulator) {
+    SequentialBasedBatchAccumulator accumulator;
+    public CloseAccumulatorThread (SequentialBasedBatchAccumulator accumulator) {
       this.accumulator = accumulator;
     }
     public void run() {
@@ -126,8 +127,8 @@ public class EventhubAccumulatorTest {
   }
 
   public class RemoveBatchThread implements Runnable {
-    EventhubBatchAccumulator accumulator;
-    public RemoveBatchThread (EventhubBatchAccumulator accumulator) {
+    SequentialBasedBatchAccumulator accumulator;
+    public RemoveBatchThread (SequentialBasedBatchAccumulator accumulator) {
       this.accumulator = accumulator;
     }
     public void run() {
@@ -143,8 +144,8 @@ public class EventhubAccumulatorTest {
   }
 
   public class AddBatchThread implements Runnable {
-    EventhubBatchAccumulator accumulator;
-    public AddBatchThread (EventhubBatchAccumulator accumulator) {
+    SequentialBasedBatchAccumulator accumulator;
+    public AddBatchThread (SequentialBasedBatchAccumulator accumulator) {
       this.accumulator = accumulator;
     }
     public void run() {
