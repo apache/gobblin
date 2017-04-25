@@ -158,7 +158,7 @@ public class Orchestrator implements SpecCatalogListener {
           producer.addSpec(jobSpec);
         } catch(Exception e) {
           _log.error("Cannot successfully setup spec: " + specsToExecute.getKey() + " on executor: " + producer +
-            " for flow: " + spec);
+            " for flow: " + spec, e);
         }
       }
     } else {
