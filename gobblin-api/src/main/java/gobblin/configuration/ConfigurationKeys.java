@@ -117,6 +117,7 @@ public class ConfigurationKeys {
   public static final String FLOW_NAME_KEY = "flow.name";
   public static final String FLOW_GROUP_KEY = "flow.group";
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
+  public static final String FLOW_EXECUTION_ID_KEY = "flow.executionId";
 
   /**
    * Common topology configuration properties.
