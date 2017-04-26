@@ -50,7 +50,8 @@ import lombok.extern.slf4j.Slf4j;
 public class JobContextTest {
 
   @Test
-  public void testNonParallelCommit() throws Exception {
+  public void testNonParallelCommit()
+      throws Exception {
 
     Properties jobProps = new Properties();
 
@@ -65,12 +66,13 @@ public class JobContextTest {
 
     final BlockingQueue<ControllableCallable<Void>> callables = Queues.newLinkedBlockingQueue();
 
-    final JobContext jobContext = new ControllableCommitJobContext(jobProps, log, datasetStateMap, new Predicate<String>() {
-      @Override
-      public boolean apply(@Nullable String input) {
-        return true;
-      }
-    }, callables);
+    final JobContext jobContext =
+        new ControllableCommitJobContext(jobProps, log, datasetStateMap, new Predicate<String>() {
+          @Override
+          public boolean apply(@Nullable String input) {
+            return true;
+          }
+        }, callables);
 
     ExecutorService executorService = Executors.newSingleThreadExecutor();
     Future future = executorService.submit(new Runnable() {
@@ -103,7 +105,8 @@ public class JobContextTest {
   }
 
   @Test
-  public void testParallelCommit() throws Exception {
+  public void testParallelCommit()
+      throws Exception {
 
     Properties jobProps = new Properties();
 
@@ -119,12 +122,13 @@ public class JobContextTest {
 
     final BlockingQueue<ControllableCallable<Void>> callables = Queues.newLinkedBlockingQueue();
 
-    final JobContext jobContext = new ControllableCommitJobContext(jobProps, log, datasetStateMap, new Predicate<String>() {
-      @Override
-      public boolean apply(@Nullable String input) {
-        return true;
-      }
-    }, callables);
+    final JobContext jobContext =
+        new ControllableCommitJobContext(jobProps, log, datasetStateMap, new Predicate<String>() {
+          @Override
+          public boolean apply(@Nullable String input) {
+            return true;
+          }
+        }, callables);
 
     ExecutorService executorService = Executors.newSingleThreadExecutor();
     Future future = executorService.submit(new Runnable() {
@@ -157,7 +161,8 @@ public class JobContextTest {
   }
 
   @Test
-  public void testSingleExceptionSemantics() throws Exception {
+  public void testSingleExceptionSemantics()
+      throws Exception {
 
     Properties jobProps = new Properties();
 
@@ -173,12 +178,13 @@ public class JobContextTest {
     final BlockingQueue<ControllableCallable<Void>> callables = Queues.newLinkedBlockingQueue();
 
     // There are three datasets, "0", "1", and "2", middle one will fail
-    final JobContext jobContext = new ControllableCommitJobContext(jobProps, log, datasetStateMap, new Predicate<String>() {
-      @Override
-      public boolean apply(@Nullable String input) {
-        return !input.equals("1");
-      }
-    }, callables);
+    final JobContext jobContext =
+        new ControllableCommitJobContext(jobProps, log, datasetStateMap, new Predicate<String>() {
+          @Override
+          public boolean apply(@Nullable String input) {
+            return !input.equals("1");
+          }
+        }, callables);
 
     ExecutorService executorService = Executors.newSingleThreadExecutor();
     Future future = executorService.submit(new Runnable() {
@@ -257,7 +263,7 @@ public class JobContextTest {
     }
 
     @Override
-    protected Callable<Void> createSafeDatasetCommit(boolean shouldCommitDataInJob,
+    protected Callable<Void> createSafeDatasetCommit(boolean shouldCommitDataInJob, boolean isJobCancelled,
         DeliverySemantics deliverySemantics, String datasetUrn, JobState.DatasetState datasetState,
         boolean isMultithreaded, JobContext jobContext) {
       ControllableCallable<Void> callable;

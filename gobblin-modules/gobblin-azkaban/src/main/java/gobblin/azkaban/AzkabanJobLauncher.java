@@ -23,15 +23,16 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
-
-import javax.annotation.Nullable;
-
-import azkaban.jobExecutor.AbstractJob;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -58,6 +59,9 @@ import gobblin.runtime.listeners.JobListener;
 import gobblin.util.HadoopUtils;
 import gobblin.util.TimeRangeChecker;
 import gobblin.util.hadoop.TokenUtils;
+
+import azkaban.jobExecutor.AbstractJob;
+import javax.annotation.Nullable;
 
 import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION;
 
@@ -89,18 +93,24 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private static final String AZKABAN_LINK_JOBEXEC_URL = "azkaban.link.jobexec.url";
   private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
 
+  private static final String AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS = "gobblin.azkaban.SLAInSeconds";
+  private static final String DEFAULT_AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS = "-1"; // No SLA.
+
   private static final String HADOOP_JAVA_JOB = "hadoopJava";
   private static final String JAVA_JOB = "java";
   private static final String GOBBLIN_JOB = "gobblin";
-  private static final Set<String> JOB_TYPES_WITH_AUTOMATIC_TOKEN = Sets.newHashSet(HADOOP_JAVA_JOB, JAVA_JOB, GOBBLIN_JOB);
+  private static final Set<String> JOB_TYPES_WITH_AUTOMATIC_TOKEN =
+      Sets.newHashSet(HADOOP_JAVA_JOB, JAVA_JOB, GOBBLIN_JOB);
 
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
   private final JobListener jobListener = new EmailNotificationJobListener();
   private final Properties props;
   private final ApplicationLauncher applicationLauncher;
+  private final long ownAzkabanSla;
 
-  public AzkabanJobLauncher(String jobId, Properties props) throws Exception {
+  public AzkabanJobLauncher(String jobId, Properties props)
+      throws Exception {
     super(jobId, LOG);
 
     HadoopUtils.addGobblinSite();
@@ -126,8 +136,8 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
     }
 
     // Set the job tracking URL to point to the Azkaban job execution link URL
-    this.props.setProperty(ConfigurationKeys.JOB_TRACKING_URL_KEY,
-        Strings.nullToEmpty(conf.get(AZKABAN_LINK_JOBEXEC_URL)));
+    this.props
+        .setProperty(ConfigurationKeys.JOB_TRACKING_URL_KEY, Strings.nullToEmpty(conf.get(AZKABAN_LINK_JOBEXEC_URL)));
 
     if (props.containsKey(JOB_TYPE) && JOB_TYPES_WITH_AUTOMATIC_TOKEN.contains(props.getProperty(JOB_TYPE))) {
       // Necessary for compatibility with Azkaban's hadoopJava job type
@@ -160,6 +170,9 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
           JobLauncherFactory.JobLauncherType.MAPREDUCE.toString());
     }
 
+    this.ownAzkabanSla = Long.parseLong(
+        this.props.getProperty(AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS, DEFAULT_AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS));
+
     // Create a JobLauncher instance depending on the configuration. The same properties object is
     // used for both system and job configuration properties because Azkaban puts configuration
     // properties in the .job file and in the .properties file into the same Properties object.
@@ -172,23 +185,59 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   }
 
   @Override
-  public void run() throws Exception {
+  public void run()
+      throws Exception {
     if (isCurrentTimeInRange()) {
-      try {
-        start();
-        launchJob(this.jobListener);
-      } finally {
+      if (this.ownAzkabanSla > 0) {
+        LOG.info("Found gobblin defined SLA: " + this.ownAzkabanSla);
+        final ExecutorService service = Executors.newSingleThreadExecutor();
+        boolean isCancelled = false;
+        Future<Void> future = service.submit(new Callable<Void>() {
+          @Override
+          public Void call()
+              throws Exception {
+            runRealJob();
+            return null;
+          }
+        });
+
         try {
-          stop();
+          future.get(this.ownAzkabanSla, TimeUnit.SECONDS);
+        } catch (final TimeoutException e) {
+          LOG.info("Cancelling job since SLA is reached: " + this.ownAzkabanSla);
+          future.cancel(true);
+          isCancelled = true;
+          this.cancel();
         } finally {
-          close();
+          service.shutdown();
+          if (isCancelled) {
+            // Need to fail the Azkaban job.
+            throw new RuntimeException("Job failed because it reaches SLA limit: " + this.ownAzkabanSla);
+          }
         }
+      } else {
+        runRealJob();
+      }
+    }
+  }
+
+  private void runRealJob()
+      throws Exception {
+    try {
+      start();
+      launchJob(jobListener);
+    } finally {
+      try {
+        stop();
+      } finally {
+        close();
       }
     }
   }
 
   @Override
-  public void cancel() throws Exception {
+  public void cancel()
+      throws Exception {
     try {
       cancelJob(this.jobListener);
     } finally {
@@ -201,27 +250,32 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   }
 
   @Override
-  public void start() throws ApplicationException {
+  public void start()
+      throws ApplicationException {
     this.applicationLauncher.start();
   }
 
   @Override
-  public void stop() throws ApplicationException {
+  public void stop()
+      throws ApplicationException {
     this.applicationLauncher.stop();
   }
 
   @Override
-  public void launchJob(@Nullable JobListener jobListener) throws JobException {
+  public void launchJob(@Nullable JobListener jobListener)
+      throws JobException {
     this.jobLauncher.launchJob(jobListener);
   }
 
   @Override
-  public void cancelJob(@Nullable JobListener jobListener) throws JobException {
+  public void cancelJob(@Nullable JobListener jobListener)
+      throws JobException {
     this.jobLauncher.cancelJob(jobListener);
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     this.closer.close();
   }
 
@@ -236,15 +290,16 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private boolean isCurrentTimeInRange() {
     Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
 
-    if (this.props.contains(ConfigurationKeys.AZKABAN_EXECUTION_DAYS_LIST)
-        && this.props.contains(ConfigurationKeys.AZKABAN_EXECUTION_TIME_RANGE)) {
+    if (this.props.contains(ConfigurationKeys.AZKABAN_EXECUTION_DAYS_LIST) && this.props
+        .contains(ConfigurationKeys.AZKABAN_EXECUTION_TIME_RANGE)) {
 
       List<String> executionTimeRange =
           splitter.splitToList(this.props.getProperty(ConfigurationKeys.AZKABAN_EXECUTION_TIME_RANGE));
       List<String> executionDays =
           splitter.splitToList(this.props.getProperty(ConfigurationKeys.AZKABAN_EXECUTION_DAYS_LIST));
-      Preconditions.checkArgument(executionTimeRange.size() == 2, "The property "
-          + ConfigurationKeys.AZKABAN_EXECUTION_DAYS_LIST + " should be a comma separated list of two entries");
+      Preconditions.checkArgument(executionTimeRange.size() == 2,
+          "The property " + ConfigurationKeys.AZKABAN_EXECUTION_DAYS_LIST
+              + " should be a comma separated list of two entries");
 
       return TimeRangeChecker.isTimeInRange(executionDays, executionTimeRange.get(0), executionTimeRange.get(1),
           new DateTime(DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME)));

@@ -265,6 +265,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       if (this.hadoopJobSubmitted && !this.job.isComplete()) {
         LOG.info("Killing the Hadoop MR job for job " + this.jobContext.getJobId());
         this.job.killJob();
+        // Collect final task states.
+        this.taskStateCollectorService.stopAsync().awaitTerminated();
       }
     } catch (IllegalStateException ise) {
       LOG.error("The Hadoop MR job has not started for job " + this.jobContext.getJobId());

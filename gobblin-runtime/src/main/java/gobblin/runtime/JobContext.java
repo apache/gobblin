@@ -215,8 +215,8 @@ public class JobContext implements Closeable {
     Preconditions.checkState(this.jobState.contains(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_DIR));
 
     try (FileSystem fs = FileSystem.get(URI.create(this.jobState
-        .getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_FS_URI, ConfigurationKeys.LOCAL_FS_URI)),
-        HadoopUtils.getConfFromState(this.jobState))) {
+            .getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_FS_URI,
+                ConfigurationKeys.LOCAL_FS_URI)), HadoopUtils.getConfFromState(this.jobState))) {
 
       return Optional.<CommitSequenceStore>of(new FsCommitSequenceStore(fs,
           new Path(this.jobState.getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_DIR))));
@@ -395,6 +395,14 @@ public class JobContext implements Closeable {
    */
   void commit()
       throws IOException {
+    commit(false);
+  }
+
+  /**
+   * Commit the job based on whether the job is cancelled.
+   */
+  void commit(final boolean isJobCancelled)
+      throws IOException {
     this.datasetStatesByUrns = Optional.of(computeDatasetStatesByUrns());
     final boolean shouldCommitDataInJob = shouldCommitDataInJob(this.jobState);
     final DeliverySemantics deliverySemantics = DeliverySemantics.parse(this.jobState);
@@ -416,8 +424,8 @@ public class JobContext implements Closeable {
                 @Nullable
                 @Override
                 public Callable<Void> apply(final Map.Entry<String, DatasetState> entry) {
-                  return createSafeDatasetCommit(shouldCommitDataInJob, deliverySemantics, entry.getKey(),
-                      entry.getValue(), numCommitThreads > 1, JobContext.this);
+                  return createSafeDatasetCommit(shouldCommitDataInJob, isJobCancelled, deliverySemantics,
+                      entry.getKey(), entry.getValue(), numCommitThreads > 1, JobContext.this);
                 }
               }).iterator(), numCommitThreads,
           ExecutorsUtils.newThreadFactory(Optional.of(this.logger), Optional.of("Commit-thread-%d")))
@@ -432,7 +440,6 @@ public class JobContext implements Closeable {
     } catch (InterruptedException exc) {
       throw new IOException(exc);
     }
-
     this.jobState.setState(JobState.RunningState.COMMITTED);
     close();
   }
@@ -452,10 +459,11 @@ public class JobContext implements Closeable {
    * DO NOT OVERRIDE.
    */
   @VisibleForTesting
-  protected Callable<Void> createSafeDatasetCommit(boolean shouldCommitDataInJob, DeliverySemantics deliverySemantics,
-      String datasetUrn, JobState.DatasetState datasetState, boolean isMultithreaded, JobContext jobContext) {
-    return new SafeDatasetCommit(shouldCommitDataInJob, deliverySemantics, datasetUrn, datasetState, isMultithreaded,
-        jobContext);
+  protected Callable<Void> createSafeDatasetCommit(boolean shouldCommitDataInJob, boolean isJobCancelled,
+      DeliverySemantics deliverySemantics, String datasetUrn, JobState.DatasetState datasetState,
+      boolean isMultithreaded, JobContext jobContext) {
+    return new SafeDatasetCommit(shouldCommitDataInJob, isJobCancelled, deliverySemantics, datasetUrn, datasetState,
+        isMultithreaded, jobContext);
   }
 
   protected Map<String, JobState.DatasetState> computeDatasetStatesByUrns() {
