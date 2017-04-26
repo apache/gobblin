@@ -2,6 +2,7 @@ package gobblin.compaction.suite;
 
 import gobblin.compaction.action.CompactionCompleteAction;
 import gobblin.compaction.action.CompactionCompleteFileOperationAction;
+import gobblin.compaction.action.CompactionHiveRegistrationAction;
 import gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
 import gobblin.compaction.verify.CompactionAuditCountVerifier;
 import gobblin.compaction.verify.CompactionThresholdVerifier;
@@ -98,6 +99,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
   public List<CompactionCompleteAction<FileSystemDataset>> getCompactionCompleteActions() {
     ArrayList<CompactionCompleteAction<FileSystemDataset>> array = new ArrayList<>();
     array.add(new CompactionCompleteFileOperationAction(state, configurator));
+    array.add(new CompactionHiveRegistrationAction(state));
     return array;
   }
 
