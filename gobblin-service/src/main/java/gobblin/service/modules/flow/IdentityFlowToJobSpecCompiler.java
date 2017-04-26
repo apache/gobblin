@@ -135,6 +135,11 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
           .withValue(ConfigurationKeys.JOB_GROUP_KEY, flowSpec.getConfig().getValue(ConfigurationKeys.FLOW_GROUP_KEY)));
     }
 
+    // Add flow execution id for this compilation
+    long flowExecutionId = System.currentTimeMillis();
+    jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
+        ConfigValueFactory.fromAnyRef(flowExecutionId)));
+
     // Reset properties in Spec from Config
     jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobSpec.getConfig()));
 

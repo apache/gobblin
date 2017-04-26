@@ -207,6 +207,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.JOB_GROUP_KEY), TEST_FLOW_GROUP);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), TEST_FLOW_NAME);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), TEST_FLOW_GROUP);
+    Assert.assertTrue(jobSpec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
   }
 
   @Test
@@ -235,6 +236,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.JOB_GROUP_KEY), TEST_FLOW_GROUP);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), TEST_FLOW_NAME);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), TEST_FLOW_GROUP);
+    Assert.assertTrue(jobSpec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
   }
 
   @Test
