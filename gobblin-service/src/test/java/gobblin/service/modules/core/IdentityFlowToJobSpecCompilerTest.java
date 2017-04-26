@@ -202,7 +202,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     Assert.assertEquals(jobSpec.getConfig().getString("testProperty2"), "test.Value1");
     Assert.assertEquals(jobSpec.getConfig().getString("testProperty3"), "100");
     Assert.assertEquals(jobSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY), TEST_SOURCE_NAME);
-    Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.JOB_SCHEDULE_KEY), "");
+    Assert.assertFalse(jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY));
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.JOB_NAME_KEY), TEST_FLOW_NAME);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.JOB_GROUP_KEY), TEST_FLOW_GROUP);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), TEST_FLOW_NAME);
@@ -230,7 +230,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     Assert.assertTrue(!jobSpec.getConfig().hasPath("testProperty2"));
     Assert.assertTrue(!jobSpec.getConfig().hasPath("testProperty3"));
     Assert.assertEquals(jobSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY), TEST_SOURCE_NAME);
-    Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.JOB_SCHEDULE_KEY), "");
+    Assert.assertFalse(jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY));
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.JOB_NAME_KEY), TEST_FLOW_NAME);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.JOB_GROUP_KEY), TEST_FLOW_GROUP);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), TEST_FLOW_NAME);
