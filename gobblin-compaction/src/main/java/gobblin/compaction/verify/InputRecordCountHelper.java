@@ -1,6 +1,6 @@
 package gobblin.compaction.verify;
 
-import com.google.api.client.util.Charsets;
+import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import gobblin.compaction.dataset.DatasetHelper;
 import gobblin.compaction.mapreduce.MRCompactor;
