@@ -123,8 +123,7 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
     }
 
     // Remove schedule
-    jobSpec.setConfig(jobSpec.getConfig()
-        .withValue(ConfigurationKeys.JOB_SCHEDULE_KEY, ConfigValueFactory.fromAnyRef("")));
+    jobSpec.setConfig(jobSpec.getConfig().withoutPath(ConfigurationKeys.JOB_SCHEDULE_KEY));
 
     // Add job.name and job.group
     if (flowSpec.getConfig().hasPath(ConfigurationKeys.FLOW_NAME_KEY)) {
