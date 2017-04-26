@@ -22,6 +22,7 @@ import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +30,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.annotation.Alpha;
@@ -46,6 +46,7 @@ import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.job_catalog.FSJobCatalog;
 import gobblin.runtime.job_spec.ResolvedJobSpec;
 import gobblin.service.ServiceConfigKeys;
+import gobblin.util.ConfigUtils;
 
 
 /***
@@ -74,7 +75,8 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
      * 2. Pick templateCatalog from JobCatalogWithTemplates based on URI, and try to resolve JobSpec using that
      */
     try {
-      if (this.config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)) {
+      if (this.config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
+          && StringUtils.isNotBlank(this.config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY))) {
         Config templateCatalogCfg = config
             .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
                 this.config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
@@ -133,6 +135,9 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
       jobSpec.setConfig(jobSpec.getConfig()
           .withValue(ConfigurationKeys.JOB_GROUP_KEY, flowSpec.getConfig().getValue(ConfigurationKeys.FLOW_GROUP_KEY)));
     }
+
+    // Reset properties in Spec from Config
+    jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobSpec.getConfig()));
 
     for (TopologySpec topologySpec : topologySpecMap.values()) {
       try {
