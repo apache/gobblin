@@ -17,6 +17,9 @@
 
 apply plugin: 'com.github.johnrengelman.shadow'
 
+// workaround for mavenDeployer error in shadowJar
+tasks.remove(tasks.uploadShadow) 
+
 shadowJar {
   zip64 true
   dependencies {

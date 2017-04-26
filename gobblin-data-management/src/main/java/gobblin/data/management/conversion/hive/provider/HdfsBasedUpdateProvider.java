@@ -92,7 +92,7 @@ public class HdfsBasedUpdateProvider implements HiveUnitUpdateProvider {
           throw new UpdateNotFoundException(String.format("Data file does not exist at path %s", path));
         }
       });
-    } catch (ExecutionException e) {
+    } catch (Exception e) {
       throw new IOException(e);
     }
   }
