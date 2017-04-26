@@ -2,6 +2,7 @@ package gobblin.compaction.verify;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import gobblin.compaction.audit.AuditCountClient;
 import gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.configuration.State;
@@ -29,7 +30,7 @@ public class PinotAuditCountVerifierTest {
     final String output = "/base/output";
     final String inputSub = "hourly";
     final String outputSub = "hourly";
-    TestPinotAuditCountClient client = new TestPinotAuditCountClient();
+    TestAuditCountClient client = new TestAuditCountClient();
     FileSystemDataset dataset = new FileSystemDataset() {
       @Override
       public Path datasetRoot() {
@@ -43,9 +44,9 @@ public class PinotAuditCountVerifierTest {
     };
 
     State props = new State();
-    props.setProp (PinotAuditCompletenessVerifier.PRODUCER_TIER, PRODUCER_TIER);
-    props.setProp (PinotAuditCompletenessVerifier.ORIGIN_TIER, ORIGIN_TIER);
-    props.setProp (PinotAuditCompletenessVerifier.GOBBLIN_TIER, GOBBLIN_TIER);
+    props.setProp (CompactionAuditCountVerifier.PRODUCER_TIER, PRODUCER_TIER);
+    props.setProp (CompactionAuditCountVerifier.ORIGIN_TIER, ORIGIN_TIER);
+    props.setProp (CompactionAuditCountVerifier.GOBBLIN_TIER, GOBBLIN_TIER);
 
     props.setProp (MRCompactor.COMPACTION_INPUT_DIR, input);
     props.setProp (MRCompactor.COMPACTION_INPUT_SUBDIR, inputSub);
@@ -55,7 +56,7 @@ public class PinotAuditCountVerifierTest {
     props.setProp (TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d");
     props.setProp (TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
 
-    PinotAuditCompletenessVerifier verifier = new PinotAuditCompletenessVerifier(props, client);
+    CompactionAuditCountVerifier verifier = new CompactionAuditCountVerifier (props, client);
 
     // All complete
     client.setCounts(ImmutableMap.of(
@@ -88,7 +89,7 @@ public class PinotAuditCountVerifierTest {
   /**
    * A helper client
    */
-  public class TestPinotAuditCountClient implements PinotAuditCountClient {
+  public class TestAuditCountClient implements AuditCountClient {
     @Setter
     @Getter
     Map<String, Long> counts = Maps.newHashMap();

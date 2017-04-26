@@ -1,4 +1,4 @@
-package gobblin.compaction.verify;
+package gobblin.compaction.audit;
 
 import com.google.api.client.util.Charsets;
 import com.google.gson.JsonArray;
@@ -23,19 +23,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A {@link PinotAuditCountClient} which uses {@link org.apache.http.client.HttpClient}
+ * A {@link AuditCountClient} which uses {@link org.apache.http.client.HttpClient}
  * to perform audit count query.
  */
 @Slf4j
 @ThreadSafe
-public class PinotAuditCountHttpClient implements PinotAuditCountClient {
+public class PinotAuditCountHttpClient implements AuditCountClient {
 
   // Keys
   public static final String PINOT_AUDIT_HTTP = "pinot.audit.http";
   public static final String CONNECTION_MAX_TOTAL = PINOT_AUDIT_HTTP + "max.total";
-  public static final int DEFAULT_CONNECTION_MAX_TOTAL = 200;
+  public static final int DEFAULT_CONNECTION_MAX_TOTAL = 10;
   public static final String MAX_PER_ROUTE = PINOT_AUDIT_HTTP + "max.per.route";
-  public static final int DEFAULT_MAX_PER_ROUTE = 200;
+  public static final int DEFAULT_MAX_PER_ROUTE = 10;
   public static final String TARGET_HOST = PINOT_AUDIT_HTTP + "target.host";
   public static final String TARGET_PORT = PINOT_AUDIT_HTTP + "target.port";
 
