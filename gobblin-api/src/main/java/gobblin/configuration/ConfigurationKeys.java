@@ -402,6 +402,8 @@ public class ConfigurationKeys {
   public static final String PUBLISH_DATA_AT_JOB_LEVEL = "publish.data.at.job.level";
   public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
   public static final String PUBLISHER_DIRS = DATA_PUBLISHER_PREFIX + ".output.dirs";
+  public static final String DATA_PUBLISHER_CAN_BE_SKIPPED = DATA_PUBLISHER_PREFIX + ".canBeSkipped";
+  public static final boolean DEFAULT_DATA_PUBLISHER_CAN_BE_SKIPPED = false;
 
   /**
    * Configuration properties used by the extractor.
