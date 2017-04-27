@@ -2,42 +2,22 @@
   "type" : "record",
   "name" : "JobStatus",
   "namespace": "gobblin.service",
-  "doc" : "Status of a job",
+  "doc" : "Execution status for a job",
   "fields" : [
     {
-      "name" : "flowName",
-      "type" : "string",
-      "doc" : "Name of the flow"
+      "name" : "flowId",
+      "type" : "FlowId",
+      "doc" : "Identifier of the flow the job belongs to"
     },
     {
-      "name" : "flowGroup",
-      "type" : "string",
-      "doc" : "Group of the flow. This defines the namespace for the flow."
-    },
-    {
-      "name" : "jobName",
-      "type" : "string",
-      "doc" : "Name of the job"
-    },
-    {
-      "name" : "jobGroup",
-      "type" : "string",
-      "doc" : "Group of the job. This defines the namespace for the job."
-    },
-    {
-      "name" : "executionStartTime",
-      "type" : "long",
-      "doc" : "Epoch time of when the last execution began"
-    },
-    {
-      "name" : "executionEndTime",
-      "type" : "long",
-      "doc" : "Epoch time of when the last execution ended"
+      "name" : "jobId",
+      "type" : "JobId",
+      "doc" : "Identifier of the job"
     },
     {
       "name" : "executionStatus",
-      "type" : "string",
-      "doc" : "Execution status"
+      "type" : "ExecutionStatus",
+      "doc" : "Job execution status"
     },
     {
       "name" : "message",
@@ -45,19 +25,14 @@
       "doc" : "Error or status message"
     },
     {
-      "name" : "processedCount",
-      "type" : "long",
-      "doc" : "Number of records processed in last execution"
+      "name" : "executionStatistics",
+      "type" : "JobStatistics",
+      "doc" : "Statistics from the job execution. The values may be updated during the run of a job."
     },
     {
-      "name" : "lowWatermark",
-      "type" : "string",
-      "doc" : "Low watermark after last execution"
-    },
-    {
-      "name" : "highWatermark",
-      "type" : "string",
-      "doc" : "High watermark after last execution"
+      "name" : "jobState",
+      "type" : "JobState",
+      "doc" : "Job state that is updated only at the start and end of a job execution."
     }
   ]
 }

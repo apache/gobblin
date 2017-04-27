@@ -17,6 +17,8 @@
 
 package gobblin.service.modules.core;
 
+import gobblin.service.FlowId;
+import gobblin.service.Schedule;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -529,11 +531,12 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
     final String TEST_GROUP_NAME = "testGroup1";
     final String TEST_FLOW_NAME = "testFlow1";
-    final String TEST_SCHEDULE = "";
+    final String TEST_SCHEDULE = "0 1/0 * ? * *";
     final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
-    FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME)
-        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setRunImmediately(true)
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
     try {

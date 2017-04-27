@@ -41,12 +41,35 @@ public class FlowStatusGenerator {
    * Get the latest flow status.
    * @param flowName
    * @param flowGroup
-   * @return the latest {@link FlowStatus}. -1 will be used as the flow execution Id if there is no flow execution found.
+   * @return the latest {@link FlowStatus}. null is returned if there is no flow execution found.
    */
   public FlowStatus getLatestFlowStatus(String flowName, String flowGroup) {
-    List<JobStatus> jobStatusList = Lists.newArrayList(
-        jobStatusRetriever.getLatestJobStatusByFlowNameAndGroup(flowName, flowGroup));
-    long flowExecutionId = !jobStatusList.isEmpty() ? jobStatusList.get(0).getFlowExecutionId() : -1l;
-    return new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusList.iterator());
+    FlowStatus flowStatus = null;
+    long latestExecutionId = jobStatusRetriever.getLatestExecutionIdForFlow(flowName, flowGroup);
+
+    if (latestExecutionId != -1l) {
+      flowStatus = getFlowStatus(flowName, flowGroup, latestExecutionId);
+    }
+
+    return flowStatus;
+  }
+
+  /**
+   * Get the flow status for a specific execution.
+   * @param flowName
+   * @param flowGroup
+   * @param flowExecutionId
+   * @return the flow status, null is returned if the flow status does not exist
+   */
+  public FlowStatus getFlowStatus(String flowName, String flowGroup, long flowExecutionId) {
+    FlowStatus flowStatus = null;
+    Iterator<JobStatus> jobStatusIterator =
+        jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
+
+    if (jobStatusIterator.hasNext()) {
+      flowStatus = new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator);
+    }
+
+    return flowStatus;
   }
 }

@@ -46,12 +46,11 @@ import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.spec_catalog.FlowCatalog;
 
-
-@RestLiCollection(name = "flowconfigs", namespace = "gobblin.service")
 /**
- * Rest.li resource for handling flow configuration requests
+ * Resource for handling flow configuration requests
  */
-public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId, EmptyRecord, FlowConfig> {
+@RestLiCollection(name = "flowconfigs", namespace = "gobblin.service", keyName = "id")
+public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
 
   @edu.umd.cs.findbugs.annotations.SuppressWarnings("MS_SHOULD_BE_FINAL")
@@ -85,12 +84,12 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
   }
 
   /**
-   * Retrieve the {@link FlowConfig} with the given key
+   * Retrieve the flow configuration with the given key
    * @param key flow config id key containing group name and flow name
    * @return {@link FlowConfig} with flow configuration
    */
   @Override
-  public FlowConfig get(ComplexResourceKey<FlowConfigId, EmptyRecord> key) {
+  public FlowConfig get(ComplexResourceKey<FlowId, EmptyRecord> key) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
 
@@ -103,9 +102,11 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
       FlowSpec spec = (FlowSpec) getFlowCatalog().getSpec(flowUri);
       FlowConfig flowConfig = new FlowConfig();
       Properties flowProps = spec.getConfigAsProperties();
+      Schedule schedule = null;
 
       if (flowProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-        flowConfig.setSchedule(flowProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
+        schedule = new Schedule();
+        schedule.setCronSchedule(flowProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
       }
       if (flowProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
         flowConfig.setTemplateUris(flowProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH));
@@ -114,9 +115,14 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
       } else {
         flowConfig.setTemplateUris("NA");
       }
-      if (flowProps.containsKey(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)) {
-        flowConfig.setRunImmediately(Boolean.valueOf(flowProps.getProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)));
+      if (schedule != null) {
+        if (flowProps.containsKey(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)) {
+          schedule.setRunImmediately(Boolean.valueOf(flowProps.getProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)));
+        }
+
+        flowConfig.setSchedule(schedule);
       }
+
 
       // remove keys that were injected as part of flowSpec creation
       flowProps.remove(ConfigurationKeys.JOB_SCHEDULE_KEY);
@@ -125,7 +131,8 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
       StringMap flowPropsAsStringMap = new StringMap();
       flowPropsAsStringMap.putAll(Maps.fromProperties(flowProps));
 
-      return flowConfig.setFlowGroup(flowGroup).setFlowName(flowName).setProperties(flowPropsAsStringMap);
+      return flowConfig.setId(new FlowId().setFlowGroup(flowGroup).setFlowName(flowName))
+          .setProperties(flowPropsAsStringMap);
     } catch (URISyntaxException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowName, e);
     } catch (SpecNotFoundException e) {
@@ -142,12 +149,13 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
    */
   private FlowSpec createFlowSpecForConfig(FlowConfig flowConfig) {
     ConfigBuilder configBuilder = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, flowConfig.getSchedule())
-        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, flowConfig.getFlowGroup())
-        .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, flowConfig.getFlowName());
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, flowConfig.getId().getFlowGroup())
+        .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, flowConfig.getId().getFlowName());
 
-    if (flowConfig.hasRunImmediately()) {
-      configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, flowConfig.isRunImmediately());
+    if (flowConfig.hasSchedule()) {
+      Schedule schedule = flowConfig.getSchedule();
+      configBuilder.addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, schedule.getCronSchedule());
+      configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, schedule.isRunImmediately());
     }
 
     Config config = configBuilder.build();
@@ -164,13 +172,13 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
   }
 
   /**
-   * Put a new {@link FlowSpec} based on flowConfig in the {@link FlowCatalog}
+   * Create a flow configuration that the service will forward to execution instances for execution
    * @param flowConfig flow configuration
    * @return {@link CreateResponse}
    */
   @Override
   public CreateResponse create(FlowConfig flowConfig) {
-    LOG.info("Create called with flowName " + flowConfig.getFlowName());
+    LOG.info("Create called with flowName " + flowConfig.getId().getFlowName());
 
     LOG.info("ReadyToUse is: " + readyToUse);
     LOG.info("FlowCatalog is: " + getFlowCatalog());
@@ -182,38 +190,39 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
     try {
       URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
       URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
-          "/" + flowConfig.getFlowGroup() + "/" + flowConfig.getFlowName(), null, null);
+          "/" + flowConfig.getId().getFlowGroup() + "/" + flowConfig.getId().getFlowName(), null, null);
 
       if (getFlowCatalog().getSpec(flowUri) != null) {
         logAndThrowRestLiServiceException(HttpStatus.S_409_CONFLICT,
             "Flow with the same name already exists: " + flowUri, null);
       }
     } catch (URISyntaxException e) {
-      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getFlowName(), e);
+      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getId().getFlowName(), e);
     } catch (SpecNotFoundException e) {
       // okay if flow does not exist
     }
 
     getFlowCatalog().put(createFlowSpecForConfig(flowConfig));
 
-    return new CreateResponse(flowConfig.getFlowName(), HttpStatus.S_201_CREATED);
+    return new CreateResponse(flowConfig.getId().getFlowName(), HttpStatus.S_201_CREATED);
   }
 
   /**
-   * Update the {@link FlowSpec} in the {@link FlowCatalog} based on the specified {@link FlowConfig}
+   * Update the flow configuration with the specified key. Running flows are not affected.
+   * An error is raised if the flow configuration does not exist.
    * @param key composite key containing group name and flow name that identifies the flow to update
    * @param flowConfig new flow configuration
    * @return {@link UpdateResponse}
    */
   @Override
-  public UpdateResponse update(ComplexResourceKey<FlowConfigId, EmptyRecord> key, FlowConfig flowConfig) {
+  public UpdateResponse update(ComplexResourceKey<FlowId, EmptyRecord> key, FlowConfig flowConfig) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     URI flowUri = null;
 
     LOG.info("Update called with flowGroup " + flowGroup + " flowName " + flowName);
 
-    if (!flowGroup.equals(flowConfig.getFlowGroup()) || !flowName.equals(flowConfig.getFlowName())) {
+    if (!flowGroup.equals(flowConfig.getId().getFlowGroup()) || !flowName.equals(flowConfig.getId().getFlowName())) {
       logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST,
           "flowName and flowGroup cannot be changed in update", null);
     }
@@ -238,13 +247,14 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
     return null;
   }
 
-  /** delete a configured flow
+  /**
+   * Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows.
    * @param key composite key containing flow group and flow name that identifies the flow to remove from the
    * {@link FlowCatalog}
    * @return {@link UpdateResponse}
    */
   @Override
-  public UpdateResponse delete(ComplexResourceKey<FlowConfigId, EmptyRecord> key) {
+  public UpdateResponse delete(ComplexResourceKey<FlowId, EmptyRecord> key) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     URI flowUri = null;

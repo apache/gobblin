@@ -2,37 +2,30 @@
   "type" : "record",
   "name" : "FlowConfig",
   "namespace": "gobblin.service",
-  "doc" : "Configuration for a flow",
+  "doc" : "Defines a flow configuration that can be compiled into Gobblin jobs",
   "fields" : [
     {
-      "name" : "flowName",
-      "type" : "string",
-      "doc" : "Name of the flow"
-    },
-    {
-      "name" : "flowGroup",
-      "type" : "string",
-      "doc" : "Group of the flow. This defines the namespace for the flow."
+      "name" : "id",
+      "type" : "FlowId",
+      "doc" : "Identifier for the flow"
     },
     {
       "name" : "schedule",
-      "type" : "string",
-      "doc" : "Schedule for flow in cron format"
-    },
-    {
-      "name" : "runImmediately",
-      "type" : "boolean",
+      "type" : "Schedule",
       "optional" : true,
-      "doc" : "Set to true to request that job be run immediately"
+      "doc" : "Optional schedule for when to execution the flow. If a schedule is not specified then the flow is executed immediately."
     },
     {
       "name" : "templateUris",
       "type" : "string",
-      "doc" : "Comma separated list of URIs for templates used in the flow"
+      "doc" : "Comma separated list of URIs for templates used in the flow. The template location is defined by the multiproduct that packages the template.",
+      "validate": {
+        "gobblin.service.validator.TemplateUriValidator": {}
+      }
     },
     {
       "name" : "properties",
       "type" : { "type" : "map", "values" : "string" },
-      "doc" : "Properties for the flow"
+      "doc" : "Properties for the flow. These properties are passed to the compiled Gobblin jobs."
     } ]
 }
