@@ -32,4 +32,11 @@ public class GobblinClusterMetricTagNames {
   public static final String APPLICATION_ID = "application.id";
   public static final String HELIX_INSTANCE_NAME = "helix.instance.name";
   public static final String TASK_RUNNER_ID = "task.runner.id";
+
+  public static final String FLOW_GROUP = "flowGroup";
+  public static final String FLOW_NAME = "flowName";
+  public static final String FLOW_EXECUTION_ID = "flowExecutionId";
+  public static final String JOB_GROUP = "jobGroup";
+  public static final String JOB_NAME = "jobName";
+  public static final String JOB_EXECUTION_ID = "jobExecutionId";
 }
