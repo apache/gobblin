@@ -7,6 +7,5 @@ import gobblin.configuration.State;
  */
 public interface AuditCountClientFactory {
   String AUDIT_COUNT_CLIENT_FACTORY = "audit.count.client.factory";
-  String DEFAULT_AUDIT_COUNT_CLIENT_FACTORY = "KafkaAuditCountHttpClientFactory";
   AuditCountClient createAuditCountClient (State state);
 }

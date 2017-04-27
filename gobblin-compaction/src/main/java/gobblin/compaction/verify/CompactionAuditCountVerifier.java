@@ -29,11 +29,11 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
   public static final String ORIGIN_TIER = "origin.tier";
   public static final String GOBBLIN_TIER = "gobblin.tier";
 
-  private final Collection<String> referenceTiers;
-  private final Collection<String> originTiers;
-  private final String producerTier;
-  private final String gobblinTier;
-  private final double threshold;
+  private  Collection<String> referenceTiers;
+  private  Collection<String> originTiers;
+  private  String producerTier;
+  private  String gobblinTier;
+  private  double threshold;
   private final State state;
   private final AuditCountClient auditCountClient;
 
@@ -49,30 +49,41 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
    */
   public CompactionAuditCountVerifier (State state, AuditCountClient client) {
     this.auditCountClient = client;
-    this.threshold =
-            state.getPropAsDouble(COMPACTION_COMPLETENESS_THRESHOLD, DEFAULT_COMPACTION_COMPLETENESS_THRESHOLD);
+    this.state = state;
 
     // retrieve all tiers information
-    this.producerTier = state.getProp(PRODUCER_TIER);
-    this.gobblinTier = state.getProp(GOBBLIN_TIER);
-    this.originTiers = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(state.getProp(ORIGIN_TIER));
-    this.referenceTiers = new HashSet<>(originTiers);
-    this.referenceTiers.add(producerTier);
-    this.state = state;
+    if (client != null) {
+      this.threshold =
+              state.getPropAsDouble(COMPACTION_COMPLETENESS_THRESHOLD, DEFAULT_COMPACTION_COMPLETENESS_THRESHOLD);
+      this.producerTier = state.getProp(PRODUCER_TIER);
+      this.gobblinTier = state.getProp(GOBBLIN_TIER);
+      this.originTiers = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(state.getProp(ORIGIN_TIER));
+      this.referenceTiers = new HashSet<>(originTiers);
+      this.referenceTiers.add(producerTier);
+    }
   }
 
+  /**
+   * Obtain a client factory
+   * @param state job state
+   * @return a factory which creates {@link AuditCountClient}.
+   *         If no factory is set or an error occurred, a {@link EmptyAuditCountClientFactory} is
+   *         returned which creates a <code>null</code> {@link AuditCountClient}
+   */
   private static AuditCountClientFactory getClientFactory (State state) {
-    try {
-      String factoryName = state.getProp(AuditCountClientFactory.AUDIT_COUNT_CLIENT_FACTORY,
-              AuditCountClientFactory.DEFAULT_AUDIT_COUNT_CLIENT_FACTORY);
 
+    if (!state.contains(AuditCountClientFactory.AUDIT_COUNT_CLIENT_FACTORY)) {
+      return new EmptyAuditCountClientFactory ();
+    }
+
+    try {
+      String factoryName = state.getProp(AuditCountClientFactory.AUDIT_COUNT_CLIENT_FACTORY);
       ClassAliasResolver<AuditCountClientFactory> conditionClassAliasResolver = new ClassAliasResolver<>(AuditCountClientFactory.class);
       AuditCountClientFactory factory = conditionClassAliasResolver.resolveClass(factoryName).newInstance();
       return factory;
     } catch (Exception e) {
-      log.error(e.toString());
+      throw new RuntimeException(e);
     }
-    return null;
   }
 
   /**
@@ -85,6 +96,11 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
    * @return If verification is succeeded
    */
   public boolean verify (FileSystemDataset dataset) {
+    if (auditCountClient == null) {
+      log.debug("No audit count client specified, skipped");
+      return true;
+    }
+
     CompactionPathParser.CompactionParserResult result = new CompactionPathParser(this.state).parse(dataset);
     DateTime startTime = result.getTime();
     DateTime endTime = startTime.plusHours(1);
@@ -135,5 +151,11 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
 
   public String getName() {
     return this.getClass().getName() + "(" + this.auditCountClient.getClass().getName() + ")";
+  }
+
+  private static class EmptyAuditCountClientFactory implements AuditCountClientFactory {
+    public AuditCountClient createAuditCountClient (State state) {
+      return null;
+    }
   }
 }
