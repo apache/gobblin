@@ -78,14 +78,14 @@ Essentially, the system provides a mapping from a config key to a config object.
 
 A config key K can import one or more config keys I1, I2, ... . The config key K will inherit any properties from I1, I2, … that are not defined in K. The inheritance is resolved in the order of the keys I1, I2, … etc., i.e. the property will be resolved to the value in the last one that defines the property. This is similar to including configs in typesafe config. We will refer to resulting configuration as own config (object) and denote it though the function resolved_config(K, property_name) = property_value .
 
-We also use the path in the config key URI for implicit tagging. For example, /data/tracking/TOPIC implicitly imports which /data/tracking/ which implicitly imports /data/ which implicitly imports / . For a given config key, all implicit imports are before the explicit imports, i.e. they have lower priority in resolution.
+We also use the path in the config key URI for implicit tagging. For example, `/data/tracking/TOPIC` implicitly imports `/data/tracking/`, which implicitly imports `/data/` which implicitly imports `/`. Note that all these URI are considered as config Key so their path level implicitly indicates importation. For a given config key, all implicit imports are before the explicit imports, i.e. they have lower priority in resolution. Typical use case for this implicit importation can be a global default configuration file in root path applied to all files under it. Files in this root path can have their own setting overriding the default value inherited from root path's file. 
  
 **Tags**
 
 For our use cases, we can define the static tags in a well known file per dataset.
 
-Dynamic tags
-Some tags cannot be applied statically at “compile” time. For example, such are cluster-specific tags since they on the environment where the client application runs. We will support such tags about allowing the use of limited number of variables when importing another config key. For example, such a variable can be “local_cluster.name”. Then, importing /data/tracking/${local_cluster.name} can provide cluster-specific overrides.
+**Dynamic tags**
+Some tags cannot be applied statically at “compile” time. For example, such are cluster-specific tags since they are on the environment where the client application runs. We will support such tags about allowing the use of limited number of variables when importing another config key. For example, such a variable can be “local_cluster.name”. Then, importing /data/tracking/${local_cluster.name} can provide cluster-specific overrides.
 
 **Config Store**
 The configuration is partitioned in a number of Config Stores . Each Config Store is:
