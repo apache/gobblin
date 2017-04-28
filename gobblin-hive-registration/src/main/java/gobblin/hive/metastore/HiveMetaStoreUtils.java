@@ -198,7 +198,6 @@ public class HiveMetaStoreUtils {
       if (!propKey.equals(RUNTIME_PROPS)) {
         parameters.put(propKey, props.getProp(propKey));
       }
-      else continue;
     }
     return parameters;
   }
