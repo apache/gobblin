@@ -23,10 +23,18 @@ Download the latest Gobblin release from the [Release Page](https://github.com/l
 
 ## Building a Distribution
 
-Clone the repository into your system. To build:
+Clone the repository into your system. 
+
+Build a distribution:
 
 ```bash
 cd /path/to/gobblin/repo
+./gradlew :gobblin-distribution:buildDistributionTar
+```
+
+Note: A full build takes time because it runs other tasks like test, javadoc, findMainBugs, etc, which impacts the build performance. 
+For a quick usage, building distribution is good enough. However a full build can be easily made by running:
+```bash
 ./gradlew build
 ```
 
