@@ -32,8 +32,8 @@ cd /path/to/gobblin/repo
 ./gradlew :gobblin-distribution:buildDistributionTar
 ```
 
-Note: A full build takes time because it runs other tasks like test, javadoc, findMainBugs, etc. For quick usage, building distribution is good enough. 
-However a full build can be easily created by running
+Note: A full build takes time because it runs other tasks like test, javadoc, findMainBugs, etc, which impacts the build performance. 
+For a quick usage, building distribution is good enough. However a full build can be easily made by running:
 ```bash
 ./gradlew build
 ```
