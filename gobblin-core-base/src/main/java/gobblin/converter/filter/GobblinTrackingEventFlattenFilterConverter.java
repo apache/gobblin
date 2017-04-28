@@ -135,7 +135,7 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
         genericRecord.put(curFieldName, inputRecord.get(originalFieldName));
       } else {
         genericRecord.put(curFieldName,
-            AvroUtils.getFieldValue(inputRecord, Joiner.on('.').join(this.mapFieldName, originalFieldName)).get());
+            AvroUtils.getFieldValue(inputRecord, Joiner.on('.').join(this.mapFieldName, originalFieldName)).or(""));
       }
     }
     return new SingleRecordIterable<>(genericRecord);
