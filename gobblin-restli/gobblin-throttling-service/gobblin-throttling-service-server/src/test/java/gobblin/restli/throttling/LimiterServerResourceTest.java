@@ -80,11 +80,11 @@ public class LimiterServerResourceTest {
 
     PermitRequest res1request = new PermitRequest();
     res1request.setPermits(20);
-    res1request.setResource(res1key.getResourceLimited());
+    res1request.setResource(res1key.getResourceLimitedPath());
 
     PermitRequest res2request = new PermitRequest();
     res2request.setPermits(20);
-    res2request.setResource(res2key.getResourceLimited());
+    res2request.setResource(res2key.getResourceLimitedPath());
 
     PermitRequest res3request = new PermitRequest();
     res3request.setPermits(100000);

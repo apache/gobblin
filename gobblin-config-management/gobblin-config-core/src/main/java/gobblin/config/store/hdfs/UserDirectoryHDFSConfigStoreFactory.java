@@ -15,15 +15,26 @@
  * limitations under the License.
  */
 
-dependencies {
-  compile project(':gobblin-metrics-libs:gobblin-metrics-base')
-  compile project(':gobblin-restli:gobblin-restli-utils')
-  compile project(":gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-api")
-  compile project(':gobblin-config-management:gobblin-config-client')
-  compile externalDependency.guiceServlet
-  compile externalDependency.curatorFramework
+package gobblin.config.store.hdfs;
 
-  testCompile project(':gobblin-config-management:gobblin-config-core')
-  testCompile externalDependency.curatorTest
-  testCompile externalDependency.mockito
+import org.apache.hadoop.fs.Path;
+
+
+/**
+ * A {@link SimpleHDFSConfigStoreFactory} that uses the user directory as the config store location. Use scheme
+ * "default-file".
+ */
+public class UserDirectoryHDFSConfigStoreFactory extends SimpleLocalHDFSConfigStoreFactory {
+
+  public static final String SCHEME_PREFIX = "default-";
+
+  @Override
+  protected Path getDefaultRootDir() {
+    return new Path(System.getProperty("user.dir"));
+  }
+
+  @Override
+  protected String getSchemePrefix() {
+    return SCHEME_PREFIX;
+  }
 }

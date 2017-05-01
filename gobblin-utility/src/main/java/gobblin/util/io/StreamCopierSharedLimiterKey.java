@@ -48,7 +48,7 @@ public class StreamCopierSharedLimiterKey extends SharedLimiterKey {
   }
 
   private static String getLimitedResourceId(URI sourceURI, URI targetURI) {
-    return Joiner.on(".").join(STREAM_COPIER_KEY_PREFIX, getFSIdentifier(sourceURI), getFSIdentifier(targetURI));
+    return Joiner.on("/").join(STREAM_COPIER_KEY_PREFIX, getFSIdentifier(sourceURI), getFSIdentifier(targetURI));
   }
 
   private static String getFSIdentifier(URI uri) {

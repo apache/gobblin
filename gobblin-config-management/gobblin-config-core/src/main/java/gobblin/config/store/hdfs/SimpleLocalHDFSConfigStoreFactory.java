@@ -33,8 +33,16 @@ public class SimpleLocalHDFSConfigStoreFactory extends SimpleHDFSConfigStoreFact
     return LOCAL_HDFS_SCHEME_NAME;
   }
 
+  /**
+   * Do not use default store as file uris never have an authority.
+   */
   @Override
   protected Path getDefaultRootDir() {
-    return new Path(System.getProperty("user.dir"));
+    return null;
+  }
+
+  @Override
+  protected boolean isAuthorityRequired() {
+    return false;
   }
 }

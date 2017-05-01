@@ -32,7 +32,7 @@ public class FileSystemLimiterKey extends SharedLimiterKey {
   private final URI uri;
 
   public FileSystemLimiterKey(URI uri) {
-    super(RESOURCE_LIMITED_PREFIX + "." + getFSIdentifier(uri));
+    super(RESOURCE_LIMITED_PREFIX + "/" + getFSIdentifier(uri));
     this.uri = uri;
   }
 

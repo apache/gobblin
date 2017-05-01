@@ -24,7 +24,7 @@ import lombok.Getter;
 
 
 /**
- * A {@link SharedResourceKey} for use with {@link SharedLimiterFactory}. The resourceLimited should identify the resource
+ * A {@link SharedResourceKey} for use with {@link SharedLimiterFactory}. The resourceLimitedPath should identify the resource
  * that will be limited, for example the uri of an external service for which calls should be throttled.
  */
 @Getter
@@ -37,15 +37,20 @@ public class SharedLimiterKey implements SharedResourceKey {
     LOCAL_ONLY
   }
 
-  private final String resourceLimited;
+  /**
+   * A "/" separated path representing the resource limited. For example:
+   * - /filesystem/myHDFSCluster
+   * - /databases/mysql/myInstance
+   */
+  private final String resourceLimitedPath;
   private final GlobalLimiterPolicy globalLimiterPolicy;
 
-  public SharedLimiterKey(String resourceLimited) {
-    this(resourceLimited, GlobalLimiterPolicy.USE_GLOBAL_IF_CONFIGURED);
+  public SharedLimiterKey(String resourceLimitedPath) {
+    this(resourceLimitedPath, GlobalLimiterPolicy.USE_GLOBAL_IF_CONFIGURED);
   }
 
-  public SharedLimiterKey(String resourceLimited, GlobalLimiterPolicy globalLimiterPolicy) {
-    this.resourceLimited = resourceLimited;
+  public SharedLimiterKey(String resourceLimitedPath, GlobalLimiterPolicy globalLimiterPolicy) {
+    this.resourceLimitedPath = (resourceLimitedPath.startsWith("/") ? "" : "/") + resourceLimitedPath;
     this.globalLimiterPolicy = globalLimiterPolicy;
   }
 
@@ -55,6 +60,7 @@ public class SharedLimiterKey implements SharedResourceKey {
 
   @Override
   public String toConfigurationKey() {
-    return this.resourceLimited;
+    // remove leading "/"
+    return this.resourceLimitedPath.substring(1).replace("/", ".");
   }
 }
