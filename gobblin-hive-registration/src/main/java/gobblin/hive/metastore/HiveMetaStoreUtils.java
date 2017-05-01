@@ -111,15 +111,6 @@ public class HiveMetaStoreUtils {
     if (table.getTableType().equals(TableType.EXTERNAL_TABLE.toString())) {
       table.getParameters().put(EXTERNAL, Boolean.TRUE.toString().toUpperCase());
     }
-    if (hiveTable.getProps().contains(RUNTIME_PROPS)) {
-      String runtimePropsString = hiveTable.getProps().getProp(RUNTIME_PROPS);
-      for (String propValue : LIST_SPLITTER_COMMA.splitToList(runtimePropsString)) {
-        List<String> tokens = LIST_SPLITTER_COLON.splitToList(propValue);
-        Preconditions.checkState(tokens.size() == 2,
-            propValue + " is not a valid Hive table/partition property");
-        table.getParameters().put(tokens.get(0), tokens.get(1));
-      }
-    }
     table.setPartitionKeys(getFieldSchemas(hiveTable.getPartitionKeys()));
     table.setSd(getStorageDescriptor(hiveTable));
     return table;
@@ -194,8 +185,19 @@ public class HiveMetaStoreUtils {
 
   private static Map<String, String> getParameters(State props) {
     Map<String, String> parameters = Maps.newHashMap();
+    if (props.contains(RUNTIME_PROPS)) {
+      String runtimePropsString = props.getProp(RUNTIME_PROPS);
+      for (String propValue : LIST_SPLITTER_COMMA.splitToList(runtimePropsString)) {
+        List<String> tokens = LIST_SPLITTER_COLON.splitToList(propValue);
+        Preconditions.checkState(tokens.size() == 2,
+            propValue + " is not a valid Hive table/partition property");
+        parameters.put(tokens.get(0), tokens.get(1));
+      }
+    }
     for (String propKey : props.getPropertyNames()) {
-      parameters.put(propKey, props.getProp(propKey));
+      if (!propKey.equals(RUNTIME_PROPS)) {
+        parameters.put(propKey, props.getProp(propKey));
+      }
     }
     return parameters;
   }

@@ -25,6 +25,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Arrays;
 
+import java.util.concurrent.TimeUnit;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.testng.Assert;
@@ -183,6 +184,7 @@ public class CouchbaseTestServer {
       CouchbaseEnvironment cbEnv = DefaultCouchbaseEnvironment.builder().bootstrapHttpEnabled(true)
           .bootstrapHttpDirectPort(port)
           .bootstrapCarrierDirectPort(serverPort)
+          .connectTimeout(TimeUnit.SECONDS.toMillis(15))
           .bootstrapCarrierEnabled(true).build();
       CouchbaseCluster cbCluster = CouchbaseCluster.create(cbEnv, "localhost");
       Bucket bucket = cbCluster.openBucket("default","");
