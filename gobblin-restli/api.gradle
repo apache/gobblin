@@ -53,6 +53,19 @@ if (file("${project.projectDir}/src/main/idl").exists()) {
   }
 }
 
+install {
+  repositories {
+    mavenInstaller {
+      addFilter('data-template') { artifact, file -> artifact.name.contains("data-template")
+      }
+      addFilter('rest-client') { artifact, file -> artifact.name.contains("rest-client")
+      }
+      addFilter('') { artifact, file -> artifact.name == project.name
+      }
+    }
+  }
+}
+
 if (rootProject.ext.publishToMaven) {
   uploadArchives {
     repositories {
