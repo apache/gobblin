@@ -250,6 +250,16 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
     return this.dataSource.getConnection();
   }
 
+  protected String getLauncherType(JobExecutionInfo info) {
+    if (info.hasLauncherType()) {
+      if (info.getLauncherType() == LauncherTypeEnum.CLUSTER) {
+        return LauncherTypeEnum.YARN.name();
+      }
+      return info.getLauncherType().name();
+    }
+    return null;
+  }
+
   private void upsertJobExecutionInfo(Connection connection, JobExecutionInfo info)
       throws SQLException {
     Preconditions.checkArgument(info.hasJobName());
@@ -267,7 +277,7 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
       upsertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
       upsertStatement.setInt(++index, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
       upsertStatement.setInt(++index, info.hasCompletedTasks() ? info.getCompletedTasks() : -1);
-      upsertStatement.setString(++index, info.hasLauncherType() ? info.getLauncherType().name() : null);
+      upsertStatement.setString(++index, getLauncherType(info));
       upsertStatement.setString(++index, info.hasTrackingUrl() ? info.getTrackingUrl() : null);
       upsertStatement.executeUpdate();
     }
