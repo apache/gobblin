@@ -56,9 +56,9 @@ public class AsyncWriteRequest<D, RQ> {
   /**
    * Mark the record associated with this request
    */
-  public void markRecord(D record, int bytesWritten, WriteCallback callback) {
-    if (callback != null) {
-      thunks.add(new Thunk(callback, bytesWritten));
+  public void markRecord(BufferedRecord<D> record, int bytesWritten) {
+    if (record.getCallback() != null) {
+      thunks.add(new Thunk(record.getCallback(), bytesWritten));
     }
     recordCount++;
     this.bytesWritten += bytesWritten;

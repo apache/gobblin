@@ -64,7 +64,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
       } else if (statusCode >= 400 && statusCode < 500) {
         // Client error. Fail!
         LOG.error("Write failed on invalid request");
-        return 0;
+        return -1;
       } else {
         // Server side error. Retry
         i++;
@@ -72,7 +72,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
     }
 
     LOG.error("Write failed after " + maxTries + " tries");
-    return 0;
+    return -1;
   }
 
   @Override
