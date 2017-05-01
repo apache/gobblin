@@ -41,11 +41,11 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * A mock {@link gobblin.util.limiter.BatchedPermitsRequester.RequestSender} that satisfies requests using an embedded
+ * A mock {@link RestClientRequestSender} that satisfies requests using an embedded
  * {@link LimiterServerResource}.
  */
 @Slf4j
-public class MockRequester extends BatchedPermitsRequester.RequestSender {
+public class MockRequester implements RequestSender {
 
   private final BlockingQueue<RequestAndCallback> requestAndCallbackQueue;
 
@@ -57,7 +57,6 @@ public class MockRequester extends BatchedPermitsRequester.RequestSender {
   private ExecutorService handlerExecutorService;
 
   public MockRequester(LimiterServerResource limiterServer, long latencyMillis, int requestHandlerThreads) {
-    super(null);
     this.limiterServer = limiterServer;
     this.latencyMillis = latencyMillis;
     this.requestHandlerThreads = requestHandlerThreads;
@@ -84,7 +83,7 @@ public class MockRequester extends BatchedPermitsRequester.RequestSender {
   }
 
   @Override
-  protected void sendRequest(PermitRequest request, Callback<Response<PermitAllocation>> callback) {
+  public void sendRequest(PermitRequest request, Callback<Response<PermitAllocation>> callback) {
     if (!this.started) {
       throw new IllegalStateException(MockRequester.class.getSimpleName() + " has not been started.");
     }
@@ -115,7 +114,7 @@ public class MockRequester extends BatchedPermitsRequester.RequestSender {
 
           try {
             PermitAllocation allocation =
-                MockRequester.this.limiterServer.get(new ComplexResourceKey<>(requestAndCallback.getRequest(), new EmptyRecord()));
+                MockRequester.this.limiterServer.getSync(new ComplexResourceKey<>(requestAndCallback.getRequest(), new EmptyRecord()));
 
             Response<PermitAllocation> response = Mockito.mock(Response.class);
             Mockito.when(response.getEntity()).thenReturn(allocation);

@@ -78,6 +78,7 @@ public class EmbeddedRestliServer extends AbstractIdleService {
   private final URI serverUri;
   @Getter
   private final int port;
+  @Getter
   private final Injector injector;
   private final Logger log;
   @Getter
@@ -150,8 +151,9 @@ public class EmbeddedRestliServer extends AbstractIdleService {
   @Override
   protected void shutDown() throws Exception {
     if (this.httpServer.isPresent()) {
-      this.log.info("Stopping the {} embedded server.", this.name);
+      this.log.info("Stopping the {} embedded server at port {}", this.name, this.port);
       this.httpServer.get().stop();
+      this.httpServer.get().waitForStop();
     }
   }
 

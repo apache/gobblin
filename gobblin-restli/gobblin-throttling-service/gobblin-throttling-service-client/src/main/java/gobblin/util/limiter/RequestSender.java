@@ -15,25 +15,28 @@
  * limitations under the License.
  */
 
-package gobblin.restli;
+package gobblin.util.limiter;
 
-import gobblin.broker.iface.SharedResourceKey;
+import com.linkedin.common.callback.Callback;
+import com.linkedin.restli.client.Response;
 
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
+import gobblin.restli.throttling.PermitAllocation;
+import gobblin.restli.throttling.PermitRequest;
 
 
 /**
- * {@link SharedResourceKey} for {@link SharedRestClientFactory}. Contains an identifier for type of service
- * (e.g. throttling).
+ * Used to send a {@link PermitRequest}s to a Throttling server.
  */
-@AllArgsConstructor
-@EqualsAndHashCode
-public class SharedRestClientKey implements SharedResourceKey {
-  public final String serviceName;
+public interface RequestSender {
+  void sendRequest(PermitRequest request, Callback<Response<PermitAllocation>> callback);
 
-  @Override
-  public String toConfigurationKey() {
-    return this.serviceName;
+  class NonRetriableException extends Exception {
+    public NonRetriableException(String message, Throwable cause) {
+      super(message, cause);
+    }
+
+    public NonRetriableException(String message) {
+      super(message);
+    }
   }
 }

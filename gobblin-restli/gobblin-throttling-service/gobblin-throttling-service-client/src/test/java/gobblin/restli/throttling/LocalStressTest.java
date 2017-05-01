@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package gobblin.restli.throttling;
 
 import java.util.LinkedList;
 import java.util.Map;
@@ -32,28 +32,18 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.hadoop.conf.Configuration;
-import org.mockito.Mockito;
 
 import com.google.common.collect.Maps;
-import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.name.Names;
-import com.linkedin.restli.client.RestClient;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.broker.BrokerConfigurationKeyGenerator;
 import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.restli.throttling.DynamicTokenBucket;
-import gobblin.restli.throttling.LimiterServerResource;
-import gobblin.restli.throttling.QPSPolicy;
-import gobblin.restli.throttling.ThrottlingGuiceServletConfig;
-import gobblin.restli.throttling.ThrottlingPolicy;
-import gobblin.restli.throttling.ThrottlingPolicyFactory;
-import gobblin.restli.throttling.TokenBucket;
+import gobblin.util.limiter.Limiter;
+import gobblin.util.limiter.MockRequester;
+import gobblin.util.limiter.RestliServiceBasedLimiter;
 import gobblin.util.limiter.broker.SharedLimiterKey;
-import gobblin.util.limiter.stressTest.FixedOperationsStressor;
-import gobblin.util.limiter.stressTest.RandomDelayStartStressor;
-import gobblin.util.limiter.stressTest.RandomRuntimeStressor;
 import gobblin.util.limiter.stressTest.RateComputingLimiterContainer;
 import gobblin.util.limiter.stressTest.StressTestUtils;
 import gobblin.util.limiter.stressTest.Stressor;
@@ -117,8 +107,9 @@ public class LocalStressTest {
     configMap.put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, QPSPolicy.QPS),
         Long.toString(targetQps));
 
-    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.parseMap(configMap));
-    LimiterServerResource limiterServer = injector.getInstance(LimiterServerResource.class);
+    ThrottlingGuiceServletConfig guiceServletConfig = new ThrottlingGuiceServletConfig();
+    guiceServletConfig.initialize(ConfigFactory.parseMap(configMap));
+    LimiterServerResource limiterServer = guiceServletConfig.getInjector().getInstance(LimiterServerResource.class);
 
     RateComputingLimiterContainer limiterContainer = new RateComputingLimiterContainer();
 
@@ -128,7 +119,7 @@ public class LocalStressTest {
     ExecutorService executorService = Executors.newFixedThreadPool(stressorThreads);
 
     SharedResourcesBroker broker =
-        injector.getInstance(Key.get(SharedResourcesBroker.class, Names.named(LimiterServerResource.BROKER_INJECT_NAME)));
+        guiceServletConfig.getInjector().getInstance(Key.get(SharedResourcesBroker.class, Names.named(LimiterServerResource.BROKER_INJECT_NAME)));
     ThrottlingPolicy policy = (ThrottlingPolicy) broker.getSharedResource(new ThrottlingPolicyFactory(),
         new SharedLimiterKey(resourceLimited));
     ScheduledExecutorService reportingThread = Executors.newSingleThreadScheduledExecutor();
@@ -140,7 +131,8 @@ public class LocalStressTest {
     requester.start();
     for (int i = 0; i < stressorThreads; i++) {
       RestliServiceBasedLimiter restliLimiter = RestliServiceBasedLimiter.builder().resourceLimited(resourceLimited)
-          .requestSender(requester).restClient(Mockito.mock(RestClient.class)).serviceIdentifier("stressor" + i).build();
+          .requestSender(requester)
+          .serviceIdentifier("stressor" + i).build();
 
       Stressor stressor = stressorClass.newInstance();
       stressor.configure(configuration);

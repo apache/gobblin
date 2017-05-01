@@ -32,7 +32,6 @@ import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.metrics.broker.MetricContextFactory;
 import gobblin.metrics.broker.MetricContextKey;
 import gobblin.metrics.broker.SubTaggedMetricContextKey;
-import gobblin.restli.SharedRestClientFactory;
 import gobblin.restli.SharedRestClientKey;
 import gobblin.util.limiter.broker.SharedLimiterKey;
 
@@ -69,15 +68,16 @@ public class RestliLimiterFactory<S extends ScopeType<S>>
         config.getConfig().getString(SERVICE_IDENTIFIER_KEY) : "UNKNOWN";
     String resourceLimited = config.getKey().getResourceLimited();
 
-    RestClient restClient = broker.getSharedResource(new SharedRestClientFactory<S>(), new SharedRestClientKey(RESTLI_SERVICE_NAME));
-
-    MetricContextKey metricContextKey = new SubTaggedMetricContextKey(RestliServiceBasedLimiter.class.getSimpleName() + resourceLimited,
+    MetricContextKey metricContextKey =
+        new SubTaggedMetricContextKey(RestliServiceBasedLimiter.class.getSimpleName() + "_" + resourceLimited,
         ImmutableMap.of("resourceLimited", resourceLimited));
 
     return new ResourceInstance<>(
-        RestliServiceBasedLimiter.builder().restClient(restClient).resourceLimited(resourceLimited)
+        RestliServiceBasedLimiter.builder()
+            .resourceLimited(resourceLimited)
             .serviceIdentifier(serviceIdentifier)
             .metricContext(broker.getSharedResource(new MetricContextFactory<S>(), metricContextKey))
+            .requestSender(broker.getSharedResource(new RedirectAwareRestClientRequestSender.Factory<S>(), new SharedRestClientKey(RESTLI_SERVICE_NAME)))
             .build()
     );
   }

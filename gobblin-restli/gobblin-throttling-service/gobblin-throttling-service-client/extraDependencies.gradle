@@ -18,7 +18,7 @@
 apply plugin: 'com.github.johnrengelman.shadow'
 
 // workaround for mavenDeployer error in shadowJar
-tasks.remove(tasks.uploadShadow) 
+tasks.remove(tasks.uploadShadow)
 
 shadowJar {
   zip64 true
@@ -33,5 +33,8 @@ shadowJar {
 dependencies {
   compile project(":gobblin-runtime")
   compile project(":gobblin-restli:gobblin-restli-utils")
+  compile project(":gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-api")
   compile project(':gobblin-utility')
+
+  testCompile externalDependency.curatorTest
 }
