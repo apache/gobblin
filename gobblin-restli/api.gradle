@@ -42,13 +42,3 @@ dependencies {
   compile externalDependency.pegasus.restliCommon
   compile externalDependency.pegasus.pegasusCommon
 }
-
-artifacts {
-  archives mainDataTemplateJar
-}
-
-if (file("${project.projectDir}/src/main/idl").exists()) {
-  artifacts {
-    archives mainRestClientJar
-  }
-}
