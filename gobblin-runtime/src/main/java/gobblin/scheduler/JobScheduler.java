@@ -17,9 +17,8 @@
 
 package gobblin.scheduler;
 
+import java.io.Closeable;
 import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +49,6 @@ import org.quartz.UnableToInterruptJobException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -131,6 +129,8 @@ public class JobScheduler extends AbstractIdleService {
   // A period of time for scheduler to wait until jobs are finished
   private final boolean waitForJobCompletion;
 
+  private final Closer closer = Closer.create();
+
   public JobScheduler(Properties properties, SchedulerService scheduler)
       throws Exception {
     this.properties = properties;
@@ -155,14 +155,6 @@ public class JobScheduler extends AbstractIdleService {
         this.properties.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
             ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION));
 
-    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) &&
-        !this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
-      String path = FileSystems.getDefault()
-          .getPath(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY))
-          .normalize().toAbsolutePath().toString();
-      this.properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, "file:///" + path);
-    }
-
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
       this.jobConfigFileDirPath = new Path(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
       this.listener = new PathAlterationListenerAdaptorForMonitor(jobConfigFileDirPath, this);
@@ -185,27 +177,33 @@ public class JobScheduler extends AbstractIdleService {
     }
 
     // Note: This should not be mandatory, gobblin-cluster modes have their own job configuration managers
-    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
-      startGeneralJobConfigFileMonitor();
-      scheduleGeneralConfiguredJobs();
+    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)
+            || this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
+
+      if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) && !this.properties.containsKey(
+              ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
+        this.properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
+                "file://" + this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
+      }
+      startServices();
     }
+  }
+
+  protected void startServices() throws Exception {
+    startGeneralJobConfigFileMonitor();
+    scheduleGeneralConfiguredJobs();
   }
 
   @Override
   protected void shutDown()
       throws Exception {
     LOG.info("Stopping the job scheduler");
-
-    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY) || this.properties.containsKey(
-        ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
-      this.pathAlterationDetector.stop(1000);
-    }
+    closer.close();
 
     List<JobExecutionContext> currentExecutions = this.scheduler.getScheduler().getCurrentlyExecutingJobs();
     for (JobExecutionContext jobExecutionContext : currentExecutions) {
       this.scheduler.getScheduler().interrupt(jobExecutionContext.getFireInstanceId());
     }
-
 
     ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
   }
@@ -454,6 +452,16 @@ public class JobScheduler extends AbstractIdleService {
       throws Exception {
     SchedulerUtils.addPathAlterationObserver(this.pathAlterationDetector, this.listener, jobConfigFileDirPath);
     this.pathAlterationDetector.start();
+    this.closer.register(new Closeable() {
+      @Override
+      public void close() throws IOException {
+        try {
+          pathAlterationDetector.stop(1000);
+        } catch (InterruptedException e) {
+          throw new IOException(e);
+        }
+      }
+    });
   }
 
   /**

@@ -103,6 +103,10 @@ public class GobblinHelixJobScheduler extends JobScheduler {
   }
 
   @Override
+  protected void startServices() throws Exception {
+  }
+
+  @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
       JobLauncher jobLauncher = buildGobblinHelixJobLauncher(jobProps);
