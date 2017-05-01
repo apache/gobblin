@@ -21,6 +21,9 @@ import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
 
 
+/**
+ * Base class with skeleton logic to write a record asynchronously.
+ */
 @ThreadSafe
 public abstract class AbstractAsyncDataWriter<D> implements AsyncDataWriter<D> {
   public static int DEFAULT_BUFFER_CAPACITY = 10000;
@@ -71,12 +74,6 @@ public abstract class AbstractAsyncDataWriter<D> implements AsyncDataWriter<D> {
   protected abstract int dispatch(Queue<BufferedRecord<D>> buffer) throws Throwable;
 
   private void put(BufferedRecord<D> record) {
-    if (isClosing) {
-      RuntimeException e = new RuntimeException("Attempt to write data when writer is closing");
-      LOG.error("Invalid write", e);
-      throw e;
-    }
-
     lock.lock();
     while (buffer.size() == capacity) {
       try {
@@ -93,13 +90,13 @@ public abstract class AbstractAsyncDataWriter<D> implements AsyncDataWriter<D> {
 
   @Override
   public Future<WriteResponse> write(D record, @Nullable WriteCallback callback) {
-    if (service.isShutdown()) {
-      RuntimeException e = new RuntimeException("Attempt to write a record after close.");
+    if (isClosing) {
+      RuntimeException e = new RuntimeException("Attempt to write data when writer is closing");
       LOG.error("Invalid write", e);
       throw e;
     }
-    BufferedRecord<D> item = new BufferedRecord<>(record, callback);
-    put(item);
+    BufferedRecord<D> bufferedRecord = new BufferedRecord<>(record, callback);
+    put(bufferedRecord);
     return null;
   }
 
@@ -137,7 +134,7 @@ public abstract class AbstractAsyncDataWriter<D> implements AsyncDataWriter<D> {
 
   private class RecordProcessor implements Runnable {
     public void run() {
-      LOG.info("Start processing records in the blocking queue");
+      LOG.info("Start processing records");
       /*
        * A main loop to process records
        */
