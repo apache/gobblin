@@ -108,7 +108,7 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener im
     return this._injector;
   }
 
-  private Injector createInjector(final Config config, final Optional<LeaderFinder<URIMetadata>> helixManager) {
+  private Injector createInjector(final Config config, final Optional<LeaderFinder<URIMetadata>> leaderFinder) {
     final SharedResourcesBroker<ThrottlingServerScopes> topLevelBroker =
         SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config, ThrottlingServerScopes.GLOBAL.defaultScopeInstance());
 
@@ -131,7 +131,7 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener im
           bind(Timer.class).annotatedWith(Names.named(LimiterServerResource.REQUEST_TIMER_INJECT_NAME)).toInstance(timer);
 
           bind(new TypeLiteral<Optional<LeaderFinder<URIMetadata>>>() {
-          }).annotatedWith(Names.named(LimiterServerResource.HELIX_MANAGER_INJECT_NAME)).toInstance(helixManager);
+          }).annotatedWith(Names.named(LimiterServerResource.HELIX_MANAGER_INJECT_NAME)).toInstance(leaderFinder);
 
           FilterChain filterChain =
               FilterChains.create(new ServerCompressionFilter(new EncodingType[]{EncodingType.SNAPPY}), new SimpleLoggingFilter());

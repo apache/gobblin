@@ -38,6 +38,8 @@ import org.apache.zookeeper.data.Stat;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import gobblin.util.SerializationUtils;
+
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -122,19 +124,11 @@ public class ZookeeperLeaderElection<T extends LeaderFinder.Metadata> extends Ab
   }
 
   private byte[] serializeMetadata(T metadata) throws IOException {
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    ObjectOutputStream out = new ObjectOutputStream(os);
-    out.writeObject(metadata);
-    out.close();
-    return os.toByteArray();
+    return SerializationUtils.serializeIntoBytes(metadata);
   }
 
   private T deserializeMetadata(byte[] bytes) throws IOException, ClassNotFoundException {
-    ByteArrayInputStream is = new ByteArrayInputStream(bytes);
-    ObjectInputStream in = new ObjectInputStream(is);
-    T metadata = (T) in.readObject();
-    in.close();
-    return metadata;
+    return (T) SerializationUtils.deserializeFromBytes(bytes, Metadata.class);
   }
 
   private void reset() {

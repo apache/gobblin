@@ -43,7 +43,7 @@ public class ExponentialBackoff {
    * @param alpha the multiplier for each backoff iteration. (def: 2)
    * @param maxRetries maximum number of retries allowed. (def: infinite)
    * @param maxDelay maximum delay allowed in millis. (def: infinite)
-   * @param initialDelay initial delay. (def: 20)
+   * @param initialDelay initial delay in millis. (def: 20)
    */
   @Builder
   private ExponentialBackoff(Double alpha, Integer maxRetries, Long maxDelay, Long initialDelay) {
