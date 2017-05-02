@@ -35,9 +35,9 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
 
   // Lock for isBufferEmpty condition
   private final Lock lock;
-  // When buffer is empty at sometime
   private final Condition isBufferEmpty;
-  // Indicate if buffer is empty recently
+
+  // Indicate a buffer empty occurrence
   private boolean isBufferEmptyOccurred;
 
   public AsyncDataDispatcher(int capacity) {
@@ -116,26 +116,31 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
 
   protected void waitForABufferEmptyOccurrence() {
     checkRunning("waitForABufferEmptyOccurrence");
-    lock.lock();
-    // Waiting for a buffer empty occurrence
-    while (!isBufferEmptyOccurred) {
-      try {
-        isBufferEmpty.await();
-      } catch (InterruptedException e) {
-        lock.unlock();
-        throw new RuntimeException("Waiting for buffer flush interrupted", e);
+    try {
+      lock.lock();
+      // Waiting for a buffer empty occurrence
+      while (!isBufferEmptyOccurred) {
+        try {
+          isBufferEmpty.await();
+        } catch (InterruptedException e) {
+          throw new RuntimeException("Waiting for buffer flush interrupted", e);
+        }
       }
+      // Reset to hold a new buffer empty occurrence
+      isBufferEmptyOccurred = false;
+    } finally {
+      lock.unlock();
+      checkRunning("waitForABufferEmptyOccurrence");
     }
-    // Reset to hold a new buffer empty occurrence
-    isBufferEmptyOccurred = false;
-    lock.unlock();
-    checkRunning("waitForABufferEmptyOccurrence");
   }
 
   private void notifyBufferEmptyOccurrence() {
-    lock.lock();
-    isBufferEmptyOccurred = true;
-    isBufferEmpty.signalAll();
-    lock.unlock();
+    try {
+      lock.lock();
+      isBufferEmptyOccurred = true;
+      isBufferEmpty.signalAll();
+    } finally {
+      lock.unlock();
+    }
   }
 }

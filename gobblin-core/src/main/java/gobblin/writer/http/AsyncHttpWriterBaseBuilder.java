@@ -14,7 +14,7 @@ import lombok.Getter;
  */
 public abstract class AsyncHttpWriterBaseBuilder<D, RQ, RP> extends HttpWriterBaseBuilder<D, RQ, RP> {
   @Getter
-  protected AsyncWriteRequestBuilder<D, RQ> asyncRequestBuilder;
+  protected AsyncWriteRequestBuilder<D, RQ> asyncRequestBuilder = null;
   @Getter
   protected int queueCapacity = AbstractAsyncDataWriter.DEFAULT_BUFFER_CAPACITY;
   @Getter

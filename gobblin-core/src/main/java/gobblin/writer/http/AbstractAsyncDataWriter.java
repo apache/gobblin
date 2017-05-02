@@ -20,7 +20,7 @@ import gobblin.writer.WriteResponse;
  */
 @ThreadSafe
 public abstract class AbstractAsyncDataWriter<D> extends AsyncDataDispatcher<BufferedRecord<D>> implements AsyncDataWriter<D> {
-  public static int DEFAULT_BUFFER_CAPACITY = 10000;
+  public static final int DEFAULT_BUFFER_CAPACITY = 10000;
 
   public AbstractAsyncDataWriter(int capacity) {
     super(capacity);

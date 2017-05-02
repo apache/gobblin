@@ -42,11 +42,11 @@ public abstract class HttpWriterBaseBuilder<D, RQ, RP> extends FluentDataWriterB
   @Getter
   private State state;
   @Getter
-  protected HttpClient<RQ, RP> client;
+  protected HttpClient<RQ, RP> client = null;
   @Getter
-  protected WriteRequestBuilder<D, RQ> requestBuilder;
+  protected WriteRequestBuilder<D, RQ> requestBuilder = null;
   @Getter
-  protected ResponseHandler<RP> responseHandler;
+  protected ResponseHandler<RP> responseHandler = null;
 
   /**
    * For backward compatibility on how Fork creates writer, invoke fromState when it's called writeTo method.

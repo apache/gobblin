@@ -1,4 +1,4 @@
-package gobblin.http;
+package gobblin;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -9,6 +9,8 @@ import com.linkedin.common.util.None;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
+
+import gobblin.http.HttpClient;
 
 
 public class RestliR2Client implements HttpClient<RestRequest, RestResponse> {
