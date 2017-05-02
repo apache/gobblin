@@ -300,7 +300,6 @@ public class JobContext implements Closeable {
       String writerStagingDirWithJobId =
           new Path(this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR), this.jobId).toString();
       this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, writerStagingDirWithJobId);
-      LOG.info("arjun 1 " +writerStagingDirWithJobId);
     }
 
     // Add jobId to writer output dir
@@ -308,7 +307,6 @@ public class JobContext implements Closeable {
       String writerOutputDirWithJobId =
           new Path(this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), this.jobId).toString();
       this.jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, writerOutputDirWithJobId);
-      LOG.info("arjun 2 " +writerOutputDirWithJobId);
     }
 
     setTaskStagingDir();
@@ -322,18 +320,13 @@ public class JobContext implements Closeable {
    * plus {@link #TASK_STAGING_DIR_NAME}.
    */
   private void setTaskStagingDir() {
-    String workingDir;
-    if (this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR)) {
-      LOG.warn(String.format("Property %s is deprecated. No need to use it if %s is specified.",
-          ConfigurationKeys.WRITER_STAGING_DIR, ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY));
-      workingDir = this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR);
-    } else {
-      workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
+    if (!this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR)) {
+      String workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
+      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR,
+          new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
+      LOG.info(String.format("Writer Staging Directory is set to %s.",
+          this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR)));
     }
-    this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR,
-        new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
-    LOG.info(String.format("Writer Staging Directory is set to %s.",
-        this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR)));
   }
 
   /**
@@ -343,18 +336,12 @@ public class JobContext implements Closeable {
    * plus {@link #TASK_OUTPUT_DIR_NAME}.
    */
   private void setTaskOutputDir() {
-    String workingDir;
-    if (this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
-      LOG.warn(String.format("Property %s is deprecated. No need to use it if %s is specified.",
-          ConfigurationKeys.WRITER_OUTPUT_DIR, ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY));
-      workingDir = this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR);
-    } else {
-      workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
+    if (!this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
+      String workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
+      this.jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(workingDir, TASK_OUTPUT_DIR_NAME).toString());
+      LOG.info(String.format("Writer Output Directory is set to %s.",
+          this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)));
     }
-    this.jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR,
-        new Path(workingDir, TASK_OUTPUT_DIR_NAME).toString());
-    LOG.info(String.format("Writer Output Directory is set to %s.",
-        this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)));
   }
 
   /**
