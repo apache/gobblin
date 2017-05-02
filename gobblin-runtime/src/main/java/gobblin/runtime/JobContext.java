@@ -286,15 +286,6 @@ public class JobContext implements Closeable {
 
   protected void setTaskStagingAndOutputDirs() {
 
-    // Add jobId to task data root dir
-    if (this.jobState.contains(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY)) {
-      String taskDataRootDirWithJobId =
-          new Path(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), this.jobId).toString();
-      this.jobState.setProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY, taskDataRootDirWithJobId);
-    } else {
-      LOG.warn("Property " + ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY + " is missing.");
-    }
-
     // Add jobId to writer staging dir
     if (this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR)) {
       String writerStagingDirWithJobId =
@@ -309,8 +300,16 @@ public class JobContext implements Closeable {
       this.jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, writerOutputDirWithJobId);
     }
 
-    setTaskStagingDir();
-    setTaskOutputDir();
+    // Add jobId to task data root dir
+    if (this.jobState.contains(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY)) {
+      String taskDataRootDirWithJobId =
+          new Path(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), this.jobId).toString();
+      this.jobState.setProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY, taskDataRootDirWithJobId);
+      setTaskStagingDir();
+      setTaskOutputDir();
+    } else {
+      LOG.warn("Property " + ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY + " is missing.");
+    }
   }
 
   /**
