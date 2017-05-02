@@ -8,9 +8,9 @@ import lombok.Getter;
  */
 public class ResponseStatus {
   @Getter
-  int statusCode;
+  StatusType type;
 
-  ResponseStatus(int statusCode) {
-    this.statusCode = statusCode;
+  ResponseStatus(StatusType type) {
+    this.type = type;
   }
 }

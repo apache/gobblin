@@ -56,21 +56,22 @@ public class RecordSyncHttpWriter<D, RQ, RP> extends HttpWriterBase<D, RQ, RP> {
     RP response = client.sendRequest(writeRequest.getRawRequest());
     ResponseStatus status = responseHandler.handleResponse(response);
 
-    int statusCode = status.getStatusCode();
-    if (statusCode >= 200 && statusCode < 400) {
-      // Write succeeds
-      bytesWritten += writeRequest.getBytesWritten();
-      numRecordsWritten++;
-    } else if (statusCode >= 400 && statusCode < 500) {
-      // Client error. Fail!
-      IOException e = new IOException("Write failed on invalid request");
-      LOG.error("Got status code: " + statusCode, e);
-      throw e;
-    } else {
-      // Server side error. Fail!
-      IOException e = new IOException("Server side error");
-      LOG.error("Got status code: " + statusCode, e);
-      throw e;
+    switch (status.getType()) {
+      case OK:
+        // Write succeeds
+        bytesWritten += writeRequest.getBytesWritten();
+        numRecordsWritten++;
+        break;
+      case CLIENT_ERROR:
+        // Client error. Fail!
+        IOException clientExp = new IOException("Write failed on invalid request");
+        LOG.error("Write failed on client error", clientExp);
+        throw clientExp;
+      case SERVER_ERROR:
+        // Server side error. Fail!
+        IOException serverExp = new IOException("Server side error");
+        LOG.error("Write failed on server error", serverExp);
+        throw serverExp;
     }
   }
 }

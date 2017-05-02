@@ -60,23 +60,24 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
       }
 
       ResponseStatus status = responseHandler.handleResponse(response);
-      int statusCode = status.getStatusCode();
-      if (statusCode >= 200 && statusCode < 300) {
-        // Write succeeds
-        asyncWriteRequest.onSuccess(WriteResponse.EMPTY);
-      } else if (statusCode >= 300 && statusCode < 500) {
-        // Client error. Fail!
-        IOException e = new IOException("Write failed on invalid request. Status code: " + statusCode);
-        asyncWriteRequest.onFailure(e);
-        throw new DispatchException("Write failed on client error", e);
-      } else {
-        // Server side error. Retry
-        attempt++;
-        if (attempt == maxAttempts) {
-          IOException e = new IOException("Write failed after " + maxAttempts + " attempts. Status code: " + statusCode);
-          asyncWriteRequest.onFailure(e);
-          throw new DispatchException("Write failed on server side error", e);
-        }
+      switch (status.getType()) {
+        case OK:
+          // Write succeeds
+          asyncWriteRequest.onSuccess(WriteResponse.EMPTY);
+          break;
+        case CLIENT_ERROR:
+          // Client error. Fail!
+          IOException clientExp = new IOException("Write failed on invalid request.");
+          asyncWriteRequest.onFailure(clientExp);
+          throw new DispatchException("Write failed on client error", clientExp);
+        case SERVER_ERROR:
+          // Server side error. Retry
+          attempt++;
+          if (attempt == maxAttempts) {
+            IOException serverExp = new IOException("Write failed after " + maxAttempts + " attempts.");
+            asyncWriteRequest.onFailure(serverExp);
+            throw new DispatchException("Write failed on server side error", serverExp);
+          }
       }
     }
   }

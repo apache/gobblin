@@ -1,5 +1,6 @@
 package gobblin.writer.http;
 
+import java.io.IOException;
 import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
@@ -30,5 +31,22 @@ public abstract class AbstractAsyncDataWriter<D> extends AsyncDataDispatcher<Buf
     BufferedRecord<D> bufferedRecord = new BufferedRecord<>(record, callback);
     put(bufferedRecord);
     return null;
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    checkRunning("close");
+    flush();
+    stopAsync().awaitTerminated();
+  }
+
+  /**
+   * Wait for a buffer empty occurrence
+   */
+  @Override
+  public void flush()
+      throws IOException {
+    waitForABufferEmptyOccurrence();
   }
 }
