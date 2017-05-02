@@ -285,32 +285,34 @@ public class JobContext implements Closeable {
   }
 
   protected void setTaskStagingAndOutputDirs() {
-    if (this.jobState.contains(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY)) {
 
-      // Add jobId to task data root dir
+    // Add jobId to task data root dir
+    if (this.jobState.contains(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY)) {
       String taskDataRootDirWithJobId =
           new Path(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), this.jobId).toString();
       this.jobState.setProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY, taskDataRootDirWithJobId);
-
-      // Add jobId to writer staging dir
-      if (this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR)) {
-        String writerStagingDirWithJobId =
-            new Path(this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR), this.jobId).toString();
-        this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, writerStagingDirWithJobId);
-      }
-
-      // Add jobId to writer output dir
-      if (this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
-        String writerOutputDirWithJobId =
-            new Path(this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), this.jobId).toString();
-        this.jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, writerOutputDirWithJobId);
-      }
-
-      setTaskStagingDir();
-      setTaskOutputDir();
     } else {
       LOG.warn("Property " + ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY + " is missing.");
     }
+
+    // Add jobId to writer staging dir
+    if (this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR)) {
+      String writerStagingDirWithJobId =
+          new Path(this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR), this.jobId).toString();
+      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, writerStagingDirWithJobId);
+      LOG.info("arjun 1 " +writerStagingDirWithJobId);
+    }
+
+    // Add jobId to writer output dir
+    if (this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
+      String writerOutputDirWithJobId =
+          new Path(this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), this.jobId).toString();
+      this.jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, writerOutputDirWithJobId);
+      LOG.info("arjun 2 " +writerOutputDirWithJobId);
+    }
+
+    setTaskStagingDir();
+    setTaskOutputDir();
   }
 
   /**
