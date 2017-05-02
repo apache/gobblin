@@ -3,53 +3,57 @@ package gobblin.writer.http;
 import java.io.IOException;
 import java.util.Queue;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import gobblin.async.DispatchException;
 import gobblin.http.HttpClient;
 import gobblin.http.ResponseHandler;
 import gobblin.http.ResponseStatus;
 import gobblin.writer.WriteResponse;
 
 
+/**
+ * This class is an {@link AsyncHttpWriter} that writes data in a batch, which
+ * is sent via http request
+ *
+ * @param <D> type of record
+ * @param <RQ> type of request
+ * @param <RP> type of response
+ */
 public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
-  private static final Logger LOG = LoggerFactory.getLogger(AsyncHttpWriter.class);
-  public static final int DEFAULT_MAX_TRIES = 3;
+  public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
   private final HttpClient<RQ, RP> client;
   private final ResponseHandler<RP> responseHandler;
   private final AsyncWriteRequestBuilder<D, RQ> requestBuilder;
-  private final int maxTries;
+  private final int maxAttempts;
 
   public AsyncHttpWriter(AsyncHttpWriterBaseBuilder builder) {
     super(builder.getQueueCapacity());
     this.client = builder.getClient();
     this.requestBuilder = builder.getAsyncRequestBuilder();
     this.responseHandler = builder.getResponseHandler();
-    this.maxTries = builder.getMaxTries();
+    this.maxAttempts = builder.getMaxAttempts();
   }
 
   @Override
-  protected int dispatch(Queue<BufferedRecord<D>> buffer) throws Throwable {
+  protected void dispatch(Queue<BufferedRecord<D>> buffer) throws DispatchException {
     AsyncWriteRequest<D, RQ> asyncWriteRequest = requestBuilder.buildRequest(buffer);
     if (asyncWriteRequest == null) {
-      return 0;
+      return;
     }
 
     RQ rawRequest = asyncWriteRequest.getRawRequest();
     RP response;
 
-    int i = 0;
-    while (i < maxTries) {
+    int attempt = 0;
+    while (attempt < maxAttempts) {
       try {
         response = client.sendRequest(rawRequest);
       } catch (IOException e) {
         // Retry
-        i++;
-        if (i == maxTries) {
+        attempt++;
+        if (attempt == maxAttempts) {
           asyncWriteRequest.onFailure(e);
-          LOG.error("Write failed on IOException", e);
-          break;
+          throw new DispatchException("Write failed on IOException", e);
         } else {
           continue;
         }
@@ -57,22 +61,24 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
 
       ResponseStatus status = responseHandler.handleResponse(response);
       int statusCode = status.getStatusCode();
-      if (statusCode >= 200 && statusCode < 400) {
+      if (statusCode >= 200 && statusCode < 300) {
         // Write succeeds
         asyncWriteRequest.onSuccess(WriteResponse.EMPTY);
-        return asyncWriteRequest.getRecordCount();
-      } else if (statusCode >= 400 && statusCode < 500) {
+      } else if (statusCode >= 300 && statusCode < 500) {
         // Client error. Fail!
-        LOG.error("Write failed on invalid request");
-        return -1;
+        IOException e = new IOException("Write failed on invalid request. Status code: " + statusCode);
+        asyncWriteRequest.onFailure(e);
+        throw new DispatchException("Write failed on client error", e);
       } else {
         // Server side error. Retry
-        i++;
+        attempt++;
+        if (attempt == maxAttempts) {
+          IOException e = new IOException("Write failed after " + maxAttempts + " attempts. Status code: " + statusCode);
+          asyncWriteRequest.onFailure(e);
+          throw new DispatchException("Write failed on server side error", e);
+        }
       }
     }
-
-    LOG.error("Write failed after " + maxTries + " tries");
-    return -1;
   }
 
   @Override

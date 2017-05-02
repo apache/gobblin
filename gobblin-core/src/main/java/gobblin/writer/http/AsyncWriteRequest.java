@@ -10,6 +10,14 @@ import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
 
 
+/**
+ * A type of write request which may batch several records at a time. It encapsulates the
+ * raw request, batch level statistics, and callback of each record that will be invoked
+ * on batch level callbacks.
+ *
+ * @param <D> type of data record
+ * @param <RQ> type of raw request
+ */
 public class AsyncWriteRequest<D, RQ> {
   @Getter
   private int recordCount = 0;

@@ -5,13 +5,20 @@ import com.google.common.base.Preconditions;
 import lombok.Getter;
 
 
+/**
+ * Base builder for async http writers
+ *
+ * @param <D> type of record
+ * @param <RQ> type of request
+ * @param <RP> type of response
+ */
 public abstract class AsyncHttpWriterBaseBuilder<D, RQ, RP> extends HttpWriterBaseBuilder<D, RQ, RP> {
   @Getter
   protected AsyncWriteRequestBuilder<D, RQ> asyncRequestBuilder;
   @Getter
   protected int queueCapacity = AbstractAsyncDataWriter.DEFAULT_BUFFER_CAPACITY;
   @Getter
-  protected int maxTries = AsyncHttpWriter.DEFAULT_MAX_TRIES;
+  protected int maxAttempts = AsyncHttpWriter.DEFAULT_MAX_ATTEMPTS;
 
   @Override
   protected void validate() {
