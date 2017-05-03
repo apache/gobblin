@@ -39,6 +39,8 @@ public class ThrottlingPolicyFactory implements SharedResourceFactory<Throttling
 
   public static final String POLICY_KEY = "policy";
   public static final String FAIL_ON_UNKNOWN_RESOURCE_ID = "faiOnUnknownResourceId";
+  public static final ClassAliasResolver<SpecificPolicyFactory> POLICY_CLASS_RESOLVER = new
+      ClassAliasResolver<>(SpecificPolicyFactory.class);
 
   @Override
   public String getName() {
@@ -58,11 +60,10 @@ public class ThrottlingPolicyFactory implements SharedResourceFactory<Throttling
         return new ResourceInstance<ThrottlingPolicy>(new NoopPolicy());
       }
     }
-    ClassAliasResolver<SpecificPolicyFactory> resolver = new ClassAliasResolver<>(SpecificPolicyFactory.class);
 
     try {
-      SpecificPolicyFactory factory = resolver.resolveClass(config.getString(POLICY_KEY)).newInstance();
-      return new ResourceInstance<>(factory.createPolicy(broker, config));
+      SpecificPolicyFactory factory = POLICY_CLASS_RESOLVER.resolveClass(config.getString(POLICY_KEY)).newInstance();
+      return new ResourceInstance<>(factory.createPolicy(configView.getKey(), broker, config));
     } catch (ReflectiveOperationException roe) {
       throw new RuntimeException(roe);
     }
@@ -75,7 +76,7 @@ public class ThrottlingPolicyFactory implements SharedResourceFactory<Throttling
   }
 
   public interface SpecificPolicyFactory {
-    ThrottlingPolicy createPolicy(SharedResourcesBroker<ThrottlingServerScopes> broker, Config config);
+    ThrottlingPolicy createPolicy(SharedLimiterKey sharedLimiterKey, SharedResourcesBroker<ThrottlingServerScopes> broker, Config config);
   }
 
 }

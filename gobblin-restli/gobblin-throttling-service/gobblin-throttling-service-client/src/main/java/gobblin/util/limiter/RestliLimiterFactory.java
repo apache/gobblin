@@ -66,7 +66,7 @@ public class RestliLimiterFactory<S extends ScopeType<S>>
 
     String serviceIdentifier = config.getConfig().hasPath(SERVICE_IDENTIFIER_KEY) ?
         config.getConfig().getString(SERVICE_IDENTIFIER_KEY) : "UNKNOWN";
-    String resourceLimited = config.getKey().getResourceLimited();
+    String resourceLimited = config.getKey().getResourceLimitedPath();
 
     MetricContextKey metricContextKey =
         new SubTaggedMetricContextKey(RestliServiceBasedLimiter.class.getSimpleName() + "_" + resourceLimited,

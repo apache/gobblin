@@ -50,11 +50,6 @@ public class ConfigClientUtils {
   public static ConfigKeyPath buildConfigKeyPath(URI configKeyURI, ConfigStore cs) {
     checkMatchingSchemeAndAuthority(configKeyURI, cs);
     // Example store root is   etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest
-
-    // configKeyURI is etl-hdfs:///datasets/a1/a2
-    if (configKeyURI.getAuthority() == null) {
-      return getConfigKeyPath(configKeyURI.getPath());
-    }
     URI relative = cs.getStoreURI().relativize(configKeyURI);
     return getConfigKeyPath(relative.getPath());
   }

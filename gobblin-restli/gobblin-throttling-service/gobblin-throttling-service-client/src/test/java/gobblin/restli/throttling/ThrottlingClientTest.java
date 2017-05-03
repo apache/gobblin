@@ -83,7 +83,7 @@ public class ThrottlingClientTest {
 
       PermitRequest res1request = new PermitRequest();
       res1request.setPermits(20);
-      res1request.setResource(res1key.getResourceLimited());
+      res1request.setResource(res1key.getResourceLimitedPath());
 
       PermitAllocation allocation = getPermitAllocation(res1request, restClient, getBuilder);
       Assert.assertEquals(allocation.getPermits(), new Long(20));

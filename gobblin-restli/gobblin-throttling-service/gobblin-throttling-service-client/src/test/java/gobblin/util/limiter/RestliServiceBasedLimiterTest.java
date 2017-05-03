@@ -77,7 +77,7 @@ public class RestliServiceBasedLimiterTest {
 
       RestliServiceBasedLimiter limiter = RestliServiceBasedLimiter.builder()
           .requestSender(new RedirectAwareRestClientRequestSender(broker, Lists.newArrayList(server.getURIPrefix())))
-          .resourceLimited(res1key.getResourceLimited()).serviceIdentifier("service").build();
+          .resourceLimited(res1key.getResourceLimitedPath()).serviceIdentifier("service").build();
 
       Assert.assertNotNull(limiter.acquirePermits(20));
       Assert.assertNotNull(limiter.acquirePermits(20));
@@ -113,7 +113,7 @@ public class RestliServiceBasedLimiterTest {
           Lists.newArrayList(server2500.getServer().getURIPrefix(), server2501.getServer().getURIPrefix()));
       RestliServiceBasedLimiter limiter = RestliServiceBasedLimiter.builder()
           .requestSender(requestSender)
-          .resourceLimited(res1key.getResourceLimited())
+          .resourceLimited(res1key.getResourceLimitedPath())
           .serviceIdentifier("service")
           .build();
 
