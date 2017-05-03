@@ -10,6 +10,8 @@ import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
 
+import gobblin.http.HttpClient;
+
 
 public class RestliR2Client implements HttpClient<RestRequest, RestResponse> {
   private final Client client;
