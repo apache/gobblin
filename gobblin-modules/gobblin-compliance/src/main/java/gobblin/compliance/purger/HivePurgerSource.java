@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import gobblin.compliance.ComplianceConfigurationKeys;
 import gobblin.compliance.ComplianceEvents;
-import gobblin.compliance.DatasetUtils;
+import gobblin.compliance.utils.DatasetUtils;
 import gobblin.compliance.HivePartitionDataset;
 import gobblin.compliance.HivePartitionFinder;
 import gobblin.compliance.utils.ProxyUtils;
