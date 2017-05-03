@@ -15,12 +15,24 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package gobblin.util;
+
+import java.util.Iterator;
+
+import com.google.common.collect.ImmutableSet;
+
 
 /**
- * @deprecated. Please use {@link gobblin.util.EmptyIterable} instead.
+ * A type of {@link java.lang.Iterable}s corresponding to empty {@link java.util.Collection}s.
+ *
+ * @author Yinan Li
+ *
+ * @param <T> record type
  */
-@Deprecated
-public class EmptyIterable<T> extends gobblin.util.EmptyIterable<T> {
+public class EmptyIterable<T> implements Iterable<T> {
 
+  @Override
+  public Iterator<T> iterator() {
+    return ImmutableSet.<T>of().iterator();
+  }
 }
