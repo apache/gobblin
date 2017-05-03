@@ -45,7 +45,9 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
     buffer = new ArrayBlockingQueue<>(capacity);
     lock = new ReentrantLock(true);
     isBufferEmpty = lock.newCondition();
-    isBufferEmptyOccurred = true;
+    isBufferEmptyOccurred = false;
+    startAsync();
+    awaitRunning();
   }
 
   /**
@@ -59,12 +61,15 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
       throws DispatchException;
 
   protected void put(D record) {
+    // Check if dispatcher is running to accept new record
+    checkRunning("put");
     try {
       buffer.put(record);
-      checkRunning("put");
     } catch (InterruptedException e) {
       throw new RuntimeException("Waiting to put a record interrupted", e);
     }
+    // Check after a successful blocking put
+    checkRunning("put");
   }
 
   @Override
@@ -88,6 +93,11 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
         }
       }
 
+      // Remove the old buffer empty occurrence
+      lock.lock();
+      isBufferEmptyOccurred = false;
+      lock.unlock();
+
       // Dispatch records
       try {
         dispatch(buffer);
@@ -104,6 +114,10 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
         }
       }
     }
+  }
+
+  public void terminate() {
+    stopAsync().awaitTerminated();
   }
 
   protected void checkRunning(String forWhat) {
@@ -126,8 +140,6 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
           throw new RuntimeException("Waiting for buffer flush interrupted", e);
         }
       }
-      // Reset to hold a new buffer empty occurrence
-      isBufferEmptyOccurred = false;
     } finally {
       lock.unlock();
       checkRunning("waitForABufferEmptyOccurrence");

@@ -26,7 +26,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   private final AsyncWriteRequestBuilder<D, RQ> requestBuilder;
   private final int maxAttempts;
 
-  public AsyncHttpWriter(AsyncHttpWriterBaseBuilder builder) {
+  public AsyncHttpWriter(AsyncHttpWriterBuilder builder) {
     super(builder.getQueueCapacity());
     this.client = builder.getClient();
     this.requestBuilder = builder.getAsyncRequestBuilder();
@@ -64,19 +64,19 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
         case OK:
           // Write succeeds
           asyncWriteRequest.onSuccess(WriteResponse.EMPTY);
-          break;
+          return;
         case CLIENT_ERROR:
           // Client error. Fail!
-          IOException clientExp = new IOException("Write failed on invalid request.");
+          DispatchException clientExp = new DispatchException("Write failed on client error");
           asyncWriteRequest.onFailure(clientExp);
-          throw new DispatchException("Write failed on client error", clientExp);
+          throw clientExp;
         case SERVER_ERROR:
           // Server side error. Retry
           attempt++;
           if (attempt == maxAttempts) {
-            IOException serverExp = new IOException("Write failed after " + maxAttempts + " attempts.");
+            DispatchException serverExp = new DispatchException("Write failed after " + maxAttempts + " attempts.");
             asyncWriteRequest.onFailure(serverExp);
-            throw new DispatchException("Write failed on server side error", serverExp);
+            throw serverExp;
           }
       }
     }
@@ -85,7 +85,10 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   @Override
   public void close()
       throws IOException {
-    super.close();
-    client.close();
+    try {
+      super.close();
+    } finally {
+      client.close();
+    }
   }
 }

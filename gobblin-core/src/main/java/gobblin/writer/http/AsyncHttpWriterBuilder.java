@@ -1,19 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package gobblin.writer.http;
 
 import com.google.common.base.Preconditions;
@@ -30,23 +14,27 @@ import gobblin.writer.FluentDataWriterBuilder;
 
 
 /**
- * Base builder for http writers
+ * Base builder for async http writers
  *
  * @param <D> type of record
  * @param <RQ> type of request
  * @param <RP> type of response
  */
-public abstract class HttpWriterBaseBuilder<D, RQ, RP> extends FluentDataWriterBuilder<Void, D, HttpWriterBaseBuilder<D, RQ, RP>> {
+public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriterBuilder<Void, D, AsyncHttpWriterBuilder<D, RQ, RP>> {
   public static final String CONF_PREFIX = "gobblin.writer.http.";
 
   @Getter
-  private State state;
+  protected State state;
   @Getter
   protected HttpClient<RQ, RP> client = null;
   @Getter
-  protected WriteRequestBuilder<D, RQ> requestBuilder = null;
+  protected AsyncWriteRequestBuilder<D, RQ> asyncRequestBuilder = null;
   @Getter
   protected ResponseHandler<RP> responseHandler = null;
+  @Getter
+  protected int queueCapacity = AbstractAsyncDataWriter.DEFAULT_BUFFER_CAPACITY;
+  @Getter
+  protected int maxAttempts = AsyncHttpWriter.DEFAULT_MAX_ATTEMPTS;
 
   /**
    * For backward compatibility on how Fork creates writer, invoke fromState when it's called writeTo method.
@@ -54,24 +42,24 @@ public abstract class HttpWriterBaseBuilder<D, RQ, RP> extends FluentDataWriterB
    * @return this
    */
   @Override
-  public HttpWriterBaseBuilder<D, RQ, RP> writeTo(Destination destination) {
+  public AsyncHttpWriterBuilder<D, RQ, RP> writeTo(Destination destination) {
     super.writeTo(destination);
     return fromState(destination.getProperties());
   }
 
-  HttpWriterBaseBuilder<D, RQ, RP> fromState(State state) {
+  AsyncHttpWriterBuilder<D, RQ, RP> fromState(State state) {
     this.state = state;
     Config config = ConfigBuilder.create().loadProps(state.getProperties(), CONF_PREFIX).build();
     return fromConfig(config);
   }
 
-  public abstract HttpWriterBaseBuilder<D, RQ, RP> fromConfig(Config config);
+  public abstract AsyncHttpWriterBuilder<D, RQ, RP> fromConfig(Config config);
 
   protected void validate() {
     Preconditions.checkNotNull(getState(), "State is required for " + this.getClass().getSimpleName());
     Preconditions.checkNotNull(getClient(), "Client is required for " + this.getClass().getSimpleName());
-    Preconditions
-        .checkNotNull(getRequestBuilder(), "WriteRequestBuilder is required for " + this.getClass().getSimpleName());
+    Preconditions.checkNotNull(getAsyncRequestBuilder(),
+        "AsyncWriteRequestBuilder is required for " + this.getClass().getSimpleName());
     Preconditions
         .checkNotNull(getResponseHandler(), "ResponseHandler is required for " + this.getClass().getSimpleName());
   }

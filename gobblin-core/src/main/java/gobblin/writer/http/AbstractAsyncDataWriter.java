@@ -38,7 +38,7 @@ public abstract class AbstractAsyncDataWriter<D> extends AsyncDataDispatcher<Buf
       throws IOException {
     checkRunning("close");
     flush();
-    stopAsync().awaitTerminated();
+    terminate();
   }
 
   /**
