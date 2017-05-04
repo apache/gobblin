@@ -58,6 +58,7 @@ public class AsyncDataDispatcherTest {
     Assert.assertTrue(dispatcher.isDispatchCalled);
     Assert.assertTrue(writer1.aBufferEmptyWaited);
     Assert.assertTrue(writer2.aBufferEmptyWaited);
+    System.out.println("testSuccessfulDataDispatch done");
   }
 
   /**
@@ -94,6 +95,7 @@ public class AsyncDataDispatcherTest {
     }
 
     Assert.assertTrue(dispatcher.isDispatchCalled);
+    System.out.println("testSuccessfulDataDispatchWithNormalException done");
   }
 
   /**
@@ -162,8 +164,8 @@ public class AsyncDataDispatcherTest {
       hasAnException = true;
     }
     Assert.assertTrue(hasAnException, "terminating should get an exception");
-
     Assert.assertTrue(dispatcher.isDispatchCalled);
+    System.out.println("testSuccessfulDataDispatchWithFatalException done");
   }
 
   enum DispatchStatus {
