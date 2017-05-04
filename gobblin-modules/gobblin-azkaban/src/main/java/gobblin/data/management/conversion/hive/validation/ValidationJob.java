@@ -354,9 +354,12 @@ public class ValidationJob extends AbstractJob {
           log.warn(String.format("No config found for format: %s So skipping table: %s for this format", format, hiveDataset.getTable().getCompleteName()));
         }
       }
-
+    } catch (UncheckedExecutionException e) {
+      log.warn(String.format("Not validating table: %s %s", hiveDataset.getTable().getCompleteName(), e.getMessage()));
     } catch (UpdateNotFoundException e) {
-      log.warn(String.format("Not validating table: %s as update time was not found. %s", hiveDataset.getTable().getCompleteName(), e.getMessage()));
+      log.warn(String
+          .format("Not validating table: %s as update time was not found. %s", hiveDataset.getTable().getCompleteName(),
+              e.getMessage()));
     }
   }
 
@@ -422,7 +425,11 @@ public class ValidationJob extends AbstractJob {
                   sourcePartition.getCompleteName(), updateTime, this.maxLookBackTime, this.skipRecentThanTime));
             }
           } catch (UncheckedExecutionException e) {
-            log.warn(String.format("Not validating partition: %s as update time was not found. %s", sourcePartition.getCompleteName(), e.getMessage()));
+            log.warn(
+                String.format("Not validating partition: %s %s", sourcePartition.getCompleteName(), e.getMessage()));
+          } catch (UpdateNotFoundException e) {
+            log.warn(String.format("Not validating partition: %s as update time was not found. %s",
+                sourcePartition.getCompleteName(), e.getMessage()));
           }
         }
       } else {
