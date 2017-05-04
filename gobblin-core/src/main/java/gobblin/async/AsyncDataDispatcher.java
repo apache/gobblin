@@ -61,18 +61,20 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
       throws DispatchException;
 
   protected void put(D record) {
-    // Check if dispatcher is running to accept new record
+    // Accept new record only if dispatcher is running
     checkRunning("put");
     try {
       buffer.put(record);
-      // Check after a successful blocking put
-      checkRunning("put");
+      // Check after a blocking put
+      if (!isRunning()) {
+        // Purge out the record which was just put into the buffer
+        buffer.clear();
+        RuntimeException e = new RuntimeException("Attempt to operate when writer is " + state().name());
+        LOG.error("put", e);
+        throw e;
+      }
     } catch (InterruptedException e) {
       throw new RuntimeException("Waiting to put a record interrupted", e);
-    } catch (RuntimeException e) {
-      // Clear the buffer to wake up other threads waiting on put
-      buffer.clear();
-      throw e;
     }
   }
 
@@ -123,6 +125,9 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
     }
   }
 
+  /**
+   * A blocking terminate
+   */
   public void terminate() {
     stopAsync().awaitTerminated();
   }

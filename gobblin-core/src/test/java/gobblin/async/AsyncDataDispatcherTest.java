@@ -1,6 +1,7 @@
 package gobblin.async;
 
 import java.util.Queue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -9,14 +10,17 @@ import java.util.concurrent.Future;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import gobblin.util.ExponentialBackoff;
+
 
 @Test
 public class AsyncDataDispatcherTest {
   /**
    * Test successful data dispatch with 2 writers. No exception
    */
-  public void testSuccessfulDataDispatch() {
-    TestAsyncDataDispatcher dispatcher = new TestAsyncDataDispatcher();
+  public void testSuccessfulDataDispatch()
+      throws ExecutionException, InterruptedException {
+    final TestAsyncDataDispatcher dispatcher = new TestAsyncDataDispatcher();
     // This should work when there is nothing to process
     dispatcher.waitForABufferEmptyOccurrence();
 
@@ -26,22 +30,27 @@ public class AsyncDataDispatcherTest {
     Future<?> future1 = service.submit(writer1);
     Future<?> future2 = service.submit(writer2);
 
-    // Do some process
-    try {
-      Thread.sleep(200);
-    } catch (InterruptedException e) {
-      // Do nothing
-    }
+    // Process 10 records
+    ExponentialBackoff.awaitCondition().callable(new Callable<Boolean>() {
+      @Override
+      public Boolean call()
+          throws Exception {
+        return dispatcher.count == 10;
+      }
+    }).maxWait(1000L).await();
 
     writer1.shouldWaitForABufferEmpty = true;
     writer2.shouldWaitForABufferEmpty = true;
+    dispatcher.count = 0;
 
-    // Do some process
-    try {
-      Thread.sleep(200);
-    } catch (InterruptedException e) {
-      // Do nothing
-    }
+    // Process another 10 records
+    ExponentialBackoff.awaitCondition().callable(new Callable<Boolean>() {
+      @Override
+      public Boolean call()
+          throws Exception {
+        return dispatcher.count == 10;
+      }
+    }).maxWait(1000L).await();
 
     writer1.shouldExit = true;
     writer2.shouldExit = true;
@@ -63,8 +72,9 @@ public class AsyncDataDispatcherTest {
   /**
    * Test successful data dispatch with 2 writers. Normal exception
    */
-  public void testSuccessfulDataDispatchWithNormalException() {
-    TestAsyncDataDispatcher dispatcher = new TestAsyncDataDispatcher();
+  public void testSuccessfulDataDispatchWithNormalException()
+      throws ExecutionException, InterruptedException {
+    final TestAsyncDataDispatcher dispatcher = new TestAsyncDataDispatcher();
     ExecutorService service = Executors.newFixedThreadPool(2);
     Writer writer1 = new Writer(dispatcher);
     Writer writer2 = new Writer(dispatcher);
@@ -73,12 +83,14 @@ public class AsyncDataDispatcherTest {
 
     dispatcher.status = DispatchStatus.ERROR;
 
-    // Do some process
-    try {
-      Thread.sleep(200);
-    } catch (InterruptedException e) {
-      // Do nothing
-    }
+    // Process 10 records
+    ExponentialBackoff.awaitCondition().callable(new Callable<Boolean>() {
+      @Override
+      public Boolean call()
+          throws Exception {
+        return dispatcher.count == 10;
+      }
+    }).maxWait(1000L).await();
 
     writer1.shouldExit = true;
     writer2.shouldExit = true;
@@ -99,8 +111,9 @@ public class AsyncDataDispatcherTest {
   /**
    * Test data dispatch with 2 writers. Fatal exception
    */
-  public void testSuccessfulDataDispatchWithFatalException() {
-    TestAsyncDataDispatcher dispatcher = new TestAsyncDataDispatcher();
+  public void testSuccessfulDataDispatchWithFatalException()
+      throws ExecutionException, InterruptedException {
+    final TestAsyncDataDispatcher dispatcher = new TestAsyncDataDispatcher();
     ExecutorService service = Executors.newFixedThreadPool(2);
     Writer writer1 = new Writer(dispatcher);
     Writer writer2 = new Writer(dispatcher);
@@ -109,12 +122,14 @@ public class AsyncDataDispatcherTest {
 
     dispatcher.status = DispatchStatus.FATAL;
 
-    // Do some process
-    try {
-      Thread.sleep(200);
-    } catch (InterruptedException e) {
-      // Do nothing
-    }
+    // Process 10 records
+    ExponentialBackoff.awaitCondition().callable(new Callable<Boolean>() {
+      @Override
+      public Boolean call()
+          throws Exception {
+        return dispatcher.count == 10;
+      }
+    }).maxWait(1000L).await();
 
     boolean hasAnException = false;
     try {
@@ -176,12 +191,14 @@ public class AsyncDataDispatcherTest {
 
   class TestAsyncDataDispatcher extends AsyncDataDispatcher<Object> {
     volatile DispatchStatus status;
+    volatile int count;
     boolean isDispatchCalled;
 
     TestAsyncDataDispatcher() {
       super(2);
       status = DispatchStatus.OK;
       isDispatchCalled = false;
+      count = 0;
     }
 
     @Override
@@ -192,6 +209,7 @@ public class AsyncDataDispatcherTest {
       isDispatchCalled = true;
       // Consume a record
       buffer.poll();
+      count++;
 
       switch (status) {
         case OK:

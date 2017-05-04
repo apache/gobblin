@@ -26,6 +26,10 @@ public abstract class AbstractAsyncDataWriter<D> extends AsyncDataDispatcher<Buf
     super(capacity);
   }
 
+  /**
+   * Asynchronously write the record with a callback. Asynchronous via {@link Future} is
+   * not supported
+   */
   @Override
   public Future<WriteResponse> write(D record, @Nullable WriteCallback callback) {
     BufferedRecord<D> bufferedRecord = new BufferedRecord<>(record, callback);
