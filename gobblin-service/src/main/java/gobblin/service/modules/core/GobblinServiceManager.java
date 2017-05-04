@@ -127,6 +127,9 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
   protected ClassAliasResolver<TopologySpecFactory> aliasResolver;
 
+  @Getter
+  protected Config config;
+
   public GobblinServiceManager(String serviceName, String serviceId, Config config,
       Optional<Path> serviceWorkDirOptional) throws Exception {
 
@@ -135,6 +138,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
     if (!properties.contains(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS)) {
       properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
     }
+    this.config = config;
 
     this.serviceId = serviceId;
     this.serviceLauncher = new ServiceBasedAppLauncher(properties, serviceName);
