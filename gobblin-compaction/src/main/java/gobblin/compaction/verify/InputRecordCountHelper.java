@@ -77,7 +77,7 @@ public class InputRecordCountHelper {
    * @return record count
    */
   public static long readRecordCount (FileSystem fs, Path dir) throws IOException {
-    if (!fs.exists(dir)) {
+    if (!fs.exists(new Path(dir, RECORD_COUNT_FILE))) {
       return 0;
     }
     
