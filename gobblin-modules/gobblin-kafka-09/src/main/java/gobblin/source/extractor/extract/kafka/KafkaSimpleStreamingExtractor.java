@@ -17,48 +17,43 @@
 
 package gobblin.source.extractor.extract.kafka;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
-
-import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
+import gobblin.kafka.client.AbstractBaseKafkaConsumerClient;
+import gobblin.metrics.Tag;
 import gobblin.metrics.kafka.KafkaSchemaRegistry;
 import gobblin.metrics.kafka.SchemaRegistryException;
+import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.RecordEnvelope;
+import gobblin.source.extractor.StreamingExtractor;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.WatermarkSerializerHelper;
 import gobblin.source.extractor.extract.EventBasedExtractor;
-import gobblin.source.extractor.StreamingExtractor;
-import gobblin.source.extractor.RecordEnvelope;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.metrics.Tag;
 import gobblin.util.ConfigUtils;
-import gobblin.util.io.GsonInterfaceAdapter;
 import gobblin.writer.WatermarkStorage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import lombok.ToString;
 
@@ -75,24 +70,23 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSimpleStreamingExtractor.class);
   private AtomicBoolean _isStarted = new AtomicBoolean(false);
 
-
   @Override
-  public void start(WatermarkStorage watermarkStorage) throws IOException {
+  public void start(WatermarkStorage watermarkStorage)
+      throws IOException {
     Preconditions.checkArgument(watermarkStorage != null, "Watermark Storage should not be null");
-    Map<String, CheckpointableWatermark> watermarkMap = watermarkStorage.getCommittedWatermarks(KafkaWatermark.class,
-        Collections.singletonList(_partition.toString()));
+    Map<String, CheckpointableWatermark> watermarkMap =
+        watermarkStorage.getCommittedWatermarks(KafkaWatermark.class, Collections.singletonList(_partition.toString()));
     KafkaWatermark watermark = (KafkaWatermark) watermarkMap.get(_partition.toString());
     if (watermark == null) {
-      LOG.info("Offset is null - seeking to beginning of topic");
+      LOG.info("Offset is null - seeking to beginning of topic and partition for {} ", _partition.toString());
       _consumer.seekToBeginning(_partition);
-    }
-    else {
+    } else {
       // seek needs to go one past the last committed offset
-      LOG.info("Offset found in consumer. Seeking to one past what we found : {}", watermark.getLwm().getValue()+1);
-      _consumer.seek(_partition, watermark.getLwm().getValue()+1);
+      LOG.info("Offset found in consumer for partition {}. Seeking to one past what we found : {}",
+          _partition.toString(), watermark.getLwm().getValue() + 1);
+      _consumer.seek(_partition, watermark.getLwm().getValue() + 1);
     }
     _isStarted.set(true);
-
   }
 
   @ToString
@@ -129,18 +123,20 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
     @Override
     public int compareTo(CheckpointableWatermark o) {
       Preconditions.checkArgument(o instanceof KafkaWatermark);
-      KafkaWatermark ko = (KafkaWatermark)o;
+      KafkaWatermark ko = (KafkaWatermark) o;
       Preconditions.checkArgument(_topicPartition.equals(ko._topicPartition));
       return _lwm.compareTo(ko._lwm);
     }
 
     @Override
     public boolean equals(Object obj) {
-      if (obj == null)
+      if (obj == null) {
         return false;
-      if (!(obj instanceof KafkaWatermark))
+      }
+      if (!(obj instanceof KafkaWatermark)) {
         return false;
-      return this.compareTo((CheckpointableWatermark)obj) == 0;
+      }
+      return this.compareTo((CheckpointableWatermark) obj) == 0;
     }
 
     @Override
@@ -149,11 +145,14 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
       return _topicPartition.hashCode() * prime + _lwm.hashCode();
     }
 
-    public TopicPartition getTopicPartition() {return _topicPartition;};
+    public TopicPartition getTopicPartition() {
+      return _topicPartition;
+    }
 
-    public LongWatermark getLwm() {return  _lwm;};
+    public LongWatermark getLwm() {
+      return _lwm;
+    }
   }
-
 
   private final Consumer<S, D> _consumer;
   private final TopicPartition _partition;
@@ -161,6 +160,7 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
   AtomicLong _rowCount = new AtomicLong(0);
   protected final Optional<KafkaSchemaRegistry<String, S>> _schemaRegistry;
   protected AtomicBoolean _close = new AtomicBoolean(false);
+  private final long fetchTimeOut;
 
   public KafkaSimpleStreamingExtractor(WorkUnitState state) {
     super(state);
@@ -169,9 +169,11 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
     _partition = new TopicPartition(KafkaSimpleStreamingSource.getTopicNameFromState(state),
         KafkaSimpleStreamingSource.getPartitionIdFromState(state));
     _consumer.assign(Collections.singletonList(_partition));
-    this._schemaRegistry = state.contains(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS)
-        ? Optional.of(KafkaSchemaRegistry.<String, S> get(state.getProperties()))
-        : Optional.<KafkaSchemaRegistry<String, S>> absent();
+    this._schemaRegistry = state.contains(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS) ? Optional
+        .of(KafkaSchemaRegistry.<String, S>get(state.getProperties()))
+        : Optional.<KafkaSchemaRegistry<String, S>>absent();
+    this.fetchTimeOut = state.getPropAsLong(AbstractBaseKafkaConsumerClient.CONFIG_KAFKA_FETCH_TIMEOUT_VALUE,
+        AbstractBaseKafkaConsumerClient.CONFIG_KAFKA_FETCH_TIMEOUT_VALUE_DEFAULT);
   }
 
   /**
@@ -181,7 +183,8 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
    * @throws IOException if there is problem getting the schema
    */
   @Override
-  public S getSchema() throws IOException {
+  public S getSchema()
+      throws IOException {
     try {
       if (_schemaRegistry.isPresent()) {
         return _schemaRegistry.get().getLatestSchemaByTopic(this._partition.topic());
@@ -189,7 +192,7 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
     } catch (SchemaRegistryException e) {
       throw new RuntimeException(e);
     }
-    return ((S)this._partition.topic());
+    return ((S) this._partition.topic());
   }
 
   @Override
@@ -203,15 +206,17 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
    * Return the next record when available. Will never time out since this is a streaming source.
    */
   @Override
-  public RecordEnvelope<D> readRecordImpl(RecordEnvelope<D> reuse) throws DataRecordException, IOException {
+  public RecordEnvelope<D> readRecordImpl(RecordEnvelope<D> reuse)
+      throws DataRecordException, IOException {
     if (!_isStarted.get()) {
       throw new IOException("Streaming extractor has not been started.");
     }
     while ((_records == null) || (!_records.hasNext())) {
       synchronized (_consumer) {
-        if (_close.get())
+        if (_close.get()) {
           throw new ClosedChannelException();
-        _records = _consumer.poll(100).iterator();
+        }
+        _records = _consumer.poll(this.fetchTimeOut).iterator();
       }
     }
     ConsumerRecord<S, D> record = _records.next();
@@ -225,7 +230,8 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     _close.set(true);
     _consumer.wakeup();
     synchronized (_consumer) {
@@ -238,5 +244,4 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
   public long getHighWatermark() {
     return 0;
   }
-
 }

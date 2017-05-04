@@ -123,10 +123,10 @@ public class KafkaSimpleStreamingSource<S, D> extends EventBasedSource<S, Record
     List<WorkUnit> workUnits = new ArrayList<WorkUnit>();
     List<PartitionInfo> topicPartitions;
     topicPartitions = consumer.partitionsFor(topic);
-    LOG.debug("Partition count is {}", topicPartitions.size());
+    LOG.info("Partition count is {}", topicPartitions.size());
     for (PartitionInfo topicPartition : topicPartitions) {
       Extract extract = this.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, topicPartition.topic());
-      LOG.debug("Partition info is {}", topicPartition);
+      LOG.info("Partition info is {}", topicPartition);
       WorkUnit workUnit = WorkUnit.create(extract);
       setTopicNameInState(workUnit, topicPartition.topic());
       workUnit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, topicPartition.topic());
