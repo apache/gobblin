@@ -45,17 +45,14 @@ public abstract class AbstractAsyncDataWriter<D> extends AsyncDataDispatcher<Buf
   }
 
   /**
-   * Asynchronously write the record with a callback.
+   * Asynchronously write the record with a callback
    */
   @Override
   public final Future<WriteResponse> write(D record, @Nullable WriteCallback callback) {
-    writeImpl(record, callback);
-    return new FutureWrappedWriteCallback(callback);
-  }
-
-  private void writeImpl(D record, @Nullable WriteCallback callback) {
-    BufferedRecord<D> bufferedRecord = new BufferedRecord<>(record, callback);
+    FutureWrappedWriteCallback wrappedWriteCallback = new FutureWrappedWriteCallback(callback);
+    BufferedRecord<D> bufferedRecord = new BufferedRecord<>(record, wrappedWriteCallback);
     put(bufferedRecord);
+    return wrappedWriteCallback;
   }
 
   @Override
