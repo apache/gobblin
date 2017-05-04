@@ -143,6 +143,8 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
           throw new RuntimeException("Waiting for buffer flush interrupted", e);
         }
       }
+      // Remove the consumed buffer empty occurrence
+      isBufferEmptyOccurred = false;
     } finally {
       lock.unlock();
       checkRunning("waitForABufferEmptyOccurrence");
