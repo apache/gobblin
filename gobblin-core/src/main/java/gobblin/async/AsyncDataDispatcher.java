@@ -65,11 +65,15 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
     checkRunning("put");
     try {
       buffer.put(record);
+      // Check after a successful blocking put
+      checkRunning("put");
     } catch (InterruptedException e) {
       throw new RuntimeException("Waiting to put a record interrupted", e);
+    } catch (RuntimeException e) {
+      // Clear the buffer to wake up other threads waiting on put
+      buffer.clear();
+      throw e;
     }
-    // Check after a successful blocking put
-    checkRunning("put");
   }
 
   @Override
