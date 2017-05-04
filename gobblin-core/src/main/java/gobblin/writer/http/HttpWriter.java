@@ -32,7 +32,10 @@ import com.google.common.base.Optional;
 
 /**
  * Writes via RESTful API that accepts plain text as a body
+ *
+ * @deprecated Please use {@link RecordSyncHttpWriter}
  */
+@Deprecated
 public class HttpWriter<D> extends AbstractHttpWriter<D> {
   @SuppressWarnings("rawtypes")
   public HttpWriter(AbstractHttpWriterBuilder builder) {
