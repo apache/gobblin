@@ -112,7 +112,7 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
         try {
           Thread.sleep(300);
         } catch (InterruptedException e) {
-          LOG.debug("RecordProcessor sleep interrupted", e);
+          LOG.debug("sleep interrupted", e);
         }
       }
 

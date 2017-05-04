@@ -52,7 +52,7 @@ public class ExponentialBackoff {
   private ExponentialBackoff(Double alpha, Integer maxRetries, Long maxWait, Long maxDelay, Long initialDelay) {
     this.alpha = alpha == null ? 2 : alpha;
     this.maxRetries = maxRetries == null ? Integer.MAX_VALUE : maxRetries;
-    this.maxWait = maxWait == null ? Integer.MAX_VALUE : maxWait;
+    this.maxWait = maxWait == null ? Long.MAX_VALUE : maxWait;
     this.maxDelay = maxDelay == null ? Long.MAX_VALUE : maxDelay;
     this.nextDelay = initialDelay == null ? 20 : initialDelay;
   }

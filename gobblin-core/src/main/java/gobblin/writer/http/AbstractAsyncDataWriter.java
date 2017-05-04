@@ -25,6 +25,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import gobblin.async.AsyncDataDispatcher;
 import gobblin.writer.AsyncDataWriter;
+import gobblin.writer.FutureWrappedWriteCallback;
 import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
 
@@ -44,14 +45,17 @@ public abstract class AbstractAsyncDataWriter<D> extends AsyncDataDispatcher<Buf
   }
 
   /**
-   * Asynchronously write the record with a callback. Asynchronous via {@link Future} is
-   * not supported
+   * Asynchronously write the record with a callback.
    */
   @Override
-  public Future<WriteResponse> write(D record, @Nullable WriteCallback callback) {
+  public final Future<WriteResponse> write(D record, @Nullable WriteCallback callback) {
+    writeImpl(record, callback);
+    return new FutureWrappedWriteCallback(callback);
+  }
+
+  private void writeImpl(D record, @Nullable WriteCallback callback) {
     BufferedRecord<D> bufferedRecord = new BufferedRecord<>(record, callback);
     put(bufferedRecord);
-    return null;
   }
 
   @Override
