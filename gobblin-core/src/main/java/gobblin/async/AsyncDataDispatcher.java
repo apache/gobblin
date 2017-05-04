@@ -94,9 +94,12 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
       }
 
       // Remove the old buffer empty occurrence
-      lock.lock();
-      isBufferEmptyOccurred = false;
-      lock.unlock();
+      try {
+        lock.lock();
+        isBufferEmptyOccurred = false;
+      } finally {
+        lock.unlock();
+      }
 
       // Dispatch records
       try {
