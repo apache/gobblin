@@ -100,5 +100,29 @@ public interface PartitionAwareFileRetriever {
         return filePath.compareTo(o.filePath);
       }
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      FileInfo fileInfo = (FileInfo) o;
+
+      if (watermarkMsSinceEpoch != fileInfo.watermarkMsSinceEpoch) {
+        return false;
+      }
+      return filePath != null ? filePath.equals(fileInfo.filePath) : fileInfo.filePath == null;
+    }
+
+    @Override
+    public int hashCode() {
+      int result = filePath != null ? filePath.hashCode() : 0;
+      result = 31 * result + (int) (watermarkMsSinceEpoch ^ (watermarkMsSinceEpoch >>> 32));
+      return result;
+    }
   }
 }
