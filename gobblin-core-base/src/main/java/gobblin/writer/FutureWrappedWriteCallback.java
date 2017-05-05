@@ -90,8 +90,8 @@ public class FutureWrappedWriteCallback implements WriteCallback, Future<WriteRe
 
   @Override
   public void onSuccess(WriteResponse writeResponse) {
+    _writeResponse = writeResponse;
     synchronized (this) {
-      _writeResponse = writeResponse;
       _callbackFired = true;
       if (_innerCallback != null) {
         try {
