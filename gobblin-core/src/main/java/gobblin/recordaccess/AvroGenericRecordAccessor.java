@@ -17,8 +17,11 @@
 package gobblin.recordaccess;
 
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.avro.AvroRuntimeException;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 
@@ -49,13 +52,13 @@ public class AvroGenericRecordAccessor implements RecordAccessor {
     } else if (val instanceof Utf8) {
       return val.toString();
     } else {
-      return (String)val;
+      return castOrThrowTypeException(fieldName, val, String.class);
     }
   }
 
   @Override
   public Integer getAsInt(String fieldName) {
-    return (Integer)getAsObject(fieldName);
+    return castOrThrowTypeException(fieldName, getAsObject(fieldName), Integer.class);
   }
 
   @Override
@@ -64,7 +67,15 @@ public class AvroGenericRecordAccessor implements RecordAccessor {
     if (val instanceof Integer) {
       return ((Integer) val).longValue();
     } else {
-      return (Long)val;
+      return castOrThrowTypeException(fieldName, val, Long.class);
+    }
+  }
+
+  private <T> T castOrThrowTypeException(String fieldName, Object o, Class<? extends T> clazz) {
+    try {
+      return clazz.cast(o);
+    } catch (ClassCastException e) {
+      throw new IncorrectTypeException("Incorrect type for field " + fieldName, e);
     }
   }
 
@@ -111,7 +122,20 @@ public class AvroGenericRecordAccessor implements RecordAccessor {
         subField = levels.next();
       }
 
+      Object oldValue = toInsert.get(subField);
+
       toInsert.put(subField, value);
+
+      Schema.Field changedField = toInsert.getSchema().getField(subField);
+      GenericData genericData = GenericData.get();
+
+      boolean valid = genericData.validate(changedField.schema(), genericData.getField(toInsert, changedField.name(),
+          changedField.pos()));
+      if (!valid) {
+        toInsert.put(subField, oldValue);
+        throw new IncorrectTypeException("Incorrect type - can't insert a " + value.getClass().getCanonicalName() +
+         " into an Avro record of type " + changedField.schema().getType().toString());
+      }
     } catch (AvroRuntimeException e) {
       throw new FieldDoesNotExistException("Field not found setting name " + fieldName, e);
     }

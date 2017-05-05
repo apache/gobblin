@@ -39,17 +39,17 @@ import gobblin.annotation.Alpha;
 public interface RecordAccessor {
   /*
    * Getters should return null if the field does not exist; may return
-   * ClassCastException if the underlying types do not match. Getters should not
+   * IncorrectTypeException if the underlying types do not match. Getters should not
    * try to do any type coercion -- for example, getAsInt for a value that is the string "1"
-   * should throw a ClassCastException.
+   * should throw a Sch.
    */
   String getAsString(String fieldName);
   Integer getAsInt(String fieldName);
   Long getAsLong(String fieldName);
 
   /*
-   * Set new values for an object. Should throw a FieldDoesNotExist runtime exception if fieldName
-   * is not present in the object's schema.
+   * Set new values for an object. Should throw a FieldDoesNotExistException runtime exception if fieldName
+   * is not present in the object's schema or an IncorrectTypeException if the underlying type does not match.
    */
   void set(String fieldName, String value);
   void set(String fieldName, Integer value);

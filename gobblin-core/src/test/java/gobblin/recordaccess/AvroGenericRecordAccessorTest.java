@@ -116,6 +116,21 @@ public class AvroGenericRecordAccessorTest {
     accessor.set("subrecord.doesnotexist", "someval");
   }
 
+  @Test(expectedExceptions = IncorrectTypeException.class)
+  public void setBadTypePrimitive() {
+    accessor.set("name", 5L);
+  }
+
+  @Test(expectedExceptions = IncorrectTypeException.class)
+  public void setBadTypeUnion() {
+    accessor.set("favorite_color", 0L);
+  }
+
+  @Test(expectedExceptions = IncorrectTypeException.class)
+  public void getBadType() {
+    accessor.getAsLong("name");
+  }
+
   @Test
   public void testNestedSetAndGet()
       throws IOException {

@@ -16,12 +16,16 @@
  */
 package gobblin.recordaccess;
 
-public class FieldDoesNotExistException extends RecordAccessorException {
-  public FieldDoesNotExistException(String msg) {
+/**
+ * Base class for exceptions thrown by RecordAccessors. Exceptions are Runtime rather
+ * than checked as they are more similar to IndexOutOfBounds or ClassCastExceptions.
+ */
+public class RecordAccessorException extends RuntimeException {
+  public RecordAccessorException(String msg) {
     super(msg);
   }
 
-  public FieldDoesNotExistException(String msg, Throwable innerException) {
-    super(msg, innerException);
+  public RecordAccessorException(String msg, Throwable e) {
+    super(msg, e);
   }
 }
