@@ -1,6 +1,7 @@
 package gobblin.compaction.verify;
 
-import avro.shaded.com.google.common.collect.Lists;
+
+import com.google.common.collect.Lists;
 import gobblin.compaction.conditions.RecompactionConditionBasedOnRatio;
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.parser.CompactionPathParser;
