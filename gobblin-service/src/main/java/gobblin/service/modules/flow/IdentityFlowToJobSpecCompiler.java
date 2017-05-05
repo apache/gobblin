@@ -19,13 +19,20 @@ package gobblin.service.modules.flow;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
@@ -34,6 +41,9 @@ import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
@@ -46,6 +56,7 @@ import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.job_catalog.FSJobCatalog;
 import gobblin.runtime.job_spec.ResolvedJobSpec;
 import gobblin.service.ServiceConfigKeys;
+import gobblin.service.ServiceMetricNames;
 import gobblin.util.ConfigUtils;
 
 
@@ -61,12 +72,41 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
   private final Logger log;
   private final Optional<FSJobCatalog> templateCatalog;
 
+  protected final MetricContext metricContext;
+  @Getter
+  private Optional<Meter> flowCompilationSuccessFulMeter;
+  @Getter
+  private Optional<Meter> flowCompilationFailedMeter;
+  @Getter
+  private Optional<Timer> flowCompilationTimer;
+
   public IdentityFlowToJobSpecCompiler(Config config) {
-    this(config, Optional.<Logger>absent());
+    this(config, true);
+  }
+
+  public IdentityFlowToJobSpecCompiler(Config config, boolean instrumentationEnabled) {
+    this(config, Optional.<Logger>absent(), instrumentationEnabled);
   }
 
   public IdentityFlowToJobSpecCompiler(Config config, Optional<Logger> log) {
+    this(config, log, true);
+  }
+
+  public IdentityFlowToJobSpecCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
+    if (instrumentationEnabled) {
+      this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), IdentityFlowToJobSpecCompiler.class);
+      this.flowCompilationSuccessFulMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_COMPILATION_SUCCESSFUL_METER));
+      this.flowCompilationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_COMPILATION_FAILED_METER));
+      this.flowCompilationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.FLOW_COMPILATION_TIMER));
+    }
+    else {
+      this.metricContext = null;
+      this.flowCompilationSuccessFulMeter = Optional.absent();
+      this.flowCompilationFailedMeter = Optional.absent();
+      this.flowCompilationTimer = Optional.absent();
+    }
+
     this.topologySpecMap = Maps.newConcurrentMap();
     this.config = config;
     /***
@@ -95,6 +135,7 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
     Preconditions.checkNotNull(spec);
     Preconditions.checkArgument(spec instanceof FlowSpec, "IdentityFlowToJobSpecCompiler only converts FlowSpec to JobSpec");
 
+    long startTime = System.nanoTime();
     Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = Maps.newLinkedHashMap();
 
     FlowSpec flowSpec = (FlowSpec) spec;
@@ -161,9 +202,12 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
           }
         }
       } catch (InterruptedException | ExecutionException e) {
+        Instrumented.markMeter(this.flowCompilationFailedMeter);
         throw new RuntimeException("Cannot determine topology capabilities", e);
       }
     }
+    Instrumented.markMeter(this.flowCompilationSuccessFulMeter);
+    Instrumented.updateTimer(this.flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
 
     return specExecutorInstanceMap;
   }
@@ -186,5 +230,31 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
   @Override
   public void onUpdateSpec(Spec updatedSpec) {
     topologySpecMap.put(updatedSpec.getUri(), (TopologySpec) updatedSpec);
+  }
+
+  @Nonnull
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return null != this.metricContext;
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+    return Collections.emptyList();
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
   }
 }

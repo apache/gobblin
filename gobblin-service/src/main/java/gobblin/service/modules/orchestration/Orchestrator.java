@@ -19,16 +19,28 @@ package gobblin.service.modules.orchestration;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
+import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
+import lombok.Getter;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
+import gobblin.instrumented.Instrumented;
+import gobblin.instrumented.Instrumentable;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
+
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.SpecCompiler;
 import gobblin.runtime.api.SpecExecutorInstanceProducer;
@@ -37,7 +49,10 @@ import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.runtime.spec_catalog.TopologyCatalog;
 import gobblin.service.ServiceConfigKeys;
+import gobblin.service.ServiceMetricNames;
+import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
 import org.slf4j.LoggerFactory;
 
 
@@ -46,15 +61,35 @@ import org.slf4j.LoggerFactory;
  * to {@link TopologyCatalog} and updates {@link SpecCompiler} state.
  */
 @Alpha
-public class Orchestrator implements SpecCatalogListener {
+public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final Logger _log;
   protected final SpecCompiler specCompiler;
   protected final Optional<TopologyCatalog> topologyCatalog;
 
+  protected final MetricContext metricContext;
+  @Getter
+  private Optional<Meter> flowOrchestrationSuccessFulMeter;
+  @Getter
+  private Optional<Meter> flowOrchestrationFailedMeter;
+  @Getter
+  private Optional<Timer> flowOrchestrationTimer;
+
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<Logger> log) {
+  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<Logger> log, boolean instrumentationEnabled) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
+    if (instrumentationEnabled) {
+      this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), IdentityFlowToJobSpecCompiler.class);
+      this.flowOrchestrationSuccessFulMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER));
+      this.flowOrchestrationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER));
+      this.flowOrchestrationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.FLOW_ORCHESTRATION_TIMER));
+    }
+    else {
+      this.metricContext = null;
+      this.flowOrchestrationSuccessFulMeter = Optional.absent();
+      this.flowOrchestrationFailedMeter = Optional.absent();
+      this.flowOrchestrationTimer = Optional.absent();
+    }
 
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
@@ -71,6 +106,10 @@ public class Orchestrator implements SpecCatalogListener {
         | ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<Logger> log) {
+    this(config, topologyCatalog, log, true);
   }
 
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Logger log) {
@@ -138,6 +177,7 @@ public class Orchestrator implements SpecCatalogListener {
   }
 
   public void orchestrate(Spec spec) throws Exception {
+    long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
       Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = specCompiler.compileFlow(spec);
 
@@ -162,7 +202,36 @@ public class Orchestrator implements SpecCatalogListener {
         }
       }
     } else {
+      Instrumented.markMeter(this.flowOrchestrationFailedMeter);
       throw new RuntimeException("Spec not of type FlowSpec, cannot orchestrate: " + spec);
     }
+    Instrumented.markMeter(this.flowOrchestrationSuccessFulMeter);
+    Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+  }
+
+  @Nonnull
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return null != this.metricContext;
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+    return Collections.emptyList();
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
   }
 }
