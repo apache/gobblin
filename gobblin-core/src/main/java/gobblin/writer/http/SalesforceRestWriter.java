@@ -53,7 +53,9 @@ import gobblin.writer.exception.NonTransientException;
 /**
  * Writes to Salesforce via RESTful API, supporting INSERT_ONLY_NOT_EXIST, and UPSERT.
  *
+ * @deprecated Please use {@link AsyncHttpWriter}
  */
+@Deprecated
 public class SalesforceRestWriter extends RestJsonWriter {
   public static enum Operation {
     INSERT_ONLY_NOT_EXIST,

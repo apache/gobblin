@@ -42,6 +42,10 @@ import gobblin.writer.FluentDataWriterBuilder;
 
 import lombok.Getter;
 
+/**
+ * @deprecated Please use {@link AsyncHttpWriterBuilder}
+ */
+@Deprecated
 @Getter
 public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWriterBuilder<S, D, B>>
     extends FluentDataWriterBuilder<S, D, B> {
@@ -55,7 +59,7 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
   public static final String CONNECTION_TIME_OUT_MS_KEY = "conn_time_out";
   public static final String STATIC_SVC_ENDPOINT = "static_svc_endpoint";
 
-  public static enum ConnManager {
+  public enum ConnManager {
     POOLING,
     BASIC;
   }
