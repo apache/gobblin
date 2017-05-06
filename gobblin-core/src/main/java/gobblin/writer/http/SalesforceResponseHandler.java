@@ -64,14 +64,13 @@ public class SalesforceResponseHandler implements ResponseHandler<CloseableHttpR
       return;
     }
     String entityStr = getEntityAsString(response);
-    if (entityStr == null) {
+    if (statusCode >= 500 || entityStr == null) {
       status.setType(StatusType.SERVER_ERROR);
       return;
     }
 
-    if (statusCode == 400 && SalesforceWriterBuilder.Operation.INSERT_ONLY_NOT_EXIST.equals(operation)
-        && entityStr != null) { //Ignore if it's duplicate entry error code
-
+    if (statusCode == 400 && SalesforceWriterBuilder.Operation.INSERT_ONLY_NOT_EXIST.equals(operation)) {
+      //Ignore if it's duplicate entry error code
       JsonArray jsonArray = new JsonParser().parse(entityStr).getAsJsonArray();
       JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
       if (isDuplicate(jsonObject, statusCode)) {
@@ -89,13 +88,13 @@ public class SalesforceResponseHandler implements ResponseHandler<CloseableHttpR
    * @throws IOException
    */
   private void processBatchRequestResponse(CloseableHttpResponse response, ResponseStatus status) {
+    int statusCode = response.getStatusLine().getStatusCode();
     String entityStr = getEntityAsString(response);
-    if (entityStr == null) {
+    if (statusCode >= 500 || entityStr == null) {
       status.setType(StatusType.SERVER_ERROR);
       return;
     }
 
-    int statusCode = response.getStatusLine().getStatusCode();
     if (statusCode >= 400) {
       log.error("Failed due to " + entityStr + " (Detail: " + ToStringBuilder
           .reflectionToString(response, ToStringStyle.SHORT_PREFIX_STYLE) + " )");
