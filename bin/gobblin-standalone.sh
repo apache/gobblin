@@ -195,6 +195,7 @@ start() {
   COMMAND+="-Xloggc:$GOBBLIN_LOG_DIR/gobblin-gc.log "
   COMMAND+="-Dgobblin.logs.dir=$GOBBLIN_LOG_DIR "
   COMMAND+="-Dlog4j.configuration=file://$FWDIR_CONF/log4j-standalone.xml "
+  COMMAND+="$JVM_FlAGS "
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
   COMMAND+="$GOBBLIN_JVM_FLAGS "
