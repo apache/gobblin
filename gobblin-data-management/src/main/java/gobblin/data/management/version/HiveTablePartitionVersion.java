@@ -1,0 +1,35 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
+package gobblin.data.management.version;
+
+import gobblin.util.Either;
+import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.hadoop.hive.ql.metadata.Partition;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+
+/**
+ * Denotes the version for a hive table or partition.
+ */
+@AllArgsConstructor
+public class HiveTablePartitionVersion implements DatasetVersion{
+  @Getter
+  private final Either<Table, Partition> version;
+
+  @Override
+  public Either<Table, Partition> getVersion() {
+    return version;
+  }
+}
