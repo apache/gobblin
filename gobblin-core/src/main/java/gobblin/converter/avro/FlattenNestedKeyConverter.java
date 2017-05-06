@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.converter.avro;
 
 import java.util.ArrayList;
@@ -25,6 +42,18 @@ import gobblin.util.ConfigUtils;
 import static gobblin.util.AvroUtils.FIELD_LOCATION_DELIMITER;
 
 
+/**
+ * Flatten a nested key and create a camel-cased name of a field which has the same value
+ *
+ * <p>
+ *   Given configuration:
+ *   <code>FlattenNestedKeyConverter.fieldsToFlatten = "address,address.city"</code>.
+ *   A {@link FlattenNestedKeyConverter} will only process <code>"address.city"</code>. It makes
+ *   a copy of the {@link Field} with a new name <code>"addressCity"</code> and adds it to the
+ *   top level fields of the output schema. The value of field <code>"addressCity"</code> is equal
+ *   to the one referred by <code>"address.city"</code>
+ * </p>
+ */
 public class FlattenNestedKeyConverter extends Converter<Schema, Schema, GenericRecord, GenericRecord> {
   public static final String FIELDS_TO_FLATTEN = "fieldsToFlatten";
   // A map from new field name to the nested key
