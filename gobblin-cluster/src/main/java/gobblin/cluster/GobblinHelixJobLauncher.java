@@ -57,7 +57,6 @@ import gobblin.runtime.ExecutionModel;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobState;
 import gobblin.runtime.Task;
-import gobblin.runtime.TaskConfigurationKeys;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateCollectorService;
 import gobblin.runtime.util.StateStores;
