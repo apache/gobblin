@@ -23,6 +23,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
+import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
@@ -57,8 +59,13 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
   private final SpecExecutorInstanceConsumer specExecutorInstanceConsumer;
 
+  private final long stopTimeoutSeconds;
+
   public StreamingJobConfigurationManager(EventBus eventBus, Config config, MutableJobCatalog jobCatalog) {
     super(eventBus, config);
+
+    this.stopTimeoutSeconds = ConfigUtils.getLong(config, GobblinClusterConfigurationKeys.STOP_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_STOP_TIMEOUT_SECONDS);
 
     this.fetchJobSpecExecutor = Executors.newSingleThreadExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("FetchJobSpecExecutor")));
@@ -88,6 +95,11 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
   @Override
   protected void startUp() throws Exception {
     LOGGER.info("Starting the " + StreamingJobConfigurationManager.class.getSimpleName());
+
+    // if the instance consumer is a service then need to start it to consume job specs
+    if (this.specExecutorInstanceConsumer instanceof Service) {
+      ((Service) this.specExecutorInstanceConsumer).startAsync().awaitRunning();
+    }
 
     // submit command to fetch job specs
     this.fetchJobSpecExecutor.execute(new Runnable() {
@@ -136,6 +148,11 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
   @Override
   protected void shutDown() throws Exception {
+    if (this.specExecutorInstanceConsumer instanceof Service) {
+      ((Service) this.specExecutorInstanceConsumer).stopAsync().awaitTerminated(this.stopTimeoutSeconds,
+          TimeUnit.SECONDS);
+    }
+
     ExecutorsUtils.shutdownExecutorService(this.fetchJobSpecExecutor, Optional.of(LOGGER));
   }
 }

@@ -77,4 +77,7 @@ public class GobblinClusterConfigurationKeys {
   public static final String DEFAULT_JOB_CATALOG =
       "gobblin.runtime.job_catalog.NonObservingFSJobCatalog";
 
+  public static final String STOP_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "stopTimeoutSeconds";
+  public static final long DEFAULT_STOP_TIMEOUT_SECONDS = 60;
+
 }
