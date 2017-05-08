@@ -45,12 +45,10 @@ if (!project.hasProperty('pegasusVersion')) {
 }
 
 if (project.hasProperty('jdkVersion')) {
-  if (project.jdkVersion.equals(JavaVersion.VERSION_1_7.toString())) {
-    ext.javaVersion = JavaVersion.VERSION_1_7
-  } else if (project.jdkVersion.equals(JavaVersion.VERSION_1_8.toString())) {
+  if (project.jdkVersion.equals(JavaVersion.VERSION_1_8.toString())) {
     ext.javaVersion = JavaVersion.VERSION_1_8
   } else {
-    throw new RuntimeException("Unrecognized JDK version: " + project.jdkVersion)
+    throw new RuntimeException("Unsupported JDK version: " + project.jdkVersion)
   }
 }
 
