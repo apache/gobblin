@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 
 import java.util.Set;
+import java.util.regex.Pattern;
+
 import javax.annotation.Nonnull;
 
 import lombok.extern.slf4j.Slf4j;
@@ -33,10 +35,14 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.thrift.TException;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
@@ -56,6 +62,9 @@ import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarkerFactory;
 import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
+import gobblin.data.management.copy.hive.HiveDatasetFinder;
+import gobblin.hive.HiveMetastoreClientPool;
+import gobblin.util.AutoReturnableObject;
 import gobblin.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
@@ -79,6 +88,15 @@ public class HiveConvertPublisher extends DataPublisher {
   private EventSubmitter eventSubmitter;
   private final FileSystem fs;
   private final HiveSourceWatermarker watermarker;
+  private final HiveMetastoreClientPool pool;
+
+  public static final String PARTITION_PARAMETERS_WHITELIST = "hive.conversion.partitionParameters.whitelist";
+  public static final String PARTITION_PARAMETERS_BLACKLIST = "hive.conversion.partitionParameters.blacklist";
+  public static final String COMPLETE_SOURCE_PARTITION_NAME = "completeSourcePartitionName";
+  public static final String COMPLETE_DEST_PARTITION_NAME = "completeDestPartitionName";
+
+  private static final Splitter COMMA_SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
+  private static final Splitter At_SPLITTER = Splitter.on("@").omitEmptyStrings().trimResults();
 
   public HiveConvertPublisher(State state) throws IOException {
     super(state);
@@ -104,6 +122,8 @@ public class HiveConvertPublisher extends DataPublisher {
         GobblinConstructorUtils.invokeConstructor(
             HiveSourceWatermarkerFactory.class, state.getProp(HiveSource.HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY,
                 HiveSource.DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS)).createFromState(state);
+    this.pool = HiveMetastoreClientPool.get(state.getProperties(),
+        Optional.fromNullable(state.getProperties().getProperty(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
   }
 
   @Override
@@ -210,6 +230,28 @@ public class HiveConvertPublisher extends DataPublisher {
       }
     } finally {
       /////////////////////////////////////////
+      // Preserving partition params
+      /////////////////////////////////////////
+      for (WorkUnitState wus : states) {
+        if (wus.getWorkingState() != WorkingState.COMMITTED) {
+          continue;
+        }
+        if (!wus.contains(COMPLETE_SOURCE_PARTITION_NAME)) {
+          continue;
+        }
+        if (!wus.contains(COMPLETE_DEST_PARTITION_NAME)) {
+          continue;
+        }
+        if (!(wus.contains(PARTITION_PARAMETERS_WHITELIST) || wus.contains(PARTITION_PARAMETERS_BLACKLIST))) {
+          continue;
+        }
+        List<String> whitelist = COMMA_SPLITTER.splitToList(wus.getProp(PARTITION_PARAMETERS_WHITELIST, StringUtils.EMPTY));
+        List<String> blacklist = COMMA_SPLITTER.splitToList(wus.getProp(PARTITION_PARAMETERS_BLACKLIST, StringUtils.EMPTY));
+        copyPartitionParams(wus.getProp(COMPLETE_SOURCE_PARTITION_NAME), wus.getProp(COMPLETE_DEST_PARTITION_NAME),
+            whitelist, blacklist);
+      }
+
+      /////////////////////////////////////////
       // Post publish cleanup
       /////////////////////////////////////////
 
@@ -225,6 +267,71 @@ public class HiveConvertPublisher extends DataPublisher {
         log.error("Failed to cleanup staging directories.", e);
       }
     }
+  }
+
+  /**
+   * Method to copy partition parameters from source partition to destination partition
+   * @param completeSourcePartitionName dbName@tableName@partitionName
+   * @param completeDestPartitionName dbName@tableName@partitionName
+   */
+  private void copyPartitionParams(String completeSourcePartitionName, String completeDestPartitionName,
+      List<String> whitelist, List<String> blacklist) {
+
+    List<String> sourcePartitionList = At_SPLITTER.splitToList(completeSourcePartitionName);
+    List<String> destPartitionList = At_SPLITTER.splitToList(completeDestPartitionName);
+    if ((sourcePartitionList.size() != 3) || (destPartitionList.size() != 3)) {
+      log.warn("Unable to copy partition params because of invalid partition names");
+      return;
+    }
+    String sourceDbName = sourcePartitionList.get(0);
+    String sourceTableName = sourcePartitionList.get(1);
+    String sourcePartitionName = sourcePartitionList.get(2);
+    String destDbName = destPartitionList.get(0);
+    String destTableName = destPartitionList.get(1);
+    String destPartitionName = destPartitionList.get(2);
+
+    try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
+      Partition sourcePartition = client.get().getPartition(sourceDbName, sourceTableName, sourcePartitionName);
+      Partition destPartition = client.get().getPartition(destDbName, destTableName, destPartitionName);
+
+      Map<String, String> sourceParams = sourcePartition.getParameters();
+      Map<String, String> destParams = destPartition.getParameters();
+
+      for (Map.Entry<String, String> param : sourceParams.entrySet()) {
+        if (!matched(whitelist, blacklist, param.getKey())) {
+          continue;
+        }
+        destParams.put(param.getKey(), param.getValue());
+      }
+      destPartition.setParameters(destParams);
+
+      client.get().dropPartition(destDbName, destTableName, destPartitionName, false);
+      client.get().add_partition(destPartition);
+    } catch (IOException | TException e) {
+      log.warn("Unable to copy partition params: " + e.toString());
+    }
+  }
+
+  private boolean matched(List<String> whitelist, List<String> blacklist, String key) {
+    for (String patternStr : blacklist) {
+      if (Pattern.matches(getRegexPatternString(patternStr), key)) {
+        return false;
+      }
+    }
+
+    for (String patternStr : whitelist) {
+      if (Pattern.matches(getRegexPatternString(patternStr), key)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private String getRegexPatternString(String patternStr) {
+    patternStr = patternStr.replace("*", ".*");
+    StringBuilder builder = new StringBuilder();
+    builder.append("\\b").append(patternStr).append("\\b");
+    return patternStr;
   }
 
   private void moveDirectory(String sourceDir, String targetDir) throws IOException {
