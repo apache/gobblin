@@ -1,0 +1,6 @@
+gobblin.service
+gobblin.service.modules.core
+gobblin.service.modules.flow
+gobblin.service.modules.orchestration
+gobblin.service.modules.scheduler
+gobblin.service.modules.topology

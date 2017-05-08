@@ -1,0 +1,5 @@
+gobblin.config.client.api
+gobblin.config.common.impl
+gobblin.config.store.api
+gobblin.config.store.deploy
+gobblin.config.store.hdfs
