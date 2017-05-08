@@ -19,10 +19,14 @@ package gobblin.util.filesystem;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.List;
 import java.util.ServiceLoader;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+
+import com.google.common.collect.Lists;
 
 import gobblin.broker.ResourceInstance;
 import gobblin.broker.iface.ConfigView;
@@ -95,10 +99,14 @@ public class FileSystemFactory<S extends ScopeType<S>> implements SharedResource
 
       FileSystem fs = FileSystem.newInstance(uri, hadoopConf);
       ServiceLoader<FileSystemInstrumentationFactory> loader = ServiceLoader.load(FileSystemInstrumentationFactory.class);
+      List<String> instrumentations = Lists.newArrayList();
 
       for (FileSystemInstrumentationFactory instrumentationFactory : loader) {
+        instrumentations.add(instrumentationFactory.getClass().getName());
         fs = instrumentationFactory.instrumentFileSystem(fs, broker, config);
       }
+
+      log.info("Applied the following instrumentations to " + fs.getUri() + ": " + Arrays.toString(instrumentations.toArray()));
 
       return new ResourceInstance<>(fs);
     } catch (IOException | ReflectiveOperationException ioe) {

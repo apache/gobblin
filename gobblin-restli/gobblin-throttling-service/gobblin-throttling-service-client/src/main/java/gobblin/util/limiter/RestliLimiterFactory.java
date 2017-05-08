@@ -33,6 +33,7 @@ import gobblin.metrics.broker.MetricContextFactory;
 import gobblin.metrics.broker.MetricContextKey;
 import gobblin.metrics.broker.SubTaggedMetricContextKey;
 import gobblin.restli.SharedRestClientKey;
+import gobblin.util.ConfigUtils;
 import gobblin.util.limiter.broker.SharedLimiterKey;
 
 import lombok.extern.slf4j.Slf4j;
@@ -44,11 +45,14 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class RestliLimiterFactory<S extends ScopeType<S>>
-    implements SharedResourceFactory<RestliServiceBasedLimiter, SharedLimiterKey, S> {
+    implements SharedResourceFactory<Limiter, SharedLimiterKey, S> {
 
   public static final String FACTORY_NAME = "limiter.restli";
   public static final String RESTLI_SERVICE_NAME = "throttling";
   public static final String SERVICE_IDENTIFIER_KEY = "serviceId";
+
+  public static final String ALLOW_NOOP_LIMITER_IF_URI_MISSING_KEY = "allowNoopLimiterIfUriMissing";
+  public static final boolean DEFAULT_ALLOW_NOOP_LIMITER_IF_URI_MISSING = true;
 
   @Override
   public String getName() {
@@ -56,7 +60,7 @@ public class RestliLimiterFactory<S extends ScopeType<S>>
   }
 
   @Override
-  public SharedResourceFactoryResponse<RestliServiceBasedLimiter> createResource(SharedResourcesBroker<S> broker,
+  public SharedResourceFactoryResponse<Limiter> createResource(SharedResourcesBroker<S> broker,
       ScopedConfigView<S, SharedLimiterKey> config) throws NotConfiguredException {
 
     S scope = config.getScope();
@@ -72,12 +76,25 @@ public class RestliLimiterFactory<S extends ScopeType<S>>
         new SubTaggedMetricContextKey(RestliServiceBasedLimiter.class.getSimpleName() + "_" + resourceLimited,
         ImmutableMap.of("resourceLimited", resourceLimited));
 
+    RequestSender requestSender;
+    try {
+      requestSender = broker.getSharedResource(new RedirectAwareRestClientRequestSender.Factory<S>(),
+          new SharedRestClientKey(RESTLI_SERVICE_NAME));
+    } catch (NotConfiguredException nce) {
+      if (ConfigUtils.getBoolean(config.getConfig(), ALLOW_NOOP_LIMITER_IF_URI_MISSING_KEY, DEFAULT_ALLOW_NOOP_LIMITER_IF_URI_MISSING)) {
+        log.info("Using Noop limiter as no throttling server uri was found.");
+        return new ResourceInstance<>(new NoopLimiter());
+      } else {
+        throw nce;
+      }
+    }
+
     return new ResourceInstance<>(
         RestliServiceBasedLimiter.builder()
             .resourceLimited(resourceLimited)
             .serviceIdentifier(serviceIdentifier)
             .metricContext(broker.getSharedResource(new MetricContextFactory<S>(), metricContextKey))
-            .requestSender(broker.getSharedResource(new RedirectAwareRestClientRequestSender.Factory<S>(), new SharedRestClientKey(RESTLI_SERVICE_NAME)))
+            .requestSender(requestSender)
             .build()
     );
   }
