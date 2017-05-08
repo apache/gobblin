@@ -20,6 +20,8 @@ package gobblin.writer;
 import java.io.Closeable;
 import java.io.IOException;
 
+import gobblin.source.extractor.RecordEnvelope;
+
 
 /**
  * An interface for data writers.
@@ -69,4 +71,12 @@ public interface DataWriter<D> extends Closeable {
    */
   public long bytesWritten()
       throws IOException;
+
+  /**
+   * Process a {@link RecordEnvelope}. Note the writer must {@link RecordEnvelope#ack()} when the record is flushed.
+   */
+  default void writeEnvelopedRecord(RecordEnvelope<D> recordEnvelope) throws IOException {
+    write(recordEnvelope.getRecord());
+    recordEnvelope.ack();
+  }
 }

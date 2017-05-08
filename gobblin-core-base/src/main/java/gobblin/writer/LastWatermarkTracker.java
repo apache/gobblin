@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.writer.watermarkTracker.MutableWatermarkTracker;
+import gobblin.writer.watermarkTracker.WatermarkTracker;
 
 
 /**
@@ -32,7 +34,7 @@ import gobblin.source.extractor.CheckpointableWatermark;
  * previous existing watermarks. Useful for {@link WatermarkAwareWriter}s that are ordered and synchronous
  * in nature.
  */
-public class LastWatermarkTracker implements WatermarkTracker {
+public class LastWatermarkTracker implements MutableWatermarkTracker {
 
   private final Map<String, CheckpointableWatermark> _committedWatermarkMap;
   private final Map<String, CheckpointableWatermark> _unackedWatermarkMap;

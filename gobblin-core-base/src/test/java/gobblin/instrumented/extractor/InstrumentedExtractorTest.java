@@ -18,7 +18,11 @@
 package gobblin.instrumented.extractor;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -30,6 +34,7 @@ import gobblin.Constructs;
 import gobblin.metrics.MetricNames;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.RecordEnvelope;
 
 
 public class InstrumentedExtractorTest {
@@ -116,7 +121,9 @@ public class InstrumentedExtractorTest {
 
   public void testBase(InstrumentedExtractorBase<String, String> extractor)
       throws DataRecordException, IOException {
-    extractor.readRecord("");
+    Stream<RecordEnvelope<String>> stream = extractor.getRecordEnvelopeStream(new AtomicBoolean(false));
+    List<String> records = stream.limit(1).map(RecordEnvelope::getRecord).collect(Collectors.toList());
+    Assert.assertEquals(records.size(), 1);
 
     Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.getMetricContext());
     Assert.assertEquals(metrics.get(MetricNames.ExtractorMetrics.RECORDS_READ_METER), Long.valueOf(1));

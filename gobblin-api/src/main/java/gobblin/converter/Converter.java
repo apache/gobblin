@@ -19,9 +19,18 @@ package gobblin.converter;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import com.google.common.base.Throwables;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.Message;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.FinalState;
 
 
@@ -88,8 +97,79 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
    * @return converted data record
    * @throws DataConversionException if it fails to convert the input data record
    */
-  public abstract Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
-      throws DataConversionException;
+  public Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
+      throws DataConversionException {
+    throw new UnsupportedOperationException();
+  }
+
+  /**
+   * Modify the output {@link RecordEnvelope} for each output record. This can be used, for example, to add callbacks.
+   * @param recordEnvelope
+   */
+  public void modifyOutputEnvelope(RecordEnvelope<DO> recordEnvelope) {}
+
+  /**
+   * Convert the input record stream into the output record stream conforming to the output schema of
+   * {@link Converter#convertSchema(Object, WorkUnitState)}.
+   *
+   * <p>
+   *   Record conversion can do arbitrary operation (e.g. 1-to-1, 1-to-many, 1-to-0, windowed joins, asynchronous conversion,
+   *   etc.) following these rules:
+   *   * For every input {@link RecordEnvelope}, exactly one of two must happen: the record is acked, or a child record
+   *     created with {@link RecordEnvelope#withRecord(Object)} or {@link RecordEnvelope#forkedRecordBuilder()} must be
+   *     in the output stream at some point.
+   *   * Acking a {@link RecordEnvelope} means the record has been fully processed, meaning checkpoints may be committed,
+   *     and a pipeline that allows record retries may not retry the record.
+   * </p>
+   *
+   * <p>
+   *   For synchronous conversion, it is recommended to use the method {@link #convertRecord(Object, Object, WorkUnitState)}
+   *   and/or {@link #modifyOutputEnvelope(RecordEnvelope)}.
+   * </p>
+   */
+  public Stream<RecordEnvelope<DO>> convertRecordStream(SO outputSchema, Stream<RecordEnvelope<DI>> inputStream, WorkUnitState workUnit) {
+    return inputStream.flatMap(envelope -> {
+      try {
+        Iterator<DO> outputIt = convertRecord(outputSchema, envelope.getRecord(), workUnit).iterator();
+
+        if (!outputIt.hasNext()) {
+          // record filtered, ack and continue
+          envelope.ack();
+          return Stream.empty();
+        }
+
+        Stream<RecordEnvelope<DO>> outputRecordStream;
+        DO firstEl = outputIt.next();
+        if (outputIt.hasNext()) {
+          // output iterator has multiple elements, need to fork the envelope
+          RecordEnvelope.ForkedRecordBuilder forkedRecordBuilder = envelope.forkedRecordBuilder();
+          outputRecordStream = Stream.concat(Stream.of(firstEl), StreamSupport.stream(Spliterators.spliteratorUnknownSize(outputIt,
+              Spliterator.IMMUTABLE), false)).map(forkedRecordBuilder::forkWithRecord);
+          outputRecordStream = Stream.concat(outputRecordStream, Stream.of(new Message<DO>(Message.MessageType.END_OF_STREAM)))
+              .filter(env -> {
+                if (env instanceof Message) {
+                  if (((Message) env).getMessageType() == Message.MessageType.END_OF_STREAM) {
+                    forkedRecordBuilder.close();
+                  }
+                  return false;
+                }
+                return true;
+              });
+        } else {
+          // output has single output element
+          outputRecordStream = Stream.of(envelope.withRecord(firstEl));
+        }
+
+        return outputRecordStream.map(env -> {
+              modifyOutputEnvelope(env);
+              return env;
+            });
+      } catch (DataConversionException dce) {
+        Throwables.propagate(dce);
+        return null;
+      }
+    });
+  }
 
   /**
    * Get final state for this object. By default this returns an empty {@link gobblin.configuration.State}, but

@@ -19,28 +19,24 @@
 
 package gobblin.writer;
 
-import java.util.Map;
-
-import gobblin.source.extractor.CheckpointableWatermark;
-
-
 /**
- * An interface for a WatermarkTracker. Implementations are expected to serve as helper
- * classes to track watermarks in different use-cases.
+ * An interface for entities that can be acked
  */
-public interface WatermarkTracker {
+public interface Ackable {
 
-  void reset();
+  /**
+   * Acknowledge this entity
+   */
+  void ack();
 
-  void committedWatermarks(Map<String, CheckpointableWatermark> committedMap);
+  /**
+   * Indicate failure to process this entity.
+   * @param cause the cause of the failure.
+   */
+  default void nack(Throwable cause) {}
 
-  void committedWatermark(CheckpointableWatermark committed);
-
-  void unacknowledgedWatermark(CheckpointableWatermark unacked);
-
-  void unacknowledgedWatermarks(Map<String, CheckpointableWatermark> unackedMap);
-
-  Map<String, CheckpointableWatermark> getAllCommitableWatermarks();
-
-  Map<String, CheckpointableWatermark> getAllUnacknowledgedWatermarks();
+  Ackable NoopAckable = new Ackable() {
+    @Override
+    public void ack() {}
+  };
 }

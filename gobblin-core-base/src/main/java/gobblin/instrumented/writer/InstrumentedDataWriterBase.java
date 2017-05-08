@@ -40,6 +40,7 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 import gobblin.metrics.Tag;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.FinalState;
 import gobblin.writer.DataWriter;

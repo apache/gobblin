@@ -26,7 +26,6 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import gobblin.runtime.fork.AsynchronousFork;
 import gobblin.runtime.fork.Fork;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
@@ -42,7 +41,7 @@ import gobblin.util.ExecutorsUtils;
 
 
 /**
- * A class for executing {@link Task}s and retrying failed ones as well as for executing {@link AsynchronousFork}s.
+ * A class for executing {@link Task}s and retrying failed ones.
  *
  * @author Yinan Li
  */

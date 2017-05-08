@@ -15,23 +15,42 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package gobblin.source.extractor;
 
-import gobblin.configuration.WorkUnitState;
+import lombok.Getter;
+
 
 /**
- * Implementation of {@link Converter} that returns the inputSchema unmodified and each inputRecord unmodified
+ * A subclass of {@link RecordEnvelope} used to send notifications in the processing pipeline.
+ * @param <D>
  */
-public class IdentityConverter<S, D> extends Converter<S, S, D, D> {
+public class Message<D> extends RecordEnvelope<D> {
 
-  @Override
-  public Object convertSchema(Object inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return inputSchema;
+  @Getter
+  private final MessageType messageType;
+
+  public Message(MessageType messageType) {
+    super(null);
+    this.messageType = messageType;
+  }
+
+  /**
+   * Type of message.
+   */
+  public enum MessageType {
+    /** Indicates stream has ended. */
+    END_OF_STREAM,
+    /** Indicates there was a failure in the stream. */
+    FAILED_STREAM
   }
 
   @Override
-  public Iterable<Object> convertRecord(Object outputSchema, Object inputRecord, WorkUnitState workUnit)
-      throws DataConversionException {
-    return new SingleRecordIterable<>(inputRecord);
+  protected boolean recordCanBeNull() {
+    return true;
+  }
+
+  @Override
+  public D getRecord() {
+    throw new UnsupportedOperationException("Attempted to get record from a message.");
   }
 }

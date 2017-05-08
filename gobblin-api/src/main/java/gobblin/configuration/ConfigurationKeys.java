@@ -762,4 +762,16 @@ public class ConfigurationKeys {
    */
   public static final String COMPACTION_SUITE_FACTORY = "compaction.suite.factory";
   public static final String DEFAULT_COMPACTION_SUITE_FACTORY = "CompactionAvroSuiteFactory";
+  /**
+   * Configuration properties related to continuous / streaming mode
+   */
+  public static final String TASK_EXECUTION_MODE = "task.executionMode";
+  public static final String DEFAULT_TASK_EXECUTION_MODE = "BATCH";
+  public static final String STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS = "streaming.watermark.commitIntervalMillis";
+  public static final Long DEFAULT_STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS = 2000L; // 2 seconds per commit
+  /**
+   * Configuration properties related to optimizations for single branch tasks
+   */
+  public static final String TASK_IS_SINGLE_BRANCH_SYNCHRONOUS = "gobblin.task.is.single.branch.synchronous";
+  public static final String DEFAULT_TASK_IS_SINGLE_BRANCH_SYNCHRONOUS = Boolean.toString(false);
 }

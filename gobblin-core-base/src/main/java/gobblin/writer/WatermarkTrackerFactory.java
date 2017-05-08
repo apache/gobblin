@@ -21,6 +21,8 @@ package gobblin.writer;
 
 import com.google.common.base.Preconditions;
 
+import gobblin.writer.watermarkTracker.WatermarkTracker;
+
 
 /**
  * A Factory for handing out WatermarkTracker instances

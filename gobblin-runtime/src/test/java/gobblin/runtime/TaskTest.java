@@ -34,18 +34,25 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.IdentityConverter;
 import gobblin.fork.ForkOperator;
 import gobblin.fork.IdentityForkOperator;
 import gobblin.publisher.TaskPublisher;
@@ -95,6 +102,9 @@ public class TaskTest {
     when(mockTaskContext.getTaskState()).thenReturn(taskState);
     when(mockTaskContext.getTaskLevelPolicyChecker(any(TaskState.class), anyInt()))
         .thenReturn(mock(TaskLevelPolicyChecker.class));
+    when(mockTaskContext.getRowLevelPolicyChecker()).thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(),
+        "string", FileSystem.get(new Configuration())));
+    when(mockTaskContext.getConverters(anyInt(), any(TaskState.class))).thenReturn(Lists.newArrayList(new IdentityConverter()));
 
     // Create a mock TaskPublisher
     TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
@@ -135,6 +145,8 @@ public class TaskTest {
     when(mockRowLevelPolicyChecker.executePolicies(any(Object.class), any(RowLevelPolicyCheckResults.class)))
         .thenReturn(true);
     when(mockRowLevelPolicyChecker.getFinalState()).thenReturn(new State());
+    when(mockRowLevelPolicyChecker.filter(any(Stream.class), any(RowLevelPolicyCheckResults.class)))
+        .thenAnswer(inv -> inv.getArguments()[0]);
 
     // Create a mock TaskPublisher
     TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);

@@ -28,6 +28,7 @@ import org.testng.annotations.Test;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.metadata.MetadataNames;
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.DefaultCheckpointableWatermark;
 import gobblin.source.extractor.RecordEnvelope;
@@ -149,9 +150,10 @@ public class PartitionedWriterTest {
 
     PartitionedDataWriter writer = new PartitionedDataWriter<String, String>(builder, state);
 
-    AcknowledgableRecordEnvelope<String> recordEnvelope = new AcknowledgableRecordEnvelope<>("0",
+    RecordEnvelope<String> recordEnvelope = new RecordEnvelope<>("0");
+    recordEnvelope.getMetadata().getRecordMetadata().put(MetadataNames.WATERMARK,
         new AcknowledgableWatermark(new DefaultCheckpointableWatermark(defaultSource, new LongWatermark(0))));
-    writer.writeEnvelope(recordEnvelope);
+    writer.writeEnvelopedRecord(recordEnvelope);
 
     Map<String, CheckpointableWatermark> watermark = writer.getCommittableWatermark();
     System.out.println(watermark.toString());

@@ -41,9 +41,12 @@ import gobblin.configuration.State;
 import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.AvroUtils;
 import gobblin.util.FinalState;
 import gobblin.writer.partitioner.WriterPartitioner;
+import gobblin.writer.watermarkTracker.MutableWatermarkTracker;
+import gobblin.writer.watermarkTracker.WatermarkTracker;
 
 
 /**
@@ -255,13 +258,13 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
   }
 
   @Override
-  public void writeEnvelope(AcknowledgableRecordEnvelope<D> recordEnvelope)
+  public void writeEnvelopedRecord(RecordEnvelope<D> recordEnvelope)
       throws IOException {
     try {
       DataWriter<D> writer = getDataWriterForRecord(recordEnvelope.getRecord());
       // Unsafe cast, presumably we've checked earlier through isWatermarkCapable()
       // that we are wrapping watermark aware wrappers
-      ((WatermarkAwareWriter) writer).writeEnvelope(recordEnvelope);
+      ((WatermarkAwareWriter) writer).writeEnvelopedRecord(recordEnvelope);
     } catch (ExecutionException ee) {
       throw new IOException(ee);
     }
@@ -272,7 +275,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
     // The committable watermark from a collection of commitable and unacknowledged watermarks is the highest
     // committable watermark that is less than the lowest unacknowledged watermark
 
-    WatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
+    MutableWatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
       if (entry.getValue() instanceof WatermarkAwareWriter) {
         Map<String, CheckpointableWatermark> commitableWatermarks =
@@ -293,7 +296,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
 
   @Override
   public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-    WatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
+    MutableWatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
       Map<String, CheckpointableWatermark> unacknowledgedWatermark =
           ((WatermarkAwareWriter) entry.getValue()).getUnacknowledgedWatermark();

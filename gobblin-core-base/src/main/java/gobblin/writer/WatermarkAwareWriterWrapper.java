@@ -25,6 +25,7 @@ import java.util.Map;
 import com.google.common.base.Optional;
 
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 
 
 /**
@@ -41,8 +42,8 @@ public abstract class WatermarkAwareWriterWrapper<D> implements WatermarkAwareWr
     return watermarkAwareWriter.get().isWatermarkCapable();
   }
 
-  public final void writeEnvelope(final AcknowledgableRecordEnvelope<D> recordEnvelope) throws IOException {
-    watermarkAwareWriter.get().writeEnvelope(recordEnvelope);
+  public final void writeEnvelopedRecord(final RecordEnvelope<D> recordEnvelope) throws IOException {
+    watermarkAwareWriter.get().writeEnvelopedRecord(recordEnvelope);
   }
 
   public final Map<String, CheckpointableWatermark> getCommittableWatermark() {

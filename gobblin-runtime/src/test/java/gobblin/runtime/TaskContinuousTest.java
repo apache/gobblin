@@ -31,14 +31,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,6 +51,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.fork.IdentityForkOperator;
+import gobblin.metadata.MetadataNames;
 import gobblin.publisher.TaskPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
@@ -93,23 +99,15 @@ public class TaskContinuousTest {
     }
 
     @Override
-    public RecordEnvelope<String> readRecord(@Deprecated RecordEnvelope<String> reuse)
-    throws DataRecordException, IOException {
-      if (!this.closed) {
-        if (index == 0) {
-          RecordEnvelope<String> recordEnvelope =
-              new RecordEnvelope<>(record, new DefaultCheckpointableWatermark("default", new LongWatermark(index)));
-          log.debug("Returning record with index {}", index);
-          index++;
-          return recordEnvelope;
-        }
-        else {
-          return null;
-        }
-      } else {
-        log.info("Extractor has been closed, returning null");
-        return null;
-      }
+    public Stream<RecordEnvelope<String>> getRecordEnvelopeStream(AtomicBoolean shutdownRequested) {
+      this.index++;
+      return Stream.of(this.record).map(RecordEnvelope::new);
+    }
+
+    @Override
+    public void modifyEnvelope(RecordEnvelope<String> envelope) {
+      envelope.getMetadata().getRecordMetadata().put(MetadataNames.WATERMARK,
+          new DefaultCheckpointableWatermark("default", new LongWatermark(0)));
     }
 
     @Override
@@ -167,23 +165,14 @@ public class TaskContinuousTest {
     }
 
     @Override
-    public RecordEnvelope<String> readRecord(@Deprecated RecordEnvelope<String> reuse)
-        throws DataRecordException, IOException {
-      if (!this.closed) {
-        try {
-          Thread.sleep(this.sleepTimeInMillis);
-        } catch (InterruptedException e) {
-          Throwables.propagate(e);
-        }
-        String record = index + "";
-        RecordEnvelope<String> recordEnvelope =
-            new RecordEnvelope<>(record, new DefaultCheckpointableWatermark("default", new LongWatermark(index)));
-        index++;
-        return recordEnvelope;
-      } else {
-        log.info("Extractor has been closed, returning null");
-        return null;
-      }
+    public String readRecord(@Deprecated String reuse) throws DataRecordException, IOException {
+      return Long.toString(this.index++);
+    }
+
+    @Override
+    public void modifyEnvelope(RecordEnvelope<String> envelope) {
+      envelope.getMetadata().getRecordMetadata().put(MetadataNames.WATERMARK,
+          new DefaultCheckpointableWatermark("default", new LongWatermark(Long.parseLong(envelope.getRecord()))));
     }
 
     @Override
@@ -204,6 +193,7 @@ public class TaskContinuousTest {
 
 
     public boolean validateWatermarks(boolean exact, Map<String, CheckpointableWatermark> watermarkMap) {
+      Assert.assertFalse(watermarkMap.isEmpty());
       if (!watermarkMap.isEmpty()) {
         // watermark must be <= the index
         LongWatermark longWatermark = (LongWatermark) watermarkMap.values().iterator().next().getWatermark();
@@ -338,9 +328,8 @@ public class TaskContinuousTest {
 
     TaskState taskState = getStreamingTaskState();
     // Create a mock RowLevelPolicyChecker
-    RowLevelPolicyChecker mockRowLevelPolicyChecker = mock(RowLevelPolicyChecker.class);
-    when(mockRowLevelPolicyChecker.executePolicies(any(Object.class), any(RowLevelPolicyCheckResults.class))).thenReturn(true);
-    when(mockRowLevelPolicyChecker.getFinalState()).thenReturn(new State());
+    RowLevelPolicyChecker mockRowLevelPolicyChecker = new RowLevelPolicyChecker(Lists.newArrayList(), "stateId",
+        FileSystem.getLocal(new Configuration()));
 
     WatermarkStorage mockWatermarkStorage = new MockWatermarkStorage();
 
@@ -372,7 +361,7 @@ public class TaskContinuousTest {
 
     TaskState taskState = new TaskState(workUnitState);
     taskState.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(false));
-    taskState.setProp(TaskConfigurationKeys.TASK_EXECUTION_MODE, ExecutionModel.STREAMING.name());
+    taskState.setProp(ConfigurationKeys.TASK_EXECUTION_MODE, ExecutionModel.STREAMING.name());
     taskState.setJobId("1234");
     taskState.setTaskId("testContinuousTaskId");
     return taskState;
@@ -400,7 +389,7 @@ public class TaskContinuousTest {
         new ContinuousExtractor(perRecordExtractLatencyMillis);
 
     TaskContext mockTaskContext = getMockTaskContext(recordCollector, continuousExtractor);
-
+    MockWatermarkStorage watermarkStorage = (MockWatermarkStorage) mockTaskContext.getWatermarkStorage();
 
     // Create a mock TaskStateTracker
     TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
@@ -483,17 +472,25 @@ public class TaskContinuousTest {
         }
 
         @Override
-        public void writeEnvelope(AcknowledgableRecordEnvelope<Object> recordEnvelope)
-            throws IOException {
+        public void writeEnvelopedRecord(RecordEnvelope<Object> recordEnvelope) throws IOException {
           _recordCollector.add(recordEnvelope.getRecord());
-          String source = recordEnvelope.getWatermark().getSource();
+          String source = ((CheckpointableWatermark) recordEnvelope.getMetadata().getRecordMetadata().get(MetadataNames.WATERMARK))
+              .getSource();
           if (this.source.get() != null) {
             if (!source.equals(this.source.get())) {
               throw new RuntimeException("This writer only supports a single source");
             }
           }
-          this.lastWatermark.set(recordEnvelope.getWatermark());
+          this.lastWatermark.set((CheckpointableWatermark) recordEnvelope.getMetadata().getRecordMetadata().get(MetadataNames.WATERMARK));
           recordEnvelope.ack();
+
+          try {
+            // Add some slowdown
+            Thread.sleep(10);
+          } catch (InterruptedException ie) {
+            throw new RuntimeException(ie);
+          }
+
           this.source.set(source);
         }
 

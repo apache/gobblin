@@ -29,7 +29,7 @@ import gobblin.writer.WatermarkStorage;
  * An interface for implementing streaming / continuous extractors
  */
 @Alpha
-public interface StreamingExtractor<S, D> extends Extractor<S, RecordEnvelope<D>> {
+public interface StreamingExtractor<S, D> extends Extractor<S, D> {
 
   /**
    * Initialize the extractor to be ready to read records
