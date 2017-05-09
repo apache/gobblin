@@ -1,0 +1,13 @@
+{
+  "name": "Policy",
+  "type": "record",
+  "namespace": "gobblin.restli.throttling",
+  "doc": "A throttling policy for Gobblin throttling service.",
+  "fields": [
+    {"name": "resource", "type": "string", "doc": "Resource for which this policy applied."},
+    {"name": "policyName", "type": "string", "doc": "The name of the policy."},
+    {"name": "parameters", "type": {"type": "map", "values": "string"}, "doc": "Parameters for this policy."},
+    {"name": "metrics", "type": {"type": "map", "values": "string"}, "doc": "Metrics for this policy."},
+    {"name": "policyDetails", "type": "string", "doc": "Human readable policy details."}
+  ]
+}

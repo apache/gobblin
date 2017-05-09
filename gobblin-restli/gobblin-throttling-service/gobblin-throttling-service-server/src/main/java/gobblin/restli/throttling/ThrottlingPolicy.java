@@ -17,6 +17,9 @@
 
 package gobblin.restli.throttling;
 
+import java.util.Map;
+
+
 /**
  * A throttling policy.
  */
@@ -25,4 +28,14 @@ public interface ThrottlingPolicy {
    * Comput the {@link PermitAllocation} for the given {@link PermitRequest}.
    */
   PermitAllocation computePermitAllocation(PermitRequest request);
+
+  /**
+   * @return The parameters this policy is using. Used for description of the policy.
+   */
+  Map<String, String> getParameters();
+
+  /**
+   * @return  A human readable description of the policy.
+   */
+  String getDescription();
 }

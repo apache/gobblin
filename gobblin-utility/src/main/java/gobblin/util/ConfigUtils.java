@@ -114,9 +114,14 @@ public class ConfigUtils {
    * @return the subconfig under key "key" if it exists, otherwise returns an empty config.
    */
   public static Config getConfigOrEmpty(Config config, String key) {
-    if (config.hasPath(key)) {
-      return config.getConfig(key);
-    } else {
+    try {
+      if (config.hasPath(key)) {
+        return config.getConfig(key);
+      } else {
+        return ConfigFactory.empty();
+      }
+    } catch (ConfigException.WrongType wrongType) {
+      // path exists, but it is not a subconfig
       return ConfigFactory.empty();
     }
   }
