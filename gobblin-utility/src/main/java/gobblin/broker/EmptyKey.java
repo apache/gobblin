@@ -19,10 +19,13 @@ package gobblin.broker;
 
 import gobblin.broker.iface.SharedResourceKey;
 
+import lombok.EqualsAndHashCode;
+
 
 /**
  * A dummy {@link SharedResourceKey}.
  */
+@EqualsAndHashCode
 public final class EmptyKey implements SharedResourceKey {
   @Override
   public String toConfigurationKey() {

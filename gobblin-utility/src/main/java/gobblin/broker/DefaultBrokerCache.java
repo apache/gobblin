@@ -122,8 +122,13 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
         throw new RuntimeException(String.format("%s returned an invalid coordinate: scope %s is not available.",
             factory.getName(), resourceCoordinate.getScope().name()), nsse);
       }
-    } else if (obj instanceof ResourceInstance) {
-      return ((ResourceInstance<T>) obj).getResource();
+    } else if (obj instanceof ResourceEntry) {
+      if (!((ResourceEntry) obj).isValid()) {
+        ((ResourceEntry) obj).onInvalidate();
+        this.sharedResourceCache.invalidate(fullKey);
+        return getScoped(factory, key, scope, broker);
+      }
+      return ((ResourceEntry<T>) obj).getResource();
     } else {
       throw new RuntimeException(String.format("Invalid response from %s: %s.", factory.getName(), obj.getClass()));
     }
@@ -132,7 +137,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
   <T, K extends SharedResourceKey> void put(final SharedResourceFactory<T, K, S> factory, @Nonnull final K key,
       @Nonnull final ScopeWrapper<S> scope, T instance) {
     RawJobBrokerKey fullKey = new RawJobBrokerKey(scope, factory.getName(), key);
-    this.sharedResourceCache.put(fullKey, instance);
+    this.sharedResourceCache.put(fullKey, new ResourceInstance<>(instance));
   }
 
   /**
@@ -152,15 +157,9 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
       if (entry.getValue() instanceof ResourceInstance) {
         Object obj = ((ResourceInstance) entry.getValue()).getResource();
 
+        ResourceEntry.shutdownObject(obj, log);
         if (obj instanceof Service) {
-          ((Service) obj).stopAsync();
           awaitShutdown.add((Service) obj);
-        } else if (obj instanceof Closeable) {
-          try {
-            ((Closeable) obj).close();
-          } catch (IOException ioe) {
-            log.error("Failed to close {}.", obj);
-          }
         }
       }
     }

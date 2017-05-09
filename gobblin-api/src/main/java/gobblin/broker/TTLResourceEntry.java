@@ -17,25 +17,35 @@
 
 package gobblin.broker;
 
-import gobblin.broker.iface.SharedResourceFactoryResponse;
-import lombok.Data;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * A {@link SharedResourceFactoryResponse} that returns a newly created resource instance.
+ * A {@link ResourceEntry} that automatically expires after a given number of milliseconds.
  */
-@Data
-public class ResourceInstance<T> implements ResourceEntry<T> {
+@Slf4j
+public class TTLResourceEntry<T> implements ResourceEntry<T> {
+  @Getter
   private final T resource;
+  private final long expireAt;
+  private final boolean closeOnInvalidation;
+
+  public TTLResourceEntry(T resource, long millisToLive, boolean closeOnInvalidation) {
+    this.resource = resource;
+    this.expireAt = System.currentTimeMillis() + millisToLive;
+    this.closeOnInvalidation = closeOnInvalidation;
+  }
 
   @Override
   public boolean isValid() {
-    return true;
+    return System.currentTimeMillis() < this.expireAt;
   }
 
   @Override
   public void onInvalidate() {
-    // this should never happen
-    throw new RuntimeException();
+    if (this.closeOnInvalidation) {
+      ResourceEntry.shutdownObject(this.resource, log);
+    }
   }
 }
