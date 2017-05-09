@@ -43,13 +43,56 @@ dependencies {
   compile externalDependency.pegasus.pegasusCommon
 }
 
+// Configure sources and javadoc jars for the data template library
+def dataTemplateName = project.name + "-data-template"
+
+task dataTemplateSourcesJar(type: Jar, dependsOn: classes) {
+  from sourceSets.mainGeneratedDataTemplate.allSource
+  classifier = 'sources'
+  baseName = dataTemplateName
+}
+
+task dataTemplateJavadoc(type: Javadoc, dependsOn: classes) {
+  source sourceSets.mainGeneratedDataTemplate.allSource
+  classpath = files(sourceSets.mainGeneratedDataTemplate.compileClasspath)
+  destinationDir file("${rootProject.buildDir}/${dataTemplateName}/docs/javadoc")
+}
+
+task dataTemplateJavadocJar(type: Jar, dependsOn: 'dataTemplateJavadoc') {
+  from dataTemplateJavadoc
+  baseName = dataTemplateName
+  classifier = 'javadoc'
+}
+
 artifacts {
-  archives mainDataTemplateJar
+  archives mainDataTemplateJar, dataTemplateSourcesJar, dataTemplateJavadocJar
 }
 
 if (file("${project.projectDir}/src/main/idl").exists()) {
+
+  // Configure sources and javadoc jars for the rest client  library
+  def restClientName = project.name + "-rest-client"
+
+  task restClientSourcesJar(type: Jar, dependsOn: classes) {
+    from sourceSets.mainGeneratedRest.allSource
+    classifier = 'sources'
+    baseName = restClientName
+  }
+
+  task restClientJavadoc(type: Javadoc, dependsOn: classes) {
+    source sourceSets.mainGeneratedRest.allSource
+    classpath = files(sourceSets.mainGeneratedRest.compileClasspath)
+    destinationDir file("${rootProject.buildDir}/${restClientName}/docs/javadoc")
+  }
+
+  task restClientJavadocJar(type: Jar, dependsOn: 'restClientJavadoc') {
+    from restClientJavadoc
+    baseName = restClientName
+    classifier = 'javadoc'
+  }
+
   artifacts {
-    archives mainRestClientJar
+    archives mainRestClientJar, restClientSourcesJar, restClientJavadocJar
   }
 }
 
@@ -71,11 +114,11 @@ if (rootProject.ext.publishToMaven) {
     repositories {
       mavenDeployer {
         addFilter('data-template') { artifact, file -> artifact.name.contains("data-template")
-        }
+        }.project(rootProject.pomAttributes)
         addFilter('rest-client') { artifact, file -> artifact.name.contains("rest-client")
-        }
+        }.project(rootProject.pomAttributes)
         addFilter('') { artifact, file -> artifact.name == project.name
-        }
+        }.project(rootProject.pomAttributes)
       }
     }
   }

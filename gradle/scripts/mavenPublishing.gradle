@@ -19,8 +19,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
 // Set group for Maven
-if (!project.hasProperty('group') || project.group.length() == 0) {
-  project.ext.group = 'com.linkedin.gobblin'
+allprojects {
+  if (!project.hasProperty('group') || project.group.length() == 0) {
+    project.ext.group = 'com.linkedin.gobblin'
+    project.group = project.ext.group
+  }
 }
 
 // Maven publishing
