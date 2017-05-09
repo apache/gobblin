@@ -77,7 +77,7 @@ public class AvroUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroUtils.class);
 
-  private static final String FIELD_LOCATION_DELIMITER = ".";
+  public static final String FIELD_LOCATION_DELIMITER = ".";
 
   private static final String AVRO_SUFFIX = ".avro";
 
@@ -134,6 +134,54 @@ public class AvroUtils {
           return Optional.fromNullable(schema.getField(pathList.get(field)).schema());
         }
         return AvroUtils.getFieldSchemaHelper(schema.getField(pathList.get(field)).schema(), pathList, ++field);
+      default:
+        throw new AvroRuntimeException("Invalid type in schema : " + schema);
+    }
+  }
+
+  /**
+   * Given a GenericRecord, this method will return the field specified by the path parameter. The
+   * fieldLocation parameter is an ordered string specifying the location of the nested field to retrieve. For example,
+   * field1.nestedField1 takes field "field1", and retrieves "nestedField1" from it.
+   * @param schema is the record to retrieve the schema from
+   * @param fieldLocation is the location of the field
+   * @return the field
+   */
+  public static Optional<Field> getField(Schema schema, String fieldLocation) {
+    Preconditions.checkNotNull(schema);
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(fieldLocation));
+
+    Splitter splitter = Splitter.on(FIELD_LOCATION_DELIMITER).omitEmptyStrings().trimResults();
+    List<String> pathList = Lists.newArrayList(splitter.split(fieldLocation));
+
+    if (pathList.size() == 0) {
+      return Optional.absent();
+    }
+
+    return AvroUtils.getFieldHelper(schema, pathList, 0);
+  }
+
+  /**
+   * Helper method that does the actual work for {@link #getField(Schema, String)}
+   * @param schema passed from {@link #getFieldSchema(Schema, String)}
+   * @param pathList passed from {@link #getFieldSchema(Schema, String)}
+   * @param field keeps track of the index used to access the list pathList
+   * @return the field
+   */
+  private static Optional<Field> getFieldHelper(Schema schema, List<String> pathList, int field) {
+    Field curField = schema.getField(pathList.get(field));
+    if (field + 1 == pathList.size()) {
+      return Optional.fromNullable(curField);
+    }
+
+    Schema fieldSchema = curField.schema();
+    switch (fieldSchema.getType()) {
+      case UNION:
+        throw new AvroRuntimeException("Union of complex types cannot be handled : " + schema);
+      case MAP:
+        return AvroUtils.getFieldHelper(fieldSchema.getValueType(), pathList, ++field);
+      case RECORD:
+        return AvroUtils.getFieldHelper(fieldSchema, pathList, ++field);
       default:
         throw new AvroRuntimeException("Invalid type in schema : " + schema);
     }
