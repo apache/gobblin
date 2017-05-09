@@ -72,6 +72,13 @@
           "optional": true,
           "default": true,
           "doc": "true/false if the response should include task executions (default: true)"
+      },
+      {
+          "name": "includeJobsWithoutTasks",
+          "type": "boolean",
+          "optional": true,
+          "default": true,
+          "doc": "true/false if the response should include jobs that did not launch tasks (default: true)"
       }
     ]
 }

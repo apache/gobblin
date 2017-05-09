@@ -670,6 +670,10 @@ public class ConfigurationKeys {
   public static final String DEFAULT_ADMIN_SERVER_HOST = "localhost";
   public static final String ADMIN_SERVER_PORT_KEY = "admin.server.port";
   public static final String DEFAULT_ADMIN_SERVER_PORT = "8000";
+  public static final String ADMIN_SERVER_HIDE_JOBS_WITHOUT_TASKS_BY_DEFAULT_KEY = "admin.server.hide_jobs_without_tasks_by_default.enabled";
+  public static final String DEFAULT_ADMIN_SERVER_HIDE_JOBS_WITHOUT_TASKS_BY_DEFAULT = "false";
+  public static final String ADMIN_SERVER_REFRESH_INTERVAL_KEY = "admin.server.refresh_interval";
+  public static final long DEFAULT_ADMIN_SERVER_REFRESH_INTERVAL = 30000;
 
   /**
    * Kafka job configurations.

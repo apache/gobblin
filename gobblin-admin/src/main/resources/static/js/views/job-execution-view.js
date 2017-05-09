@@ -20,32 +20,79 @@ var app = app || {}
 
 ;(function ($) {
   app.JobExecutionView = Backbone.View.extend({
-    el: '#main-content',
-
+    mainTemplate: _.template($('#main-template').html()),
     headerTemplate: _.template($('#header-template').html()),
     contentTemplate: _.template($('#job-execution-template').html()),
-    keyValueTemplate: _.template($('#key-value-template').html()),
+    summaryTemplate: _.template($('#summary-template').html()),
 
     events: {
       'click #query-btn': '_fetchData'
     },
 
     initialize: function (jobId) {
-      this.jobId = jobId
-      this.collection = app.jobExecutions
-      this.model = {}
+      var self = this
+      self.setElement($('#main-content'))
+      self.jobId = jobId
+      self.collection = app.jobExecutions
+      if (Gobblin.settings.refreshInterval > 0) {
+        self.timer = setInterval(function() {
+          if (self.initialized) {
+            self._fetchData()
+          }
+        }, Gobblin.settings.refreshInterval)
+      }
+      self.listenTo(self.collection, 'reset', self.refreshData)
+    },
 
-      this.headerEl = this.$el.find('#header-container')
-      this.contentEl = this.$el.find('#content-container')
-
-      this.render()
+    onBeforeClose: function() {
+      var self = this
+      if (self.timer) {
+        clearInterval(self.timer);
+      }
+      if (self.table) {
+        if (self.table.onBeforeClose) {
+          self.table.onBeforeClose()
+        }
+        self.table.remove()
+      }
+      if (self.propertiesTable) {
+        if (self.propertiesTable.onBeforeClose) {
+          self.propertiesTable.onBeforeClose()
+        }
+        self.propertiesTable.remove()
+      }
+      if (self.metricsTable) {
+        if (self.metricsTable.onBeforeClose) {
+          self.metricsTable.onBeforeClose()
+        }
+        self.metricsTable.remove()
+      }
     },
 
     render: function () {
-      this.renderHeader()
-      this.contentEl.html(this.contentTemplate({}))
+      var self = this
+      self.$el.html(self.mainTemplate)
+      self.headerEl = self.$el.find('#header-container')
+      self.contentEl = self.$el.find('#content-container')
+      self.contentEl.html(self.contentTemplate({}))
+      self.renderHeader()
+      self.renderSummary()
 
-      this._fetchData()
+      self.table = new app.TableView({
+        el: '#task-table-container',
+        collection: self.collection,
+        collectionResolver: function(c) {
+          if (c) {
+            return c.get(self.jobId).getTaskExecutions()
+          }
+          return {}
+        },
+        columnSchema: 'listTasksByJobId'
+      })
+      self.table.render()
+      self.initialized = true
+
+      return self._fetchData()
     },
 
     _fetchData: function () {
@@ -56,65 +103,88 @@ var app = app || {}
         taskProperties: "",
         includeTaskMetrics: false
       }
-      self.collection.fetchCurrent('JOB_ID', self.jobId, opts).done(function () {
+      self.collection.fetchCurrent('JOB_ID', self.jobId, opts)
+    },
+
+    refreshData: function() {
+      var self = this
+      if (self.initialized) {
         self.model = self.collection.get(self.jobId)
         self.renderHeader(self.model.getJobStateMapped())
-        self.renderSummary()
-
-        self.table = new app.TableView({
-          el: '#task-table-container',
-          collection: self.model.getTaskExecutions(),
-          columnSchema: 'listTasksByJobId',
-          includeJobToggle: false
-        })
-        self.table.renderData()
-      })
+        self.refreshSummary()
+      }
     },
 
     renderHeader: function (status) {
+      var self = this
       var header = {
         title: 'Job Execution Details',
-        subtitle: this.jobId
+        subtitle: self.jobId
       }
       if (typeof status !== 'undefined') {
         header.highlightClass = status
       }
-      this.headerEl.html(this.headerTemplate({ header: header }))
+        self.headerEl.html(self.headerTemplate({ header: header }))
     },
 
     renderSummary: function () {
-      this.generateKeyValue('About', this.getSummary(), '#important-key-value', false)
-      this.generateKeyValue('Job Properties', this.getProperties(), '#job-properties-key-value .well', true)
-      this.generateKeyValue('Metrics', this.getJobMetrics(), '#job-metrics-key-value .well', true)
+      var self = this
+      self.generateSummary('About', self.getSummary(), '#important-key-value', false)
+      self.propertiesTable = self.generateKeyValue('Job Properties', function(c) { return self.getProperties(c) }, '#job-properties-key-value', true)
+      self.metricsTable = self.generateKeyValue('Metrics', function(c) { return self.getJobMetrics(c) }, '#job-metrics-key-value', true)
     },
-    generateKeyValue: function (title, keyValuePairs, elemId, center) {
-      this.$el.find(elemId).html(this.keyValueTemplate({
+    refreshSummary: function () {
+      var self = this
+      self.generateSummary('About', self.getSummary(), '#important-key-value', false)
+    },
+    generateSummary: function (title, keyValuePairs, elemId, center) {
+      var self = this
+      self.$el.find(elemId).html(self.summaryTemplate({
         title: title,
         pairs: keyValuePairs,
         center: center
       }))
     },
+    generateKeyValue: function (title, keyValuePairResolver, elemId, center) {
+      var self = this
+      var propertiesTable = new app.KeyValueTableView({
+        el: elemId,
+        title: title,
+        center: center,
+        collection: self.collection,
+        collectionResolver: keyValuePairResolver
+      })
+      propertiesTable.render()
+      return propertiesTable
+    },
     getSummary: function () {
+      var self = this
       return {
-        'Job Name': this.model.getJobNameLink(),
-        'Job Id': this.model.getJobIdLink(),
-        'State': this.model.getJobStateElem(),
-        'Completed/Launched Tasks': this.model.getTaskRatio(),
-        'Start Time': this.model.getJobStartTime(),
-        'End Time': this.model.getJobEndTime(),
-        'Duration (seconds)': this.model.getDurationInSeconds(),
-        'Launcher Type': this.model.getLauncherType()
+        'Job Name': self.model ? self.model.getJobNameLink() : '',
+        'Job Id': self.model ? self.model.getJobIdLink() : '',
+        'State': self.model ? self.model.getJobStateElem() : '',
+        'Completed/Launched Tasks': self.model ? self.model.getTaskRatio() : '',
+        'Start Time': self.model ? self.model.getJobStartTime() : '',
+        'End Time': self.model ? self.model.getJobEndTime() : '',
+        'Duration (seconds)': self.model ? self.model.getDurationInSeconds() : '',
+        'Launcher Type': self.model ? self.model.getLauncherType() : ''
       }
     },
-    getProperties: function () {
-      if (this.model.hasProperties()) {
-        return this.model.attributes.jobProperties
+    getProperties: function (collection) {
+      var self = this
+      var model = collection.get(self.jobId)
+      if (model && model.hasProperties()) {
+        return _.object(_.map(_.sortBy(_.keys(model.attributes.jobProperties)), function(key) {
+          return [key, model.attributes.jobProperties[key]]
+        }))
       }
       return {}
     },
-    getJobMetrics: function () {
-      if (this.model.attributes.metrics) {
-        var jobMetrics = this.model.attributes.metrics.filter(function (metric) {
+    getJobMetrics: function (collection) {
+      var self = this
+      var model = collection.get(self.jobId)
+      if (model && model.attributes.metrics) {
+        var jobMetrics = model.attributes.metrics.filter(function (metric) {
           return metric.group === 'JOB'
         })
 

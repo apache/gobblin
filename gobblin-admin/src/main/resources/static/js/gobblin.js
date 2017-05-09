@@ -18,7 +18,7 @@
 var Gobblin = Gobblin || {}
 Gobblin.columnSchemas = {
   listJobs: [
-    { name: 'Job Name', fn: 'getJobNameLink' },
+    { name: 'Job Name', fn: 'getJobNameLink', sortInitialOrder: 'asc' },
     { name: 'State', fn: 'getJobStateElem' },
     { name: 'Schedule', fn: 'getSchedule' },
     { name: 'Last Run Started', fn: 'getJobStartTime' },
@@ -26,7 +26,7 @@ Gobblin.columnSchemas = {
     { name: 'Extracted Records (most recent run)', fn: 'getRecordMetrics' }
   ],
   listByJobName: [
-    { name: 'Job Id', fn: 'getJobIdLink' },
+    { name: 'Job Id', fn: 'getJobIdLink', sortInitialOrder: 'desc' },
     { name: 'State', fn: 'getJobStateElem' },
     { name: 'Schedule', fn: 'getSchedule' },
     { name: 'Completed/Launched Tasks', fn: 'getTaskRatio' },
@@ -36,7 +36,7 @@ Gobblin.columnSchemas = {
     { name: 'Extracted Records', fn: 'getRecordMetrics' }
   ],
   listTasksByJobId: [
-    { name: 'Task Id', fn: 'getTaskId' },
+    { name: 'Task Id', fn: 'getTaskId', sortInitialOrder: 'asc' },
     { name: 'State', fn: 'getTaskStateElem' },
     { name: 'Start Time', fn: 'getTaskStartTime' },
     { name: 'End Time', fn: 'getTaskEndTime' },
@@ -65,5 +65,28 @@ Gobblin.stateMap = {
   'FAILED': { color: Gobblin.colors.danger, class: 'danger' }
 }
 Gobblin.settings = {
-  restServerUrl: 'localhost:8080'
+  restServerUrl: 'localhost:8080',
+  hideJobsWithoutTasksByDefault: true,
+  refreshInterval: 30000
 }
+Gobblin.ViewManager = {
+  currentView : null,
+  showView : function(view) {
+    if (this.currentView !== null && this.currentView.cid != view.cid) {
+      if (this.currentView.onBeforeClose) {
+        this.currentView.onBeforeClose()
+      }
+      this.currentView.remove();
+    }
+    this.currentView = view;
+    return view.render();
+  }
+}
+Backbone.View.prototype._removeElement = function(){
+  this.$el.empty().off();
+}
+$(document).keyup(function(e) {
+  if (e.keyCode == 13) {
+    $(':focus').trigger('enter');
+  }
+});

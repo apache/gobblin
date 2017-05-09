@@ -53,6 +53,12 @@ var app = app || {}
         paramString += '&' + key + '=' + params[key]
       }
       return paramString
+    },
+    hasExecuted: function() {
+      var filtered = this.filter(function (e) {
+        return e.get("launchedTasks") > 0;
+      });
+      return new JobExecutions(filtered)
     }
   })
 
