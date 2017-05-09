@@ -19,6 +19,7 @@
 package gobblin.recordaccess;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -84,6 +85,7 @@ public class RecordAccessorProviderFactoryTest {
     }
   }
 
+  // Dummy accessor - we just need to make sure it is constructed
   public static class TestAccessor implements RecordAccessor {
     @Override
     public String getAsString(String fieldName) {
@@ -118,6 +120,21 @@ public class RecordAccessorProviderFactoryTest {
     @Override
     public void setToNull(String fieldName) {
 
+    }
+
+    @Override
+    public Map<String, String> getMultiAsString(String fieldName) {
+      return null;
+    }
+
+    @Override
+    public Map<String, Integer> getMultiAsInt(String fieldName) {
+      return null;
+    }
+
+    @Override
+    public Map<String, Long> getMultiAsLong(String fieldName) {
+      return null;
     }
   }
 
