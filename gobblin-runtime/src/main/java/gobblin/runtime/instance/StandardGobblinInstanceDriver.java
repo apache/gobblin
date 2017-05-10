@@ -34,10 +34,10 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.SimpleScope;
 import gobblin.broker.SharedResourcesBrokerFactory;
 import gobblin.broker.SharedResourcesBrokerImpl;
+import gobblin.broker.SimpleScope;
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
@@ -280,7 +280,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       try {
         return withJobCatalog(new FSJobCatalog(this));
       } catch (IOException e) {
-        throw new RuntimeException("Unable to create FS Job Catalog");
+        throw new RuntimeException("Unable to create FS Job Catalog: " + e, e);
       }
     }
 
@@ -288,7 +288,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       try {
         return withJobCatalog(new ImmutableFSJobCatalog(this));
       } catch (IOException e) {
-        throw new RuntimeException("Unable to create FS Job Catalog");
+        throw new RuntimeException("Unable to create FS Job Catalog: " + e, e);
       }
     }
 
@@ -362,6 +362,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       return this;
     }
 
+    @Override
     public SharedResourcesBroker<GobblinScopeTypes> getInstanceBroker() {
       if (!_instanceBroker.isPresent()) {
         _instanceBroker = Optional.of(getDefaultInstanceBroker());
