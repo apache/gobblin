@@ -72,7 +72,7 @@ import gobblin.runtime.listeners.JobListener;
 import gobblin.runtime.listeners.RunOnceJobListener;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.SchedulerUtils;
-import gobblin.util.filesystem.PathAlterationDetector;
+import gobblin.util.filesystem.PathAlterationObserverScheduler;
 
 
 /**
@@ -125,7 +125,7 @@ public class JobScheduler extends AbstractIdleService {
   public final Path jobConfigFileDirPath;
 
   // A monitor for changes to job conf files for general FS
-  public final PathAlterationDetector pathAlterationDetector;
+  public final PathAlterationObserverScheduler pathAlterationDetector;
   public final PathAlterationListenerAdaptorForMonitor listener;
 
   // A period of time for scheduler to wait until jobs are finished
@@ -149,7 +149,7 @@ public class JobScheduler extends AbstractIdleService {
     long pollingInterval = Long.parseLong(
         this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
-    this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
+    this.pathAlterationDetector = new PathAlterationObserverScheduler(pollingInterval);
 
     this.waitForJobCompletion = Boolean.parseBoolean(
         this.properties.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,

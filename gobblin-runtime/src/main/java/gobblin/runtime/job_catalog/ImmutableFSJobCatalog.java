@@ -49,7 +49,7 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecNotFoundException;
 import gobblin.util.PathUtils;
 import gobblin.util.PullFileLoader;
-import gobblin.util.filesystem.PathAlterationDetector;
+import gobblin.util.filesystem.PathAlterationObserverScheduler;
 import gobblin.util.filesystem.PathAlterationObserver;
 
 import lombok.AllArgsConstructor;
@@ -71,7 +71,7 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
 
   // A monitor for changes to job conf files for general FS
   // This embedded monitor is monitoring job configuration files instead of JobSpec Object.
-  protected final PathAlterationDetector pathAlterationDetector;
+  protected final PathAlterationObserverScheduler pathAlterationDetector;
   public static final String FS_CATALOG_KEY_PREFIX = "gobblin.fsJobCatalog";
   public static final String VERSION_KEY_IN_JOBSPEC = "gobblin.fsJobCatalog.version";
   // Key used in the metadata of JobSpec.
@@ -120,7 +120,7 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
       this.pathAlterationDetector = null;
     }
     else {
-      this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
+      this.pathAlterationDetector = new PathAlterationObserverScheduler(pollingInterval);
 
       // If absent, the Optional object will be created automatically by addPathAlterationObserver
       Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(observer);

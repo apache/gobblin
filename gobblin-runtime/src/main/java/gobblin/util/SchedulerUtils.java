@@ -42,7 +42,7 @@ import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import gobblin.runtime.template.ResourceBasedJobTemplate;
-import gobblin.util.filesystem.PathAlterationDetector;
+import gobblin.util.filesystem.PathAlterationObserverScheduler;
 import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationObserver;
 
@@ -138,15 +138,15 @@ public class SchedulerUtils {
   }
 
   /**
-   * Add {@link PathAlterationDetector}s for the given
+   * Add {@link PathAlterationObserverScheduler}s for the given
    * root directory and any nested subdirectories under the root directory to the given
-   * {@link PathAlterationDetector}.
+   * {@link PathAlterationObserverScheduler}.
    *
-   * @param monitor a {@link PathAlterationDetector}
+   * @param monitor a {@link PathAlterationObserverScheduler}
    * @param listener a {@link gobblin.util.filesystem.PathAlterationListener}
    * @param rootDirPath root directory
    */
-  public static void addPathAlterationObserver(PathAlterationDetector monitor, PathAlterationListener listener,
+  public static void addPathAlterationObserver(PathAlterationObserverScheduler monitor, PathAlterationListener listener,
       Path rootDirPath)
       throws IOException {
     PathAlterationObserver observer = new PathAlterationObserver(rootDirPath);

@@ -42,8 +42,8 @@ import gobblin.util.ExecutorsUtils;
  * thread to periodically check the monitored file in thread pool.
  */
 
-public final class PathAlterationDetector implements Runnable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(PathAlterationDetector.class);
+public final class PathAlterationObserverScheduler implements Runnable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PathAlterationObserverScheduler.class);
   private final long interval;
   private volatile boolean running = false;
   private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1,
@@ -54,11 +54,11 @@ public final class PathAlterationDetector implements Runnable {
   // Parameter for the running the Monitor periodically.
   private int initialDelay = 0;
 
-  public PathAlterationDetector() {
+  public PathAlterationObserverScheduler() {
     this(3000);
   }
 
-  public PathAlterationDetector(final long interval) {
+  public PathAlterationObserverScheduler(final long interval) {
     this.interval = interval;
   }
 
@@ -103,12 +103,16 @@ public final class PathAlterationDetector implements Runnable {
     if (running) {
       throw new IllegalStateException("Monitor is already running");
     }
-    running = true;
     for (final PathAlterationObserver observer : observers) {
       observer.initialize();
     }
 
-    executionResult = executor.scheduleWithFixedDelay(this, initialDelay, interval, TimeUnit.MILLISECONDS);
+    if (interval > 0) {
+        running = true;
+        this.executionResult = executor.scheduleWithFixedDelay(this, initialDelay, interval, TimeUnit.MILLISECONDS);
+    } else {
+        LOGGER.info("Not starting due to non-positive scheduling interval:" + interval);
+    }
   }
 
   /**
@@ -132,7 +136,8 @@ public final class PathAlterationDetector implements Runnable {
   public synchronized void stop(final long stopInterval)
       throws IOException, InterruptedException {
     if (!running) {
-      throw new IllegalStateException("Monitor is not running");
+      LOGGER.warn("Already stopped");
+      return;
     }
     running = false;
 
@@ -150,6 +155,9 @@ public final class PathAlterationDetector implements Runnable {
 
   @Override
   public void run() {
+     if (!running) {
+         return;
+     }
     for (final PathAlterationObserver observer : observers) {
       try {
         observer.checkAndNotify();
@@ -157,16 +165,13 @@ public final class PathAlterationDetector implements Runnable {
         LOGGER.error("Path alteration detector error.", ioe);
       }
     }
-    if (!running) {
-      return;
-    }
   }
 
   /**
-   * Create and attach {@link PathAlterationDetector}s for the given
+   * Create and attach {@link PathAlterationObserverScheduler}s for the given
    * root directory and any nested subdirectories under the root directory to the given
-   * {@link PathAlterationDetector}.
-   * @param detector  a {@link PathAlterationDetector}
+   * {@link PathAlterationObserverScheduler}.
+   * @param detector  a {@link PathAlterationObserverScheduler}
    * @param listener a {@link gobblin.util.filesystem.PathAlterationListener}
    * @param observerOptional Optional observer object. For testing routine, this has been initialized by user.
    *                         But for general usage, the observer object is created inside this method.
@@ -176,12 +181,7 @@ public final class PathAlterationDetector implements Runnable {
   public void addPathAlterationObserver(PathAlterationListener listener,
       Optional<PathAlterationObserver> observerOptional, Path rootDirPath)
       throws IOException {
-    PathAlterationObserver observer;
-    if (observerOptional.isPresent()) {
-      observer = observerOptional.get();
-    } else {
-      observer = new PathAlterationObserver(rootDirPath);
-    }
+    PathAlterationObserver observer = observerOptional.or(new PathAlterationObserver(rootDirPath));
     observer.addListener(listener);
     addObserver(observer);
   }
