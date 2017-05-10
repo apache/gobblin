@@ -17,9 +17,15 @@
 
 package gobblin.broker;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Queue;
+
+import org.slf4j.Logger;
+
+import com.google.common.util.concurrent.Service;
 
 import gobblin.broker.iface.ScopeType;
 
@@ -63,6 +69,21 @@ public class SharedResourcesBrokerUtils {
         return true;
       }
       ancestors.addAll(ancestors.poll().getParentScopes());
+    }
+  }
+
+  /**
+   * Close {@link Closeable}s and shutdown {@link Service}s.
+   */
+  public static void shutdownObject(Object obj, Logger log) {
+    if (obj instanceof Service) {
+      ((Service) obj).stopAsync();
+    } else if (obj instanceof Closeable) {
+      try {
+        ((Closeable) obj).close();
+      } catch (IOException ioe) {
+        log.error("Failed to close {}.", obj);
+      }
     }
   }
 }

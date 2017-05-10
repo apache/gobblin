@@ -62,7 +62,7 @@ public class ThrottlingPolicyFactory implements SharedResourceFactory<Throttling
       if (config.hasPath(FAIL_ON_UNKNOWN_RESOURCE_ID) && config.getBoolean(FAIL_ON_UNKNOWN_RESOURCE_ID)) {
         throw new NotConfiguredException("Missing key " + POLICY_KEY);
       } else {
-        return new TTLResourceEntry<>(new NoopPolicy(),
+        return new TTLResourceEntry<ThrottlingPolicy>(new NoopPolicy(),
             ConfigUtils.getLong(config, RELOAD_FREQUENCY_KEY, DEFAULT_RELOAD_FREQUENCY), false);
       }
     }

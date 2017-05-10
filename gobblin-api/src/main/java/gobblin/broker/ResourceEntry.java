@@ -48,16 +48,4 @@ public interface ResourceEntry<T> extends SharedResourceFactoryResponse<T> {
    * acquired objects should be closed). As much as possible, this method should be non-blocking.
    */
   void onInvalidate();
-
-  static void shutdownObject(Object obj, Logger log) {
-    if (obj instanceof Service) {
-      ((Service) obj).stopAsync();
-    } else if (obj instanceof Closeable) {
-      try {
-        ((Closeable) obj).close();
-      } catch (IOException ioe) {
-        log.error("Failed to close {}.", obj);
-      }
-    }
-  }
 }

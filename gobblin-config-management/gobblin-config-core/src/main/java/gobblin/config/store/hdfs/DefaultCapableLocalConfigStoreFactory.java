@@ -17,20 +17,42 @@
 
 package gobblin.config.store.hdfs;
 
-import org.apache.hadoop.fs.Path;
+import java.net.URI;
+import java.net.URISyntaxException;
+
+import org.apache.hadoop.fs.FileSystem;
+
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 
 
 /**
  * A {@link SimpleHDFSConfigStoreFactory} that uses the user directory as the config store location. Use scheme
  * "default-file".
  */
-public class UserDirectoryHDFSConfigStoreFactory extends SimpleLocalHDFSConfigStoreFactory {
+public class DefaultCapableLocalConfigStoreFactory extends SimpleLocalHDFSConfigStoreFactory {
+
+  public DefaultCapableLocalConfigStoreFactory() {
+  }
+
+  public DefaultCapableLocalConfigStoreFactory(Config factoryConfig) {
+    super(factoryConfig);
+  }
 
   public static final String SCHEME_PREFIX = "default-";
 
   @Override
-  protected Path getDefaultRootDir() {
-    return new Path(System.getProperty("user.dir"));
+  protected URI getDefaultRootDir(Config factoryConfig, FileSystem defaultFileSystem,
+      Optional<URI> configDefinedDefaultURI) {
+    try {
+      if (configDefinedDefaultURI.isPresent()) {
+        return configDefinedDefaultURI.get();
+      } else {
+        return new URI(System.getProperty("user.dir"));
+      }
+    } catch (URISyntaxException use) {
+      throw new RuntimeException(use);
+    }
   }
 
   @Override

@@ -157,7 +157,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
       if (entry.getValue() instanceof ResourceInstance) {
         Object obj = ((ResourceInstance) entry.getValue()).getResource();
 
-        ResourceEntry.shutdownObject(obj, log);
+        SharedResourcesBrokerUtils.shutdownObject(obj, log);
         if (obj instanceof Service) {
           awaitShutdown.add((Service) obj);
         }

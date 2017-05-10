@@ -119,7 +119,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @ConfigStoreWithStableVersioning
-public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeploymentConfig> {
+public class SimpleHadoopFilesystemConfigStore implements ConfigStore, Deployable<FsDeploymentConfig> {
 
   protected static final String CONFIG_STORE_NAME = "_CONFIG_STORE";
 
@@ -134,7 +134,7 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
   private final SimpleHDFSStoreMetadata storeMetadata;
 
   /**
-   * Constructs a {@link SimpleHDFSConfigStore} using a given {@link FileSystem} and a {@link URI} that points to the
+   * Constructs a {@link SimpleHadoopFilesystemConfigStore} using a given {@link FileSystem} and a {@link URI} that points to the
    * physical location of the store root.
    *
    * @param fs the {@link FileSystem} the {@link ConfigStore} is stored on.
@@ -142,7 +142,7 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
    *                          {@link URI} should match the {@link FileSystem#getScheme()} of the given {@link FileSystem}.
    * @param logicalStoreRoot the fully qualfied {@link URI} of the logical store root
    */
-  protected SimpleHDFSConfigStore(FileSystem fs, URI physicalStoreRoot, URI logicalStoreRoot) {
+  protected SimpleHadoopFilesystemConfigStore(FileSystem fs, URI physicalStoreRoot, URI logicalStoreRoot) {
     Preconditions.checkNotNull(fs, "fs cannot be null!");
     Preconditions.checkNotNull(physicalStoreRoot, "physicalStoreRoot cannot be null!");
     Preconditions.checkNotNull(logicalStoreRoot, "logicalStoreRoot cannot be null!");
@@ -390,9 +390,9 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
 
     @Override
     public Path call() throws IOException {
-      Path versionRootPath = PathUtils.combinePaths(SimpleHDFSConfigStore.this.physicalStoreRoot.toString(),
+      Path versionRootPath = PathUtils.combinePaths(SimpleHadoopFilesystemConfigStore.this.physicalStoreRoot.toString(),
           CONFIG_STORE_NAME, this.version);
-      if (SimpleHDFSConfigStore.this.fs.isDirectory(versionRootPath)) {
+      if (SimpleHadoopFilesystemConfigStore.this.fs.isDirectory(versionRootPath)) {
         return versionRootPath;
       }
       throw new VersionDoesNotExistException(getStoreURI(), this.version,

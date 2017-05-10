@@ -45,7 +45,7 @@ public class TTLResourceEntry<T> implements ResourceEntry<T> {
   @Override
   public void onInvalidate() {
     if (this.closeOnInvalidation) {
-      ResourceEntry.shutdownObject(this.resource, log);
+      SharedResourcesBrokerUtils.shutdownObject(this.resource, log);
     }
   }
 }
