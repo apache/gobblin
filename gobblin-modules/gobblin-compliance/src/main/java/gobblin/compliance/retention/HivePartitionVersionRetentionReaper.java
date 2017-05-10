@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -110,7 +111,7 @@ public class HivePartitionVersionRetentionReaper extends HivePartitionVersionRet
         log.info("Creating new dir " + newVersionLocationParent.toString());
         this.versionOwnerFs.mkdirs(newVersionLocationParent);
         log.info("Moving data from " + versionLocation + " to " + getNewVersionLocation());
-        this.versionOwnerFs.rename(versionLocation, newVersionLocationParent);
+        fsMove(versionLocation, getNewVersionLocation());
         FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.NONE);
         HadoopUtils
             .setPermissions(newVersionLocationParent, this.versionOwner, this.backUpOwner, this.versionOwnerFs,
@@ -138,7 +139,7 @@ public class HivePartitionVersionRetentionReaper extends HivePartitionVersionRet
     Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.BACKUP_DB),
         "Missing required property " + ComplianceConfigurationKeys.BACKUP_DB);
     String backUpDb = this.state.getProp(ComplianceConfigurationKeys.BACKUP_DB);
-    String backUpTableName = getCompleteTableName(version);
+    String backUpTableName = getVersionTableName(version);
     try {
       queryExecutor.executeQuery(HivePurgerQueryTemplate.getUseDbQuery(backUpDb), this.backUpOwner);
       queryExecutor.executeQuery(HivePurgerQueryTemplate
@@ -169,26 +170,41 @@ public class HivePartitionVersionRetentionReaper extends HivePartitionVersionRet
     }
   }
 
-  private String getVersionTimeStamp() {
-    return ((HivePartitionRetentionVersion) this.datasetVersion).getTimeStamp();
-  }
-
-  private String getCompleteTableName(HivePartitionVersion version) {
+  private String getVersionTableName(HivePartitionVersion version) {
     return version.getTableName();
   }
 
   private String getBackUpTableLocation(HivePartitionVersion version) {
-    Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.BACKUP_DIR),
-        "Missing required property " + ComplianceConfigurationKeys.BACKUP_DIR);
+    Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.TRASH_DIR),
+        "Missing required property " + ComplianceConfigurationKeys.TRASH_DIR);
     return StringUtils
-        .join(Arrays.asList(this.state.getProp(ComplianceConfigurationKeys.BACKUP_DIR), getCompleteTableName(version)),
+        .join(Arrays.asList(this.state.getProp(ComplianceConfigurationKeys.TRASH_DIR), getVersionTableName(version)),
             '/');
   }
 
   private Path getNewVersionLocation() {
-    HivePartitionVersion version = (HivePartitionRetentionVersion) this.datasetVersion;
-    String backUpTableLocation = getBackUpTableLocation(version);
-    return new Path(
-        StringUtils.join(Arrays.asList(backUpTableLocation, getVersionTimeStamp(), version.getName()), '/'));
+    Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.BACKUP_DIR),
+        "Missing required property " + ComplianceConfigurationKeys.BACKUP_DIR);
+    HivePartitionRetentionVersion version = (HivePartitionRetentionVersion) this.datasetVersion;
+    if (PartitionUtils.isUnixTimeStamp(version.getLocation().getName())) {
+      return new Path(StringUtils.join(Arrays.asList(this.state.getProp(ComplianceConfigurationKeys.BACKUP_DIR),
+          Path.getPathWithoutSchemeAndAuthority(version.getLocation().getParent()).toString(), version.getTimeStamp()), '/'));
+    } else {
+      return new Path(StringUtils.join(Arrays.asList(this.state.getProp(ComplianceConfigurationKeys.BACKUP_DIR),
+          Path.getPathWithoutSchemeAndAuthority(version.getLocation()).toString(), version.getTimeStamp()), '/'));
+    }
+  }
+
+  private void fsMove(Path from, Path to)
+      throws IOException {
+    if (PartitionUtils.isUnixTimeStamp(from.getName())) {
+      this.versionOwnerFs.rename(from, to.getParent());
+    } else {
+      for (FileStatus fileStatus : this.versionOwnerFs.listStatus(from)) {
+        if (fileStatus.isFile()) {
+          this.versionOwnerFs.rename(fileStatus.getPath(), to);
+        }
+      }
+    }
   }
 }

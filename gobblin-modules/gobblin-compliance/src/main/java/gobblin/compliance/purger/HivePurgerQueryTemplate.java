@@ -139,7 +139,8 @@ public class HivePurgerQueryTemplate {
       fileFormat = dataset.getFileFormat();
     }
     queries.add(getAddPartitionQuery(dataset.getCompleteStagingTableName(),
-        PartitionUtils.getPartitionSpecString(dataset.getSpec()), fileFormat, Optional.<String>absent()));
+        PartitionUtils.getPartitionSpecString(dataset.getSpec()), fileFormat,
+        Optional.fromNullable(dataset.getStagingPartitionLocation())));
     return queries;
   }
 
@@ -149,7 +150,8 @@ public class HivePurgerQueryTemplate {
   public static List<String> getBackupQueries(PurgeableHivePartitionDataset dataset) {
     List<String> queries = new ArrayList<>();
     queries.add(getUseDbQuery(dataset.getDbName()));
-    queries.add(getCreateTableQuery(dataset.getCompleteBackupTableName(), dataset.getDbName(), dataset.getTableName()));
+    queries.add(getCreateTableQuery(dataset.getCompleteBackupTableName(), dataset.getDbName(), dataset.getTableName(),
+        dataset.getBackupTableLocation()));
     Optional<String> fileFormat = Optional.absent();
     if (dataset.getSpecifyPartitionFormat()) {
       fileFormat = dataset.getFileFormat();

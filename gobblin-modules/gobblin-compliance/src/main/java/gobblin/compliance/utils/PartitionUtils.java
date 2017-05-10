@@ -20,6 +20,8 @@ import java.util.Map;
 
 import com.google.common.base.Preconditions;
 
+import gobblin.compliance.ComplianceConfigurationKeys;
+
 
 /**
  * A utility class for Partition.
@@ -61,5 +63,20 @@ public class PartitionUtils {
       sb.append(getQuotedString(entry.getValue()));
     }
     return sb.toString();
+  }
+
+  /**
+   * Check if a given string is a valid unixTimeStamp
+   */
+  public static boolean isUnixTimeStamp(String timeStamp) {
+    if (timeStamp.length() != ComplianceConfigurationKeys.TIME_STAMP_LENGTH) {
+      return false;
+    }
+    try {
+      Long.parseLong(timeStamp);
+      return true;
+    } catch (NumberFormatException e) {
+      return false;
+    }
   }
 }
