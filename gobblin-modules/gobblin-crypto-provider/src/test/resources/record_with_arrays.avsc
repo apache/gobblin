@@ -1,0 +1,37 @@
+{
+    "name": "NestedTestRecord",
+    "type": "record",
+    "namespace": "gobblin.test",
+    "fields": [
+        {
+            "name": "fieldToEncrypt",
+            "type": ["string"]
+        },
+        {
+            "name": "someOtherField",
+            "type": ["null", "string"],
+            "default": null
+        },
+        {
+            "name": "nestedRecords",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "innerRecord",
+                    "fields": [
+                        {
+                            "name": "fieldToEncrypt",
+                            "type": ["string"]
+                        },
+                        {
+                            "name": "someOtherField",
+                            "type": ["null", "string"],
+                            "default": null
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

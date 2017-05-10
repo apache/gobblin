@@ -16,6 +16,8 @@
  */
 package gobblin.recordaccess;
 
+import java.util.Map;
+
 import gobblin.annotation.Alpha;
 
 
@@ -37,12 +39,44 @@ import gobblin.annotation.Alpha;
  */
 @Alpha
 public interface RecordAccessor {
+
   /*
-   * Getters should return null if the field does not exist; may return
+   * Access a particular field of a record.
+   *
+   * If a record is nested, the "." may be used to access
+   * pieces of the nested record.
+   *
+   * If a record contains an array, ".0", ".1", etc may be used to index into the particular
+   * element of the array.
+   *
+   * In the getMulti() variants, a ".*" may be used to access all elements of an array or map.
+   * A map of key -> value is returned.
+   *
+   * For example, given the following JSON record:
+   * {
+   *   "nested": {
+   *     "key": "val"
+   *   },
+   *   "nestedArr": [
+   *     { "key": "val0" },
+   *     { "key": "val1" }
+   *   ]
+   * }
+   *
+   * getAsString("nested.key") should return "val0".
+   * getAsString("nested.1.key") should return "val1".
+   * getAsString("nested.*.key") will throw an exception since the '*' refers to multiple values.
+   * getMultiAsString("nested.*.key") should return the map (nestedArr.0.key->val0, nestedArr.1.key->val1).
+   *
+   * Getters should return null if the field does not exist; may throw
    * IncorrectTypeException if the underlying types do not match. Getters should not
    * try to do any type coercion -- for example, getAsInt for a value that is the string "1"
    * should throw a Sch.
    */
+  Map<String, String> getMultiAsString(String fieldName);
+  Map<String, Integer> getMultiAsInt(String fieldName);
+  Map<String, Long> getMultiAsLong(String fieldName);
+
   String getAsString(String fieldName);
   Integer getAsInt(String fieldName);
   Long getAsLong(String fieldName);
@@ -55,5 +89,6 @@ public interface RecordAccessor {
   void set(String fieldName, Integer value);
   void set(String fieldName, Long value);
   void setToNull(String fieldName);
+
 
 }

@@ -40,7 +40,7 @@ import gobblin.recordaccess.RecordAccessor;
  * a UTF-8 encoded byte array.
  */
 public abstract class StringFieldEncryptorConverter<SCHEMA, DATA> extends Converter<SCHEMA, SCHEMA, DATA, DATA> {
-  private static final String FIELDS_TO_ENCRYPT_CONFIG_NAME = "converter.fieldsToEncrypt";
+  public static final String FIELDS_TO_ENCRYPT_CONFIG_NAME = "converter.fieldsToEncrypt";
 
   private StreamCodec encryptor;
   private List<String> fieldsToEncrypt;
@@ -73,18 +73,23 @@ public abstract class StringFieldEncryptorConverter<SCHEMA, DATA> extends Conver
       throws DataConversionException {
     try {
       RecordAccessor accessor = getRecordAccessor(inputRecord);
+
       for (String field : fieldsToEncrypt) {
-        byte[] bytes = accessor.getAsString(field).getBytes(StandardCharsets.UTF_8);
+        Map<String, String> stringsToEncrypt = accessor.getMultiAsString(field);
 
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        for (Map.Entry<String, String> entry : stringsToEncrypt.entrySet()) {
+          byte[] bytes = entry.getValue().getBytes(StandardCharsets.UTF_8);
 
-        OutputStream cipherStream = encryptor.encodeOutputStream(outputStream);
-        cipherStream.write(bytes);
-        cipherStream.flush();
-        cipherStream.close();
+          ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        byte[] cipherBytes = outputStream.toByteArray();
-        accessor.set(field, new String(cipherBytes, StandardCharsets.UTF_8));
+          OutputStream cipherStream = encryptor.encodeOutputStream(outputStream);
+          cipherStream.write(bytes);
+          cipherStream.flush();
+          cipherStream.close();
+
+          byte[] cipherBytes = outputStream.toByteArray();
+          accessor.set(entry.getKey(), new String(cipherBytes, StandardCharsets.UTF_8));
+        }
       }
 
       return Collections.singleton(inputRecord);

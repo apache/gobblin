@@ -21,6 +21,7 @@ package gobblin.recordaccess;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -106,6 +107,32 @@ public class AvroGenericRecordAccessorTest {
     Assert.assertEquals(accessor.getAsString("name"), "newName");
   }
 
+  @Test
+  public void testGetValueFromArray() throws IOException {
+    setAccessorToRecordWithArrays();
+
+    Assert.assertEquals(accessor.getAsString("nestedRecords.1.fieldToEncrypt"), "val1");
+  }
+
+
+  @Test
+  public void testSetValueFromArray() throws IOException {
+    setAccessorToRecordWithArrays();
+    accessor.set("nestedRecords.1.fieldToEncrypt", "myNewVal");
+    Assert.assertEquals(accessor.getAsString("nestedRecords.1.fieldToEncrypt"), "myNewVal");
+  }
+
+  @Test
+  public void testGetMultiValue() throws IOException {
+    setAccessorToRecordWithArrays();
+
+    Map<String, String> fields = accessor.getMultiAsString("nestedRecords.*.fieldToEncrypt");
+    Assert.assertEquals(fields.size(), 3);
+    Assert.assertEquals(fields.get("nestedRecords.0.fieldToEncrypt"), "val0");
+    Assert.assertEquals(fields.get("nestedRecords.1.fieldToEncrypt"), "val1");
+    Assert.assertEquals(fields.get("nestedRecords.2.fieldToEncrypt"), "val2");
+  }
+
   @Test(expectedExceptions = FieldDoesNotExistException.class)
   public void testSetNonexistentField() {
     accessor.set("doesnotexist", "someval");
@@ -172,6 +199,11 @@ public class AvroGenericRecordAccessorTest {
     Assert.assertTrue(dataFileReader.hasNext());
     record = dataFileReader.next(record);
     accessor = new AvroGenericRecordAccessor(record);
+  }
+
+  private void setAccessorToRecordWithArrays()
+      throws IOException {
+    updateRecordFromTestResource("converter/record_with_arrays");
   }
 
   private static final String ACCESSOR_RESOURCE_NAME = "converter/fieldPickInput";
