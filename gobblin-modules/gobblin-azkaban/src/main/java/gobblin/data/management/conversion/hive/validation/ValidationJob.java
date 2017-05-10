@@ -119,6 +119,7 @@ public class ValidationJob extends AbstractJob {
   private static final String VALIDATION_FILE_FORMAT_KEY = "hive.validation.fileFormat";
   private static final String IS_NESTED_ORC = "hive.validation.isNestedORC";
   private static final String DEFAULT_IS_NESTED_ORC = "false";
+  private static final String HIVE_SETTINGS = "hive.settings";
 
   private final ValidationType validationType;
   private List<String> ignoreDataPathIdentifierList;
@@ -135,6 +136,7 @@ public class ValidationJob extends AbstractJob {
   private final ExecutorService exec;
   private final List<Future<Void>> futures;
   private final Boolean isNestedORC;
+  private final List<String> hiveSettings;
 
   private Map<String, String> successfulConversions;
   private Map<String, String> failedConversions;
@@ -176,6 +178,8 @@ public class ValidationJob extends AbstractJob {
             DEFAULT_HIVE_VALIDATION_IGNORE_DATA_PATH_IDENTIFIER));
     this.throwables = new ArrayList<>();
     this.isNestedORC = Boolean.parseBoolean(props.getProperty(IS_NESTED_ORC, DEFAULT_IS_NESTED_ORC));
+    this.hiveSettings = Splitter.on(";").trimResults().omitEmptyStrings()
+        .splitToList(props.getProperty(HIVE_SETTINGS, StringUtils.EMPTY));
   }
 
   @Override
@@ -474,7 +478,7 @@ public class ValidationJob extends AbstractJob {
     } finally {
       try {
         closer.close();
-      } catch (IOException e) {
+      } catch (Exception e) {
         log.warn("Could not close HiveJdbcConnector", e);
       }
       if (null != statement) {
@@ -512,6 +516,9 @@ public class ValidationJob extends AbstractJob {
         query = "INSERT OVERWRITE DIRECTORY '" + hiveTempDir + "' " + query;
         log.info("Executing query: " + query);
         try {
+          if (this.hiveSettings.size() > 0) {
+            hiveJdbcConnector.executeStatements(this.hiveSettings.toArray(new String[this.hiveSettings.size()]));
+          }
           hiveJdbcConnector.executeStatements("SET hive.exec.compress.output=false","SET hive.auto.convert.join=false", query);
           FileStatus[] fileStatusList = this.fs.listStatus(hiveTempDir);
           List<FileStatus> files = new ArrayList<>();
@@ -549,7 +556,7 @@ public class ValidationJob extends AbstractJob {
     } finally {
       try {
         closer.close();
-      } catch (IOException e) {
+      } catch (Exception e) {
         log.warn("Could not close HiveJdbcConnector", e);
       }
     }
