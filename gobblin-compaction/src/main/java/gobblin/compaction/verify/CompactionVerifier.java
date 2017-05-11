@@ -1,9 +1,6 @@
 package gobblin.compaction.verify;
 
-import gobblin.configuration.State;
 import gobblin.dataset.Dataset;
-import lombok.AllArgsConstructor;
-
 
 /**
  * An interface which represents a generic verifier for compaction
