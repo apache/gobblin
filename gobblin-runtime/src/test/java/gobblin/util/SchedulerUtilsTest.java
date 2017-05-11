@@ -21,7 +21,7 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationListenerAdaptor;
-import gobblin.util.filesystem.PathAlterationDetector;
+import gobblin.util.filesystem.PathAlterationObserverScheduler;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -226,7 +226,7 @@ public class SchedulerUtilsTest {
   @Test(dependsOnMethods = {"testLoadJobConfigsForCommonPropsFile", "testloadGenericJobConfig"})
   public void testPathAlterationObserver()
       throws Exception {
-    PathAlterationDetector monitor = new PathAlterationDetector(1000);
+    PathAlterationObserverScheduler monitor = new PathAlterationObserverScheduler(1000);
     final Set<Path> fileAltered = Sets.newHashSet();
     final Semaphore semaphore = new Semaphore(0);
     PathAlterationListener listener = new PathAlterationListenerAdaptor() {
