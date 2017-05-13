@@ -87,6 +87,20 @@ public interface SharedResourcesBroker<S extends ScopeType<S>> extends Closeable
       S scopeType) throws NotConfiguredException, NoSuchScopeException;
 
   /**
+   * Bind an instance to the input factory, key, and scope.
+   *
+   * @param factory The {@link SharedResourceFactory} used to create the shared object.
+   * @param key Identifies different objects from the same factory in the same {@link ScopeInstance}.
+   * @param scopeType {@link ScopeType} at which the object will be obtained.
+   * @param instance the instance to bind.
+   * @param <T> type of object created by the factory.
+   * @param <K> type of factory accepted by the factory.
+   * @throws NoSuchScopeException
+   */
+  <T, K extends SharedResourceKey> void bindSharedResourceAtScope(SharedResourceFactory<T, K, S> factory, K key,
+      S scopeType, T instance) throws NoSuchScopeException;
+
+  /**
    * Close all resources at this and descendant scopes, meaning {@link Closeable}s will be closed and
    * {@link com.google.common.util.concurrent.Service}s will be shut down. Future calls to get the same resource will
    * instantiate a new resource instead.

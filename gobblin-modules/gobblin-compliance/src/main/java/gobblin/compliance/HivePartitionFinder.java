@@ -87,7 +87,7 @@ public class HivePartitionFinder implements DatasetsFinder<HivePartitionDataset>
       throws IOException {
     Partition hiveTablePartition = null;
     State state = new State(prop);
-    state.setProp(ComplianceConfigurationKeys.HIVE_DATASET_WHITELIST,
+    state.setProp(ComplianceConfigurationKeys.COMPLIANCE_DATASET_WHITELIST,
         getCompleteTableNameForWhitelist(completePartitionName));
     List<HiveDataset> hiveDatasets = getHiveDatasets(WriterUtils.getWriterFs(state), state);
     Preconditions.checkArgument(hiveDatasets.size() == 1, "Cannot find required table for " + completePartitionName);

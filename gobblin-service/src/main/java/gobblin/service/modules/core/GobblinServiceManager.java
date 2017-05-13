@@ -17,10 +17,15 @@
 
 package gobblin.service.modules.core;
 
+import gobblin.service.FlowId;
+import gobblin.service.Schedule;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -35,10 +40,20 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.ControllerChangeListener;
+import org.apache.helix.HelixManager;
+import org.apache.helix.NotificationContext;
+import org.apache.helix.messaging.handling.HelixTaskResult;
+import org.apache.helix.messaging.handling.MessageHandler;
+import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -53,24 +68,31 @@ import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.restli.EmbeddedRestliServer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.app.ApplicationException;
 import gobblin.runtime.app.ApplicationLauncher;
 import gobblin.runtime.app.ServiceBasedAppLauncher;
+import gobblin.runtime.api.Spec;
+import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.spec_catalog.FlowCatalog;
+import gobblin.scheduler.SchedulerService;
 import gobblin.service.FlowConfig;
 import gobblin.service.FlowConfigClient;
 import gobblin.service.FlowConfigsResource;
+import gobblin.service.HelixUtils;
 import gobblin.service.ServiceConfigKeys;
 import gobblin.service.modules.orchestration.Orchestrator;
+import gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import gobblin.service.modules.topology.TopologySpecFactory;
 import gobblin.runtime.spec_catalog.TopologyCatalog;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
 
 
+@Alpha
 public class GobblinServiceManager implements ApplicationLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
@@ -88,18 +110,25 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
   protected final boolean isTopologyCatalogEnabled;
   protected final boolean isFlowCatalogEnabled;
-  protected final boolean isOrchestratorEnabled;
+  protected final boolean isSchedulerEnabled;
   protected final boolean isRestLIServerEnabled;
   protected final boolean isTopologySpecFactoryEnabled;
 
   protected TopologyCatalog topologyCatalog;
   @Getter
   protected FlowCatalog flowCatalog;
+  @Getter
+  protected GobblinServiceJobScheduler scheduler;
   protected Orchestrator orchestrator;
   protected EmbeddedRestliServer restliServer;
   protected TopologySpecFactory topologySpecFactory;
 
+  protected Optional<HelixManager> helixManager;
+
   protected ClassAliasResolver<TopologySpecFactory> aliasResolver;
+
+  @Getter
+  protected Config config;
 
   public GobblinServiceManager(String serviceName, String serviceId, Config config,
       Optional<Path> serviceWorkDirOptional) throws Exception {
@@ -109,6 +138,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
     if (!properties.contains(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS)) {
       properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
     }
+    this.config = config;
 
     this.serviceId = serviceId;
     this.serviceLauncher = new ServiceBasedAppLauncher(properties, serviceName);
@@ -133,12 +163,27 @@ public class GobblinServiceManager implements ApplicationLauncher {
       this.serviceLauncher.addService(flowCatalog);
     }
 
-    // Initialize Orchestrator
-    this.isOrchestratorEnabled = ConfigUtils.getBoolean(config,
-        ServiceConfigKeys.GOBBLIN_SERVICE_ORCHESTRATOR_ENABLED_KEY, true);
-    if (isOrchestratorEnabled) {
-      this.orchestrator = new Orchestrator(config, Optional.of(this.flowCatalog), Optional.of(this.topologyCatalog),
-          Optional.of(LOGGER));
+    // Initialize Helix
+    Optional<String> zkConnectionString = Optional.fromNullable(ConfigUtils.getString(config,
+        ServiceConfigKeys.ZK_CONNECTION_STRING_KEY, null));
+    if (zkConnectionString.isPresent()) {
+      LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
+      // This will create and register a Helix controller in ZooKeeper
+      this.helixManager = Optional.fromNullable(buildHelixManager(config, zkConnectionString.get()));
+    } else {
+      LOGGER.info("No ZooKeeper connection string. Running in single instance mode.");
+      this.helixManager = Optional.absent();
+    }
+
+    // Initialize ServiceScheduler
+    this.isSchedulerEnabled = ConfigUtils.getBoolean(config,
+        ServiceConfigKeys.GOBBLIN_SERVICE_SCHEDULER_ENABLED_KEY, true);
+    if (isSchedulerEnabled) {
+      this.orchestrator = new Orchestrator(config, Optional.of(this.topologyCatalog), Optional.of(LOGGER));
+      SchedulerService schedulerService = new SchedulerService(properties);
+      this.scheduler = new GobblinServiceJobScheduler(config, this.helixManager,
+          Optional.of(this.flowCatalog), Optional.of(this.topologyCatalog), this.orchestrator,
+          schedulerService, Optional.of(LOGGER));
     }
 
     // Initialize RestLI
@@ -159,10 +204,10 @@ public class GobblinServiceManager implements ApplicationLauncher {
       this.serviceLauncher.addService(restliServer);
     }
 
-    // Register Orchestrator to listen to changes in Topologies and Flows
-    if (isOrchestratorEnabled) {
-      topologyCatalog.addListener(orchestrator);
-      flowCatalog.addListener(orchestrator);
+    // Register Scheduler to listen to changes in Flows
+    if (isSchedulerEnabled) {
+      this.flowCatalog.addListener(this.scheduler);
+      this.topologyCatalog.addListener(this.orchestrator);
     }
 
     // Initialize TopologySpecFactory
@@ -186,6 +231,26 @@ public class GobblinServiceManager implements ApplicationLauncher {
     }
   }
 
+  public boolean isLeader() {
+    // If helix manager is absent, then this standalone instance hence leader
+    // .. else check if this master of cluster
+    return !helixManager.isPresent() || helixManager.get().isLeader();
+  }
+
+  /**
+   * Build the {@link HelixManager} for the Service Master.
+   */
+  private HelixManager buildHelixManager(Config config, String zkConnectionString) {
+    String helixClusterName = config.getString(ServiceConfigKeys.HELIX_CLUSTER_NAME_KEY);
+    String helixInstanceName = ConfigUtils.getString(config, ServiceConfigKeys.HELIX_INSTANCE_NAME_KEY,
+        GobblinServiceManager.class.getSimpleName());
+
+    LOGGER.info("Creating Helix cluster if not already present [overwrite = false]: " + zkConnectionString);
+    HelixUtils.createGobblinHelixCluster(zkConnectionString, helixClusterName, false);
+
+    return HelixUtils.buildHelixManager(helixInstanceName, helixClusterName, zkConnectionString);
+  }
+
   private FileSystem buildFileSystem(Config config)
       throws IOException {
     return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
@@ -197,12 +262,66 @@ public class GobblinServiceManager implements ApplicationLauncher {
     return new Path(fs.getHomeDirectory(), serviceName + Path.SEPARATOR + serviceId);
   }
 
+  /**
+   * Handle leadership change.
+   * @param changeContext notification context
+   */
+  private void handleLeadershipChange(NotificationContext changeContext) {
+    if (this.helixManager.isPresent() && this.helixManager.get().isLeader()) {
+      LOGGER.info("Leader notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
+          this.helixManager.get().isLeader());
+
+      if (this.isSchedulerEnabled) {
+        LOGGER.info("Gobblin Service is now running in master instance mode, enabling Scheduler.");
+        this.scheduler.setActive(true);
+      }
+    } else if (this.helixManager.isPresent()) {
+      LOGGER.info("Leader lost notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
+          this.helixManager.get().isLeader());
+      if (this.isSchedulerEnabled) {
+        LOGGER.info("Gobblin Service is now running in slave instance mode, disabling Scheduler.");
+        this.scheduler.setActive(false);
+      }
+    }
+  }
+
   @Override
   public void start() throws ApplicationException {
-    LOGGER.info("Starting the Gobblin Service Manager");
+    LOGGER.info("[Init] Starting the Gobblin Service Manager");
+
+    if (this.helixManager.isPresent()) {
+      connectHelixManager();
+    }
 
     this.eventBus.register(this);
     this.serviceLauncher.start();
+
+    if (this.helixManager.isPresent()) {
+      // Subscribe to leadership changes
+      this.helixManager.get().addControllerListener(new ControllerChangeListener() {
+        @Override
+        public void onControllerChange(NotificationContext changeContext) {
+          handleLeadershipChange(changeContext);
+        }
+      });
+
+      // Update for first time since there might be no notification
+      if (helixManager.get().isLeader()) {
+        if (this.isSchedulerEnabled) {
+          LOGGER.info("[Init] Gobblin Service is running in master instance mode, enabling Scheduler.");
+          this.scheduler.setActive(true);
+        }
+      } else {
+        if (this.isSchedulerEnabled) {
+          LOGGER.info("[Init] Gobblin Service is running in slave instance mode, not enabling Scheduler.");
+        }
+      }
+    } else {
+      // No Helix manager, hence standalone service instance
+      // .. designate scheduler to itself
+      LOGGER.info("[Init] Gobblin Service is running in single instance mode, enabling Scheduler.");
+      this.scheduler.setActive(true);
+    }
 
     // Populate TopologyCatalog with all Topologies generated by TopologySpecFactory
     if (this.isTopologySpecFactoryEnabled) {
@@ -225,12 +344,136 @@ public class GobblinServiceManager implements ApplicationLauncher {
       this.serviceLauncher.stop();
     } catch (ApplicationException ae) {
       LOGGER.error("Error while stopping Gobblin Service Manager", ae);
+    } finally {
+      disconnectHelixManager();
     }
+  }
+
+  @VisibleForTesting
+  void connectHelixManager() {
+    try {
+      if (this.helixManager.isPresent()) {
+        this.helixManager.get().connect();
+        this.helixManager.get()
+            .getMessagingService()
+            .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
+                getUserDefinedMessageHandlerFactory());
+      }
+    } catch (Exception e) {
+      LOGGER.error("HelixManager failed to connect", e);
+      throw Throwables.propagate(e);
+    }
+  }
+
+  /**
+   * Creates and returns a {@link MessageHandlerFactory} for handling of Helix
+   * {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}s.
+   *
+   * @returns a {@link MessageHandlerFactory}.
+   */
+  protected MessageHandlerFactory getUserDefinedMessageHandlerFactory() {
+    return new ControllerUserDefinedMessageHandlerFactory(this.flowCatalog, this.scheduler);
+  }
+
+  @VisibleForTesting
+  void disconnectHelixManager() {
+    if (isHelixManagerConnected()) {
+      if (this.helixManager.isPresent()) {
+        this.helixManager.get().disconnect();
+      }
+    }
+  }
+
+  @VisibleForTesting
+  boolean isHelixManagerConnected() {
+    return this.helixManager.isPresent() && this.helixManager.get().isConnected();
   }
 
   @Override
   public void close() throws IOException {
     this.serviceLauncher.close();
+  }
+
+  /**
+   * A custom {@link MessageHandlerFactory} for {@link ControllerUserDefinedMessageHandler}s that
+   * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
+   */
+  private static class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+
+    private FlowCatalog flowCatalog;
+    private GobblinServiceJobScheduler jobScheduler;
+
+    public ControllerUserDefinedMessageHandlerFactory(FlowCatalog flowCatalog, GobblinServiceJobScheduler jobScheduler) {
+      this.flowCatalog = flowCatalog;
+      this.jobScheduler = jobScheduler;
+    }
+
+    @Override
+    public MessageHandler createHandler(Message message, NotificationContext context) {
+      return new ControllerUserDefinedMessageHandler(flowCatalog, jobScheduler, message, context);
+    }
+
+    @Override
+    public String getMessageType() {
+      return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
+    }
+
+    @Override
+    public void reset() {
+
+    }
+
+    /**
+     * A custom {@link MessageHandler} for handling user-defined messages to the controller.
+     */
+    private static class ControllerUserDefinedMessageHandler extends MessageHandler {
+
+      private FlowCatalog flowCatalog;
+      private GobblinServiceJobScheduler jobScheduler;
+
+      public ControllerUserDefinedMessageHandler(FlowCatalog flowCatalog, GobblinServiceJobScheduler jobScheduler,
+          Message message, NotificationContext context) {
+        super(message, context);
+
+        this.flowCatalog = flowCatalog;
+        this.jobScheduler = jobScheduler;
+      }
+
+      @Override
+      public HelixTaskResult handleMessage() throws InterruptedException {
+        if (jobScheduler.isActive()) {
+          String flowSpecUri = _message.getAttribute(Message.Attributes.INNER_MESSAGE);
+          try {
+            if (_message.getMsgSubType().equals(ServiceConfigKeys.HELIX_FLOWSPEC_ADD)) {
+              Spec spec = flowCatalog.getSpec(new URI(flowSpecUri));
+              this.jobScheduler.onAddSpec(spec);
+            } else if (_message.getMsgSubType().equals(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE)) {
+              List<String> flowSpecUriParts = Splitter.on(":").omitEmptyStrings().trimResults().splitToList(flowSpecUri);
+              this.jobScheduler.onDeleteSpec(new URI(flowSpecUriParts.get(0)), flowSpecUriParts.get(1));
+            } else if (_message.getMsgSubType().equals(ServiceConfigKeys.HELIX_FLOWSPEC_UPDATE)) {
+              Spec spec = flowCatalog.getSpec(new URI(flowSpecUri));
+              this.jobScheduler.onUpdateSpec(spec);
+            }
+          } catch (SpecNotFoundException | URISyntaxException e) {
+            LOGGER.error("Cannot process Helix message for flowSpecUri: " + flowSpecUri, e);
+          }
+        }
+        HelixTaskResult helixTaskResult = new HelixTaskResult();
+        helixTaskResult.setSuccess(true);
+
+        return helixTaskResult;
+      }
+
+      @Override
+      public void onError(Exception e, ErrorCode code, ErrorType type) {
+        LOGGER.error(
+            String.format("Failed to handle message with exception %s, error code %s, error type %s", e, code, type));
+      }
+    }
   }
 
   private static String getServiceId() {
@@ -292,11 +535,12 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
     final String TEST_GROUP_NAME = "testGroup1";
     final String TEST_FLOW_NAME = "testFlow1";
-    final String TEST_SCHEDULE = "";
+    final String TEST_SCHEDULE = "0 1/0 * ? * *";
     final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
-    FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME)
-        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setRunImmediately(true)
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
     try {

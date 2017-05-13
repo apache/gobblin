@@ -213,6 +213,8 @@ stop() {
       if kill -0 $PID_VALUE > /dev/null 2>&1; then
         echo "Gobblin standalone daemon did not stop gracefully, killing with kill -9"
         kill -9 $PID_VALUE
+        echo "Cleaning up lock directory: $GOBBLIN_WORK_DIR/locks"
+        rm -r $GOBBLIN_WORK_DIR/locks
       fi
     else
       echo "Process $PID_VALUE is not running"

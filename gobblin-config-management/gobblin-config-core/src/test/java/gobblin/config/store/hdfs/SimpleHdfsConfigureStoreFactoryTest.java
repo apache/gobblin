@@ -48,8 +48,8 @@ public class SimpleHdfsConfigureStoreFactoryTest {
     try {
       Assert.assertTrue(localFS.mkdirs(configStoreDir));
 
-      SimpleLocalHDFSConfigStoreFactory simpleLocalHDFSConfigStoreFactory =
-          new SimpleLocalHDFSConfigStoreFactory();
+      UserDirectoryHDFSConfigStoreFactory simpleLocalHDFSConfigStoreFactory =
+          new UserDirectoryHDFSConfigStoreFactory();
 
       URI configKey = new URI(simpleLocalHDFSConfigStoreFactory.getScheme(), "", "", "", "");
       SimpleHDFSConfigStore simpleHDFSConfigStore = simpleLocalHDFSConfigStoreFactory.createConfigStore(configKey);

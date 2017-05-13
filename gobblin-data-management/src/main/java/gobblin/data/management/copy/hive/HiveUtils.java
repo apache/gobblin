@@ -28,6 +28,7 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -62,8 +63,8 @@ public class HiveUtils {
    * @return a map of values to {@link Partition} for input {@link Table}.
    */
   public static Map<List<String>, Partition> getPartitionsMap(IMetaStoreClient client, Table table,
-      Optional<String> filter) throws IOException {
-    return Maps.uniqueIndex(getPartitions(client, table, filter), new Function<Partition, List<String>>() {
+      Optional<String> filter, Optional<? extends HivePartitionExtendedFilter> hivePartitionExtendedFilterOptional) throws IOException {
+    return Maps.uniqueIndex(getPartitions(client, table, filter, hivePartitionExtendedFilterOptional), new Function<Partition, List<String>>() {
       @Override
       public List<String> apply(@Nullable Partition partition) {
         if (partition == null) {
@@ -83,7 +84,8 @@ public class HiveUtils {
    *               (e.g. "part = \"part1\"" or "date > \"2015\"".
    * @return a list of {@link Partition}s
    */
-  public static List<Partition> getPartitions(IMetaStoreClient client, Table table, Optional<String> filter)
+  public static List<Partition> getPartitions(IMetaStoreClient client, Table table,
+      Optional<String> filter, Optional<? extends HivePartitionExtendedFilter> hivePartitionExtendedFilterOptional)
       throws IOException {
     try {
       List<Partition> partitions = Lists.newArrayList();
@@ -91,13 +93,29 @@ public class HiveUtils {
           ? client.listPartitionsByFilter(table.getDbName(), table.getTableName(), filter.get(), (short) -1)
           : client.listPartitions(table.getDbName(), table.getTableName(), (short) -1);
       for (org.apache.hadoop.hive.metastore.api.Partition p : partitionsList) {
-        Partition partition = new Partition(table, p);
-        partitions.add(partition);
+        if (!hivePartitionExtendedFilterOptional.isPresent() ||
+            hivePartitionExtendedFilterOptional.get().accept(p)) {
+          Partition partition = new Partition(table, p);
+          partitions.add(partition);
+        }
       }
       return partitions;
     } catch (TException | HiveException te) {
       throw new IOException("Hive Error", te);
     }
+  }
+
+  /**
+   * For backward compatibility when PathFilter is injected as a parameter.
+   * @param client
+   * @param table
+   * @param filter
+   * @return
+   * @throws IOException
+   */
+  public static List<Partition> getPartitions(IMetaStoreClient client, Table table, Optional<String> filter)
+      throws IOException {
+    return getPartitions(client, table, filter, Optional.<HivePartitionExtendedFilter>absent());
   }
 
   /**

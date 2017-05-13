@@ -19,13 +19,14 @@ package gobblin.util.limiter;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.Iterator;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -37,28 +38,25 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
+import com.google.common.collect.TreeMultimap;
 import com.linkedin.common.callback.Callback;
 import com.linkedin.data.template.GetMode;
-import com.linkedin.restli.client.Request;
 import com.linkedin.restli.client.Response;
-import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.RestLiResponseException;
-import com.linkedin.restli.common.ComplexResourceKey;
-import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
 
 import gobblin.metrics.MetricContext;
 import gobblin.restli.throttling.PermitAllocation;
 import gobblin.restli.throttling.PermitRequest;
-import gobblin.restli.throttling.PermitsGetRequestBuilder;
-import gobblin.restli.throttling.PermitsRequestBuilders;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.NoopCloseable;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import lombok.AllArgsConstructor;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -87,13 +85,14 @@ class BatchedPermitsRequester {
 
   private static final long RETRY_DELAY_ON_NON_RETRIABLE_EXCEPTION = 60000; // 10 minutes
   private static final double MAX_DEPLETION_RATE = 1e20;
+  public static final int MAX_GROWTH_REQUEST = 2;
 
   private static final ScheduledExecutorService SCHEDULE_EXECUTOR_SERVICE =
       Executors.newScheduledThreadPool(1, ExecutorsUtils.newDaemonThreadFactory(Optional.of(log),
           Optional.of(BatchedPermitsRequester.class.getName() + "-schedule-%d")));
 
+  @Getter(AccessLevel.PROTECTED) @VisibleForTesting
   private final PermitBatchContainer permitBatchContainer;
-  private final RestClient restClient;
   private final Lock lock;
   private final Condition newPermitsAvailable;
   private final Semaphore requestSemaphore;
@@ -108,15 +107,13 @@ class BatchedPermitsRequester {
   private final long targetMillisBetweenRequests;
 
   @Builder
-  private BatchedPermitsRequester(RestClient restClient, String resourceId, String requestorIdentifier,
-      long targetMillisBetweenRequests, @VisibleForTesting RequestSender requestSender, MetricContext metricContext) {
+  private BatchedPermitsRequester(String resourceId, String requestorIdentifier,
+      long targetMillisBetweenRequests, RequestSender requestSender, MetricContext metricContext) {
 
-    Preconditions.checkNotNull(restClient, "Must provide a Rest client.");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(resourceId), "Must provide a resource id.");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(requestorIdentifier), "Must provide a requestor identifier.");
 
     this.permitBatchContainer = new PermitBatchContainer();
-    this.restClient = restClient;
     this.lock = new ReentrantLock();
     this.newPermitsAvailable = this.lock.newCondition();
     /** Ensures there is only one in-flight request at a time. */
@@ -125,7 +122,7 @@ class BatchedPermitsRequester {
     this.permitsOutstanding = new SynchronizedAverager();
     this.targetMillisBetweenRequests = targetMillisBetweenRequests > 0 ? targetMillisBetweenRequests :
         DEFAULT_TARGET_MILLIS_BETWEEN_REQUESTS;
-    this.requestSender = requestSender == null ? new RequestSender(this.restClient) : requestSender;
+    this.requestSender = requestSender;
     this.retryStatus = new RetryStatus();
 
     this.basePermitRequest = new PermitRequest();
@@ -190,7 +187,7 @@ class BatchedPermitsRequester {
         BatchedPermitsRequester.this.restRequestHistogram.update(permits);
       }
 
-      log.info("Sending permit request " + permitRequest);
+      log.debug("Sending permit request " + permitRequest);
 
       this.requestSender.sendRequest(permitRequest, new AllocationCallback(
           BatchedPermitsRequester.this.restRequestTimer == null ? NoopCloseable.INSTANCE :
@@ -209,7 +206,7 @@ class BatchedPermitsRequester {
 
     long candidatePermits = 0;
 
-    long unsatisfiablePermits = this.permitsOutstanding.getTotalWeight() - this.permitBatchContainer.totalPermits;
+    long unsatisfiablePermits = this.permitsOutstanding.getTotalWeight() - this.permitBatchContainer.totalAvailablePermits;
     if (unsatisfiablePermits > 0) {
       candidatePermits = unsatisfiablePermits;
     }
@@ -218,18 +215,18 @@ class BatchedPermitsRequester {
       // If there are multiple batches in the queue, don't create a new request
       return candidatePermits;
     }
-    Map.Entry<Long, PermitBatch> firstEntry = this.permitBatchContainer.batches.firstEntry();
+    PermitBatch firstBatch = Iterables.getFirst(this.permitBatchContainer.batches.values(), null);
 
-    if (firstEntry != null) {
-      PermitBatch permitBatch = firstEntry.getValue();
+    if (firstBatch != null) {
       // If the current batch has more than 20% permits left, don't create a new request
-      if ((double) permitBatch.getPermits() / permitBatch.getInitialPermits() > 0.2) {
+      if ((double) firstBatch.getPermits() / firstBatch.getInitialPermits() > 0.2) {
         return candidatePermits;
       }
 
-      double averageDepletionRate = permitBatch.getAverageDepletionRate();
+      double averageDepletionRate = firstBatch.getAverageDepletionRate();
       long candidatePermitsByDepletion =
-          Math.min((long) (averageDepletionRate * this.targetMillisBetweenRequests), 2 * permitBatch.getInitialPermits());
+          Math.min((long) (averageDepletionRate * this.targetMillisBetweenRequests), MAX_GROWTH_REQUEST *
+              firstBatch.getInitialPermits());
       return Math.max(candidatePermits, candidatePermitsByDepletion);
     } else {
       return candidatePermits;
@@ -248,10 +245,13 @@ class BatchedPermitsRequester {
       BatchedPermitsRequester.this.lock.lock();
 
       try {
+        if (exc instanceof RequestSender.NonRetriableException) {
+          nonRetriableFail(exc, "Encountered non retriable error. ");
+        }
         if (exc instanceof RestLiResponseException) {
           int errorCode = ((RestLiResponseException) exc).getStatus();
           if (NON_RETRIABLE_ERRORS.contains(errorCode)) {
-            nonRetriableFail(exc, "Encountered non retriable error.");
+            nonRetriableFail(exc, "Encountered non retriable error. HTTP response code: " + errorCode);
           }
         }
 
@@ -283,7 +283,7 @@ class BatchedPermitsRequester {
       try {
         PermitAllocation allocation = result.getEntity();
 
-        log.info("Received permit allocation " + allocation);
+        log.debug("Received permit allocation " + allocation);
 
         Long retryDelay = allocation.getMinRetryDelayMillis(GetMode.NULL);
         if (retryDelay != null) {
@@ -323,8 +323,11 @@ class BatchedPermitsRequester {
   @NotThreadSafe
   @Getter
   private static class PermitBatch {
-    private long permits;
+    private static final AtomicLong NEXT_KEY = new AtomicLong(0);
+
+    private volatile long permits;
     private final long expiration;
+    private final long autoIncrementKey;
 
     private final long initialPermits;
     private long firstUseTime;
@@ -335,6 +338,7 @@ class BatchedPermitsRequester {
       this.permits = permits;
       this.expiration = expiration;
       this.initialPermits = permits;
+      this.autoIncrementKey = NEXT_KEY.getAndIncrement();
     }
 
     /**
@@ -370,16 +374,22 @@ class BatchedPermitsRequester {
   /**
    * A container for {@link PermitBatch}es obtained from the server.
    */
-  private static class PermitBatchContainer {
-    private final TreeMap<Long, PermitBatch> batches = new TreeMap<>();
-    private volatile long totalPermits = 0;
+  static class PermitBatchContainer {
+    private final TreeMultimap<Long, PermitBatch> batches = TreeMultimap.create(Ordering.natural(), new Comparator<PermitBatch>() {
+      @Override
+      public int compare(PermitBatch o1, PermitBatch o2) {
+        return Long.compare(o1.autoIncrementKey, o2.autoIncrementKey);
+      }
+    });
+    @Getter
+    private volatile long totalAvailablePermits = 0;
 
     private synchronized boolean tryTake(long permits) {
       purgeExpiredBatches();
-      if (this.totalPermits < permits) {
+      if (this.totalAvailablePermits < permits) {
         return false;
       }
-      this.totalPermits -= permits;
+      this.totalAvailablePermits -= permits;
       Iterator<PermitBatch> batchesIterator = this.batches.values().iterator();
       while (batchesIterator.hasNext()) {
         PermitBatch batch = batchesIterator.next();
@@ -391,38 +401,46 @@ class BatchedPermitsRequester {
           return true;
         }
       }
-      // This can only happen if totalPermits is not in sync with the actual batches
+      // This can only happen if totalAvailablePermits is not in sync with the actual batches
       throw new RuntimeException("Total permits was unsynced! This is an error in code.");
+    }
+
+    /** Print the state of the container. Useful for debugging. */
+    private synchronized void printState(String prefix) {
+      StringBuilder builder = new StringBuilder(prefix).append("->");
+      builder.append("BatchedPermitsRequester state (").append(hashCode()).append("): ");
+      builder.append("TotalPermits: ").append(this.totalAvailablePermits).append(" ");
+      builder.append("Batches(").append(this.batches.size()).append("): ");
+      for (PermitBatch batch : this.batches.values()) {
+        builder.append(batch.getPermits()).append(",");
+      }
+      log.info(builder.toString());
     }
 
     private synchronized void purgeExpiredBatches() {
       long now = System.currentTimeMillis();
-      Iterator<PermitBatch> entries = this.batches.subMap(Long.MIN_VALUE, now).values().iterator();
-      while (entries.hasNext()) {
-        Long permitsExpired = entries.next().getPermits();
-        this.totalPermits -= permitsExpired;
-        entries.remove();
+      purgeBatches(this.batches.asMap().subMap(Long.MIN_VALUE, now).values().iterator());
+    }
+
+    private synchronized void purgeAll() {
+      purgeBatches(this.batches.asMap().values().iterator());
+    }
+
+    private void purgeBatches(Iterator<Collection<PermitBatch>> iterator) {
+      while (iterator.hasNext()) {
+        Collection<PermitBatch> batches = iterator.next();
+        for (PermitBatch batch : batches) {
+          Long permitsExpired = batch.getPermits();
+          this.totalAvailablePermits -= permitsExpired;
+        }
+        iterator.remove();
       }
     }
 
     private synchronized void addPermitAllocation(PermitAllocation allocation) {
       this.batches.put(allocation.getExpiration(),
           new PermitBatch(allocation.getPermits(), allocation.getExpiration()));
-      this.totalPermits += allocation.getPermits();
-    }
-  }
-
-  /**
-   * Sends requests to the Rest server. Allows overriding for testing.
-   */
-  @AllArgsConstructor
-  public static class RequestSender {
-    private final RestClient restClient;
-
-    protected void sendRequest(PermitRequest request, Callback<Response<PermitAllocation>> callback) {
-      PermitsGetRequestBuilder getBuilder = new PermitsRequestBuilders().get();
-      Request<PermitAllocation> fullRequest = getBuilder.id(new ComplexResourceKey<>(request, new EmptyRecord())).build();
-      this.restClient.sendRequest(fullRequest, callback);
+      this.totalAvailablePermits += allocation.getPermits();
     }
   }
 
@@ -486,5 +504,13 @@ class BatchedPermitsRequester {
         }
       }, millis, TimeUnit.MILLISECONDS);
     }
+  }
+
+  /**
+   * Clear all stored permits.
+   */
+  @VisibleForTesting
+  public void clearAllStoredPermits() {
+    this.getPermitBatchContainer().purgeAll();
   }
 }

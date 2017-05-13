@@ -53,9 +53,8 @@ public class BatchedPermitsRequesterTest {
   public void testForwardingOfRequests() throws Exception {
 
     Queue<RequestAndCallback> queue = Queues.newArrayDeque();
-    RestClient restClient = Mockito.mock(RestClient.class);
 
-    BatchedPermitsRequester container = BatchedPermitsRequester.builder().restClient(restClient).resourceId("resource")
+    BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
         .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
     try (ParallelRequester requester = new ParallelRequester(container)) {
 
@@ -74,9 +73,8 @@ public class BatchedPermitsRequesterTest {
   @Test
   public void testNoMoreThanOneRequestAtATime() throws Exception {
     Queue<RequestAndCallback> queue = Queues.newArrayDeque();
-    RestClient restClient = Mockito.mock(RestClient.class);
 
-    BatchedPermitsRequester container = BatchedPermitsRequester.builder().restClient(restClient).resourceId("resource")
+    BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
         .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
     try (ParallelRequester requester = new ParallelRequester(container)) {
 
@@ -119,9 +117,8 @@ public class BatchedPermitsRequesterTest {
   @Test
   public void testRetriableFail() throws Exception {
     Queue<RequestAndCallback> queue = Queues.newArrayDeque();
-    RestClient restClient = Mockito.mock(RestClient.class);
 
-    BatchedPermitsRequester container = BatchedPermitsRequester.builder().restClient(restClient).resourceId("resource")
+    BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
         .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
     try (ParallelRequester requester = new ParallelRequester(container)) {
 
@@ -144,9 +141,8 @@ public class BatchedPermitsRequesterTest {
   @Test
   public void testNonRetriableFail() throws Exception {
     Queue<RequestAndCallback> queue = Queues.newArrayDeque();
-    RestClient restClient = Mockito.mock(RestClient.class);
 
-    BatchedPermitsRequester container = BatchedPermitsRequester.builder().restClient(restClient).resourceId("resource")
+    BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
         .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
     try (ParallelRequester requester = new ParallelRequester(container)) {
 
@@ -162,18 +158,17 @@ public class BatchedPermitsRequesterTest {
     }
   }
 
-  public static class TestRequestSender extends BatchedPermitsRequester.RequestSender {
+  public static class TestRequestSender implements RequestSender {
     private final Queue<RequestAndCallback> requestAndCallbacks;
     private final boolean autoSatisfyRequests;
 
     public TestRequestSender(Queue<RequestAndCallback> requestAndCallbacks, boolean autoSatisfyRequests) {
-      super(null);
       this.requestAndCallbacks = requestAndCallbacks;
       this.autoSatisfyRequests = autoSatisfyRequests;
     }
 
     @Override
-    protected void sendRequest(PermitRequest request, Callback<Response<PermitAllocation>> callback) {
+    public void sendRequest(PermitRequest request, Callback<Response<PermitAllocation>> callback) {
       if (this.autoSatisfyRequests) {
         satisfyRequestBuilder().requestAndCallback(new RequestAndCallback(request, callback)).satisfy();
       } else {

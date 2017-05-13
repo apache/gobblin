@@ -24,6 +24,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.MysqlStateStore;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -115,6 +116,12 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
 
     put(jobName, tableName, datasetState);
     createAlias(jobName, tableName, getAliasName(datasetUrn));
+  }
+
+  @Override
+  public void persistDatasetURNs(String storeName, Collection<String> datasetUrns)
+      throws IOException {
+    //do nothing for now
   }
 
   private static String getAliasName(String datasetUrn) {

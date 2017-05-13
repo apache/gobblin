@@ -69,6 +69,6 @@ public class EncryptionFactory {
       }
     }
 
-    throw new IllegalArgumentException("Could not find a provider to build algorithm " + algorithm);
+    throw new IllegalArgumentException("Could not find a provider to build algorithm " + algorithm + " - is gobblin-crypto-provider in classpath?");
   }
 }

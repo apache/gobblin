@@ -31,7 +31,6 @@ import gobblin.broker.iface.SharedResourceFactory;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.broker.iface.SharedResourceFactoryResponse;
 import gobblin.broker.ResourceCoordinate;
-import gobblin.broker.ResourceInstance;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.LimiterFactory;
@@ -79,7 +78,7 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
         globalLimiterPolicy != SharedLimiterKey.GlobalLimiterPolicy.USE_GLOBAL) {
       // if user has specified FAIL_IF_NO_GLOBAL_LIMITER_KEY, promote the policy from USE_GLOBAL_IF_CONFIGURED to USE_GLOBAL
       // e.g. fail if no GLOBAL configuration is present
-      SharedLimiterKey modifiedKey = new SharedLimiterKey(configView.getKey().getResourceLimited(),
+      SharedLimiterKey modifiedKey = new SharedLimiterKey(configView.getKey().getResourceLimitedPath(),
           SharedLimiterKey.GlobalLimiterPolicy.USE_GLOBAL);
       return new ResourceCoordinate<>(this, modifiedKey, (S) configView.getScope());
     }

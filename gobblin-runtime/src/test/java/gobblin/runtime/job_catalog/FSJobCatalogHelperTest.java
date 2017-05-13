@@ -50,7 +50,7 @@ import gobblin.runtime.job_catalog.FSJobCatalog;
 import gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
 import gobblin.util.ConfigUtils;
 import gobblin.util.PullFileLoader;
-import gobblin.util.filesystem.PathAlterationDetector;
+import gobblin.util.filesystem.PathAlterationObserverScheduler;
 import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationListenerAdaptor;
 import gobblin.util.filesystem.PathAlterationObserver;
@@ -225,7 +225,7 @@ public class FSJobCatalogHelperTest {
   @Test(dependsOnMethods = {"testloadGenericJobConfig"})
   public void testPathAlterationObserver()
       throws Exception {
-    PathAlterationDetector detector = new PathAlterationDetector(1000);
+    PathAlterationObserverScheduler detector = new PathAlterationObserverScheduler(1000);
     final Set<Path> fileAltered = Sets.newHashSet();
     final Semaphore semaphore = new Semaphore(0);
     PathAlterationListener listener = new PathAlterationListenerAdaptor() {

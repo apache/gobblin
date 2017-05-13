@@ -121,6 +121,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final Job job;
   private final Path mrJobDir;
   private final Path jarsDir;
+  /** A location to store jars that should not be shared between different jobs. */
+  private final Path unsharedJarsDir;
   private final Path jobInputPath;
   private final Path jobOutputPath;
 
@@ -165,8 +167,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
       LOG.warn("Job working directory already exists for job " + this.jobContext.getJobName());
       this.fs.delete(this.mrJobDir, true);
     }
+    this.unsharedJarsDir = new Path(this.mrJobDir, JARS_DIR_NAME);
     this.jarsDir = this.jobProps.containsKey(ConfigurationKeys.MR_JARS_DIR) ? new Path(
-        this.jobProps.getProperty(ConfigurationKeys.MR_JARS_DIR)) : new Path(this.mrJobDir, JARS_DIR_NAME);
+        this.jobProps.getProperty(ConfigurationKeys.MR_JARS_DIR)) : this.unsharedJarsDir;
     this.fs.mkdirs(this.mrJobDir);
 
     this.jobInputPath = new Path(this.mrJobDir, INPUT_DIR_NAME);
@@ -262,6 +265,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       if (this.hadoopJobSubmitted && !this.job.isComplete()) {
         LOG.info("Killing the Hadoop MR job for job " + this.jobContext.getJobId());
         this.job.killJob();
+        // Collect final task states.
+        this.taskStateCollectorService.stopAsync().awaitTerminated();
       }
     } catch (IllegalStateException ise) {
       LOG.error("The Hadoop MR job has not started for job " + this.jobContext.getJobId());
@@ -388,8 +393,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
       Path srcJarFile = new Path(jarFile);
       FileStatus[] fileStatusList = lfs.globStatus(srcJarFile);
       for (FileStatus status : fileStatusList) {
+        // SNAPSHOT jars should not be shared, as different jobs may be using different versions of it
+        Path baseDir = status.getPath().getName().contains("SNAPSHOT") ? this.unsharedJarsDir : jarFileDir;
         // DistributedCache requires absolute path, so we need to use makeQualified.
-        Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), status.getPath().getName());
+        Path destJarFile = new Path(this.fs.makeQualified(baseDir), status.getPath().getName());
         if (!this.fs.exists(destJarFile)) {
           // Copy the jar file from local file system to HDFS
           this.fs.copyFromLocalFile(status.getPath(), destJarFile);

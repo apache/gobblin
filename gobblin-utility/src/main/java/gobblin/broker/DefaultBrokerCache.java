@@ -129,6 +129,12 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
     }
   }
 
+  <T, K extends SharedResourceKey> void put(final SharedResourceFactory<T, K, S> factory, @Nonnull final K key,
+      @Nonnull final ScopeWrapper<S> scope, T instance) {
+    RawJobBrokerKey fullKey = new RawJobBrokerKey(scope, factory.getName(), key);
+    this.sharedResourceCache.put(fullKey, instance);
+  }
+
   /**
    * Invalidate all objects at scopes which are descendant of the input scope. Any such invalidated object that is a
    * {@link Closeable} will be closed, and any such object which is a {@link Service} will be shutdown.

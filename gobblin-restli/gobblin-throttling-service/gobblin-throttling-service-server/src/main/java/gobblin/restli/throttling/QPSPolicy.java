@@ -17,20 +17,25 @@
 
 package gobblin.restli.throttling;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.linkedin.data.template.GetMode;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alias;
 import gobblin.annotation.Alpha;
-import gobblin.broker.SimpleScopeType;
 import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.util.limiter.broker.SharedLimiterKey;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * A {@link ThrottlingPolicy} based on a QPS (queries per second). It internally uses a {@link DynamicTokenBucket}.
  */
 @Alpha
+@Slf4j
 public class QPSPolicy implements ThrottlingPolicy {
 
   public static final String FACTORY_ALIAS = "qps";
@@ -50,12 +55,16 @@ public class QPSPolicy implements ThrottlingPolicy {
   public static final String MAX_BUCKET_SIZE_MILLIS = "maxBucketSizeMillis";
   public static final long DEFAULT_MAX_BUCKET_SIZE = 10000;
 
+  @Getter
+  private final long qps;
+  @VisibleForTesting
+  @Getter
   private final DynamicTokenBucket tokenBucket;
 
   @Alias(FACTORY_ALIAS)
   public static class Factory implements ThrottlingPolicyFactory.SpecificPolicyFactory {
     @Override
-    public ThrottlingPolicy createPolicy(SharedResourcesBroker<SimpleScopeType> broker, Config config) {
+    public ThrottlingPolicy createPolicy(SharedLimiterKey key, SharedResourcesBroker<ThrottlingServerScopes> broker, Config config) {
       return new QPSPolicy(config);
     }
   }
@@ -63,7 +72,7 @@ public class QPSPolicy implements ThrottlingPolicy {
   public QPSPolicy(Config config) {
     Preconditions.checkArgument(config.hasPath(QPS), "QPS required.");
 
-    long qps = config.getLong(QPS);
+    this.qps = config.getLong(QPS);
     long fullRequestTimeoutMillis = config.hasPath(FULL_REQUEST_TIMEOUT_MILLIS)
         ? config.getLong(FULL_REQUEST_TIMEOUT_MILLIS) : DEFAULT_FULL_REQUEST_TIMEOUT;
     long maxBucketSizeMillis = config.hasPath(MAX_BUCKET_SIZE_MILLIS)

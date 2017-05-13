@@ -43,6 +43,7 @@ import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetTes
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
 import gobblin.data.management.conversion.hive.entities.SchemaAwareHiveTable;
+import gobblin.data.management.copy.hive.WhitelistBlacklist;
 
 
 @Test(groups = { "gobblin.data.management.conversion" })
@@ -184,5 +185,55 @@ public class HiveAvroToOrcConverterTest {
 
     conversionEntity = new QueryBasedHiveConversionEntity(null, hiveTable, Optional.of(new SchemaAwareHivePartition(table, replacedSelf, null)));
     Assert.assertEquals(AbstractAvroToOrcConverter.getDropPartitionsDDLInfo(conversionEntity), expected);
+  }
+
+  @Test
+  /***
+   * More comprehensive tests for WhiteBlackList are in: {@link gobblin.data.management.copy.hive.WhitelistBlacklistTest}
+   */
+  public void hiveViewRegistrationWhiteBlackListTest() throws Exception {
+    WorkUnitState wus = ConversionHiveTestUtils.createWus("dbName", "tableName", 0);
+
+    Optional<WhitelistBlacklist> optionalWhitelistBlacklist = AbstractAvroToOrcConverter.getViewWhiteBackListFromWorkUnit(wus);
+    Assert.assertTrue(!optionalWhitelistBlacklist.isPresent(),
+        "No whitelist blacklist specified in WUS, WhiteListBlackList object should be absent");
+
+    wus.setProp(AbstractAvroToOrcConverter.HIVE_CONVERSION_VIEW_REGISTRATION_WHITELIST, "");
+    wus.setProp(AbstractAvroToOrcConverter.HIVE_CONVERSION_VIEW_REGISTRATION_BLACKLIST, "");
+    optionalWhitelistBlacklist = AbstractAvroToOrcConverter.getViewWhiteBackListFromWorkUnit(wus);
+    Assert.assertTrue(optionalWhitelistBlacklist.isPresent(),
+        "Whitelist blacklist specified in WUS, WhiteListBlackList object should be present");
+    Assert.assertTrue(optionalWhitelistBlacklist.get().acceptDb("mydb"));
+    Assert.assertTrue(optionalWhitelistBlacklist.get().acceptTable("mydb", "mytable"));
+
+    wus.setProp(AbstractAvroToOrcConverter.HIVE_CONVERSION_VIEW_REGISTRATION_WHITELIST, "yourdb");
+    wus.setProp(AbstractAvroToOrcConverter.HIVE_CONVERSION_VIEW_REGISTRATION_BLACKLIST, "");
+    optionalWhitelistBlacklist = AbstractAvroToOrcConverter.getViewWhiteBackListFromWorkUnit(wus);
+    Assert.assertTrue(optionalWhitelistBlacklist.isPresent(),
+        "Whitelist blacklist specified in WUS, WhiteListBlackList object should be present");
+    Assert.assertTrue(!optionalWhitelistBlacklist.get().acceptDb("mydb"));
+    Assert.assertTrue(!optionalWhitelistBlacklist.get().acceptTable("mydb", "mytable"));
+    Assert.assertTrue(optionalWhitelistBlacklist.get().acceptDb("yourdb"));
+    Assert.assertTrue(optionalWhitelistBlacklist.get().acceptTable("yourdb", "mytable"));
+
+    wus.setProp(AbstractAvroToOrcConverter.HIVE_CONVERSION_VIEW_REGISTRATION_WHITELIST, "yourdb.yourtable");
+    wus.setProp(AbstractAvroToOrcConverter.HIVE_CONVERSION_VIEW_REGISTRATION_BLACKLIST, "");
+    optionalWhitelistBlacklist = AbstractAvroToOrcConverter.getViewWhiteBackListFromWorkUnit(wus);
+    Assert.assertTrue(optionalWhitelistBlacklist.isPresent(),
+        "Whitelist blacklist specified in WUS, WhiteListBlackList object should be present");
+    Assert.assertTrue(!optionalWhitelistBlacklist.get().acceptDb("mydb"));
+    Assert.assertTrue(!optionalWhitelistBlacklist.get().acceptTable("yourdb", "mytable"));
+    Assert.assertTrue(optionalWhitelistBlacklist.get().acceptDb("yourdb"));
+    Assert.assertTrue(optionalWhitelistBlacklist.get().acceptTable("yourdb", "yourtable"));
+
+    wus.setProp(AbstractAvroToOrcConverter.HIVE_CONVERSION_VIEW_REGISTRATION_WHITELIST, "");
+    wus.setProp(AbstractAvroToOrcConverter.HIVE_CONVERSION_VIEW_REGISTRATION_BLACKLIST, "yourdb.yourtable");
+    optionalWhitelistBlacklist = AbstractAvroToOrcConverter.getViewWhiteBackListFromWorkUnit(wus);
+    Assert.assertTrue(optionalWhitelistBlacklist.isPresent(),
+        "Whitelist blacklist specified in WUS, WhiteListBlackList object should be present");
+    Assert.assertTrue(optionalWhitelistBlacklist.get().acceptDb("mydb"));
+    Assert.assertTrue(optionalWhitelistBlacklist.get().acceptTable("yourdb", "mytable"));
+    Assert.assertTrue(optionalWhitelistBlacklist.get().acceptDb("yourdb"));
+    Assert.assertTrue(!optionalWhitelistBlacklist.get().acceptTable("yourdb", "yourtable"));
   }
 }

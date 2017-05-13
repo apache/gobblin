@@ -1,6 +1,8 @@
 package gobblin.eventhub.writer;
 
 import java.io.IOException;
+
+import gobblin.writer.BytesBoundedBatch;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -12,7 +14,7 @@ public class EventhubBatchTest {
   @Test
   public void testBatchWithLargeRecord() throws IOException {
     // Assume memory size has only 2 bytes
-    EventhubBatch batch = new EventhubBatch(8, 3000);
+    BytesBoundedBatch batch = new BytesBoundedBatch(8, 3000);
 
     String record = "abcdefgh";
 
@@ -26,7 +28,7 @@ public class EventhubBatchTest {
   @Test
   public void testBatch() throws IOException {
     // Assume memory size has only 200 bytes
-    EventhubBatch batch = new EventhubBatch(200, 3000);
+    BytesBoundedBatch batch = new BytesBoundedBatch(200, 3000);
 
     // Add additional 15 bytes overhead, total size is 27 bytes
     String record = "abcdefgh";

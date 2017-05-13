@@ -339,7 +339,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   protected FileSystem getSourceFileSystem(State state)
       throws IOException {
-    Configuration conf = HadoopUtils.getConfFromState(state);
+    Configuration conf = HadoopUtils.getConfFromState(state, Optional.of(ConfigurationKeys.SOURCE_FILEBASED_ENCRYPTED_CONFIG_PATH));
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
     return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }

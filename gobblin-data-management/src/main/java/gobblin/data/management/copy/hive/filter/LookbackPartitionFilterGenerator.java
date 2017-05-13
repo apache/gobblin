@@ -46,7 +46,6 @@ public class LookbackPartitionFilterGenerator implements PartitionFilterGenerato
   public static final String PARTITION_COLUMN = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.column";
   public static final String LOOKBACK = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.lookback";
   public static final String DATETIME_FORMAT = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.format";
-
   private static final String ERROR_MESSAGE = LookbackPartitionFilterGenerator.class.getName()
       + " requires the following properties " + Arrays.toString(new String[]{PARTITION_COLUMN, LOOKBACK, DATETIME_FORMAT});
 

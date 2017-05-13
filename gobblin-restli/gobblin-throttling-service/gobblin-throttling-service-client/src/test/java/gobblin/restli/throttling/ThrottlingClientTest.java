@@ -41,8 +41,6 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.broker.BrokerConfigurationKeyGenerator;
 import gobblin.restli.EmbeddedRestliServer;
-import gobblin.util.limiter.CountBasedLimiter;
-import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.util.limiter.broker.SharedLimiterKey;
 
 import avro.shaded.com.google.common.collect.ImmutableMap;
@@ -64,7 +62,9 @@ public class ThrottlingClientTest {
             "true")
         .build();
 
-    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.parseMap(configMap));
+    ThrottlingGuiceServletConfig guiceServletConfig = new ThrottlingGuiceServletConfig();
+    guiceServletConfig.initialize(ConfigFactory.parseMap(configMap));
+    Injector injector = guiceServletConfig.getInjector();
 
     EmbeddedRestliServer server = EmbeddedRestliServer.builder().resources(
         Lists.<Class<? extends BaseResource>>newArrayList(LimiterServerResource.class)).injector(injector).build();
@@ -83,7 +83,7 @@ public class ThrottlingClientTest {
 
       PermitRequest res1request = new PermitRequest();
       res1request.setPermits(20);
-      res1request.setResource(res1key.getResourceLimited());
+      res1request.setResource(res1key.getResourceLimitedPath());
 
       PermitAllocation allocation = getPermitAllocation(res1request, restClient, getBuilder);
       Assert.assertEquals(allocation.getPermits(), new Long(20));

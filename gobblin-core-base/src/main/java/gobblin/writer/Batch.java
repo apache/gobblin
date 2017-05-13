@@ -40,6 +40,13 @@ import gobblin.annotation.Alpha;
 @Alpha
 public abstract class Batch<D>{
 
+  public static final String BATCH_TTL = "writer.batch.ttl";
+  public static final long   BATCH_TTL_DEFAULT = 1000; // 1 seconds
+  public static final String BATCH_SIZE = "writer.batch.size";
+  public static final long   BATCH_SIZE_DEFAULT = 256 * 1024; // 256KB
+  public static final String BATCH_QUEUE_CAPACITY = "writer.batch.queue.capacity";
+  public static final long   BATCH_QUEUE_CAPACITY_DEFAULT = 100;
+
   private final List<Thunk> thunks;
 
   private final long id;

@@ -95,7 +95,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
       this.recordsOutMeter = Optional.of(this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_OUT_METER));
       this.recordsExceptionMeter = Optional.of(
           this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_FAILED_METER));
-      this.converterTimer = Optional.of(this.metricContext.timer(MetricNames.ConverterMetrics.CONVERT_TIMER));
+      this.converterTimer = Optional.<Timer>of(this.metricContext.timer(MetricNames.ConverterMetrics.CONVERT_TIMER));
     }
   }
 

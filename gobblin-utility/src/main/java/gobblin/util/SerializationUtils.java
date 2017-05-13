@@ -64,11 +64,22 @@ public class SerializationUtils {
    * @throws IOException if it fails to serialize the object
    */
   public static <T extends Serializable> String serialize(T obj, BaseEncoding enc) throws IOException {
+    return enc.encode(serializeIntoBytes(obj));
+  }
+
+  /**
+   * Serialize an object into a byte array.
+   *
+   * @param obj A {@link Serializable} object
+   * @return Byte serialization of input object
+   * @throws IOException if it fails to serialize the object
+   */
+  public static <T extends Serializable> byte[] serializeIntoBytes(T obj) throws IOException {
     try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(bos)) {
       oos.writeObject(obj);
       oos.flush();
-      return enc.encode(bos.toByteArray());
+      return bos.toByteArray();
     }
   }
 
@@ -97,8 +108,21 @@ public class SerializationUtils {
    */
   public static <T extends Serializable> T deserialize(String serialized, Class<T> clazz, BaseEncoding enc)
       throws IOException {
+    return deserializeFromBytes(enc.decode(serialized), clazz);
+  }
 
-    try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(enc.decode(serialized)))) {
+  /**
+   * Deserialize a String obtained via {@link #serializeIntoBytes(Serializable)} into an object.
+   *
+   * @param serialized The serialized bytes
+   * @param clazz The class the deserialized object should be cast to.
+   * @return The deserialized object
+   * @throws IOException if it fails to deserialize the object
+   */
+  public static <T extends Serializable> T deserializeFromBytes(byte[] serialized, Class<T> clazz)
+      throws IOException {
+
+    try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serialized))) {
       return clazz.cast(ois.readObject());
     } catch (ClassNotFoundException e) {
       throw new IOException(e);

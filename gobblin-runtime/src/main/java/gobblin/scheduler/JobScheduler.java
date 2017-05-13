@@ -18,6 +18,8 @@
 package gobblin.scheduler;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -70,7 +72,7 @@ import gobblin.runtime.listeners.JobListener;
 import gobblin.runtime.listeners.RunOnceJobListener;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.SchedulerUtils;
-import gobblin.util.filesystem.PathAlterationDetector;
+import gobblin.util.filesystem.PathAlterationObserverScheduler;
 
 
 /**
@@ -123,7 +125,7 @@ public class JobScheduler extends AbstractIdleService {
   public final Path jobConfigFileDirPath;
 
   // A monitor for changes to job conf files for general FS
-  public final PathAlterationDetector pathAlterationDetector;
+  public final PathAlterationObserverScheduler pathAlterationDetector;
   public final PathAlterationListenerAdaptorForMonitor listener;
 
   // A period of time for scheduler to wait until jobs are finished
@@ -147,11 +149,19 @@ public class JobScheduler extends AbstractIdleService {
     long pollingInterval = Long.parseLong(
         this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
-    this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
+    this.pathAlterationDetector = new PathAlterationObserverScheduler(pollingInterval);
 
     this.waitForJobCompletion = Boolean.parseBoolean(
         this.properties.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
             ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION));
+
+    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) &&
+        !this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
+      String path = FileSystems.getDefault()
+          .getPath(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY))
+          .normalize().toAbsolutePath().toString();
+      this.properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, "file:///" + path);
+    }
 
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
       this.jobConfigFileDirPath = new Path(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
@@ -175,14 +185,7 @@ public class JobScheduler extends AbstractIdleService {
     }
 
     // Note: This should not be mandatory, gobblin-cluster modes have their own job configuration managers
-    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)
-        || this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
-
-      if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) && !this.properties.containsKey(
-          ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
-        this.properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
-            "file://" + this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
-      }
+    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
       startGeneralJobConfigFileMonitor();
       scheduleGeneralConfiguredJobs();
     }

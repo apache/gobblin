@@ -17,11 +17,17 @@
 
 package gobblin.runtime;
 
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.Callable;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.io.Closer;
+
 import gobblin.commit.CommitSequence;
 import gobblin.commit.CommitStep;
 import gobblin.commit.DeliverySemantics;
@@ -34,11 +40,7 @@ import gobblin.runtime.commit.DatasetStateCommitStep;
 import gobblin.runtime.task.TaskFactory;
 import gobblin.runtime.task.TaskUtils;
 import gobblin.source.extractor.JobCommitPolicy;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +58,7 @@ final class SafeDatasetCommit implements Callable<Void> {
   private static final Object GLOBAL_LOCK = new Object();
 
   private final boolean shouldCommitDataInJob;
+  private final boolean isJobCancelled;
   private final DeliverySemantics deliverySemantics;
   private final String datasetUrn;
   private final JobState.DatasetState datasetState;
@@ -65,19 +68,23 @@ final class SafeDatasetCommit implements Callable<Void> {
   @Override
   public Void call()
       throws Exception {
-
+    if (this.datasetState.getState() == JobState.RunningState.COMMITTED) {
+      log.info(this.datasetUrn + " have been committed.");
+      return null;
+    }
     finalizeDatasetStateBeforeCommit(this.datasetState);
-
     Class<? extends DataPublisher> dataPublisherClass;
     try (Closer closer = Closer.create()) {
       dataPublisherClass = JobContext.getJobDataPublisherClass(this.jobContext.getJobState())
           .or((Class<? extends DataPublisher>) Class.forName(ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
       if (!canCommitDataset(datasetState)) {
-        log.warn(String.format("Not committing dataset %s of job %s with commit policy %s and state %s",
-            this.datasetUrn, this.jobContext.getJobId(), this.jobContext.getJobCommitPolicy(), this.datasetState.getState()));
+        log.warn(String
+            .format("Not committing dataset %s of job %s with commit policy %s and state %s", this.datasetUrn,
+                this.jobContext.getJobId(), this.jobContext.getJobCommitPolicy(), this.datasetState.getState()));
         checkForUnpublishedWUHandling(this.datasetUrn, this.datasetState, dataPublisherClass, closer);
-        throw new RuntimeException(String.format("Not committing dataset %s of job %s with commit policy %s and state %s",
-            this.datasetUrn, this.jobContext.getJobId(), this.jobContext.getJobCommitPolicy(), this.datasetState.getState()));
+        throw new RuntimeException(String
+            .format("Not committing dataset %s of job %s with commit policy %s and state %s", this.datasetUrn,
+                this.jobContext.getJobId(), this.jobContext.getJobCommitPolicy(), this.datasetState.getState()));
       }
     } catch (ReflectiveOperationException roe) {
       log.error("Failed to instantiate data publisher for dataset %s of job %s.", this.datasetUrn,
@@ -85,7 +92,13 @@ final class SafeDatasetCommit implements Callable<Void> {
       throw new RuntimeException(roe);
     }
 
+    if (this.isJobCancelled) {
+      log.info("Executing commit steps although job is cancelled due to job commit policy: " + this.jobContext
+          .getJobCommitPolicy());
+    }
+
     Optional<CommitSequence.Builder> commitSequenceBuilder = Optional.absent();
+    boolean canPersistStates = true;
     try (Closer closer = Closer.create()) {
       if (this.shouldCommitDataInJob) {
         log.info(String.format("Committing dataset %s of job %s with commit policy %s and state %s", this.datasetUrn,
@@ -102,10 +115,18 @@ final class SafeDatasetCommit implements Callable<Void> {
             }
             generateCommitSequenceBuilder(this.datasetState, entry.getValue());
           } else {
-            DataPublisher publisher = taskFactory == null ?
-                closer.register(DataPublisher.getInstance(dataPublisherClass, this.jobContext.getJobState())) :
-                taskFactory.createDataPublisher(this.datasetState);
-            if (this.isMultithreaded && !publisher.isThreadSafe()) {
+            DataPublisher publisher = taskFactory == null ? closer
+                .register(DataPublisher.getInstance(dataPublisherClass, this.jobContext.getJobState()))
+                : taskFactory.createDataPublisher(this.datasetState);
+            if (this.isJobCancelled) {
+              if (publisher.canBeSkipped()) {
+                log.warn(publisher.getClass() + " will be skipped.");
+              } else {
+                canPersistStates = false;
+                throw new RuntimeException(
+                    "Cannot persist state upon cancellation because publisher has unfinished work and cannot be skipped.");
+              }
+            } else if (this.isMultithreaded && !publisher.isThreadSafe()) {
               log.warn(String.format(
                   "Gobblin is set up to parallelize publishing, however the publisher %s is not thread-safe. "
                       + "Falling back to serial publishing.", publisher.getClass().getName()));
@@ -123,7 +144,7 @@ final class SafeDatasetCommit implements Callable<Void> {
       }
     } catch (ReflectiveOperationException roe) {
       log.error(String.format("Failed to instantiate data publisher for dataset %s of job %s.", this.datasetUrn,
-              this.jobContext.getJobId()), roe);
+          this.jobContext.getJobId()), roe);
       throw new RuntimeException(roe);
     } catch (Throwable throwable) {
       log.error(String.format("Failed to commit dataset state for dataset %s of job %s", this.datasetUrn,
@@ -132,16 +153,16 @@ final class SafeDatasetCommit implements Callable<Void> {
     } finally {
       try {
         finalizeDatasetState(datasetState, datasetUrn);
-
         if (commitSequenceBuilder.isPresent()) {
           buildAndExecuteCommitSequence(commitSequenceBuilder.get(), datasetState, datasetUrn);
           datasetState.setState(JobState.RunningState.COMMITTED);
-        } else {
+        } else if (canPersistStates) {
           persistDatasetState(datasetUrn, datasetState);
         }
       } catch (IOException | RuntimeException ioe) {
-        log.error(
-            String.format("Failed to persist dataset state for dataset %s of job %s", datasetUrn, this.jobContext.getJobId()), ioe);
+        log.error(String
+            .format("Failed to persist dataset state for dataset %s of job %s", datasetUrn, this.jobContext.getJobId()),
+            ioe);
         throw new RuntimeException(ioe);
       }
     }
@@ -203,8 +224,9 @@ final class SafeDatasetCommit implements Callable<Void> {
     }
   }
 
-  private synchronized void buildAndExecuteCommitSequence(CommitSequence.Builder builder, JobState.DatasetState datasetState,
-      String datasetUrn) throws IOException {
+  private synchronized void buildAndExecuteCommitSequence(CommitSequence.Builder builder,
+      JobState.DatasetState datasetState, String datasetUrn)
+      throws IOException {
     CommitSequence commitSequence =
         builder.addStep(buildDatasetStateCommitStep(datasetUrn, datasetState).get()).build();
     this.jobContext.getCommitSequenceStore().get().put(commitSequence.getJobName(), datasetUrn, commitSequence);
@@ -250,20 +272,20 @@ final class SafeDatasetCommit implements Callable<Void> {
     // Only commit a dataset if 1) COMMIT_ON_PARTIAL_SUCCESS is used, or 2)
     // COMMIT_ON_FULL_SUCCESS is used and all of the tasks of the dataset have succeeded.
     return this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS
-        || this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS
-        || (this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
-        && datasetState.getState() == JobState.RunningState.SUCCESSFUL);
+        || this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS || (
+        this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
+            && datasetState.getState() == JobState.RunningState.SUCCESSFUL);
   }
 
   @SuppressWarnings("unchecked")
   private Optional<CommitSequence.Builder> generateCommitSequenceBuilder(JobState.DatasetState datasetState,
       Collection<TaskState> taskStates) {
     try (Closer closer = Closer.create()) {
-      Class<? extends CommitSequencePublisher> dataPublisherClass =
-          (Class<? extends CommitSequencePublisher>) Class.forName(datasetState
+      Class<? extends CommitSequencePublisher> dataPublisherClass = (Class<? extends CommitSequencePublisher>) Class
+          .forName(datasetState
               .getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
-      CommitSequencePublisher publisher =
-          (CommitSequencePublisher) closer.register(DataPublisher.getInstance(dataPublisherClass, this.jobContext.getJobState()));
+      CommitSequencePublisher publisher = (CommitSequencePublisher) closer
+          .register(DataPublisher.getInstance(dataPublisherClass, this.jobContext.getJobState()));
       publisher.publish(taskStates);
       return publisher.getCommitSequenceBuilder();
     } catch (Throwable t) {
@@ -278,9 +300,10 @@ final class SafeDatasetCommit implements Callable<Void> {
       throws ReflectiveOperationException, IOException {
     if (UnpublishedHandling.class.isAssignableFrom(dataPublisherClass)) {
       // pass in jobstate to retrieve properties
-      DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, this.jobContext.getJobState()));
-      log.info(String.format("Calling publisher to handle unpublished work units for dataset %s of job %s.",
-          datasetUrn, this.jobContext.getJobId()));
+      DataPublisher publisher =
+          closer.register(DataPublisher.getInstance(dataPublisherClass, this.jobContext.getJobState()));
+      log.info(String.format("Calling publisher to handle unpublished work units for dataset %s of job %s.", datasetUrn,
+          this.jobContext.getJobId()));
       ((UnpublishedHandling) publisher).handleUnpublishedWorkUnits(datasetState.getTaskStatesAsWorkUnitStates());
     }
   }
@@ -307,7 +330,8 @@ final class SafeDatasetCommit implements Callable<Void> {
   /**
    * Persist dataset state of a given dataset identified by the dataset URN.
    */
-  private void persistDatasetState(String datasetUrn, JobState.DatasetState datasetState) throws IOException {
+  private void persistDatasetState(String datasetUrn, JobState.DatasetState datasetState)
+      throws IOException {
     log.info("Persisting dataset state for dataset " + datasetUrn);
     this.jobContext.getDatasetStateStore().persistDatasetState(datasetUrn, datasetState);
   }

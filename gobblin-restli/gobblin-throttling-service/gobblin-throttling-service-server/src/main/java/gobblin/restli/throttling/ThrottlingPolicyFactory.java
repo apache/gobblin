@@ -20,7 +20,6 @@ package gobblin.restli.throttling;
 import com.typesafe.config.Config;
 
 import gobblin.broker.ResourceInstance;
-import gobblin.broker.SimpleScopeType;
 import gobblin.broker.iface.ConfigView;
 import gobblin.broker.iface.NotConfiguredException;
 import gobblin.broker.iface.ScopedConfigView;
@@ -34,12 +33,14 @@ import gobblin.util.limiter.broker.SharedLimiterKey;
 /**
  * A {@link SharedResourceFactory} to create {@link ThrottlingPolicy}s.
  */
-public class ThrottlingPolicyFactory implements SharedResourceFactory<ThrottlingPolicy, SharedLimiterKey, SimpleScopeType> {
+public class ThrottlingPolicyFactory implements SharedResourceFactory<ThrottlingPolicy, SharedLimiterKey, ThrottlingServerScopes> {
 
   public static final String NAME = "throttlingPolicy";
 
   public static final String POLICY_KEY = "policy";
   public static final String FAIL_ON_UNKNOWN_RESOURCE_ID = "faiOnUnknownResourceId";
+  public static final ClassAliasResolver<SpecificPolicyFactory> POLICY_CLASS_RESOLVER = new
+      ClassAliasResolver<>(SpecificPolicyFactory.class);
 
   @Override
   public String getName() {
@@ -47,8 +48,8 @@ public class ThrottlingPolicyFactory implements SharedResourceFactory<Throttling
   }
 
   @Override
-  public SharedResourceFactoryResponse<ThrottlingPolicy> createResource(SharedResourcesBroker<SimpleScopeType> broker,
-      ScopedConfigView<SimpleScopeType, SharedLimiterKey> configView) throws NotConfiguredException {
+  public SharedResourceFactoryResponse<ThrottlingPolicy> createResource(SharedResourcesBroker<ThrottlingServerScopes> broker,
+      ScopedConfigView<ThrottlingServerScopes, SharedLimiterKey> configView) throws NotConfiguredException {
 
     Config config = configView.getConfig();
 
@@ -59,24 +60,23 @@ public class ThrottlingPolicyFactory implements SharedResourceFactory<Throttling
         return new ResourceInstance<ThrottlingPolicy>(new NoopPolicy());
       }
     }
-    ClassAliasResolver<SpecificPolicyFactory> resolver = new ClassAliasResolver<>(SpecificPolicyFactory.class);
 
     try {
-      SpecificPolicyFactory factory = resolver.resolveClass(config.getString(POLICY_KEY)).newInstance();
-      return new ResourceInstance<>(factory.createPolicy(broker, config));
+      SpecificPolicyFactory factory = POLICY_CLASS_RESOLVER.resolveClass(config.getString(POLICY_KEY)).newInstance();
+      return new ResourceInstance<>(factory.createPolicy(configView.getKey(), broker, config));
     } catch (ReflectiveOperationException roe) {
       throw new RuntimeException(roe);
     }
   }
 
   @Override
-  public SimpleScopeType getAutoScope(SharedResourcesBroker<SimpleScopeType> broker,
-      ConfigView<SimpleScopeType, SharedLimiterKey> config) {
-    return SimpleScopeType.GLOBAL;
+  public ThrottlingServerScopes getAutoScope(SharedResourcesBroker<ThrottlingServerScopes> broker,
+      ConfigView<ThrottlingServerScopes, SharedLimiterKey> config) {
+    return ThrottlingServerScopes.GLOBAL;
   }
 
   public interface SpecificPolicyFactory {
-    ThrottlingPolicy createPolicy(SharedResourcesBroker<SimpleScopeType> broker, Config config);
+    ThrottlingPolicy createPolicy(SharedLimiterKey sharedLimiterKey, SharedResourcesBroker<ThrottlingServerScopes> broker, Config config);
   }
 
 }

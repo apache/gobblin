@@ -31,11 +31,15 @@ import gobblin.kafka.schemareg.SchemaRegistryException;
 import gobblin.kafka.serialize.LiAvroDeserializerBase;
 import gobblin.kafka.serialize.SerializationException;
 import gobblin.source.extractor.extract.kafka.KafkaSource;
+import gobblin.util.EmptyIterable;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Converts LiKafka byte array messages into avro.
  */
+@Slf4j
 public class LiKafkaByteArrayMsgToAvroConverter<S> extends ToAvroConverterBase<S, byte[]> {
   KafkaSchemaRegistry schemaRegistry;
 
@@ -65,7 +69,8 @@ public class LiKafkaByteArrayMsgToAvroConverter<S> extends ToAvroConverterBase<S
       GenericRecord record = new LiAvroDeserializerBase(schemaRegistry).deserialize(topic, inputRecord);
       return new SingleRecordIterable<>(record);
     } catch (SerializationException e) {
-      throw new DataConversionException(e);
+      log.error("Cannot decode one record.", e);
+      return new EmptyIterable<GenericRecord>();
     }
   }
 }

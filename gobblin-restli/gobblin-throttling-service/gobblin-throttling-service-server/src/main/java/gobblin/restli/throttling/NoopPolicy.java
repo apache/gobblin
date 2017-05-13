@@ -21,8 +21,8 @@ import com.typesafe.config.Config;
 
 import gobblin.annotation.Alias;
 import gobblin.annotation.Alpha;
-import gobblin.broker.SimpleScopeType;
 import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.util.limiter.broker.SharedLimiterKey;
 
 
 /**
@@ -36,7 +36,8 @@ public class NoopPolicy implements ThrottlingPolicy {
   @Alias(FACTORY_ALIAS)
   public static class Factory implements ThrottlingPolicyFactory.SpecificPolicyFactory {
     @Override
-    public ThrottlingPolicy createPolicy(SharedResourcesBroker<SimpleScopeType> broker, Config config) {
+    public ThrottlingPolicy createPolicy(SharedLimiterKey key,
+        SharedResourcesBroker<ThrottlingServerScopes> broker, Config config) {
       return new NoopPolicy();
     }
   }

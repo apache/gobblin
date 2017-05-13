@@ -17,20 +17,22 @@
 
 package gobblin.cluster;
 
-import gobblin.metastore.StateStore;
-import gobblin.runtime.util.StateStores;
-import gobblin.util.ConfigUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
 import java.util.concurrent.Callable;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
+import org.apache.helix.IdealStateChangeListener;
+import org.apache.helix.NotificationContext;
+import org.apache.helix.model.IdealState;
+import org.apache.helix.task.GobblinJobRebalancer;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
 import org.apache.helix.task.TaskConfig;
@@ -40,20 +42,29 @@ import org.apache.helix.task.WorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.StateStore;
 import gobblin.metrics.Tag;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.rest.LauncherTypeEnum;
 import gobblin.runtime.AbstractJobLauncher;
+import gobblin.runtime.ExecutionModel;
 import gobblin.runtime.JobLauncher;
+import gobblin.runtime.JobState;
+import gobblin.runtime.Task;
+import gobblin.runtime.TaskConfigurationKeys;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateCollectorService;
+import gobblin.runtime.util.StateStores;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.ConfigUtils;
+import gobblin.util.Id;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.util.SerializationUtils;
@@ -113,7 +124,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   public GobblinHelixJobLauncher(Properties jobProps, final HelixManager helixManager, Path appWorkDir,
       List<? extends Tag<?>> metadataTags)
       throws Exception {
-    super(jobProps, metadataTags);
+    super(jobProps, addAdditionalMetadataTags(jobProps, metadataTags));
 
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
@@ -142,6 +153,36 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     this.taskStateCollectorService = new TaskStateCollectorService(jobProps, this.jobContext.getJobState(),
         this.eventBus, this.stateStores.taskStateStore, outputTaskStateDir);
+
+    if (Task.getExecutionModel(ConfigUtils.configToState(jobConfig)).equals(ExecutionModel.STREAMING)) {
+      // Fix-up Ideal State with a custom rebalancer that will re-balance long-running jobs
+      final String clusterName =
+          ConfigUtils.getString(jobConfig, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, "");
+      final String rebalancerToReplace = "org.apache.helix.task.JobRebalancer";
+      final String rebalancerClassDesired = GobblinJobRebalancer.class.getName();
+      final String jobResourceName = this.jobResourceName;
+
+      if (!clusterName.isEmpty()) {
+        this.helixManager.addIdealStateChangeListener(new IdealStateChangeListener() {
+          @Override
+          public void onIdealStateChange(List<IdealState> list, NotificationContext notificationContext) {
+            HelixAdmin helixAdmin = helixManager.getClusterManagmentTool();
+            for (String resource : helixAdmin.getResourcesInCluster(clusterName)) {
+              if (resource.equals(jobResourceName)) {
+                IdealState idealState = helixAdmin.getResourceIdealState(clusterName, resource);
+                if (idealState != null) {
+                  String rebalancerClassFound = idealState.getRebalancerClassName();
+                  if (rebalancerToReplace.equals(rebalancerClassFound)) {
+                    idealState.setRebalancerClassName(rebalancerClassDesired);
+                    helixAdmin.setResourceIdealState(clusterName, resource, idealState);
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
   }
 
   @Override
@@ -310,5 +351,46 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private void deletePersistedWorkUnitsForJob() throws IOException {
     LOGGER.info("Deleting persisted work units for job " + this.jobContext.getJobId());
     stateStores.wuStateStore.delete(this.jobContext.getJobId());
+  }
+
+  /**
+   * Inject in some additional properties
+   * @param jobProps job properties
+   * @param inputTags list of metadata tags
+   * @return
+   */
+  private static List<? extends Tag<?>> addAdditionalMetadataTags(Properties jobProps, List<? extends Tag<?>> inputTags) {
+    List<Tag<?>> metadataTags = Lists.newArrayList(inputTags);
+    String jobId;
+
+    // generate job id if not already set
+    if (jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY)) {
+      jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
+    } else {
+      jobId = JobLauncherUtils.newJobId(JobState.getJobNameFromProps(jobProps));
+      jobProps.put(ConfigurationKeys.JOB_ID_KEY, jobId);
+    }
+
+    String jobExecutionId = Long.toString(Id.Job.parse(jobId).getSequence());
+
+    // only inject flow tags if a flow name is defined
+    if (jobProps.containsKey(ConfigurationKeys.FLOW_NAME_KEY)) {
+      metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.FLOW_GROUP,
+          jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "")));
+      metadataTags.add(
+          new Tag<>(GobblinClusterMetricTagNames.FLOW_NAME, jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
+
+      // use job execution id if flow execution id is not present
+      metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.FLOW_EXECUTION_ID,
+          jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobExecutionId)));
+    }
+
+    metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_GROUP,
+        jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "")));
+    metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_NAME,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
+    metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_EXECUTION_ID, jobExecutionId));
+
+    return metadataTags;
   }
 }

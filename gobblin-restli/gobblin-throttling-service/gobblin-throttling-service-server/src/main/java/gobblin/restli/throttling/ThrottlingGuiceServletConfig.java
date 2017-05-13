@@ -13,10 +13,13 @@
 package gobblin.restli.throttling;
 
 import com.codahale.metrics.Timer;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
 import com.google.inject.servlet.GuiceServletContextListener;
 import com.google.inject.servlet.ServletModule;
@@ -30,19 +33,27 @@ import com.linkedin.restli.server.guice.GuiceRestliServlet;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import gobblin.broker.BrokerConstants;
+
 import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SimpleScopeType;
 import gobblin.broker.iface.NotConfiguredException;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.broker.MetricContextFactory;
 import gobblin.metrics.broker.MetricContextKey;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Enumeration;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -50,34 +61,57 @@ import lombok.extern.slf4j.Slf4j;
  * {@link GuiceServletContextListener} for creating an injector in a gobblin-throttling-server servlet.
  */
 @Slf4j
-public class ThrottlingGuiceServletConfig extends GuiceServletContextListener {
+@Getter
+public class ThrottlingGuiceServletConfig extends GuiceServletContextListener implements Closeable {
 
-  private ServletContext _context;
-  private Config _brokerConfig;
+  public static final String THROTTLING_SERVER_PREFIX = "throttlingServer.";
+  public static final String LISTENING_PORT = THROTTLING_SERVER_PREFIX + "listeningPort";
+  public static final String HOSTNAME = THROTTLING_SERVER_PREFIX + "hostname";
+  public static final String ZK_STRING_KEY = "throttling.helix.zkString";
+
+  private Optional<LeaderFinder<URIMetadata>> _leaderFinder;
+  private Config _config;
+  private Injector _injector;
 
   @Override
   public void contextInitialized(ServletContextEvent servletContextEvent) {
-    _context = servletContextEvent.getServletContext();
+    ServletContext context = servletContextEvent.getServletContext();
 
-    Enumeration<String> parameters = _context.getInitParameterNames();
-    Map<String, String> brokerConfigMap = Maps.newHashMap();
+    Enumeration<String> parameters = context.getInitParameterNames();
+    Map<String, String> configMap = Maps.newHashMap();
     while (parameters.hasMoreElements()) {
       String key = parameters.nextElement();
-      if (key.startsWith(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX)) {
-        brokerConfigMap.put(key, _context.getInitParameter(key));
-      }
+      configMap.put(key, context.getInitParameter(key));
     }
-    this._brokerConfig = ConfigFactory.parseMap(brokerConfigMap);
+    initialize(ConfigFactory.parseMap(configMap));
 
     super.contextInitialized(servletContextEvent);
   }
 
-  @Override
-  protected Injector getInjector() {
-    return getInjector(this._brokerConfig);
+  public void initialize(Config config) {
+    try {
+      this._config = config;
+      this._leaderFinder = getLeaderFinder(this._config);
+      if (this._leaderFinder.isPresent()) {
+        this._leaderFinder.get().startAsync();
+        this._leaderFinder.get().awaitRunning(100, TimeUnit.SECONDS);
+      }
+      this._injector = createInjector(this._config, this._leaderFinder);
+    } catch (URISyntaxException | IOException | TimeoutException exc) {
+      log.error(String.format("Error in %s initialization.", ThrottlingGuiceServletConfig.class.getSimpleName()), exc);
+      throw new RuntimeException(exc);
+    }
   }
 
-  public static Injector getInjector(final Config brokerConfig) {
+  @Override
+  public Injector getInjector() {
+    return this._injector;
+  }
+
+  private Injector createInjector(final Config config, final Optional<LeaderFinder<URIMetadata>> leaderFinder) {
+    final SharedResourcesBroker<ThrottlingServerScopes> topLevelBroker =
+        SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config, ThrottlingServerScopes.GLOBAL.defaultScopeInstance());
+
     return Guice.createInjector(new AbstractModule() {
       @Override
       protected void configure() {
@@ -87,15 +121,17 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener {
           restLiConfig.setResourcePackageNames("gobblin.restli.throttling");
           bind(RestLiConfig.class).toInstance(restLiConfig);
 
-          SharedResourcesBroker<SimpleScopeType> broker =
-              SharedResourcesBrokerFactory.createDefaultTopLevelBroker(brokerConfig, SimpleScopeType.GLOBAL.defaultScopeInstance());
-          bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
+          bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(topLevelBroker);
 
-          MetricContext metricContext = broker.getSharedResource(new MetricContextFactory<SimpleScopeType>(), new MetricContextKey());
+          MetricContext metricContext =
+              topLevelBroker.getSharedResource(new MetricContextFactory<ThrottlingServerScopes>(), new MetricContextKey());
           Timer timer = metricContext.timer(LimiterServerResource.REQUEST_TIMER_NAME);
 
           bind(MetricContext.class).annotatedWith(Names.named(LimiterServerResource.METRIC_CONTEXT_INJECT_NAME)).toInstance(metricContext);
           bind(Timer.class).annotatedWith(Names.named(LimiterServerResource.REQUEST_TIMER_INJECT_NAME)).toInstance(timer);
+
+          bind(new TypeLiteral<Optional<LeaderFinder<URIMetadata>>>() {
+          }).annotatedWith(Names.named(LimiterServerResource.HELIX_MANAGER_INJECT_NAME)).toInstance(leaderFinder);
 
           FilterChain filterChain =
               FilterChains.create(new ServerCompressionFilter(new EncodingType[]{EncodingType.SNAPPY}), new SimpleLoggingFilter());
@@ -110,5 +146,45 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener {
         serve("/*").with(GuiceRestliServlet.class);
       }
     });
+  }
+
+  private static Optional<LeaderFinder<URIMetadata>> getLeaderFinder(Config config) throws URISyntaxException,
+                                                                                           IOException {
+    if (config.hasPath(ZK_STRING_KEY)) {
+      Preconditions.checkArgument(config.hasPath(LISTENING_PORT), "Missing required config " + LISTENING_PORT);
+      int port = config.getInt(LISTENING_PORT);
+      String hostname = config.hasPath(HOSTNAME) ? config.getString(HOSTNAME) : InetAddress.getLocalHost().getCanonicalHostName();
+
+      String zkString = config.getString(ZK_STRING_KEY);
+
+      return Optional.<LeaderFinder<URIMetadata>>of(new ZookeeperLeaderElection<>(zkString, "ThrottlingServer",
+          new URIMetadata(new URI("http", null, hostname, port, null, null, null))));
+    }
+    return Optional.absent();
+  }
+
+  @Override
+  public void contextDestroyed(ServletContextEvent servletContextEvent) {
+    close();
+    super.contextDestroyed(servletContextEvent);
+  }
+
+  @Override
+  public void close() {
+    try {
+      if (this._leaderFinder.isPresent()) {
+        this._leaderFinder.get().stopAsync();
+        this._leaderFinder.get().awaitTerminated(2, TimeUnit.SECONDS);
+      }
+    } catch (TimeoutException te) {
+      // Do nothing
+    }
+  }
+
+  /**
+   * Get an instance of {@link LimiterServerResource}.
+   */
+  public LimiterServerResource getLimiterResource() {
+    return this._injector.getInstance(LimiterServerResource.class);
   }
 }

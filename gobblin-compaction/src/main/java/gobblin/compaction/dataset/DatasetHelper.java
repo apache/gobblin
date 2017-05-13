@@ -105,12 +105,12 @@ public class DatasetHelper {
     }
   }
 
-  private List<Path> getApplicableFilePaths (Path dataDir) throws IOException {
-    if (!this.fs.exists(dataDir)) {
+  public static List<Path> getApplicableFilePaths (FileSystem fs, Path dataDir, final Collection<String> extensions) throws IOException {
+    if (!fs.exists(dataDir)) {
       return Lists.newArrayList();
     }
     List<Path> paths = Lists.newArrayList();
-    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(this.fs, dataDir, new PathFilter() {
+    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, dataDir, new PathFilter() {
       @Override
       public boolean accept(Path path) {
         for (String validExtention : extensions) {
@@ -124,6 +124,10 @@ public class DatasetHelper {
       paths.add(fileStatus.getPath());
     }
     return paths;
+  }
+
+  public List<Path> getApplicableFilePaths (Path dataDir) throws IOException {
+    return getApplicableFilePaths(fs, dataDir, Lists.newArrayList("avro"));
   }
 
   public Optional<DateTime> getEarliestLateFileModificationTime() {

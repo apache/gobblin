@@ -25,6 +25,13 @@ buildscript {
     }
   }
 
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.4'
+  }
+
 }
 
 apply plugin: 'pegasus'
@@ -44,7 +51,7 @@ dependencies {
   compile externalDependency.lombok
 
   testCompile project(":gobblin-restli:gobblin-restli-utils")
-  testCompile serverProject
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
+  testCompile serverProject
 }

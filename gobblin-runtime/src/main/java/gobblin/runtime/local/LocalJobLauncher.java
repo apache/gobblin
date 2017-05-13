@@ -18,16 +18,18 @@
 package gobblin.runtime.local;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
@@ -46,8 +48,8 @@ import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.JobSpec;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobConfigurationUtils;
-import gobblin.util.JobLauncherUtils;
-
+import gobblin.runtime.util.MultiWorkUnitUnpackingIterator;
+import gobblin.source.workunit.WorkUnitStream;
 
 /**
  * An implementation of {@link gobblin.runtime.JobLauncher} for launching and running jobs
@@ -66,8 +68,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
   // Service manager to manage dependent services
   private final ServiceManager serviceManager;
-
-  private volatile CountDownLatch countDownLatch;
 
   public LocalJobLauncher(Properties jobProps) throws Exception {
     this(jobProps, null);
@@ -113,29 +113,34 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void runWorkUnits(List<WorkUnit> workUnits) throws Exception {
-    TimingEvent workUnitsPreparationTimer =
-        this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.WORK_UNITS_PREPARATION);
-    List<WorkUnit> workUnitsToRun = JobLauncherUtils.flattenWorkUnits(workUnits);
-    workUnitsPreparationTimer.stop();
+    // This should never happen
+    throw new UnsupportedOperationException();
+  }
 
-    if (workUnitsToRun.isEmpty()) {
+  @Override
+  protected void runWorkUnitStream(WorkUnitStream workUnitStream) throws Exception {
+    String jobId = this.jobContext.getJobId();
+    final JobState jobState = this.jobContext.getJobState();
+
+    Iterator<WorkUnit> workUnitIterator = workUnitStream.getWorkUnits();
+    if (!workUnitIterator.hasNext()) {
       LOG.warn("No work units to run");
       return;
     }
 
-    String jobId = this.jobContext.getJobId();
-    JobState jobState = this.jobContext.getJobState();
-
-    for (WorkUnit workUnit : workUnitsToRun) {
-      workUnit.addAllIfNotExist(jobState);
-    }
 
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.WORK_UNITS_RUN);
+    Iterator<WorkUnit> flattenedWorkUnits = new MultiWorkUnitUnpackingIterator(workUnitStream.getWorkUnits());
+    Iterator<WorkUnit> workUnitsWithJobState = Iterators.transform(flattenedWorkUnits, new Function<WorkUnit, WorkUnit>() {
+      @Override
+      public WorkUnit apply(WorkUnit workUnit) {
+        workUnit.addAllIfNotExist(jobState);
+        return workUnit;
+      }
+    });
 
-    GobblinMultiTaskAttempt.runWorkUnits(this.jobContext, workUnitsToRun,
-        this.taskStateTracker, this.taskExecutor, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
-
-    workUnitsRunTimer.stop();
+    GobblinMultiTaskAttempt.runWorkUnits(this.jobContext, workUnitsWithJobState, this.taskStateTracker,
+        this.taskExecutor, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
 
     if (this.cancellationRequested) {
       // Wait for the cancellation execution if it has been requested
@@ -145,6 +150,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
         }
       }
     }
+    workUnitsRunTimer.stop();
 
     LOG.info(String.format("All tasks of job %s have completed", jobId));
 
@@ -155,10 +161,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void executeCancellation() {
-    if (this.countDownLatch != null) {
-      while (this.countDownLatch.getCount() > 0) {
-        this.countDownLatch.countDown();
-      }
-    }
+
   }
 }

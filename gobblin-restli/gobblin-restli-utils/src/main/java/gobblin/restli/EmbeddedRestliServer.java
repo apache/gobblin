@@ -48,6 +48,7 @@ import com.linkedin.restli.server.RestLiServer;
 import com.linkedin.restli.server.guice.GuiceInjectResourceFactory;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.linkedin.restli.server.resources.ResourceFactory;
+import com.linkedin.restli.server.validation.RestLiInputValidationFilter;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -77,6 +78,7 @@ public class EmbeddedRestliServer extends AbstractIdleService {
   private final URI serverUri;
   @Getter
   private final int port;
+  @Getter
   private final Injector injector;
   private final Logger log;
   @Getter
@@ -131,6 +133,7 @@ public class EmbeddedRestliServer extends AbstractIdleService {
     config.addResourceClassNames(resourceClassNames);
     config.setServerNodeUri(this.serverUri);
     config.setDocumentationRequestHandler(new DefaultDocumentationRequestHandler());
+    config.addRequestFilter(new RestLiInputValidationFilter());
 
     ResourceFactory factory = new GuiceInjectResourceFactory(this.injector);
 
@@ -148,8 +151,9 @@ public class EmbeddedRestliServer extends AbstractIdleService {
   @Override
   protected void shutDown() throws Exception {
     if (this.httpServer.isPresent()) {
-      this.log.info("Stopping the {} embedded server.", this.name);
+      this.log.info("Stopping the {} embedded server at port {}", this.name, this.port);
       this.httpServer.get().stop();
+      this.httpServer.get().waitForStop();
     }
   }
 

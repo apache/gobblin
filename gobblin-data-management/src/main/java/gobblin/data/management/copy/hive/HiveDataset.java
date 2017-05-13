@@ -17,7 +17,6 @@
 
 package gobblin.data.management.copy.hive;
 
-import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
@@ -48,6 +47,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueType;
+import com.google.common.collect.ImmutableSet;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;

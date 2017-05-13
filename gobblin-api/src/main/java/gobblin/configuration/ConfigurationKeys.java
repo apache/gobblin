@@ -75,6 +75,8 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
   public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
 
+  public static final String DATASETURN_STATESTORE_NAME_PARSER = "state.store.datasetUrnStateStoreNameParser";
+
   /**
    * Job scheduler configuration properties.
    */
@@ -115,6 +117,7 @@ public class ConfigurationKeys {
   public static final String FLOW_NAME_KEY = "flow.name";
   public static final String FLOW_GROUP_KEY = "flow.group";
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
+  public static final String FLOW_EXECUTION_ID_KEY = "flow.executionId";
 
   /**
    * Common topology configuration properties.
@@ -400,6 +403,8 @@ public class ConfigurationKeys {
   public static final String PUBLISH_DATA_AT_JOB_LEVEL = "publish.data.at.job.level";
   public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
   public static final String PUBLISHER_DIRS = DATA_PUBLISHER_PREFIX + ".output.dirs";
+  public static final String DATA_PUBLISHER_CAN_BE_SKIPPED = DATA_PUBLISHER_PREFIX + ".canBeSkipped";
+  public static final boolean DEFAULT_DATA_PUBLISHER_CAN_BE_SKIPPED = false;
 
   /**
    * Configuration properties used by the extractor.
@@ -441,6 +446,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED = "source.querybased.is.compression.enabled";
   public static final String SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE =
       "source.querybased.jdbc.resultset.fetch.size";
+  public static final String SOURCE_QUERYBASED_ALLOW_REMOVE_UPPER_BOUNDS = "source.querybased.allowRemoveUpperBounds";
 
   /**
    * Configuration properties used by the FileBasedExtractor
@@ -451,6 +457,10 @@ public class ConfigurationKeys {
   public static final String SOURCE_FILEBASED_FS_URI = "source.filebased.fs.uri";
   public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
   public static final String SOURCE_FILEBASED_OPTIONAL_DOWNLOADER_CLASS = "source.filebased.downloader.class";
+  public static final String SOURCE_FILEBASED_ENCRYPTED_CONFIG_PATH = "source.filebased.encrypted";
+
+  public static final String SOURCE_FILEBASED_FS_PRIOR_SNAPSHOT_REQUIRED = "source.filebased.fs.prior.snapshot.required";
+  public static final boolean DEFAULT_SOURCE_FILEBASED_FS_PRIOR_SNAPSHOT_REQUIRED = false;
 
   /**
    * Configuration properties used internally by the KafkaSource.
@@ -746,4 +756,10 @@ public class ConfigurationKeys {
    */
   public static final String SPECEXECUTOR_INSTANCE_URI_KEY = "specExecInstance.uri";
   public static final String SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY = "specExecInstance.capabilities";
+
+  /***
+   * Configuration properties related to Compaction Suite
+   */
+  public static final String COMPACTION_SUITE_FACTORY = "compaction.suite.factory";
+  public static final String DEFAULT_COMPACTION_SUITE_FACTORY = "CompactionAvroSuiteFactory";
 }

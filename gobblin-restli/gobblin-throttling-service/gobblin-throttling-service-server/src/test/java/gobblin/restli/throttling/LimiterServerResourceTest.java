@@ -32,8 +32,6 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.broker.BrokerConfigurationKeyGenerator;
 import gobblin.metrics.MetricContext;
-import gobblin.util.limiter.CountBasedLimiter;
-import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.util.limiter.broker.SharedLimiterKey;
 
 import avro.shaded.com.google.common.collect.ImmutableMap;
@@ -43,14 +41,16 @@ public class LimiterServerResourceTest {
 
   @Test
   public void test() {
-    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.empty());
+    ThrottlingGuiceServletConfig guiceServletConfig = new ThrottlingGuiceServletConfig();
+    guiceServletConfig.initialize(ConfigFactory.empty());
+    Injector injector = guiceServletConfig.getInjector();
 
     LimiterServerResource limiterServer = injector.getInstance(LimiterServerResource.class);
 
     PermitRequest request = new PermitRequest();
     request.setPermits(10);
     request.setResource("myResource");
-    PermitAllocation allocation = limiterServer.get(new ComplexResourceKey<>(request, new EmptyRecord()));
+    PermitAllocation allocation = limiterServer.getSync(new ComplexResourceKey<>(request, new EmptyRecord()));
 
     Assert.assertTrue(allocation.getPermits() >= 10);
 
@@ -72,54 +72,58 @@ public class LimiterServerResourceTest {
         .put(BrokerConfigurationKeyGenerator.generateKey(factory, res2key, null, CountBasedPolicy.COUNT_KEY), "50")
         .build();
 
-    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.parseMap(configMap));
+    ThrottlingGuiceServletConfig guiceServletConfig = new ThrottlingGuiceServletConfig();
+    guiceServletConfig.initialize(ConfigFactory.parseMap(configMap));
+    Injector injector = guiceServletConfig.getInjector();
 
     LimiterServerResource limiterServer = injector.getInstance(LimiterServerResource.class);
 
     PermitRequest res1request = new PermitRequest();
     res1request.setPermits(20);
-    res1request.setResource(res1key.getResourceLimited());
+    res1request.setResource(res1key.getResourceLimitedPath());
 
     PermitRequest res2request = new PermitRequest();
     res2request.setPermits(20);
-    res2request.setResource(res2key.getResourceLimited());
+    res2request.setResource(res2key.getResourceLimitedPath());
 
     PermitRequest res3request = new PermitRequest();
     res3request.setPermits(100000);
     res3request.setResource("res3");
 
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
+    Assert.assertEquals(limiterServer.getSync(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
+    Assert.assertEquals(limiterServer.getSync(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
+    Assert.assertEquals(limiterServer.getSync(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
+    Assert.assertEquals(limiterServer.getSync(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
+    Assert.assertEquals(limiterServer.getSync(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
 
     try {
       // out of permits
-      limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits();
+      limiterServer.getSync(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits();
       Assert.fail();
     } catch (RestLiServiceException exc) {
       Assert.assertEquals(exc.getStatus(), HttpStatus.S_403_FORBIDDEN);
     }
 
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits(), new Long(20));
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits(), new Long(20));
+    Assert.assertEquals(limiterServer.getSync(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits(), new Long(20));
+    Assert.assertEquals(limiterServer.getSync(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits(), new Long(20));
     // out of permits
     try {
       // out of permits
-      limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits();
+      limiterServer.getSync(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits();
       Assert.fail();
     } catch (RestLiServiceException exc) {
       Assert.assertEquals(exc.getStatus(), HttpStatus.S_403_FORBIDDEN);
     }
 
     // No limit
-    Assert.assertTrue(limiterServer.get(new ComplexResourceKey<>(res3request, new EmptyRecord())).getPermits() >= res3request.getPermits());
+    Assert.assertTrue(limiterServer.getSync(new ComplexResourceKey<>(res3request, new EmptyRecord())).getPermits() >= res3request.getPermits());
   }
 
   @Test
   public void testMetrics() throws Exception {
-    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.empty());
+    ThrottlingGuiceServletConfig guiceServletConfig = new ThrottlingGuiceServletConfig();
+    guiceServletConfig.initialize(ConfigFactory.empty());
+    Injector injector = guiceServletConfig.getInjector();
 
     LimiterServerResource limiterServer = injector.getInstance(LimiterServerResource.class);
 
@@ -127,9 +131,9 @@ public class LimiterServerResourceTest {
     request.setPermits(10);
     request.setResource("myResource");
 
-    limiterServer.get(new ComplexResourceKey<>(request, new EmptyRecord()));
-    limiterServer.get(new ComplexResourceKey<>(request, new EmptyRecord()));
-    limiterServer.get(new ComplexResourceKey<>(request, new EmptyRecord()));
+    limiterServer.getSync(new ComplexResourceKey<>(request, new EmptyRecord()));
+    limiterServer.getSync(new ComplexResourceKey<>(request, new EmptyRecord()));
+    limiterServer.getSync(new ComplexResourceKey<>(request, new EmptyRecord()));
 
     MetricContext metricContext = limiterServer.metricContext;
     Timer timer = metricContext.timer(LimiterServerResource.REQUEST_TIMER_NAME);

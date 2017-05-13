@@ -20,6 +20,7 @@ package gobblin.restli;
 import gobblin.broker.iface.SharedResourceKey;
 
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 
 
 /**
@@ -27,6 +28,7 @@ import lombok.AllArgsConstructor;
  * (e.g. throttling).
  */
 @AllArgsConstructor
+@EqualsAndHashCode
 public class SharedRestClientKey implements SharedResourceKey {
   public final String serviceName;
 

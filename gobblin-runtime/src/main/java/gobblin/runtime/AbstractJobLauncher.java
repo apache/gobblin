@@ -18,7 +18,6 @@
 package gobblin.runtime;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -36,7 +35,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -44,8 +42,13 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.source.Source;
+import gobblin.source.WorkUnitStreamSource;
+import gobblin.source.workunit.BasicWorkUnitStream;
+import gobblin.source.workunit.WorkUnitStream;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.SharedResourcesBrokerFactory;
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.commit.CommitSequence;
 import gobblin.commit.CommitSequenceStore;
@@ -69,6 +72,7 @@ import gobblin.runtime.locks.JobLockEventListener;
 import gobblin.runtime.locks.JobLockException;
 import gobblin.runtime.locks.LegacyJobLockFactoryManager;
 import gobblin.runtime.util.JobMetrics;
+import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ClusterNameTags;
@@ -79,6 +83,7 @@ import gobblin.util.ParallelRunner;
 import gobblin.writer.initializer.WriterInitializerFactory;
 
 import javax.annotation.Nullable;
+import lombok.RequiredArgsConstructor;
 
 
 /**
@@ -134,7 +139,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // A list of JobListeners that will be injected into the user provided JobListener
   private final List<JobListener> mandatoryJobListeners = Lists.newArrayList();
 
-  public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags) throws Exception {
+  public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
+      throws Exception {
     this(jobProps, metadataTags, null);
   }
 
@@ -154,9 +160,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.jobProps.putAll(jobProps);
 
     if (!tryLockJob(this.jobProps)) {
-      throw new JobException(String.format(
-          "Previous instance of job %s is still running, skipping this scheduled run",
-          this.jobProps .getProperty(ConfigurationKeys.JOB_NAME_KEY)));
+      throw new JobException(String.format("Previous instance of job %s is still running, skipping this scheduled run",
+          this.jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)));
     }
 
     try {
@@ -192,7 +197,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   private static SharedResourcesBroker<GobblinScopeTypes> createDefaultInstanceBroker(Properties jobProps) {
-    LOG.warn("Creating a job specific {}. Objects will only be shared at the job level.", SharedResourcesBroker.class.getSimpleName());
+    LOG.warn("Creating a job specific {}. Objects will only be shared at the job level.",
+        SharedResourcesBroker.class.getSimpleName());
     return SharedResourcesBrokerFactory.createDefaultTopLevelBroker(ConfigFactory.parseProperties(jobProps),
         GobblinScopeTypes.GLOBAL.defaultScopeInstance());
   }
@@ -245,7 +251,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           // Wait for the cancellation to be executed
           this.cancellationExecution.wait();
         }
+
         try {
+          LOG.info("Current job state is: " + this.jobContext.getJobState().getState());
+          if (this.jobContext.getJobState().getState() != JobState.RunningState.COMMITTED && (
+              this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS
+                  || this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS)) {
+            this.jobContext.finalizeJobStateBeforeCommit();
+            this.jobContext.commit(true);
+          }
           this.jobContext.close();
         } catch (IOException ioe) {
           LOG.error("Could not close job context.", ioe);
@@ -264,17 +278,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * This method checks if a work unit should be skipped. If yes, then it will removed
+   * This predicate checks if a work unit should be skipped. If yes, then it will removed
    * from the list of workUnits and it's state will be saved.
-   * @param workUnits passed from {@link #launchJob(JobListener)}
-   * @param jobState passed from {@link #launchJob(JobListener)}
    */
-  private Optional<List<WorkUnit>> removeSkippedWorkUnits(Optional<List<WorkUnit>> workUnits, JobState jobState) {
-    if (!workUnits.isPresent()) {
-      return workUnits;
-    }
-    final List<WorkUnit> skippedWorkUnits = new ArrayList<>();
-    for (WorkUnit workUnit : workUnits.get()) {
+  @RequiredArgsConstructor
+  private static class SkippedWorkUnitsFilter implements Predicate<WorkUnit> {
+    private final JobState jobState;
+
+    @Override
+    public boolean apply(WorkUnit workUnit) {
       if (workUnit instanceof MultiWorkUnit) {
         Preconditions.checkArgument(!workUnit.contains(ConfigurationKeys.WORK_UNIT_SKIP_KEY),
             "Error: MultiWorkUnit cannot be skipped");
@@ -284,28 +296,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
       if (workUnit.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_SKIP_KEY, false)) {
-        skippedWorkUnits.add(workUnit);
-        WorkUnitState workUnitState = new WorkUnitState(workUnit, jobState);
+        WorkUnitState workUnitState = new WorkUnitState(workUnit, this.jobState);
         workUnitState.setWorkingState(WorkUnitState.WorkingState.SKIPPED);
-        jobState.addTaskState(new TaskState(workUnitState));
+        this.jobState.addSkippedTaskState(new TaskState(workUnitState));
+        return false;
       }
+      return true;
     }
-    jobState.filterSkippedTaskStates();
-    Predicate<WorkUnit> executableWorkUnit = new Predicate<WorkUnit>() {
-      @Override
-      public boolean apply(@Nullable WorkUnit workUnit) {
-        return !skippedWorkUnits.contains(workUnit);
-      }
-    };
-    return Optional.fromNullable((List<WorkUnit>) (ImmutableList.<WorkUnit>builder().addAll(
-        Collections2.filter(workUnits.get(), executableWorkUnit)).build()));
   }
 
   @Override
   public void launchJob(JobListener jobListener)
       throws JobException {
     String jobId = this.jobContext.getJobId();
-    JobState jobState = this.jobContext.getJobState();
+    final JobState jobState = this.jobContext.getJobState();
 
     try {
       MDC.put(ConfigurationKeys.JOB_NAME_KEY, this.jobContext.getJobName());
@@ -330,19 +334,24 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         TimingEvent workUnitsCreationTimer =
             this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_CREATION);
-        // Generate work units of the job from the source
-        Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
+        Source<?, ?> source = this.jobContext.getSource();
+        WorkUnitStream workUnitStream;
+        if (source instanceof WorkUnitStreamSource) {
+          workUnitStream = ((WorkUnitStreamSource) source).getWorkunitStream(jobState);
+        } else {
+          workUnitStream = new BasicWorkUnitStream.Builder(source.getWorkunits(jobState)).build();
+        }
         workUnitsCreationTimer.stop();
 
         // The absence means there is something wrong getting the work units
-        if (!workUnits.isPresent()) {
+        if (workUnitStream == null || workUnitStream.getWorkUnits() == null) {
           this.eventSubmitter.submit(JobEvent.WORK_UNITS_MISSING);
           jobState.setState(JobState.RunningState.FAILED);
           throw new JobException("Failed to get work units for job " + jobId);
         }
 
         // No work unit to run
-        if (workUnits.get().isEmpty()) {
+        if (!workUnitStream.getWorkUnits().hasNext()) {
           this.eventSubmitter.submit(JobEvent.WORK_UNITS_EMPTY);
           LOG.warn("No work units have been created for job " + jobId);
           jobState.setState(JobState.RunningState.COMMITTED);
@@ -358,15 +367,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
 
         //Initialize writer and converter(s)
-        closer.register(WriterInitializerFactory.newInstace(jobState, workUnits.get())).initialize();
-        closer.register(ConverterInitializerFactory.newInstance(jobState, workUnits.get())).initialize();
+        closer.register(WriterInitializerFactory.newInstace(jobState, workUnitStream)).initialize();
+        closer.register(ConverterInitializerFactory.newInstance(jobState, workUnitStream)).initialize();
 
         TimingEvent stagingDataCleanTimer =
             this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_STAGING_DATA_CLEAN);
         // Cleanup left-over staging data possibly from the previous run. This is particularly
         // important if the current batch of WorkUnits include failed WorkUnits from the previous
         // run which may still have left-over staging data not cleaned up yet.
-        cleanLeftoverStagingData(workUnits.get(), jobState);
+        cleanLeftoverStagingData(workUnitStream, jobState);
         stagingDataCleanTimer.stop();
 
         long startTime = System.currentTimeMillis();
@@ -386,17 +395,26 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
           TimingEvent workUnitsPreparationTimer =
               this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_PREPARATION);
-          prepareWorkUnits(JobLauncherUtils.flattenWorkUnits(workUnits.get()), jobState);
+          // Add task ids
+          workUnitStream = prepareWorkUnits(workUnitStream, jobState);
+          // Remove skipped workUnits from the list of work units to execute.
+          workUnitStream = workUnitStream.filter(new SkippedWorkUnitsFilter(jobState));
+          // Add surviving tasks to jobState
+          workUnitStream = workUnitStream.transform(new MultiWorkUnitForEach() {
+            @Override
+            public void forWorkUnit(WorkUnit workUnit) {
+              jobState.incrementTaskCount();
+              jobState.addTaskState(new TaskState(new WorkUnitState(workUnit, jobState)));
+            }
+          });
           workUnitsPreparationTimer.stop();
 
           // Write job execution info to the job history store before the job starts to run
           this.jobContext.storeJobExecutionInfo();
 
           TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_RUN);
-          // Remove skipped workUnits from the list of work units to execute.
-          workUnits = removeSkippedWorkUnits(workUnits, jobState);
           // Start the job and wait for it to finish
-          runWorkUnits(workUnits.get());
+          runWorkUnitStream(workUnitStream);
           jobRunTimer.stop();
 
           this.eventSubmitter
@@ -430,8 +448,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
           // Write job execution info to the job history store upon job termination
           this.jobContext.storeJobExecutionInfo();
-        }
-        finally {
+        } finally {
           launchJobTimer.stop();
         }
       }
@@ -518,7 +535,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
     } finally {
-        unlockJob();
+      unlockJob();
     }
   }
 
@@ -536,6 +553,32 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    */
   protected abstract void runWorkUnits(List<WorkUnit> workUnits)
       throws Exception;
+
+  /**
+   * Run the given job.
+   *
+   * <p>
+   *   The contract between {@link AbstractJobLauncher#launchJob(JobListener)} and this method is this method
+   *   is responsible for for setting {@link JobState.RunningState} properly and upon returning from this method
+   *   (either normally or due to exceptions) whatever {@link JobState.RunningState} is set in this method is
+   *   used to determine if the job has finished.
+   * </p>
+   *
+   * @param workUnitStream stream of {@link WorkUnit}s of the job
+   */
+  protected void runWorkUnitStream(WorkUnitStream workUnitStream) throws Exception {
+    runWorkUnits(materializeWorkUnitList(workUnitStream));
+  }
+
+  /**
+   * Materialize a {@link WorkUnitStream} into an in-memory list. Note that infinite work unit streams cannot be materialized.
+   */
+  private List<WorkUnit> materializeWorkUnitList(WorkUnitStream workUnitStream) {
+    if (!workUnitStream.isFiniteStream()) {
+      throw new UnsupportedOperationException("Cannot materialize an infinite work unit stream.");
+    }
+    return Lists.newArrayList(workUnitStream.getWorkUnits());
+  }
 
   /**
    * Get a {@link JobLock} to be used for the job.
@@ -599,18 +642,40 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Prepare the flattened {@link WorkUnit}s for execution by populating the job and task IDs.
    */
-  private void prepareWorkUnits(List<WorkUnit> workUnits, JobState jobState) {
-    int taskIdSequence = 0;
-    for (WorkUnit workUnit : workUnits) {
-      workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobContext.getJobId());
-      String taskId = JobLauncherUtils.newTaskId(this.jobContext.getJobId(), taskIdSequence++);
+  private WorkUnitStream prepareWorkUnits(WorkUnitStream workUnits, JobState jobState) {
+    return workUnits.transform(new WorkUnitPreparator(this.jobContext.getJobId()));
+  }
+
+  private static abstract class MultiWorkUnitForEach implements Function<WorkUnit, WorkUnit> {
+
+    @Nullable
+    @Override
+    public WorkUnit apply(WorkUnit input) {
+      if (input instanceof MultiWorkUnit) {
+        for (WorkUnit wu : ((MultiWorkUnit) input).getWorkUnits()) {
+          forWorkUnit(wu);
+        }
+      } else {
+        forWorkUnit(input);
+      }
+      return input;
+    }
+
+    protected abstract void forWorkUnit(WorkUnit workUnit);
+  }
+
+  @RequiredArgsConstructor
+  private static class WorkUnitPreparator extends MultiWorkUnitForEach {
+    private int taskIdSequence = 0;
+    private final String jobId;
+
+    @Override
+    protected void forWorkUnit(WorkUnit workUnit) {
+      workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobId);
+      String taskId = JobLauncherUtils.newTaskId(this.jobId, this.taskIdSequence++);
       workUnit.setId(taskId);
       workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
       workUnit.setProp(ConfigurationKeys.TASK_KEY_KEY, Long.toString(Id.Task.parse(taskId).getSequence()));
-      jobState.incrementTaskCount();
-      // Pre-add a task state so if the task fails and no task state is written out,
-      // there is still task state for the task when job/task states are persisted.
-      jobState.addTaskState(new TaskState(new WorkUnitState(workUnit, jobState)));
     }
   }
 
@@ -651,7 +716,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           this.jobLockOptional.get().close();
         } catch (IOException e) {
           LOG.error(String.format("Failed to close job lock for job %s: %s", this.jobContext.getJobId(), e), e);
-
         } finally {
           this.jobLockOptional = Optional.absent();
         }
@@ -711,7 +775,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    *
    * Staging data will not be cleaned if the job has unfinished {@link CommitSequence}s.
    */
-  private void cleanLeftoverStagingData(List<WorkUnit> workUnits, JobState jobState)
+  private void cleanLeftoverStagingData(WorkUnitStream workUnits, JobState jobState)
       throws JobException {
     if (jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_STAGING_DATA_BY_INITIALIZER, false)) {
       //Clean up will be done by initializer.
@@ -729,16 +793,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     try {
       if (this.jobContext.shouldCleanupStagingDataPerTask()) {
-        Closer closer = Closer.create();
-        Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
-        try {
-          for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
-            JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(workUnit, jobState), LOG, closer, parallelRunners);
+        if (workUnits.isSafeToMaterialize()) {
+          Closer closer = Closer.create();
+          Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
+          try {
+            for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits.getMaterializedWorkUnitCollection())) {
+              JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(workUnit, jobState), LOG, closer, parallelRunners);
+            }
+          } catch (Throwable t) {
+            throw closer.rethrow(t);
+          } finally {
+            closer.close();
           }
-        } catch (Throwable t) {
-          throw closer.rethrow(t);
-        } finally {
-          closer.close();
+        } else {
+          throw new RuntimeException("Work unit streams do not support cleaning staging data per task.");
         }
       } else {
         JobLauncherUtils.cleanJobStagingData(jobState, LOG);

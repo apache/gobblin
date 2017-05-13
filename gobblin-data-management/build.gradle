@@ -54,6 +54,8 @@ dependencies {
   testCompile externalDependency.joptSimple
   testCompile externalDependency.hamcrest
   testCompile externalDependency.testng
+
+  testRuntime project(":gobblin-modules:gobblin-crypto-provider") // for GPG
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

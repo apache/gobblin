@@ -31,6 +31,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alpha;
 import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.service.ServiceConfigKeys;
@@ -38,6 +39,7 @@ import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
 
 
+@Alpha
 public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
 
   private static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();

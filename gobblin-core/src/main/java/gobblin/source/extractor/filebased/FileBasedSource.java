@@ -104,10 +104,17 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     Set<String> prevFsSnapshot = Sets.newHashSet();
 
     // Get list of files seen in the previous run
-    if (!previousWorkunits.isEmpty()
-        && previousWorkunits.get(0).getWorkunit().contains(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT)) {
-      prevFsSnapshot =
-          previousWorkunits.get(0).getWorkunit().getPropAsSet(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT);
+    if (!previousWorkunits.isEmpty()) {
+      if (previousWorkunits.get(0).getWorkunit().contains(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT)) {
+        prevFsSnapshot =
+            previousWorkunits.get(0).getWorkunit().getPropAsSet(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT);
+      } else if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_FS_PRIOR_SNAPSHOT_REQUIRED,
+            ConfigurationKeys.DEFAULT_SOURCE_FILEBASED_FS_PRIOR_SNAPSHOT_REQUIRED)) {
+        // If a previous job exists, there should be a snapshot property.  If not, we need to fail so that we
+        // don't accidentally read files that have already been processed.
+        throw new RuntimeException(String.format("No '%s' found on state of prior job",
+            ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT));
+      }
     }
 
     List<WorkUnit> workUnits = Lists.newArrayList();

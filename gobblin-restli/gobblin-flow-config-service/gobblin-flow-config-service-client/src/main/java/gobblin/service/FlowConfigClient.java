@@ -87,11 +87,12 @@ public class FlowConfigClient implements Closeable {
    */
   public void createFlowConfig(FlowConfig flowConfig)
       throws RemoteInvocationException {
-    LOG.debug("createFlowConfig with groupName " + flowConfig.getFlowGroup() + " flowName " + flowConfig.getFlowName());
+    LOG.debug("createFlowConfig with groupName " + flowConfig.getId().getFlowGroup() + " flowName " +
+        flowConfig.getId().getFlowName());
 
-    CreateIdRequest<ComplexResourceKey<FlowConfigId, EmptyRecord>, FlowConfig> request =
+    CreateIdRequest<ComplexResourceKey<FlowId, EmptyRecord>, FlowConfig> request =
         _flowconfigsRequestBuilders.create().input(flowConfig).build();
-    ResponseFuture<IdResponse<ComplexResourceKey<FlowConfigId, EmptyRecord>>> flowConfigResponseFuture =
+    ResponseFuture<IdResponse<ComplexResourceKey<FlowId, EmptyRecord>>> flowConfigResponseFuture =
         _restClient.get().sendRequest(request);
 
     flowConfigResponseFuture.getResponse();
@@ -104,13 +105,14 @@ public class FlowConfigClient implements Closeable {
    */
   public void updateFlowConfig(FlowConfig flowConfig)
       throws RemoteInvocationException {
-    LOG.debug("updateFlowConfig with groupName " + flowConfig.getFlowGroup() + " flowName " + flowConfig.getFlowName());
+    LOG.debug("updateFlowConfig with groupName " + flowConfig.getId().getFlowGroup() + " flowName " +
+        flowConfig.getId().getFlowName());
 
-    FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(flowConfig.getFlowGroup())
-        .setFlowName(flowConfig.getFlowName());
+    FlowId flowId = new FlowId().setFlowGroup(flowConfig.getId().getFlowGroup())
+        .setFlowName(flowConfig.getId().getFlowName());
 
     UpdateRequest<FlowConfig> updateRequest =
-        _flowconfigsRequestBuilders.update().id(new ComplexResourceKey<>(flowConfigId, new EmptyRecord()))
+        _flowconfigsRequestBuilders.update().id(new ComplexResourceKey<>(flowId, new EmptyRecord()))
             .input(flowConfig).build();
 
     ResponseFuture<EmptyRecord> response = _restClient.get().sendRequest(updateRequest);
@@ -120,17 +122,17 @@ public class FlowConfigClient implements Closeable {
 
   /**
    * Get a flow configuration
-   * @param flowConfigId identifier of flow configuration to get
+   * @param flowId identifier of flow configuration to get
    * @return a {@link FlowConfig} with the flow configuration
    * @throws RemoteInvocationException
    */
-  public FlowConfig getFlowConfig(FlowConfigId flowConfigId)
+  public FlowConfig getFlowConfig(FlowId flowId)
       throws RemoteInvocationException {
-    LOG.debug("getFlowConfig with groupName " + flowConfigId.getFlowGroup() + " flowName " +
-        flowConfigId.getFlowName());
+    LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
+        flowId.getFlowName());
 
     GetRequest<FlowConfig> getRequest = _flowconfigsRequestBuilders.get()
-        .id(new ComplexResourceKey<>(flowConfigId, new EmptyRecord())).build();
+        .id(new ComplexResourceKey<>(flowId, new EmptyRecord())).build();
 
     Response<FlowConfig> response =
         _restClient.get().sendRequest(getRequest).getResponse();
@@ -139,16 +141,16 @@ public class FlowConfigClient implements Closeable {
 
   /**
    * Delete a flow configuration
-   * @param flowConfigId identifier of flow configuration to delete
+   * @param flowId identifier of flow configuration to delete
    * @throws RemoteInvocationException
    */
-  public void deleteFlowConfig(FlowConfigId flowConfigId)
+  public void deleteFlowConfig(FlowId flowId)
       throws RemoteInvocationException {
-    LOG.debug("deleteFlowConfig with groupName " + flowConfigId.getFlowGroup() + " flowName " +
-        flowConfigId.getFlowName());
+    LOG.debug("deleteFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
+        flowId.getFlowName());
 
     DeleteRequest<FlowConfig> deleteRequest = _flowconfigsRequestBuilders.delete()
-        .id(new ComplexResourceKey<>(flowConfigId, new EmptyRecord())).build();
+        .id(new ComplexResourceKey<>(flowId, new EmptyRecord())).build();
     ResponseFuture<EmptyRecord> response = _restClient.get().sendRequest(deleteRequest);
 
     response.getResponse();

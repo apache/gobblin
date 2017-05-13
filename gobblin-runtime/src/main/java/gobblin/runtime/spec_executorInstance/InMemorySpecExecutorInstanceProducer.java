@@ -113,6 +113,8 @@ public class InMemorySpecExecutorInstanceProducer implements SpecExecutorInstanc
   @Override
   public Future<?> addSpec(Spec addedSpec) {
     provisionedSpecs.put(addedSpec.getUri(), addedSpec);
+    log.info(String.format("Added Spec: %s with Uri: %s for execution on this executor.", addedSpec, addedSpec.getUri()));
+
     return new CompletedFuture(Boolean.TRUE, null);
   }
 
@@ -122,6 +124,8 @@ public class InMemorySpecExecutorInstanceProducer implements SpecExecutorInstanc
       throw new RuntimeException("Spec not found: " + updatedSpec.getUri());
     }
     provisionedSpecs.put(updatedSpec.getUri(), updatedSpec);
+    log.info(String.format("Updated Spec: %s with Uri: %s for execution on this executor.", updatedSpec, updatedSpec.getUri()));
+
     return new CompletedFuture(Boolean.TRUE, null);
   }
 
@@ -131,6 +135,8 @@ public class InMemorySpecExecutorInstanceProducer implements SpecExecutorInstanc
       throw new RuntimeException("Spec not found: " + deletedSpecURI);
     }
     provisionedSpecs.remove(deletedSpecURI);
+    log.info(String.format("Deleted Spec with Uri: %s from this executor.", deletedSpecURI));
+
     return new CompletedFuture(Boolean.TRUE, null);
   }
 

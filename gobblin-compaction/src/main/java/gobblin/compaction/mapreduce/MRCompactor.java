@@ -121,7 +121,7 @@ public class MRCompactor implements Compactor {
   // The output dir for compaction MR job, which will be moved to the final output dir for data publishing.
   public static final String COMPACTION_TMP_DEST_DIR = COMPACTION_PREFIX + "tmp.dest.dir";
   public static final String DEFAULT_COMPACTION_TMP_DEST_DIR = "/tmp/gobblin-compaction";
-
+  public static final String COMPACTION_JOB_DIR = COMPACTION_PREFIX + "tmp.job.dir";
   public static final String COMPACTION_LATE_DIR_SUFFIX = "_late";
 
   public static final String COMPACTION_BLACKLIST = COMPACTION_PREFIX + "blacklist";
@@ -249,6 +249,7 @@ public class MRCompactor implements Compactor {
   public static final String COMPACTION_COMPLETE_FILE_NAME = "_COMPACTION_COMPLETE";
   public static final String COMPACTION_LATE_FILES_DIRECTORY = "late";
   public static final String COMPACTION_JARS = COMPACTION_PREFIX + "jars";
+  public static final String COMPACTION_JAR_SUBDIR = "_gobblin_compaction_jars";
   public static final String COMPACTION_TRACKING_EVENTS_NAMESPACE = COMPACTION_PREFIX + "tracking.events";
 
   public static final String COMPACTION_INPUT_PATH_TIME = COMPACTION_PREFIX + "input.path.time";
@@ -893,6 +894,16 @@ public class MRCompactor implements Compactor {
     }
   }
 
+  public static void modifyDatasetStateToRecompact (Dataset dataset) {
+    // Modify the dataset for recompaction
+    LOG.info ("{} changes to recompact mode", dataset.getDatasetName());
+    State recompactState = new State();
+    recompactState.setProp(MRCompactor.COMPACTION_RECOMPACT_FROM_DEST_PATHS, Boolean.TRUE);
+    recompactState.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, Boolean.FALSE);
+    dataset.modifyDatasetForRecompact(recompactState);
+    dataset.setState(VERIFIED);
+  }
+
   /**
    * A subclass of {@link ThreadPoolExecutor} for running compaction jobs, and performs necessary steps
    * after each compaction job finishes.
@@ -923,12 +934,7 @@ public class MRCompactor implements Compactor {
       if (t == null) {
         if (jobRunner.status() == COMMITTED) {
           if (jobRunner.getDataset().needToRecompact()) {
-            // Modify the dataset for recompaction
-            State recompactState = new State();
-            recompactState.setProp(MRCompactor.COMPACTION_RECOMPACT_FROM_DEST_PATHS, Boolean.TRUE);
-            recompactState.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, Boolean.FALSE);
-            jobRunner.getDataset().modifyDatasetForRecompact(recompactState);
-            jobRunner.getDataset().setState(VERIFIED);
+            modifyDatasetStateToRecompact (jobRunner.getDataset());
           } else {
             // Set the dataset status to COMPACTION_COMPLETE if compaction is successful.
             jobRunner.getDataset().setState(COMPACTION_COMPLETE);

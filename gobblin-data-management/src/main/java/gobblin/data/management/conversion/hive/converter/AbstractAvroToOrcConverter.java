@@ -63,6 +63,7 @@ import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
+import gobblin.data.management.copy.hive.WhitelistBlacklist;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.util.AutoReturnableObject;
@@ -140,6 +141,12 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
   public static final String HIVE_CONVERSION_SETSERDETOAVROEXPLICITELY = "hive.conversion.setSerdeToAvroExplicitly";
   public static final boolean DEFAULT_HIVE_CONVERSION_SETSERDETOAVROEXPLICITELY = true;
 
+  /***
+   * Global Hive conversion view registration whitelist / blacklist key
+   */
+  public static final String HIVE_CONVERSION_VIEW_REGISTRATION_WHITELIST = "hive.conversion.view.registration.whitelist";
+  public static final String HIVE_CONVERSION_VIEW_REGISTRATION_BLACKLIST = "hive.conversion.view.registration.blacklist";
+
   /**
    * Subclasses can convert the {@link Schema} if required.
    *
@@ -212,12 +219,23 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     Optional<Table> destinationTableMeta = destinationMeta.getLeft();
 
     // Optional
+    // View registration blacklist / whitelist
+    Optional<WhitelistBlacklist> optionalViewRegistrationWhiteBlacklist = getViewWhiteBackListFromWorkUnit(workUnit);
+
     // wrapperViewName          : If specified view with 'wrapperViewName' is created if not already exists
     //                            over destination table
     // isUpdateViewAlwaysEnabled: If false 'wrapperViewName' is only updated when schema evolves; if true
     //                            'wrapperViewName' is always updated (everytime publish happens)
-    Optional<String> wrapperViewName = getConversionConfig().getDestinationViewName();
+    Optional<String> wrapperViewName = Optional.<String>absent();
+    if (optionalViewRegistrationWhiteBlacklist.isPresent()) {
+      wrapperViewName = optionalViewRegistrationWhiteBlacklist.get().acceptTable(orcTableDatabase, orcTableName)
+          ? getConversionConfig().getDestinationViewName() : wrapperViewName;
+    } else {
+      wrapperViewName = getConversionConfig().getDestinationViewName();
+    }
     boolean shouldUpdateView = getConversionConfig().isUpdateViewAlwaysEnabled();
+
+    // Other properties
     Optional<List<String>> clusterBy =
         getConversionConfig().getClusterBy().isEmpty()
             ? Optional.<List<String>> absent()
@@ -535,6 +553,32 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     EventWorkunitUtils.setEndDDLBuildTimeMetadata(workUnit, System.currentTimeMillis());
 
     return new SingleRecordIterable<>(conversionEntity);
+  }
+
+  /***
+   * Get Hive view registration whitelist blacklist from Workunit state
+   * @param workUnit Workunit containing view whitelist blacklist property
+   * @return Optional WhitelistBlacklist if Workunit contains it
+   */
+  @VisibleForTesting
+  public static Optional<WhitelistBlacklist> getViewWhiteBackListFromWorkUnit(WorkUnitState workUnit) {
+    Optional<WhitelistBlacklist> optionalViewWhiteBlacklist = Optional.absent();
+
+    if (workUnit == null) {
+      return optionalViewWhiteBlacklist;
+    }
+    if (workUnit.contains(HIVE_CONVERSION_VIEW_REGISTRATION_WHITELIST)
+        || workUnit.contains(HIVE_CONVERSION_VIEW_REGISTRATION_BLACKLIST)) {
+      String viewWhiteList = workUnit.getProp(HIVE_CONVERSION_VIEW_REGISTRATION_WHITELIST, StringUtils.EMPTY);
+      String viewBlackList = workUnit.getProp(HIVE_CONVERSION_VIEW_REGISTRATION_BLACKLIST, StringUtils.EMPTY);
+      try {
+        optionalViewWhiteBlacklist = Optional.of(new WhitelistBlacklist(viewWhiteList, viewBlackList));
+      } catch (IOException e) {
+        Throwables.propagate(e);
+      }
+    }
+
+    return optionalViewWhiteBlacklist;
   }
 
   /***

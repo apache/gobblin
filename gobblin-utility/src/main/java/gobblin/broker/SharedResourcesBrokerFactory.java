@@ -134,14 +134,16 @@ public class SharedResourcesBrokerFactory {
 
     if (ConfigUtils.getBoolean(config, LOAD_HADOOP_CONFIGURATION, true)) {
       Map<String, String> hadoopConfMap = Maps.newHashMap();
-      addBrokerKeys(hadoopConfMap, new Configuration());
+      Configuration hadoopConf = new Configuration();
+      hadoopConf.addResource("gobblin-site.xml");
+      addBrokerKeys(hadoopConfMap, hadoopConf);
       config = config.withFallback(ConfigFactory.parseMap(hadoopConfMap));
     }
 
     return config;
   }
 
-  private static <S, T> void addBrokerKeys(Map<String, String> configMap, Iterable<Map.Entry<S, T>> entries) {
+  public static <S, T> void addBrokerKeys(Map<String, String> configMap, Iterable<Map.Entry<S, T>> entries) {
     for (Map.Entry<S, T> entry : entries) {
       Object key = entry.getKey();
       if (key instanceof String && ((String) key).startsWith(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX)) {

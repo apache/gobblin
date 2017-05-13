@@ -20,11 +20,13 @@ package gobblin.runtime.api;
 import java.net.URI;
 import java.util.Map;
 
+import gobblin.instrumented.Instrumentable;
+
 /***
  * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
  * and the mapping to {@link SpecExecutorInstance} that they can be run on.
  */
-public interface SpecCompiler extends SpecCatalogListener{
+public interface SpecCompiler extends SpecCatalogListener, Instrumentable {
   /***
    * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
    * and the mapping to {@link SpecExecutorInstance} that they can be run on.
