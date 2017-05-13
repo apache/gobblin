@@ -472,8 +472,9 @@ public class YarnService extends AbstractIdleService {
       return;
     }
 
+    this.helixInstanceRetryCount.putIfAbsent(completedInstanceName, new AtomicInteger(0));
     int retryCount =
-        this.helixInstanceRetryCount.putIfAbsent(completedInstanceName, new AtomicInteger(0)).incrementAndGet();
+    	 this.helixInstanceRetryCount.get(completedInstanceName).incrementAndGet();
 
     // Populate event metadata
     Optional<ImmutableMap.Builder<String, String>> eventMetadataBuilder = Optional.absent();
