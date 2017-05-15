@@ -24,18 +24,15 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
     this.state = state;
   }
 
-  public void onCompactionJobComplete(FileSystemDataset dataset) {
+  public void onCompactionJobComplete(FileSystemDataset dataset) throws IOException {
     if (state.contains(ConfigurationKeys.HIVE_REGISTRATION_POLICY)) {
       HiveRegister hiveRegister = HiveRegister.get(state);
       HiveRegistrationPolicy hiveRegistrationPolicy = HiveRegistrationPolicyBase.getPolicy(state);
       CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
-      try {
-        for (HiveSpec spec : hiveRegistrationPolicy.getHiveSpecs(new Path(result.getDstAbsoluteDir()))) {
-          hiveRegister.register(spec);
-          log.info("Hive registration is done for {}", result.getDstAbsoluteDir());
-        }
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+
+      for (HiveSpec spec : hiveRegistrationPolicy.getHiveSpecs(new Path(result.getDstAbsoluteDir()))) {
+        hiveRegister.register(spec);
+        log.info("Hive registration is done for {}", result.getDstAbsoluteDir());
       }
     }
   }
