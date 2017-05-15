@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.util.Arrays;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -114,9 +115,7 @@ public class RestorableHivePartitionDataset extends HivePartitionDataset impleme
               permission);
       log.info(
           "Moved dataset " + datasetURN() + " from " + getLocation() + " to trash location " + trashPartitionLocation);
-
-      this.datasetOwnerFs.mkdirs(getLocation().getParent());
-      this.datasetOwnerFs.rename(this.datasetToRestore.getLocation(), getLocation().getParent());
+      fsMove(this.datasetToRestore.getLocation(), getLocation());
       HadoopUtils.setPermissions(getLocation().getParent(), this.datasetOwner, this.trashOwner, this.datasetOwnerFs,
           permission);
       log.info("Moved data from backup " + this.datasetToRestore.getLocation() + " to location " + getLocation());
@@ -181,6 +180,18 @@ public class RestorableHivePartitionDataset extends HivePartitionDataset impleme
   }
 
   private Path getTrashPartitionLocation() {
-    return new Path(StringUtils.join(Arrays.asList(getTrashTableLocation(), this.timeStamp, getName()), '/'));
+    Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.TRASH_DIR),
+        "Missing required property " + ComplianceConfigurationKeys.TRASH_DIR);
+      return new Path(StringUtils.join(Arrays.asList(this.state.getProp(ComplianceConfigurationKeys.TRASH_DIR),
+          Path.getPathWithoutSchemeAndAuthority(getLocation()).toString()), '/'));
+  }
+
+  private void fsMove(Path from, Path to)
+      throws IOException {
+      for (FileStatus fileStatus : this.datasetOwnerFs.listStatus(from)) {
+        if (fileStatus.isFile()) {
+          this.datasetOwnerFs.rename(fileStatus.getPath(), to);
+        }
+    }
   }
 }

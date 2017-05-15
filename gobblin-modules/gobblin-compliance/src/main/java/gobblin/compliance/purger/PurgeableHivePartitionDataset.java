@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -35,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import gobblin.compliance.ComplianceConfigurationKeys;
 import gobblin.compliance.HivePartitionDataset;
 import gobblin.compliance.HiveProxyQueryExecutor;
+import gobblin.compliance.utils.PartitionUtils;
 import gobblin.compliance.utils.ProxyUtils;
 import gobblin.configuration.State;
 import gobblin.util.reflection.GobblinConstructorUtils;
@@ -89,11 +91,19 @@ public class PurgeableHivePartitionDataset extends HivePartitionDataset implemen
         return;
       }
       String originalPartitionLocation = getOriginalPartitionLocation();
-      this.startTime = getLastModifiedTime(originalPartitionLocation);
+
+      // Create the staging table and staging partition
       queryExecutor.executeQueries(HivePurgerQueryTemplate.getCreateStagingTableQuery(this), this.datasetOwner);
+      this.startTime = getLastModifiedTime(originalPartitionLocation);
+
+      // Execute purge queries, that is insert filtered data into the staging partition
       queryExecutor.executeQueries(this.purgeQueries, this.datasetOwner);
+
       this.endTime = getLastModifiedTime(originalPartitionLocation);
+
+      // Create a backup table and partition pointing to the original partition location
       queryExecutor.executeQueries(HivePurgerQueryTemplate.getBackupQueries(this), this.datasetOwner);
+
       String commitPolicyString = this.state.getProp(ComplianceConfigurationKeys.PURGER_COMMIT_POLICY_CLASS,
           ComplianceConfigurationKeys.DEFAULT_PURGER_COMMIT_POLICY_CLASS);
       CommitPolicy<PurgeableHivePartitionDataset> commitPolicy =
@@ -103,8 +113,12 @@ public class PurgeableHivePartitionDataset extends HivePartitionDataset implemen
         log.error("Last modified time after execution of purge queries : " + this.endTime);
         throw new RuntimeException("Failed to commit. File modified during job run.");
       }
+
+      // Alter the original table partition to start pointing to the cleaned-partition-location/staging-partition-location
       queryExecutor
           .executeQueries(HivePurgerQueryTemplate.getAlterOriginalPartitionLocationQueries(this), this.datasetOwner);
+
+      // Drop the staging table
       queryExecutor.executeQueries(HivePurgerQueryTemplate.getDropStagingTableQuery(this), this.datasetOwner);
     } catch (SQLException e) {
       throw new IOException(e);
@@ -139,11 +153,17 @@ public class PurgeableHivePartitionDataset extends HivePartitionDataset implemen
   }
 
   public String getStagingTableLocation() {
-    return StringUtils.join(Arrays.asList(getTableLocation(), this.timeStamp), '/');
+    return StringUtils.join(Arrays.asList(getTrashDir(), getStagingTableName()), '/');
   }
 
   public String getStagingPartitionLocation() {
-    return StringUtils.join(Arrays.asList(getStagingTableLocation(), getName()), '/');
+    Path originalPartitionLocation = getLocation();
+    if (PartitionUtils.isUnixTimeStamp(originalPartitionLocation.getName())) {
+      return StringUtils.join(Arrays.asList(getLocation().getParent().toString(), this.timeStamp), '/');
+    }
+    else {
+      return StringUtils.join(Arrays.asList(getLocation().toString(), this.timeStamp), '/');
+    }
   }
 
   public String getOriginalPartitionLocation() {
@@ -152,5 +172,15 @@ public class PurgeableHivePartitionDataset extends HivePartitionDataset implemen
 
   public String getStagingDb() {
     return getDbName();
+  }
+
+  public String getTrashDir() {
+    Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.TRASH_DIR));
+    return this.state.getProp(ComplianceConfigurationKeys.TRASH_DIR);
+  }
+
+  public String getBackupTableLocation() {
+    Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.TRASH_DIR));
+    return StringUtils.join(Arrays.asList(getTrashDir(), getBackupTableName()), '/');
   }
 }
