@@ -110,30 +110,6 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
       return ConfigFactory.empty();
     }
 
-    /**
-     * currently use this function to check the circular dependency for the entire store, the result
-     * is NOT used
-     *
-     *     root
-     *    /
-     *   l1 -> t1 (imports t1)
-     *   /
-     *   l2 -> t2 (imports t2)
-     *
-     * getImportsRecursively(l2) will return {t2,t1} as current implementation did NOT return the implicit
-     * imports ( l1 ), otherwise, there will be a lot of result for both getImportsRecursively and
-     * getImportedByRecursively
-     *
-     * if we use the result, the getResolvedConfig may equals
-     * l2.ownConfig withFallback t2.ownConfig withFallback t1.ownConfig withFallback l1.ownConfig
-     *
-     *  but the correct result should be
-     *  l2.ownConfig withFallback t2.ownConfig withFallback l1.ownConfig withFallback t1.ownConfig
-     *
-     *  The wrong ordering for those is because of we did NOT include the implicit imports l1
-     */
-    //this.topology.getImportsRecursively(configKey);
-
     Config initialConfig = this.getOwnConfig(configKey);
     if (configKey.isRootPath()) {
       return initialConfig;

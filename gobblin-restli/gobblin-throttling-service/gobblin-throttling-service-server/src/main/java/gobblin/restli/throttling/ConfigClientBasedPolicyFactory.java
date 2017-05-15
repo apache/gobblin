@@ -42,7 +42,7 @@ import gobblin.util.limiter.broker.SharedLimiterKey;
  */
 public class ConfigClientBasedPolicyFactory implements ThrottlingPolicyFactory.SpecificPolicyFactory {
 
-  private static final long CONFIG_CLIENT_TTL = 60000;
+  private static final long CONFIG_CLIENT_TTL_IN_MILLIS = 60000;
   private static TTLResourceEntry<ConfigClient> CONFIG_CLIENT;
 
   public static final String CONFIG_KEY_URI_PREFIX_KEY = "configKeyUriPrefix";
@@ -69,7 +69,7 @@ public class ConfigClientBasedPolicyFactory implements ThrottlingPolicyFactory.S
   private synchronized static ConfigClient getConfigClient() {
     if (CONFIG_CLIENT == null || !CONFIG_CLIENT.isValid()) {
       CONFIG_CLIENT = new TTLResourceEntry<>(ConfigClient.createConfigClient(VersionStabilityPolicy.READ_FRESHEST),
-          CONFIG_CLIENT_TTL, false);
+          CONFIG_CLIENT_TTL_IN_MILLIS, false);
     }
     return CONFIG_CLIENT.getResource();
   }

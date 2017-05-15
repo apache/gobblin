@@ -17,7 +17,6 @@
 
 package gobblin.broker;
 
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -25,14 +24,12 @@ import lombok.extern.slf4j.Slf4j;
  * A {@link ResourceEntry} that automatically expires after a given number of milliseconds.
  */
 @Slf4j
-public class TTLResourceEntry<T> implements ResourceEntry<T> {
-  @Getter
-  private final T resource;
+public class TTLResourceEntry<T> extends ResourceInstance<T> {
   private final long expireAt;
   private final boolean closeOnInvalidation;
 
   public TTLResourceEntry(T resource, long millisToLive, boolean closeOnInvalidation) {
-    this.resource = resource;
+    super(resource);
     this.expireAt = System.currentTimeMillis() + millisToLive;
     this.closeOnInvalidation = closeOnInvalidation;
   }
@@ -45,7 +42,7 @@ public class TTLResourceEntry<T> implements ResourceEntry<T> {
   @Override
   public void onInvalidate() {
     if (this.closeOnInvalidation) {
-      SharedResourcesBrokerUtils.shutdownObject(this.resource, log);
+      SharedResourcesBrokerUtils.shutdownObject(getResource(), log);
     }
   }
 }

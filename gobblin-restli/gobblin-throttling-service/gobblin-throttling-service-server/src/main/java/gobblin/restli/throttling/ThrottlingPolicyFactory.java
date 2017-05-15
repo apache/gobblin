@@ -83,6 +83,12 @@ public class ThrottlingPolicyFactory implements SharedResourceFactory<Throttling
   }
 
   public interface SpecificPolicyFactory {
+    /**
+     * @param sharedLimiterKey The {@link SharedLimiterKey} for the resource limited.
+     * @param broker The {@link SharedResourcesBroker} used by the throttling server. Can be used to acquire resources
+     *               shared among different threads / policies in the server.
+     * @param config The resource configuration.
+     */
     ThrottlingPolicy createPolicy(SharedLimiterKey sharedLimiterKey, SharedResourcesBroker<ThrottlingServerScopes> broker, Config config);
   }
 

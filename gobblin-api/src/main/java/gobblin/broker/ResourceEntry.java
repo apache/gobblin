@@ -17,13 +17,6 @@
 
 package gobblin.broker;
 
-import java.io.Closeable;
-import java.io.IOException;
-
-import org.slf4j.Logger;
-
-import com.google.common.util.concurrent.Service;
-
 import gobblin.broker.iface.SharedResourceFactoryResponse;
 
 
@@ -45,7 +38,10 @@ public interface ResourceEntry<T> extends SharedResourceFactoryResponse<T> {
   /**
    * This method will be called when the entry is invalidated. It may or may not close the contained resource depending
    * on the semantics the {@link gobblin.broker.iface.SharedResourceFactory} wishes to provide (e.g. whether already
-   * acquired objects should be closed). As much as possible, this method should be non-blocking.
+   * acquired objects should be closed).
+   *
+   * Note that for consistency, the broker runs this method synchronously before a new instance is created for the same
+   * key, blocking all requests for that key. As suck, this method should be reasonably fast.
    */
   void onInvalidate();
 }

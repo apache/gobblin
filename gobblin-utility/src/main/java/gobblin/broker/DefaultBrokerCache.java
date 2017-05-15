@@ -25,6 +25,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.Lock;
 
 import com.google.common.base.Predicate;
 import com.google.common.cache.Cache;
@@ -32,6 +33,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Service;
+import com.google.common.util.concurrent.Striped;
 
 import gobblin.broker.iface.ScopeType;
 import gobblin.broker.iface.SharedResourceFactory;
@@ -54,10 +56,12 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
 
   private final Cache<RawJobBrokerKey, Object> sharedResourceCache;
   private final Cache<RawJobBrokerKey, ScopeWrapper<S>> autoScopeCache;
+  private final Striped<Lock> invalidationLock;
 
   public DefaultBrokerCache() {
     this.sharedResourceCache = CacheBuilder.newBuilder().build();
     this.autoScopeCache = CacheBuilder.newBuilder().build();
+    this.invalidationLock = Striped.lazyWeakLock(20);
   }
 
   /**
@@ -124,8 +128,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
       }
     } else if (obj instanceof ResourceEntry) {
       if (!((ResourceEntry) obj).isValid()) {
-        ((ResourceEntry) obj).onInvalidate();
-        this.sharedResourceCache.invalidate(fullKey);
+        safeInvalidate(fullKey);
         return getScoped(factory, key, scope, broker);
       }
       return ((ResourceEntry<T>) obj).getResource();
@@ -138,6 +141,21 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
       @Nonnull final ScopeWrapper<S> scope, T instance) {
     RawJobBrokerKey fullKey = new RawJobBrokerKey(scope, factory.getName(), key);
     this.sharedResourceCache.put(fullKey, new ResourceInstance<>(instance));
+  }
+
+  private void safeInvalidate(RawJobBrokerKey key) {
+    Lock lock = this.invalidationLock.get(key);
+    lock.lock();
+    try {
+      Object obj = this.sharedResourceCache.getIfPresent(key);
+
+      if (obj != null && obj instanceof ResourceEntry && !((ResourceEntry) obj).isValid()) {
+        this.sharedResourceCache.invalidate(key);
+        ((ResourceEntry) obj).onInvalidate();
+      }
+    } finally {
+      lock.unlock();
+    }
   }
 
   /**
