@@ -17,55 +17,46 @@
 
 package gobblin.config.store.hdfs;
 
-import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 
 /**
- * Extension of {@link SimpleHDFSConfigStoreFactory} that creates a {@link SimpleHadoopFilesystemConfigStore} which works for the
- * local file system.
+ * A {@link SimpleHDFSConfigStoreFactory} that uses the user directory as the config store location. Use scheme
+ * "default-file".
  */
-public class SimpleLocalHDFSConfigStoreFactory extends SimpleHadoopFilesystemConfigStoreFactory {
+public class DefaultCapableLocalConfigStoreFactory extends SimpleLocalHDFSConfigStoreFactory {
 
-  private static final String LOCAL_HDFS_SCHEME_NAME = "file";
-
-  public SimpleLocalHDFSConfigStoreFactory() {
+  public DefaultCapableLocalConfigStoreFactory() {
   }
 
-  public SimpleLocalHDFSConfigStoreFactory(Config factoryConfig) {
+  public DefaultCapableLocalConfigStoreFactory(Config factoryConfig) {
     super(factoryConfig);
   }
 
-  @Override
-  protected String getPhysicalScheme() {
-    return LOCAL_HDFS_SCHEME_NAME;
-  }
-
-  @Override
-  protected FileSystem getDefaultStoreFs(Config factoryConfig, Optional<URI> configDefinedDefaultURI) {
-    try {
-      return FileSystem.getLocal(new Configuration());
-    } catch (IOException ioe) {
-      throw new RuntimeException(ioe);
-    }
-  }
+  public static final String SCHEME_PREFIX = "default-";
 
   @Override
   protected URI getDefaultRootDir(Config factoryConfig, FileSystem defaultFileSystem,
       Optional<URI> configDefinedDefaultURI) {
-    // Return null because lack of authority does not indicate that a default root directory should be used
-    return null;
+    try {
+      if (configDefinedDefaultURI.isPresent()) {
+        return configDefinedDefaultURI.get();
+      } else {
+        return new URI(System.getProperty("user.dir"));
+      }
+    } catch (URISyntaxException use) {
+      throw new RuntimeException(use);
+    }
   }
 
   @Override
-  protected boolean isAuthorityRequired() {
-    return false;
+  protected String getSchemePrefix() {
+    return SCHEME_PREFIX;
   }
 }

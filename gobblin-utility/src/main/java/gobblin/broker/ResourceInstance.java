@@ -15,26 +15,27 @@
  * limitations under the License.
  */
 
-package gobblin.config.store.hdfs;
+package gobblin.broker;
 
-import org.apache.hadoop.fs.Path;
+import gobblin.broker.iface.SharedResourceFactoryResponse;
+import lombok.Data;
 
 
 /**
- * A {@link SimpleHDFSConfigStoreFactory} that uses the user directory as the config store location. Use scheme
- * "default-file".
+ * A {@link SharedResourceFactoryResponse} that returns a newly created resource instance.
  */
-public class UserDirectoryHDFSConfigStoreFactory extends SimpleLocalHDFSConfigStoreFactory {
-
-  public static final String SCHEME_PREFIX = "default-";
+@Data
+public class ResourceInstance<T> implements ResourceEntry<T> {
+  private final T resource;
 
   @Override
-  protected Path getDefaultRootDir() {
-    return new Path(System.getProperty("user.dir"));
+  public boolean isValid() {
+    return true;
   }
 
   @Override
-  protected String getSchemePrefix() {
-    return SCHEME_PREFIX;
+  public void onInvalidate() {
+    // this should never happen
+    throw new RuntimeException();
   }
 }

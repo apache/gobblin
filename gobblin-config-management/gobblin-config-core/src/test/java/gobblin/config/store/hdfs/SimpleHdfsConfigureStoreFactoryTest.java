@@ -42,22 +42,22 @@ public class SimpleHdfsConfigureStoreFactoryTest {
 
   @Test
   public void testGetDefaults() throws URISyntaxException, ConfigStoreCreationException, IOException {
-    Path configStoreDir = new Path(SimpleHDFSConfigStore.CONFIG_STORE_NAME);
+    Path configStoreDir = new Path(SimpleHadoopFilesystemConfigStore.CONFIG_STORE_NAME);
     FileSystem localFS = FileSystem.getLocal(new Configuration());
 
     try {
       Assert.assertTrue(localFS.mkdirs(configStoreDir));
 
-      UserDirectoryHDFSConfigStoreFactory simpleLocalHDFSConfigStoreFactory =
-          new UserDirectoryHDFSConfigStoreFactory();
+      DefaultCapableLocalConfigStoreFactory simpleLocalHDFSConfigStoreFactory =
+          new DefaultCapableLocalConfigStoreFactory();
 
       URI configKey = new URI(simpleLocalHDFSConfigStoreFactory.getScheme(), "", "", "", "");
-      SimpleHDFSConfigStore simpleHDFSConfigStore = simpleLocalHDFSConfigStoreFactory.createConfigStore(configKey);
+      SimpleHadoopFilesystemConfigStore simpleHadoopFilesystemConfigStore = simpleLocalHDFSConfigStoreFactory.createConfigStore(configKey);
 
       Assert
-          .assertEquals(simpleHDFSConfigStore.getStoreURI().getScheme(), simpleLocalHDFSConfigStoreFactory.getScheme());
-      Assert.assertNull(simpleHDFSConfigStore.getStoreURI().getAuthority());
-      Assert.assertEquals(simpleHDFSConfigStore.getStoreURI().getPath(), System.getProperty("user.dir"));
+          .assertEquals(simpleHadoopFilesystemConfigStore.getStoreURI().getScheme(), simpleLocalHDFSConfigStoreFactory.getScheme());
+      Assert.assertNull(simpleHadoopFilesystemConfigStore.getStoreURI().getAuthority());
+      Assert.assertEquals(simpleHadoopFilesystemConfigStore.getStoreURI().getPath(), System.getProperty("user.dir"));
     } finally {
       localFS.delete(configStoreDir, true);
     }
@@ -70,21 +70,19 @@ public class SimpleHdfsConfigureStoreFactoryTest {
     Path testRoot = localFS.makeQualified(new Path("testConfiguration"));
     Path configRoot = localFS.makeQualified(new Path(testRoot, "dir2"));
     Path configStoreRoot = new Path(configRoot,
-                                    SimpleHDFSConfigStore.CONFIG_STORE_NAME);
+                                    SimpleHadoopFilesystemConfigStore.CONFIG_STORE_NAME);
     Assert.assertTrue(localFS.mkdirs(configStoreRoot));
     try {
       Config confConf1 =
           ConfigFactory.empty().withValue(SimpleHDFSConfigStoreFactory.DEFAULT_STORE_URI_KEY,
                                           ConfigValueFactory.fromAnyRef(configRoot.toString()));
-      SimpleHDFSConfigStoreFactory confFactory = new SimpleHDFSConfigStoreFactory(confConf1);
-      Assert.assertTrue(confFactory.hasDefaultStoreURI());
+      DefaultCapableLocalConfigStoreFactory confFactory = new DefaultCapableLocalConfigStoreFactory(confConf1);
+      Assert.assertNotNull(confFactory.getDefaultStoreURI());
       Assert.assertEquals(confFactory.getDefaultStoreURI(), configRoot.toUri());
       Assert.assertEquals(confFactory.getPhysicalScheme(), "file");
-      Assert.assertEquals(confFactory.getDefaultRootDir().toString(),
-                          "file:" + System.getProperty("user.home"));
 
       // Valid path
-      SimpleHDFSConfigStore store1 = confFactory.createConfigStore(new URI("simple-file:/d"));
+      SimpleHadoopFilesystemConfigStore store1 = confFactory.createConfigStore(new URI("default-file:/d"));
       Assert.assertEquals(store1.getStoreURI().getScheme(), confFactory.getScheme());
       Assert.assertEquals(store1.getStoreURI().getAuthority(),
                           confFactory.getDefaultStoreURI().getAuthority());
@@ -96,11 +94,11 @@ public class SimpleHdfsConfigureStoreFactoryTest {
           ConfigFactory.empty().withValue(SimpleHDFSConfigStoreFactory.DEFAULT_STORE_URI_KEY,
                                           ConfigValueFactory.fromAnyRef(testRoot.toString()));
       try {
-        new SimpleHDFSConfigStoreFactory(confConf2);
+        new DefaultCapableLocalConfigStoreFactory(confConf2).getDefaultStoreURI();
         Assert.fail("Exception expected");
       }
       catch (IllegalArgumentException e) {
-        Assert.assertTrue(e.getMessage().contains("Path does not appear to be a config store root"));
+        Assert.assertTrue(e.getMessage().contains("is not a config store."));
       }
 
       // Empty path
@@ -108,7 +106,7 @@ public class SimpleHdfsConfigureStoreFactoryTest {
           ConfigFactory.empty().withValue(SimpleHDFSConfigStoreFactory.DEFAULT_STORE_URI_KEY,
                                           ConfigValueFactory.fromAnyRef(""));
       try {
-        new SimpleHDFSConfigStoreFactory(confConf3);
+        new DefaultCapableLocalConfigStoreFactory(confConf3).getDefaultStoreURI();
         Assert.fail("Exception expected");
       }
       catch (IllegalArgumentException e) {

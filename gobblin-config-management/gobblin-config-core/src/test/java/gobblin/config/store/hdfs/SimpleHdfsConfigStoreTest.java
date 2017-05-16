@@ -48,7 +48,7 @@ import gobblin.util.PathUtils;
 
 
 /**
- * Unit tests for {@link SimpleHDFSConfigStore} and {@link SimpleHDFSConfigStoreFactory}.
+ * Unit tests for {@link SimpleHadoopFilesystemConfigStore} and {@link SimpleHDFSConfigStoreFactory}.
  */
 @Test(groups = "gobblin.config.store.hdfs")
 public class SimpleHdfsConfigStoreTest {
@@ -56,14 +56,14 @@ public class SimpleHdfsConfigStoreTest {
   private static final String CONFIG_DIR_NAME = "configDir";
   private static final String VERSION = "v1.0";
   private static final Path CONFIG_DIR_PATH =
-      PathUtils.combinePaths(CONFIG_DIR_NAME, SimpleHDFSConfigStore.CONFIG_STORE_NAME, VERSION);
+      PathUtils.combinePaths(CONFIG_DIR_NAME, SimpleHadoopFilesystemConfigStore.CONFIG_STORE_NAME, VERSION);
 
   /**Set by {@link TestEnvironment#setup()}**/
   public static final String TAG_NAME_SYS_PROP_KEY = "sysProp.tagName1";
   public static final String TAG_NAME_SYS_PROP_VALUE = "tag1";
 
   private FileSystem fs;
-  private SimpleHDFSConfigStore simpleHDFSConfigStore;
+  private SimpleHadoopFilesystemConfigStore _simpleHadoopFilesystemConfigStore;
 
   @BeforeClass
   public void setUp() throws URISyntaxException, ConfigStoreCreationException, IOException {
@@ -73,27 +73,27 @@ public class SimpleHdfsConfigStoreTest {
     SimpleLocalHDFSConfigStoreFactory simpleHDFSConfigStoreConfigFactory = new SimpleLocalHDFSConfigStoreFactory();
 
     URI storeURI = getStoreURI(System.getProperty("user.dir") + File.separator + CONFIG_DIR_NAME);
-    this.simpleHDFSConfigStore = simpleHDFSConfigStoreConfigFactory.createConfigStore(storeURI);
-    this.simpleHDFSConfigStore.deploy(new FsDeploymentConfig(new ClasspathConfigSource(new Properties()), VERSION));
+    this._simpleHadoopFilesystemConfigStore = simpleHDFSConfigStoreConfigFactory.createConfigStore(storeURI);
+    this._simpleHadoopFilesystemConfigStore.deploy(new FsDeploymentConfig(new ClasspathConfigSource(new Properties()), VERSION));
 
   }
 
   @Test
   public void testGetCurrentVersion() throws IOException {
 
-    Assert.assertEquals(this.simpleHDFSConfigStore.getCurrentVersion(), VERSION);
+    Assert.assertEquals(this._simpleHadoopFilesystemConfigStore.getCurrentVersion(), VERSION);
 
     String newVersion = "v1.1";
 
-    this.simpleHDFSConfigStore.deploy(new FsDeploymentConfig(new ClasspathConfigSource(new Properties()), newVersion));
+    this._simpleHadoopFilesystemConfigStore.deploy(new FsDeploymentConfig(new ClasspathConfigSource(new Properties()), newVersion));
 
-    Assert.assertEquals(this.simpleHDFSConfigStore.getCurrentVersion(), newVersion);
+    Assert.assertEquals(this._simpleHadoopFilesystemConfigStore.getCurrentVersion(), newVersion);
 
   }
 
   @Test
   public void getStoreURI() {
-    URI storeURI = this.simpleHDFSConfigStore.getStoreURI();
+    URI storeURI = this._simpleHadoopFilesystemConfigStore.getStoreURI();
 
     Assert.assertEquals(storeURI.getScheme(), SimpleHDFSConfigStoreFactory.SIMPLE_HDFS_SCHEME_PREFIX + "file");
     Assert.assertNull(storeURI.getAuthority());
@@ -110,7 +110,7 @@ public class SimpleHdfsConfigStoreTest {
       this.fs.mkdirs(new Path(datasetPath, childDatasetName));
 
       ConfigKeyPath datasetConfigKey = SingleLinkedListConfigKeyPath.ROOT.createChild(datasetName);
-      Collection<ConfigKeyPath> children = this.simpleHDFSConfigStore.getChildren(datasetConfigKey, VERSION);
+      Collection<ConfigKeyPath> children = this._simpleHadoopFilesystemConfigStore.getChildren(datasetConfigKey, VERSION);
 
       Assert.assertEquals(children.size(), 1);
       Assert.assertEquals(children.iterator().next().getOwnPathName(), childDatasetName);
@@ -141,7 +141,7 @@ public class SimpleHdfsConfigStoreTest {
       writer.close();
 
       ConfigKeyPath datasetConfigKey = SingleLinkedListConfigKeyPath.ROOT.createChild(datasetName);
-      List<ConfigKeyPath> imports = this.simpleHDFSConfigStore.getOwnImports(datasetConfigKey, VERSION);
+      List<ConfigKeyPath> imports = this._simpleHadoopFilesystemConfigStore.getOwnImports(datasetConfigKey, VERSION);
 
       Assert.assertEquals(imports.size(), 2);
       Assert.assertEquals(imports.get(0).getAbsolutePathString(), tagKey2);
@@ -170,7 +170,7 @@ public class SimpleHdfsConfigStoreTest {
       writer.close();
 
       ConfigKeyPath datasetConfigKey = SingleLinkedListConfigKeyPath.ROOT.createChild(datasetName);
-      List<ConfigKeyPath> imports = this.simpleHDFSConfigStore.getOwnImports(datasetConfigKey, VERSION);
+      List<ConfigKeyPath> imports = this._simpleHadoopFilesystemConfigStore.getOwnImports(datasetConfigKey, VERSION);
 
       Assert.assertEquals(imports.size(), 1);
       Assert.assertEquals(imports.get(0).getAbsolutePathString(), "/path/to/" + TAG_NAME_SYS_PROP_VALUE);
@@ -191,7 +191,7 @@ public class SimpleHdfsConfigStoreTest {
       this.fs.create(new Path(datasetPath, "main.conf")).close();
 
       ConfigKeyPath datasetConfigKey = SingleLinkedListConfigKeyPath.ROOT.createChild(datasetName);
-      Config config = this.simpleHDFSConfigStore.getOwnConfig(datasetConfigKey, VERSION);
+      Config config = this._simpleHadoopFilesystemConfigStore.getOwnConfig(datasetConfigKey, VERSION);
 
       Assert.assertTrue(config.isEmpty());
     } finally {
@@ -208,9 +208,9 @@ public class SimpleHdfsConfigStoreTest {
 
     props.setProperty(ClasspathConfigSource.CONFIG_STORE_CLASSPATH_RESOURCE_NAME_KEY, "_testDeploy");
 
-    this.simpleHDFSConfigStore.deploy(new FsDeploymentConfig(new ClasspathConfigSource(props), "2.0"));
+    this._simpleHadoopFilesystemConfigStore.deploy(new FsDeploymentConfig(new ClasspathConfigSource(props), "2.0"));
 
-    Path versionPath = PathUtils.combinePaths(CONFIG_DIR_NAME, SimpleHDFSConfigStore.CONFIG_STORE_NAME, "2.0");
+    Path versionPath = PathUtils.combinePaths(CONFIG_DIR_NAME, SimpleHadoopFilesystemConfigStore.CONFIG_STORE_NAME, "2.0");
 
     Assert.assertTrue(fs.exists(new Path(versionPath, "dir1")));
     Assert.assertTrue(fs.exists(new Path(versionPath, "dir1/f1.conf")));
@@ -223,7 +223,7 @@ public class SimpleHdfsConfigStoreTest {
         ImmutableList.of("/path/to/tag0", "/path/to/${?" + TAG_NAME_SYS_PROP_KEY + "}", "${?" + TAG_NAME_SYS_PROP_KEY
             + "}/${?" + TAG_NAME_SYS_PROP_KEY + "}");
 
-    List<String> resolved = SimpleHDFSConfigStore.resolveIncludesList(unresolved);
+    List<String> resolved = SimpleHadoopFilesystemConfigStore.resolveIncludesList(unresolved);
 
     List<String> expected = ImmutableList.of("/path/to/tag0", "/path/to/tag1", "tag1/tag1");
     Assert.assertEquals(resolved, expected);

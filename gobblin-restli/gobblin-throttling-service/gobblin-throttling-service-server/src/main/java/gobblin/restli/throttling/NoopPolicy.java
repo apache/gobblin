@@ -17,6 +17,9 @@
 
 package gobblin.restli.throttling;
 
+import java.util.Map;
+
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alias;
@@ -51,5 +54,15 @@ public class NoopPolicy implements ThrottlingPolicy {
     allocation.setExpiration(Long.MAX_VALUE);
 
     return allocation;
+  }
+
+  @Override
+  public Map<String, String> getParameters() {
+    return ImmutableMap.of();
+  }
+
+  @Override
+  public String getDescription() {
+    return "Noop policy. Infinite permits available.";
   }
 }

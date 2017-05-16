@@ -17,6 +17,8 @@
 
 package gobblin.broker;
 
+import java.util.Random;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -29,7 +31,16 @@ import gobblin.broker.gobblin_scopes.GobblinScopeInstance;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.gobblin_scopes.JobScopeInstance;
 import gobblin.broker.gobblin_scopes.TaskScopeInstance;
+import gobblin.broker.iface.ConfigView;
 import gobblin.broker.iface.NoSuchScopeException;
+import gobblin.broker.iface.NotConfiguredException;
+import gobblin.broker.iface.ScopedConfigView;
+import gobblin.broker.iface.SharedResourceFactory;
+import gobblin.broker.iface.SharedResourceFactoryResponse;
+import gobblin.broker.iface.SharedResourcesBroker;
+
+import lombok.Data;
+import lombok.Getter;
 
 
 public class DefaultGobblinBrokerTest {
@@ -213,5 +224,92 @@ public class DefaultGobblinBrokerTest {
       // Expected
     }
 
+  }
+
+  @Test
+  public void testExplicitBinding() throws Exception {
+    Config config = ConfigFactory.empty();
+
+    SharedResourcesBrokerImpl<SimpleScopeType> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        SimpleScopeType.GLOBAL.defaultScopeInstance());
+
+    SharedResourceFactory<Long, EmptyKey, SimpleScopeType> factory = new SharedResourceFactory<Long, EmptyKey, SimpleScopeType>() {
+      @Override
+      public String getName() {
+        return "myTestFactory";
+      }
+
+      @Override
+      public SharedResourceFactoryResponse<Long> createResource(SharedResourcesBroker<SimpleScopeType> broker,
+          ScopedConfigView<SimpleScopeType, EmptyKey> config) throws NotConfiguredException {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public SimpleScopeType getAutoScope(SharedResourcesBroker<SimpleScopeType> broker,
+          ConfigView<SimpleScopeType, EmptyKey> config) {
+        return broker.selfScope().getType();
+      }
+    };
+
+    topBroker.bindSharedResourceAtScope(factory, new EmptyKey(), SimpleScopeType.GLOBAL, 10l);
+
+    Assert.assertEquals(topBroker.getSharedResource(factory, new EmptyKey()), new Long(10));
+  }
+
+  @Test
+  public void testExpiringResource() throws Exception {
+    Config config = ConfigFactory.empty();
+
+    SharedResourcesBrokerImpl<SimpleScopeType> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        SimpleScopeType.GLOBAL.defaultScopeInstance());
+
+
+    InvalidatableResourceFactory factory = new InvalidatableResourceFactory();
+
+    long value = topBroker.getSharedResource(factory, new EmptyKey());
+    Assert.assertEquals(topBroker.getSharedResource(factory, new EmptyKey()), new Long(value));
+
+    factory.getLastResourceEntry().setValid(false);
+
+    Assert.assertNotEquals(topBroker.getSharedResource(factory, new EmptyKey()), value);
+    value = topBroker.getSharedResource(factory, new EmptyKey());
+    Assert.assertEquals(topBroker.getSharedResource(factory, new EmptyKey()), new Long(value));
+  }
+
+  @Data
+  private static class MyResourceEntry<T> implements ResourceEntry<T> {
+    private final T resource;
+    boolean valid = true;
+
+    @Override
+    public void onInvalidate() {
+
+    }
+  }
+
+  private static class InvalidatableResourceFactory implements SharedResourceFactory<Long, EmptyKey, SimpleScopeType> {
+
+    @Getter
+    MyResourceEntry<Long> lastResourceEntry;
+
+    @Override
+    public String getName() {
+      return "myTestFactory";
+    }
+
+    @Override
+    public SharedResourceFactoryResponse<Long> createResource(SharedResourcesBroker<SimpleScopeType> broker,
+        ScopedConfigView<SimpleScopeType, EmptyKey> config) throws NotConfiguredException {
+      MyResourceEntry<Long> resourceEntry = new MyResourceEntry<>(new Random().nextLong());
+      lastResourceEntry = resourceEntry;
+      return resourceEntry;
+    }
+
+    @Override
+    public SimpleScopeType getAutoScope(SharedResourcesBroker<SimpleScopeType> broker,
+        ConfigView<SimpleScopeType, EmptyKey> config) {
+      return broker.selfScope().getType();
+    }
   }
 }

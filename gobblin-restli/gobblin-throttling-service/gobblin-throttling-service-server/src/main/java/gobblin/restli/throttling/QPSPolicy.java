@@ -17,8 +17,11 @@
 
 package gobblin.restli.throttling;
 
+import java.util.Map;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.linkedin.data.template.GetMode;
 import com.typesafe.config.Config;
 
@@ -97,5 +100,15 @@ public class QPSPolicy implements ThrottlingPolicy {
       allocation.setMinRetryDelayMillis(LimiterServerResource.TIMEOUT_MILLIS);
     }
     return allocation;
+  }
+
+  @Override
+  public Map<String, String> getParameters() {
+    return ImmutableMap.of("qps", Long.toString(this.qps));
+  }
+
+  @Override
+  public String getDescription() {
+    return "QPS based policy. QPS: " + this.qps;
   }
 }

@@ -21,7 +21,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -98,35 +100,15 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
     return result;
   }
 
-  private Config getResolvedConfigRecursive(ConfigKeyPath configKey) {
+  private Config getResolvedConfigRecursive(ConfigKeyPath configKey, Set<String> alreadyLoadedPaths) {
 
     if (this.cs instanceof ConfigStoreWithResolution) {
       return ((ConfigStoreWithResolution) this.cs).getResolvedConfig(configKey, this.version);
     }
 
-    /**
-     * currently use this function to check the circular dependency for the entire store, the result
-     * is NOT used
-     *
-     *     root
-     *    /
-     *   l1 -> t1 (imports t1)
-     *   /
-     *   l2 -> t2 (imports t2)
-     *
-     * getImportsRecursively(l2) will return {t2,t1} as current implementation did NOT return the implicit
-     * imports ( l1 ), otherwise, there will be a lot of result for both getImportsRecursively and
-     * getImportedByRecursively
-     *
-     * if we use the result, the getResolvedConfig may equals
-     * l2.ownConfig withFallback t2.ownConfig withFallback t1.ownConfig withFallback l1.ownConfig
-     *
-     *  but the correct result should be
-     *  l2.ownConfig withFallback t2.ownConfig withFallback l1.ownConfig withFallback t1.ownConfig
-     *
-     *  The wrong ordering for those is because of we did NOT include the implicit imports l1
-     */
-    this.topology.getImportsRecursively(configKey);
+    if (!alreadyLoadedPaths.add(configKey.getAbsolutePathString())) {
+      return ConfigFactory.empty();
+    }
 
     Config initialConfig = this.getOwnConfig(configKey);
     if (configKey.isRootPath()) {
@@ -137,12 +119,12 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
     // merge with other configs from imports
     if (ownImports != null) {
       for (ConfigKeyPath p : ownImports) {
-        initialConfig = initialConfig.withFallback(this.getResolvedConfigRecursive(p));
+        initialConfig = initialConfig.withFallback(this.getResolvedConfigRecursive(p, alreadyLoadedPaths));
       }
     }
 
     // merge with configs from parent for Non root
-    initialConfig = initialConfig.withFallback(this.getResolvedConfigRecursive(configKey.getParent()));
+    initialConfig = initialConfig.withFallback(this.getResolvedConfigRecursive(configKey.getParent(), alreadyLoadedPaths));
 
     return initialConfig;
 
@@ -161,7 +143,7 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
    */
   @Override
   public Config getResolvedConfig(ConfigKeyPath configKey) {
-    return getResolvedConfigRecursive(configKey).withFallback(ConfigFactory.defaultOverrides())
+    return getResolvedConfigRecursive(configKey, Sets.<String>newHashSet()).withFallback(ConfigFactory.defaultOverrides())
         .withFallback(ConfigFactory.systemEnvironment()).resolve();
   }
 

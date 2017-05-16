@@ -53,7 +53,7 @@ public class SimpleHDFSStoreMetadata {
    * Create a new {@link SimpleHDFSStoreMetadata} to read and write store metadata
    *
    * @param fs where metadata is stored
-   * @param configStoreDir path to {@link SimpleHDFSConfigStore#CONFIG_STORE_NAME}
+   * @param configStoreDir path to {@link SimpleHadoopFilesystemConfigStore#CONFIG_STORE_NAME}
    */
   SimpleHDFSStoreMetadata(final FileSystem fs, final Path configStoreDir) {
     this.storeMetadataFilePath = new Path(configStoreDir, CONFIG_STORE_METADATA_FILENAME);

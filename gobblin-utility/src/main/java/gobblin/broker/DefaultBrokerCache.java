@@ -25,6 +25,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.Lock;
 
 import com.google.common.base.Predicate;
 import com.google.common.cache.Cache;
@@ -32,6 +33,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Service;
+import com.google.common.util.concurrent.Striped;
 
 import gobblin.broker.iface.ScopeType;
 import gobblin.broker.iface.SharedResourceFactory;
@@ -54,10 +56,12 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
 
   private final Cache<RawJobBrokerKey, Object> sharedResourceCache;
   private final Cache<RawJobBrokerKey, ScopeWrapper<S>> autoScopeCache;
+  private final Striped<Lock> invalidationLock;
 
   public DefaultBrokerCache() {
     this.sharedResourceCache = CacheBuilder.newBuilder().build();
     this.autoScopeCache = CacheBuilder.newBuilder().build();
+    this.invalidationLock = Striped.lazyWeakLock(20);
   }
 
   /**
@@ -122,8 +126,12 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
         throw new RuntimeException(String.format("%s returned an invalid coordinate: scope %s is not available.",
             factory.getName(), resourceCoordinate.getScope().name()), nsse);
       }
-    } else if (obj instanceof ResourceInstance) {
-      return ((ResourceInstance<T>) obj).getResource();
+    } else if (obj instanceof ResourceEntry) {
+      if (!((ResourceEntry) obj).isValid()) {
+        safeInvalidate(fullKey);
+        return getScoped(factory, key, scope, broker);
+      }
+      return ((ResourceEntry<T>) obj).getResource();
     } else {
       throw new RuntimeException(String.format("Invalid response from %s: %s.", factory.getName(), obj.getClass()));
     }
@@ -132,7 +140,22 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
   <T, K extends SharedResourceKey> void put(final SharedResourceFactory<T, K, S> factory, @Nonnull final K key,
       @Nonnull final ScopeWrapper<S> scope, T instance) {
     RawJobBrokerKey fullKey = new RawJobBrokerKey(scope, factory.getName(), key);
-    this.sharedResourceCache.put(fullKey, instance);
+    this.sharedResourceCache.put(fullKey, new ResourceInstance<>(instance));
+  }
+
+  private void safeInvalidate(RawJobBrokerKey key) {
+    Lock lock = this.invalidationLock.get(key);
+    lock.lock();
+    try {
+      Object obj = this.sharedResourceCache.getIfPresent(key);
+
+      if (obj != null && obj instanceof ResourceEntry && !((ResourceEntry) obj).isValid()) {
+        this.sharedResourceCache.invalidate(key);
+        ((ResourceEntry) obj).onInvalidate();
+      }
+    } finally {
+      lock.unlock();
+    }
   }
 
   /**
@@ -152,15 +175,9 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
       if (entry.getValue() instanceof ResourceInstance) {
         Object obj = ((ResourceInstance) entry.getValue()).getResource();
 
+        SharedResourcesBrokerUtils.shutdownObject(obj, log);
         if (obj instanceof Service) {
-          ((Service) obj).stopAsync();
           awaitShutdown.add((Service) obj);
-        } else if (obj instanceof Closeable) {
-          try {
-            ((Closeable) obj).close();
-          } catch (IOException ioe) {
-            log.error("Failed to close {}.", obj);
-          }
         }
       }
     }

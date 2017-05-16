@@ -22,6 +22,7 @@ import java.net.URISyntaxException;
 
 import com.typesafe.config.Config;
 
+import gobblin.broker.TTLResourceEntry;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.config.client.ConfigClient;
 import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
@@ -41,7 +42,8 @@ import gobblin.util.limiter.broker.SharedLimiterKey;
  */
 public class ConfigClientBasedPolicyFactory implements ThrottlingPolicyFactory.SpecificPolicyFactory {
 
-  private static final ConfigClient CONFIG_CLIENT = ConfigClient.createConfigClient(VersionStabilityPolicy.READ_FRESHEST);
+  private static final long CONFIG_CLIENT_TTL_IN_MILLIS = 60000;
+  private static TTLResourceEntry<ConfigClient> CONFIG_CLIENT;
 
   public static final String CONFIG_KEY_URI_PREFIX_KEY = "configKeyUriPrefix";
 
@@ -53,7 +55,7 @@ public class ConfigClientBasedPolicyFactory implements ThrottlingPolicyFactory.S
 
     try {
       Config resourceConfig =
-          CONFIG_CLIENT.getConfig(new URI(config.getString(CONFIG_KEY_URI_PREFIX_KEY) + key.getResourceLimitedPath()));
+          getConfigClient().getConfig(new URI(config.getString(CONFIG_KEY_URI_PREFIX_KEY) + key.getResourceLimitedPath()));
 
       ThrottlingPolicyFactory.SpecificPolicyFactory factory =
           ThrottlingPolicyFactory.POLICY_CLASS_RESOLVER.resolveClass(resourceConfig.getString(POLICY_KEY)).newInstance();
@@ -62,5 +64,13 @@ public class ConfigClientBasedPolicyFactory implements ThrottlingPolicyFactory.S
         ReflectiveOperationException exc) {
       throw new RuntimeException(exc);
     }
+  }
+
+  private synchronized static ConfigClient getConfigClient() {
+    if (CONFIG_CLIENT == null || !CONFIG_CLIENT.isValid()) {
+      CONFIG_CLIENT = new TTLResourceEntry<>(ConfigClient.createConfigClient(VersionStabilityPolicy.READ_FRESHEST),
+          CONFIG_CLIENT_TTL_IN_MILLIS, false);
+    }
+    return CONFIG_CLIENT.getResource();
   }
 }

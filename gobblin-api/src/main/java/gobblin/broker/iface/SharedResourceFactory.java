@@ -31,7 +31,7 @@ public interface SharedResourceFactory<T, K extends SharedResourceKey, S extends
   /**
    * Requests an object for the provided {@link SharedResourceKey}, with the provided configuration.
    * The factory can return a variety of responses:
-   * * {@link gobblin.broker.ResourceInstance}: a newly built resource of type T for the input key and scope.
+   * * {@link gobblin.broker.ResourceEntry}: a newly built resource of type T for the input key and scope.
    * * {@link gobblin.broker.ResourceCoordinate}: the coordinates (factory, key, scope) of another resource of type T that
    *    should be used instead (this allows, for example, to use a different factory, or always return a global scoped object.)
    */
