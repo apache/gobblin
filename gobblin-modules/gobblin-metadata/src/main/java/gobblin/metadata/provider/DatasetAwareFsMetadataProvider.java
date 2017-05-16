@@ -15,25 +15,21 @@
  * limitations under the License.
  */
 
-apply plugin: 'java'
+package gobblin.metadata.provider;
 
-dependencies {
-  /*
-   * Keep these dependencies as small as possible: we should not rely on
-   * gobblin-runtime, -core etc as they pull in huge transitive dependency trees!
-   */
-  compile project(":gobblin-api")
-  compile project(":gobblin-modules:gobblin-codecs")
-  compile project(":gobblin-utility")
+import org.apache.hadoop.fs.Path;
 
-  compile externalDependency.gson
-  compile externalDependency.jacksonCore
-  compile externalDependency.jacksonMapper
-  compile externalDependency.slf4j
+import gobblin.metadata.types.GlobalMetadata;
 
-  testCompile project(":gobblin-test-utils")
-  testCompile externalDependency.testng
+
+/**
+ * Fs based {@link DatasetAwareMetadataProvider} which can extract datasetUrn from a given {@link Path},
+ * and provide {@link GlobalMetadata} for it.
+ */
+public abstract class DatasetAwareFsMetadataProvider implements DatasetAwareMetadataProvider {
+  public abstract String datasetUrnAtPath(Path path);
+
+  public GlobalMetadata getGlobalMetadataForDatasetAtPath(Path datasetAwarePath) {
+    return this.getGlobalMetadataForDataset(datasetUrnAtPath(datasetAwarePath));
+  }
 }
-
-ext.classification="library"
-

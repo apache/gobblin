@@ -15,25 +15,14 @@
  * limitations under the License.
  */
 
-apply plugin: 'java'
+package gobblin.metadata.provider;
 
-dependencies {
-  /*
-   * Keep these dependencies as small as possible: we should not rely on
-   * gobblin-runtime, -core etc as they pull in huge transitive dependency trees!
-   */
-  compile project(":gobblin-api")
-  compile project(":gobblin-modules:gobblin-codecs")
-  compile project(":gobblin-utility")
+import com.typesafe.config.Config;
 
-  compile externalDependency.gson
-  compile externalDependency.jacksonCore
-  compile externalDependency.jacksonMapper
-  compile externalDependency.slf4j
 
-  testCompile project(":gobblin-test-utils")
-  testCompile externalDependency.testng
+/**
+ * A factory that creates {@link DatasetAwareMetadataProvider} from {@link Config}.
+ */
+interface DatasetAwareMetadataProviderFactory {
+  DatasetAwareMetadataProvider createMetadataProvider(Config config);
 }
-
-ext.classification="library"
-
