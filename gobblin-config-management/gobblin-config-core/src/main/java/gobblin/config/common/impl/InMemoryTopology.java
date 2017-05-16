@@ -27,7 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
 
 import gobblin.config.store.api.ConfigKeyPath;
 
@@ -245,11 +247,16 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    */
   @Override
   public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey) {
+    return getOwnImports(configKey, Optional.<Config>absent());
+  }
+
+  @Override
+  public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
     if (this.ownImportMap.containsKey(configKey)) {
       return this.ownImportMap.get(configKey);
     }
 
-    List<ConfigKeyPath> result = this.fallback.getOwnImports(configKey);
+    List<ConfigKeyPath> result = this.fallback.getOwnImports(configKey, runtimeConfig);
     addToListMapForListValue(this.ownImportMap, configKey, result);
     return result;
   }

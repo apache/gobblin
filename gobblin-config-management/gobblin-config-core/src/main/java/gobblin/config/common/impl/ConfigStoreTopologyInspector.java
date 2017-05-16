@@ -20,6 +20,9 @@ package gobblin.config.common.impl;
 import java.util.Collection;
 import java.util.List;
 
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+
 import gobblin.config.store.api.ConfigKeyPath;
 
 /**
@@ -55,6 +58,8 @@ public interface ConfigStoreTopologyInspector {
    * when resolving configuration conflicts.
    */
   public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey);
+
+  public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey, Optional<Config> runtimeConfig);
 
   /**
    * Obtains the collection of config keys which import a given config key.

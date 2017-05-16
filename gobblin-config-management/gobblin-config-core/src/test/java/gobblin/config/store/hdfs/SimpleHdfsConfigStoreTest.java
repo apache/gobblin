@@ -27,10 +27,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableList;
-import com.typesafe.config.Config;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -39,11 +35,17 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.typesafe.config.Config;
+
 import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
 import gobblin.config.store.api.ConfigKeyPath;
 import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.config.store.deploy.ClasspathConfigSource;
 import gobblin.config.store.deploy.FsDeploymentConfig;
+import gobblin.util.ConfigUtils;
 import gobblin.util.PathUtils;
 
 
@@ -61,6 +63,9 @@ public class SimpleHdfsConfigStoreTest {
   /**Set by {@link TestEnvironment#setup()}**/
   public static final String TAG_NAME_SYS_PROP_KEY = "sysProp.tagName1";
   public static final String TAG_NAME_SYS_PROP_VALUE = "tag1";
+
+  public static final String TAG_NAME_RUNTIME_PROP_KEY = "runtimeProp.tagName2";
+  public static final String TAG_NAME_RUNTIME_PROP_VALUE = "tag2";
 
   private FileSystem fs;
   private SimpleHadoopFilesystemConfigStore _simpleHadoopFilesystemConfigStore;
@@ -146,6 +151,30 @@ public class SimpleHdfsConfigStoreTest {
       Assert.assertEquals(imports.size(), 2);
       Assert.assertEquals(imports.get(0).getAbsolutePathString(), tagKey2);
       Assert.assertEquals(imports.get(1).getAbsolutePathString(), tagKey1);
+    } finally {
+      if (this.fs.exists(datasetPath)) {
+        this.fs.delete(datasetPath, true);
+      }
+    }
+  }
+
+  @Test
+ public void testGetOwnImportsWithRuntimeConfigResolution() throws IOException, URISyntaxException, ConfigStoreCreationException {
+    String datasetName = "dataset-test-get-own-imports-resolution";
+    Path datasetPath = new Path(CONFIG_DIR_PATH, datasetName);
+    Properties prop = new Properties();
+    prop.put(TAG_NAME_RUNTIME_PROP_KEY, TAG_NAME_RUNTIME_PROP_VALUE);
+    Optional<Config> runtimeConfig = Optional.fromNullable(ConfigUtils.propertiesToConfig(prop));
+    try {
+      this.fs.mkdirs(datasetPath);
+      BufferedWriter writer = new BufferedWriter(
+          new OutputStreamWriter(this.fs.create(new Path(datasetPath, "includes.conf")), Charsets.UTF_8));
+      writer.write("/path/to/${?" + TAG_NAME_RUNTIME_PROP_KEY + "}");
+      writer.close();
+      ConfigKeyPath datasetConfigKey = SingleLinkedListConfigKeyPath.ROOT.createChild(datasetName);
+      List<ConfigKeyPath> imports = this._simpleHadoopFilesystemConfigStore.getOwnImports(datasetConfigKey, VERSION, runtimeConfig);
+      Assert.assertEquals(imports.size(), 1);
+      Assert.assertEquals(imports.get(0).getAbsolutePathString(), "/path/to/" + TAG_NAME_RUNTIME_PROP_VALUE);
     } finally {
       if (this.fs.exists(datasetPath)) {
         this.fs.delete(datasetPath, true);

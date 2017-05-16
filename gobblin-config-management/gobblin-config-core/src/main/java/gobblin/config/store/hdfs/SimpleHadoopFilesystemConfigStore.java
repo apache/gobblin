@@ -38,6 +38,7 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -47,6 +48,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
 import gobblin.config.store.api.ConfigKeyPath;
@@ -61,9 +65,6 @@ import gobblin.util.FileListUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.io.SeekableFSInputStream;
 import gobblin.util.io.StreamUtils;
-
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -228,6 +229,11 @@ public class SimpleHadoopFilesystemConfigStore implements ConfigStore, Deployabl
     }
   }
 
+  @Override
+  public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey, String version) {
+    return getOwnImports(configKey, version, Optional.<Config>absent());
+  }
+
   /**
    * Retrieves all the {@link ConfigKeyPath}s that are imported by the given {@link ConfigKeyPath}. This method does this
    * by reading the {@link #INCLUDES_CONF_FILE_NAME} file associated with the dataset specified by the given
@@ -242,8 +248,7 @@ public class SimpleHadoopFilesystemConfigStore implements ConfigStore, Deployabl
    *
    * @throws VersionDoesNotExistException if the version specified cannot be found in the {@link ConfigStore}.
    */
-  @Override
-  public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey, String version)
+  public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey, String version, Optional<Config> runtimeConfig)
       throws VersionDoesNotExistException {
     Preconditions.checkNotNull(configKey, "configKey cannot be null!");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(version), "version cannot be null or empty!");
@@ -266,7 +271,7 @@ public class SimpleHadoopFilesystemConfigStore implements ConfigStore, Deployabl
            * By reversing the list, the Typesafe fallbacks are constructed bottom up.
            */
           configKeyPaths.addAll(Lists.newArrayList(
-              Iterables.transform(Lists.reverse(resolveIncludesList(IOUtils.readLines(includesConfInStream, Charsets.UTF_8))),
+              Iterables.transform(Lists.reverse(resolveIncludesList(IOUtils.readLines(includesConfInStream, Charsets.UTF_8), runtimeConfig)),
                   new IncludesToConfigKey())));
         }
       }
@@ -286,7 +291,7 @@ public class SimpleHadoopFilesystemConfigStore implements ConfigStore, Deployabl
    * @return a list of resolved includes
    */
   @VisibleForTesting
-  public static List<String> resolveIncludesList(List<String> includes) {
+  public static List<String> resolveIncludesList(List<String> includes, Optional<Config> runtimeConfig) {
 
     // Create a TypeSafe Config object with Key INCLUDES_KEY_NAME and value an array of includes
     StringBuilder includesBuilder = new StringBuilder();
@@ -299,12 +304,23 @@ public class SimpleHadoopFilesystemConfigStore implements ConfigStore, Deployabl
 
     // Resolve defaultOverrides and environment variables.
     if (includesBuilder.length() > 0) {
-      return ConfigFactory.parseString(includesBuilder.toString()).withFallback(ConfigFactory.defaultOverrides())
-          .withFallback(ConfigFactory.systemEnvironment()).resolve().getStringList(INCLUDES_KEY_NAME);
+      if (runtimeConfig.isPresent()) {
+        return ConfigFactory.parseString(includesBuilder.toString()).withFallback(ConfigFactory.defaultOverrides())
+            .withFallback(ConfigFactory.systemEnvironment()).withFallback(runtimeConfig.get()).resolve()
+            .getStringList(INCLUDES_KEY_NAME);
+      } else {
+        return ConfigFactory.parseString(includesBuilder.toString()).withFallback(ConfigFactory.defaultOverrides())
+            .withFallback(ConfigFactory.systemEnvironment()).resolve().getStringList(INCLUDES_KEY_NAME);
+      }
     }
 
     return Collections.emptyList();
   }
+
+  public static List<String> resolveIncludesList(List<String> includes) {
+    return resolveIncludesList(includes, Optional.<Config>absent());
+  }
+
 
   /**
    * Retrieves the {@link Config} for the given {@link ConfigKeyPath} by reading the {@link #MAIN_CONF_FILE_NAME}

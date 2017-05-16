@@ -20,6 +20,7 @@ package gobblin.config.common.impl;
 import java.util.Collection;
 import java.util.Map;
 
+import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 import gobblin.config.store.api.ConfigKeyPath;
@@ -54,6 +55,8 @@ public interface ConfigStoreValueInspector {
    *         and indirect imports resolved.
    */
   public Config getResolvedConfig(ConfigKeyPath configKey);
+
+  public Config getResolvedConfig(ConfigKeyPath configKey, Optional<Config> runtimeConfig);
 
   /**
   *

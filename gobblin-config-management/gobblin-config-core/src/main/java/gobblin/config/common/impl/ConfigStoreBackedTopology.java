@@ -20,6 +20,9 @@ package gobblin.config.common.impl;
 import java.util.Collection;
 import java.util.List;
 
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+
 import gobblin.config.store.api.ConfigKeyPath;
 import gobblin.config.store.api.ConfigStore;
 import gobblin.config.store.api.ConfigStoreWithImportedBy;
@@ -65,6 +68,13 @@ public class ConfigStoreBackedTopology implements ConfigStoreTopologyInspector {
    */
   @Override
   public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey) {
+    return getOwnImports(configKey, Optional.<Config>absent());
+  }
+
+  public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
+    if (runtimeConfig.isPresent()) {
+      return this.cs.getOwnImports(configKey, this.version, runtimeConfig);
+    }
     return this.cs.getOwnImports(configKey, this.version);
   }
 
