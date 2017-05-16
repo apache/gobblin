@@ -291,9 +291,18 @@ public class CompactionAvroJobConfigurator {
    */
   protected Collection<Path> getGranularInputPaths (Path path) throws IOException {
 
+    boolean renamingRequired = this.state.getPropAsBoolean(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED,
+            MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
+
     Set<Path> output = Sets.newHashSet();
     for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, path)) {
-      output.add(fileStatus.getPath().getParent());
+      if (renamingRequired) {
+        if (!fileStatus.getPath().getParent().toString().endsWith(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_SUFFIX)) {
+          output.add(fileStatus.getPath().getParent());
+        }
+      } else {
+        output.add(fileStatus.getPath().getParent());
+      }
     }
 
     return output;
