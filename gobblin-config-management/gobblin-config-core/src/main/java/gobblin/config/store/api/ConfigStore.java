@@ -21,6 +21,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
+import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
@@ -88,6 +89,9 @@ public interface ConfigStore {
    *
    */
   public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey, String version)
+      throws VersionDoesNotExistException;
+
+  public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey, String version, Optional<Config> runtimeConfig)
       throws VersionDoesNotExistException;
 
   /**

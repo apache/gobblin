@@ -17,6 +17,7 @@
 
 package gobblin.broker;
 
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -24,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
  * A {@link ResourceEntry} that automatically expires after a given number of milliseconds.
  */
 @Slf4j
+@SuppressWarnings
 public class TTLResourceEntry<T> extends ResourceInstance<T> {
   private final long expireAt;
   private final boolean closeOnInvalidation;

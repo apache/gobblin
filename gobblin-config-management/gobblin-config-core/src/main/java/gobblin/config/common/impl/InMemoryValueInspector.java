@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.typesafe.config.Config;
@@ -94,11 +95,16 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
    */
   @Override
   public Config getResolvedConfig(final ConfigKeyPath configKey) {
+    return getResolvedConfig(configKey, Optional.<Config>absent());
+  }
+
+  @Override
+  public Config getResolvedConfig(final ConfigKeyPath configKey, final Optional<Config> runtimeConfig) {
     try {
       return this.recursiveConfigCache.get(configKey, new Callable<Config>() {
         @Override
         public Config call()  {
-          return InMemoryValueInspector.this.valueFallback.getResolvedConfig(configKey);
+          return InMemoryValueInspector.this.valueFallback.getResolvedConfig(configKey, runtimeConfig);
         }
       });
     } catch (ExecutionException e) {

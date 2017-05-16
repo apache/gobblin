@@ -23,9 +23,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
 import gobblin.config.store.api.ConfigKeyPath;
 import gobblin.config.store.api.ConfigStore;
@@ -100,7 +103,13 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
     return result;
   }
 
+  @SuppressWarnings
   private Config getResolvedConfigRecursive(ConfigKeyPath configKey, Set<String> alreadyLoadedPaths) {
+    return getResolvedConfigRecursive(configKey, alreadyLoadedPaths, Optional.<Config>absent());
+  }
+
+  private Config getResolvedConfigRecursive(ConfigKeyPath configKey, Set<String> alreadyLoadedPaths,
+      Optional<Config> runtimeConfig) {
 
     if (this.cs instanceof ConfigStoreWithResolution) {
       return ((ConfigStoreWithResolution) this.cs).getResolvedConfig(configKey, this.version);
@@ -115,19 +124,20 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
       return initialConfig;
     }
 
-    List<ConfigKeyPath> ownImports = this.topology.getOwnImports(configKey);
+    List<ConfigKeyPath> ownImports = this.topology.getOwnImports(configKey, runtimeConfig);
     // merge with other configs from imports
     if (ownImports != null) {
       for (ConfigKeyPath p : ownImports) {
-        initialConfig = initialConfig.withFallback(this.getResolvedConfigRecursive(p, alreadyLoadedPaths));
+        initialConfig =
+            initialConfig.withFallback(this.getResolvedConfigRecursive(p, alreadyLoadedPaths, runtimeConfig));
       }
     }
 
     // merge with configs from parent for Non root
-    initialConfig = initialConfig.withFallback(this.getResolvedConfigRecursive(configKey.getParent(), alreadyLoadedPaths));
+    initialConfig = initialConfig
+        .withFallback(this.getResolvedConfigRecursive(configKey.getParent(), alreadyLoadedPaths, runtimeConfig));
 
     return initialConfig;
-
   }
 
   /**
@@ -141,10 +151,14 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
    *   2. resolved the config on the fly
    * </p>
    */
+  public Config getResolvedConfig(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
+    return getResolvedConfigRecursive(configKey, Sets.<String>newHashSet(), runtimeConfig)
+        .withFallback(ConfigFactory.defaultOverrides()).withFallback(ConfigFactory.systemEnvironment()).resolve();
+  }
+
   @Override
   public Config getResolvedConfig(ConfigKeyPath configKey) {
-    return getResolvedConfigRecursive(configKey, Sets.<String>newHashSet()).withFallback(ConfigFactory.defaultOverrides())
-        .withFallback(ConfigFactory.systemEnvironment()).resolve();
+    return getResolvedConfig(configKey, Optional.<Config>absent());
   }
 
   /**
