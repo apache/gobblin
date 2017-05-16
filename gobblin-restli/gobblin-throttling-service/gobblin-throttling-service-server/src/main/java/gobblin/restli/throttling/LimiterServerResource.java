@@ -66,7 +66,7 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
   public static final String BROKER_INJECT_NAME = "broker";
   public static final String METRIC_CONTEXT_INJECT_NAME = "limiterResourceMetricContext";
   public static final String REQUEST_TIMER_INJECT_NAME = "limiterResourceRequestTimer";
-  public static final String HELIX_MANAGER_INJECT_NAME = "helixManager";
+  public static final String LEADER_FINDER_INJECT_NAME = "leaderFinder";
 
   public static final String REQUEST_TIMER_NAME = "limiterServer.requestTimer";
   public static final String PERMITS_REQUESTED_METER_NAME = "limiterServer.permitsRequested";
@@ -84,7 +84,7 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
   @Inject @Named(REQUEST_TIMER_INJECT_NAME)
   Timer requestTimer;
 
-  @Inject @Named(HELIX_MANAGER_INJECT_NAME)
+  @Inject @Named(LEADER_FINDER_INJECT_NAME)
   Optional<LeaderFinder<URIMetadata>> leaderFinderOpt;
 
   /**
