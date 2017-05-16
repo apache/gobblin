@@ -44,6 +44,7 @@ public class TestFailover {
 
       TestingServer zkTestingServer = closer.register(new TestingServer(-1));
       configMap.put(ThrottlingGuiceServletConfig.ZK_STRING_KEY, zkTestingServer.getConnectString());
+      configMap.put(ThrottlingGuiceServletConfig.HA_CLUSTER_NAME, TestFailover.class.getSimpleName() + "_cluster");
       Config config = ConfigFactory.parseMap(configMap);
 
       ThrottlingGuiceServletConfig server2001 = createServerAtPort(config, 2001);

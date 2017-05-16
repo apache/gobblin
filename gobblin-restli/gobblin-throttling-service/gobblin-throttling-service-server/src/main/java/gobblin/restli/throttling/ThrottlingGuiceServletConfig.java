@@ -67,7 +67,9 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener im
   public static final String THROTTLING_SERVER_PREFIX = "throttlingServer.";
   public static final String LISTENING_PORT = THROTTLING_SERVER_PREFIX + "listeningPort";
   public static final String HOSTNAME = THROTTLING_SERVER_PREFIX + "hostname";
-  public static final String ZK_STRING_KEY = "throttling.helix.zkString";
+
+  public static final String ZK_STRING_KEY = THROTTLING_SERVER_PREFIX + "ha.zkString";
+  public static final String HA_CLUSTER_NAME = THROTTLING_SERVER_PREFIX + "ha.clusterName";
 
   private Optional<LeaderFinder<URIMetadata>> _leaderFinder;
   private Config _config;
@@ -131,7 +133,7 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener im
           bind(Timer.class).annotatedWith(Names.named(LimiterServerResource.REQUEST_TIMER_INJECT_NAME)).toInstance(timer);
 
           bind(new TypeLiteral<Optional<LeaderFinder<URIMetadata>>>() {
-          }).annotatedWith(Names.named(LimiterServerResource.HELIX_MANAGER_INJECT_NAME)).toInstance(leaderFinder);
+          }).annotatedWith(Names.named(LimiterServerResource.LEADER_FINDER_INJECT_NAME)).toInstance(leaderFinder);
 
           FilterChain filterChain =
               FilterChains.create(new ServerCompressionFilter(new EncodingType[]{EncodingType.SNAPPY}), new SimpleLoggingFilter());
@@ -152,12 +154,15 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener im
                                                                                            IOException {
     if (config.hasPath(ZK_STRING_KEY)) {
       Preconditions.checkArgument(config.hasPath(LISTENING_PORT), "Missing required config " + LISTENING_PORT);
+      Preconditions.checkArgument(config.hasPath(HA_CLUSTER_NAME), "Missing required config " + HA_CLUSTER_NAME);
+
       int port = config.getInt(LISTENING_PORT);
       String hostname = config.hasPath(HOSTNAME) ? config.getString(HOSTNAME) : InetAddress.getLocalHost().getCanonicalHostName();
 
+      String clusterName = config.getString(HA_CLUSTER_NAME);
       String zkString = config.getString(ZK_STRING_KEY);
 
-      return Optional.<LeaderFinder<URIMetadata>>of(new ZookeeperLeaderElection<>(zkString, "ThrottlingServer",
+      return Optional.<LeaderFinder<URIMetadata>>of(new ZookeeperLeaderElection<>(zkString, clusterName,
           new URIMetadata(new URI("http", null, hostname, port, null, null, null))));
     }
     return Optional.absent();
