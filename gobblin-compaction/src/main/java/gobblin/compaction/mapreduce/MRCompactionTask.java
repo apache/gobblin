@@ -55,14 +55,14 @@ public class MRCompactionTask extends MRTask {
     super.run();
   }
 
-  public void onMRTaskComplete (boolean isSuccess, Throwable throwable) throws RuntimeException {
+  public void onMRTaskComplete (boolean isSuccess, Throwable throwable) {
     if (isSuccess) {
       try {
         List<CompactionCompleteAction> actions = this.suite.getCompactionCompleteActions();
         for (CompactionCompleteAction action: actions) {
           action.onCompactionJobComplete(dataset);
         }
-      } catch (Exception e) {
+      } catch (IOException e) {
         throw new RuntimeException(e);
       }
     } else {

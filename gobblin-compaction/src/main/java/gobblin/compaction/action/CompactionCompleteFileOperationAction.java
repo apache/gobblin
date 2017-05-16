@@ -58,11 +58,11 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       Counter counter = job.getCounters().findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
       long recordCount = counter.getValue();
 
-
-      boolean renamingRequired = this.state.getPropAsBoolean(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED,
+      // this is append delta mode due to the compaction rename source dir mode being enabled
+      boolean appendDeltaOutput = this.state.getPropAsBoolean(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED,
               MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
 
-      if (renamingRequired) {
+      if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
                 MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
                 FsPermission.getDefault());
@@ -82,7 +82,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
 
         // update record count (adding previous count)
         long delta = InputRecordCountHelper.readRecordCount(fs, dstPath);
-        log.info("Will change record count from {} to {} at {}", recordCount, delta, dstPath);
+        log.info("Will change record count from {} to {} at {}", recordCount, recordCount + delta, dstPath);
         recordCount += delta;
         
       } else {
