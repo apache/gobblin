@@ -219,7 +219,7 @@ public class ValidationJob extends AbstractJob {
         String serdeLib = partition.getTPartition().getSd().getSerdeInfo().getSerializationLib();
         if (!hiveSerDe.get().toString().equalsIgnoreCase(serdeLib)) {
           throwables.add(new Throwable(
-              "Partition SerDe " + serdeLib + " doesn't match with the required SerDe " + hiveSerDe.get().toString()));
+              "Partition" + partition.getCompleteName() + " SerDe " + serdeLib + " doesn't match with the required SerDe " + hiveSerDe.get().toString()));
         }
       }
     }

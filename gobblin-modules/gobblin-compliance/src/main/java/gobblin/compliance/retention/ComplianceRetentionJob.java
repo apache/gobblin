@@ -17,12 +17,16 @@
 package gobblin.compliance.retention;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.thrift.TException;
 
 import com.google.common.base.Optional;
@@ -40,6 +44,8 @@ import gobblin.compliance.ComplianceEvents;
 import gobblin.compliance.ComplianceJob;
 import gobblin.compliance.utils.ProxyUtils;
 import gobblin.configuration.State;
+import gobblin.data.management.copy.hive.HiveDataset;
+import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
@@ -54,10 +60,16 @@ import static gobblin.compliance.ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_
  */
 @Slf4j
 public class ComplianceRetentionJob extends ComplianceJob {
+  public static final List<HiveDataset> datasetList = new ArrayList<>();
   public ComplianceRetentionJob(Properties properties) {
     super(properties);
     initDatasetFinder(properties);
     try {
+      Iterator<HiveDataset> datasetsIterator =
+          new HiveDatasetFinder(FileSystem.newInstance(new Configuration()), properties).getDatasetsIterator();
+      while (datasetsIterator.hasNext()) {
+        this.datasetList.add(datasetsIterator.next());
+      }
       ProxyUtils.cancelTokens(new State(properties));
     } catch (InterruptedException | TException | IOException e) {
       Throwables.propagate(e);
