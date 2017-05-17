@@ -32,6 +32,7 @@ import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.broker.iface.SharedResourceFactoryResponse;
 import gobblin.broker.ResourceCoordinate;
 import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.LimiterFactory;
 import gobblin.util.limiter.MultiLimiter;
@@ -57,6 +58,11 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
   public static final String NAME = "limiter";
   public static final String LIMITER_CLASS_KEY = "class";
   public static final String FAIL_IF_NO_GLOBAL_LIMITER_KEY = "failIfNoGlobalLimiter";
+  /**
+   * Skip use of global limiter. In general, this should not be used, but it is provided to easily disable global limiters
+   * in case of issues with the coordination server.
+   */
+  public static final String SKIP_GLOBAL_LIMITER_KEY = "skipGlobalLimiter";
   public static final String FAIL_ON_UNKNOWN_RESOURCE_ID = "faiOnUnknownResourceId";
 
   private static final ClassAliasResolver<LimiterFactory> RESOLVER = new ClassAliasResolver<>(LimiterFactory.class);
@@ -74,7 +80,13 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
     Config config = configView.getConfig();
     SharedLimiterKey.GlobalLimiterPolicy globalLimiterPolicy = configView.getKey().getGlobalLimiterPolicy();
 
-    if (config.hasPath(FAIL_IF_NO_GLOBAL_LIMITER_KEY) && config.getBoolean(FAIL_IF_NO_GLOBAL_LIMITER_KEY) &&
+    if (ConfigUtils.getBoolean(config, SKIP_GLOBAL_LIMITER_KEY, false)) {
+      if (globalLimiterPolicy != SharedLimiterKey.GlobalLimiterPolicy.LOCAL_ONLY) {
+        SharedLimiterKey modifiedKey = new SharedLimiterKey(configView.getKey().getResourceLimitedPath(),
+            SharedLimiterKey.GlobalLimiterPolicy.LOCAL_ONLY);
+        return new ResourceCoordinate<>(this, modifiedKey, (S) configView.getScope());
+      }
+    } else if (config.hasPath(FAIL_IF_NO_GLOBAL_LIMITER_KEY) && config.getBoolean(FAIL_IF_NO_GLOBAL_LIMITER_KEY) &&
         globalLimiterPolicy != SharedLimiterKey.GlobalLimiterPolicy.USE_GLOBAL) {
       // if user has specified FAIL_IF_NO_GLOBAL_LIMITER_KEY, promote the policy from USE_GLOBAL_IF_CONFIGURED to USE_GLOBAL
       // e.g. fail if no GLOBAL configuration is present

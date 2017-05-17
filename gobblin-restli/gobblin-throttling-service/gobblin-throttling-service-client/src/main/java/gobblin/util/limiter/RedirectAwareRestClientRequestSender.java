@@ -61,14 +61,14 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
    * A {@link SharedResourceFactory} that creates {@link RedirectAwareRestClientRequestSender}s.
    * @param <S>
    */
-  public static class Factory<S extends ScopeType<S>> implements SharedResourceFactory<RedirectAwareRestClientRequestSender, SharedRestClientKey, S> {
+  public static class Factory<S extends ScopeType<S>> implements SharedResourceFactory<RequestSender, SharedRestClientKey, S> {
     @Override
     public String getName() {
       return SharedRestClientFactory.FACTORY_NAME;
     }
 
     @Override
-    public SharedResourceFactoryResponse<RedirectAwareRestClientRequestSender> createResource(
+    public SharedResourceFactoryResponse<RequestSender> createResource(
         SharedResourcesBroker<S> broker, ScopedConfigView<S, SharedRestClientKey> config)
         throws NotConfiguredException {
       try {
@@ -177,7 +177,6 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
           if (this.retries > RedirectAwareRestClientRequestSender.this.connectionPrefixes.size()) {
             this.underlying.onError(new NonRetriableException("Failed to connect to all available connection prefixes."));
           }
-          log.info("Retries " + this.retries + " this " + hashCode());
           updateRestClient(getNextConnectionPrefix(), "Failed to communicate with " + getCurrentServerPrefix());
           this.exponentialBackoff.awaitNextRetry();
           sendRequest(this.originalRequest, this);

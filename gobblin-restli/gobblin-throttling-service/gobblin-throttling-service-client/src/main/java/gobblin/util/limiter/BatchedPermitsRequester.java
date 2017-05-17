@@ -105,6 +105,7 @@ class BatchedPermitsRequester {
   private final RetryStatus retryStatus;
   private final SynchronizedAverager permitsOutstanding;
   private final long targetMillisBetweenRequests;
+  private final AtomicLong callbackCounter;
 
   @Builder
   private BatchedPermitsRequester(String resourceId, String requestorIdentifier,
@@ -131,6 +132,7 @@ class BatchedPermitsRequester {
 
     this.restRequestTimer = metricContext == null ? null : metricContext.timer(REST_REQUEST_TIMER);
     this.restRequestHistogram = metricContext == null ? null : metricContext.histogram(REST_REQUEST_PERMITS_HISTOGRAM);
+    this.callbackCounter = new AtomicLong();
   }
 
   /**
@@ -150,8 +152,13 @@ class BatchedPermitsRequester {
           return true;
         }
         if (this.retryStatus.canRetryWithinMillis(10000)) {
+          long callbackCounterSnap = this.callbackCounter.get();
           maybeSendNewPermitRequest();
-          this.newPermitsAvailable.await();
+          if (this.callbackCounter.get() == callbackCounterSnap) {
+            // If a callback has happened since we tried to send the new permit request, don't await
+            // Since some request senders may be synchronous, we would have missed the notification
+            this.newPermitsAvailable.await();
+          }
         } else {
           break;
         }
@@ -279,6 +286,7 @@ class BatchedPermitsRequester {
     @Override
     public void onSuccess(Response<PermitAllocation> result) {
       BatchedPermitsRequester.this.retries = 0;
+      BatchedPermitsRequester.this.callbackCounter.incrementAndGet();
       BatchedPermitsRequester.this.lock.lock();
       try {
         PermitAllocation allocation = result.getEntity();
@@ -309,6 +317,7 @@ class BatchedPermitsRequester {
 
     private void nonRetriableFail(Throwable exc, String msg) {
       BatchedPermitsRequester.this.retryStatus.blockRetries(RETRY_DELAY_ON_NON_RETRIABLE_EXCEPTION, exc);
+      BatchedPermitsRequester.this.callbackCounter.incrementAndGet();
       BatchedPermitsRequester.this.requestSemaphore.release();
       log.error(msg, exc);
 
