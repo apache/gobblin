@@ -145,6 +145,9 @@ gobblin.retention : {
 }
 </pre>
 
+### Examples
+Browse the [gobblin-data-management/config-example](/gobblin-data-management/config-example) directory to see example configuration.
+
 ## Supported Retention Configurations
 Below is a list of ready to use supported retention configurations. But users can always implement their own ```DatasetFinder```,```VersionFinder``` and ```VersionSelectionPolicy``` and plug it in.
 
