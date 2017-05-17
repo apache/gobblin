@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.RecordEnvelope;
 
 
 /**
@@ -34,8 +35,13 @@ public abstract class InstrumentedExtractor<S, D> extends InstrumentedExtractorB
   }
 
   @Override
-  public final D readRecord(D reuse)
+  public final D readRecord(D reuse) throws DataRecordException, IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public final RecordEnvelope<D> readRecordEnvelope()
       throws DataRecordException, IOException {
-    return super.readRecord(reuse);
+    return super.readRecordEnvelope();
   }
 }

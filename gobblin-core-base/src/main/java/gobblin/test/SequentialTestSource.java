@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metadata.MetadataNames;
 import gobblin.source.Source;
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.DataRecordException;
@@ -239,11 +240,13 @@ public class SequentialTestSource implements Source<String, Object> {
     }
 
     @Override
-    public RecordEnvelope<Object> readRecord(@Deprecated RecordEnvelope<Object> reuse)
+    public Object readRecord(@Deprecated Object reuse)
     throws DataRecordException, IOException {
       TestRecord record = (TestRecord) extractor.readRecord(null);
-      return new RecordEnvelope<>((Object) record, new DefaultCheckpointableWatermark(""+record.getPartition(),
-          new LongWatermark(record.getSequence())));
+      RecordEnvelope<Object> recordEnvelope = new RecordEnvelope<>(record);
+      recordEnvelope.getMetadata().getRecordMetadata().put(MetadataNames.WATERMARK,
+          new DefaultCheckpointableWatermark(""+record.getPartition(), new LongWatermark(record.getSequence())));
+      return recordEnvelope;
     }
 
     @Override

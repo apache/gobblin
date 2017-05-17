@@ -16,6 +16,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,13 +52,11 @@ import gobblin.source.extractor.RecordEnvelope;
 import gobblin.state.ConstructState;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.AcknowledgableRecordEnvelope;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.DataWriterWrapperBuilder;
 import gobblin.writer.Destination;
 import gobblin.writer.PartitionedDataWriter;
-import gobblin.writer.WatermarkAwareWriter;
 
 
 /**
@@ -78,7 +77,7 @@ import gobblin.writer.WatermarkAwareWriter;
  * @author Yinan Li
  */
 @SuppressWarnings("unchecked")
-public abstract class Fork implements Closeable, Runnable, FinalState {
+public class Fork implements Closeable, Runnable, FinalState {
 
   // Possible state of a fork
   enum ForkState {
@@ -107,6 +106,8 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
   private final RowLevelPolicyChecker rowLevelPolicyChecker;
   private final RowLevelPolicyCheckResults rowLevelPolicyCheckingResult;
 
+  private final Stream<Object> forkStream;
+
   private final Closer closer = Closer.create();
 
   // The writer will be lazily created when the first data record arrives
@@ -125,7 +126,7 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
   private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
   protected static final Object SHUTDOWN_RECORD = new Object();
 
-  public Fork(TaskContext taskContext, Object schema, int branches, int index, ExecutionModel executionModel)
+  public Fork(TaskContext taskContext, Object schema, int branches, int index, ExecutionModel executionModel, Stream<Object> forkStream)
       throws Exception {
     this.logger = LoggerFactory.getLogger(Fork.class.getName() + "-" + index);
 
@@ -167,6 +168,8 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
       this.closer.register(forkMetrics.getMetricContext());
       Instrumented.setMetricContextName(this.taskState, forkMetrics.getMetricContext().getName());
     }
+
+    this.forkStream = forkStream;
   }
 
   private boolean isStreamingMode() {
@@ -207,51 +210,6 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
       state.addConstructState(Constructs.WRITER, new ConstructState(((FinalState) this.writer.get()).getFinalState()));
     }
     return state;
-  }
-
-  /**
-   * Put a new record into the record queue for this {@link Fork} to process.
-   *
-   * <p>
-   *   This method is used by the {@link Task} that creates this {@link Fork}.
-   * </p>
-   *
-   * @param record the new record
-   * @return whether the record has been successfully put into the queue
-   * @throws InterruptedException
-   */
-  public boolean putRecord(Object record)
-      throws InterruptedException {
-    if (this.forkState.compareAndSet(ForkState.FAILED, ForkState.FAILED)) {
-      throw new IllegalStateException(
-          String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId));
-    }
-    return this.putRecordImpl(record);
-  }
-
-  /**
-   * Tell this {@link Fork} that the parent task is already done pulling records and
-   * it should not expect more incoming data records.
-   *
-   * <p>
-   *   This method is used by the {@link Task} that creates this {@link Fork}.
-   * </p>
-   */
-  public void markParentTaskDone() {
-    this.parentTaskDone = true;
-    try {
-      this.putRecord(SHUTDOWN_RECORD);
-    } catch (InterruptedException e) {
-      this.logger.info("Interrupted while writing a shutdown record into the fork queue. Ignoring");
-    }
-  }
-
-  /**
-   * Check if the parent task is done.
-   * @return {@code true} if the parent task is done; otherwise {@code false}.
-   */
-  public boolean isParentTaskDone() {
-    return parentTaskDone;
   }
 
   /**
@@ -326,7 +284,10 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
    *         statistics of this {@link Fork} wrapped in an {@link com.google.common.base.Optional},
    *         which means it may be absent if collecting of queue statistics is not enabled.
    */
-  public abstract Optional<BoundedBlockingRecordQueue<Object>.QueueStats> queueStats();
+  public Optional<BoundedBlockingRecordQueue<Object>.QueueStats> queueStats() {
+    // TODO
+    return Optional.absent();
+  }
 
   /**
    * Return if this {@link Fork} has succeeded processing all records.
@@ -387,50 +348,20 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
     }
   }
 
-  protected abstract void processRecords() throws IOException, DataConversionException;
-
-
-  protected void processRecord(Object record) throws IOException, DataConversionException {
-    if (this.forkState.compareAndSet(ForkState.FAILED, ForkState.FAILED)) {
-      throw new IllegalStateException(
-          String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId));
-    }
-    if (record == null || record == SHUTDOWN_RECORD) {
-      /**
-       * null record indicates a timeout on record acquisition, SHUTDOWN_RECORD is sent during shutdown.
-       * Will loop unless the parent task has indicated that it is already done pulling records.
-       */
-      if (this.parentTaskDone) {
-        return;
-      }
-    } else {
-      if (isStreamingMode()) {
-        // Unpack the record from its container
-        AcknowledgableRecordEnvelope recordEnvelope = (AcknowledgableRecordEnvelope) record;
-        // Convert the record, check its data quality, and finally write it out if quality checking passes.
-        for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, recordEnvelope.getRecord(), this.taskState)) {
-          if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
-            // for each additional record we pass down, increment the acks needed
-            ((WatermarkAwareWriter) this.writer.get()).writeEnvelope(
-                recordEnvelope.derivedEnvelope(convertedRecord));
-          }
-        }
-        // ack this fork's processing done
-        recordEnvelope.ack();
-      } else {
+  protected void processRecords() throws IOException, DataConversionException {
+    Stream<RecordEnvelope> convertedStream = this.converter.convertRecordStream(this.convertedSchema.orNull(), this.forkStream, this.taskState);
+    Stream<RecordEnvelope> qualityCheckedStream = this.rowLevelPolicyChecker == null ?
+        convertedStream :
+        this.rowLevelPolicyChecker.filter(convertedStream, this.rowLevelPolicyCheckingResult);
+    qualityCheckedStream.forEach(envelope -> {
+      try {
         buildWriterIfNotPresent();
-
-        // Convert the record, check its data quality, and finally write it out if quality checking passes.
-        for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, record, this.taskState)) {
-          if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
-            this.writer.get().write(convertedRecord);
-          }
-        }
+        this.writer.get().writeEnvelopedRecord(envelope);
+      } catch (IOException ioe) {
+        throw new RuntimeException(ioe);
       }
-    }
+    });
   }
-
-  protected abstract boolean putRecordImpl(Object record) throws InterruptedException;
 
   protected void cleanup() {
   }

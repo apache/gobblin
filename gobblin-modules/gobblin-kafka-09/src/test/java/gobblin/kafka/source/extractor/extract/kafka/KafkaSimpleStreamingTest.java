@@ -41,9 +41,11 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.kafka.KafkaTestBase;
+import gobblin.metadata.MetadataNames;
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.RecordEnvelope;
+import gobblin.source.extractor.RecordEnvelopeUtils;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingExtractor;
 import gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource;
@@ -166,7 +168,8 @@ public class KafkaSimpleStreamingTest {
     KafkaSimpleStreamingExtractor.KafkaWatermark kwm =
         new KafkaSimpleStreamingExtractor.KafkaWatermark(tP, new LongWatermark(0));
     byte [] reuse = new byte[1];
-    RecordEnvelope<byte[]> oldRecord = new RecordEnvelope<>(reuse, kwm);
+    RecordEnvelope<byte[]> oldRecord = new RecordEnvelope<>(reuse);
+    oldRecord.getMetadata().getRecordMetadata().put(MetadataNames.WATERMARK, kwm);
 
     Map<String, CheckpointableWatermark> committedWatermarks = new HashMap<>();
 
@@ -178,7 +181,7 @@ public class KafkaSimpleStreamingTest {
 
 
     // read and verify the record matches we just wrote
-    RecordEnvelope<byte[]> record = kSSE.readRecord(oldRecord);
+    RecordEnvelope<byte[]> record = kSSE.readRecordEnvelope();
     Assert.assertEquals(record.getRecord(), record_1);
 
     // write a second record.
@@ -186,11 +189,12 @@ public class KafkaSimpleStreamingTest {
     producer.flush();
 
     // read the second record using same extractor to verify it matches whats expected
-    record = kSSE.readRecord(oldRecord);
+    record = kSSE.readRecordEnvelope();
     Assert.assertEquals(record.getRecord(), record_2);
 
     // Commit the watermark
-    committedWatermarks.put(record.getWatermark().getSource(), record.getWatermark());
+    committedWatermarks.put(RecordEnvelopeUtils.getCheckpointableWatermark(record).get().getSource(),
+        RecordEnvelopeUtils.getCheckpointableWatermark(record).get());
 
     // write a third record.
     producer.send(new ProducerRecord<String, byte[]>(topic, topic, record_3));
@@ -201,7 +205,7 @@ public class KafkaSimpleStreamingTest {
     kSSE = getStreamingExtractor(topic);
 
     kSSE.start(mockWatermarkStorage);
-    record = kSSE.readRecord(oldRecord);
+    record = kSSE.readRecordEnvelope();
 
     // check it matches the data written
     Assert.assertEquals(record.getRecord(), record_3);
@@ -224,9 +228,9 @@ public class KafkaSimpleStreamingTest {
         KafkaSimpleStreamingExtractor.KafkaWatermark kwm =
             new KafkaSimpleStreamingExtractor.KafkaWatermark(tP, new LongWatermark(0));
         byte[] reuse = new byte[1];
-        RecordEnvelope<byte[]> oldRecord = new RecordEnvelope<>(reuse, kwm);
+        RecordEnvelope<byte[]> oldRecord = RecordEnvelopeUtils.createRecordEnvelopeWithWatermark(reuse, kwm);
         try {
-          RecordEnvelope<byte[]> record = kSSE.readRecord(oldRecord);
+          RecordEnvelope<byte[]> record = kSSE.readRecordEnvelope();
         } catch (Exception e) {
           Assert.assertTrue((e instanceof WakeupException) || (e instanceof ClosedChannelException));
         }
@@ -254,7 +258,7 @@ public class KafkaSimpleStreamingTest {
     final KafkaSimpleStreamingExtractor<String, byte[]> kSSE = getStreamingExtractor(topic);
 
     try {
-      kSSE.readRecord(null);
+      kSSE.readRecordEnvelope();
       Assert.fail("Should have thrown an exception");
     } catch (IOException e) {
 

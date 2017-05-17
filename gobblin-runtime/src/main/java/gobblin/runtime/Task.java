@@ -27,8 +27,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
-import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -54,6 +54,7 @@ import gobblin.fork.CopyHelper;
 import gobblin.fork.CopyNotSupportedException;
 import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
+import gobblin.fork.ForkedStreams;
 import gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
 import gobblin.metrics.MetricContext;
@@ -63,19 +64,14 @@ import gobblin.publisher.DataPublisher;
 import gobblin.publisher.SingleTaskDataPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.runtime.fork.AsynchronousFork;
 import gobblin.runtime.fork.Fork;
-import gobblin.runtime.fork.SynchronousFork;
 import gobblin.runtime.task.TaskIFace;
 import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.source.extractor.RecordEnvelope;
 import gobblin.source.extractor.StreamingExtractor;
 import gobblin.state.ConstructState;
 import gobblin.util.ConfigUtils;
-import gobblin.writer.AcknowledgableRecordEnvelope;
-import gobblin.writer.AcknowledgableWatermark;
 import gobblin.writer.DataWriter;
 import gobblin.writer.FineGrainedWatermarkTracker;
 import gobblin.writer.MultiWriterWatermarkManager;
@@ -147,6 +143,8 @@ public class Task implements TaskIFace {
   private final AtomicLong recordsPulled;
 
   private final AtomicBoolean shutdownRequested;
+  private final long shutdownTimeout;
+  private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
 
   /**
@@ -188,6 +186,7 @@ public class Task implements TaskIFace {
     this.recordsPulled = new AtomicLong(0);
     this.lastRecordPulledTimestampMillis = 0;
     this.shutdownRequested = new AtomicBoolean(false);
+    this.shutdownTimeout = 5000;
     this.shutdownLatch = new CountDownLatch(1);
 
     // Setup Streaming constructs
@@ -214,8 +213,8 @@ public class Task implements TaskIFace {
       }
 
       long commitIntervalMillis = ConfigUtils.getLong(config,
-          TaskConfigurationKeys.STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS,
-          TaskConfigurationKeys.DEFAULT_STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS);
+          ConfigurationKeys.STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS,
+          ConfigurationKeys.DEFAULT_STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS);
       if (watermarkingStrategy.equals("FineGrain")) { // TODO: Configure
         this.watermarkTracker = Optional.of(this.closer.register(new FineGrainedWatermarkTracker(config)));
         this.watermarkManager = Optional.of((WatermarkManager) this.closer.register(
@@ -238,18 +237,13 @@ public class Task implements TaskIFace {
 
   public static ExecutionModel getExecutionModel(State state) {
     String mode = state
-        .getProp(TaskConfigurationKeys.TASK_EXECUTION_MODE, TaskConfigurationKeys.DEFAULT_TASK_EXECUTION_MODE);
+        .getProp(ConfigurationKeys.TASK_EXECUTION_MODE, ConfigurationKeys.DEFAULT_TASK_EXECUTION_MODE);
     try {
       return ExecutionModel.valueOf(mode.toUpperCase());
     } catch (Exception e) {
       LOG.warn("Could not find an execution model corresponding to {}, returning {}", mode, ExecutionModel.BATCH, e);
       return ExecutionModel.BATCH;
     }
-  }
-
-  private boolean areSingleBranchTasksSynchronous(TaskContext taskContext) {
-    return BooleanUtils.toBoolean(taskContext.getTaskState()
-            .getProp(TaskConfigurationKeys.TASK_IS_SINGLE_BRANCH_SYNCHRONOUS, TaskConfigurationKeys.DEFAULT_TASK_IS_SINGLE_BRANCH_SYNCHRONOUS));
   }
 
   private boolean isStreamingTask() {
@@ -272,8 +266,9 @@ public class Task implements TaskIFace {
     return this.shutdownRequested.get();
   }
 
-  public void shutdown() {
+  public synchronized void shutdown() {
     this.shutdownRequested.set(true);
+    this.shutdownRequestedTime = Math.min(System.currentTimeMillis(), this.shutdownRequestedTime);
   }
 
   public String getProgress() {
@@ -304,7 +299,7 @@ public class Task implements TaskIFace {
 
     // Clear the map so it starts with a fresh set of forks for each run/retry
     this.forks.clear();
-    RowLevelPolicyChecker rowChecker = null;
+    RowLevelPolicyChecker rowChecker;
     try {
       // Get the fork operator. By default IdentityForkOperator is used with a single branch.
       ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
@@ -322,36 +317,12 @@ public class Task implements TaskIFace {
                 branches));
       }
 
-      if (inMultipleBranches(forkedSchemas) && !(CopyHelper.isCopyable(schema))) {
+      if (ForkedStreams.inMultipleBranches(forkedSchemas) && !(CopyHelper.isCopyable(schema))) {
         throw new CopyNotSupportedException(schema + " is not copyable");
       }
 
-
-
       rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
       RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
-
-      if (!areSingleBranchTasksSynchronous(this.taskContext) || branches > 1) {
-        // Create one fork for each forked branch
-        for (int i = 0; i < branches; i++) {
-          if (forkedSchemas.get(i)) {
-            AsynchronousFork fork = closer.register(
-              new AsynchronousFork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
-                  branches, i, this.taskMode));
-            configureStreamingFork(fork, watermarkingStrategy);
-            // Run the Fork
-            this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>>of(this.taskExecutor.submit(fork)));
-          } else {
-            this.forks.put(Optional.<Fork>absent(), Optional.<Future<?>> absent());
-          }
-        }
-      } else {
-        SynchronousFork fork = closer.register(
-            new SynchronousFork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
-                branches, 0, this.taskMode));
-        configureStreamingFork(fork, watermarkingStrategy);
-        this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>> of(this.taskExecutor.submit(fork)));
-      }
 
       if (isStreamingTask()) {
 
@@ -362,45 +333,35 @@ public class Task implements TaskIFace {
         this.watermarkManager.get().start();
 
         ((StreamingExtractor) this.taskContext.getRawSourceExtractor()).start(this.watermarkStorage.get());
-
-
-        RecordEnvelope recordEnvelope;
-        // Extract, convert, and fork one source record at a time.
-        while (!shutdownRequested() && (recordEnvelope = (RecordEnvelope) extractor.readRecord(null)) != null) {
-          onRecordExtract();
-          AcknowledgableWatermark ackableWatermark = new AcknowledgableWatermark(recordEnvelope.getWatermark());
-          if (watermarkTracker.isPresent()) {
-            watermarkTracker.get().track(ackableWatermark);
-          }
-          for (Object convertedRecord : converter.convertRecord(schema, recordEnvelope.getRecord(), this.taskState)) {
-            processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches,
-                ackableWatermark.incrementAck());
-          }
-          ackableWatermark.ack();
-        }
-      } else {
-        Object record;
-        // Extract, convert, and fork one source record at a time.
-        while ((record = extractor.readRecord(null)) != null) {
-          onRecordExtract();
-          for (Object convertedRecord : converter.convertRecord(schema, record, this.taskState)) {
-            processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches, null);
-          }
-        }
       }
 
-      LOG.info("Extracted " + this.recordsPulled + " data records");
-      LOG.info("Row quality checker finished with results: " + rowResults.getResults());
+      Stream recordStream = this.extractor.getRecordEnvelopeStream(this.shutdownRequested).peek(r -> onRecordExtract());
+      recordStream = recordStream.peek(r -> {
+        if (this.shutdownRequested.get() && System.currentTimeMillis() > this.shutdownRequestedTime + this.shutdownTimeout) {
+          throw new RuntimeException("Extractor stream did not shut down as requested.");
+        }
+      });
+      if (this.watermarkManager.isPresent()) {
+        recordStream = this.watermarkManager.get().peekExtractorStream(recordStream);
+      }
+      recordStream = this.converter.convertRecordStream(schema, recordStream, this.taskState);
+      recordStream = rowChecker.filter(recordStream, rowResults);
+      List<Stream> forkStreams = forkOperator.forkStream(this.taskState, recordStream, isStreamingTask(), forkedSchemas);
+
+      for (int i = 0; i < forkedSchemas.size(); i++) {
+        Stream stream = forkStreams.get(i);
+        if (stream != null) {
+          Fork fork = closer.register(
+              new Fork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i,
+                  this.taskMode, stream) {
+              });
+          configureStreamingFork(fork, watermarkingStrategy);
+          this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>>of(this.taskExecutor.submit(fork)));
+        }
+      }
 
       this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED, this.recordsPulled);
       this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
-
-      for (Optional<Fork> fork : this.forks.keySet()) {
-        if (fork.isPresent()) {
-          // Tell the fork that the main branch is completed and no new incoming data records should be expected
-          fork.get().markParentTaskDone();
-        }
-      }
 
       for (Optional<Future<?>> forkFuture : this.forks.values()) {
         if (forkFuture.isPresent()) {
@@ -414,6 +375,9 @@ public class Task implements TaskIFace {
           }
         }
       }
+
+      LOG.info("Extracted " + this.recordsPulled + " data records");
+      LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
       //TODO: Move these to explicit shutdown phase
       if (watermarkManager.isPresent()) {
@@ -656,72 +620,6 @@ public class Task implements TaskIFace {
   @Override
   public String toString() {
     return this.taskId;
-  }
-
-  /**
-   * Process a (possibly converted) record.
-   */
-  @SuppressWarnings("unchecked")
-  private void processRecord(Object convertedRecord, ForkOperator forkOperator, RowLevelPolicyChecker rowChecker,
-      RowLevelPolicyCheckResults rowResults, int branches, AcknowledgableWatermark watermark)
-      throws Exception {
-    // Skip the record if quality checking fails
-    if (!rowChecker.executePolicies(convertedRecord, rowResults)) {
-      if (watermark != null) {
-        watermark.ack();
-      }
-      return;
-    }
-
-    List<Boolean> forkedRecords = forkOperator.forkDataRecord(this.taskState, convertedRecord);
-    if (forkedRecords.size() != branches) {
-      throw new ForkBranchMismatchException(String
-          .format("Number of forked data records [%d] is not equal to number of branches [%d]", forkedRecords.size(),
-              branches));
-    }
-
-    boolean needToCopy = inMultipleBranches(forkedRecords);
-    // we only have to copy a record if it needs to go into multiple forks
-    if (needToCopy && !(CopyHelper.isCopyable(convertedRecord))) {
-      throw new CopyNotSupportedException(convertedRecord.getClass().getName() + " is not copyable");
-    }
-
-
-    int branch = 0;
-    int copyInstance = 0;
-    for (Optional<Fork> fork : this.forks.keySet()) {
-      if (fork.isPresent() && forkedRecords.get(branch)) {
-        Object recordForFork = CopyHelper.copy(convertedRecord, copyInstance);
-        copyInstance++;
-        if (isStreamingTask()) {
-          // Send the record, watermark pair down the fork
-          recordForFork = new AcknowledgableRecordEnvelope<>(recordForFork, watermark.incrementAck());
-        }
-        // Put the record into the record queue of each fork. A put may timeout and return a false, in which
-        // case the put is retried until it is successful.
-        boolean succeeded = false;
-        while (!succeeded) {
-          succeeded = fork.get().putRecord(recordForFork);
-        }
-      }
-      branch++;
-    }
-    if (watermark != null) {
-      watermark.ack();
-    }
-  }
-
-  /**
-   * Check if a schema or data record is being passed to more than one branches.
-   */
-  private static boolean inMultipleBranches(List<Boolean> branches) {
-    int inBranches = 0;
-    for (Boolean bool : branches) {
-      if (bool && ++inBranches > 1) {
-        break;
-      }
-    }
-    return inBranches > 1;
   }
 
   /**

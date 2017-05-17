@@ -38,6 +38,7 @@ import com.google.common.base.Preconditions;
 import com.google.gson.JsonElement;
 
 import gobblin.configuration.State;
+import gobblin.metadata.MetadataNames;
 import gobblin.configuration.WorkUnitState;
 import gobblin.kafka.client.AbstractBaseKafkaConsumerClient;
 import gobblin.metrics.Tag;
@@ -65,7 +66,7 @@ import lombok.ToString;
  *
  *
  */
-public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, RecordEnvelope<D>> implements StreamingExtractor<S, D> {
+public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, D> implements StreamingExtractor<S, D> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSimpleStreamingExtractor.class);
   private AtomicBoolean _isStarted = new AtomicBoolean(false);
@@ -206,8 +207,7 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
    * Return the next record when available. Will never time out since this is a streaming source.
    */
   @Override
-  public RecordEnvelope<D> readRecordImpl(RecordEnvelope<D> reuse)
-      throws DataRecordException, IOException {
+  public RecordEnvelope<D> readRecordEnvelopeImpl() throws DataRecordException, IOException {
     if (!_isStarted.get()) {
       throw new IOException("Streaming extractor has not been started.");
     }
@@ -221,7 +221,10 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
     }
     ConsumerRecord<S, D> record = _records.next();
     _rowCount.getAndIncrement();
-    return new RecordEnvelope<D>(record.value(), new KafkaWatermark(_partition, new LongWatermark(record.offset())));
+    RecordEnvelope<D> recordEnvelope = new RecordEnvelope<>(record.value());
+    recordEnvelope.getMetadata().getRecordMetadata()
+        .put(MetadataNames.WATERMARK, new KafkaWatermark(_partition, new LongWatermark(record.offset())));
+    return recordEnvelope;
   }
 
   @Override

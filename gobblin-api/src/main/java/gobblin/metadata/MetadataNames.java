@@ -15,23 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
-
-import gobblin.configuration.WorkUnitState;
+package gobblin.metadata;
 
 /**
- * Implementation of {@link Converter} that returns the inputSchema unmodified and each inputRecord unmodified
+ * Names for common keys in {@link gobblin.metadata.types.Metadata}.
  */
-public class IdentityConverter<S, D> extends Converter<S, S, D, D> {
+public class MetadataNames {
 
-  @Override
-  public Object convertSchema(Object inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return inputSchema;
-  }
+  public static final String WATERMARK = "watermark";
+  public static final String SOURCE = "source";
+  public static final String RECORD_PROCESSING_START_NANOS = "recordProcessingStartNanos";
 
-  @Override
-  public Iterable<Object> convertRecord(Object outputSchema, Object inputRecord, WorkUnitState workUnit)
-      throws DataConversionException {
-    return new SingleRecordIterable<>(inputRecord);
-  }
+  public static final String DEFAULT_SOURCE = "DEFAULT";
+
 }

@@ -18,15 +18,19 @@
 package gobblin.instrumented.extractor;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
 import com.google.common.base.Optional;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumented;
+import gobblin.metadata.MetadataNames;
 import gobblin.metrics.MetricContext;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 import gobblin.util.FinalState;
@@ -56,12 +60,26 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
 
   @Override
   public D readRecord(D reuse) throws DataRecordException, IOException {
-    return this.isEmbeddedInstrumented ? readRecordImpl(reuse) : super.readRecord(reuse);
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public D readRecordImpl(D reuse) throws DataRecordException, IOException {
-    return this.embeddedExtractor.readRecord(reuse);
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public Stream<RecordEnvelope<D>> getRecordEnvelopeStream(AtomicBoolean shutdownRequested) {
+    if (this.isEmbeddedInstrumented) {
+      return this.embeddedExtractor.getRecordEnvelopeStream(shutdownRequested);
+    }
+    return this.embeddedExtractor.getRecordEnvelopeStream(shutdownRequested).peek(env -> {
+      if (isInstrumentationEnabled()) {
+        long recordProcessStartTime = (long)
+            env.getMetadata().getRecordMetadata().getOrDefault(MetadataNames.RECORD_PROCESSING_START_NANOS, System.nanoTime());
+        afterRead(env.getRecord(), recordProcessStartTime);
+      }
+    });
   }
 
   @Override

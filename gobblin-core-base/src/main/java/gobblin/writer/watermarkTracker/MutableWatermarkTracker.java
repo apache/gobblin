@@ -15,23 +15,26 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package gobblin.writer.watermarkTracker;
 
-import gobblin.configuration.WorkUnitState;
+import java.util.Map;
+
+import gobblin.source.extractor.CheckpointableWatermark;
+
 
 /**
- * Implementation of {@link Converter} that returns the inputSchema unmodified and each inputRecord unmodified
+ * A {@link WatermarkTracker} that allows externally modifying its view of watermarks.
  */
-public class IdentityConverter<S, D> extends Converter<S, S, D, D> {
+public interface MutableWatermarkTracker extends WatermarkTracker {
 
-  @Override
-  public Object convertSchema(Object inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return inputSchema;
-  }
+  void reset();
 
-  @Override
-  public Iterable<Object> convertRecord(Object outputSchema, Object inputRecord, WorkUnitState workUnit)
-      throws DataConversionException {
-    return new SingleRecordIterable<>(inputRecord);
-  }
+  void committedWatermarks(Map<String, CheckpointableWatermark> committedMap);
+
+  void committedWatermark(CheckpointableWatermark committed);
+
+  void unacknowledgedWatermark(CheckpointableWatermark unacked);
+
+  void unacknowledgedWatermarks(Map<String, CheckpointableWatermark> unackedMap);
+
 }

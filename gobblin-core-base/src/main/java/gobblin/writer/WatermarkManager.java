@@ -22,11 +22,13 @@ package gobblin.writer;
 import java.io.Closeable;
 import java.util.Collections;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import lombok.Getter;
 import lombok.ToString;
 
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 
 
 /**
@@ -35,6 +37,8 @@ import gobblin.source.extractor.CheckpointableWatermark;
 public interface WatermarkManager extends Closeable {
 
   void start();
+
+  Stream<RecordEnvelope> peekExtractorStream(Stream<RecordEnvelope> extractorStream);
 
   @Getter
   @ToString

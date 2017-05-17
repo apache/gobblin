@@ -202,7 +202,7 @@ public class DatePartitionedAvroFileExtractorTest {
           workUnit.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
       try (DatePartitionedAvroFileExtractor extractor = new DatePartitionedAvroFileExtractor(wuState);) {
 
-        GenericRecord record = extractor.readRecord(null);
+        GenericRecord record = extractor.readRecordEnvelope().getRecord();
         Assert.assertEquals(recordTimestamps[i], record.get(PARTITION_COLUMN_NAME));
         Assert.assertEquals(recordTimestamps[i], workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_KEY));
       }

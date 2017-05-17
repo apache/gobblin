@@ -24,13 +24,15 @@ import org.testng.annotations.Test;
 
 import gobblin.source.extractor.DefaultCheckpointableWatermark;
 import gobblin.source.extractor.extract.LongWatermark;
+import gobblin.writer.watermarkTracker.MutableWatermarkTracker;
+import gobblin.writer.watermarkTracker.WatermarkTracker;
 
 
 @Test
 public class WatermarkTrackerTest {
 
 
-  private void commits(WatermarkTracker watermarkTracker, String source, int... commit)
+  private void commits(MutableWatermarkTracker watermarkTracker, String source, int... commit)
   {
     for (int oneCommit: commit) {
       watermarkTracker.committedWatermark(new DefaultCheckpointableWatermark(source, new LongWatermark(oneCommit)));

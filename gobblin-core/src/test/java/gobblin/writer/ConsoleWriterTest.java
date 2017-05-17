@@ -18,7 +18,6 @@
 package gobblin.writer;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -29,7 +28,6 @@ import gobblin.source.extractor.RecordEnvelope;
 import gobblin.source.extractor.extract.LongWatermark;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 
 public class ConsoleWriterTest {
@@ -96,8 +94,9 @@ public class ConsoleWriterTest {
     CheckpointableWatermark watermark =
         new DefaultCheckpointableWatermark(source, new LongWatermark(value));
     AcknowledgableWatermark ackable = new AcknowledgableWatermark(watermark);
-    AcknowledgableRecordEnvelope mockEnvelope = new AcknowledgableRecordEnvelope<>(content, ackable);
-    consoleWriter.writeEnvelope(mockEnvelope);
+    RecordEnvelope mockEnvelope = new RecordEnvelope<>(content);
+    mockEnvelope.addSuccessCallback(ackable::ack);
+    consoleWriter.writeEnvelopedRecord(mockEnvelope);
     Assert.assertTrue(ackable.isAcked());
   }
 

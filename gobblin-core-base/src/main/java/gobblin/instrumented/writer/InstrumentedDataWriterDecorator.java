@@ -27,6 +27,7 @@ import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 import gobblin.util.FinalState;
@@ -63,17 +64,31 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   }
 
   @Override
-  public void write(D record) throws IOException {
-    if (this.isEmbeddedInstrumented) {
-      writeImpl(record);
-    } else {
-      super.write(record);
-    }
+  public void writeImpl(D record) throws IOException {
+    this.embeddedWriter.write(record);
   }
 
   @Override
-  public void writeImpl(D record) throws IOException {
-    this.embeddedWriter.write(record);
+  public void writeEnvelopedRecord(RecordEnvelope<D> recordEnvelope)
+      throws IOException {
+    if (this.isEmbeddedInstrumented) {
+      this.embeddedWriter.writeEnvelopedRecord(recordEnvelope);
+    } else {
+      if (!isInstrumentationEnabled()) {
+        this.embeddedWriter.writeEnvelopedRecord(recordEnvelope);
+        return;
+      }
+
+      try {
+        long startTimeNanos = System.nanoTime();
+        beforeWrite(recordEnvelope.getRecord());
+        this.embeddedWriter.writeEnvelopedRecord(recordEnvelope);
+        onSuccessfulWrite(startTimeNanos);
+      } catch (IOException exception) {
+        onException(exception);
+        throw exception;
+      }
+    }
   }
 
   @Override
@@ -113,13 +128,6 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   @Override
   public boolean isWatermarkCapable() {
     return watermarkAwareWriter.isPresent() && watermarkAwareWriter.get().isWatermarkCapable();
-  }
-
-  @Override
-  public void writeEnvelope(AcknowledgableRecordEnvelope<D> recordEnvelope)
-      throws IOException {
-    Preconditions.checkState(isWatermarkCapable());
-    watermarkAwareWriter.get().writeEnvelope(recordEnvelope);
   }
 
   @Override

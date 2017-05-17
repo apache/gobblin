@@ -28,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.common.base.Optional;
 
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.writer.watermarkTracker.MutableWatermarkTracker;
+import gobblin.writer.watermarkTracker.WatermarkTracker;
 
 
 /**
@@ -37,7 +39,7 @@ import gobblin.source.extractor.CheckpointableWatermark;
  * Note: The current implementation is not meant to be used in a high-throughput scenario
  * (e.g. in the path of a write or a callback). See {@link LastWatermarkTracker}.
  */
-public class MultiWriterWatermarkTracker implements WatermarkTracker {
+public class MultiWriterWatermarkTracker implements MutableWatermarkTracker {
 
 
   private final ConcurrentHashMap<String, Set<CheckpointableWatermark>> candidateCommittables = new ConcurrentHashMap<>();

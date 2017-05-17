@@ -103,7 +103,7 @@ public class FileBasedExtractorTest {
 
   private int getNumRecords(Extractor<?, ?> extractor) throws DataRecordException, IOException {
     int numRecords = 0;
-    while (extractor.readRecord(null) != null) {
+    while (extractor.readRecordEnvelope() != null) {
       numRecords++;
     }
     return numRecords;

@@ -20,6 +20,7 @@ package gobblin.qualitychecker.row;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -28,6 +29,7 @@ import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.FinalState;
 import gobblin.util.HadoopUtils;
 
@@ -73,6 +75,24 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
     return true;
   }
 
+  /**
+   * Filter the input stream using this policy checker.
+   */
+  public Stream<RecordEnvelope> filter(Stream<RecordEnvelope> stream, RowLevelPolicyCheckResults results) {
+    return stream.filter(r -> {
+      try {
+        boolean survived = executePolicies(r.getRecord(), results);
+        if (!survived) {
+          r.nack(new FailedPolicyCheckerException());
+        }
+        return survived;
+      } catch (IOException ioe) {
+        r.nack(ioe);
+        throw new RuntimeException(ioe);
+      }
+    });
+  }
+
   private Path getErrFilePath(RowLevelPolicy policy) {
     String errFileName = HadoopUtils.sanitizePath(policy.toString(), "-");
     if (!Strings.isNullOrEmpty(this.stateId)) {
@@ -102,5 +122,14 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
       state.addAll(policy.getFinalState());
     }
     return state;
+  }
+
+  /**
+   * Indicates a {@link RowLevelPolicyChecker} failure.
+   */
+  public static class FailedPolicyCheckerException extends Exception {
+    FailedPolicyCheckerException() {
+      super("Policy checker failed.");
+    }
   }
 }

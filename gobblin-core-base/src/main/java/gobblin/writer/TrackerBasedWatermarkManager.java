@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,8 +33,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
+import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.ExecutorsUtils;
+import gobblin.watermark.InOrderWatermarkTracker;
 
 
 /**
@@ -44,7 +48,7 @@ import gobblin.util.ExecutorsUtils;
  */
 public class TrackerBasedWatermarkManager implements WatermarkManager {
 
-  private final FineGrainedWatermarkTracker _watermarkTracker;
+  private final InOrderWatermarkTracker _watermarkTracker;
   private final WatermarkStorage _watermarkStorage;
   private final long _commitIntervalMillis;
   private final ScheduledExecutorService _watermarkCommitThreadPool;
@@ -62,7 +66,7 @@ public class TrackerBasedWatermarkManager implements WatermarkManager {
           Map<String, CheckpointableWatermark> watermarksToCommit = null;
           try {
             _retrievalStatus.onAttempt();
-            watermarksToCommit = _watermarkTracker.getCommittableWatermarks();
+            watermarksToCommit = _watermarkTracker.getAllCommitableWatermarks();
             _logger.debug("Retrieved watermark {}", watermarksToCommit);
             _retrievalStatus.onSuccess(watermarksToCommit);
           }
@@ -92,12 +96,11 @@ public class TrackerBasedWatermarkManager implements WatermarkManager {
         }
       };
 
-
   public TrackerBasedWatermarkManager(WatermarkStorage storage, FineGrainedWatermarkTracker watermarkTracker,
       long commitIntervalMillis, Optional<Logger> logger) {
     Preconditions.checkArgument(storage != null, "WatermarkStorage cannot be null");
     Preconditions.checkArgument(watermarkTracker != null, "WatermarkTracker cannot be null");
-    _watermarkTracker = watermarkTracker;
+    _watermarkTracker = new InOrderWatermarkTracker();
     _watermarkStorage = storage;
     _commitIntervalMillis = commitIntervalMillis;
     _logger = logger.or(LoggerFactory.getLogger(TrackerBasedWatermarkManager.class));
@@ -110,6 +113,11 @@ public class TrackerBasedWatermarkManager implements WatermarkManager {
   public void start() {
     _watermarkCommitThreadPool
         .scheduleWithFixedDelay(_watermarkCommitter, 0, _commitIntervalMillis, TimeUnit.MILLISECONDS);
+  }
+
+  @Override
+  public Stream<RecordEnvelope> peekExtractorStream(Stream<RecordEnvelope> extractorStream) {
+    return _watermarkTracker.convertRecordStream(null, extractorStream, new WorkUnitState());
   }
 
   @Override

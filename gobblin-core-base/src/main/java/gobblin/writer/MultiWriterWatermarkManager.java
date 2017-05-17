@@ -20,15 +20,13 @@
 package gobblin.writer;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,11 +35,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import lombok.Getter;
-import lombok.ToString;
-
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.ExecutorsUtils;
+import gobblin.writer.watermarkTracker.MutableWatermarkTracker;
+import gobblin.writer.watermarkTracker.WatermarkTracker;
 
 
 /**
@@ -70,7 +68,7 @@ public class MultiWriterWatermarkManager implements WatermarkManager {
           Map<String, CheckpointableWatermark> watermarksToCommit = null;
           try {
             _retrievalStatus.onAttempt();
-            WatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
+            MutableWatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
             for (WatermarkAwareWriter writer : _watermarkAwareWriters) {
               Map<String, CheckpointableWatermark> writerWatermarks = writer.getCommittableWatermark();
               _logger.debug("Retrieved from writer {} : watermark {} ", writer.getClass().getName(), writerWatermarks);
@@ -116,6 +114,11 @@ public class MultiWriterWatermarkManager implements WatermarkManager {
         Optional.of("WatermarkManager-%d")));
     _retrievalStatus = new RetrievalStatus();
     _commitStatus = new CommitStatus();
+  }
+
+  @Override
+  public Stream<RecordEnvelope> peekExtractorStream(Stream<RecordEnvelope> extractorStream) {
+    return extractorStream;
   }
 
   public void registerWriter(WatermarkAwareWriter dataWriter) {

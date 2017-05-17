@@ -19,6 +19,11 @@ package gobblin.source.extractor;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 
 /**
@@ -42,7 +47,7 @@ public interface Extractor<S, D> extends Closeable {
    * @return schema of the extracted data records
    * @throws java.io.IOException if there is problem getting the schema
    */
-  public S getSchema() throws IOException;
+  S getSchema() throws IOException;
 
   /**
    * Read the next data record from the data source.
@@ -56,14 +61,40 @@ public interface Extractor<S, D> extends Closeable {
    * @throws DataRecordException if there is problem with the extracted data record
    * @throws java.io.IOException if there is problem extracting the next data record from the source
    */
-  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException;
+  default D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  /**
+   * Modify the output {@link RecordEnvelope} for example to add callbacks or metadata.
+   */
+  default void modifyEnvelope(RecordEnvelope<D> envelope) {}
+
+  /**
+   * Read the next {@link RecordEnvelope}.
+   */
+  default RecordEnvelope<D> readRecordEnvelope() throws DataRecordException, IOException {
+    D record = readRecord(null);
+    return record == null ? null : new RecordEnvelope<>(record);
+  }
+
+  /**
+   * Create the {@link Stream} of {@link RecordEnvelope}s for the pipeline.
+   * @param shutdownRequested will become true if a shutdown is requested. The extractor must stop producing records. If
+   *                          the extractor does not stop producing records withing the shutdown timeout, the stream will
+   *                          be killed with an Exception.
+   */
+  default Stream<RecordEnvelope<D>> getRecordEnvelopeStream(AtomicBoolean shutdownRequested) {
+    return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new ExtractorIterator<D>(this, shutdownRequested),
+        Spliterator.IMMUTABLE | Spliterator.NONNULL), false).peek(this::modifyEnvelope);
+  }
 
   /**
    * Get the expected source record count.
    *
    * @return the expected source record count
    */
-  public long getExpectedRecordCount();
+  long getExpectedRecordCount();
 
   /**
    * Get the calculated high watermark up to which data records are to be extracted.
@@ -73,5 +104,5 @@ public interface Extractor<S, D> extends Closeable {
    * <a href="https://github.com/linkedin/gobblin/wiki/Watermarks">Watermarks</a> for more information.
    */
   @Deprecated
-  public long getHighWatermark();
+  long getHighWatermark();
 }

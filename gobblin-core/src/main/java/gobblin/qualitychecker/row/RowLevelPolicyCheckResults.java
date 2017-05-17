@@ -21,8 +21,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.base.Joiner;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Maps;
 
 
 /**
@@ -30,28 +37,31 @@ import com.google.common.base.Joiner;
  * @author stakiar
  */
 public class RowLevelPolicyCheckResults {
-  Map<RowLevelPolicyResultPair, Long> results;
+  LoadingCache<RowLevelPolicyResultPair, AtomicLong> results;
 
   public RowLevelPolicyCheckResults() {
-    this.results = new HashMap<>();
+    this.results = CacheBuilder.newBuilder().build(new CacheLoader<RowLevelPolicyResultPair, AtomicLong>() {
+      @Override
+      public AtomicLong load(RowLevelPolicyResultPair key) throws Exception {
+        return new AtomicLong();
+      }
+    });
   }
 
   public void put(RowLevelPolicy policy, RowLevelPolicy.Result result) {
-    RowLevelPolicyResultPair resultPolicyPair = new RowLevelPolicyResultPair(policy, result);
-    long value;
-    if (this.results.containsKey(resultPolicyPair)) {
-      value = this.results.get(resultPolicyPair);
-    } else {
-      value = 0;
+    try {
+      RowLevelPolicyResultPair resultPolicyPair = new RowLevelPolicyResultPair(policy, result);
+      this.results.get(resultPolicyPair).incrementAndGet();
+    } catch (ExecutionException ee) {
+      throw new RuntimeException(ee.getCause());
     }
-    this.results.put(new RowLevelPolicyResultPair(policy, result), Long.valueOf(1 + value));
   }
 
   public String getResults() {
     List<String> list = new ArrayList<>();
     Joiner joiner = Joiner.on("\n").skipNulls();
-    for (Map.Entry<RowLevelPolicyResultPair, Long> entry : this.results.entrySet()) {
-      list.add("RowLevelPolicy " + entry.getKey().getPolicy().toString() + " processed " + entry.getValue()
+    for (Map.Entry<RowLevelPolicyResultPair, AtomicLong> entry : this.results.asMap().entrySet()) {
+      list.add("RowLevelPolicy " + entry.getKey().getPolicy().toString() + " processed " + entry.getValue().get()
           + " record(s) with result " + entry.getKey().getResult());
     }
     return joiner.join(list);
