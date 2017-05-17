@@ -51,12 +51,16 @@ public abstract class HadoopFsEndPoint implements EndPoint{
 
   public abstract Config getSelectionConfig();
 
-  @Override
-  public boolean isAvailable() {
+  /**
+   * A helper utility for data/filesystem availability checking
+   * @param path The path to be checked. For fs availability checking, just use "/"
+   * @return If the filesystem/path exists or not.
+   */
+  public boolean isPathAvailable(Path path){
     try {
       Configuration conf = HadoopUtils.newConfiguration();
       FileSystem fs = FileSystem.get(this.getFsURI(), conf);
-      if (fs.exists(new Path("/"))) {
+      if (fs.exists(path)) {
         return true;
       } else {
         log.warn("Skipped the problematic FileSystem " + this.getFsURI());
@@ -66,5 +70,14 @@ public abstract class HadoopFsEndPoint implements EndPoint{
       log.warn("Skipped the problematic FileSystem " + this.getFsURI());
       return false;
     }
+  }
+
+  @Override
+  public boolean isFileSystemAvailable() {
+    return isPathAvailable(new Path("/"));
+  }
+
+  public boolean isDatasetAvailable(Path datasetPath) {
+    return isPathAvailable(datasetPath);
   }
 }

@@ -69,9 +69,6 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
     if(this.initialized) {
       return this.cachedWatermark;
     }
-
-    this.initialized = true;
-
     try {
       long curTs = -1;
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
@@ -89,6 +86,11 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
 
       ComparableWatermark result = new LongWatermark(curTs);
       this.cachedWatermark = Optional.of(result);
+
+      if (this.cachedWatermark.isPresent()) {
+        this.initialized = true;
+      }
+
       return this.cachedWatermark;
     } catch (IOException e) {
       log.error("Error while retrieve the watermark for " + this);

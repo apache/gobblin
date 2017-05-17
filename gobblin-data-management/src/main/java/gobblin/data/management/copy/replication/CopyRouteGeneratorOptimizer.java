@@ -43,6 +43,7 @@ public class CopyRouteGeneratorOptimizer extends CopyRouteGeneratorBase {
         continue;
       }
 
+      // All routes under a path pointing to the same copyTo (replica)
       if (routes.get(0).getCopyTo().equals(copyTo)) {
         return getOptimizedCopyRoute(routes);
       }

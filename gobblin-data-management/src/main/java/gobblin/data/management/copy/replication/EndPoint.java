@@ -60,7 +60,7 @@ public interface EndPoint {
   /**
    * @return whether this {@link EndPoint} is available to replica data
    */
-  public boolean isAvailable();
+  public boolean isFileSystemAvailable();
 
   /**
    *

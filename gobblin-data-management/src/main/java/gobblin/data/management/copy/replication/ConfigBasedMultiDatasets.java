@@ -37,9 +37,9 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Based on single dataset configuration in {@link Config} format, in Pull mode replication, there could be multiple
- * {@link ConfigBasedDataset} generated. For example, if two replicas exists on the same copy to cluster,
+ * {@link ConfigBasedDataset} generated. For example, if two replicas exists on the same copyTo cluster,
  * say replica1 and replica2, then there will be 2 {@link ConfigBasedDataset} generated, one for replication data from
- * copy from {@link EndPoint} to replica1, the other from copy from {@link EndPoint} to replica2
+ * copyFrom {@link EndPoint} to replica1, the other from copyFrom {@link EndPoint} to replica2
  *
  * This class will be responsible to generate those {@link ConfigBasedDataset}s
  *
@@ -133,6 +133,7 @@ public class ConfigBasedMultiDatasets {
     CopyRouteGenerator cpGen = rc.getCopyRouteGenerator();
     List<EndPoint> replicas = rc.getReplicas();
     for(EndPoint replica: replicas){
+      // Only pull the data from current execution cluster
       if(needGenerateCopyEntity(replica, executionClusterURI)){
         Optional<CopyRoute> copyRoute = cpGen.getPullRoute(rc, replica);
         if(copyRoute.isPresent()){

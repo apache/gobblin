@@ -44,7 +44,7 @@ public class CopyRouteGeneratorOptimizedNetworkBandwidth extends CopyRouteGenera
       }
 
       HadoopFsEndPoint copyFrom = (HadoopFsEndPoint) (copyRoute.getCopyFrom());
-      if(copyFrom.isAvailable()) {
+      if(copyFrom.isDatasetAvailable(copyFrom.getDatasetPath())) {
         return Optional.of(copyRoute);
       }
     }
