@@ -27,12 +27,10 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.Source;
 import gobblin.source.extractor.DummyExtractor;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 
 
-/**
- * Created by adsharma on 11/22/16.
- */
 public class TestSkipWorkUnitsSource implements Source {
   private final String TEST_WORKUNIT_PERSISTENCE = "test.workunit.persistence";
   private final int NUMBER_OF_SKIP_WORKUNITS = 3;
@@ -51,6 +49,35 @@ public class TestSkipWorkUnitsSource implements Source {
       }
       workUnits.add(workUnit);
     }
+
+    MultiWorkUnit mwu1 = MultiWorkUnit.createEmpty();
+    MultiWorkUnit mwu2 = MultiWorkUnit.createEmpty();
+    MultiWorkUnit mwu3 = MultiWorkUnit.createEmpty();
+    MultiWorkUnit mwu4 = MultiWorkUnit.createEmpty();
+    WorkUnit wu1 = WorkUnit.createEmpty();
+    WorkUnit wu2 = WorkUnit.createEmpty();
+    WorkUnit wu3 = WorkUnit.createEmpty();
+    WorkUnit wu4 = WorkUnit.createEmpty();
+    WorkUnit wu5 = WorkUnit.createEmpty();
+    WorkUnit wu6 = WorkUnit.createEmpty();
+    wu2.skip();
+    // wu1 is not skipped and wu2 is skipped
+    mwu1.addWorkUnit(wu1);
+    mwu1.addWorkUnit(wu2);
+    mwu2.addWorkUnit(wu3);
+    mwu2.addWorkUnit(wu4);
+    // Both wu3 and wu4 will be skipped
+    mwu2.skip();
+
+    mwu3.addWorkUnit(wu5);
+    mwu3.addWorkUnit(wu6);
+    mwu4.addWorkUnit(mwu3);
+    // Both wu5 and wu6 will be skipped
+    mwu4.skip();
+
+    workUnits.add(mwu1);
+    workUnits.add(mwu2);
+    workUnits.add(mwu4);
     return workUnits;
   }
 
@@ -69,7 +96,8 @@ public class TestSkipWorkUnitsSource implements Source {
         skipCount++;
       }
     }
-    Assert.assertEquals(skipCount, NUMBER_OF_SKIP_WORKUNITS,
+    // Plus one for MultiWorkUnit1, plus 2 for MultiWorkUnit2, plus 2 for MultiWorkUnit4
+    Assert.assertEquals(skipCount, NUMBER_OF_SKIP_WORKUNITS + 5,
         "All skipped work units are not persisted in the state store");
   }
 
