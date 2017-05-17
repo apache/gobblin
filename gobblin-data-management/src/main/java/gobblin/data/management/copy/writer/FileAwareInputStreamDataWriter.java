@@ -215,8 +215,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
         StreamThrottler<GobblinScopeTypes> throttler =
             this.taskBroker.getSharedResource(new StreamThrottler.Factory<GobblinScopeTypes>(), new EmptyKey());
+        FileSystem defaultFS = FileSystem.get(new Configuration());
         ThrottledInputStream throttledInputStream = throttler.throttleInputStream().inputStream(inputStream)
-            .sourceURI(FileSystem.get(new Configuration()).makeQualified(copyableFile.getOrigin().getPath()).toUri())
+            .sourceURI(copyableFile.getOrigin().getPath().makeQualified(defaultFS.getUri(), defaultFS.getWorkingDirectory()).toUri())
             .targetURI(this.fs.makeQualified(writeAt).toUri()).build();
         StreamCopier copier = new StreamCopier(throttledInputStream, os).withBufferSize(this.bufferSize);
 
