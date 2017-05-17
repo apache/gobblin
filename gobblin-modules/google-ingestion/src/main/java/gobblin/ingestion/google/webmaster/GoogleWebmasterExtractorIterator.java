@@ -112,7 +112,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
     ROUND_TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_TIME_OUT, 120);
     Preconditions.checkArgument(ROUND_TIME_OUT > 0, "Time out must be positive.");
 
-    MAX_RETRY_ROUNDS = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_RETRIES, 30);
+    MAX_RETRY_ROUNDS = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_RETRIES, 40);
     Preconditions.checkArgument(MAX_RETRY_ROUNDS >= 0, "Retry rounds cannot be negative.");
 
     ROUND_COOL_DOWN = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_COOL_DOWN, 250);
@@ -143,9 +143,9 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
       Collection<ProducerJob> allJobs = _webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT);
       return new ResponseProducer(allJobs);
     } catch (Exception e) {
-      log.info(
-          String.format("Iterator failed for %s at %s from [%s, %s] ", getProperty(), _country, _startDate, _endDate));
-      log.error(e.getMessage());
+      log.info(String
+          .format("Iterator failed while creating a ResponseProducer for %s at %s from [%s, %s] ", getProperty(),
+              _country, _startDate, _endDate));
       _failed = true;
       throw new RuntimeException(e);
     }
@@ -212,41 +212,42 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
     public void run() {
       int r = 0; //indicates current round.
 
-      //check if any seed got adding back.
-      while (r <= MAX_RETRY_ROUNDS) {
-        int totalPages = 0;
-        for (ProducerJob job : _jobsToProcess) {
-          totalPages += job.getPagesSize();
-        }
-        if (r > 0) {
-          log.info(String.format("Starting #%d round retries of size %d for %s", r, totalPages, _country));
-        }
-        ProgressReporter reporter = new ProgressReporter(log, totalPages);
-
-        //retries needs to be concurrent because multiple threads will write to it.
-        ConcurrentLinkedDeque<ProducerJob> retries = new ConcurrentLinkedDeque<>();
-        ExecutorService es = Executors.newFixedThreadPool(10,
-            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
-
-        List<ProducerJob> batch = new ArrayList<>(BATCH_SIZE);
-
-        while (!_jobsToProcess.isEmpty()) {
-          //This is the only place to poll job from queue. Writing to a new queue is async.
-          ProducerJob job = _jobsToProcess.poll();
-          if (batch.size() < BATCH_SIZE) {
-            batch.add(job);
+      try {
+        //check if any seed got adding back.
+        while (r <= MAX_RETRY_ROUNDS) {
+          int totalPages = 0;
+          for (ProducerJob job : _jobsToProcess) {
+            totalPages += job.getPagesSize();
           }
-          if (batch.size() == BATCH_SIZE) {
+          if (r > 0) {
+            log.info(String.format("Starting #%d round retries of size %d for %s", r, totalPages, _country));
+          }
+          ProgressReporter reporter = new ProgressReporter(log, totalPages);
+
+          //retries needs to be concurrent because multiple threads will write to it.
+          ConcurrentLinkedDeque<ProducerJob> retries = new ConcurrentLinkedDeque<>();
+          ExecutorService es = Executors.newFixedThreadPool(10,
+              ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
+
+          List<ProducerJob> batch = new ArrayList<>(BATCH_SIZE);
+
+          while (!_jobsToProcess.isEmpty()) {
+            //This is the only place to poll job from queue. Writing to a new queue is async.
+            ProducerJob job = _jobsToProcess.poll();
+            if (batch.size() < BATCH_SIZE) {
+              batch.add(job);
+            }
+            if (batch.size() == BATCH_SIZE) {
+              es.submit(getResponses(batch, retries, _dataSink, reporter));
+              batch = new ArrayList<>(BATCH_SIZE);
+            }
+          }
+          //Send the last batch
+          if (!batch.isEmpty()) {
             es.submit(getResponses(batch, retries, _dataSink, reporter));
-            batch = new ArrayList<>(BATCH_SIZE);
           }
-        }
-        //Send the last batch
-        if (!batch.isEmpty()) {
-          es.submit(getResponses(batch, retries, _dataSink, reporter));
-        }
-        log.info(String.format("Submitted all jobs at round %d.", r));
-        try {
+          log.info(String.format("Submitted all jobs at round %d.", r));
+
           es.shutdown(); //stop accepting new requests
           boolean terminated = es.awaitTermination(ROUND_TIME_OUT, TimeUnit.MINUTES);
           if (!terminated) {
@@ -255,36 +256,36 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
                 "Timed out while downloading query data for country-%s at round %d. Next round now has size %d.",
                 _country, r, retries.size()));
           }
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
-        }
 
-        if (retries.isEmpty()) {
-          break; //game over
-        }
+          if (retries.isEmpty()) {
+            break; //game over
+          }
 
-        ++r;
-        _jobsToProcess = retries;
-        try {
+          ++r;
+          _jobsToProcess = retries;
           //Cool down before starting the next round of retry
           Thread.sleep(ROUND_COOL_DOWN);
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
         }
-      }
 
-      if (r == MAX_RETRY_ROUNDS + 1) {
-        log.error(String.format("Exceeded maximum retries. There are %d unprocessed jobs.", _jobsToProcess.size()));
-        StringBuilder sb = new StringBuilder();
-        sb.append("You can add as hot start jobs to continue: ").append(System.lineSeparator())
-            .append(System.lineSeparator());
-        sb.append(ProducerJob.serialize(_jobsToProcess));
-        sb.append(System.lineSeparator());
-        log.error(sb.toString());
+        if (r == MAX_RETRY_ROUNDS + 1) {
+          log.error(String.format("Exceeded maximum retries. There are %d unprocessed jobs.", _jobsToProcess.size()));
+          StringBuilder sb = new StringBuilder();
+          sb.append("You can add as hot start jobs to continue: ").append(System.lineSeparator())
+              .append(System.lineSeparator());
+          sb.append(ProducerJob.serialize(_jobsToProcess));
+          sb.append(System.lineSeparator());
+          log.error(sb.toString());
+        }
+        log.info(String
+            .format("ResponseProducer finishes for %s from %s to %s at retry round %d", _country, _startDate, _endDate,
+                r));
+      } catch (Exception e) {
+        log.info(String
+            .format("Iterator failed while executing the ResponseProducer for %s at %s from [%s, %s] ", getProperty(),
+                _country, _startDate, _endDate));
+        _failed = true;
+        throw new RuntimeException(e);
       }
-      log.info(String
-          .format("ResponseProducer finishes for %s from %s to %s at retry round %d", _country, _startDate, _endDate,
-              r));
     }
 
     /**
