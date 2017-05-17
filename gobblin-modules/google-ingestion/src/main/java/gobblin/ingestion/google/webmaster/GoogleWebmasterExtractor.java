@@ -55,12 +55,14 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private final DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
   private final boolean _includeSource;
   private Queue<GoogleWebmasterExtractorIterator> _iterators = new ArrayDeque<>();
+  private List<GoogleWebmasterExtractorIterator> _iteratorsOrig = new ArrayList<>();
   /**
    * Each element keeps a mapping from API response order to output schema order.
    * The array index matches the order of API response.
    * The array values matches the order of output schema.
    */
   private Queue<int[]> _positionMaps = new ArrayDeque<>();
+  private Queue<int[]> _positionMapsOrig = new ArrayDeque<>();
 
   private final DateTime _startDate;
   private final long _expectedHighWaterMark;
@@ -138,7 +140,9 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
         }
         //One positionMapping is corresponding to one iterator.
         _iterators.add(iterator);
+        _iteratorsOrig.add(iterator);
         _positionMaps.add(positionMapping);
+        _positionMapsOrig.add(positionMapping);
       }
     }
   }
@@ -178,6 +182,9 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       throws DataRecordException, IOException {
     while (!_iterators.isEmpty()) {
       GoogleWebmasterExtractorIterator iterator = _iterators.peek();
+      if (iterator.isFailed()) {
+        iterator = resetExtractor(iterator);
+      }
       int[] positionMap = _positionMaps.peek();
       if (iterator.hasNext()) {
         String[] apiResponse = iterator.next();
@@ -193,13 +200,27 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
         return record;
       }
       GoogleWebmasterExtractorIterator done = _iterators.remove();
+      _positionMaps.remove();
       log.info(
           String.format("Iterator Job Finished for site %s at country %s. ^_^", done.getProperty(), done.getCountry()));
-      _positionMaps.remove();
     }
 
     _successful = true;
     return null;
+  }
+
+  /**
+   * This method is needed because Task retry reuses the same extractor instead of creating a new one.
+   * Clean up the state of extractor to provide a full retry from the very beginning, instead of retrying from the middle.
+   */
+  private GoogleWebmasterExtractorIterator resetExtractor(GoogleWebmasterExtractorIterator iterator) {
+    iterator.reset();
+    _iterators = new ArrayDeque<>();
+    for (GoogleWebmasterExtractorIterator iter : _iteratorsOrig) {
+      _iterators.add(new GoogleWebmasterExtractorIterator(iter));
+    }
+    _positionMaps = new ArrayDeque<>(_positionMapsOrig);
+    return _iterators.peek();
   }
 
   @Override

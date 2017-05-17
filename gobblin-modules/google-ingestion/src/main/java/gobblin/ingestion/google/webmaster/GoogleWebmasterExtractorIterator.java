@@ -74,6 +74,13 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
   //This is the requested dimensions sent to Google API
   private final List<GoogleWebmasterFilter.Dimension> _requestedDimensions;
   private final List<GoogleWebmasterDataFetcher.Metric> _requestedMetrics;
+  private final WorkUnitState _wuState;
+  private boolean _failed = false;
+
+  public GoogleWebmasterExtractorIterator(GoogleWebmasterExtractorIterator iterator) {
+    this(iterator._webmaster, iterator._startDate, iterator._endDate, iterator._requestedDimensions,
+        iterator._requestedMetrics, iterator._filterMap, iterator._wuState);
+  }
 
   public GoogleWebmasterExtractorIterator(GoogleWebmasterDataFetcher webmaster, String startDate, String endDate,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
@@ -82,7 +89,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
 
     super(wuState.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE, 2000),
         wuState.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_POLL_BLOCKING_TIME, 1));
-
+    _wuState = wuState;
     Preconditions.checkArgument(!filterMap.containsKey(GoogleWebmasterFilter.Dimension.PAGE),
         "Doesn't support filters for page for the time being. Will implement support later. If page filter is provided, the code won't take the responsibility of get all pages, so it will just return all queries for that page.");
 
@@ -136,9 +143,22 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
       Collection<ProducerJob> allJobs = _webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT);
       return new ResponseProducer(allJobs);
     } catch (Exception e) {
+      log.info(
+          String.format("Iterator failed for %s at %s from [%s, %s] ", getProperty(), _country, _startDate, _endDate));
       log.error(e.getMessage());
+      _failed = true;
       throw new RuntimeException(e);
     }
+  }
+
+  public boolean isFailed() {
+    return _failed;
+  }
+
+  public void reset() {
+    log.info(
+        String.format("Resetting iterator for %s at %s from [%s, %s] ", getProperty(), _country, _startDate, _endDate));
+    _failed = false;
   }
 
   public String getCountry() {
