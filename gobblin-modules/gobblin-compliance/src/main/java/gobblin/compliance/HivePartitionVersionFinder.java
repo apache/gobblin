@@ -33,11 +33,11 @@ import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.compliance.purger.HivePurgerQueryTemplate;
+import gobblin.compliance.retention.ComplianceRetentionJob;
 import gobblin.compliance.retention.HivePartitionRetentionVersion;
 import gobblin.compliance.utils.ProxyUtils;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.dataset.Dataset;
 
 
@@ -53,6 +53,7 @@ public class HivePartitionVersionFinder implements gobblin.data.management.versi
   protected List<String> patterns;
   private Optional<String> owner = Optional.absent();
   private List<HivePartitionVersion> versions = new ArrayList<>();
+  private static final Object lock = new Object();
 
   public HivePartitionVersionFinder(FileSystem fs, State state, List<String> patterns) {
     this.fs = fs;
@@ -143,12 +144,14 @@ public class HivePartitionVersionFinder implements gobblin.data.management.versi
         @Override
         public Void run()
             throws IOException {
-          HiveDatasetFinder finder = new HiveDatasetFinder(fs, state.getProperties());
-          for (HiveDataset hiveDataset : finder.findDatasets()) {
-            List<Partition> partitions = hiveDataset.getPartitionsFromDataset();
-            for (String pattern : patterns) {
-              if (hiveDataset.getTable().getTableName().contains(pattern)) {
-                addPartitionsToVersions(versions, name, hiveDataset, partitions);
+          synchronized (lock) {
+            List<Partition> partitions = null;
+            for (HiveDataset dataset : ComplianceRetentionJob.datasetList) {
+              for (String pattern : patterns) {
+                if (dataset.getTable().getTableName().contains(pattern)) {
+                  partitions = dataset.getPartitionsFromDataset();
+                  addPartitionsToVersions(versions, name, dataset, partitions);
+                }
               }
             }
           }

@@ -24,15 +24,25 @@ import java.util.Properties;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.thrift.TException;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
+
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.State;
 import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.dataset.DatasetsFinder;
+import gobblin.hive.HiveMetastoreClientPool;
+import gobblin.util.AutoReturnableObject;
 import gobblin.util.WriterUtils;
 import gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -42,10 +52,22 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  *
  * @author adsharma
  */
+@Slf4j
 public class HivePartitionFinder implements DatasetsFinder<HivePartitionDataset> {
   protected List<HiveDataset> hiveDatasets;
   protected State state;
   private static final Splitter AT_SPLITTER = Splitter.on("@").omitEmptyStrings().trimResults();
+  private static HiveMetastoreClientPool pool;
+  private static final Object lock = new Object();
+
+  static {
+    try {
+      pool = HiveMetastoreClientPool.get(new Properties(),
+          Optional.fromNullable(new Properties().getProperty(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
+    } catch (IOException e) {
+      Throwables.propagate(e);
+    }
+  }
 
   public HivePartitionFinder(State state)
       throws IOException {
@@ -85,29 +107,18 @@ public class HivePartitionFinder implements DatasetsFinder<HivePartitionDataset>
 
   public static HivePartitionDataset findDataset(String completePartitionName, State prop)
       throws IOException {
-    Partition hiveTablePartition = null;
-    State state = new State(prop);
-    state.setProp(ComplianceConfigurationKeys.COMPLIANCE_DATASET_WHITELIST,
-        getCompleteTableNameForWhitelist(completePartitionName));
-    List<HiveDataset> hiveDatasets = getHiveDatasets(WriterUtils.getWriterFs(state), state);
-    Preconditions.checkArgument(hiveDatasets.size() == 1, "Cannot find required table for " + completePartitionName);
-    List<Partition> partitions = hiveDatasets.get(0).getPartitionsFromDataset();
-    Preconditions.checkArgument(!partitions.isEmpty(),
-        "No partitions found for " + getCompleteTableNameForWhitelist(completePartitionName));
-    for (Partition partition : partitions) {
-      if (partition.getCompleteName().equals(completePartitionName)) {
-        hiveTablePartition = partition;
-        break;
+    synchronized (lock) {
+      List<String> partitionList = AT_SPLITTER.splitToList(completePartitionName);
+      Preconditions.checkArgument(partitionList.size() == 3, "Invalid partition name");
+      try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
+        Table table = new Table(client.get().getTable(partitionList.get(0), partitionList.get(1)));
+        Partition partition = new Partition(table,
+            client.get().getPartition(partitionList.get(0), partitionList.get(1), partitionList.get(2)));
+        return new HivePartitionDataset(partition);
+      } catch (TException | HiveException e) {
+        throw new IOException(e);
       }
     }
-    Preconditions.checkNotNull(hiveTablePartition, "Cannot find the required partition " + completePartitionName);
-    return new HivePartitionDataset(hiveTablePartition);
-  }
-
-  private static String getCompleteTableNameForWhitelist(String completePartitionName) {
-    List<String> list = AT_SPLITTER.splitToList(completePartitionName);
-    Preconditions.checkArgument(list.size() == 3, "Incorrect partition name format " + completePartitionName);
-    return list.get(0) + "." + list.get(1);
   }
 
   @Override
