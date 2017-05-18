@@ -51,25 +51,6 @@ public class HttpUtils {
   }
 
   /**
-   * Convert an object of implicit type Map to an explicit Map with string keys and values
-   *
-   * @param value an Map object
-   * @return the explicit Map of strings
-   */
-  public static Map<String, String> toStringMap(Object value) {
-    if (!(value instanceof Map)) {
-      return new HashMap<>();
-    }
-
-    Map<String, String> map = new HashMap<>();
-    Map<Object, Object> rawMap = (HashMap<Object, Object>) value;
-    for (Map.Entry<Object, Object> entry: rawMap.entrySet()) {
-      map.put(entry.getKey().toString(), entry.getValue().toString());
-    }
-    return map;
-  }
-
-  /**
    * Convert a json encoded string to a Map
    *
    * @param jsonString json string

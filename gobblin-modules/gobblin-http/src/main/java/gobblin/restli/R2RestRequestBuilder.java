@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Queue;
 
-import org.apache.avro.generic.GenericRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,7 +15,7 @@ import com.linkedin.restli.common.HttpMethod;
 import com.linkedin.restli.common.ResourceMethod;
 import com.linkedin.restli.common.RestConstants;
 
-import gobblin.utils.HttpConstants;
+import gobblin.http.HttpOperation;
 import gobblin.utils.HttpUtils;
 import gobblin.writer.http.AsyncWriteRequest;
 import gobblin.writer.http.AsyncWriteRequestBuilder;
@@ -27,10 +26,10 @@ import gobblin.writer.http.BufferedRecord;
  * Build {@link RestRequest} that can talk to restli services
  *
  * <p>
- *   This basic implementation builds a write request from a single record.
+ *   This basic implementation builds a write request from a single record
  * </p>
  */
-public class R2RestRequestBuilder implements AsyncWriteRequestBuilder<GenericRecord, RestRequest> {
+public class R2RestRequestBuilder implements AsyncWriteRequestBuilder<HttpOperation, RestRequest> {
   private static final Logger LOG = LoggerFactory.getLogger(R2RestRequestBuilder.class);
   private static final JacksonDataCodec JACKSON_DATA_CODEC = new JacksonDataCodec();
 
@@ -45,37 +44,36 @@ public class R2RestRequestBuilder implements AsyncWriteRequestBuilder<GenericRec
   }
 
   @Override
-  public AsyncWriteRequest<GenericRecord, RestRequest> buildWriteRequest(Queue<BufferedRecord<GenericRecord>> buffer) {
+  public AsyncWriteRequest<HttpOperation, RestRequest> buildWriteRequest(Queue<BufferedRecord<HttpOperation>> buffer) {
     return buildWriteRequest(buffer.poll());
   }
 
   /**
    * Build a request from a single record
    */
-  private AsyncWriteRequest<GenericRecord, RestRequest> buildWriteRequest(BufferedRecord<GenericRecord> record) {
+  private AsyncWriteRequest<HttpOperation, RestRequest> buildWriteRequest(BufferedRecord<HttpOperation> record) {
     if (record == null) {
       return null;
     }
 
-    AsyncWriteRequest<GenericRecord, RestRequest> request = new AsyncWriteRequest<>();
-    GenericRecord httpOperation = record.getRecord();
+    AsyncWriteRequest<HttpOperation, RestRequest> request = new AsyncWriteRequest<>();
+    HttpOperation httpOperation = record.getRecord();
     // Set uri
-    URI uri = HttpUtils.buildURI(urlTemplate, HttpUtils.toStringMap(httpOperation.get(HttpConstants.KEYS)),
-        HttpUtils.toStringMap(httpOperation.get(HttpConstants.QUERY_PARAMS)));
+    URI uri = HttpUtils.buildURI(urlTemplate, httpOperation.getKeys(), httpOperation.getQueryParams());
     if (uri == null) {
       return null;
     }
 
     RestRequestBuilder builder = new RestRequestBuilder(uri).setMethod(method.getHttpMethod().toString());
     // Set headers
-    builder.setHeaders(HttpUtils.toStringMap(httpOperation.get(HttpConstants.HEADERS)));
+    builder.setHeaders(httpOperation.getHeaders());
     builder.setHeader(RestConstants.HEADER_RESTLI_PROTOCOL_VERSION, protocolVersion);
     if (method.getHttpMethod() == HttpMethod.POST) {
       builder.setHeader(RestConstants.HEADER_RESTLI_REQUEST_METHOD, method.toString());
     }
 
     // Add payload
-    int bytesWritten = addPayload(builder, httpOperation.get(HttpConstants.BODY).toString());
+    int bytesWritten = addPayload(builder, httpOperation.getBody());
     if (bytesWritten == -1) {
       return null;
     }
