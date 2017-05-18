@@ -106,6 +106,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         .getPages(_siteProperty, startDate, endDate, country, rowLimit, requestedDimensions,
             Arrays.asList(countryFilter), 0);
     int actualSize = allPages.size();
+    log.info(String.format("First time requested %s rows, returned %s rows", rowLimit, actualSize));
 
     if (rowLimit < GoogleWebmasterClient.API_ROW_LIMIT || actualSize < GoogleWebmasterClient.API_ROW_LIMIT) {
       log.info(String

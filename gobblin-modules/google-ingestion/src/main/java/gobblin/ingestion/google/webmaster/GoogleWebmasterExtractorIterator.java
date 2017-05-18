@@ -20,6 +20,7 @@ package gobblin.ingestion.google.webmaster;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
@@ -357,7 +358,10 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
           try {
             List<ArrayList<ApiDimensionFilter>> filterList = new ArrayList<>(size);
             List<JsonBatchCallback<SearchAnalyticsQueryResponse>> callbackList = new ArrayList<>(size);
+            List<String> jobPages = new ArrayList<>();
+
             for (ProducerJob j : jobs) {
+              jobPages.add(j.getPage());
               final ProducerJob job = j; //to capture this variable
               final String page = job.getPage();
               final ArrayList<ApiDimensionFilter> filters = new ArrayList<>();
@@ -370,6 +374,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
                 public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders)
                     throws IOException {
                   producer.onFailure(e.getMessage(), job, retries);
+                  log.info(job.getPage() + " failed");
                 }
 
                 @Override
@@ -379,10 +384,12 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
                   List<String[]> results =
                       GoogleWebmasterDataFetcher.convertResponse(_requestedMetrics, searchAnalyticsQueryResponse);
                   producer.onSuccess(job, results, responseQueue, retries);
+                  log.info(job.getPage() + " succeeded");
                 }
               });
-              log.debug("Ready to submit " + job);
             }
+
+            log.info("Submitting jobs: " + Arrays.toString(jobPages.toArray()));
             LIMITER.acquirePermits(1);
             _webmaster
                 .performSearchAnalyticsQueryInBatch(jobs, filterList, callbackList, _requestedDimensions, QUERY_LIMIT);
