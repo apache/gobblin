@@ -219,6 +219,13 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
     log.info(String.format("Finished resetting extractor due to failure in '%s'", iterator.toString()));
 
     GoogleWebmasterExtractorIterator head = _iterators.peek();
+    try {
+      //Sleep 30 seconds before restarting. Gobblin doesn't sleep for the first retry.
+      //See the quote limit at https://developers.google.com/webmaster-tools/search-console-api-original/v3/limits
+      Thread.sleep(30000);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
     log.info(String.format("Restarting extractor from the beginning '%s'", head.toString()));
     return head;
   }
