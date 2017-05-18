@@ -21,6 +21,7 @@ dependencies {
   compile project(":gobblin-core")
 
   compile externalDependency.pegasus.d2
+  compile externalDependency.pegasus.restliCommon
 }
 
 configurations {

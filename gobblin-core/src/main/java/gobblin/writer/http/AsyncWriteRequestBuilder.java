@@ -26,5 +26,5 @@ import java.util.Queue;
  * @param <RQ> type of request
  */
 public interface AsyncWriteRequestBuilder<D, RQ> {
-   AsyncWriteRequest<D, RQ> buildRequest(Queue<BufferedRecord<D>> buffer);
+   AsyncWriteRequest<D, RQ> buildWriteRequest(Queue<BufferedRecord<D>> buffer);
 }

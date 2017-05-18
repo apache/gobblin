@@ -30,10 +30,10 @@ import com.linkedin.r2.transport.common.Client;
 import gobblin.http.HttpClient;
 
 
-public class RestliR2Client implements HttpClient<RestRequest, RestResponse> {
+public class R2Client implements HttpClient<RestRequest, RestResponse> {
   private final Client client;
 
-  public RestliR2Client(Client client) {
+  public R2Client(Client client) {
     this.client = client;
   }
 
