@@ -92,11 +92,14 @@ public class EncryptionConfigParserTest {
     wuState.getJobState().setProp(
         EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY,
         "abracadabra");
+    wuState.getJobState().setProp(
+        EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_KEY_NAME,
+        "keyname");
     wuState.setProp(EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "abc.def", "foobar");
 
     Map<String, Object> parsedProperties = EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, wuState);
     Assert.assertNotNull(parsedProperties, "Expected parser to only return one record");
-    Assert.assertEquals(parsedProperties.size(), 3, "Did not expect abc.def to be picked up in config");
+    Assert.assertEquals(parsedProperties.size(), 4, "Did not expect abc.def to be picked up in config");
 
     Map<String, Object> parsedWriterProperties = EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.WRITER, wuState);
     Assert.assertNull(parsedWriterProperties, "Did not expect to find writer properties");

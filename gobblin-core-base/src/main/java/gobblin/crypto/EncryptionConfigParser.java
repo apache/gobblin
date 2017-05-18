@@ -46,6 +46,7 @@ public class EncryptionConfigParser {
   public static final String ENCRYPTION_ALGORITHM_KEY = "algorithm";
   public static final String ENCRYPTION_KEYSTORE_PATH_KEY = "keystore_path";
   public static final String ENCRYPTION_KEYSTORE_PASSWORD_KEY = "keystore_password";
+  public static final String ENCRYPTION_KEY_NAME = "key_name";
 
   public static final String ENCRYPTION_KEYSTORE_TYPE_KEY = "keystore_type";
   public static final String ENCRYPTION_KEYSTORE_TYPE_KEY_DEFAULT = "java";
@@ -140,6 +141,10 @@ public class EncryptionConfigParser {
     }
 
     return type;
+  }
+
+  public static String getKeyName(Map<String, Object> parameters) {
+    return (String)parameters.get(ENCRYPTION_KEY_NAME);
   }
 
   /**

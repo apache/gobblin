@@ -92,7 +92,10 @@ public class GobblinEncryptionProvider implements EncryptionProvider {
     }
   }
 
-  private static CredentialStore buildCredentialStore(Map<String, Object> parameters) {
+  /**
+   * Build a credential store with the given parameters.
+   */
+  public static CredentialStore buildCredentialStore(Map<String, Object> parameters) {
     String ks_type = EncryptionConfigParser.getKeystoreType(parameters);
     String ks_path = EncryptionConfigParser.getKeystorePath(parameters);
     String ks_password = EncryptionConfigParser.getKeystorePassword(parameters);
