@@ -44,20 +44,20 @@ public class DatasetUtils {
     return Optional.<HivePartitionDataset>absent();
   }
 
-  public static String getProperty(HivePartitionDataset dataset, String property, int defaultValue) {
+  public static String getProperty(HivePartitionDataset dataset, String property, long defaultValue) {
     Optional<String> propertyValueOptional = Optional.fromNullable(dataset.getParams().get(property));
     if (!propertyValueOptional.isPresent()) {
-      return Integer.toString(defaultValue);
+      return Long.toString(defaultValue);
     }
     try {
-      int propertyVal = Integer.parseInt(propertyValueOptional.get());
+      long propertyVal = Long.parseLong(propertyValueOptional.get());
       if (propertyVal < 0) {
-        return Integer.toString(defaultValue);
+        return Long.toString(defaultValue);
       } else {
-        return Integer.toString(propertyVal);
+        return Long.toString(propertyVal);
       }
     } catch (NumberFormatException e) {
-      return Integer.toString(defaultValue);
+      return Long.toString(defaultValue);
     }
   }
 }
