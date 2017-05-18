@@ -17,19 +17,12 @@
 
 package gobblin.runtime.cli;
 
-import java.util.Arrays;
-import java.util.Comparator;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 
 import com.google.common.base.Strings;
 
@@ -54,19 +47,17 @@ import lombok.extern.slf4j.Slf4j;
  * {@link CliEmbeddedGobblin} will create an {@link EmbeddedGobblin} using a {@link EmbeddedGobblinCliFactory}
  * found by class name or {@link Alias}. It will
  * parse command line arguments using the options obtained from {@link EmbeddedGobblinCliFactory#getOptions()}, then
- * instantiate {@link EmbeddedGobblin} using {@link EmbeddedGobblinCliFactory#buildEmbeddedGobblin(CommandLine)}, and
+ * instantiate {@link EmbeddedGobblin} using {@link EmbeddedGobblinCliFactory#buildObject(CommandLine)}, and
  * finally run the application synchronously.
  */
 @Alias(value = "run", description = "Run a Gobblin application.")
 @Slf4j
 public class CliEmbeddedGobblin implements CliApplication {
 
-  private static final Option HELP = Option.builder("h").longOpt("help").build();
-  private static final Option USE_LOG = Option.builder("l").desc("Uses log to print out erros in the base CLI code.").build();
   public static final String LIST_QUICK_APPS = "listQuickApps";
 
   @Override
-  public void run(String[] args) {
+  public void run(String[] args) throws IOException {
 
     int startOptions = 1;
 
@@ -97,40 +88,14 @@ public class CliEmbeddedGobblin implements CliApplication {
       factory = new EmbeddedGobblin.CliFactory();
     }
 
-    Options options = new Options();
-    options.addOption(HELP);
-    options.addOption(USE_LOG);
-    for (Option opt : factory.getOptions().getOptions()) {
-      options.addOption(opt);
+    String usage;
+    if (Strings.isNullOrEmpty(alias)) {
+      usage = "gobblin run [listQuickApps] [<quick-app>] " + factory.getUsageString();
+    } else {
+      usage = "gobblin run " + alias + " " + factory.getUsageString();
     }
 
-    CommandLine cli;
-    try {
-      CommandLineParser parser = new DefaultParser();
-      cli = parser.parse(options, Arrays.copyOfRange(args, startOptions, args.length));
-    } catch (ParseException pe) {
-      System.out.println( "Command line parse exception: " + pe.getMessage() );
-      printUsage(alias, options, factory);
-      return;
-    }
-
-    if (cli.hasOption(HELP.getOpt())) {
-      printUsage(alias, options, factory);
-      return;
-    }
-
-    EmbeddedGobblin embeddedGobblin;
-    try {
-      embeddedGobblin = factory.buildEmbeddedGobblin(cli);
-    } catch (Exception exc) {
-      if (cli.hasOption(USE_LOG.getOpt())) {
-        log.error("Failed to instantiate " + EmbeddedGobblin.class.getName(), exc);
-      } else {
-        System.out.println("Error: " + exc.getMessage());
-      }
-      printUsage(alias, options, factory);
-      return;
-    }
+    EmbeddedGobblin embeddedGobblin = factory.buildObject(args, startOptions, true, usage);
 
     try {
       embeddedGobblin.run();
@@ -151,32 +116,6 @@ public class CliEmbeddedGobblin implements CliApplication {
     for (Alias thisAlias : aliases) {
       System.out.println(String.format("\t%s\t-\t%s", thisAlias.value(), thisAlias.description()));
     }
-  }
-
-  private void printUsage(String alias, Options options, EmbeddedGobblinCliFactory factory) {
-
-    HelpFormatter formatter = new HelpFormatter();
-    formatter.setOptionComparator(new Comparator<Option>() {
-      @Override
-      public int compare(Option o1, Option o2) {
-        if (o1.isRequired() && !o2.isRequired()) {
-          return -1;
-        }
-        if (!o1.isRequired() && o2.isRequired()) {
-          return 1;
-        }
-        return o1.getOpt().compareTo(o2.getOpt());
-      }
-    });
-
-    String usage;
-    if (Strings.isNullOrEmpty(alias)) {
-      usage = "gobblin run [listQuickApps] [<quick-app>] " + factory.getUsageString();
-    } else {
-      usage = "gobblin run " + alias + " " + factory.getUsageString();
-    }
-
-    formatter.printHelp(usage, options);
   }
 
 }

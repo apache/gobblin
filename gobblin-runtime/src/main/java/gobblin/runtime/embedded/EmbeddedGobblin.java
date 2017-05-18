@@ -77,8 +77,8 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.cli.ConstructorAndPublicMethodsGobblinCliFactory;
-import gobblin.runtime.cli.EmbeddedGobblinCliOption;
-import gobblin.runtime.cli.EmbeddedGobblinCliSupport;
+import gobblin.runtime.cli.CliObjectOption;
+import gobblin.runtime.cli.CliObjectSupport;
 import gobblin.runtime.cli.NotOnCli;
 import gobblin.runtime.instance.SimpleGobblinInstanceEnvironment;
 import gobblin.runtime.instance.StandardGobblinInstanceDriver;
@@ -146,7 +146,7 @@ public class EmbeddedGobblin {
     this("EmbeddedGobblin");
   }
 
-  @EmbeddedGobblinCliSupport(argumentNames = {"jobName"})
+  @CliObjectSupport(argumentNames = {"jobName"})
   public EmbeddedGobblin(String name) {
     HadoopUtils.addGobblinSite();
     this.specBuilder = new JobSpec.Builder(name);
@@ -272,7 +272,7 @@ public class EmbeddedGobblin {
   /**
    * Load Kerberos keytab for authentication. Crendetials format "<login-user>:<keytab-file>".
    */
-  @EmbeddedGobblinCliOption(description = "Authenticate using kerberos. Format: \"<login-user>:<keytab-file>\".")
+  @CliObjectOption(description = "Authenticate using kerberos. Format: \"<login-user>:<keytab-file>\".")
   public EmbeddedGobblin kerberosAuthentication(String credentials) {
     List<String> split = Splitter.on(":").splitToList(credentials);
     if (split.size() != 2) {

@@ -17,30 +17,12 @@
 
 package gobblin.runtime.cli;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
-
 import gobblin.runtime.embedded.EmbeddedGobblin;
 
 
 /**
  * A factory for {@link EmbeddedGobblin} instances.
  */
-public interface EmbeddedGobblinCliFactory {
-  /**
-   * @return an instance of {@link Options} understood by this factory.
-   */
-  Options getOptions();
+public interface EmbeddedGobblinCliFactory extends CliObjectFactory<EmbeddedGobblin> {
 
-  /**
-   * Build a {@link EmbeddedGobblin} from the parsed {@link CommandLine}. The input {@link CommandLine} was parsed with
-   * the output of {@link Options}, but may include additional {@link org.apache.commons.cli.Option}s added by the driver.
-   */
-  EmbeddedGobblin buildEmbeddedGobblin(CommandLine cli);
-
-  /**
-   * Get a usage string for display on the command line. The output of this method will be appended to the base string
-   * "gobblin run <appName>". This should specify required options or parameters.
-   */
-  String getUsageString();
 }
