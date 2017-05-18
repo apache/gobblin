@@ -21,6 +21,9 @@ import java.io.InputStreamReader;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -116,10 +119,14 @@ public class ValidationJob extends AbstractJob {
   private static final String HIVE_VALIDATION_IGNORE_DATA_PATH_IDENTIFIER_KEY = "hive.validation.ignoreDataPathIdentifier";
   private static final String DEFAULT_HIVE_VALIDATION_IGNORE_DATA_PATH_IDENTIFIER = org.apache.commons.lang.StringUtils.EMPTY;
   private static final Splitter COMMA_BASED_SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
+  private static final Splitter EQUALITY_SPLITTER = Splitter.on("=").omitEmptyStrings().trimResults();
+  private static final Splitter SLASH_SPLITTER = Splitter.on("/").omitEmptyStrings().trimResults();
   private static final String VALIDATION_FILE_FORMAT_KEY = "hive.validation.fileFormat";
   private static final String IS_NESTED_ORC = "hive.validation.isNestedORC";
   private static final String DEFAULT_IS_NESTED_ORC = "false";
   private static final String HIVE_SETTINGS = "hive.settings";
+  private static final String DATEPARTITION = "datepartition";
+  private static final String DATE_FORMAT = "yyyy-MM-dd-HH";
 
   private final ValidationType validationType;
   private List<String> ignoreDataPathIdentifierList;
@@ -219,7 +226,7 @@ public class ValidationJob extends AbstractJob {
         String serdeLib = partition.getTPartition().getSd().getSerdeInfo().getSerializationLib();
         if (!hiveSerDe.get().toString().equalsIgnoreCase(serdeLib)) {
           throwables.add(new Throwable(
-              "Partition" + partition.getCompleteName() + " SerDe " + serdeLib + " doesn't match with the required SerDe " + hiveSerDe.get().toString()));
+              "Partition " + partition.getCompleteName() + " SerDe " + serdeLib + " doesn't match with the required SerDe " + hiveSerDe.get().toString()));
         }
       }
     }
@@ -625,11 +632,40 @@ public class ValidationJob extends AbstractJob {
   private boolean shouldValidate(Partition partition) {
     for (String pathToken : this.ignoreDataPathIdentifierList) {
       if (partition.getDataLocation().toString().toLowerCase().contains(pathToken.toLowerCase())) {
+        log.info("Skipping partition " + partition.getCompleteName() + " containing invalid token " + pathToken
+            .toLowerCase());
         return false;
       }
     }
-    long createTime = HiveSource.getCreateTime(partition);
-    return new DateTime(createTime).isAfter(this.maxLookBackTime) && new DateTime(createTime).isBefore(this.skipRecentThanTime);
+
+    try {
+      long createTime = getPartitionCreateTime(partition.getName());
+      boolean withinTimeWindow = new DateTime(createTime).isAfter(this.maxLookBackTime) && new DateTime(createTime)
+          .isBefore(this.skipRecentThanTime);
+      if (!withinTimeWindow) {
+        log.info("Skipping partition " + partition.getCompleteName() + " as create time " + new DateTime(createTime)
+            .toString() + " is not within validation time window ");
+      } else {
+        log.info("Validating partition " + partition.getCompleteName());
+        return withinTimeWindow;
+      }
+    } catch (ParseException e) {
+      Throwables.propagate(e);
+    }
+    return false;
+  }
+
+  public static Long getPartitionCreateTime(String partitionName)
+      throws ParseException {
+    String dateString = null;
+    for (String st : SLASH_SPLITTER.splitToList(partitionName)) {
+      if (st.startsWith(DATEPARTITION)) {
+        dateString = EQUALITY_SPLITTER.splitToList(st).get(1);
+      }
+    }
+    Preconditions.checkNotNull(dateString, "Unable to get partition date");
+    DateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT);
+    return dateFormat.parse(dateString).getTime();
   }
 
   private Pair<Optional<org.apache.hadoop.hive.metastore.api.Table>, Optional<List<Partition>>> getDestinationTableMeta(String dbName, String tableName,
