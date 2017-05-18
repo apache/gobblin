@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Alpha
-public class GobblinEncryptionProvider implements EncryptionProvider {
+public class GobblinEncryptionProvider implements CredentialStoreProvider, EncryptionProvider {
   private final static Set<String> SUPPORTED_STREAMING_ALGORITHMS =
       ImmutableSet.of("aes_rotating", EncryptionConfigParser.ENCRYPTION_TYPE_ANY);
 
@@ -75,7 +75,7 @@ public class GobblinEncryptionProvider implements EncryptionProvider {
     switch (algorithm) {
       case EncryptionConfigParser.ENCRYPTION_TYPE_ANY:
       case "aes_rotating":
-        CredentialStore cs = buildCredentialStore(parameters);
+        CredentialStore cs = CredentialStoreFactory.buildCredentialStore(parameters);
         if (cs == null) {
           throw new IllegalArgumentException("Failed to build credential store; can't instantiate AES");
         }
@@ -95,7 +95,7 @@ public class GobblinEncryptionProvider implements EncryptionProvider {
   /**
    * Build a credential store with the given parameters.
    */
-  public static CredentialStore buildCredentialStore(Map<String, Object> parameters) {
+  public CredentialStore buildCredentialStore(Map<String, Object> parameters) {
     String ks_type = EncryptionConfigParser.getKeystoreType(parameters);
     String ks_path = EncryptionConfigParser.getKeystorePath(parameters);
     String ks_password = EncryptionConfigParser.getKeystorePassword(parameters);
@@ -109,7 +109,7 @@ public class GobblinEncryptionProvider implements EncryptionProvider {
         case JsonCredentialStore.TAG:
           return new JsonCredentialStore(ks_path);
         default:
-          throw new IllegalArgumentException("Don't know how to build credstore type " + ks_type);
+          return null;
       }
     } catch (IOException e) {
       log.error("Error building credential store, returning null", e);
