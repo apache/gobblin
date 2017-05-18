@@ -146,6 +146,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
     } catch (Exception e) {
       log.info(String.format(this.toString() + " failed while creating a ResponseProducer"));
       _failed = true;
+      sleepBeforeRetry();
       throw new RuntimeException(e);
     }
   }
@@ -172,6 +173,19 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
     return String
         .format("GoogleWebmasterExtractorIterator{property=%s, startDate=%s, endDate=%s, country=%s, failed=%s}",
             getProperty(), _startDate, _endDate, _country, _failed);
+  }
+
+  private static void sleepBeforeRetry() {
+    try {
+      log.info("Sleep 20 seconds before task level retry");
+      //Sleep 30 seconds before restarting, we need to set this because:
+      // 1. Gobblin sleeps for 0 seconds at the first retry.
+      // 2. Gobblin doesn't sleep between subsequent tasks.
+      //See the quote limit at https://developers.google.com/webmaster-tools/search-console-api-original/v3/limits
+      Thread.sleep(20000);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -285,10 +299,9 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
             .format("ResponseProducer finishes for %s from %s to %s at retry round %d", _country, _startDate, _endDate,
                 r));
       } catch (Exception e) {
-        log.info(String
-            .format("Iterator failed while executing the ResponseProducer for %s at %s from [%s, %s] ", getProperty(),
-                _country, _startDate, _endDate));
+        log.info(GoogleWebmasterExtractorIterator.this.toString() + " failed while executing the ResponseProducer");
         _failed = true;
+        sleepBeforeRetry();
         throw new RuntimeException(e);
       }
     }
