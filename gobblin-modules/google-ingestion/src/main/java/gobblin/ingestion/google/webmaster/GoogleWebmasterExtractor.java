@@ -121,13 +121,10 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
         }
         String startDate = dateFormatter.print(_startDate);
         String endDate = dateFormatter.print(_expectedHighWaterMarkDate);
-        log.info(String
-            .format("Creating GoogleWebmasterExtractorIterator for [%s, %s] for site %s.", startDate, endDate,
-                dataFetcher.getSiteProperty()));
-
         GoogleWebmasterExtractorIterator iterator =
             new GoogleWebmasterExtractorIterator(dataFetcher, startDate, endDate, actualDimensionRequests,
                 requestedMetrics, filters, wuState);
+        log.info("Created " + iterator.toString());
         // positionMapping is to address the cases when requested dimensions/metrics order
         // is different from the column order in source.schema
         int[] positionMapping = new int[actualDimensionRequests.size() + requestedMetrics.size()];
@@ -201,8 +198,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       }
       GoogleWebmasterExtractorIterator done = _iterators.remove();
       _positionMaps.remove();
-      log.info(
-          String.format("Iterator Job Finished for site %s at country %s. ^_^", done.getProperty(), done.getCountry()));
+      log.info(done.toString() + " finished successfully. ^_^");
     }
 
     _successful = true;
@@ -220,7 +216,11 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       _iterators.add(new GoogleWebmasterExtractorIterator(iter));
     }
     _positionMaps = new ArrayDeque<>(_positionMapsOrig);
-    return _iterators.peek();
+    log.info(String.format("Finished resetting extractor due to failure in '%s'", iterator.toString()));
+
+    GoogleWebmasterExtractorIterator head = _iterators.peek();
+    log.info(String.format("Restarting extractor from the beginning '%s'", head.toString()));
+    return head;
   }
 
   @Override
