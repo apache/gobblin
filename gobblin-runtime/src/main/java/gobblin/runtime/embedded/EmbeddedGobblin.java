@@ -169,7 +169,6 @@ public class EmbeddedGobblin {
    */
   public EmbeddedGobblin mrMode() throws IOException {
     this.sysConfigOverrides.put(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.MAPREDUCE.name());
-    this.sysConfigOverrides.put(ConfigurationKeys.MR_JARS_DIR, "/tmp/EmbeddedGobblin/_jars");
     this.builtConfigMap.put(ConfigurationKeys.FS_URI_KEY, FileSystem.get(new Configuration()).getUri().toString());
     this.builtConfigMap.put(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY, "/tmp/EmbeddedGobblin_" + System.currentTimeMillis());
     this.distributeJarsFunction = new Runnable() {
