@@ -111,8 +111,10 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       try {
         allPages = _client.getPages(_siteProperty, startDate, endDate, country, rowLimit, requestedDimensions,
             Arrays.asList(countryFilter), 0);
+        break;
       } catch (Exception e) {
-        log.info("Retrying initial request at count " + r);
+        log.info(e.getMessage());
+        log.info("Retrying initial request at round " + r);
       }
 
       try {
