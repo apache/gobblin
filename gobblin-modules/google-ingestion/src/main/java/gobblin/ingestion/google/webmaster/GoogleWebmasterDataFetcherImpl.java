@@ -64,6 +64,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final String _siteProperty;
   private final GoogleWebmasterClient _client;
   private final List<ProducerJob> _jobs;
+  private final static int INITIAL_REQUESTS_COUNT = 5;
 
   GoogleWebmasterDataFetcherImpl(String siteProperty, GoogleWebmasterClient client, State wuState)
       throws IOException {
@@ -102,9 +103,29 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = new ArrayList<>();
     requestedDimensions.add(GoogleWebmasterFilter.Dimension.PAGE);
 
-    Collection<String> allPages = _client
-        .getPages(_siteProperty, startDate, endDate, country, rowLimit, requestedDimensions,
+    Collection<String> allPages = new ArrayList<>();
+
+    int r = -1;
+    while (r < INITIAL_REQUESTS_COUNT) {
+      ++r;
+      try {
+        allPages = _client.getPages(_siteProperty, startDate, endDate, country, rowLimit, requestedDimensions,
             Arrays.asList(countryFilter), 0);
+      } catch (Exception e) {
+        log.info("Retrying initial request at count " + r);
+      }
+
+      try {
+        log.info("Sleep 30 seconds for initial request.");
+        Thread.sleep(30000);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    if (r == INITIAL_REQUESTS_COUNT) {
+      throw new RuntimeException(String.format("Cannot do an initial request after %s times", INITIAL_REQUESTS_COUNT));
+    }
+
     int actualSize = allPages.size();
     log.info(String.format("First time requested %s rows, returned %s rows", rowLimit, actualSize));
 
