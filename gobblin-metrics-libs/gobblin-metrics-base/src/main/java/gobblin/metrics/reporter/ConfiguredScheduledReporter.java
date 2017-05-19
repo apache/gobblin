@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
+import gobblin.configuration.ConfigurationKeys;
 import lombok.Getter;
 
 import org.slf4j.Logger;
