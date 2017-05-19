@@ -10,6 +10,7 @@
         "type": "map",
         "values": "string"
       },
+      "default": {},
       "doc": "Key of the resource on which the operation is executed. Complex key resources are identified by more than one key. Hence this field is a map as opposed to a string. The map is used to interpolate the url template in job spec."
     },
     {
@@ -33,6 +34,7 @@
     {
       "name": "body",
       "type": "string",
+      "default": "",
       "doc": "body of the http request. It must be either a plain string or a json string."
     }
   ]

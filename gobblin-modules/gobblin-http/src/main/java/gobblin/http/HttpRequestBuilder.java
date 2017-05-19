@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.Map;
 import java.util.Queue;
 
+import org.apache.avro.generic.GenericRecord;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -11,6 +12,8 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
 
 import gobblin.utils.HttpUtils;
 import gobblin.writer.http.AsyncWriteRequest;
@@ -26,7 +29,7 @@ import gobblin.writer.http.BufferedRecord;
  *   a write request from batched records, depending on specific implementation of {@link #buildWriteRequest(Queue)}
  * </p>
  */
-public class HttpRequestBuilder implements AsyncWriteRequestBuilder<HttpOperation, HttpUriRequest> {
+public class HttpRequestBuilder implements AsyncWriteRequestBuilder<GenericRecord, HttpUriRequest> {
   private static final Logger LOG = LoggerFactory.getLogger(HttpRequestBuilder.class);
   private final String urlTemplate;
   private final String verb;
@@ -37,20 +40,20 @@ public class HttpRequestBuilder implements AsyncWriteRequestBuilder<HttpOperatio
   }
 
   @Override
-  public AsyncWriteRequest<HttpOperation, HttpUriRequest> buildWriteRequest(Queue<BufferedRecord<HttpOperation>> buffer) {
+  public AsyncWriteRequest<GenericRecord, HttpUriRequest> buildWriteRequest(Queue<BufferedRecord<GenericRecord>> buffer) {
     return buildWriteRequest(buffer.poll());
   }
 
   /**
    * Build a write request from a single record
    */
-  private AsyncWriteRequest<HttpOperation, HttpUriRequest> buildWriteRequest(BufferedRecord<HttpOperation> record) {
+  private AsyncWriteRequest<GenericRecord, HttpUriRequest> buildWriteRequest(BufferedRecord<GenericRecord> record) {
     if (record == null) {
       return null;
     }
 
-    AsyncWriteRequest<HttpOperation, HttpUriRequest> request = new AsyncWriteRequest<>();
-    HttpOperation httpOperation = record.getRecord();
+    AsyncWriteRequest<GenericRecord, HttpUriRequest> request = new AsyncWriteRequest<>();
+    HttpOperation httpOperation = HttpUtils.toHttpOperation(record.getRecord());
 
     // Set uri
     URI uri = HttpUtils.buildURI(urlTemplate, httpOperation.getKeys(), httpOperation.getQueryParams());
@@ -58,12 +61,15 @@ public class HttpRequestBuilder implements AsyncWriteRequestBuilder<HttpOperatio
       return null;
     }
 
-    RequestBuilder builder = RequestBuilder.create(verb);
+    RequestBuilder builder = RequestBuilder.create(verb.toUpperCase());
     builder.setUri(uri);
 
     // Set headers
-    for (Map.Entry<String, String> header : httpOperation.getHeaders().entrySet()) {
-      builder.setHeader(header.getKey(), header.getValue());
+    Map<String, String> headers = httpOperation.getHeaders();
+    if (headers != null && headers.size() != 0) {
+      for (Map.Entry<String, String> header : headers.entrySet()) {
+        builder.setHeader(header.getKey(), header.getValue());
+      }
     }
 
     // Add payload
@@ -72,7 +78,7 @@ public class HttpRequestBuilder implements AsyncWriteRequestBuilder<HttpOperatio
       return null;
     }
 
-    request.setRawRequest(builder.build());
+    request.setRawRequest(build(builder));
     request.markRecord(record, bytesWritten);
     return request;
   }
@@ -88,5 +94,13 @@ public class HttpRequestBuilder implements AsyncWriteRequestBuilder<HttpOperatio
     builder.setHeader(HttpHeaders.CONTENT_TYPE, ContentType.APPLICATION_JSON.getMimeType());
     builder.setEntity(new StringEntity(payload, ContentType.APPLICATION_JSON));
     return payload.length();
+  }
+
+  /**
+   * Add this method for argument capture in test
+   */
+  @VisibleForTesting
+  public HttpUriRequest build(RequestBuilder builder) {
+    return builder.build();
   }
 }

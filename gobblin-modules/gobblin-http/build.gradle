@@ -40,6 +40,9 @@ dependencies {
 
   compile externalDependency.pegasus.d2
   compile externalDependency.pegasus.restliCommon
+
+  testCompile externalDependency.testng
+  testCompile externalDependency.mockito
 }
 
 configurations {
