@@ -113,12 +113,23 @@ public abstract class KafkaAvroExtractor<K> extends KafkaExtractor<Schema, Gener
     this.reader.get().setSchema(recordSchema);
     try {
       GenericRecord record = this.reader.get().read(null, decoder);
-      record = AvroUtils.convertRecordSchema(record, this.schema.get());
+      record = convertRecord(record);
       return record;
     } catch (IOException e) {
       log.error(String.format("Error during decoding record for partition %s: ", this.getCurrentPartition()));
       throw e;
     }
+  }
+
+  /**
+   * Convert the record to the output schema of this extractor
+   * @param record the input record
+   * @return the converted record
+   * @throws IOException
+   */
+  @Override
+  protected GenericRecord convertRecord(GenericRecord record) throws IOException {
+    return AvroUtils.convertRecordSchema(record, this.schema.get());
   }
 
   /**
