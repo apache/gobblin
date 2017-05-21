@@ -254,11 +254,11 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   }
 
   @Override
-  public void dropTableIfExists(String dbName, String tableName) throws IOException {
+  public void dropTableIfExists(String dbName, String tableName, String azkabanUrl, String metastoreURI) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       if (client.get().tableExists(dbName, tableName)) {
         client.get().dropTable(dbName, tableName);
-        HiveMetaStoreEventHelper.submitSuccessfulTableDrop(eventSubmitter, dbName, tableName);
+        HiveMetaStoreEventHelper.submitSuccessfulTableDrop(eventSubmitter, dbName, tableName, azkabanUrl, metastoreURI);
         log.info("Dropped table " + tableName + " in db " + dbName);
       }
     } catch (TException e) {
@@ -269,10 +269,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
   @Override
   public void dropPartitionIfExists(String dbName, String tableName, List<Column> partitionKeys,
-      List<String> partitionValues) throws IOException {
+      List<String> partitionValues, String azkabanUrl, String metastoreURI) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       client.get().dropPartition(dbName, tableName, partitionValues, false);
-      HiveMetaStoreEventHelper.submitSuccessfulPartitionDrop(eventSubmitter, dbName, tableName, partitionValues);
+      HiveMetaStoreEventHelper.submitSuccessfulPartitionDrop(eventSubmitter, dbName, tableName, partitionValues, azkabanUrl, metastoreURI);
       log.info("Dropped partition " + partitionValues + " in table " + tableName + " in db " + dbName);
     } catch (NoSuchObjectException e) {
       // Partition does not exist. Nothing to do

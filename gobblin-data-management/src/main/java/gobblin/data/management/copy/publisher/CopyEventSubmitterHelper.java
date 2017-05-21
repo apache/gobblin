@@ -41,10 +41,12 @@ public class CopyEventSubmitterHelper {
   public static final String SIZE_IN_BYTES = "SizeInBytes";
 
   static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter,
-      CopyEntity.DatasetAndPartition datasetAndPartition, String originTimestamp, String upstreamTimestamp) {
-    SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(DATASET_PUBLISHED_EVENT_NAME)
+      CopyEntity.DatasetAndPartition datasetAndPartition, String originTimestamp, String upstreamTimestamp,
+      String source, String destination, String azkabanUrl) {
+        SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(DATASET_PUBLISHED_EVENT_NAME)
         .datasetUrn(datasetAndPartition.getDataset().getDatasetURN()).partition(datasetAndPartition.getPartition())
-        .originTimestamp(originTimestamp).upstreamTimestamp(upstreamTimestamp).build().submit();
+        .originTimestamp(originTimestamp).upstreamTimestamp(upstreamTimestamp).azkabanExecutionUrl(azkabanUrl).
+        sourceCluster(source).destinationCluster(destination).build().submit();
   }
 
   static void submitFailedDatasetPublish(EventSubmitter eventSubmitter,

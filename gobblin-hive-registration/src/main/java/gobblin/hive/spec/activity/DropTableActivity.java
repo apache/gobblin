@@ -33,10 +33,12 @@ public class DropTableActivity implements Activity {
 
   protected final String dbName;
   protected final String tableName;
+  protected final String azkabanUrl;
+  protected final String metastoreURI;
 
   @Override
   public boolean execute(HiveRegister register) throws IOException {
-    register.dropTableIfExists(this.dbName, this.tableName);
+    register.dropTableIfExists(this.dbName, this.tableName, azkabanUrl, metastoreURI);
     return true;
   }
 

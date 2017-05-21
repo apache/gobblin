@@ -29,6 +29,7 @@ import com.google.common.base.Optional;
 
 import gobblin.commit.CommitStep;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
+import gobblin.configuration.ConfigurationKeys;
 
 
 /**
@@ -52,7 +53,9 @@ public class PartitionDeregisterStep implements CommitStep {
     HiveTable hiveTable = HiveMetaStoreUtils.getHiveTable(this.table);
     try (HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI)) {
       hiveRegister.dropPartitionIfExists(this.partition.getDbName(), this.partition.getTableName(),
-          hiveTable.getPartitionKeys(), this.partition.getValues());
+      hiveTable.getPartitionKeys(), this.partition.getValues(),
+          this.props.getProp(ConfigurationKeys.AZKABAN_EXECUTION_URL, "null"),
+          this.metastoreURI.or("Null"));
     }
   }
 
