@@ -59,12 +59,12 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final double API_REQUESTS_PER_SECOND;
   private final RateBasedLimiter LIMITER;
   private final int GET_PAGE_SIZE_TIME_OUT;
+  private final int INITIAL_REQUESTS_RETRIES;
   private final int RETRY;
 
   private final String _siteProperty;
   private final GoogleWebmasterClient _client;
   private final List<ProducerJob> _jobs;
-  private final static int INITIAL_REQUESTS_COUNT = 5;
 
   GoogleWebmasterDataFetcherImpl(String siteProperty, GoogleWebmasterClient client, State wuState)
       throws IOException {
@@ -72,6 +72,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     Preconditions.checkArgument(_siteProperty.endsWith("/"), "The site property must end in \"/\"");
     _client = client;
     _jobs = getHotStartJobs(wuState);
+    INITIAL_REQUESTS_RETRIES = wuState.getPropAsInt(GoogleWebMasterSource.KEY_INITIAL_REQUESTS_RETRIES, 10);
     API_REQUESTS_PER_SECOND = wuState.getPropAsDouble(GoogleWebMasterSource.KEY_PAGES_TUNING_REQUESTS_PER_SECOND, 5.0);
     GET_PAGE_SIZE_TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_TIME_OUT, 2);
     LIMITER = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
@@ -106,7 +107,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     Collection<String> allPages = new ArrayList<>();
 
     int r = -1;
-    while (r < INITIAL_REQUESTS_COUNT) {
+    while (r < INITIAL_REQUESTS_RETRIES) {
       ++r;
       try {
         allPages = _client.getPages(_siteProperty, startDate, endDate, country, rowLimit, requestedDimensions,
@@ -124,8 +125,9 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         throw new RuntimeException(e);
       }
     }
-    if (r == INITIAL_REQUESTS_COUNT) {
-      throw new RuntimeException(String.format("Cannot do an initial request after %s times", INITIAL_REQUESTS_COUNT));
+    if (r == INITIAL_REQUESTS_RETRIES) {
+      throw new RuntimeException(
+          String.format("Cannot do an initial request after %s times", INITIAL_REQUESTS_RETRIES));
     }
 
     int actualSize = allPages.size();
