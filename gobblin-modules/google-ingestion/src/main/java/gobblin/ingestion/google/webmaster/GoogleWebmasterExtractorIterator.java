@@ -119,8 +119,12 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
     ROUND_COOL_DOWN = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_COOL_DOWN, 250);
     Preconditions.checkArgument(ROUND_COOL_DOWN >= 0, "Initial cool down time cannot be negative.");
 
+    // QPS limit can be found at
+    // https://developers.google.com/webmaster-tools/search-console-api-original/v3/limits
+    // Setting the default QPS to be 2 batches per second with a batch of size 2.
+    // So the default QPS is set at 2*2=4.
     double batchesPerSecond =
-        wuState.getPropAsDouble(GoogleWebMasterSource.KEY_QUERIES_TUNING_BATCHES_PER_SECOND, 2.25);
+        wuState.getPropAsDouble(GoogleWebMasterSource.KEY_QUERIES_TUNING_BATCHES_PER_SECOND, 2);
     Preconditions.checkArgument(batchesPerSecond > 0, "Requests per second must be positive.");
 
     BATCH_SIZE = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_BATCH_SIZE, 2);
