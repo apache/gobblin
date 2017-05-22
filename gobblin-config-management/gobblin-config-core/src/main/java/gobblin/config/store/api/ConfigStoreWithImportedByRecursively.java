@@ -19,6 +19,9 @@ package gobblin.config.store.api;
 
 import java.util.Collection;
 
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+
 import gobblin.annotation.Alpha;
 
 /**
@@ -41,5 +44,7 @@ public interface ConfigStoreWithImportedByRecursively extends ConfigStoreWithImp
    * @throws VersionDoesNotExistException if the requested config version does not exist (any longer)
    */
   public Collection<ConfigKeyPath> getImportedByRecursively(ConfigKeyPath configKey, String version)
+      throws VersionDoesNotExistException;
+  public Collection<ConfigKeyPath> getImportedByRecursively(ConfigKeyPath configKey, String version, Optional<Config> runtimeConfig)
       throws VersionDoesNotExistException;
 }

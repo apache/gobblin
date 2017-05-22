@@ -88,8 +88,12 @@ public class ConfigStoreBackedTopology implements ConfigStoreTopologyInspector {
    */
   @Override
   public Collection<ConfigKeyPath> getImportedBy(ConfigKeyPath configKey) {
+    return getImportedBy(configKey, Optional.<Config>absent());
+  }
+
+  public Collection<ConfigKeyPath> getImportedBy(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
     if (this.cs instanceof ConfigStoreWithImportedBy) {
-      return ((ConfigStoreWithImportedBy) this.cs).getImportedBy(configKey, this.version);
+      return ((ConfigStoreWithImportedBy) this.cs).getImportedBy(configKey, this.version, runtimeConfig);
     }
 
     throw new UnsupportedOperationException("Internal ConfigStore does not support this operation");
@@ -105,8 +109,12 @@ public class ConfigStoreBackedTopology implements ConfigStoreTopologyInspector {
    */
   @Override
   public List<ConfigKeyPath> getImportsRecursively(ConfigKeyPath configKey) {
+    return getImportsRecursively(configKey, Optional.<Config>absent());
+  }
+
+  public List<ConfigKeyPath> getImportsRecursively(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
     if (this.cs instanceof ConfigStoreWithResolution) {
-      return ((ConfigStoreWithResolution) this.cs).getImportsRecursively(configKey, this.version);
+      return ((ConfigStoreWithResolution) this.cs).getImportsRecursively(configKey, this.version, runtimeConfig);
     }
 
     throw new UnsupportedOperationException("Internal ConfigStore does not support this operation");
@@ -122,8 +130,12 @@ public class ConfigStoreBackedTopology implements ConfigStoreTopologyInspector {
    */
   @Override
   public Collection<ConfigKeyPath> getImportedByRecursively(ConfigKeyPath configKey) {
+    return getImportedByRecursively(configKey, Optional.<Config>absent());
+  }
+
+  public Collection<ConfigKeyPath> getImportedByRecursively(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
     if (this.cs instanceof ConfigStoreWithImportedByRecursively) {
-      return ((ConfigStoreWithImportedByRecursively) this.cs).getImportedByRecursively(configKey, this.version);
+      return ((ConfigStoreWithImportedByRecursively) this.cs).getImportedByRecursively(configKey, this.version, runtimeConfig);
     }
 
     throw new UnsupportedOperationException("Internal ConfigStore does not support this operation");

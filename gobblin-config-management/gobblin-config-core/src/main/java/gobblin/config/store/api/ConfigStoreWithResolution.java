@@ -19,6 +19,7 @@ package gobblin.config.store.api;
 
 import java.util.List;
 
+import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
@@ -65,6 +66,8 @@ public interface ConfigStoreWithResolution extends ConfigStore {
    * @throws VersionDoesNotExistException if the requested config version does not exist (any longer)
    */
   public List<ConfigKeyPath> getImportsRecursively(ConfigKeyPath configKey, String version)
+      throws VersionDoesNotExistException;
+  public List<ConfigKeyPath> getImportsRecursively(ConfigKeyPath configKey, String version, Optional<Config> runtimeConfig)
       throws VersionDoesNotExistException;
 
 }

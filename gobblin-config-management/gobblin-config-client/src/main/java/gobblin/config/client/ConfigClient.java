@@ -221,14 +221,19 @@ public class ConfigClient {
    */
   public Collection<URI> getImports(URI configKeyUri, boolean recursive)
       throws ConfigStoreFactoryDoesNotExistsException, ConfigStoreCreationException, VersionDoesNotExistException {
+    return getImports(configKeyUri, recursive, Optional.<Config>absent());
+  }
+
+  public Collection<URI> getImports(URI configKeyUri, boolean recursive, Optional<Config> runtimeConfig)
+      throws ConfigStoreFactoryDoesNotExistsException, ConfigStoreCreationException, VersionDoesNotExistException {
     ConfigStoreAccessor accessor = this.getConfigStoreAccessor(configKeyUri);
     ConfigKeyPath configKeypath = ConfigClientUtils.buildConfigKeyPath(configKeyUri, accessor.configStore);
     Collection<ConfigKeyPath> result;
 
     if (!recursive) {
-      result = accessor.topologyInspector.getOwnImports(configKeypath);
+      result = accessor.topologyInspector.getOwnImports(configKeypath, runtimeConfig);
     } else {
-      result = accessor.topologyInspector.getImportsRecursively(configKeypath);
+      result = accessor.topologyInspector.getImportsRecursively(configKeypath, runtimeConfig);
     }
 
     return ConfigClientUtils.buildUriInClientFormat(result, accessor.configStore, configKeyUri.getAuthority() != null);
@@ -247,14 +252,19 @@ public class ConfigClient {
    */
   public Collection<URI> getImportedBy(URI configKeyUri, boolean recursive)
       throws ConfigStoreFactoryDoesNotExistsException, ConfigStoreCreationException, VersionDoesNotExistException {
+    return getImportedBy(configKeyUri, recursive, Optional.<Config>absent());
+  }
+
+  public Collection<URI> getImportedBy(URI configKeyUri, boolean recursive, Optional<Config> runtimeConfig)
+      throws ConfigStoreFactoryDoesNotExistsException, ConfigStoreCreationException, VersionDoesNotExistException {
     ConfigStoreAccessor accessor = this.getConfigStoreAccessor(configKeyUri);
     ConfigKeyPath configKeypath = ConfigClientUtils.buildConfigKeyPath(configKeyUri, accessor.configStore);
     Collection<ConfigKeyPath> result;
 
     if (!recursive) {
-      result = accessor.topologyInspector.getImportedBy(configKeypath);
+      result = accessor.topologyInspector.getImportedBy(configKeypath, runtimeConfig);
     } else {
-      result = accessor.topologyInspector.getImportedByRecursively(configKeypath);
+      result = accessor.topologyInspector.getImportedByRecursively(configKeypath, runtimeConfig);
     }
 
     return ConfigClientUtils.buildUriInClientFormat(result, accessor.configStore, configKeyUri.getAuthority() != null);
