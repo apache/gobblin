@@ -18,27 +18,32 @@ package gobblin.compliance;
 
 import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.thrift.TException;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compliance.purger.HivePurgerQueryTemplate;
 import gobblin.compliance.retention.ComplianceRetentionJob;
 import gobblin.compliance.retention.HivePartitionRetentionVersion;
-import gobblin.compliance.utils.ProxyUtils;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.dataset.Dataset;
+import gobblin.util.AutoReturnableObject;
 
 
 /**
@@ -54,6 +59,7 @@ public class HivePartitionVersionFinder implements gobblin.data.management.versi
   private Optional<String> owner = Optional.absent();
   private List<HivePartitionVersion> versions = new ArrayList<>();
   private static final Object lock = new Object();
+  private static final Splitter At_SPLITTER = Splitter.on("@").omitEmptyStrings().trimResults();
 
   public HivePartitionVersionFinder(FileSystem fs, State state, List<String> patterns) {
     this.fs = fs;
@@ -106,33 +112,13 @@ public class HivePartitionVersionFinder implements gobblin.data.management.versi
     return this.versions;
   }
 
-  private void addPartitionsToVersions(List<HivePartitionVersion> versions, String name, HiveDataset hiveDataset,
+  private void addPartitionsToVersions(List<HivePartitionVersion> versions, String name,
       List<Partition> partitions)
       throws IOException {
-    if (partitions.isEmpty()) {
-      if (Boolean.parseBoolean(this.state.getProp(ComplianceConfigurationKeys.SHOULD_DROP_EMPTY_TABLES,
-          ComplianceConfigurationKeys.DEFAULT_SHOULD_DROP_EMPTY_TABLES))) {
-        executeDropTableQuery(hiveDataset);
-      }
-      return;
-    }
     for (Partition partition : partitions) {
       if (partition.getName().equalsIgnoreCase(name)) {
         versions.add(new HivePartitionRetentionVersion(partition));
       }
-    }
-  }
-
-  private void executeDropTableQuery(HiveDataset hiveDataset)
-      throws IOException {
-    String dbName = hiveDataset.getTable().getDbName();
-    String tableName = hiveDataset.getTable().getTableName();
-    Optional<String> datasetOwner = Optional.fromNullable(hiveDataset.getTable().getOwner());
-    try (HiveProxyQueryExecutor hiveProxyQueryExecutor = ProxyUtils
-        .getQueryExecutor(new State(this.state), datasetOwner)) {
-      hiveProxyQueryExecutor.executeQuery(HivePurgerQueryTemplate.getDropTableQuery(dbName, tableName), datasetOwner);
-    } catch (SQLException e) {
-      throw new IOException(e);
     }
   }
 
@@ -146,11 +132,11 @@ public class HivePartitionVersionFinder implements gobblin.data.management.versi
             throws IOException {
           synchronized (lock) {
             List<Partition> partitions = null;
-            for (HiveDataset dataset : ComplianceRetentionJob.datasetList) {
+            for (String tableName : ComplianceRetentionJob.tableNamesList) {
               for (String pattern : patterns) {
-                if (dataset.getTable().getTableName().contains(pattern)) {
-                  partitions = dataset.getPartitionsFromDataset();
-                  addPartitionsToVersions(versions, name, dataset, partitions);
+                if (tableName.contains(pattern)) {
+                  partitions = getPartitions(tableName);
+                  addPartitionsToVersions(versions, name, partitions);
                 }
               }
             }
@@ -161,5 +147,22 @@ public class HivePartitionVersionFinder implements gobblin.data.management.versi
     } catch (InterruptedException | IOException e) {
       throw new IOException(e);
     }
+  }
+
+  private static List<Partition> getPartitions(String completeTableName) {
+    List<String> tableList = At_SPLITTER.splitToList(completeTableName);
+    if (tableList.size() != 2) {
+      log.warn("Invalid table name " + completeTableName);
+      return Collections.EMPTY_LIST;
+    }
+    try (AutoReturnableObject<IMetaStoreClient> client = ComplianceRetentionJob.pool.getClient()) {
+      Table table = client.get().getTable(tableList.get(0), tableList.get(1));
+      HiveDataset dataset = new HiveDataset(FileSystem.newInstance(new Configuration()), ComplianceRetentionJob.pool,
+          new org.apache.hadoop.hive.ql.metadata.Table(table), new Properties());
+      return dataset.getPartitionsFromDataset();
+    } catch (IOException | TException e) {
+      log.warn("Unable to get Partitions for table " + completeTableName + " " + e.getMessage());
+    }
+    return Collections.EMPTY_LIST;
   }
 }
