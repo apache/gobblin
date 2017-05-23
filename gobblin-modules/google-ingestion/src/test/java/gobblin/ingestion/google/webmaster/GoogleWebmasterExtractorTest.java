@@ -77,7 +77,6 @@ public class GoogleWebmasterExtractorTest {
         responseToOutputSchema.get(1)); //country is Country.ALL, so the country request will be removed.
     Assert.assertEquals(new int[]{2, 1, 0}, responseToOutputSchema.get(2));
     Assert.assertEquals(new int[]{2, 0}, responseToOutputSchema.get(3));
-    Assert.assertTrue(responseToOutputSchema.isEmpty());
   }
 
   public static WorkUnitState getWorkUnitState1() {
