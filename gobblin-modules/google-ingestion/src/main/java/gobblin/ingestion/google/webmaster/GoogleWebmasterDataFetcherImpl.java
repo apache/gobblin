@@ -59,8 +59,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final double API_REQUESTS_PER_SECOND;
   private final RateBasedLimiter LIMITER;
   private final int GET_PAGE_SIZE_TIME_OUT;
-  private final int INITIAL_REQUESTS_RETRIES;
-  private final int RETRY;
+  private final int INITIAL_GET_PAGES_RETRIES;
+  private final int GET_PAGES_RETRIES;
 
   private final String _siteProperty;
   private final GoogleWebmasterClient _client;
@@ -72,11 +72,11 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     Preconditions.checkArgument(_siteProperty.endsWith("/"), "The site property must end in \"/\"");
     _client = client;
     _jobs = getHotStartJobs(wuState);
-    INITIAL_REQUESTS_RETRIES = wuState.getPropAsInt(GoogleWebMasterSource.KEY_INITIAL_REQUESTS_RETRIES, 10);
     API_REQUESTS_PER_SECOND = wuState.getPropAsDouble(GoogleWebMasterSource.KEY_PAGES_TUNING_REQUESTS_PER_SECOND, 5.0);
     GET_PAGE_SIZE_TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_TIME_OUT, 2);
     LIMITER = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
-    RETRY = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_MAX_RETRIES, 120);
+    INITIAL_GET_PAGES_RETRIES = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_INITIAL_REQUEST_MAX_RETRIES, 5);
+    GET_PAGES_RETRIES = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_MAX_RETRIES, 120);
   }
 
   private static List<ProducerJob> getHotStartJobs(State wuState) {
@@ -107,15 +107,14 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     Collection<String> allPages = new ArrayList<>();
 
     int r = -1;
-    while (r < INITIAL_REQUESTS_RETRIES) {
+    while (r < INITIAL_GET_PAGES_RETRIES) {
       ++r;
       try {
         allPages = _client.getPages(_siteProperty, startDate, endDate, country, rowLimit, requestedDimensions,
             Arrays.asList(countryFilter), 0);
         break;
       } catch (Exception e) {
-        log.info(e.getMessage());
-        log.info("Retrying initial request at round " + r);
+        log.info("Retrying initial request at round " + r, e);
       }
 
       try {
@@ -125,9 +124,9 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         throw new RuntimeException(e);
       }
     }
-    if (r == INITIAL_REQUESTS_RETRIES) {
+    if (r == INITIAL_GET_PAGES_RETRIES) {
       throw new RuntimeException(
-          String.format("Cannot do an initial request after %s times", INITIAL_REQUESTS_RETRIES));
+          String.format("Cannot do an initial request after %s times", INITIAL_GET_PAGES_RETRIES));
     }
 
     int actualSize = allPages.size();
@@ -246,7 +245,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
     ConcurrentLinkedDeque<String> allPages = new ConcurrentLinkedDeque<>();
     int r = 0;
-    while (r <= RETRY) {
+    while (r <= GET_PAGES_RETRIES) {
       ++r;
       log.info(String.format("Get pages at round %d with size %d.", r, toProcess.size()));
       ConcurrentLinkedDeque<Pair<String, FilterOperator>> nextRound = new ConcurrentLinkedDeque<>();
@@ -275,10 +274,10 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       }
       toProcess = nextRound;
     }
-    if (r == RETRY) {
+    if (r == GET_PAGES_RETRIES) {
       throw new RuntimeException(String
           .format("Getting all pages reaches the maximum number of retires %d. Date range: %s ~ %s. Country: %s.",
-              RETRY, startDate, endDate, country));
+              GET_PAGES_RETRIES, startDate, endDate, country));
     }
     return allPages;
   }

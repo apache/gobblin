@@ -54,20 +54,21 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private final DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
   private final DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
   private final boolean _includeSource;
-  private Queue<GoogleWebmasterExtractorIterator> _iterators = new ArrayDeque<>();
-  private List<GoogleWebmasterExtractorIterator> _iteratorsOrig = new ArrayList<>();
+  /**
+   * current is an index that indicates which iterator is under processing.
+   */
+  int current = 0;
+  private List<GoogleWebmasterExtractorIterator> _iterators = new ArrayList<>();
   /**
    * Each element keeps a mapping from API response order to output schema order.
    * The array index matches the order of API response.
    * The array values matches the order of output schema.
    */
-  private Queue<int[]> _positionMaps = new ArrayDeque<>();
-  private Queue<int[]> _positionMapsOrig = new ArrayDeque<>();
+  private List<int[]> _positionMaps = new ArrayList<>();
 
   private final DateTime _startDate;
   private final long _expectedHighWaterMark;
   private final DateTime _expectedHighWaterMarkDate;
-  private boolean _successful = false;
 
   public GoogleWebmasterExtractor(GoogleWebmasterClient gscClient, WorkUnitState wuState, long lowWatermark,
       long expectedHighWaterMark, Map<String, Integer> columnPositionMap,
@@ -137,9 +138,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
         }
         //One positionMapping is corresponding to one iterator.
         _iterators.add(iterator);
-        _iteratorsOrig.add(iterator);
         _positionMaps.add(positionMapping);
-        _positionMapsOrig.add(positionMapping);
       }
     }
   }
@@ -177,12 +176,20 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   @Override
   public String[] readRecord(@Deprecated String[] reuse)
       throws DataRecordException, IOException {
-    while (!_iterators.isEmpty()) {
-      GoogleWebmasterExtractorIterator iterator = _iterators.peek();
+    while (current < _iterators.size()) {
+      GoogleWebmasterExtractorIterator iterator = _iterators.get(current);
       if (iterator.isFailed()) {
-        iterator = resetExtractor(iterator);
+        log.info(String.format("Extractor failed at iterator %d: %s", current, iterator.toString()));
+        // Task retry reuses the same extractor instead of creating a new one.
+        // Reinitialize processed iterators and set extractor to restart from the very beginning
+        for (int i = 0; i <= current; ++i) {
+          _iterators.set(i, new GoogleWebmasterExtractorIterator(_iterators.get(i)));
+        }
+        log.info(String.format("Resetting current index from %d to 0 to restart from the beginning", current));
+        current = 0;
+        iterator = _iterators.get(current);
       }
-      int[] positionMap = _positionMaps.peek();
+      int[] positionMap = _positionMaps.get(current);
       if (iterator.hasNext()) {
         String[] apiResponse = iterator.next();
         int size = _schema.size();
@@ -196,36 +203,15 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
         }
         return record;
       }
-      GoogleWebmasterExtractorIterator done = _iterators.remove();
-      _positionMaps.remove();
-      log.info(done.toString() + " finished successfully. ^_^");
+      log.info(iterator.toString() + " finished successfully. ^_^");
+      ++current;
     }
-
-    _successful = true;
     return null;
-  }
-
-  /**
-   * This method is needed because Task retry reuses the same extractor instead of creating a new one.
-   * Clean up the state of extractor to provide a full retry from the very beginning, instead of retrying from the middle.
-   */
-  private GoogleWebmasterExtractorIterator resetExtractor(GoogleWebmasterExtractorIterator iterator) {
-    iterator.reset();
-    _iterators = new ArrayDeque<>();
-    for (GoogleWebmasterExtractorIterator iter : _iteratorsOrig) {
-      _iterators.add(new GoogleWebmasterExtractorIterator(iter));
-    }
-    _positionMaps = new ArrayDeque<>(_positionMapsOrig);
-    log.info(String.format("Finished resetting extractor due to failure in '%s'", iterator.toString()));
-
-    GoogleWebmasterExtractorIterator head = _iterators.peek();
-    log.info(String.format("Restarting extractor from the beginning '%s'", head.toString()));
-    return head;
   }
 
   @Override
   public long getExpectedRecordCount() {
-    if (_successful) {
+    if (current == _iterators.size()) {
       //Any positive number will be okay.
       //Need to add this because of this commit:
       //76ae45a by ibuenros on 12/20/16 at 11:34AM Query based source will reset to low watermark if previous run did not process any data for that table.
@@ -242,7 +228,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   @Override
   public void close()
       throws IOException {
-    if (_successful) {
+    if (current == _iterators.size()) {
       log.info(String.format("Successfully finished fetching data from Google Search Console from %s to %s.",
           dateFormatter.print(_startDate), dateFormatter.print(_expectedHighWaterMarkDate)));
       _wuState.setActualHighWatermark(new LongWatermark(_expectedHighWaterMark));
@@ -255,14 +241,14 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   /**
    * For test only
    */
-  Queue<GoogleWebmasterExtractorIterator> getIterators() {
+  List<GoogleWebmasterExtractorIterator> getIterators() {
     return _iterators;
   }
 
   /**
    * For test only
    */
-  Queue<int[]> getPositionMaps() {
+  List<int[]> getPositionMaps() {
     return _positionMaps;
   }
 }

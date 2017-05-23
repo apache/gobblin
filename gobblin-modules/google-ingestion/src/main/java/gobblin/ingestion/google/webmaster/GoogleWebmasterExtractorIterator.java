@@ -148,7 +148,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
       Collection<ProducerJob> allJobs = _webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT);
       return new ResponseProducer(allJobs);
     } catch (Exception e) {
-      log.info(String.format(this.toString() + " failed while creating a ResponseProducer"));
+      log.info(this.toString() + " failed while creating a ResponseProducer", e);
       _failed = true;
       sleepBeforeRetry();
       throw new RuntimeException(e);
@@ -157,11 +157,6 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
 
   public boolean isFailed() {
     return _failed;
-  }
-
-  public void reset() {
-    log.info("Resetting " + this.toString());
-    _failed = false;
   }
 
   public String getCountry() {
@@ -175,8 +170,8 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
   @Override
   public String toString() {
     return String
-        .format("GoogleWebmasterExtractorIterator{property=%s, startDate=%s, endDate=%s, country=%s, failed=%s}",
-            getProperty(), _startDate, _endDate, _country, _failed);
+        .format("GoogleWebmasterExtractorIterator{property=%s, startDate=%s, endDate=%s, country=%s}", getProperty(),
+            _startDate, _endDate, _country);
   }
 
   private static void sleepBeforeRetry() {
