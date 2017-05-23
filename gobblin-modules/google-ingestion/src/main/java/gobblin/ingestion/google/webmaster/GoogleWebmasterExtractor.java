@@ -18,12 +18,10 @@
 package gobblin.ingestion.google.webmaster;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -52,12 +50,11 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private final JsonArray _schema;
   private final WorkUnitState _wuState;
   private final DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
-  private final DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
   private final boolean _includeSource;
   /**
-   * current is an index that indicates which iterator is under processing.
+   * _current is an index that indicates which iterator is under processing.
    */
-  int current = 0;
+  private int _current = 0;
   private List<GoogleWebmasterExtractorIterator> _iterators = new ArrayList<>();
   /**
    * Each element keeps a mapping from API response order to output schema order.
@@ -98,6 +95,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, JsonArray schemaJson,
       List<GoogleWebmasterDataFetcher> dataFetchers) {
+    DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
     _startDate = watermarkFormatter.parseDateTime(Long.toString(lowWatermark));
     _expectedHighWaterMark = expectedHighWaterMark;
     _expectedHighWaterMarkDate = watermarkFormatter.parseDateTime(Long.toString(expectedHighWaterMark));
@@ -176,20 +174,20 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   @Override
   public String[] readRecord(@Deprecated String[] reuse)
       throws DataRecordException, IOException {
-    while (current < _iterators.size()) {
-      GoogleWebmasterExtractorIterator iterator = _iterators.get(current);
+    while (_current < _iterators.size()) {
+      GoogleWebmasterExtractorIterator iterator = _iterators.get(_current);
       if (iterator.isFailed()) {
-        log.info(String.format("Extractor failed at iterator %d: %s", current, iterator.toString()));
+        log.info(String.format("Extractor failed at iterator %d: %s", _current, iterator.toString()));
         // Task retry reuses the same extractor instead of creating a new one.
         // Reinitialize processed iterators and set extractor to restart from the very beginning
-        for (int i = 0; i <= current; ++i) {
+        for (int i = 0; i <= _current; ++i) {
           _iterators.set(i, new GoogleWebmasterExtractorIterator(_iterators.get(i)));
         }
-        log.info(String.format("Resetting current index from %d to 0 to restart from the beginning", current));
-        current = 0;
-        iterator = _iterators.get(current);
+        log.info(String.format("Resetting _current index from %d to 0 to restart from the beginning", _current));
+        _current = 0;
+        iterator = _iterators.get(_current);
       }
-      int[] positionMap = _positionMaps.get(current);
+      int[] positionMap = _positionMaps.get(_current);
       if (iterator.hasNext()) {
         String[] apiResponse = iterator.next();
         int size = _schema.size();
@@ -204,14 +202,14 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
         return record;
       }
       log.info(iterator.toString() + " finished successfully. ^_^");
-      ++current;
+      ++_current;
     }
     return null;
   }
 
   @Override
   public long getExpectedRecordCount() {
-    if (current == _iterators.size()) {
+    if (_current == _iterators.size()) {
       //Any positive number will be okay.
       //Need to add this because of this commit:
       //76ae45a by ibuenros on 12/20/16 at 11:34AM Query based source will reset to low watermark if previous run did not process any data for that table.
@@ -228,7 +226,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   @Override
   public void close()
       throws IOException {
-    if (current == _iterators.size()) {
+    if (_current == _iterators.size()) {
       log.info(String.format("Successfully finished fetching data from Google Search Console from %s to %s.",
           dateFormatter.print(_startDate), dateFormatter.print(_expectedHighWaterMarkDate)));
       _wuState.setActualHighWatermark(new LongWatermark(_expectedHighWaterMark));

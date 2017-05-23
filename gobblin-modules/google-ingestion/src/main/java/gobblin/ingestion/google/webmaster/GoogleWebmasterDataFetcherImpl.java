@@ -59,7 +59,6 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final double API_REQUESTS_PER_SECOND;
   private final RateBasedLimiter LIMITER;
   private final int GET_PAGE_SIZE_TIME_OUT;
-  private final int INITIAL_GET_PAGES_RETRIES;
   private final int GET_PAGES_RETRIES;
 
   private final String _siteProperty;
@@ -72,10 +71,9 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     Preconditions.checkArgument(_siteProperty.endsWith("/"), "The site property must end in \"/\"");
     _client = client;
     _jobs = getHotStartJobs(wuState);
-    API_REQUESTS_PER_SECOND = wuState.getPropAsDouble(GoogleWebMasterSource.KEY_PAGES_TUNING_REQUESTS_PER_SECOND, 5.0);
+    API_REQUESTS_PER_SECOND = wuState.getPropAsDouble(GoogleWebMasterSource.KEY_PAGES_TUNING_REQUESTS_PER_SECOND, 4.5);
     GET_PAGE_SIZE_TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_TIME_OUT, 2);
     LIMITER = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
-    INITIAL_GET_PAGES_RETRIES = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_INITIAL_REQUEST_MAX_RETRIES, 5);
     GET_PAGES_RETRIES = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_MAX_RETRIES, 120);
   }
 
@@ -98,69 +96,35 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       log.info("Service got hot started.");
       return _jobs;
     }
-
     ApiDimensionFilter countryFilter = GoogleWebmasterFilter.countryEqFilter(country);
 
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = new ArrayList<>();
     requestedDimensions.add(GoogleWebmasterFilter.Dimension.PAGE);
-
-    Collection<String> allPages = new ArrayList<>();
-
-    int r = -1;
-    while (r < INITIAL_GET_PAGES_RETRIES) {
-      ++r;
-      try {
-        allPages = _client.getPages(_siteProperty, startDate, endDate, country, rowLimit, requestedDimensions,
-            Arrays.asList(countryFilter), 0);
-        break;
-      } catch (Exception e) {
-        log.info("Retrying initial request at round " + r, e);
-      }
-
-      try {
-        log.info("Sleep 30 seconds for initial request.");
-        Thread.sleep(30000);
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
+    int expectedSize = rowLimit;
+    if (rowLimit >= GoogleWebmasterClient.API_ROW_LIMIT) {
+      expectedSize = getPagesSize(startDate, endDate, country, requestedDimensions, Arrays.asList(countryFilter));
     }
-    if (r == INITIAL_GET_PAGES_RETRIES) {
-      throw new RuntimeException(
-          String.format("Cannot do an initial request after %s times", INITIAL_GET_PAGES_RETRIES));
-    }
+    log.info(String.format("Expected number of pages is %d for market-%s from %s to %s", expectedSize,
+        GoogleWebmasterFilter.countryFilterToString(countryFilter), startDate, endDate));
+    Queue<Pair<String, FilterOperator>> jobs = new ArrayDeque<>();
+    jobs.add(Pair.of(_siteProperty, FilterOperator.CONTAINS));
 
+    Collection<String> allPages = getPages(startDate, endDate, requestedDimensions, countryFilter, jobs,
+        Math.min(rowLimit, GoogleWebmasterClient.API_ROW_LIMIT));
     int actualSize = allPages.size();
-    log.info(String.format("First time requested %s rows, returned %s rows", rowLimit, actualSize));
+    log.info(String
+        .format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize, _siteProperty,
+            country, startDate, endDate));
 
-    if (rowLimit < GoogleWebmasterClient.API_ROW_LIMIT || actualSize < GoogleWebmasterClient.API_ROW_LIMIT) {
-      log.info(String
-          .format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize, _siteProperty,
-              country, startDate, endDate));
-    } else {
-      int expectedSize = getPagesSize(startDate, endDate, country, requestedDimensions, Arrays.asList(countryFilter));
-      log.info(String.format("Total number of pages is %d for market-%s from %s to %s", expectedSize,
-          GoogleWebmasterFilter.countryFilterToString(countryFilter), startDate, endDate));
-      Queue<Pair<String, FilterOperator>> jobs = new ArrayDeque<>();
-      expandJobs(jobs, _siteProperty);
-
-      allPages = getPages(startDate, endDate, requestedDimensions, countryFilter, jobs);
-      allPages.add(_siteProperty);
-      actualSize = allPages.size();
-      if (actualSize != expectedSize) {
-        log.warn(String
-            .format("Expected page size for country-%s is %d, but only able to get %d", country, expectedSize,
-                actualSize));
-      }
-      log.info(String
-          .format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize, _siteProperty,
-              country, startDate, endDate));
+    if (actualSize != expectedSize) {
+      log.warn(String.format("Expected page size is %d, but only able to get %d", expectedSize, actualSize));
     }
 
-    ArrayDeque<ProducerJob> jobs = new ArrayDeque<>(actualSize);
+    ArrayDeque<ProducerJob> producerJobs = new ArrayDeque<>(actualSize);
     for (String page : allPages) {
-      jobs.add(new SimpleProducerJob(page, startDate, endDate));
+      producerJobs.add(new SimpleProducerJob(page, startDate, endDate));
     }
-    return jobs;
+    return producerJobs;
   }
 
   private int getPagesSize(final String startDate, final String endDate, final String country,
@@ -239,7 +203,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
    * Get all pages in an async mode.
    */
   private Collection<String> getPages(String startDate, String endDate, List<Dimension> dimensions,
-      ApiDimensionFilter countryFilter, Queue<Pair<String, FilterOperator>> toProcess)
+      ApiDimensionFilter countryFilter, Queue<Pair<String, FilterOperator>> toProcess, int rowLimit)
       throws IOException {
     String country = GoogleWebmasterFilter.countryFilterToString(countryFilter);
 
@@ -253,7 +217,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
           ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
 
       while (!toProcess.isEmpty()) {
-        submitJob(toProcess.poll(), countryFilter, startDate, endDate, dimensions, es, allPages, nextRound);
+        submitJob(toProcess.poll(), countryFilter, startDate, endDate, dimensions, es, allPages, nextRound, rowLimit);
       }
       //wait for jobs to finish and start next round if necessary.
       try {
@@ -284,8 +248,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
   private void submitJob(final Pair<String, FilterOperator> job, final ApiDimensionFilter countryFilter,
       final String startDate, final String endDate, final List<Dimension> dimensions, ExecutorService es,
-      final ConcurrentLinkedDeque<String> allPages,
-      final ConcurrentLinkedDeque<Pair<String, FilterOperator>> nextRound) {
+      final ConcurrentLinkedDeque<String> allPages, final ConcurrentLinkedDeque<Pair<String, FilterOperator>> nextRound,
+      final int rowLimit) {
     es.submit(new Runnable() {
       @Override
       public void run() {
@@ -305,9 +269,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         filters.add(GoogleWebmasterFilter.pageFilter(operator, prefix));
         List<String> pages;
         try {
-          pages = _client
-              .getPages(_siteProperty, startDate, endDate, countryString, GoogleWebmasterClient.API_ROW_LIMIT,
-                  dimensions, filters, 0);
+          pages = _client.getPages(_siteProperty, startDate, endDate, countryString, rowLimit, dimensions, filters, 0);
           log.debug(String
               .format("%d pages fetched for %s market-%s from %s to %s.", pages.size(), jobString, countryString,
                   startDate, endDate));
@@ -321,20 +283,16 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         //We need to create sub-tasks, and check current page with "EQUALS"
         if (pages.size() == GoogleWebmasterClient.API_ROW_LIMIT) {
           log.info(String.format("Expanding the prefix '%s'", prefix));
-          expandJobs(nextRound, prefix);
           nextRound.add(Pair.of(prefix, FilterOperator.EQUALS));
+          for (String expanded : getUrlPartitions(prefix)) {
+            nextRound.add(Pair.of(expanded, FilterOperator.CONTAINS));
+          }
         } else {
           //Otherwise, we've done with current job.
           allPages.addAll(pages);
         }
       }
     });
-  }
-
-  private void expandJobs(Queue<Pair<String, FilterOperator>> jobs, String prefix) {
-    for (String expanded : getUrlPartitions(prefix)) {
-      jobs.add(Pair.of(expanded, FilterOperator.CONTAINS));
-    }
   }
 
   /**

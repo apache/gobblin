@@ -154,11 +154,6 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
   // =============================================
   public static final String PAGES_TUNING = TUNING + "get_pages.";
   /**
-   * Optional. Default to 5.
-   * Configure the max number of retries for the initial request to get pages.
-   */
-  public static final String KEY_PAGES_TUNING_INITIAL_REQUEST_MAX_RETRIES = PAGES_TUNING + "initial_request_retries";
-  /**
    * Optional. Default to 5.0.
    * Tune the speed of API requests while getting all pages.
    */
