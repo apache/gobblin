@@ -59,6 +59,7 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
       double oldRecords = InputRecordCountHelper.readRecordCount (helper.getFs(), new Path(result.getDstAbsoluteDir()));
 
       log.info ("Dataset {} : previous records {}, current records {}", dataset.datasetURN(), oldRecords, newRecords);
+      this.state.setProp(InputRecordCountHelper.INPUT_TOTAL_RECORD_COUNT, (long)newRecords);
       if (oldRecords == 0) {
         return true;
       }

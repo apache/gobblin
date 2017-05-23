@@ -39,7 +39,7 @@ public class InputRecordCountHelper {
   private final String AVRO = "avro";
 
   public final static String RECORD_COUNT_FILE = "_record_count";
-
+  public final static String INPUT_TOTAL_RECORD_COUNT = "input.total.record.count";
   /**
    * Constructor
    */

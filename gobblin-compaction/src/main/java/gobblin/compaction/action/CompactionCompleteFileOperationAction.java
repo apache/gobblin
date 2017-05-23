@@ -44,8 +44,8 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
   }
 
   /**
-   * Replace the destination folder with new output from map-reduce job
-   * and create a file for next run record count comparison.
+   * Replace or append the destination folder with new avro files from map-reduce job
+   * Create a record count file containing the number of records that have been processed .
    */
   public void onCompactionJobComplete (FileSystemDataset dataset) throws IOException {
     if (configurator != null && configurator.isJobCreated()) {
@@ -53,14 +53,20 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       Path tmpPath = configurator.getMrOutputPath();
       Path dstPath = new Path (result.getDstAbsoluteDir());
 
-      // get record count from map reduce job counter
-      Job job = this.configurator.getConfiguredJob();
-      Counter counter = job.getCounters().findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
-      long recordCount = counter.getValue();
-
       // this is append delta mode due to the compaction rename source dir mode being enabled
       boolean appendDeltaOutput = this.state.getPropAsBoolean(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED,
               MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
+
+      // Obtain record count from input file names
+      // We are not getting record count from map-reduce counter because in next run, the threshold (delta record)
+      // calculation is based on the input file names.
+      long newTotalRecords = 0;
+      long oldTotalRecords = InputRecordCountHelper.readRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()));
+      if (this.state.contains(InputRecordCountHelper.INPUT_TOTAL_RECORD_COUNT)) {
+        newTotalRecords = this.state.getPropAsLong(InputRecordCountHelper.INPUT_TOTAL_RECORD_COUNT);
+      } else {
+        log.warn ("Dataset {} doesn't have input total record count, this may be because user skipped threshold verification", dataset.datasetURN());
+      }
 
       if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
@@ -80,11 +86,6 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
           }
         }
 
-        // update record count (adding previous count)
-        long delta = InputRecordCountHelper.readRecordCount(fs, dstPath);
-        log.info("Will change record count from {} to {} at {}", recordCount, recordCount + delta, dstPath);
-        recordCount += delta;
-        
       } else {
         this.fs.delete(dstPath, true);
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
@@ -99,8 +100,8 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       }
 
       // write record count
-      InputRecordCountHelper.writeRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()), recordCount);
-      log.info("Writing record count {} to {}", recordCount, dstPath);
+      InputRecordCountHelper.writeRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()), newTotalRecords);
+      log.info("Updating record count from {} to {} in {} ", oldTotalRecords, newTotalRecords, dstPath);
     }
   }
 
