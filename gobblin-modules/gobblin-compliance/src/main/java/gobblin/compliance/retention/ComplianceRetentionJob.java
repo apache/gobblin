@@ -71,7 +71,7 @@ import static gobblin.compliance.ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_
 public class ComplianceRetentionJob extends ComplianceJob {
   public static final List<String> tableNamesList = new ArrayList<>();
   public static HiveMetastoreClientPool pool;
-  private List<HiveDataset> tablesToDrop = Collections.emptyList();
+  private List<HiveDataset> tablesToDrop = new ArrayList();
 
   public ComplianceRetentionJob(Properties properties) {
     super(properties);
