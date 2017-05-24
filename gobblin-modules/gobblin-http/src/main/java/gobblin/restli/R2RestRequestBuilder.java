@@ -78,7 +78,7 @@ public class R2RestRequestBuilder implements AsyncWriteRequestBuilder<GenericRec
     // Add payload
     int bytesWritten = addPayload(builder, httpOperation.getBody());
     if (bytesWritten == -1) {
-      return null;
+      throw new RuntimeException("Fail to write payload into request");
     }
 
     request.markRecord(record, bytesWritten);
@@ -101,8 +101,7 @@ public class R2RestRequestBuilder implements AsyncWriteRequestBuilder<GenericRec
       builder.setEntity(bytes);
       return bytes.length;
     } catch (IOException e) {
-      LOG.error("Fail to convert payload: " + payload, e);
-      return -1;
+      throw new RuntimeException("Fail to convert payload: " + payload, e);
     }
   }
 
