@@ -145,16 +145,16 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
     while (true) {
       for (int i = 0; i < groupSize; ++i) {
-        startRow += GoogleWebmasterClient.API_ROW_LIMIT;
         final int start = startRow;
-        final String interruptedMsg = String
-            .format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.", country,
-                start);
+        startRow += GoogleWebmasterClient.API_ROW_LIMIT;
 
         Future<Integer> submit = es.submit(new Callable<Integer>() {
           @Override
           public Integer call() {
             log.info(String.format("Getting page size from %s...", start));
+            String interruptedMsg = String
+                .format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.",
+                    country, start);
             while (true) {
               try {
                 LIMITER.acquirePermits(1);
