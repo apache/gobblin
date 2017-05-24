@@ -85,8 +85,7 @@ public class HttpUtils {
       }
       return uriBuilder.build();
     } catch (URISyntaxException e) {
-      LOG.error("Fail to build url", e);
-      return null;
+      throw new RuntimeException("Fail to build uri", e);
     }
   }
 

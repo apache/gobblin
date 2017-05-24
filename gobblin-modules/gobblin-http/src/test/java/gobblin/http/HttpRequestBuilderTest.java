@@ -30,7 +30,7 @@ public class HttpRequestBuilderTest {
       throws IOException {
     String urlTemplate = "a/part1:${part1}/a/part2:${part2}";
     String verb = "post";
-    HttpRequestBuilder builder = spy(new HttpRequestBuilder(urlTemplate, verb));
+    HttpRequestBuilder builder = spy(new HttpRequestBuilder(urlTemplate, verb, "application/json"));
     ArgumentCaptor<RequestBuilder> requestBuilderArgument = ArgumentCaptor.forClass(RequestBuilder.class);
 
     Queue<BufferedRecord<GenericRecord>> queue = HttpTestUtils.createQueue(1, false);

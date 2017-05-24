@@ -22,7 +22,7 @@ import gobblin.writer.http.BufferedRecord;
 
 
 /**
- * Build {@link HttpUriRequest} that can talk to http services
+ * Build {@link HttpUriRequest} that can talk to http services. Now only text/plain and application/json are supported
  *
  * <p>
  *   This basic implementation builds a write request from a single record. However, it has the extensibility to build
@@ -33,10 +33,12 @@ public class HttpRequestBuilder implements AsyncWriteRequestBuilder<GenericRecor
   private static final Logger LOG = LoggerFactory.getLogger(HttpRequestBuilder.class);
   private final String urlTemplate;
   private final String verb;
+  private final ContentType contentType;
 
-  public HttpRequestBuilder(String urlTemplate, String verb) {
+  public HttpRequestBuilder(String urlTemplate, String verb, String contentType) {
     this.urlTemplate = urlTemplate;
     this.verb = verb;
+    this.contentType = createContentType(contentType);
   }
 
   @Override
@@ -75,7 +77,7 @@ public class HttpRequestBuilder implements AsyncWriteRequestBuilder<GenericRecor
     // Add payload
     int bytesWritten = addPayload(builder, httpOperation.getBody());
     if (bytesWritten == -1) {
-      return null;
+      throw new RuntimeException("Fail to write payload into request");
     }
 
     request.setRawRequest(build(builder));
@@ -91,9 +93,21 @@ public class HttpRequestBuilder implements AsyncWriteRequestBuilder<GenericRecor
       return 0;
     }
 
-    builder.setHeader(HttpHeaders.CONTENT_TYPE, ContentType.APPLICATION_JSON.getMimeType());
-    builder.setEntity(new StringEntity(payload, ContentType.APPLICATION_JSON));
+
+    builder.setHeader(HttpHeaders.CONTENT_TYPE, contentType.getMimeType());
+    builder.setEntity(new StringEntity(payload, contentType));
     return payload.length();
+  }
+
+  private ContentType createContentType(String contentType) {
+    switch (contentType) {
+      case "application/json":
+        return ContentType.APPLICATION_JSON;
+      case "text/plain":
+        return ContentType.TEXT_PLAIN;
+      default:
+        throw new RuntimeException("contentType not supported: " + contentType);
+    }
   }
 
   /**

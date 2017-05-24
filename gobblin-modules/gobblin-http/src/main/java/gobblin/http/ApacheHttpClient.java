@@ -30,8 +30,8 @@ public class ApacheHttpClient implements HttpClient<HttpUriRequest, CloseableHtt
   private static final Logger LOG = LoggerFactory.getLogger(ApacheHttpClient.class);
 
   public static final String HTTP_CONN_MANAGER = "connMgrType";
-  public static final String POOLING_CONN_MANAGER_MAX_TOTAL_CONN = "connMgrType.pooling.maxTotalConn";
-  public static final String POOLING_CONN_MANAGER_MAX_PER_CONN = "connMgrType.pooling.maxPerConn";
+  public static final String POOLING_CONN_MANAGER_MAX_TOTAL_CONN = "connMgr.pooling.maxTotalConn";
+  public static final String POOLING_CONN_MANAGER_MAX_PER_CONN = "connMgr.pooling.maxPerConn";
   public static final String REQUEST_TIME_OUT_MS_KEY = "reqTimeout";
   public static final String CONNECTION_TIME_OUT_MS_KEY = "connTimeout";
 
