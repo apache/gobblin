@@ -92,6 +92,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   @Override
   public Collection<ProducerJob> getAllPages(String startDate, String endDate, String country, int rowLimit)
       throws IOException {
+    log.info("Requested row limit: " + rowLimit);
     if (!_jobs.isEmpty()) {
       log.info("Service got hot started.");
       return _jobs;
@@ -100,12 +101,14 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = new ArrayList<>();
     requestedDimensions.add(GoogleWebmasterFilter.Dimension.PAGE);
-    int expectedSize = rowLimit;
+    int expectedSize = -1;
     if (rowLimit >= GoogleWebmasterClient.API_ROW_LIMIT) {
+      //expected size only makes sense when the data set size is larger than GoogleWebmasterClient.API_ROW_LIMIT
       expectedSize = getPagesSize(startDate, endDate, country, requestedDimensions, Arrays.asList(countryFilter));
+      log.info(String.format("Expected number of pages is %d for market-%s from %s to %s", expectedSize,
+          GoogleWebmasterFilter.countryFilterToString(countryFilter), startDate, endDate));
     }
-    log.info(String.format("Expected number of pages is %d for market-%s from %s to %s", expectedSize,
-        GoogleWebmasterFilter.countryFilterToString(countryFilter), startDate, endDate));
+
     Queue<Pair<String, FilterOperator>> jobs = new ArrayDeque<>();
     jobs.add(Pair.of(_siteProperty, FilterOperator.CONTAINS));
 
@@ -116,7 +119,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         .format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize, _siteProperty,
             country, startDate, endDate));
 
-    if (actualSize != expectedSize) {
+    if (expectedSize != -1 && actualSize != expectedSize) {
       log.warn(String.format("Expected page size is %d, but only able to get %d", expectedSize, actualSize));
     }
 
@@ -127,6 +130,9 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     return producerJobs;
   }
 
+  /**
+   * @return the size of all pages data set
+   */
   private int getPagesSize(final String startDate, final String endDate, final String country,
       final List<Dimension> requestedDimensions, final List<ApiDimensionFilter> apiDimensionFilters)
       throws IOException {
