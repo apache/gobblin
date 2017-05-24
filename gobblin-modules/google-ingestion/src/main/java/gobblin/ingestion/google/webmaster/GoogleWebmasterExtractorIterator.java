@@ -432,7 +432,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
         }
       }
 
-      log.debug(String.format("Finished %s. Records %d.", job, size));
+      log.debug(String.format("Finished %s. Current Queue size: %d. Record size: %d.", job, responseQueue.size(), size));
       try {
         for (String[] r : results) {
           responseQueue.put(r);
