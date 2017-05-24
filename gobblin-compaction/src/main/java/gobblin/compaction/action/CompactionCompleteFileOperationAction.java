@@ -62,11 +62,6 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       // calculation is based on the input file names.
       long newTotalRecords = 0;
       long oldTotalRecords = InputRecordCountHelper.readRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()));
-      if (this.state.contains(InputRecordCountHelper.INPUT_TOTAL_RECORD_COUNT)) {
-        newTotalRecords = this.state.getPropAsLong(InputRecordCountHelper.INPUT_TOTAL_RECORD_COUNT);
-      } else {
-        log.warn ("Dataset {} doesn't have input total record count, this may be because user skipped threshold verification", dataset.datasetURN());
-      }
 
       if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
@@ -86,6 +81,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
           }
         }
 
+        newTotalRecords = this.configurator.getFileNameRecordCount();
       } else {
         this.fs.delete(dstPath, true);
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
@@ -97,6 +93,11 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
           throw new IOException(
                   String.format("Unable to move %s to %s", tmpPath, dstPath));
         }
+
+        // get record count from map reduce job counter
+        Job job = this.configurator.getConfiguredJob();
+        Counter counter = job.getCounters().findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
+        newTotalRecords = counter.getValue();
       }
 
       // write record count
