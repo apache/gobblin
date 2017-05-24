@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
-import javax.annotation.concurrent.ThreadSafe;
+import javax.annotation.concurrent.NotThreadSafe;
 
 
 /**
@@ -43,7 +43,7 @@ import javax.annotation.concurrent.ThreadSafe;
  *
  * @param <D> type of record
  */
-@ThreadSafe
+@NotThreadSafe
 public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadService {
   private static final Logger LOG = LoggerFactory.getLogger(AsyncDataDispatcher.class);
 
@@ -112,7 +112,8 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
         try {
           Thread.sleep(300);
         } catch (InterruptedException e) {
-          LOG.debug("sleep interrupted", e);
+          LOG.warn("Dispatcher sleep interrupted", e);
+          break;
         }
       }
 

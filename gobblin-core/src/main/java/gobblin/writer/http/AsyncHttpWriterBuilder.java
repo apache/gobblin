@@ -96,6 +96,7 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
         .config(ConfigUtils.propertiesToConfig(getState().getProperties()))
         .asyncDataWriter(new AsyncHttpWriter(this))
         .retriesEnabled(false) // retries are done in HttpBatchDispatcher
+        .commitTimeoutMillis(10000L)
         .failureAllowanceRatio(0).build();
   }
 }

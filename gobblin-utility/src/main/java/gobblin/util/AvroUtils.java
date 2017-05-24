@@ -279,6 +279,30 @@ public class AvroUtils {
   }
 
   /**
+   * Given a map: key -> value, return a map: key.toString() -> value.toString(). Avro serializer wraps a String
+   * into {@link Utf8}. This method helps to restore the original string map object
+   *
+   * @param map a map object
+   * @return a map of strings
+   */
+  public static Map<String, String> toStringMap(Object map) {
+    if (map == null) {
+      return null;
+    }
+
+    if (map instanceof Map) {
+      Map rawMap = (Map) map;
+      Map<String, String> stringMap = new HashMap<>();
+      for (Object key : rawMap.keySet()) {
+        stringMap.put(key.toString(), rawMap.get(key).toString());
+      }
+      return stringMap;
+    } else {
+      throw new AvroRuntimeException("value must be a map");
+    }
+  }
+
+  /**
    * This method is to get object from map given a key as string.
    * Avro persists string as Utf8
    * @param map passed from {@link #getFieldHelper(Map, Object, List, int)}

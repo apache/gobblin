@@ -5,7 +5,6 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.http.client.utils.URIBuilder;
@@ -15,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.Gson;
 
 import gobblin.http.HttpOperation;
+import gobblin.util.AvroUtils;
 
 
 /**
@@ -32,20 +32,26 @@ public class HttpUtils {
       return (HttpOperation) record;
     }
 
-    HttpOperation httpOperation = new HttpOperation();
-    boolean hasAnyField = false;
-    for (Schema.Field field: HttpOperation.getClassSchema().getFields()) {
-      Object value = record.get(field.name());
-      if (value != null) {
-        hasAnyField = true;
-        httpOperation.put(field.pos(), value);
-      }
+    HttpOperation.Builder builder = HttpOperation.newBuilder();
+
+    Map<String, String> stringMap = AvroUtils.toStringMap(record.get(HttpConstants.KEYS));
+    if (stringMap != null) {
+      builder.setKeys(stringMap);
+    }
+    stringMap = AvroUtils.toStringMap(record.get(HttpConstants.QUERY_PARAMS));
+    if (stringMap != null) {
+      builder.setQueryParams(stringMap);
+    }
+    stringMap = AvroUtils.toStringMap(record.get(HttpConstants.HEADERS));
+    if (stringMap != null) {
+      builder.setHeaders(stringMap);
+    }
+    Object body = record.get(HttpConstants.BODY);
+    if (body != null) {
+      builder.setBody(body.toString());
     }
 
-    if (!hasAnyField) {
-      LOG.warn("An empty HttpOperation record is generated");
-    }
-    return httpOperation;
+    return builder.build();
   }
 
   /**

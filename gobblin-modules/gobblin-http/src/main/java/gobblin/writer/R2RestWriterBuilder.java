@@ -1,4 +1,4 @@
-package gobblin.restli;
+package gobblin.writer;
 
 import org.apache.avro.generic.GenericRecord;
 
@@ -7,6 +7,9 @@ import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
 import com.typesafe.config.Config;
 
+import gobblin.restli.R2Client;
+import gobblin.restli.R2RestRequestBuilder;
+import gobblin.restli.R2RestResponseHandler;
 import gobblin.utils.HttpConstants;
 import gobblin.writer.http.AsyncHttpWriterBuilder;
 

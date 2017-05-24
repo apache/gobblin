@@ -24,6 +24,7 @@ dependencies {
     compile project(":gobblin-data-management")
     runtime project(":gobblin-modules:gobblin-kafka-08")
     runtime project(":gobblin-modules:gobblin-eventhub")
+    compile project(":gobblin-modules:gobblin-http")
     compile externalDependency.avro
     compile externalDependency.commonsLang3
     compile externalDependency.guava

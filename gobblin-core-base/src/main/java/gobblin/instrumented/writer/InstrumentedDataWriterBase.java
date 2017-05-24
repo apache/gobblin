@@ -211,9 +211,12 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
 
   @Override
   public void close() throws IOException {
-    this.closer.close();
-    if (this.writerMetricsUpdater.isPresent()) {
-      ExecutorsUtils.shutdownExecutorService(this.writerMetricsUpdater.get(), Optional.of(log));
+    try {
+      this.closer.close();
+    } finally {
+      if (this.writerMetricsUpdater.isPresent()) {
+        ExecutorsUtils.shutdownExecutorService(this.writerMetricsUpdater.get(), Optional.of(log));
+      }
     }
   }
 
