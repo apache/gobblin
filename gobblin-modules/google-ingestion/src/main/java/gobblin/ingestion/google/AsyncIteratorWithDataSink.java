@@ -17,6 +17,7 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
   private final int _pollBlockingTime;
 
   protected AsyncIteratorWithDataSink(int queueSize, int pollBlockingTime) {
+    log.info(String.format("Setting queue size: %d, poll blocking second: %d", queueSize, pollBlockingTime));
     _dataSink = new LinkedBlockingDeque<>(queueSize);
     _pollBlockingTime = pollBlockingTime;
   }
@@ -31,7 +32,7 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
       T next = _dataSink.poll(_pollBlockingTime, TimeUnit.SECONDS);
       while (next == null) {
         if (_producerThread.isAlive()) {
-          //Job not done yet. Keep waiting...
+          log.info("Job not done yet. Keep waiting...");
           next = _dataSink.poll(_pollBlockingTime, TimeUnit.SECONDS);
         } else {
           synchronized (lock) {
