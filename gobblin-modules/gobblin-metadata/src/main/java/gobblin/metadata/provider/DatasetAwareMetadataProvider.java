@@ -15,25 +15,20 @@
  * limitations under the License.
  */
 
-apply plugin: 'java'
+package gobblin.metadata.provider;
 
-dependencies {
-  /*
-   * Keep these dependencies as small as possible: we should not rely on
-   * gobblin-runtime, -core etc as they pull in huge transitive dependency trees!
+import gobblin.annotation.Alpha;
+import gobblin.metadata.types.GlobalMetadata;
+
+
+/**
+ * Provides dataset-aware {@link GlobalMetadata}.
+ */
+@Alpha
+public interface DatasetAwareMetadataProvider {
+  /**
+   * @param datasetUrnSource for retrieving dataset urn.
+   * @return returns a given dataset's related {@link GlobalMetadata}.
    */
-  compile project(":gobblin-api")
-  compile project(":gobblin-modules:gobblin-codecs")
-  compile project(":gobblin-utility")
-
-  compile externalDependency.gson
-  compile externalDependency.jacksonCore
-  compile externalDependency.jacksonMapper
-  compile externalDependency.slf4j
-
-  testCompile project(":gobblin-test-utils")
-  testCompile externalDependency.testng
+  GlobalMetadata getGlobalMetadataForDataset(String datasetUrnSource);
 }
-
-ext.classification="library"
-
