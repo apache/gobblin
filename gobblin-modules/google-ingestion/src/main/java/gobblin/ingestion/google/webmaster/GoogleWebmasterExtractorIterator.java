@@ -372,7 +372,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
                 public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders)
                     throws IOException {
                   producer.onFailure(e.getMessage(), job, retries);
-                  log.info(job.getPage() + " failed");
+                  log.debug(job.getPage() + " failed");
                 }
 
                 @Override
@@ -382,12 +382,12 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
                   List<String[]> results =
                       GoogleWebmasterDataFetcher.convertResponse(_requestedMetrics, searchAnalyticsQueryResponse);
                   producer.onSuccess(job, results, responseQueue, retries);
-                  log.info(job.getPage() + " succeeded");
+                  log.debug(job.getPage() + " succeeded");
                 }
               });
             }
 
-            log.info("Submitting jobs: " + Arrays.toString(jobPages.toArray()));
+            log.debug("Submitting jobs: " + Arrays.toString(jobPages.toArray()));
             LIMITER.acquirePermits(1);
             _webmaster
                 .performSearchAnalyticsQueryInBatch(jobs, filterList, callbackList, _requestedDimensions, QUERY_LIMIT);
