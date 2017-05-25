@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.avro.AvroRuntimeException;
@@ -285,16 +286,17 @@ public class AvroUtils {
    * @param map a map object
    * @return a map of strings
    */
+  @SuppressWarnings("unchecked")
   public static Map<String, String> toStringMap(Object map) {
     if (map == null) {
       return null;
     }
 
     if (map instanceof Map) {
-      Map rawMap = (Map) map;
+      Map<Object, Object> rawMap = (Map<Object, Object>) map;
       Map<String, String> stringMap = new HashMap<>();
-      for (Object key : rawMap.keySet()) {
-        stringMap.put(key.toString(), rawMap.get(key).toString());
+      for (Entry<Object, Object> entry : rawMap.entrySet()) {
+        stringMap.put(entry.getKey().toString(), entry.getValue().toString());
       }
       return stringMap;
     } else {
