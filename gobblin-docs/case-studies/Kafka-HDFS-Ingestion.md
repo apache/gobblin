@@ -234,17 +234,17 @@ An example value could be:
 ```
 [
   {
-    "topic.name": "myTopic1",
+    "dataset": "myTopic1",
     "writer.partition.columns": "header.memberId"
   },
   {
-    "topic.name": "myTopic2",
+    "dataset": "myTopic2",
     "writer.partition.columns": "auditHeader.time"
   }
 ]
 ```
 
-The `topic.name` field also allows regular expressions. For example, one can specify key, value `"topic.name" : "myTopic.\*"`. In this case all topics whose name matches the pattern `myTopic.*` will have all the specified config properties added to their WorkUnit. If more than one topic matches multiple `topic.name`s then the properties from all the JSON objects will be added to their WorkUnit.
+The `dataset` field also allows regular expressions. For example, one can specify key, value `"dataset" : "myTopic.\*"`. In this case all topics whose name matches the pattern `myTopic.*` will have all the specified config properties added to their WorkUnit. If more than one topic matches multiple `dataset`s then the properties from all the JSON objects will be added to their WorkUnit.
 
 # Kafka `Deserializer` Integration
 
