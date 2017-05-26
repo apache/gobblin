@@ -28,8 +28,11 @@ public class HttpResponseHandler implements ResponseHandler<CloseableHttpRespons
     HttpEntity entity = response.getEntity();
     if (entity != null) {
       try {
-        String entityStr = EntityUtils.toString(response.getEntity());
-        // TODO process entityStr
+        EntityUtils.consume(response.getEntity());
+        /*
+         * TODO process entityStr
+         * String entityStr = EntityUtils.toString(response.getEntity());
+         */
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
