@@ -53,7 +53,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
 
   @Override
   protected void dispatch(Queue<BufferedRecord<D>> buffer) throws DispatchException {
-    AsyncWriteRequest<D, RQ> asyncWriteRequest = requestBuilder.buildRequest(buffer);
+    AsyncWriteRequest<D, RQ> asyncWriteRequest = requestBuilder.buildWriteRequest(buffer);
     if (asyncWriteRequest == null) {
       return;
     }

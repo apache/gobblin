@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.avro.AvroRuntimeException;
@@ -276,6 +277,31 @@ public class AvroUtils {
 
     AvroUtils.getFieldHelper(retVal, ((Record) data).get(pathList.get(field)), pathList, ++field);
     return;
+  }
+
+  /**
+   * Given a map: key -> value, return a map: key.toString() -> value.toString(). Avro serializer wraps a String
+   * into {@link Utf8}. This method helps to restore the original string map object
+   *
+   * @param map a map object
+   * @return a map of strings
+   */
+  @SuppressWarnings("unchecked")
+  public static Map<String, String> toStringMap(Object map) {
+    if (map == null) {
+      return null;
+    }
+
+    if (map instanceof Map) {
+      Map<Object, Object> rawMap = (Map<Object, Object>) map;
+      Map<String, String> stringMap = new HashMap<>();
+      for (Entry<Object, Object> entry : rawMap.entrySet()) {
+        stringMap.put(entry.getKey().toString(), entry.getValue().toString());
+      }
+      return stringMap;
+    } else {
+      throw new AvroRuntimeException("value must be a map");
+    }
   }
 
   /**

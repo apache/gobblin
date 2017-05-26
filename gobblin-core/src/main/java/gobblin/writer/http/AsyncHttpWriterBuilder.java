@@ -17,15 +17,22 @@
 
 package gobblin.writer.http;
 
+import java.io.IOException;
+
 import com.google.common.base.Preconditions;
+import com.google.gson.JsonObject;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
 
 import gobblin.config.ConfigBuilder;
 import gobblin.configuration.State;
+import gobblin.converter.http.RestEntry;
 import gobblin.http.HttpClient;
 import gobblin.http.ResponseHandler;
+import gobblin.util.ConfigUtils;
+import gobblin.writer.AsyncWriterManager;
+import gobblin.writer.DataWriter;
 import gobblin.writer.Destination;
 import gobblin.writer.FluentDataWriterBuilder;
 
@@ -79,5 +86,17 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
         "AsyncWriteRequestBuilder is required for " + this.getClass().getSimpleName());
     Preconditions
         .checkNotNull(getResponseHandler(), "ResponseHandler is required for " + this.getClass().getSimpleName());
+  }
+
+  @Override
+  public DataWriter<D> build()
+      throws IOException {
+    validate();
+    return AsyncWriterManager.builder()
+        .config(ConfigUtils.propertiesToConfig(getState().getProperties()))
+        .asyncDataWriter(new AsyncHttpWriter(this))
+        .retriesEnabled(false) // retries are done in HttpBatchDispatcher
+        .commitTimeoutMillis(10000L)
+        .failureAllowanceRatio(0).build();
   }
 }

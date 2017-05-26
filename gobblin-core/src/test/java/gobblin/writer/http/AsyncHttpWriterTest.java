@@ -172,7 +172,7 @@ public class AsyncHttpWriterTest {
   class MockRequestBuilder implements AsyncWriteRequestBuilder<Object, HttpUriRequest> {
 
     @Override
-    public AsyncWriteRequest<Object, HttpUriRequest> buildRequest(Queue<BufferedRecord<Object>> buffer) {
+    public AsyncWriteRequest<Object, HttpUriRequest> buildWriteRequest(Queue<BufferedRecord<Object>> buffer) {
       BufferedRecord<Object> item = buffer.poll();
       AsyncWriteRequest<Object, HttpUriRequest> request = new AsyncWriteRequest<>();
       request.markRecord(item, 1);
