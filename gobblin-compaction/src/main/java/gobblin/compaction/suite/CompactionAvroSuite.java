@@ -64,7 +64,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
   /**
    * Serialize a dataset {@link FileSystemDataset} to a {@link State}
    * @param dataset A dataset needs serialization
-   * @param state   A state that is used to save {@param dataset}
+   * @param state   A state that is used to save {@link gobblin.dataset.Dataset}
    */
   public void save (FileSystemDataset dataset, State state) {
     state.setProp(SERIALIZE_COMPACTION_FILE_PATH_NAME, dataset.datasetURN());
@@ -109,7 +109,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
    * work is delegated to {@link CompactionAvroJobConfigurator#createJob(FileSystemDataset)}
    *
    * @param  dataset a top level input path which contains all avro files those need to be compacted
-   * @return a map-reduce job which will compact avro files against {@param dataset}
+   * @return a map-reduce job which will compact avro files against {@link gobblin.dataset.Dataset}
    */
   public Job createJob (FileSystemDataset dataset) throws IOException {
     configurator = new CompactionAvroJobConfigurator(this.state);

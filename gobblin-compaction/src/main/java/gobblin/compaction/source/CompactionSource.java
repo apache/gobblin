@@ -163,14 +163,17 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
         }
 
         this.workUnitIterator.done();
+      } catch (RuntimeException e) {
+        throw e;
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+
     }
   }
 
   @AllArgsConstructor
-  private class DatasetVerificationException extends Exception {
+  private static class DatasetVerificationException extends Exception {
     private Dataset dataset;
     private Throwable cause;
 
@@ -180,13 +183,13 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   }
 
   @AllArgsConstructor
-  private class VerifiedDataset {
+  private static class VerifiedDataset {
     private Dataset dataset;
     private VerifiedResult verifiedResult;
   }
 
   @AllArgsConstructor
-  private class VerifiedResult {
+  private static class VerifiedResult {
     private boolean isVerified;
     private boolean shouldRetry;
   }
@@ -235,7 +238,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   /**
    * Iterator that provides {@link WorkUnit}s for all verified {@link Dataset}s
    */
-  private class CompactionWorkUnitIterator implements Iterator<WorkUnit> {
+  private static class CompactionWorkUnitIterator implements Iterator<WorkUnit> {
     private LinkedBlockingDeque<WorkUnit> workUnits;
     private WorkUnit last;
     private AtomicBoolean isDone;
