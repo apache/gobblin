@@ -1,14 +1,16 @@
 package gobblin.compaction.source;
+import java.util.Iterator;
+import java.util.List;
 
-
-import com.google.common.base.*;
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterators;
-
 import com.google.common.collect.Lists;
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.suite.CompactionAvroSuite;
 import gobblin.compaction.suite.CompactionSuiteUtils;
+import gobblin.compaction.verify.CompactionAuditCountVerifier;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
 import gobblin.compaction.suite.CompactionSuite;
@@ -43,8 +45,11 @@ import org.apache.hadoop.fs.Path;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.NoSuchElementException;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -71,16 +76,15 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
 
       initJobDir(state);
       copyJarDependencies(state);
-      List<CompactionVerifier> verifiers = suite.getDatasetsFinderVerifiers();
       DatasetsFinder finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
               getSourceFileSystem(state),
               DefaultFileSystemGlobFinder.class.getName());
 
       List<Dataset> datasets = finder.findDatasets();
-      CompactionWorkUnitIterator workUnitIterator = new CompactionWorkUnitIterator (verifiers);
+      CompactionWorkUnitIterator workUnitIterator = new CompactionWorkUnitIterator ();
 
       // Spawn a single thread to create work units
-      new Thread(new SingleWorkUnitGeneratorService (datasets, workUnitIterator)).start();
+      new Thread(new SingleWorkUnitGeneratorService (state, datasets, workUnitIterator)).start();
       return new BasicWorkUnitStream.Builder (workUnitIterator).build();
 
     } catch (IOException e) {
@@ -89,17 +93,19 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   }
 
   /**
-   * A work unit generator will do blew steps:
-   * 1) Convert dataset iterator to callable iterator, each callable is a verification procedure
+   * A work unit generator service will do the following:
+   * 1) Convert dataset iterator to verification callable iterator, each callable element is a verification procedure
    * 2) Use {@link IteratorExecutor} to execute callable iterator
-   * 3) Examine the failed datasets from 2), keep retrying until timeout
+   * 3) Collect all failed datasets at step 2), retry them until timeout. Once timeout create failed tasks on purpose.
    */
   private class SingleWorkUnitGeneratorService implements Runnable {
+    private SourceState state;
     private List<Dataset> datasets;
     private CompactionWorkUnitIterator workUnitIterator;
     private IteratorExecutor executor;
 
-    public SingleWorkUnitGeneratorService (List<Dataset> datasets, CompactionWorkUnitIterator workUnitIterator) {
+    public SingleWorkUnitGeneratorService (SourceState state, List<Dataset> datasets, CompactionWorkUnitIterator workUnitIterator) {
+      this.state = state;
       this.datasets = datasets;
       this.workUnitIterator = workUnitIterator;
     }
@@ -107,18 +113,19 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     public void run () {
       try {
         Stopwatch stopwatch = Stopwatch.createStarted();
-
+        int parallel = this.state.getPropAsInt(CompactionVerifier.VERIFICATION_PARALLEL, 5);
+        long timeOut = this.state.getPropAsInt(CompactionVerifier.VERIFICATION_TIMEOUT, 60);
         while (datasets.size() > 0) {
           Iterator<Callable<VerifiedDataset>> verifierIterator =
                   Iterators.transform (datasets.iterator(), new Function<Dataset, Callable<VerifiedDataset>>() {
                     @Nullable
                     @Override
                     public Callable<VerifiedDataset> apply(Dataset dataset) {
-                      return new DatasetVerifier (dataset, workUnitIterator);
+                      return new DatasetVerifier (dataset, workUnitIterator, suite.getDatasetsFinderVerifiers());
                     }
                   });
 
-          executor = new IteratorExecutor<>(verifierIterator, 5,
+          executor = new IteratorExecutor<>(verifierIterator, parallel,
                   ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Verifier-compaction-dataset-pool-%d")));
 
           List<Dataset> failedDatasets = Lists.newArrayList();
@@ -131,15 +138,18 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
               failedDatasets.add(exc.dataset);
             } else {
               VerifiedDataset vd = ((Either.Left<VerifiedDataset, DatasetVerificationException>) either).getLeft();
-              if (!vd.isVerified) {
-                log.error ("Dataset {} verification has failed", vd.dataset.datasetURN());
-                failedDatasets.add(vd.dataset);
+              if (!vd.verifiedResult.isVerified) {
+                log.error ("Dataset {} verification has failed but should retry {}", vd.dataset.datasetURN(),
+                        vd.verifiedResult.shouldRetry);
+                if (vd.verifiedResult.shouldRetry) {
+                  failedDatasets.add(vd.dataset);
+                }
               }
             }
           }
 
           this.datasets = failedDatasets;
-          if (stopwatch.elapsed(TimeUnit.MINUTES) > 1) {
+          if (stopwatch.elapsed(TimeUnit.SECONDS) > timeOut) {
             break;
           }
         }
@@ -172,34 +182,53 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   @AllArgsConstructor
   private class VerifiedDataset {
     private Dataset dataset;
-    private boolean isVerified;
+    private VerifiedResult verifiedResult;
   }
 
-  /**
-   * A callable responsible for dataset verification
-   */
-  private class DatasetVerifier implements Callable {
-    private CompactionWorkUnitIterator workUnitIterator;
-    private Dataset dataset;
+  @AllArgsConstructor
+  private class VerifiedResult {
+    private boolean isVerified;
+    private boolean shouldRetry;
+  }
 
-    public DatasetVerifier (Dataset dataset, CompactionWorkUnitIterator workUnitIterator) {
-      this.workUnitIterator = workUnitIterator;
-      this.dataset = dataset;
-    }
+  @AllArgsConstructor
+  private class DatasetVerifier implements Callable {
+    private Dataset dataset;
+    private CompactionWorkUnitIterator workUnitIterator;
+    private List<CompactionVerifier> verifiers;
 
     /**
-     * Return a wrapped dataset because we will add them back to next run if verification failed
+     * {@link VerifiedDataset} wraps original {@link Dataset} because if verification failed, we are able get original
+     * datasets and restart the entire process of verification against those failed datasets.
      */
     public VerifiedDataset call () throws DatasetVerificationException {
       try {
-        boolean verified = this.workUnitIterator.verify(dataset);
-        if (verified) {
+        VerifiedResult result = this.verify(dataset);
+        if (result.isVerified) {
           this.workUnitIterator.addWorkUnit (createWorkUnit(dataset));
         }
-        return new VerifiedDataset(dataset, verified);
+        return new VerifiedDataset(dataset, result);
       } catch (Exception e) {
         throw new DatasetVerificationException(dataset, e);
       }
+    }
+
+    public VerifiedResult verify (Dataset dataset) throws IOException {
+      boolean verificationPassed = true;
+      boolean shouldRetry = false;
+      if (verifiers != null) {
+        for (CompactionVerifier verifier : verifiers) {
+          if (!verifier.verify(dataset)) {
+            verificationPassed = false;
+            if (verifier instanceof CompactionAuditCountVerifier) {
+              shouldRetry = true;
+            }
+            break;
+          }
+        }
+      }
+
+      return new VerifiedResult(verificationPassed, shouldRetry);
     }
   }
 
@@ -208,25 +237,22 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
    */
   private class CompactionWorkUnitIterator implements Iterator<WorkUnit> {
     private LinkedBlockingDeque<WorkUnit> workUnits;
-
-    private List<CompactionVerifier> verifiers;
     private WorkUnit last;
     private AtomicBoolean isDone;
 
     /**
      * Constructor
      */
-    public CompactionWorkUnitIterator (List<CompactionVerifier> verifiers) {
+    public CompactionWorkUnitIterator () {
       this.workUnits = new LinkedBlockingDeque<>();
-      this.verifiers = verifiers;
       this.isDone = new AtomicBoolean(false);
       this.last = null;
     }
 
     /**
      * Check if any {@link WorkUnit} is available. The producer is {@link SingleWorkUnitGeneratorService}
-     * @return true when a new {@link WorkUnit}  is available
-     *         false when producer exits
+     * @return true when a new {@link WorkUnit} is available
+     *         false when {@link CompactionWorkUnitIterator#isDone} is invoked
      */
     public boolean hasNext () {
       try {
@@ -242,7 +268,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     }
 
     /**
-     * Stops the iteration so that hasNext() returns false
+     * Stops the iteration so that {@link CompactionWorkUnitIterator#hasNext()} returns false
      */
     public void done () {
       this.isDone.set(true);
@@ -250,7 +276,8 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
 
     /**
      * Obtain next available {@link WorkUnit}.
-     * Block the consumer thread until a new {@link WorkUnit} is provided. Otherwise throw an exception
+     * The method will first query if any work unit is available by calling {@link CompactionWorkUnitIterator#hasNext()}
+     * Because {@link CompactionWorkUnitIterator#hasNext()} is a blocking call, this method can also be blocked.
      */
     public WorkUnit next () {
       if (hasNext()) {
@@ -268,20 +295,6 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
 
     public void remove() {
       throw new UnsupportedOperationException("No remove supported on " + this.getClass().getName());
-    }
-
-    public boolean verify (Dataset dataset) throws IOException {
-      boolean verificationPassed = true;
-      if (verifiers != null) {
-        for (CompactionVerifier verifier : verifiers) {
-          if (!verifier.verify(dataset)) {
-            verificationPassed = false;
-            break;
-          }
-        }
-      }
-
-      return verificationPassed;
     }
 
     protected void addWorkUnit (WorkUnit wu) {
@@ -370,5 +383,4 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       }
     }
   }
-
 }
