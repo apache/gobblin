@@ -50,8 +50,6 @@ public class ApacheHttpClient implements HttpClient<HttpUriRequest, CloseableHtt
           .build());
 
   private final CloseableHttpClient client;
-  @Getter
-  protected URI serverHost;
 
   public ApacheHttpClient(HttpClientBuilder builder, Config config) {
     config = config.withFallback(FALLBACK);

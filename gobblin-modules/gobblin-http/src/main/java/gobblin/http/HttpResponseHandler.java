@@ -27,15 +27,7 @@ public class HttpResponseHandler implements ResponseHandler<CloseableHttpRespons
     int statusCode = response.getStatusLine().getStatusCode();
     HttpEntity entity = response.getEntity();
     if (entity != null) {
-      try {
-        EntityUtils.consume(response.getEntity());
-        /*
-         * TODO process entityStr
-         * String entityStr = EntityUtils.toString(response.getEntity());
-         */
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+      processEntity(entity);
     }
     if (statusCode > 300 & statusCode < 500) {
       status.setType(StatusType.CLIENT_ERROR);
@@ -44,5 +36,13 @@ public class HttpResponseHandler implements ResponseHandler<CloseableHttpRespons
     }
 
     return status;
+  }
+
+  protected void processEntity(HttpEntity entity) {
+    try {
+      EntityUtils.consume(entity);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

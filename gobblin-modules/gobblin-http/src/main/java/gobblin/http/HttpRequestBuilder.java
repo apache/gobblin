@@ -31,6 +31,7 @@ import gobblin.writer.http.BufferedRecord;
  */
 public class HttpRequestBuilder implements AsyncWriteRequestBuilder<GenericRecord, HttpUriRequest> {
   private static final Logger LOG = LoggerFactory.getLogger(HttpRequestBuilder.class);
+
   private final String urlTemplate;
   private final String verb;
   private final ContentType contentType;
