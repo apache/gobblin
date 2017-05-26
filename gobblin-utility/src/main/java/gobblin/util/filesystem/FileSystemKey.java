@@ -67,7 +67,7 @@ public class FileSystemKey implements SharedResourceKey {
 
   @Override
   public String toConfigurationKey() {
-    return this.uri.toString();
+    return this.uri.getScheme() + (this.uri.getHost() == null ? "" : ("." + this.uri.getHost()));
   }
 
   @Override
