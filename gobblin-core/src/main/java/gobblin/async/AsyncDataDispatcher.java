@@ -54,15 +54,11 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
   private final Lock lock;
   private final Condition isBufferEmpty;
 
-  // Indicate a buffer empty occurrence
-  private boolean isBufferEmptyOccurred;
-
   public AsyncDataDispatcher(int capacity) {
     super();
     buffer = new ArrayBlockingQueue<>(capacity);
     lock = new ReentrantLock(true);
     isBufferEmpty = lock.newCondition();
-    isBufferEmptyOccurred = false;
     startAsync();
     awaitRunning();
   }
@@ -101,7 +97,7 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
     LOG.info("Start processing records");
     // A main loop to process records
     while (true) {
-      while (buffer.size() == 0) {
+      while (buffer.isEmpty()) {
         // Buffer is empty
         notifyBufferEmptyOccurrence();
         if (!isRunning()) {
@@ -115,14 +111,6 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
           LOG.warn("Dispatcher sleep interrupted", e);
           break;
         }
-      }
-
-      // Remove the old buffer empty occurrence
-      try {
-        lock.lock();
-        isBufferEmptyOccurred = false;
-      } finally {
-        lock.unlock();
       }
 
       // Dispatch records
@@ -163,15 +151,13 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
     try {
       lock.lock();
       // Waiting for a buffer empty occurrence
-      while (!isBufferEmptyOccurred) {
+      while (!buffer.isEmpty()) {
         try {
           isBufferEmpty.await();
         } catch (InterruptedException e) {
           throw new RuntimeException("Waiting for buffer flush interrupted", e);
         }
       }
-      // Remove the consumed buffer empty occurrence
-      isBufferEmptyOccurred = false;
     } finally {
       lock.unlock();
       checkRunning("waitForABufferEmptyOccurrence");
@@ -181,7 +167,6 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
   private void notifyBufferEmptyOccurrence() {
     try {
       lock.lock();
-      isBufferEmptyOccurred = true;
       isBufferEmpty.signalAll();
     } finally {
       lock.unlock();
