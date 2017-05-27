@@ -71,6 +71,6 @@ public abstract class AbstractAsyncDataWriter<D> extends AsyncDataDispatcher<Buf
   @Override
   public void flush()
       throws IOException {
-    waitForABufferEmptyOccurrence();
+    waitForBufferEmpty();
   }
 }

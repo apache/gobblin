@@ -146,11 +146,11 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
     }
   }
 
-  protected void waitForABufferEmptyOccurrence() {
-    checkRunning("waitForABufferEmptyOccurrence");
+  protected void waitForBufferEmpty() {
+    checkRunning("waitForBufferEmpty");
     try {
       lock.lock();
-      // Waiting for a buffer empty occurrence
+      // Waiting buffer empty
       while (!buffer.isEmpty()) {
         try {
           isBufferEmpty.await();
@@ -160,7 +160,7 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
       }
     } finally {
       lock.unlock();
-      checkRunning("waitForABufferEmptyOccurrence");
+      checkRunning("waitForBufferEmpty");
     }
   }
 
