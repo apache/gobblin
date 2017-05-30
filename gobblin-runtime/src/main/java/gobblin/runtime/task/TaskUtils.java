@@ -26,7 +26,7 @@ import gobblin.configuration.State;
  */
 public class TaskUtils {
 
-  public static final String TASK_FACTORY_CLASS = "gobblin.runtime.taskFactoryClass";
+  private static final String TASK_FACTORY_CLASS = "gobblin.runtime.taskFactoryClass";
 
   /**
    * Parse the {@link TaskFactory} in the state if one is defined.

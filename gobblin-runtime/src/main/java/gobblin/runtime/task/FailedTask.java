@@ -23,7 +23,7 @@ public class FailedTask extends BaseAbstractTask {
 
     public FailedWorkUnit () {
       super ();
-      this.setProp(TaskUtils.TASK_FACTORY_CLASS, FailedTaskFactory.class.getName());
+      TaskUtils.setTaskFactoryClass(this, FailedTaskFactory.class);
     }
   }
 
