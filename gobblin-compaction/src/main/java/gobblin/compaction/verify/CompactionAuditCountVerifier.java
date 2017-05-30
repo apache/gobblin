@@ -159,4 +159,8 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
       return null;
     }
   }
+
+  public boolean isRetriable () {
+    return true;
+  }
 }

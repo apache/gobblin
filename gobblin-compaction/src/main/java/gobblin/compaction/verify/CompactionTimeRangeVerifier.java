@@ -58,4 +58,8 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
   public String getName() {
     return COMPACTION_VERIFIER_TIME_RANGE;
   }
+
+  public boolean isRetriable () {
+    return false;
+  }
 }

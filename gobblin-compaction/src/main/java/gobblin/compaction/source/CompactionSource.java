@@ -230,9 +230,10 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
             verificationPassed = false;
             // Not all verification should be retried. Below are verifications which
             // doesn't need retry. If any of then failed, we simply skip this dataset.
-            if (verifier instanceof CompactionTimeRangeVerifier) shouldRetry = false;
-            if (verifier instanceof CompactionThresholdVerifier) shouldRetry = false;
-            if (!shouldRetry) break;
+            if (!verifier.isRetriable()) {
+              shouldRetry = false;
+              break;
+            }
           }
         }
       }
