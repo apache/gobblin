@@ -8,9 +8,9 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.compaction.suite.CompactionAvroSuite;
 import gobblin.compaction.suite.CompactionSuiteUtils;
-import gobblin.compaction.verify.CompactionAuditCountVerifier;
+import gobblin.compaction.verify.CompactionThresholdVerifier;
+import gobblin.compaction.verify.CompactionTimeRangeVerifier;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
 import gobblin.compaction.suite.CompactionSuite;
@@ -23,6 +23,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
 import gobblin.runtime.JobState;
+import gobblin.runtime.task.FailedTask;
 import gobblin.runtime.task.TaskUtils;
 import gobblin.source.Source;
 import gobblin.source.WorkUnitStreamSource;
@@ -36,18 +37,19 @@ import gobblin.util.HadoopUtils;
 import gobblin.util.executors.IteratorExecutor;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -96,7 +98,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
    * A work unit generator service will do the following:
    * 1) Convert dataset iterator to verification callable iterator, each callable element is a verification procedure
    * 2) Use {@link IteratorExecutor} to execute callable iterator
-   * 3) Collect all failed datasets at step 2), retry them until timeout. Once timeout create failed tasks on purpose.
+   * 3) Collect all failed datasets at step 2), retry them until timeout. Once timeout create failed workunits on purpose.
    */
   private class SingleWorkUnitGeneratorService implements Runnable {
     private SourceState state;
@@ -113,43 +115,45 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     public void run () {
       try {
         Stopwatch stopwatch = Stopwatch.createStarted();
-        int parallel = this.state.getPropAsInt(CompactionVerifier.VERIFICATION_PARALLEL, 5);
-        long timeOut = this.state.getPropAsInt(CompactionVerifier.VERIFICATION_TIMEOUT, 60);
+        int threads = this.state.getPropAsInt(CompactionVerifier.COMPACTION_VERIFICATION_THREADS, 5);
+        long timeOutInMinute = this.state.getPropAsLong(CompactionVerifier.COMPACTION_VERIFICATION_TIMEOUT_MINUTES, 30);
+
         while (datasets.size() > 0) {
           Iterator<Callable<VerifiedDataset>> verifierIterator =
                   Iterators.transform (datasets.iterator(), new Function<Dataset, Callable<VerifiedDataset>>() {
-                    @Nullable
                     @Override
                     public Callable<VerifiedDataset> apply(Dataset dataset) {
                       return new DatasetVerifier (dataset, workUnitIterator, suite.getDatasetsFinderVerifiers());
                     }
                   });
 
-          executor = new IteratorExecutor<>(verifierIterator, parallel,
-                  ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Verifier-compaction-dataset-pool-%d")));
+          executor = new IteratorExecutor<>(verifierIterator, threads,
+                  ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("Verifier-compaction-dataset-pool-%d")));
 
           List<Dataset> failedDatasets = Lists.newArrayList();
 
-          List<Either<VerifiedDataset, DatasetVerificationException>> futures = executor.executeAndGetResults();
-          for (Either<VerifiedDataset, DatasetVerificationException> either: futures) {
+          List<Either<VerifiedDataset, ExecutionException>> futures = executor.executeAndGetResults();
+          for (Either<VerifiedDataset, ExecutionException> either: futures) {
             if (either instanceof Either.Right) {
-              DatasetVerificationException exc = ((Either.Right<VerifiedDataset, DatasetVerificationException>) either).getRight();
-              log.error ("Dataset {} verification has exception {}", exc.dataset.datasetURN(), exc.cause);
-              failedDatasets.add(exc.dataset);
+              ExecutionException exc = ((Either.Right<VerifiedDataset, ExecutionException>) either).getRight();
+              DatasetVerificationException dve = (DatasetVerificationException) exc.getCause();
+              log.error ("Verification raised an exception:" + ExceptionUtils.getStackTrace(dve.cause));
+              failedDatasets.add(dve.dataset);
             } else {
-              VerifiedDataset vd = ((Either.Left<VerifiedDataset, DatasetVerificationException>) either).getLeft();
-              if (!vd.verifiedResult.isVerified) {
-                log.error ("Dataset {} verification has failed but should retry {}", vd.dataset.datasetURN(),
-                        vd.verifiedResult.shouldRetry);
+              VerifiedDataset vd = ((Either.Left<VerifiedDataset, ExecutionException>) either).getLeft();
+              if (!vd.verifiedResult.allVerificationPassed) {
                 if (vd.verifiedResult.shouldRetry) {
+                  log.error ("Dataset {} verification has failure but should retry", vd.dataset.datasetURN());
                   failedDatasets.add(vd.dataset);
+                } else {
+                  log.error ("Dataset {} verification has failure but no need to retry", vd.dataset.datasetURN());
                 }
               }
             }
           }
 
           this.datasets = failedDatasets;
-          if (stopwatch.elapsed(TimeUnit.SECONDS) > timeOut) {
+          if (stopwatch.elapsed(TimeUnit.MINUTES) > timeOutInMinute) {
             break;
           }
         }
@@ -172,13 +176,14 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     }
   }
 
-  @AllArgsConstructor
   private static class DatasetVerificationException extends Exception {
     private Dataset dataset;
     private Throwable cause;
 
-    public String toString () {
-      return "Exception :" + cause + " from " + dataset.datasetURN();
+    public DatasetVerificationException (Dataset dataset, Throwable cause) {
+      super ("Dataset:" + dataset.datasetURN() + " Exception:" + cause);
+      this.dataset = dataset;
+      this.cause = cause;
     }
   }
 
@@ -190,7 +195,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
 
   @AllArgsConstructor
   private static class VerifiedResult {
-    private boolean isVerified;
+    private boolean allVerificationPassed;
     private boolean shouldRetry;
   }
 
@@ -207,7 +212,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     public VerifiedDataset call () throws DatasetVerificationException {
       try {
         VerifiedResult result = this.verify(dataset);
-        if (result.isVerified) {
+        if (result.allVerificationPassed) {
           this.workUnitIterator.addWorkUnit (createWorkUnit(dataset));
         }
         return new VerifiedDataset(dataset, result);
@@ -216,17 +221,18 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       }
     }
 
-    public VerifiedResult verify (Dataset dataset) throws IOException {
+    public VerifiedResult verify (Dataset dataset) throws Exception {
       boolean verificationPassed = true;
-      boolean shouldRetry = false;
+      boolean shouldRetry = true;
       if (verifiers != null) {
         for (CompactionVerifier verifier : verifiers) {
-          if (!verifier.verify(dataset)) {
+          if (!verifier.verify (dataset)) {
             verificationPassed = false;
-            if (verifier instanceof CompactionAuditCountVerifier) {
-              shouldRetry = true;
-            }
-            break;
+            // Not all verification should be retried. Below are verifications which
+            // doesn't need retry. If any of then failed, we simply skip this dataset.
+            if (verifier instanceof CompactionTimeRangeVerifier) shouldRetry = false;
+            if (verifier instanceof CompactionThresholdVerifier) shouldRetry = false;
+            if (!shouldRetry) break;
           }
         }
       }
@@ -313,8 +319,9 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   }
 
   protected WorkUnit createWorkUnitForFailure (Dataset dataset) throws IOException {
-    WorkUnit workUnit = createWorkUnit(dataset);
-    workUnit.setProp(CompactionAvroSuite.MR_TASK_NEED_FAILURE, "true");
+    WorkUnit workUnit = new FailedTask.FailedWorkUnit();
+    TaskUtils.setTaskFactoryClass(workUnit, CompactionFailedTask.CompactionFailedTaskFactory.class);
+    suite.save (dataset, workUnit);
     return workUnit;
   }
 

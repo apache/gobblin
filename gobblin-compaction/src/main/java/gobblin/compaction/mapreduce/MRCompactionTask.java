@@ -1,7 +1,6 @@
 package gobblin.compaction.mapreduce;
 
 import gobblin.compaction.action.CompactionCompleteAction;
-import gobblin.compaction.suite.CompactionAvroSuite;
 import gobblin.compaction.suite.CompactionSuite;
 import gobblin.compaction.suite.CompactionSuiteUtils;
 import gobblin.compaction.verify.CompactionVerifier;
@@ -26,7 +25,7 @@ import org.apache.hadoop.mapreduce.Job;
 public class MRCompactionTask extends MRTask {
   protected final CompactionSuite suite;
   protected final Dataset dataset;
-  protected final boolean needToFail;
+
   /**
    * Constructor
    */
@@ -35,7 +34,6 @@ public class MRCompactionTask extends MRTask {
     this.suite = CompactionSuiteUtils.getCompactionSuiteFactory (taskContext.getTaskState()).
             createSuite(taskContext.getTaskState());
     this.dataset = this.suite.load(taskContext.getTaskState());
-    this.needToFail = taskContext.getTaskState().getPropAsBoolean(CompactionAvroSuite.MR_TASK_NEED_FAILURE, false);
   }
 
   /**
@@ -46,7 +44,6 @@ public class MRCompactionTask extends MRTask {
    */
   @Override
   public void run() {
-    if (this.needToFail) throw new RuntimeException(this.dataset.datasetURN() + " is failed");
     List<CompactionVerifier> verifiers = this.suite.getMapReduceVerifiers();
     for (CompactionVerifier verifier : verifiers) {
       if (!verifier.verify(dataset)) {

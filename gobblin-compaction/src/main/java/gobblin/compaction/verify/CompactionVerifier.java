@@ -7,8 +7,8 @@ import gobblin.dataset.Dataset;
  */
 public interface CompactionVerifier<D extends Dataset> {
    String COMPACTION_VERIFIER_PREFIX = "compaction-verifier-";
-   String VERIFICATION_TIMEOUT = "compaction.verification.timeout";
-   String VERIFICATION_PARALLEL= "compaction.verification.parallel";
+   String COMPACTION_VERIFICATION_TIMEOUT_MINUTES = "compaction.verification.timeoutMinutes";
+   String COMPACTION_VERIFICATION_THREADS= "compaction.verification.threads";
    boolean verify(D dataset);
 
    String getName();

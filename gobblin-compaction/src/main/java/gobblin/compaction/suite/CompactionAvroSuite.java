@@ -25,7 +25,6 @@ import java.util.ArrayList;
  */
 @Slf4j
 public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
-  public static final String MR_TASK_NEED_FAILURE = "mr.task.need.failure";
   public static final String SERIALIZE_COMPACTION_FILE_PATH_NAME = "compaction-file-path-name";
   private State state;
   private CompactionAvroJobConfigurator configurator = null;

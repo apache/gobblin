@@ -116,6 +116,7 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
       log.error(e.toString());
     }
 
+    log.warn ("Audit count verification failed for %s between %s and %s", datasetName, startTime, endTime);
     return false;
   }
 
@@ -128,21 +129,21 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
    */
   private boolean passed (String datasetName, Map<String, Long> countsByTier, String referenceTier) {
     if (!countsByTier.containsKey(this.gobblinTier)) {
-      log.warn(String
+      log.error (String
               .format("Failed to get audit count for topic %s, tier %s", datasetName, this.gobblinTier));
       return false;
     }
     if (!countsByTier.containsKey(referenceTier)) {
-      log.warn(String.format("Failed to get audit count for topic %s, tier %s", datasetName, referenceTier));
+      log.error (String.format("Failed to get audit count for topic %s, tier %s", datasetName, referenceTier));
       return false;
     }
 
-    long originCount = countsByTier.get(referenceTier);
+    long refCount = countsByTier.get(referenceTier);
     long gobblinCount = countsByTier.get(this.gobblinTier);
 
-    if ((double) gobblinCount / (double) originCount < this.threshold) {
-      log.warn(String.format("Verification failed for %s : gobblin count = %d, originCount count = %d (%f)",
-              datasetName, gobblinCount, originCount, (double) gobblinCount / (double) originCount));
+    if ((double) gobblinCount / (double) refCount < this.threshold) {
+      log.warn (String.format("Verification failed for %s : gobblin count = %d, %s count = %d (%f)",
+              datasetName, gobblinCount, referenceTier, refCount, (double) gobblinCount / (double) refCount));
       return false;
     }
 
