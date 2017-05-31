@@ -16,8 +16,13 @@
  */
 package gobblin.data.management.conversion.hive.validation;
 
+import gobblin.config.client.ConfigClient;
+import gobblin.config.client.api.VersionStabilityPolicy;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.PathUtils;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URI;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -25,6 +30,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -127,6 +133,7 @@ public class ValidationJob extends AbstractJob {
   private static final String HIVE_SETTINGS = "hive.settings";
   private static final String DATEPARTITION = "datepartition";
   private static final String DATE_FORMAT = "yyyy-MM-dd-HH";
+  public static final String GOBBLIN_CONFIG_TAGS_WHITELIST = "gobblin.config.tags.whitelist";
 
   private final ValidationType validationType;
   private List<String> ignoreDataPathIdentifierList;
@@ -144,6 +151,8 @@ public class ValidationJob extends AbstractJob {
   private final List<Future<Void>> futures;
   private final Boolean isNestedORC;
   private final List<String> hiveSettings;
+  protected Optional<String> configStoreUri;
+  private static final short maxParts = 1000;
 
   private Map<String, String> successfulConversions;
   private Map<String, String> failedConversions;
@@ -200,34 +209,62 @@ public class ValidationJob extends AbstractJob {
 
   /**
    * Validates that partitions are in a given format
+   * Partitions to be processed are picked up from the config store which are tagged.
+   * Tag can be passed through key GOBBLIN_CONFIG_TAGS_WHITELIST
+   * Datasets tagged by the above key will be picked up.
+   * PathName will be treated as tableName and ParentPathName will be treated as dbName
+   *
+   * For example if the dataset uri picked up by is /data/hive/myDb/myTable
+   * Then myTable is tableName and myDb is dbName
    */
-  private void runFileFormatValidation()
-      throws IOException {
+  private void runFileFormatValidation() throws IOException {
     Preconditions.checkArgument(this.props.containsKey(VALIDATION_FILE_FORMAT_KEY));
-    Iterator<HiveDataset> iterator = this.datasetFinder.getDatasetsIterator();
-    EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.VALIDATION_FIND_HIVE_TABLES_EVENT);
-    while (iterator.hasNext()) {
-      HiveDataset hiveDataset = iterator.next();
-      if (!HiveUtils.isPartitioned(hiveDataset.getTable())) {
+
+    this.configStoreUri =
+        StringUtils.isNotBlank(this.props.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI)) ? Optional.of(
+            this.props.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI)) : Optional.<String>absent();
+    if (!Boolean.valueOf(this.props.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_ENABLED,
+        ConfigurationKeys.DEFAULT_CONFIG_MANAGEMENT_STORE_ENABLED))) {
+      this.configStoreUri = Optional.<String>absent();
+    }
+    List<Partition> partitions = new ArrayList<>();
+    if (this.configStoreUri.isPresent()) {
+      Preconditions.checkArgument(this.props.containsKey(GOBBLIN_CONFIG_TAGS_WHITELIST),
+          "Missing required property " + GOBBLIN_CONFIG_TAGS_WHITELIST);
+      String tag = this.props.getProperty(GOBBLIN_CONFIG_TAGS_WHITELIST);
+      ConfigClient configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
+      Path tagUri = PathUtils.mergePaths(new Path(this.configStoreUri.get()), new Path(tag));
+      try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
+        Collection<URI> importedBy = configClient.getImportedBy(new URI(tagUri.toString()), true);
+        for (URI uri : importedBy) {
+          String dbName = new Path(uri).getParent().getName();
+          Table table = new Table(client.get().getTable(dbName, new Path(uri).getName()));
+          for (org.apache.hadoop.hive.metastore.api.Partition partition : client.get()
+              .listPartitions(dbName, table.getTableName(), maxParts)) {
+            partitions.add(new Partition(table, partition));
+          }
+        }
+      } catch (Exception e) {
+        this.throwables.add(e);
+      }
+    }
+
+    for (Partition partition : partitions) {
+      if (!shouldValidate(partition)) {
         continue;
       }
-      for (Partition partition : hiveDataset.getPartitionsFromDataset()) {
-        if (!shouldValidate(partition)) {
-          continue;
-        }
-        String fileFormat = this.props.getProperty(VALIDATION_FILE_FORMAT_KEY);
-        Optional<HiveSerDeWrapper.BuiltInHiveSerDe> hiveSerDe =
-            Enums.getIfPresent(HiveSerDeWrapper.BuiltInHiveSerDe.class, fileFormat.toUpperCase());
-        if (!hiveSerDe.isPresent()) {
-          throwables.add(new Throwable("Partition SerDe is either not supported or absent"));
-          continue;
-        }
+      String fileFormat = this.props.getProperty(VALIDATION_FILE_FORMAT_KEY);
+      Optional<HiveSerDeWrapper.BuiltInHiveSerDe> hiveSerDe =
+          Enums.getIfPresent(HiveSerDeWrapper.BuiltInHiveSerDe.class, fileFormat.toUpperCase());
+      if (!hiveSerDe.isPresent()) {
+        throwables.add(new Throwable("Partition SerDe is either not supported or absent"));
+        continue;
+      }
 
-        String serdeLib = partition.getTPartition().getSd().getSerdeInfo().getSerializationLib();
-        if (!hiveSerDe.get().toString().equalsIgnoreCase(serdeLib)) {
-          throwables.add(new Throwable(
-              "Partition " + partition.getCompleteName() + " SerDe " + serdeLib + " doesn't match with the required SerDe " + hiveSerDe.get().toString()));
-        }
+      String serdeLib = partition.getTPartition().getSd().getSerdeInfo().getSerializationLib();
+      if (!hiveSerDe.get().toString().equalsIgnoreCase(serdeLib)) {
+        throwables.add(new Throwable("Partition " + partition.getCompleteName() + " SerDe " + serdeLib
+            + " doesn't match with the required SerDe " + hiveSerDe.get().toString()));
       }
     }
     if (!this.throwables.isEmpty()) {
