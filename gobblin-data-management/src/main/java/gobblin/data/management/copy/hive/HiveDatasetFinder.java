@@ -49,6 +49,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.config.client.ConfigClient;
 import gobblin.config.client.ConfigClientCache;
+import gobblin.config.client.ConfigClientUtils;
 import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
 import gobblin.config.client.api.VersionStabilityPolicy;
 import gobblin.config.store.api.ConfigStoreCreationException;
@@ -108,7 +109,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   private final WhitelistBlacklist whitelistBlacklist;
   private final Optional<EventSubmitter> eventSubmitter;
 
-  protected final Optional<String> configStoreUri;
+  protected Optional<String> configStoreUri;
   protected final Function<Table, String> configStoreDatasetUriBuilder;
 
   protected final String datasetConfigPrefix;
@@ -163,6 +164,10 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     this.eventSubmitter = Optional.fromNullable(eventSubmitter);
     this.configStoreUri = StringUtils.isNotBlank(properties.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI)) ?
         Optional.of(properties.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI)) : Optional.<String>absent();
+    if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_ENABLED,
+        ConfigurationKeys.DEFAULT_CONFIG_MANAGEMENT_STORE_ENABLED))) {
+      this.configStoreUri = Optional.<String>absent();
+    }
     this.datasetConfigPrefix = properties.getProperty(HIVE_DATASET_CONFIG_PREFIX_KEY, DEFAULT_HIVE_DATASET_CONIFG_PREFIX);
     this.configClient = configClient;
     try {
@@ -303,11 +308,17 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
       ConfigStoreCreationException, URISyntaxException {
 
     Config datasetConfig;
-
+    Optional<Config> runtimeConfig = ConfigClientUtils.getOptionalRuntimeConfig(properties);
     // Config store enabled
     if (this.configStoreUri.isPresent()) {
-      datasetConfig = this.configClient.getConfig(this.configStoreUri.get() + Path.SEPARATOR
-              + this.configStoreDatasetUriBuilder.apply(table));
+      if (runtimeConfig.isPresent()) {
+        datasetConfig = this.configClient.getConfig(
+            this.configStoreUri.get() + Path.SEPARATOR + this.configStoreDatasetUriBuilder.apply(table),
+            runtimeConfig);
+      } else {
+        datasetConfig = this.configClient.getConfig(
+            this.configStoreUri.get() + Path.SEPARATOR + this.configStoreDatasetUriBuilder.apply(table));
+      }
 
     // If config store is not enabled use job config
     } else {

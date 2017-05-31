@@ -51,6 +51,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_STATE_STORE_TYPE = "fs";
   public static final String STATE_STORE_TYPE_NOOP = "noop";
 
+  public static final String CONFIG_RUNTIME_PREFIX = "gobblin.config.runtime.";
   // Root directory where task state files are stored
   public static final String STATE_STORE_ROOT_DIR_KEY = "state.store.dir";
   // File system URI for file-system-based task store
@@ -719,6 +720,8 @@ public class ConfigurationKeys {
    * Config store properties
    */
   public static final String CONFIG_MANAGEMENT_STORE_URI = "gobblin.config.management.store.uri";
+  public static final String CONFIG_MANAGEMENT_STORE_ENABLED = "gobblin.config.management.store.enabled";
+  public static final String DEFAULT_CONFIG_MANAGEMENT_STORE_ENABLED = "false";
 
   /**
    * Other configuration properties.

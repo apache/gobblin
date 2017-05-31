@@ -25,6 +25,7 @@ dependencies {
   compile project(":gobblin-core")
   compile project(":gobblin-data-management")
   compile project(":gobblin-runtime")
+  compile project(":gobblin-modules:gobblin-kafka-common")
 
   compile externalDependency.calciteCore
   compile externalDependency.calciteAvatica

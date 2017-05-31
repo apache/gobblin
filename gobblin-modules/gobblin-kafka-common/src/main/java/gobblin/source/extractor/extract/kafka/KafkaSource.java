@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -467,10 +468,25 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     return workUnit;
   }
 
+  /**
+   * If config store is enabled, then intersection of topics from blacklisting/whitelisting will be taken against
+   * the topics from config-store
+   */
   private List<KafkaTopic> getFilteredTopics(SourceState state) {
     List<Pattern> blacklist = DatasetFilterUtils.getPatternList(state, TOPIC_BLACKLIST);
     List<Pattern> whitelist = DatasetFilterUtils.getPatternList(state, TOPIC_WHITELIST);
-    return this.kafkaConsumerClient.getFilteredTopics(blacklist, whitelist);
+    List<KafkaTopic> topics = this.kafkaConsumerClient.getFilteredTopics(blacklist, whitelist);
+    Optional<String> configStoreUri = ConfigStoreUtils.getConfigStoreUri(state.getProperties());
+    if (configStoreUri.isPresent()) {
+      List<KafkaTopic> topicsFromConfigStore =
+          ConfigStoreUtils.getTopicsFromConfigStore(state.getProperties(), configStoreUri.get(), this.kafkaConsumerClient);
+
+      return topics.stream()
+          .filter((KafkaTopic p) -> (topicsFromConfigStore.stream()
+              .anyMatch((KafkaTopic q) -> q.getName().equalsIgnoreCase(p.getName()))))
+          .collect(Collectors.toList());
+    }
+    return topics;
   }
 
   @Override

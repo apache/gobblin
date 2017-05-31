@@ -20,6 +20,8 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
+  compile project(":gobblin-config-management:gobblin-config-client")
+  compile project(":gobblin-config-management:gobblin-config-core")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-core-base")
 
