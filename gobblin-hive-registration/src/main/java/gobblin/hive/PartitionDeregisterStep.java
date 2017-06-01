@@ -29,7 +29,6 @@ import com.google.common.base.Optional;
 
 import gobblin.commit.CommitStep;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
-import gobblin.configuration.ConfigurationKeys;
 
 
 /**

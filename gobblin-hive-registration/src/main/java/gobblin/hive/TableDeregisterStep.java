@@ -26,7 +26,6 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import com.google.common.base.Optional;
 
 import gobblin.commit.CommitStep;
-import gobblin.configuration.ConfigurationKeys;
 
 /**
  * {@link CommitStep} to deregister a Hive table.

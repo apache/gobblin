@@ -63,7 +63,6 @@ import gobblin.util.WriterUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
-
 /**
  * A {@link DataPublisher} to {@link gobblin.data.management.copy.CopyEntity}s from task output to final destination.
  */
