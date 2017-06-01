@@ -35,11 +35,14 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -95,6 +98,10 @@ public class TaskTest {
     when(mockTaskContext.getTaskState()).thenReturn(taskState);
     when(mockTaskContext.getTaskLevelPolicyChecker(any(TaskState.class), anyInt()))
         .thenReturn(mock(TaskLevelPolicyChecker.class));
+    when(mockTaskContext.getRowLevelPolicyChecker()).
+        thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
+    when(mockTaskContext.getRowLevelPolicyChecker(anyInt())).
+        thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
 
     // Create a mock TaskPublisher
     TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
@@ -131,7 +138,8 @@ public class TaskTest {
     int numForks = writerCollectors.size();
 
     // Create a mock RowLevelPolicyChecker
-    RowLevelPolicyChecker mockRowLevelPolicyChecker = mock(RowLevelPolicyChecker.class);
+    RowLevelPolicyChecker mockRowLevelPolicyChecker =
+        spy(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
     when(mockRowLevelPolicyChecker.executePolicies(any(Object.class), any(RowLevelPolicyCheckResults.class)))
         .thenReturn(true);
     when(mockRowLevelPolicyChecker.getFinalState()).thenReturn(new State());
@@ -179,7 +187,7 @@ public class TaskTest {
     int recordsPerFork = numRecords/numForks;
     for (int forkNumber=0; forkNumber < numForks; ++ forkNumber) {
       ArrayList<Object> forkRecords = recordCollectors.get(forkNumber);
-      Assert.assertTrue(forkRecords.size() == recordsPerFork);
+      Assert.assertEquals(forkRecords.size(), recordsPerFork);
       for (int j=0; j < recordsPerFork; ++j) {
         Object forkRecord = forkRecords.get(j);
         Assert.assertEquals((String) forkRecord, "" + (j * recordsPerFork + forkNumber));
@@ -208,7 +216,7 @@ public class TaskTest {
     int recordsPerFork = numRecords;
     for (int forkNumber=0; forkNumber < numForks; ++ forkNumber) {
       ArrayList<Object> forkRecords = recordCollectors.get(forkNumber);
-      Assert.assertTrue(forkRecords.size() == recordsPerFork);
+      Assert.assertEquals(forkRecords.size(), recordsPerFork);
       for (int j=0; j < recordsPerFork; ++j) {
         Object forkRecord = forkRecords.get(j);
         Assert.assertEquals((String) forkRecord, "" + j);

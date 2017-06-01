@@ -31,7 +31,6 @@ import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
@@ -39,7 +38,8 @@ import gobblin.publisher.TaskPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
-import gobblin.runtime.BoundedBlockingRecordQueue;
+import gobblin.records.RecordStreamConsumer;
+import gobblin.records.RecordStreamWithMetadata;
 import gobblin.runtime.ExecutionModel;
 import gobblin.runtime.MultiConverter;
 import gobblin.runtime.Task;
@@ -51,7 +51,6 @@ import gobblin.source.extractor.RecordEnvelope;
 import gobblin.state.ConstructState;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.AcknowledgableRecordEnvelope;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.DataWriterWrapperBuilder;
@@ -78,7 +77,7 @@ import gobblin.writer.WatermarkAwareWriter;
  * @author Yinan Li
  */
 @SuppressWarnings("unchecked")
-public abstract class Fork implements Closeable, Runnable, FinalState {
+public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S, D> {
 
   // Possible state of a fork
   enum ForkState {
@@ -110,7 +109,7 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
   private final Closer closer = Closer.create();
 
   // The writer will be lazily created when the first data record arrives
-  private Optional<DataWriter<Object>> writer = Optional.absent();
+  private Optional<DataWriter<?>> writer = Optional.absent();
 
   // This is used by the parent task to signal that it has done pulling records and this fork
   // should not expect any new incoming data records. This is written by the parent task and
@@ -173,18 +172,31 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
     return this.executionModel.equals(ExecutionModel.STREAMING);
   }
 
-  @Override
-  public void run() {
+  public void consumeRecordStream(RecordStreamWithMetadata<D, S> stream) throws Exception {
+    stream = this.converter.processStream(stream, this.taskState);
+    stream = this.rowLevelPolicyChecker.processStream(stream, this.taskState);
+    stream = stream.mapStream(s -> s.map(r -> {
+      onEachRecord();
+      return r;
+    }));
+    stream = stream.mapStream(s -> s.doOnSubscribe(subscription -> onStart()));
+    stream = stream.mapStream(s -> s.doOnComplete(() -> verifyAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED)));
+    stream = stream.mapStream(s -> s.doOnCancel(() -> verifyAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED)));
+    stream = stream.mapStream(s -> s.doOnError(exc -> {
+      verifyAndSetForkState(ForkState.RUNNING, ForkState.FAILED);
+      this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), exc);
+    }));
+    stream = stream.mapStream(s -> s.doFinally(this::cleanup));
+    stream.getRecordStream().subscribe(r -> this.writer.get().writeEnvelope((RecordEnvelope) r), e -> logger.error("Failed to process record.", e),
+        () -> this.writer.get().close());
+  }
+
+  private void onStart() throws IOException {
     compareAndSetForkState(ForkState.PENDING, ForkState.RUNNING);
-    try {
-      processRecords();
-      compareAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED);
-    } catch (Throwable t) {
-      this.forkState.set(ForkState.FAILED);
-      this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), t);
-    } finally {
-      this.cleanup();
-    }
+  }
+
+  private void onEachRecord() throws IOException {
+    buildWriterIfNotPresent();
   }
 
   /**
@@ -207,51 +219,6 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
       state.addConstructState(Constructs.WRITER, new ConstructState(((FinalState) this.writer.get()).getFinalState()));
     }
     return state;
-  }
-
-  /**
-   * Put a new record into the record queue for this {@link Fork} to process.
-   *
-   * <p>
-   *   This method is used by the {@link Task} that creates this {@link Fork}.
-   * </p>
-   *
-   * @param record the new record
-   * @return whether the record has been successfully put into the queue
-   * @throws InterruptedException
-   */
-  public boolean putRecord(Object record)
-      throws InterruptedException {
-    if (this.forkState.compareAndSet(ForkState.FAILED, ForkState.FAILED)) {
-      throw new IllegalStateException(
-          String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId));
-    }
-    return this.putRecordImpl(record);
-  }
-
-  /**
-   * Tell this {@link Fork} that the parent task is already done pulling records and
-   * it should not expect more incoming data records.
-   *
-   * <p>
-   *   This method is used by the {@link Task} that creates this {@link Fork}.
-   * </p>
-   */
-  public void markParentTaskDone() {
-    this.parentTaskDone = true;
-    try {
-      this.putRecord(SHUTDOWN_RECORD);
-    } catch (InterruptedException e) {
-      this.logger.info("Interrupted while writing a shutdown record into the fork queue. Ignoring");
-    }
-  }
-
-  /**
-   * Check if the parent task is done.
-   * @return {@code true} if the parent task is done; otherwise {@code false}.
-   */
-  public boolean isParentTaskDone() {
-    return parentTaskDone;
   }
 
   /**
@@ -286,11 +253,11 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
         // it may throw so the exception gets propagated to the caller of this method.
         this.logger.info(String.format("Committing data for fork %d of task %s", this.index, this.taskId));
         commitData();
-        compareAndSetForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
+        verifyAndSetForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
         return true;
       }
       this.logger.error(String.format("Fork %d of task %s failed to pass quality checking", this.index, this.taskId));
-      compareAndSetForkState(ForkState.SUCCEEDED, ForkState.FAILED);
+      verifyAndSetForkState(ForkState.SUCCEEDED, ForkState.FAILED);
       return false;
     } catch (Throwable t) {
       this.logger.error(String.format("Fork %d of task %s failed to commit data", this.index, this.taskId), t);
@@ -319,22 +286,16 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
   }
 
   /**
-   * Get a {@link BoundedBlockingRecordQueue.QueueStats} object representing the record queue
-   * statistics of this {@link Fork}.
-   *
-   * @return a {@link BoundedBlockingRecordQueue.QueueStats} object representing the record queue
-   *         statistics of this {@link Fork} wrapped in an {@link com.google.common.base.Optional},
-   *         which means it may be absent if collecting of queue statistics is not enabled.
-   */
-  public abstract Optional<BoundedBlockingRecordQueue<Object>.QueueStats> queueStats();
-
-  /**
    * Return if this {@link Fork} has succeeded processing all records.
    *
    * @return if this {@link Fork} has succeeded processing all records
    */
   public boolean isSucceeded() {
     return this.forkState.compareAndSet(ForkState.SUCCEEDED, ForkState.SUCCEEDED);
+  }
+
+  public boolean isDone() {
+    return this.forkState.get() == ForkState.SUCCEEDED || this.forkState.get() == ForkState.FAILED;
   }
 
   @Override
@@ -387,51 +348,6 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
     }
   }
 
-  protected abstract void processRecords() throws IOException, DataConversionException;
-
-
-  protected void processRecord(Object record) throws IOException, DataConversionException {
-    if (this.forkState.compareAndSet(ForkState.FAILED, ForkState.FAILED)) {
-      throw new IllegalStateException(
-          String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId));
-    }
-    if (record == null || record == SHUTDOWN_RECORD) {
-      /**
-       * null record indicates a timeout on record acquisition, SHUTDOWN_RECORD is sent during shutdown.
-       * Will loop unless the parent task has indicated that it is already done pulling records.
-       */
-      if (this.parentTaskDone) {
-        return;
-      }
-    } else {
-      if (isStreamingMode()) {
-        // Unpack the record from its container
-        AcknowledgableRecordEnvelope recordEnvelope = (AcknowledgableRecordEnvelope) record;
-        // Convert the record, check its data quality, and finally write it out if quality checking passes.
-        for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, recordEnvelope.getRecord(), this.taskState)) {
-          if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
-            // for each additional record we pass down, increment the acks needed
-            ((WatermarkAwareWriter) this.writer.get()).writeEnvelope(
-                recordEnvelope.derivedEnvelope(convertedRecord));
-          }
-        }
-        // ack this fork's processing done
-        recordEnvelope.ack();
-      } else {
-        buildWriterIfNotPresent();
-
-        // Convert the record, check its data quality, and finally write it out if quality checking passes.
-        for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, record, this.taskState)) {
-          if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
-            this.writer.get().write(convertedRecord);
-          }
-        }
-      }
-    }
-  }
-
-  protected abstract boolean putRecordImpl(Object record) throws InterruptedException;
-
   protected void cleanup() {
   }
 
@@ -440,17 +356,26 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
    */
   private DataWriter<Object> buildWriter()
       throws IOException {
-    DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
-        .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
-        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)
-        .withSchema(this.convertedSchema.orNull()).withBranches(this.branches).forBranch(this.index);
-    if (this.taskAttemptId.isPresent()) {
-      builder.withAttemptId(this.taskAttemptId.get());
-    }
+    try {
+      DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index);
+      builder = builder.writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState));
+      builder = builder
+          .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index))
+          .withWriterId(this.taskId)
+          .withSchema(this.convertedSchema.orNull())
+          .withBranches(this.branches)
+          .forBranch(this.index);
+      if (this.taskAttemptId.isPresent()) {
+        builder.withAttemptId(this.taskAttemptId.get());
+      }
 
-    DataWriter<Object> writer = new PartitionedDataWriter<>(builder, this.taskContext.getTaskState());
-    logger.info("Wrapping writer " + writer);
-    return new DataWriterWrapperBuilder<>(writer, this.taskState).build();
+      DataWriter<Object> writer = new PartitionedDataWriter<>(builder, this.taskContext.getTaskState());
+      logger.info("Wrapping writer " + writer);
+      return new DataWriterWrapperBuilder<>(writer, this.taskState).build();
+    } catch (Throwable t) {
+      logger.error("blah", t);
+      throw t;
+    }
   }
 
   private void buildWriterIfNotPresent()
@@ -543,8 +468,16 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
    * Compare and set the state of this {@link Fork} to a new state if and only if the current state
    * is equal to the expected state.
    */
-  private void compareAndSetForkState(ForkState expectedState, ForkState newState) {
-    if (!this.forkState.compareAndSet(expectedState, newState)) {
+  private boolean compareAndSetForkState(ForkState expectedState, ForkState newState) {
+    return this.forkState.compareAndSet(expectedState, newState);
+  }
+
+  /**
+   * Compare and set the state of this {@link Fork} to a new state if and only if the current state
+   * is equal to the expected state. Throw an exception if the state did not match.
+   */
+  private void verifyAndSetForkState(ForkState expectedState, ForkState newState) {
+    if (!compareAndSetForkState(expectedState, newState)) {
       throw new IllegalStateException(String
           .format("Expected fork state %s; actual fork state %s", expectedState.name(), this.forkState.get().name()));
     }

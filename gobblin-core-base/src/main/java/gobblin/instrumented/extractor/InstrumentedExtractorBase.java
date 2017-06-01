@@ -39,6 +39,7 @@ import gobblin.metrics.MetricNames;
 import gobblin.metrics.Tag;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.FinalState;
 
 
@@ -114,16 +115,16 @@ public abstract class InstrumentedExtractorBase<S, D>
   }
 
   @Override
-  public D readRecord(D reuse) throws DataRecordException, IOException {
+  public RecordEnvelope<D> readRecordEnvelope() throws DataRecordException, IOException {
     if (!isInstrumentationEnabled()) {
-      return readRecordImpl(reuse);
+      return readRecordEnvelopeImpl();
     }
 
     try {
       long startTimeNanos = System.nanoTime();
       beforeRead();
-      D record = readRecordImpl(reuse);
-      afterRead(record, startTimeNanos);
+      RecordEnvelope<D> record = readRecordEnvelopeImpl();
+      afterRead(record == null ? null : record.getRecord(), startTimeNanos);
       return record;
     } catch (DataRecordException exception) {
       onException(exception);
@@ -163,9 +164,21 @@ public abstract class InstrumentedExtractorBase<S, D>
   }
 
   /**
-   * Subclasses should implement this instead of {@link gobblin.source.extractor.Extractor#readRecord}
+   * Subclasses should implement this or {@link #readRecordImpl(Object)}
+   * instead of {@link gobblin.source.extractor.Extractor#readRecord}
    */
-  public abstract D readRecordImpl(D reuse) throws DataRecordException, IOException;
+  protected RecordEnvelope<D> readRecordEnvelopeImpl() throws DataRecordException, IOException {
+    D record = readRecordImpl(null);
+    return  record == null ? null : new RecordEnvelope<>(record);
+  }
+
+  /**
+   * Subclasses should implement this or {@link #readRecordEnvelopeImpl()}
+   * instead of {@link gobblin.source.extractor.Extractor#readRecord}
+   */
+  protected D readRecordImpl(D reuse) throws DataRecordException, IOException {
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * Get final state for this object. By default this returns an empty {@link gobblin.configuration.State}, but
