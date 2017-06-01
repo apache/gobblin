@@ -46,9 +46,7 @@ public class TableDeregisterStep implements CommitStep {
   @Override
   public void execute() throws IOException {
     try (HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI)) {
-      hiveRegister.dropTableIfExists(this.table.getDbName(), this.table.getTableName(),
-          this.props.getProp(ConfigurationKeys.AZKABAN_EXECUTION_URL, "null"),
-          this.metastoreURI.or("Null"));
+      hiveRegister.dropTableIfExists(this.table.getDbName(), this.table.getTableName());
     }
   }
 

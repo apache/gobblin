@@ -64,6 +64,7 @@ import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.data.management.copy.recovery.RecoveryHelper;
 import gobblin.instrumented.writer.InstrumentedDataWriter;
+import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.state.ConstructState;
 import gobblin.util.FileListUtils;
 import gobblin.util.FinalState;
@@ -230,6 +231,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         } else {
           log.info("File {} copied.", copyableFile.getOrigin().getPath());
         }
+        this.state.setProp(SlaEventKeys.SOURCE, copyableFile.getOrigin().getPath().toString());
+        this.state.setProp(SlaEventKeys.DESTINATION, copyableFile.getDestination().toString());
       } catch (NotConfiguredException nce) {
         log.warn("Broker error. Some features of stream copier may not be available.", nce);
       } finally {

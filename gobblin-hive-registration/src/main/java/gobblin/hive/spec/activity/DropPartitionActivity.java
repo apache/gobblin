@@ -37,13 +37,10 @@ public class DropPartitionActivity implements Activity {
   protected final String tableName;
   protected final List<Column> partitionKeys;
   protected final List<String> partitionValues;
-  protected final String azkabanUrl;
-  protected final String metastoreURI;
 
   @Override
   public boolean execute(HiveRegister register) throws IOException {
-    register.dropPartitionIfExists(this.dbName, this.tableName, this.partitionKeys, this.partitionValues,
-        azkabanUrl, metastoreURI);
+    register.dropPartitionIfExists(this.dbName, this.tableName, this.partitionKeys, this.partitionValues);
     return true;
   }
 

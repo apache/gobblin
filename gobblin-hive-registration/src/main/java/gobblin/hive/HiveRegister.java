@@ -212,7 +212,7 @@ public abstract class HiveRegister implements Closeable {
    * @param tableName the table name
    * @throws IOException
    */
-  public abstract void dropTableIfExists(String dbName, String tableName, String azkabanUrl, String metastoreURI) throws IOException;
+  public abstract void dropTableIfExists(String dbName, String tableName) throws IOException;
 
   /**
    * Drop a partition if exists.
@@ -224,7 +224,7 @@ public abstract class HiveRegister implements Closeable {
    * @throws IOException
    */
   public abstract void dropPartitionIfExists(String dbName, String tableName, List<Column> partitionKeys,
-      List<String> partitionValues, String azkabanUrl, String metastoreURI) throws IOException;
+      List<String> partitionValues) throws IOException;
 
   /**
    * Get a {@link HiveTable} using the given db name and table name.

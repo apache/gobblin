@@ -17,6 +17,8 @@
 
 package gobblin.data.management.copy.publisher;
 
+
+import gobblin.metrics.event.sla.SlaEventKeys;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -192,9 +194,6 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     long datasetOriginTimestamp = Long.MAX_VALUE;
     long datasetUpstreamTimestamp = Long.MAX_VALUE;
 
-    final FileSystem sourceFs = getSourceFileSystem(this.state);
-    final FileSystem targetFs = getTargetFileSystem(this.state);
-
     for (WorkUnitState wus : datasetWorkUnitStates) {
       if (wus.getWorkingState() == WorkingState.SUCCESSFUL) {
         wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
@@ -225,18 +224,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(this.eventSubmitter, datasetAndPartition,
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp),
-        sourceFs.getUri().toString(), targetFs.getUri().toString(), this.state.getProp(ConfigurationKeys.AZKABAN_EXECUTION_URL, "null"));
+        this.state.getProp(SlaEventKeys.SOURCE), this.state.getProp(SlaEventKeys.DESTINATION), this.state.getProp(ConfigurationKeys.AZKABAN_EXECUTION_URL, "null"));
     }
-
-    protected FileSystem getSourceFileSystem(State state) throws IOException {
-        Configuration conf = HadoopUtils.getConfFromState(state, Optional.of(ConfigurationKeys.SOURCE_FILEBASED_ENCRYPTED_CONFIG_PATH));
-        String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
-        return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
-    }
-
-  private static FileSystem getTargetFileSystem(State state) throws IOException {
-    return HadoopUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
-  }
 
   private static boolean hasCopyableFiles(Collection<WorkUnitState> workUnits) throws IOException {
     for (WorkUnitState wus : workUnits) {
