@@ -142,11 +142,11 @@ public class SlaEventSubmitter {
     eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY), previousPublishTimestamp);
     eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.DEDUPE_STATUS_KEY), dedupeStatus);
     eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.IS_FIRST_PUBLISH), isFirstPublish);
-    eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.SOURCE), sourceCluster);
-    eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.DESTINATION), destinationCluster);
-    eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.AZKABAN_URL), azkabanExecutionUrl);
 
     if (additionalMetadata != null) {
+      additionalMetadata.put(withoutPropertiesPrefix(SlaEventKeys.SOURCE), sourceCluster);
+      additionalMetadata.put(withoutPropertiesPrefix(SlaEventKeys.DESTINATION), destinationCluster);
+      additionalMetadata.put(withoutPropertiesPrefix(SlaEventKeys.AZKABAN_URL), azkabanExecutionUrl);
       eventMetadataMap.putAll(additionalMetadata);
     }
     return Maps.newHashMap(Maps.filterValues(eventMetadataMap, NOT_NULL_OR_EMPTY_PREDICATE));
