@@ -17,13 +17,16 @@
 
 package gobblin.converter;
 
+import gobblin.records.RecordStreamProcessor;
+
+
 /**
  * A type of {@link Exception} thrown when there's anything wrong
  * with schema conversion.
  *
  * @author Yinan Li
  */
-public class SchemaConversionException extends Exception {
+public class SchemaConversionException extends RecordStreamProcessor.StreamProcessingException {
 
   private static final long serialVersionUID = 1L;
 

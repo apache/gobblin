@@ -66,17 +66,21 @@ public class Forker {
     Flowable<RecordWithForkMap<D>> forkedStream = inputStream.getRecordStream().map(r ->
         new RecordWithForkMap<>(r, forkOperator.forkDataRecord(workUnitState, r.getRecord())));
 
-    ConnectableFlowable<RecordWithForkMap<D>> connectableFlowable = forkedStream.publish(100);
+    int bufferSize =
+        workUnitState.getPropAsInt(ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY, ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY);
+
+    ConnectableFlowable<RecordWithForkMap<D>> connectableFlowable = forkedStream.publish(bufferSize);
 
     List<RecordStreamWithMetadata<D, S>> forkStreams = Lists.newArrayList();
 
+    boolean mustCopy = mustCopy(forkedSchemas);
     for(int i = 0; i < forkedSchemas.size(); i++) {
       if (forkedSchemas.get(i)) {
         final int idx = i;
         Flowable<RecordEnvelope<D>> thisStream =
             connectableFlowable.filter(new ForkFilter<>(idx)).map(RecordWithForkMap::getRecordCopyIfNecessary);
         forkStreams.add(inputStream.withRecordStream(thisStream,
-            mustCopy(forkedSchemas) ? (S) CopyHelper.copy(inputStream.getSchema()) : inputStream.getSchema()));
+            mustCopy ? (S) CopyHelper.copy(inputStream.getSchema()) : inputStream.getSchema()));
       } else {
         forkStreams.add(null);
       }

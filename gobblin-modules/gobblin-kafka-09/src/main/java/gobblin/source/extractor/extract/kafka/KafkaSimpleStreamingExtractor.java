@@ -65,7 +65,7 @@ import lombok.ToString;
  *
  *
  */
-public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, RecordEnvelope<D>> implements StreamingExtractor<S, D> {
+public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, D> implements StreamingExtractor<S, D> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSimpleStreamingExtractor.class);
   private AtomicBoolean _isStarted = new AtomicBoolean(false);
@@ -206,7 +206,7 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
    * Return the next record when available. Will never time out since this is a streaming source.
    */
   @Override
-  public RecordEnvelope<D> readRecordImpl(RecordEnvelope<D> reuse)
+  public RecordEnvelope<D> readRecordEnvelopeImpl()
       throws DataRecordException, IOException {
     if (!_isStarted.get()) {
       throw new IOException("Streaming extractor has not been started.");

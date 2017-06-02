@@ -118,8 +118,7 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
    * Process the stream and drop any records that fail the quality check.
    */
   @Override
-  public RecordStreamWithMetadata<D, S> processStream(RecordStreamWithMetadata<D, S> inputStream, WorkUnitState state)
-      throws Exception {
+  public RecordStreamWithMetadata<D, S> processStream(RecordStreamWithMetadata<D, S> inputStream, WorkUnitState state) {
     Flowable<RecordEnvelope<D>> filteredStream =
         inputStream.getRecordStream().filter(r -> executePolicies(r, this.results));
     filteredStream = filteredStream.doFinally(this::close);

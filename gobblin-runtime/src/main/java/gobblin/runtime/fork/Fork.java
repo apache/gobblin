@@ -39,6 +39,7 @@ import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import gobblin.records.RecordStreamConsumer;
+import gobblin.records.RecordStreamProcessor;
 import gobblin.records.RecordStreamWithMetadata;
 import gobblin.runtime.ExecutionModel;
 import gobblin.runtime.MultiConverter;
@@ -104,25 +105,17 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   private final Converter converter;
   private final Optional<Object> convertedSchema;
   private final RowLevelPolicyChecker rowLevelPolicyChecker;
-  private final RowLevelPolicyCheckResults rowLevelPolicyCheckingResult;
 
   private final Closer closer = Closer.create();
 
   // The writer will be lazily created when the first data record arrives
   private Optional<DataWriter<?>> writer = Optional.absent();
 
-  // This is used by the parent task to signal that it has done pulling records and this fork
-  // should not expect any new incoming data records. This is written by the parent task and
-  // read by this fork. Since this flag will be updated by only a single thread and updates to
-  // a boolean are atomic, volatile is sufficient here.
-  private volatile boolean parentTaskDone = false;
-
   // Writes to and reads of references are always atomic according to the Java language specs.
   // An AtomicReference is still used here for the compareAntSet operation.
   private final AtomicReference<ForkState> forkState;
 
   private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
-  protected static final Object SHUTDOWN_RECORD = new Object();
 
   public Fork(TaskContext taskContext, Object schema, int branches, int index, ExecutionModel executionModel)
       throws Exception {
@@ -143,7 +136,6 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
         this.closer.register(new MultiConverter(this.taskContext.getConverters(this.index, this.forkTaskState)));
     this.convertedSchema = Optional.fromNullable(this.converter.convertSchema(schema, this.taskState));
     this.rowLevelPolicyChecker = this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.index));
-    this.rowLevelPolicyCheckingResult = new RowLevelPolicyCheckResults();
 
     // Build writer eagerly if configured, or if streaming is enabled
     boolean useEagerWriterInitialization = this.taskState
@@ -172,7 +164,8 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
     return this.executionModel.equals(ExecutionModel.STREAMING);
   }
 
-  public void consumeRecordStream(RecordStreamWithMetadata<D, S> stream) throws Exception {
+  public void consumeRecordStream(RecordStreamWithMetadata<D, S> stream)
+      throws RecordStreamProcessor.StreamProcessingException {
     stream = this.converter.processStream(stream, this.taskState);
     stream = this.rowLevelPolicyChecker.processStream(stream, this.taskState);
     stream = stream.mapStream(s -> s.map(r -> {
@@ -306,10 +299,6 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   @Override
   public void close()
       throws IOException {
-    // Tell this fork that the parent task is done. This is a second chance call if the parent
-    // task failed and didn't do so through the normal way of calling markParentTaskDone().
-    this.parentTaskDone = true;
-
     // Record the fork state into the task state that will be persisted into the state store
     this.taskState.setProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_STATE_KEY, this.branches, this.index),
@@ -373,7 +362,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       logger.info("Wrapping writer " + writer);
       return new DataWriterWrapperBuilder<>(writer, this.taskState).build();
     } catch (Throwable t) {
-      logger.error("blah", t);
+      logger.error("Failed to build writer.", t);
       throw t;
     }
   }

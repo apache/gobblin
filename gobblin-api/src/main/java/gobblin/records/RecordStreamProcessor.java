@@ -17,6 +17,8 @@
 
 package gobblin.records;
 
+import java.io.IOException;
+
 import gobblin.configuration.WorkUnitState;
 
 
@@ -36,5 +38,22 @@ public interface RecordStreamProcessor<SI, SO, DI, DO> {
    * Return a {@link RecordStreamWithMetadata} with the appropriate modifications.
    */
   RecordStreamWithMetadata<DO, SO> processStream(RecordStreamWithMetadata<DI, SI> inputStream, WorkUnitState state)
-      throws Exception;
+      throws StreamProcessingException;
+
+  /**
+   * Exception allowed by {@link #processStream(RecordStreamWithMetadata, WorkUnitState)}.
+   */
+  class StreamProcessingException extends IOException {
+    public StreamProcessingException(String message) {
+      super(message);
+    }
+
+    public StreamProcessingException(String message, Throwable cause) {
+      super(message, cause);
+    }
+
+    public StreamProcessingException(Throwable cause) {
+      super(cause);
+    }
+  }
 }
