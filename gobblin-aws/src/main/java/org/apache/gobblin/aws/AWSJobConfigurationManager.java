@@ -21,7 +21,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -33,9 +34,10 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +52,9 @@ import org.apache.gobblin.cluster.GobblinHelixJobScheduler;
 import org.apache.gobblin.cluster.JobConfigurationManager;
 import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.SchedulerUtils;
 
 import static org.apache.gobblin.aws.GobblinAWSUtils.appendSlash;
@@ -134,12 +138,22 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
     // .. we can replace this logic with config store
     if (this.jobConfS3Uri.isPresent() && this.jobConfDirPath.isPresent()) {
 
-      // Download the zip file
-      final String zipFile = appendSlash(this.jobConfDirPath.get()) +
-          StringUtils.substringAfterLast(this.jobConfS3Uri.get(), File.separator);
-      LOGGER.debug("Downloading to zip: " + zipFile + " from uri: " + this.jobConfS3Uri.get());
+      URI uri = URI.create(this.jobConfS3Uri.get());
+      URI rootUri;
+      try {
+        rootUri = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(), null, null, null);
+      } catch (URISyntaxException e) {
+        throw new IOException(e);
+      }
+      FileSystem fs = FileSystem.get(rootUri, HadoopUtils.getConfFromState(ConfigUtils.configToState(config)));
 
-      FileUtils.copyURLToFile(new URL(this.jobConfS3Uri.get()), new File(zipFile));
+      // Download the zip file
+      final Path sourceFile = new Path(uri.getPath());
+      final String zipFile = appendSlash(this.jobConfDirPath.get()) +
+              StringUtils.substringAfterLast(this.jobConfS3Uri.get(), File.separator);
+      LOGGER.debug("Downloading to zip: " + zipFile + " from uri: " + sourceFile);
+      fs.copyToLocalFile(sourceFile, new Path(zipFile));
+
       final String extractedPullFilesPath = appendSlash(this.jobConfDirPath.get()) + "files";
 
       // Extract the zip file
