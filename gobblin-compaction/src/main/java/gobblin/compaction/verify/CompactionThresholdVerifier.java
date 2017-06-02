@@ -78,4 +78,8 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
   public String getName() {
     return COMPACTION_VERIFIER_THRESHOLD;
   }
+
+  public boolean isRetriable () {
+    return false;
+  }
 }

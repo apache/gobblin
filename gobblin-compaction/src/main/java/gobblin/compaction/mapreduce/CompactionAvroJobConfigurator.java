@@ -263,14 +263,6 @@ public class CompactionAvroJobConfigurator {
     }
   }
 
-  /**
-   * Examine if a map-reduce job is already created
-   * @return true if job has been created
-   */
-  public boolean isJobCreated() {
-    return isJobCreated;
-  }
-
   private FileSystem getFileSystem(State state)
           throws IOException {
     Configuration conf = HadoopUtils.getConfFromState(state);
