@@ -76,6 +76,7 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
             log.warn("Source and target table are not compatible. Will override target table " + existingTargetTable.get()
                 .getDataLocation());
             stepPriority = this.helper.addTableDeregisterSteps(copyEntities, fileSet, stepPriority, this.helper.getTargetTable());
+            existingTargetTable = Optional.absent();
             break ;
           default:
             log.error("Source and target table are not compatible. Aborting copy of table " + this.helper.getTargetTable(),
