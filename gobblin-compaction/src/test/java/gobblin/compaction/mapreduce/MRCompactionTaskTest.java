@@ -155,4 +155,26 @@ public class MRCompactionTaskTest {
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
 
   }
+
+  @Test
+  public void testWorkUnitStream () throws Exception {
+    File basePath = Files.createTempDir();
+    basePath.deleteOnExit();
+
+    File jobDir1 = new File(basePath, "Identity/MemberAccount/minutely/2017/04/03/10/20_30/run_2017-04-03-10-20");
+    File jobDir2 = new File(basePath, "Identity/MemberAccount/minutely/2017/04/03/11/20_30/run_2017-04-03-10-21");
+    File jobDir3 = new File(basePath, "Identity/MemberAccount/minutely/2017/04/03/12/20_30/run_2017-04-03-10-22");
+    Assert.assertTrue(jobDir1.mkdirs());
+    Assert.assertTrue(jobDir2.mkdirs());
+    Assert.assertTrue(jobDir3.mkdirs());
+
+    GenericRecord r1 = createRandomRecord();
+    writeFileWithContent(jobDir1, "file1", r1, 20);
+    writeFileWithContent(jobDir2, "file1", r1, 20);
+    writeFileWithContent(jobDir3, "file1", r1, 20);
+
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("workunit_stream", basePath.getAbsolutePath().toString());
+    JobExecutionResult result = embeddedGobblin.run();
+    Assert.assertTrue(result.isSuccessful());
+  }
 }
