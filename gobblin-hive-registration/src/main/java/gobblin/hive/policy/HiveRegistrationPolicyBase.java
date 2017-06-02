@@ -17,7 +17,10 @@
 
 package gobblin.hive.policy;
 
+import com.google.common.base.Splitter;
+import com.typesafe.config.Config;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
+import gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -214,6 +217,11 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     if ((primaryTableName = getTableName(path)).isPresent() && !dbPrefix.isPresent()) {
       tableNames.add(primaryTableName.get());
     }
+    Optional<Config> configForTopic = Optional.<Config>absent();
+    if (primaryTableName.isPresent()) {
+      configForTopic = ConfigStoreUtils.getConfigForTopic(this.props.getProperties(),
+          ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
+    }
 
     String additionalNamesProp;
     if (dbPrefix.isPresent()) {
@@ -222,11 +230,19 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
       additionalNamesProp = ADDITIONAL_HIVE_TABLE_NAMES;
     }
 
-    if (!Strings.isNullOrEmpty(this.props.getProp(additionalNamesProp))) {
+    if (configForTopic.isPresent() && configForTopic.get().hasPath(additionalNamesProp)) {
+      for (String additionalTableName : Splitter.on(",")
+          .trimResults()
+          .splitToList(configForTopic.get().getString(additionalNamesProp))) {
+        String resolvedTableName =
+            StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN, primaryTableName.get());
+        tableNames.add(this.tableNamePrefix + resolvedTableName + this.tableNameSuffix);
+      }
+    } else if (!Strings.isNullOrEmpty(this.props.getProp(additionalNamesProp))) {
       for (String additionalTableName : this.props.getPropAsList(additionalNamesProp)) {
-        String resolvedTableName = primaryTableName.isPresent() ?
-            StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN, primaryTableName.get()) :
-            additionalTableName;
+        String resolvedTableName =
+            primaryTableName.isPresent() ? StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN,
+                primaryTableName.get()) : additionalTableName;
         tableNames.add(this.tableNamePrefix + resolvedTableName + this.tableNameSuffix);
       }
     }
