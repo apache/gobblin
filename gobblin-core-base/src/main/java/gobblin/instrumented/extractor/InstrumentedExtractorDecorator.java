@@ -27,7 +27,9 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.records.RecordStreamWithMetadata;
+import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 import gobblin.util.FinalState;
@@ -54,6 +56,16 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
   public MetricContext getMetricContext() {
     return this.isEmbeddedInstrumented ? ((InstrumentedExtractorBase<S, D>) this.embeddedExtractor).getMetricContext()
         : super.getMetricContext();
+  }
+
+  @Override
+  public RecordEnvelope<D> readRecordEnvelope() throws DataRecordException, IOException {
+    return this.isEmbeddedInstrumented ? this.embeddedExtractor.readRecordEnvelope() : super.readRecordEnvelope();
+  }
+
+  @Override
+  protected RecordEnvelope<D> readRecordEnvelopeImpl() throws DataRecordException, IOException {
+    return this.embeddedExtractor.readRecordEnvelope();
   }
 
   @Override

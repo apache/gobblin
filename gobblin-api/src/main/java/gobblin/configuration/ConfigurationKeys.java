@@ -224,6 +224,12 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_DATE_PARTITION_KEY = "workunit.source.date.partition";
 
   /**
+   * Task execution properties.
+   */
+  public static final String TASK_SYNCHRONOUS_EXECUTION_MODEL_KEY = "task.execution.synchronousExecutionModel";
+  public static final boolean DEFAULT_TASK_SYNCHRONOUS_EXECUTION_MODEL = true;
+
+  /**
    * Watermark interval related configuration properties.
    */
   public static final String WATERMARK_INTERVAL_VALUE_KEY = "watermark.interval.value";

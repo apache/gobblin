@@ -174,6 +174,27 @@ public class TaskExecutor extends AbstractIdleService {
   }
 
   /**
+   * Execute a {@link Fork}.
+   *
+   * @param fork {@link Fork} to be executed
+   */
+  public void execute(Fork fork) {
+    LOG.info(String.format("Executing fork %d of task %s", fork.getIndex(), fork.getTaskId()));
+    this.forkExecutor.execute(fork);
+  }
+
+  /**
+   * Submit a {@link Fork} to run.
+   *
+   * @param fork {@link Fork} to be submitted
+   * @return a {@link java.util.concurrent.Future} for the submitted {@link Fork}
+   */
+  public Future<?> submit(Fork fork) {
+    LOG.info(String.format("Submitting fork %d of task %s", fork.getIndex(), fork.getTaskId()));
+    return this.forkExecutor.submit(fork);
+  }
+
+  /**
    * Retry a failed {@link Task}.
    *
    * @param task failed {@link Task} to be retried

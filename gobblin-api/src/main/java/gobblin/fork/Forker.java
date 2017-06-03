@@ -58,6 +58,7 @@ public class Forker {
 
     forkOperator.init(workUnitState);
     List<Boolean> forkedSchemas = forkOperator.forkSchema(workUnitState, inputStream.getSchema());
+    int activeForks = (int) forkedSchemas.stream().filter(b -> b).count();
 
     Preconditions.checkState(forkedSchemas.size() == branches, String
         .format("Number of forked schemas [%d] is not equal to number of branches [%d]", forkedSchemas.size(),
@@ -66,10 +67,9 @@ public class Forker {
     Flowable<RecordWithForkMap<D>> forkedStream = inputStream.getRecordStream().map(r ->
         new RecordWithForkMap<>(r, forkOperator.forkDataRecord(workUnitState, r.getRecord())));
 
-    int bufferSize =
-        workUnitState.getPropAsInt(ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY, ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY);
-
-    ConnectableFlowable<RecordWithForkMap<D>> connectableFlowable = forkedStream.publish(bufferSize);
+    if (activeForks > 1) {
+      forkedStream = forkedStream.share();
+    }
 
     List<RecordStreamWithMetadata<D, S>> forkStreams = Lists.newArrayList();
 
@@ -78,7 +78,7 @@ public class Forker {
       if (forkedSchemas.get(i)) {
         final int idx = i;
         Flowable<RecordEnvelope<D>> thisStream =
-            connectableFlowable.filter(new ForkFilter<>(idx)).map(RecordWithForkMap::getRecordCopyIfNecessary);
+            forkedStream.filter(new ForkFilter<>(idx)).map(RecordWithForkMap::getRecordCopyIfNecessary);
         forkStreams.add(inputStream.withRecordStream(thisStream,
             mustCopy ? (S) CopyHelper.copy(inputStream.getSchema()) : inputStream.getSchema()));
       } else {
@@ -86,7 +86,7 @@ public class Forker {
       }
     }
 
-    return new ForkedStream<>(connectableFlowable, forkStreams);
+    return new ForkedStream<>(forkStreams);
   }
 
   private static boolean mustCopy(List<Boolean> forkMap) {
@@ -99,8 +99,6 @@ public class Forker {
    */
   @Data
   public static class ForkedStream<D, S> {
-    /** A {@link ConnectableFlowable} used to connect the stream when all streams have been subscribed to.*/
-    private final ConnectableFlowable connectableStream;
     /** A list of forked streams. Note some of the forks may be null if the {@link ForkOperator} marks them as disabled. */
     private final List<RecordStreamWithMetadata<D, S>> forkedStreams;
   }

@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
@@ -83,14 +84,29 @@ public class TaskTest {
     return taskState;
   }
 
+  @DataProvider(name = "stateOverrides")
+  public Object[][] createTestsForDifferentExecutionModes() {
+    State synchronousStateOverrides = new State();
+    synchronousStateOverrides.setProp(ConfigurationKeys.TASK_SYNCHRONOUS_EXECUTION_MODEL_KEY, true);
+
+    State streamStateOverrides = new State();
+    streamStateOverrides.setProp(ConfigurationKeys.TASK_SYNCHRONOUS_EXECUTION_MODEL_KEY, false);
+
+    return new Object[][] {
+        { synchronousStateOverrides },
+        { streamStateOverrides }
+    };
+  }
+
   /**
    * Check if a {@link WorkUnitState.WorkingState} of a {@link Task} is set properly after a {@link Task} fails once,
    * but then is successful the next time.
    */
-  @Test
-  public void testRetryTask() throws Exception {
+  @Test(dataProvider = "stateOverrides")
+  public void testRetryTask(State overrides) throws Exception {
     // Create a TaskState
     TaskState taskState = getEmptyTestTaskState("testRetryTaskId");
+    taskState.addAll(overrides);
     // Create a mock TaskContext
     TaskContext mockTaskContext = mock(TaskContext.class);
     when(mockTaskContext.getExtractor()).thenReturn(new FailOnceExtractor());
@@ -168,11 +184,13 @@ public class TaskTest {
   /**
    * Test that forks work correctly when the operator picks one outgoing fork
    */
-  @Test
-  public void testForkCorrectnessRoundRobin()
+  @Test(dataProvider = "stateOverrides")
+  public void testForkCorrectnessRoundRobin(State overrides)
       throws Exception {
     // Create a TaskState
     TaskState taskState = getEmptyTestTaskState("testForkTaskId");
+    taskState.addAll(overrides);
+
     int numRecords = 9;
     int numForks = 3;
     ForkOperator mockForkOperator = new RoundRobinForkOperator(numForks);
@@ -198,11 +216,13 @@ public class TaskTest {
   /**
    * Test that forks work correctly when the operator picks all outgoing forks
    */
-  @Test
-  public void testForkCorrectnessIdentity()
+  @Test(dataProvider = "stateOverrides")
+  public void testForkCorrectnessIdentity(State overrides)
       throws Exception {
     // Create a TaskState
     TaskState taskState = getEmptyTestTaskState("testForkTaskId");
+    taskState.addAll(overrides);
+
     int numRecords = 100;
     int numForks = 5;
 
@@ -228,11 +248,13 @@ public class TaskTest {
   /**
    * Test that forks work correctly when the operator picks a subset of outgoing forks
    */
-  @Test
-  public void testForkCorrectnessSubset()
+  @Test(dataProvider = "stateOverrides")
+  public void testForkCorrectnessSubset(State overrides)
       throws Exception {
     // Create a TaskState
     TaskState taskState = getEmptyTestTaskState("testForkTaskId");
+    taskState.addAll(overrides);
+
     int numRecords = 20;
     int numForks = 5;
     int subset = 2;
@@ -301,7 +323,7 @@ public class TaskTest {
    */
   private static class FailOnceExtractor implements Extractor<Object, Object> {
 
-    private static final AtomicBoolean HAS_FAILED = new AtomicBoolean();
+    private final AtomicBoolean HAS_FAILED = new AtomicBoolean();
 
     @Override
     public Object getSchema() throws IOException {
