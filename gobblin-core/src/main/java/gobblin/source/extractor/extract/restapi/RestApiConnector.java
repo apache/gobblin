@@ -158,7 +158,7 @@ public abstract class RestApiConnector {
     HttpEntity httpEntity = null;
     HttpResponse httpResponse = null;
     try {
-      httpResponse = this.httpClient.execute(httpRequest);
+      httpResponse = getHttpClient().execute(httpRequest);
       StatusLine status = httpResponse.getStatusLine();
       httpEntity = httpResponse.getEntity();
 
@@ -238,7 +238,7 @@ public abstract class RestApiConnector {
   }
 
   public boolean isConnectionClosed() {
-    return this.httpClient == null;
+    return getHttpClient() == null;
   }
 
   /**
