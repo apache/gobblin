@@ -33,7 +33,6 @@ import org.apache.thrift.TException;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.google.common.base.Throwables;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -57,17 +56,8 @@ public class HivePartitionFinder implements DatasetsFinder<HivePartitionDataset>
   protected List<HiveDataset> hiveDatasets;
   protected State state;
   private static final Splitter AT_SPLITTER = Splitter.on("@").omitEmptyStrings().trimResults();
-  private static HiveMetastoreClientPool pool;
+  private static Optional<HiveMetastoreClientPool> pool = Optional.<HiveMetastoreClientPool>absent();
   private static final Object lock = new Object();
-
-  static {
-    try {
-      pool = HiveMetastoreClientPool.get(new Properties(),
-          Optional.fromNullable(new Properties().getProperty(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
-    } catch (IOException e) {
-      Throwables.propagate(e);
-    }
-  }
 
   public HivePartitionFinder(State state)
       throws IOException {
@@ -110,7 +100,11 @@ public class HivePartitionFinder implements DatasetsFinder<HivePartitionDataset>
     synchronized (lock) {
       List<String> partitionList = AT_SPLITTER.splitToList(completePartitionName);
       Preconditions.checkArgument(partitionList.size() == 3, "Invalid partition name");
-      try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
+      if (!pool.isPresent()) {
+        pool = Optional.of(HiveMetastoreClientPool.get(new Properties(),
+            Optional.fromNullable(new Properties().getProperty(HiveDatasetFinder.HIVE_METASTORE_URI_KEY))));
+      }
+      try (AutoReturnableObject<IMetaStoreClient> client = pool.get().getClient()) {
         Table table = new Table(client.get().getTable(partitionList.get(0), partitionList.get(1)));
         Partition partition = new Partition(table,
             client.get().getPartition(partitionList.get(0), partitionList.get(1), partitionList.get(2)));
