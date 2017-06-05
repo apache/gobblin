@@ -127,6 +127,8 @@ public class ConfigStoreUtils {
    * Topics will either be whitelisted or blacklisted using tag.
    * After filtering out topics via tag, their config property is checked.
    * For each shortlisted topic, config must contain either property topic.blacklist or topic.whitelist
+   *
+   * If tags are not provided, it will return all topics
    */
   public static List<KafkaTopic> getTopicsFromConfigStore(Properties properties, String configStoreUri,
       GobblinKafkaConsumerClient kafkaConsumerClient) {
@@ -137,12 +139,12 @@ public class ConfigStoreUtils {
     List<KafkaTopic> allTopics =
         kafkaConsumerClient.getFilteredTopics(DatasetFilterUtils.getPatternList(state, KafkaSource.TOPIC_BLACKLIST),
             DatasetFilterUtils.getPatternList(state, KafkaSource.TOPIC_WHITELIST));
-    Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_FILTER),
-        "Missing required property " + GOBBLIN_CONFIG_FILTER);
-    String filterString = properties.getProperty(GOBBLIN_CONFIG_FILTER);
     Optional<Config> runtimeConfig = ConfigClientUtils.getOptionalRuntimeConfig(properties);
 
     if (properties.containsKey(GOBBLIN_CONFIG_TAGS_WHITELIST)) {
+      Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_FILTER),
+          "Missing required property " + GOBBLIN_CONFIG_FILTER);
+      String filterString = properties.getProperty(GOBBLIN_CONFIG_FILTER);
       Path whiteListTagUri = PathUtils.mergePaths(new Path(configStoreUri),
           new Path(properties.getProperty(GOBBLIN_CONFIG_TAGS_WHITELIST)));
       List<String> whitelistedTopics = new ArrayList<>();
@@ -156,6 +158,9 @@ public class ConfigStoreUtils {
           .filter((KafkaTopic p) -> whitelistedTopics.contains(p.getName()))
           .collect(Collectors.toList());
     } else if (properties.containsKey(GOBBLIN_CONFIG_TAGS_BLACKLIST)) {
+      Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_FILTER),
+          "Missing required property " + GOBBLIN_CONFIG_FILTER);
+      String filterString = properties.getProperty(GOBBLIN_CONFIG_FILTER);
       Path blackListTagUri = PathUtils.mergePaths(new Path(configStoreUri),
           new Path(properties.getProperty(GOBBLIN_CONFIG_TAGS_BLACKLIST)));
       List<String> blacklistedTopics = new ArrayList<>();
@@ -168,10 +173,9 @@ public class ConfigStoreUtils {
           .filter((KafkaTopic p) -> !blacklistedTopics.contains(p.getName()))
           .collect(Collectors.toList());
     } else {
-      log.error("One of the following properties must be provided: " + GOBBLIN_CONFIG_TAGS_BLACKLIST + " or "
-          + GOBBLIN_CONFIG_TAGS_WHITELIST);
+      log.warn("None of the blacklist or whitelist tags are provided");
+      return allTopics;
     }
-    return new ArrayList<>();
   }
 
   /**
