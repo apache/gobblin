@@ -21,6 +21,7 @@ import com.google.common.base.Splitter;
 import com.typesafe.config.Config;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
 import gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
+import gobblin.source.extractor.extract.kafka.KafkaSource;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -219,8 +220,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     }
     Optional<Config> configForTopic = Optional.<Config>absent();
     if (primaryTableName.isPresent()) {
-      configForTopic = ConfigStoreUtils.getConfigForTopic(this.props.getProperties(),
-          ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
+      configForTopic = ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME);
     }
 
     String additionalNamesProp;
