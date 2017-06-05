@@ -45,7 +45,7 @@ public class R2Client implements HttpClient<RestRequest, RestResponse> {
     try {
       response = responseFuture.get();
     } catch (InterruptedException | ExecutionException e) {
-      throw new RuntimeException(e);
+      throw new IOException(e);
     }
     return response;
   }
