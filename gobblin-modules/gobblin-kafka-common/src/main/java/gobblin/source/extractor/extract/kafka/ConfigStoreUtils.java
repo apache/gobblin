@@ -181,6 +181,8 @@ public class ConfigStoreUtils {
   /**
    * Shortlist topics from config store based on whitelist/blacklist tags and
    * add it to {@param whitelist}/{@param blacklist}
+   *
+   * If tags are not provided, blacklist and whitelist won't be modified
    */
   public static void setTopicsFromConfigStore(Properties properties, Set<String> blacklist, Set<String> whitelist,
       final String _blacklistTopicKey, final String _whitelistTopicKey) {
@@ -189,26 +191,28 @@ public class ConfigStoreUtils {
       return;
     }
     ConfigClient configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
-    Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_FILTER),
-        "Missing required property " + GOBBLIN_CONFIG_FILTER);
-    String filterString = properties.getProperty(GOBBLIN_CONFIG_FILTER);
     Optional<Config> runtimeConfig = ConfigClientUtils.getOptionalRuntimeConfig(properties);
 
     if (properties.containsKey(GOBBLIN_CONFIG_TAGS_WHITELIST)) {
+      Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_FILTER),
+          "Missing required property " + GOBBLIN_CONFIG_FILTER);
+      String filterString = properties.getProperty(GOBBLIN_CONFIG_FILTER);
       Path whiteListTagUri = PathUtils.mergePaths(new Path(configStoreUri.get()),
           new Path(properties.getProperty(GOBBLIN_CONFIG_TAGS_WHITELIST)));
       getTopicsURIFromConfigStore(configClient, whiteListTagUri, filterString, runtimeConfig).stream()
           .filter((URI u) -> ConfigUtils.getBoolean(getConfig(configClient, u, runtimeConfig), _whitelistTopicKey, false))
           .forEach(((URI u) -> whitelist.add(getTopicNameFromURI(u))));
     } else if (properties.containsKey(GOBBLIN_CONFIG_TAGS_BLACKLIST)) {
+      Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_FILTER),
+          "Missing required property " + GOBBLIN_CONFIG_FILTER);
+      String filterString = properties.getProperty(GOBBLIN_CONFIG_FILTER);
       Path blackListTagUri = PathUtils.mergePaths(new Path(configStoreUri.get()),
           new Path(properties.getProperty(GOBBLIN_CONFIG_TAGS_BLACKLIST)));
       getTopicsURIFromConfigStore(configClient, blackListTagUri, filterString, runtimeConfig).stream()
           .filter((URI u) -> ConfigUtils.getBoolean(getConfig(configClient, u, runtimeConfig), _blacklistTopicKey, false))
           .forEach(((URI u) -> blacklist.add(getTopicNameFromURI(u))));
     } else {
-      log.error("One of the following properties must be provided: " + GOBBLIN_CONFIG_TAGS_BLACKLIST + " or "
-          + GOBBLIN_CONFIG_TAGS_WHITELIST);
+      log.warn("None of the blacklist or whitelist tags are provided");
     }
   }
 }
