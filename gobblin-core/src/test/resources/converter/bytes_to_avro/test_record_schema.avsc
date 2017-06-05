@@ -1,0 +1,8 @@
+{
+    "type": "record",
+    "name": "testRecord",
+    "fields": [
+        {"name": "testStr", "type": "string", "doc": "expected value in testRec=testing123"},
+        {"name": "testInt", "type": "int", "doc": "expected value in testRec=-2"}
+    ]
+}
