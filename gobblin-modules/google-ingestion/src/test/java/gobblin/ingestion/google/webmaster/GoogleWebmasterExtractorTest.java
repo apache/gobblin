@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -64,20 +63,20 @@ public class GoogleWebmasterExtractorTest {
             wuState.getWorkunit().getExpectedHighWatermark(LongWatermark.class).getValue(), positionMap, dimensions,
             metrics, null, Arrays.asList(dataFetcher1, dataFetcher2));
 
-    Queue<GoogleWebmasterExtractorIterator> iterators = extractor.getIterators();
-    Assert.assertEquals("USA", iterators.poll().getCountry());
-    Assert.assertEquals("ALL", iterators.poll().getCountry());
-    Assert.assertEquals("USA", iterators.poll().getCountry());
-    Assert.assertEquals("ALL", iterators.poll().getCountry());
-    Assert.assertTrue(iterators.isEmpty());
+    List<GoogleWebmasterExtractorIterator> iterators = extractor.getIterators();
+    Assert.assertEquals(iterators.size(), 4);
+    Assert.assertEquals(iterators.get(0).getCountry(), "USA");
+    Assert.assertEquals(iterators.get(1).getCountry(), "ALL");
+    Assert.assertEquals(iterators.get(2).getCountry(), "USA");
+    Assert.assertEquals(iterators.get(3).getCountry(), "ALL");
 
-    Queue<int[]> responseToOutputSchema = extractor.getPositionMaps();
-    Assert.assertEquals(new int[]{2, 1, 0}, responseToOutputSchema.poll()); //country is Country.USA
+    List<int[]> responseToOutputSchema = extractor.getPositionMaps();
+    Assert.assertEquals(responseToOutputSchema.size(), 4);
+    Assert.assertEquals(new int[]{2, 1, 0}, responseToOutputSchema.get(0)); //country is Country.USA
     Assert.assertEquals(new int[]{2, 0},
-        responseToOutputSchema.poll()); //country is Country.ALL, so the country request will be removed.
-    Assert.assertEquals(new int[]{2, 1, 0}, responseToOutputSchema.poll());
-    Assert.assertEquals(new int[]{2, 0}, responseToOutputSchema.poll());
-    Assert.assertTrue(responseToOutputSchema.isEmpty());
+        responseToOutputSchema.get(1)); //country is Country.ALL, so the country request will be removed.
+    Assert.assertEquals(new int[]{2, 1, 0}, responseToOutputSchema.get(2));
+    Assert.assertEquals(new int[]{2, 0}, responseToOutputSchema.get(3));
   }
 
   public static WorkUnitState getWorkUnitState1() {

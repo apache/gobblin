@@ -111,7 +111,7 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    */
   public static final String KEY_QUERIES_TUNING_TIME_OUT = QUERIES_TUNING + "time_out";
   /**
-   * Optional. Default to 30.
+   * Optional. Default to 40.
    * Tune the maximum rounds of retries while getting queries.
    */
   public static final String KEY_QUERIES_TUNING_RETRIES = QUERIES_TUNING + "max_reties";

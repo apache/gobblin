@@ -15,8 +15,10 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
   private Thread _producerThread;
   protected LinkedBlockingDeque<T> _dataSink;
   private final int _pollBlockingTime;
+  private T _next = null;
 
   protected AsyncIteratorWithDataSink(int queueSize, int pollBlockingTime) {
+    log.info(String.format("Setting queue size: %d, poll blocking second: %d", queueSize, pollBlockingTime));
     _dataSink = new LinkedBlockingDeque<>(queueSize);
     _pollBlockingTime = pollBlockingTime;
   }
@@ -24,29 +26,29 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
   @Override
   public boolean hasNext() {
     initialize();
-    if (!_dataSink.isEmpty()) {
+    if (_next != null) {
       return true;
     }
+    //if _next doesn't exist, try polling the next one.
     try {
-      T next = _dataSink.poll(_pollBlockingTime, TimeUnit.SECONDS);
-      while (next == null) {
+      _next = _dataSink.poll(_pollBlockingTime, TimeUnit.SECONDS);
+      while (_next == null) {
         if (_producerThread.isAlive()) {
-          //Job not done yet. Keep waiting...
-          next = _dataSink.poll(_pollBlockingTime, TimeUnit.SECONDS);
-        } else {
-          synchronized (lock) {
-            if (exceptionInProducerThread != null) {
-              throw new RuntimeException(
-                  String.format("Found exception in producer thread %s", _producerThread.getName()),
-                  exceptionInProducerThread);
-            }
-          }
-          log.info("Producer job has finished. No more query data in the queue.");
-          return false;
+          log.info(String.format("Producer job not done yet. Will re-poll for %s second(s)...", _pollBlockingTime));
+          _next = _dataSink.poll(_pollBlockingTime, TimeUnit.SECONDS);
+          continue;
         }
+
+        synchronized (lock) {
+          if (exceptionInProducerThread != null) {
+            throw new RuntimeException(
+                String.format("Found exception in producer thread %s", _producerThread.getName()),
+                exceptionInProducerThread);
+          }
+        }
+        log.info("Producer job done. No more data in the queue.");
+        return false;
       }
-      //Must put it back. Implement in this way because LinkedBlockingDeque doesn't support blocking peek.
-      _dataSink.putFirst(next);
       return true;
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
@@ -66,7 +68,9 @@ public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
   @Override
   public T next() {
     if (hasNext()) {
-      return _dataSink.remove();
+      T toReturn = _next;
+      _next = null;
+      return toReturn;
     }
     throw new NoSuchElementException();
   }
