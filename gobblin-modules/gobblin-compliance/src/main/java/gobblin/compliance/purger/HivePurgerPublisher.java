@@ -90,7 +90,8 @@ public class HivePurgerPublisher extends DataPublisher {
   private void submitEvent(WorkUnitState state, String name) {
     WorkUnit workUnit = state.getWorkunit();
     Map<String, String> metadata = new HashMap<>();
-    metadata.put(ComplianceConfigurationKeys.WORKUNIT_RECORDSREAD, state.getProp(ComplianceConfigurationKeys.NUM_ROWS));
+    String recordsRead = state.getProp(ComplianceConfigurationKeys.NUM_ROWS);
+    metadata.put(ComplianceConfigurationKeys.WORKUNIT_RECORDSREAD, recordsRead);
     metadata.put(ComplianceConfigurationKeys.WORKUNIT_BYTESREAD,
         getDataSize(workUnit.getProp(ComplianceConfigurationKeys.RAW_DATA_SIZE),
             workUnit.getProp(ComplianceConfigurationKeys.TOTAL_SIZE)));
@@ -102,16 +103,22 @@ public class HivePurgerPublisher extends DataPublisher {
 
     HivePartitionDataset hivePartitionDataset = dataset.get();
 
-    metadata.put(ComplianceConfigurationKeys.WORKUNIT_RECORDSWRITTEN, DatasetUtils
-        .getProperty(hivePartitionDataset, ComplianceConfigurationKeys.NUM_ROWS,
-            ComplianceConfigurationKeys.DEFAULT_NUM_ROWS));
+    String recordsWritten = DatasetUtils.getProperty(hivePartitionDataset, ComplianceConfigurationKeys.NUM_ROWS,
+        ComplianceConfigurationKeys.DEFAULT_NUM_ROWS);
+
+    String recordsPurged = Long.toString((Long.parseLong(recordsRead) - Long.parseLong(recordsWritten)));
+    metadata.put(ComplianceConfigurationKeys.WORKUNIT_RECORDSWRITTEN,
+        recordsWritten);
     metadata.put(ComplianceConfigurationKeys.WORKUNIT_BYTESWRITTEN, getDataSize(DatasetUtils
         .getProperty(hivePartitionDataset, ComplianceConfigurationKeys.RAW_DATA_SIZE,
             ComplianceConfigurationKeys.DEFAULT_RAW_DATA_SIZE), DatasetUtils
         .getProperty(hivePartitionDataset, ComplianceConfigurationKeys.TOTAL_SIZE,
             ComplianceConfigurationKeys.DEFAULT_TOTAL_SIZE)));
 
-    metadata.put(ComplianceConfigurationKeys.PARTITION_NAME, hivePartitionDataset.datasetURN());
+    metadata.put(DatasetMetrics.DATABASE_NAME, hivePartitionDataset.getDbName());
+    metadata.put(DatasetMetrics.TABLE_NAME, hivePartitionDataset.getTableName());
+    metadata.put(DatasetMetrics.PARTITION_NAME, hivePartitionDataset.getName());
+    metadata.put(DatasetMetrics.RECORDS_PURGED, recordsPurged);
 
     this.eventSubmitter.submit(name, metadata);
   }
@@ -131,5 +138,12 @@ public class HivePurgerPublisher extends DataPublisher {
 
   @Override
   public void close() {
+  }
+
+  public static class DatasetMetrics {
+    public static final String DATABASE_NAME = "HiveDatabaseName";
+    public static final String TABLE_NAME = "HiveTableName";
+    public static final String PARTITION_NAME = "HivePartitionName";
+    public static final String RECORDS_PURGED = "RecordsPurged";
   }
 }
