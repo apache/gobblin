@@ -5,11 +5,9 @@ import org.apache.avro.generic.GenericRecord;
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
-import com.linkedin.r2.transport.common.Client;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.proxies.LiD2ClientBuilder;
 import gobblin.restli.R2Client;
 import gobblin.restli.R2RestRequestBuilder;
 import gobblin.restli.R2RestResponseHandler;
