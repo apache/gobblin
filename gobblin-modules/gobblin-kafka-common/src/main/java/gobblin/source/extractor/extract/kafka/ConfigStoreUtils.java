@@ -31,6 +31,7 @@ import gobblin.util.ConfigUtils;
 import gobblin.util.DatasetFilterUtils;
 import gobblin.util.PathUtils;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -47,6 +48,7 @@ public class ConfigStoreUtils {
   public static final String GOBBLIN_CONFIG_TAGS_WHITELIST = "gobblin.config.tags.whitelist";
   public static final String GOBBLIN_CONFIG_TAGS_BLACKLIST = "gobblin.config.tags.blacklist";
   public static final String GOBBLIN_CONFIG_FILTER = "gobblin.config.filter";
+  public static final String GOBBLIN_CONFIG_COMMONPATH = "gobblin.config.commonPath";
 
   /**
    * Will return the list of URIs given which are importing tag {@param tagUri}
@@ -76,6 +78,36 @@ public class ConfigStoreUtils {
   public static String getTopicNameFromURI(URI uri) {
     Path path = new Path(uri);
     return path.getName();
+  }
+
+  public static URI getUriStringForTopic(String topicName, String commonPath, String configStoreUri)
+      throws URISyntaxException {
+    Path path =
+        PathUtils.mergePaths(new Path(configStoreUri), PathUtils.mergePaths(new Path(commonPath), new Path(topicName)));
+    log.info("URI for topic is : " + path.toString());
+    return new URI(path.toString());
+  }
+
+  public static Optional<Config> getConfigForTopic(Properties properties, String topicKey) {
+    ConfigClient configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
+    Optional<String> configStoreUri = getConfigStoreUri(properties);
+    Optional<Config> config = Optional.<Config>absent();
+    if (!configStoreUri.isPresent()) {
+      return config;
+    }
+    try {
+      Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_COMMONPATH),
+          "Missing required property " + GOBBLIN_CONFIG_COMMONPATH);
+      Preconditions.checkArgument(properties.containsKey(topicKey), "Missing required property " + topicKey);
+      String topicName = properties.getProperty(topicKey);
+      String commonPath = properties.getProperty(GOBBLIN_CONFIG_COMMONPATH);
+      config = Optional.fromNullable(
+          getConfig(configClient, getUriStringForTopic(topicName, commonPath, configStoreUri.get()),
+              ConfigClientUtils.getOptionalRuntimeConfig(properties)));
+    } catch (URISyntaxException e) {
+      log.error("Unable to get config", e);
+    }
+    return config;
   }
 
   /**
