@@ -90,10 +90,8 @@ public class JobExecutionInfoServer extends AbstractIdleService {
 
     // Create and start the HTTP server
     TransportDispatcher dispatcher = new DelegatingTransportDispatcher(new RestLiServer(config, factory));
-    FilterChain filterChain = FilterChains.create(new ServerCompressionFilter(new EncodingType[] {
-            EncodingType.SNAPPY,
-            EncodingType.GZIP
-    }));
+    String acceptedFilters = EncodingType.SNAPPY.getHttpName() + "," + EncodingType.GZIP.getHttpName();
+    FilterChain filterChain = FilterChains.createRestChain(new ServerCompressionFilter(acceptedFilters));
     this.httpServer = Optional.of(new HttpNettyServerFactory(filterChain).createServer(port, dispatcher));
     LOGGER.info("Starting the job execution information server");
     this.httpServer.get().start();
