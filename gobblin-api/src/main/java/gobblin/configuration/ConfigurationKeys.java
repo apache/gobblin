@@ -449,6 +449,10 @@ public class ConfigurationKeys {
       "source.querybased.jdbc.resultset.fetch.size";
   public static final String SOURCE_QUERYBASED_ALLOW_REMOVE_UPPER_BOUNDS = "source.querybased.allowRemoveUpperBounds";
 
+  public static final String SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT =
+      "source.querybased.promoteUnsignedIntToBigInt";
+  public static final boolean DEFAULT_SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT = false;
+
   /**
    * Configuration properties used by the FileBasedExtractor
    */

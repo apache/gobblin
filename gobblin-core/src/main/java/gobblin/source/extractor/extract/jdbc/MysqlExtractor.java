@@ -85,9 +85,17 @@ public class MysqlExtractor extends JdbcExtractor {
   public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
     log.debug("Build query to get schema");
     List<Command> commands = new ArrayList<>();
-    List<String> queryParams = Arrays.asList(entity, schema);
+    boolean promoteUnsignedInt = this.workUnitState.getPropAsBoolean(
+        ConfigurationKeys.SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT,
+        ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT);
 
-    String metadataSql = "select " + " col.column_name, " + " col.data_type, "
+    String promoteUnsignedIntQueryParam = promoteUnsignedInt ? "% unsigned" : "dummy";
+
+    List<String> queryParams = Arrays.asList(promoteUnsignedIntQueryParam, entity, schema);
+
+    String metadataSql = "select " + " col.column_name, "
+        + " case when col.column_type like (?) and col.data_type = 'int' then 'bigint' else col.data_type end"
+        + " as data_type,"
         + " case when CHARACTER_OCTET_LENGTH is null then 0 else 0 end as length, "
         + " case when NUMERIC_PRECISION is null then 0 else NUMERIC_PRECISION end as precesion, "
         + " case when NUMERIC_SCALE is null then 0 else NUMERIC_SCALE end as scale, "
