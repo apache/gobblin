@@ -34,8 +34,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mockrunner.mock.jdbc.MockResultSet;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.exception.SchemaException;
+import gobblin.source.extractor.extract.Command;
 import gobblin.source.extractor.extract.CommandOutput;
 import gobblin.source.extractor.extract.jdbc.JdbcCommand;
 import gobblin.source.extractor.extract.jdbc.JdbcCommandOutput;
@@ -93,4 +96,29 @@ public class JdbcExtractorTest {
     return mrs;
   }
 
+  /**
+   * Test for the metadata query to see if the check for unsigned int is present
+   */
+  @Test
+  public void testUnsignedInt() throws SchemaException {
+    State state = new WorkUnitState();
+    state.setId("id");
+    MysqlExtractor mysqlExtractor = new MysqlExtractor((WorkUnitState) state);
+
+    List<Command> commands = mysqlExtractor.getSchemaMetadata("db", "table");
+
+    assertTrue(commands.get(0).getCommandType() == JdbcCommand.JdbcCommandType.QUERY);
+    assertTrue(commands.get(0).getParams().get(0).contains("bigint"));
+    assertTrue(commands.get(1).getCommandType() == JdbcCommand.JdbcCommandType.QUERYPARAMS);
+    assertTrue(!commands.get(1).getParams().get(0).contains("unsigned"));
+
+    // set option to promote unsigned int to bigint
+    state.setProp(ConfigurationKeys.SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT, "true");
+    commands = mysqlExtractor.getSchemaMetadata("db", "table");
+
+    assertTrue(commands.get(0).getCommandType() == JdbcCommand.JdbcCommandType.QUERY);
+    assertTrue(commands.get(0).getParams().get(0).contains("bigint"));
+    assertTrue(commands.get(1).getCommandType() == JdbcCommand.JdbcCommandType.QUERYPARAMS);
+    assertTrue(commands.get(1).getParams().get(0).contains("unsigned"));
+  }
 }
