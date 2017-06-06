@@ -20,6 +20,7 @@ package gobblin.writer.http;
 import java.io.IOException;
 import java.util.Queue;
 
+import lombok.extern.slf4j.Slf4j;
 import gobblin.async.DispatchException;
 import gobblin.http.HttpClient;
 import gobblin.http.ResponseHandler;
@@ -35,17 +36,17 @@ import gobblin.writer.WriteResponse;
  * @param <RQ> type of request
  * @param <RP> type of response
  */
+@Slf4j
 public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
-
-  private final HttpClient<RQ, RP> client;
+  private final HttpClient<RQ, RP> httpClient;
   private final ResponseHandler<RP> responseHandler;
   private final AsyncWriteRequestBuilder<D, RQ> requestBuilder;
   private final int maxAttempts;
 
   public AsyncHttpWriter(AsyncHttpWriterBuilder builder) {
     super(builder.getQueueCapacity());
-    this.client = builder.getClient();
+    this.httpClient = builder.getClient();
     this.requestBuilder = builder.getAsyncRequestBuilder();
     this.responseHandler = builder.getResponseHandler();
     this.maxAttempts = builder.getMaxAttempts();
@@ -64,7 +65,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
     int attempt = 0;
     while (attempt < maxAttempts) {
       try {
-        response = client.sendRequest(rawRequest);
+          response = httpClient.sendRequest(rawRequest);
       } catch (IOException e) {
         // Retry
         attempt++;
@@ -105,7 +106,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
     try {
       super.close();
     } finally {
-      client.close();
+      httpClient.close();
     }
   }
 }

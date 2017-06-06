@@ -37,5 +37,6 @@ public abstract class R2RestWriterBuilder extends AsyncHttpWriterBuilder<Generic
   }
 
   protected abstract R2Client createClient(Config config);
+
 }
 
