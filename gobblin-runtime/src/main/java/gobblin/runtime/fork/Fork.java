@@ -202,12 +202,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), exc);
     }));
     stream = stream.mapStream(s -> s.doFinally(this::cleanup));
-    stream.getRecordStream().subscribe(r -> this.writer.get().writeEnvelope((RecordEnvelope) r), e -> logger.error("Failed to process record.", e),
-        () -> {
-          if (this.writer.isPresent()) {
-            this.writer.get().close();
-          }
-        });
+    stream.getRecordStream().subscribe(r -> this.writer.get().writeEnvelope((RecordEnvelope) r), e -> logger.error("Failed to process record.", e));
   }
 
   private void onStart() throws IOException {
