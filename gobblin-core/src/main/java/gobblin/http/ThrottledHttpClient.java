@@ -5,7 +5,6 @@ import java.io.IOException;
 import org.apache.commons.lang.exception.ExceptionUtils;
 
 import com.codahale.metrics.Timer;
-import com.typesafe.config.Config;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,19 +28,17 @@ public abstract class ThrottledHttpClient<RQ, RP> implements HttpClient<RQ, RP> 
 
   protected final Limiter limiter;
   protected final SharedResourcesBroker<GobblinScopeTypes> broker;
-  protected final Config config;
 
   @Getter
   private final Timer sendTimer;
   private final MetricContext metricContext;
 
-  public ThrottledHttpClient (Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
-    this.config = config;
+  public ThrottledHttpClient (SharedResourcesBroker<GobblinScopeTypes> broker, String limiterKey) {
     this.broker = broker;
     try {
-      this.limiter = broker.getSharedResource(new SharedLimiterFactory<>(), new HttpLimiterKey(getLimiterKey ()));
+      this.limiter = broker.getSharedResource(new SharedLimiterFactory<>(), new HttpLimiterKey(limiterKey));
       this.metricContext = broker.getSharedResource(new MetricContextFactory<>(), new MetricContextKey());
-      this.sendTimer = this.metricContext.timer(getLimiterKey());
+      this.sendTimer = this.metricContext.timer(limiterKey);
     } catch (NotConfiguredException e) {
       log.error ("Limiter cannot be initialized due to exception " + ExceptionUtils.getFullStackTrace(e));
       throw new RuntimeException(e);
@@ -65,6 +62,4 @@ public abstract class ThrottledHttpClient<RQ, RP> implements HttpClient<RQ, RP> 
   }
 
   public abstract RP sendRequestImpl (RQ request) throws IOException;
-
-  protected abstract String getLimiterKey () throws NotConfiguredException;
 }

@@ -80,7 +80,7 @@ public class AsyncHttpWriterTest {
 
   @Test
   public void testSuccessfulWritesWithLimiter () {
-    MockThrottledHttpClient client = new MockThrottledHttpClient(null, createMockBroker());
+    MockThrottledHttpClient client = new MockThrottledHttpClient(createMockBroker());
     MockRequestBuilder requestBuilder = new MockRequestBuilder();
     MockResponseHandler responseHandler = new MockResponseHandler();
     MockAsyncHttpWriterBuilder builder = new MockAsyncHttpWriterBuilder(client, requestBuilder, responseHandler);
@@ -229,8 +229,8 @@ public class AsyncHttpWriterTest {
     boolean isCloseCalled = false;
     int attempts = 0;
     boolean shouldSendSucceed = true;
-    public MockThrottledHttpClient (Config config, SharedResourcesBroker broker) {
-      super (config, broker);
+    public MockThrottledHttpClient (SharedResourcesBroker broker) {
+      super (broker, "resource");
     }
     @Override
     public CloseableHttpResponse sendRequestImpl(HttpUriRequest request)
@@ -247,11 +247,6 @@ public class AsyncHttpWriterTest {
     public void close()
         throws IOException {
       isCloseCalled = true;
-    }
-
-    @Override
-    public String getLimiterKey() {
-      return "resource";
     }
   }
 

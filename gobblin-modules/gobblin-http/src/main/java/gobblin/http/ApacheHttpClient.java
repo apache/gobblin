@@ -1,6 +1,7 @@
 package gobblin.http;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
@@ -20,7 +21,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.NotConfiguredException;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.utils.HttpConstants;
 
@@ -53,10 +53,10 @@ public class ApacheHttpClient extends ThrottledHttpClient<HttpUriRequest, Closea
           .build());
 
   private final CloseableHttpClient client;
-
   public ApacheHttpClient(HttpClientBuilder builder, Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
-    super(config, broker);
+    super (broker, createLimiterKey(config));
     config = config.withFallback(FALLBACK);
+
     RequestConfig requestConfig = RequestConfig.copy(RequestConfig.DEFAULT)
         .setSocketTimeout(config.getInt(REQUEST_TIME_OUT_MS_KEY))
         .setConnectTimeout(config.getInt(CONNECTION_TIME_OUT_MS_KEY))
@@ -100,15 +100,14 @@ public class ApacheHttpClient extends ThrottledHttpClient<HttpUriRequest, Closea
     client.close();
   }
 
-  @Override
-  public String getLimiterKey () throws NotConfiguredException {
+  private static String createLimiterKey(Config config) {
     try {
       String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
       URL url = new URL(urlTemplate);
       LOG.info("Get limiter key [" + url.getProtocol() + url.getPath() + "]");
       return url.getProtocol() + "/" + url.getHost() + "/" + url.getPort();
-    } catch (Exception e) {
-      throw new NotConfiguredException("Cannot get limiter key ");
+    } catch (MalformedURLException e) {
+      throw new IllegalStateException("Cannot get limiter key ");
     }
   }
 }
