@@ -20,16 +20,11 @@ package gobblin.writer.http;
 import java.io.IOException;
 import java.util.Queue;
 
-import com.codahale.metrics.Timer;
-
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import gobblin.async.DispatchException;
 import gobblin.http.HttpClient;
 import gobblin.http.ResponseHandler;
 import gobblin.http.ResponseStatus;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
 import gobblin.writer.WriteResponse;
 
 
@@ -44,16 +39,11 @@ import gobblin.writer.WriteResponse;
 @Slf4j
 public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
-  public static final String DISPATCH_TIMER = "dispatch.timer";
 
   private final HttpClient<RQ, RP> httpClient;
   private final ResponseHandler<RP> responseHandler;
   private final AsyncWriteRequestBuilder<D, RQ> requestBuilder;
   private final int maxAttempts;
-  private final MetricContext metricContext;
-
-  @Getter
-  private final Timer dispatchTimer;
 
   public AsyncHttpWriter(AsyncHttpWriterBuilder builder) {
     super(builder.getQueueCapacity());
@@ -61,8 +51,6 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
     this.requestBuilder = builder.getAsyncRequestBuilder();
     this.responseHandler = builder.getResponseHandler();
     this.maxAttempts = builder.getMaxAttempts();
-    this.metricContext = Instrumented.getMetricContext(builder.getState(), AsyncHttpWriter.class);
-    this.dispatchTimer = this.metricContext.timer(DISPATCH_TIMER);
   }
 
   @Override
@@ -77,7 +65,6 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
 
     int attempt = 0;
     while (attempt < maxAttempts) {
-      final Timer.Context context = dispatchTimer.time();
       try {
           response = httpClient.sendRequest(rawRequest);
       } catch (IOException e) {
@@ -89,8 +76,6 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
         } else {
           continue;
         }
-      } finally {
-        context.stop();
       }
 
       ResponseStatus status = responseHandler.handleResponse(response);
