@@ -105,6 +105,7 @@ public class AsyncHttpWriterTest {
       Assert.assertTrue(callback.isSuccess);
     }
 
+    Assert.assertTrue(asyncHttpWriter.getDispatchTimer().getCount() == 50);
     Assert.assertTrue(client.isCloseCalled);
   }
 
