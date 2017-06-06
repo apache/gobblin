@@ -71,7 +71,7 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
     return fromState(destination.getProperties());
   }
 
-  AsyncHttpWriterBuilder<D, RQ, RP> fromState(State state) {
+  public AsyncHttpWriterBuilder<D, RQ, RP> fromState(State state) {
     this.state = state;
     Config config = ConfigBuilder.create().loadProps(state.getProperties(), CONF_PREFIX).build();
     return fromConfig(config);

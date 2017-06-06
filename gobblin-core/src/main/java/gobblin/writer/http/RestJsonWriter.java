@@ -29,7 +29,10 @@ import gobblin.converter.http.RestEntry;
 
 /**
  * Writes via Restful API that accepts JSON as a body
+ *
+ * @deprecated Please use {@link AsyncHttpWriter}
  */
+@Deprecated
 public class RestJsonWriter extends HttpWriter<RestEntry<JsonObject>> {
 
   public RestJsonWriter(AbstractHttpWriterBuilder builder) {
