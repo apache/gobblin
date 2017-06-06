@@ -61,6 +61,8 @@ import gobblin.writer.Destination;
 import gobblin.writer.PartitionedDataWriter;
 import gobblin.writer.WatermarkAwareWriter;
 
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
+
 
 /**
  * A class representing a forked branch of operations of a {@link Task} flow. The {@link Fork}s of a
@@ -175,6 +177,8 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
     return this.executionModel.equals(ExecutionModel.STREAMING);
   }
 
+  @SuppressWarnings(value = "RV_RETURN_VALUE_IGNORED",
+      justification = "We actually don't care about the return value of subscribe.")
   public void consumeRecordStream(RecordStreamWithMetadata<D, S> stream)
       throws RecordStreamProcessor.StreamProcessingException {
     if (this.converter instanceof MultiConverter) {

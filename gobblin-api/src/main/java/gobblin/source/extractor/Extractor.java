@@ -23,9 +23,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import gobblin.records.RecordStreamWithMetadata;
 
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import io.reactivex.Emitter;
 import io.reactivex.Flowable;
 import io.reactivex.functions.BiConsumer;
+import javax.annotation.Nullable;
 
 
 /**
@@ -63,6 +65,7 @@ public interface Extractor<S, D> extends Closeable {
    * @throws DataRecordException if there is problem with the extracted data record
    * @throws java.io.IOException if there is problem extracting the next data record from the source
    */
+  @Nullable
   default D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
     throw new UnsupportedOperationException();
   }
@@ -87,6 +90,8 @@ public interface Extractor<S, D> extends Closeable {
   /**
    * Read an {@link RecordEnvelope}. By default, just wrap {@link #readRecord(Object)} in a {@link RecordEnvelope}.
    */
+  @SuppressWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
+      justification = "Findbugs believes readRecord(null) is non-null. This is not true.")
   default RecordEnvelope<D> readRecordEnvelope() throws DataRecordException, IOException {
     D record = readRecord(null);
     return record == null ? null : new RecordEnvelope<>(record);

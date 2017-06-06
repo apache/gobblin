@@ -254,7 +254,7 @@ public class KafkaSimpleStreamingTest {
     final KafkaSimpleStreamingExtractor<String, byte[]> kSSE = getStreamingExtractor(topic);
 
     try {
-      kSSE.readRecord(null);
+      kSSE.readRecordEnvelope();
       Assert.fail("Should have thrown an exception");
     } catch (IOException e) {
 
