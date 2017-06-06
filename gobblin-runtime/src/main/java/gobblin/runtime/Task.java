@@ -379,7 +379,14 @@ public class Task implements TaskIFace {
         return r.withAckableWatermark(ackableWatermark);
       }));
     }
-    stream = this.converter.processStream(stream, this.taskState);
+    if (this.converter instanceof MultiConverter) {
+      // if multiconverter, unpack it
+      for (Converter cverter : ((MultiConverter) this.converter).getConverters()) {
+        stream = cverter.processStream(stream, this.taskState);
+      }
+    } else {
+      stream = this.converter.processStream(stream, this.taskState);
+    }
     stream = this.rowChecker.processStream(stream, this.taskState);
 
     Forker.ForkedStream<?, ?> forkedStreams = new Forker().forkStream(stream, forkOperator, this.taskState);

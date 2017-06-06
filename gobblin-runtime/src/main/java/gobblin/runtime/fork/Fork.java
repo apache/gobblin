@@ -177,7 +177,14 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
 
   public void consumeRecordStream(RecordStreamWithMetadata<D, S> stream)
       throws RecordStreamProcessor.StreamProcessingException {
-    stream = this.converter.processStream(stream, this.taskState);
+    if (this.converter instanceof MultiConverter) {
+      // if multiconverter, unpack it
+      for (Converter cverter : ((MultiConverter) this.converter).getConverters()) {
+        stream = cverter.processStream(stream, this.taskState);
+      }
+    } else {
+      stream = this.converter.processStream(stream, this.taskState);
+    }
     stream = this.rowLevelPolicyChecker.processStream(stream, this.taskState);
     stream = stream.mapStream(s -> s.map(r -> {
       onEachRecord();

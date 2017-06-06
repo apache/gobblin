@@ -120,7 +120,7 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
   @Override
   public RecordStreamWithMetadata<D, S> processStream(RecordStreamWithMetadata<D, S> inputStream, WorkUnitState state) {
     Flowable<RecordEnvelope<D>> filteredStream =
-        inputStream.getRecordStream().filter(r -> executePolicies(r, this.results));
+        inputStream.getRecordStream().filter(r -> executePolicies(r.getRecord(), this.results));
     filteredStream = filteredStream.doFinally(this::close);
     return inputStream.withRecordStream(filteredStream);
   }
