@@ -125,7 +125,6 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
    */
   public ConfigurableCleanableDataset(FileSystem fs, Properties jobProps, Path datasetRoot, Config config, Logger log)
       throws IOException {
-
     super(fs, jobProps, config, log);
     this.datasetRoot = datasetRoot;
     this.versionFindersAndPolicies = Lists.newArrayList();
