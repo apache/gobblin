@@ -36,8 +36,8 @@ import gobblin.http.ThrottledHttpClient;
 public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
   private final Client client;
 
-  public R2Client(Config config, Client client, SharedResourcesBroker broker) {
-    super (config, broker);
+  public R2Client(Client client, SharedResourcesBroker broker) {
+    super (broker, getLimiterKey());
     this.client = client;
   }
 
@@ -60,7 +60,7 @@ public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
     client.shutdown(Callbacks.<None>empty());
   }
 
-  public String getLimiterKey () throws NotConfiguredException {
+  private static String getLimiterKey () {
     return "D2request/" + "serviceName";
   }
 }
