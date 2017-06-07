@@ -27,6 +27,7 @@ import java.util.concurrent.TimeoutException;
 import com.google.common.annotations.VisibleForTesting;
 import com.linkedin.common.callback.Callback;
 import com.linkedin.r2.RemoteInvocationException;
+import com.linkedin.r2.RetriableRequestException;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.RestLiResponseException;
@@ -197,6 +198,7 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
   }
 
   public boolean shouldCatchExceptionAndSwitchUrl(RemoteInvocationException exc) {
-    return exc.getCause() instanceof ConnectException || exc.getCause() instanceof TimeoutException;
+    return exc.getCause() instanceof RetriableRequestException || exc.getCause() instanceof ConnectException
+        || exc.getCause() instanceof TimeoutException;
   }
 }
