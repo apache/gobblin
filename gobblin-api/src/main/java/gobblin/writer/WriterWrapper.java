@@ -15,30 +15,21 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package gobblin.writer;
 
-import gobblin.records.RecordStreamProcessor;
+import java.io.IOException;
 
 
 /**
- * A type of {@link Exception} thrown when there's anything wrong
- * with schema conversion.
- *
- * @author Yinan Li
+ * An interface that should be used by all {@link DataWriter}s that don't actually write records but instead wrap a
+ * different {@link DataWriter}. Mostly useful to find all such wrappers when needed and to enforce changes in contracts.
  */
-public class SchemaConversionException extends RecordStreamProcessor.StreamProcessingException {
+public abstract class WriterWrapper<D> implements DataWriter<D> {
 
-  private static final long serialVersionUID = 1L;
-
-  public SchemaConversionException(Throwable cause) {
-    super(cause);
+  @Override
+  public final void write(D record) throws IOException {
+    throw new UnsupportedOperationException();
   }
 
-  public SchemaConversionException(String message, Throwable cause) {
-    super(message, cause);
-  }
 
-  public SchemaConversionException(String message) {
-    super(message);
-  }
 }

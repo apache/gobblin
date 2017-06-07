@@ -38,6 +38,8 @@ import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.state.ConstructState;
 
+import lombok.Getter;
+
 
 /**
  * An implementation of {@link Converter} that applies a given list of {@link Converter}s in the given order.
@@ -48,6 +50,7 @@ import gobblin.state.ConstructState;
 public class MultiConverter extends Converter<Object, Object, Object, Object> {
 
   // The list of converters to be applied
+  @Getter
   private final List<Converter<?, ?, ?, ?>> converters;
   // Remember the mapping between converter and schema it generates
   private final Map<Converter<?, ?, ?, ?>, Object> convertedSchemaMap = Maps.newHashMap();

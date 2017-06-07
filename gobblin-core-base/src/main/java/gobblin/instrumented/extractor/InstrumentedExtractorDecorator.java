@@ -18,6 +18,7 @@
 package gobblin.instrumented.extractor;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.base.Optional;
 
@@ -25,8 +26,10 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.records.RecordStreamWithMetadata;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 import gobblin.util.FinalState;
@@ -41,6 +44,7 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
 
   private final Extractor<S, D> embeddedExtractor;
   private final boolean isEmbeddedInstrumented;
+  private volatile long lastRecordTime;
 
   public InstrumentedExtractorDecorator(WorkUnitState workUnitState, Extractor<S, D> extractor) {
     super(workUnitState, Optional.<Class<?>> of(DecoratorUtils.resolveUnderlyingObject(extractor).getClass()));
@@ -55,13 +59,30 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
   }
 
   @Override
-  public D readRecord(D reuse) throws DataRecordException, IOException {
-    return this.isEmbeddedInstrumented ? readRecordImpl(reuse) : super.readRecord(reuse);
+  public RecordEnvelope<D> readRecordEnvelope() throws DataRecordException, IOException {
+    return this.isEmbeddedInstrumented ? this.embeddedExtractor.readRecordEnvelope() : super.readRecordEnvelope();
   }
 
   @Override
-  public D readRecordImpl(D reuse) throws DataRecordException, IOException {
-    return this.embeddedExtractor.readRecord(reuse);
+  protected RecordEnvelope<D> readRecordEnvelopeImpl() throws DataRecordException, IOException {
+    return this.embeddedExtractor.readRecordEnvelope();
+  }
+
+  @Override
+  public RecordStreamWithMetadata<D, S> recordStream(AtomicBoolean shutdownRequest) throws IOException {
+    if (this.isEmbeddedInstrumented) {
+      return this.embeddedExtractor.recordStream(shutdownRequest);
+    }
+    RecordStreamWithMetadata<D, S> stream = this.embeddedExtractor.recordStream(shutdownRequest);
+    stream = stream.mapStream(s -> s.map(r -> {
+      if (this.lastRecordTime == 0) {
+        this.lastRecordTime = System.nanoTime();
+      }
+      afterRead(r.getRecord(), this.lastRecordTime);
+      this.lastRecordTime = System.nanoTime();
+      return r;
+    }));
+    return stream;
   }
 
   @Override

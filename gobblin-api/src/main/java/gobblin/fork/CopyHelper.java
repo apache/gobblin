@@ -26,7 +26,7 @@ package gobblin.fork;
 public class CopyHelper {
 
   /**
-   * Check if an object is copyable using the {@link #copy(Object, int)} method.
+   * Check if an object is copyable using the {@link #copy(Object)} method.
    * @param thing: the object that needs to be copied
    * @return: true if {@link CopyHelper} can copy this thing, false otherwise
    */
@@ -56,37 +56,26 @@ public class CopyHelper {
 
   /**
    * Copy this object if needed.
-   * @param thing: this object that needs to be copied
-   * @param instance: the number of instances of this object already copied
+   * @param thing : this object that needs to be copied
    * @return: a possibly copied instance
    * @throws CopyNotSupportedException if thing needs to be copied but cannot be
    */
-  public static Object copy(Object thing, int instance) throws CopyNotSupportedException {
-    // First copy is special, we only copy if the thing is an instance of Copyable
-    if (instance == 0) {
-      if (thing instanceof Copyable) {
-        return ((Copyable) thing).copy();
-      } else {
-        return thing;
-      }
-    } else {
-
-      if (!isCopyable(thing)) {
-        throw new CopyNotSupportedException(thing.getClass().getName() + " cannot be copied. See Copyable");
-      }
-      if (thing instanceof Copyable) {
-        return ((Copyable) thing).copy();
-      }
-      // Support for a few primitive types out of the box
-      if (thing instanceof byte[]) {
-        byte[] copy = new byte[((byte[]) thing).length];
-        System.arraycopy(thing, 0, copy, 0, ((byte[]) thing).length);
-        return copy;
-      }
-
-      // Assume that everything other type is immutable, not checking this again
-      return thing;
+  public static Object copy(Object thing) throws CopyNotSupportedException {
+    if (!isCopyable(thing)) {
+      throw new CopyNotSupportedException(thing.getClass().getName() + " cannot be copied. See Copyable");
     }
+    if (thing instanceof Copyable) {
+      return ((Copyable) thing).copy();
+    }
+    // Support for a few primitive types out of the box
+    if (thing instanceof byte[]) {
+      byte[] copy = new byte[((byte[]) thing).length];
+      System.arraycopy(thing, 0, copy, 0, ((byte[]) thing).length);
+      return copy;
+    }
+
+    // Assume that everything other type is immutable, not checking this again
+    return thing;
   }
 
 }

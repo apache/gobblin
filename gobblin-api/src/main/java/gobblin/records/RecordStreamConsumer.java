@@ -15,30 +15,18 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
-
-import gobblin.records.RecordStreamProcessor;
-
+package gobblin.records;
 
 /**
- * A type of {@link Exception} thrown when there's anything wrong
- * with schema conversion.
- *
- * @author Yinan Li
+ * An object that a {@link RecordStreamWithMetadata}.
+ * @param <S> schema type
+ * @param <D> data type
  */
-public class SchemaConversionException extends RecordStreamProcessor.StreamProcessingException {
+public interface RecordStreamConsumer<S, D> {
 
-  private static final long serialVersionUID = 1L;
+  /**
+   * Subscribe to the input {@link RecordStreamWithMetadata}.
+   */
+  void consumeRecordStream(RecordStreamWithMetadata<D, S> stream) throws Exception;
 
-  public SchemaConversionException(Throwable cause) {
-    super(cause);
-  }
-
-  public SchemaConversionException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  public SchemaConversionException(String message) {
-    super(message);
-  }
 }

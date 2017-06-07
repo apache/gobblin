@@ -25,12 +25,13 @@ import java.util.Map;
 import com.google.common.base.Optional;
 
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 
 
 /**
  * A convenience wrapper class for WatermarkAware writers.
  */
-public abstract class WatermarkAwareWriterWrapper<D> implements WatermarkAwareWriter<D> {
+public abstract class WatermarkAwareWriterWrapper<D> extends WriterWrapper<D> implements WatermarkAwareWriter<D> {
   private Optional<WatermarkAwareWriter> watermarkAwareWriter = Optional.absent();
 
   public final void setWatermarkAwareWriter(WatermarkAwareWriter watermarkAwareWriter) {
@@ -41,7 +42,7 @@ public abstract class WatermarkAwareWriterWrapper<D> implements WatermarkAwareWr
     return watermarkAwareWriter.get().isWatermarkCapable();
   }
 
-  public final void writeEnvelope(final AcknowledgableRecordEnvelope<D> recordEnvelope) throws IOException {
+  public void writeEnvelope(final RecordEnvelope<D> recordEnvelope) throws IOException {
     watermarkAwareWriter.get().writeEnvelope(recordEnvelope);
   }
 

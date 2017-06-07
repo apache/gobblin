@@ -134,7 +134,7 @@ public class DatePartitionedAvroFileExtractorTest {
     GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(this.schema);
     for (int i = 0; i < RECORD_SIZE; i++) {
       genericRecordBuilder.set(PARTITION_COLUMN_NAME, recordTimestamps[i]);
-      this.writer.write(genericRecordBuilder.build());
+      this.writer.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
     }
 
     this.writer.close();

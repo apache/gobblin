@@ -26,7 +26,6 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import gobblin.runtime.fork.AsynchronousFork;
 import gobblin.runtime.fork.Fork;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
@@ -40,9 +39,11 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.util.ExecutorsUtils;
 
+import lombok.Getter;
+
 
 /**
- * A class for executing {@link Task}s and retrying failed ones as well as for executing {@link AsynchronousFork}s.
+ * A class for executing {@link Task}s and retrying failed ones as well as for executing {@link Fork}s.
  *
  * @author Yinan Li
  */
@@ -57,6 +58,7 @@ public class TaskExecutor extends AbstractIdleService {
   private final ScheduledThreadPoolExecutor taskRetryExecutor;
 
   // A separate thread pool executor for running forks of tasks
+  @Getter
   private final ExecutorService forkExecutor;
 
   // Task retry interval

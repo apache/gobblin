@@ -33,21 +33,22 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.fork.IdentityForkOperator;
 import gobblin.publisher.TaskPublisher;
-import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import gobblin.qualitychecker.task.TaskLevelPolicyChecker;
@@ -61,7 +62,6 @@ import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ExecutorsUtils;
-import gobblin.writer.AcknowledgableRecordEnvelope;
 import gobblin.writer.DataWriter;
 import gobblin.writer.WatermarkAwareWriter;
 import gobblin.writer.WatermarkStorage;
@@ -93,7 +93,7 @@ public class TaskContinuousTest {
     }
 
     @Override
-    public RecordEnvelope<String> readRecord(@Deprecated RecordEnvelope<String> reuse)
+    public RecordEnvelope<String> readRecordEnvelope()
     throws DataRecordException, IOException {
       if (!this.closed) {
         if (index == 0) {
@@ -167,7 +167,7 @@ public class TaskContinuousTest {
     }
 
     @Override
-    public RecordEnvelope<String> readRecord(@Deprecated RecordEnvelope<String> reuse)
+    public RecordEnvelope<String> readRecordEnvelope()
         throws DataRecordException, IOException {
       if (!this.closed) {
         try {
@@ -338,9 +338,8 @@ public class TaskContinuousTest {
 
     TaskState taskState = getStreamingTaskState();
     // Create a mock RowLevelPolicyChecker
-    RowLevelPolicyChecker mockRowLevelPolicyChecker = mock(RowLevelPolicyChecker.class);
-    when(mockRowLevelPolicyChecker.executePolicies(any(Object.class), any(RowLevelPolicyCheckResults.class))).thenReturn(true);
-    when(mockRowLevelPolicyChecker.getFinalState()).thenReturn(new State());
+    RowLevelPolicyChecker mockRowLevelPolicyChecker =
+        new RowLevelPolicyChecker(Lists.newArrayList(), "stateId", FileSystem.getLocal(new Configuration()));
 
     WatermarkStorage mockWatermarkStorage = new MockWatermarkStorage();
 
@@ -438,7 +437,7 @@ public class TaskContinuousTest {
     // Let's try to shutdown the task
     task.shutdown();
     log.info("Shutting down task now");
-    boolean success = task.awaitShutdown(3000);
+    boolean success = task.awaitShutdown(30000);
     Assert.assertTrue(success, "Task should shutdown in 3 seconds");
     log.info("Task done waiting to shutdown {}", success);
 
@@ -472,18 +471,12 @@ public class TaskContinuousTest {
         private AtomicReference<String> source = new AtomicReference<>(null);
 
         @Override
-        public void write(Object record)
-            throws IOException {
-          throw new UnsupportedOperationException("Does not support writing non-envelope records");
-        }
-
-        @Override
         public boolean isWatermarkCapable() {
           return true;
         }
 
         @Override
-        public void writeEnvelope(AcknowledgableRecordEnvelope<Object> recordEnvelope)
+        public void writeEnvelope(RecordEnvelope<Object> recordEnvelope)
             throws IOException {
           _recordCollector.add(recordEnvelope.getRecord());
           String source = recordEnvelope.getWatermark().getSource();
