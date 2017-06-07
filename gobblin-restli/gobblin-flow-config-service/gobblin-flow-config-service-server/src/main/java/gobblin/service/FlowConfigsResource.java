@@ -204,7 +204,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
 
     getFlowCatalog().put(createFlowSpecForConfig(flowConfig));
 
-    return new CreateResponse(flowConfig.getId().getFlowName(), HttpStatus.S_201_CREATED);
+    return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_201_CREATED);
   }
 
   /**

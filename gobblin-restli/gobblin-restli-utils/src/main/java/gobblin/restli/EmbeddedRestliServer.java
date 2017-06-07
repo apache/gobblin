@@ -48,7 +48,7 @@ import com.linkedin.restli.server.RestLiServer;
 import com.linkedin.restli.server.guice.GuiceInjectResourceFactory;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.linkedin.restli.server.resources.ResourceFactory;
-import com.linkedin.restli.server.validation.RestLiInputValidationFilter;
+import com.linkedin.restli.server.validation.RestLiValidationFilter;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -133,7 +133,7 @@ public class EmbeddedRestliServer extends AbstractIdleService {
     config.addResourceClassNames(resourceClassNames);
     config.setServerNodeUri(this.serverUri);
     config.setDocumentationRequestHandler(new DefaultDocumentationRequestHandler());
-    config.addRequestFilter(new RestLiInputValidationFilter());
+    config.addFilter(new RestLiValidationFilter());
 
     ResourceFactory factory = new GuiceInjectResourceFactory(this.injector);
 

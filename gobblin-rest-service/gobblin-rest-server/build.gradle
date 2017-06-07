@@ -59,6 +59,7 @@ buildscript {
 
     dependencies {
         classpath group: 'com.linkedin.pegasus', name: 'gradle-plugins', version: pegasusVersion
+        classpath externalDependency.jdkTools
     }
 }
 
