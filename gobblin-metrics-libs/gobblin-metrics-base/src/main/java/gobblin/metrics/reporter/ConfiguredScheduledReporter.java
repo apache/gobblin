@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
+import gobblin.configuration.ConfigurationKeys;
 import lombok.Getter;
 
 import org.slf4j.Logger;
@@ -72,6 +73,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
   protected final ImmutableMap<String, String> tags;
   protected final Closer closer;
   protected final String metricContextName;
+  protected final String metricsPrefix;
 
   protected static final Joiner JOINER = Joiner.on('.').skipNulls();
 
@@ -84,6 +86,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
     this.tags = ImmutableMap.copyOf(builder.tags);
     this.closer = Closer.create();
     this.metricContextName = builder.metricContextName;
+    this.metricsPrefix = builder.metricsPrefix;
   }
 
   /**
@@ -97,6 +100,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
     protected TimeUnit durationUnit;
     protected Map<String, String> tags;
     protected String metricContextName;
+    protected String metricsPrefix;
 
     protected Builder() {
       this.name = "ConfiguredScheduledReporter";
@@ -174,6 +178,16 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
     }
 
     /**
+     * Sets metrics prefix independent from the context (useful for grouping metrics in Graphite or other metric-store)
+     * @param metricsPrefix
+     * @return
+     */
+    public T withMetricsPrefix(String metricsPrefix) {
+      this.metricsPrefix = metricsPrefix;
+      return self();
+    }
+
+    /**
      * Add the name of the base metrics context as prefix to the metric keys
      *
      * @param metricContextName name of the metrics context
@@ -219,7 +233,8 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
     if (metricContextName == null || (currentContextName.indexOf(metricContextName) > -1)) {
       return currentContextName;
     }
-    return JOINER.join(metricContextName, tags.get("taskId"), tags.get("forkBranchName"), tags.get("class"));
+
+    return JOINER.join(metricsPrefix, metricContextName, tags.get("taskId"), tags.get("forkBranchName"), tags.get("class"));
   }
 
   @Override
