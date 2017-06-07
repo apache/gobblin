@@ -26,19 +26,23 @@ import com.linkedin.common.util.None;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
+import com.typesafe.config.Config;
 
-import gobblin.http.HttpClient;
+import gobblin.broker.iface.NotConfiguredException;
+import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.http.ThrottledHttpClient;
 
 
-public class R2Client implements HttpClient<RestRequest, RestResponse> {
+public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
   private final Client client;
 
-  public R2Client(Client client) {
+  public R2Client(Client client, SharedResourcesBroker broker) {
+    super (broker, getLimiterKey());
     this.client = client;
   }
 
   @Override
-  public RestResponse sendRequest(RestRequest request)
+  public RestResponse sendRequestImpl(RestRequest request)
       throws IOException {
     Future<RestResponse> responseFuture = client.restRequest(request);
     RestResponse response;
@@ -54,5 +58,9 @@ public class R2Client implements HttpClient<RestRequest, RestResponse> {
   public void close()
       throws IOException {
     client.shutdown(Callbacks.<None>empty());
+  }
+
+  private static String getLimiterKey () {
+    return "D2request/" + "serviceName";
   }
 }

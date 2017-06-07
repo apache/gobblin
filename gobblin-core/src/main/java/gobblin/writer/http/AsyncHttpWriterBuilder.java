@@ -20,14 +20,16 @@ package gobblin.writer.http;
 import java.io.IOException;
 
 import com.google.common.base.Preconditions;
-import com.google.gson.JsonObject;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.config.ConfigBuilder;
 import gobblin.configuration.State;
-import gobblin.converter.http.RestEntry;
+import gobblin.configuration.WorkUnitState;
 import gobblin.http.HttpClient;
 import gobblin.http.ResponseHandler;
 import gobblin.util.ConfigUtils;
@@ -44,11 +46,12 @@ import gobblin.writer.FluentDataWriterBuilder;
  * @param <RQ> type of request
  * @param <RP> type of response
  */
+@Slf4j
 public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriterBuilder<Void, D, AsyncHttpWriterBuilder<D, RQ, RP>> {
   public static final String CONF_PREFIX = "gobblin.writer.http.";
 
   @Getter
-  protected State state;
+  protected WorkUnitState state;
   @Getter
   protected HttpClient<RQ, RP> client = null;
   @Getter
@@ -59,6 +62,8 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
   protected int queueCapacity = AbstractAsyncDataWriter.DEFAULT_BUFFER_CAPACITY;
   @Getter
   protected int maxAttempts = AsyncHttpWriter.DEFAULT_MAX_ATTEMPTS;
+  @Getter
+  protected SharedResourcesBroker<GobblinScopeTypes> broker = null;
 
   /**
    * For backward compatibility on how Fork creates writer, invoke fromState when it's called writeTo method.
@@ -72,7 +77,12 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
   }
 
   AsyncHttpWriterBuilder<D, RQ, RP> fromState(State state) {
-    this.state = state;
+    if (!(state instanceof WorkUnitState)) {
+      throw new IllegalStateException(String.format("AsyncHttpWriterBuilder requires a %s on construction.", WorkUnitState.class.getSimpleName()));
+    }
+
+    this.state = (WorkUnitState) state;
+    this.broker = this.state.getTaskBroker();
     Config config = ConfigBuilder.create().loadProps(state.getProperties(), CONF_PREFIX).build();
     return fromConfig(config);
   }

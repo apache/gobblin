@@ -9,25 +9,39 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import junit.framework.Assert;
+import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.State;
+import gobblin.broker.BrokerConstants;
+import gobblin.broker.SharedResourcesBrokerFactory;
+import gobblin.broker.SharedResourcesBrokerImpl;
+import gobblin.broker.SimpleScopeType;
+import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.configuration.WorkUnitState;
 import gobblin.http.HttpClient;
 import gobblin.http.ResponseHandler;
 import gobblin.http.ResponseStatus;
 import gobblin.http.StatusType;
+import gobblin.http.ThrottledHttpClient;
+import gobblin.util.limiter.RateBasedLimiter;
+import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.writer.DataWriter;
 import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
 
 
 @Test
+@Slf4j
 public class AsyncHttpWriterTest {
   /**
    * Test successful writes of 4 records
    */
+  @Test
   public void testSuccessfulWrites() {
     MockHttpClient client = new MockHttpClient();
     MockRequestBuilder requestBuilder = new MockRequestBuilder();
@@ -62,6 +76,48 @@ public class AsyncHttpWriterTest {
     }
 
     Assert.assertTrue(client.isCloseCalled);
+  }
+
+  @Test
+  public void testSuccessfulWritesWithLimiter () {
+    MockThrottledHttpClient client = new MockThrottledHttpClient(createMockBroker());
+    MockRequestBuilder requestBuilder = new MockRequestBuilder();
+    MockResponseHandler responseHandler = new MockResponseHandler();
+    MockAsyncHttpWriterBuilder builder = new MockAsyncHttpWriterBuilder(client, requestBuilder, responseHandler);
+    TestAsyncHttpWriter asyncHttpWriter = new TestAsyncHttpWriter(builder);
+
+    List<MockWriteCallback> callbacks = new ArrayList<>();
+
+    for (int i = 0; i < 50; i++) {
+      MockWriteCallback callback = new MockWriteCallback();
+      callbacks.add(callback);
+      asyncHttpWriter.write(new Object(), callback);
+    }
+
+    try {
+      asyncHttpWriter.close();
+    } catch (IOException e) {
+      Assert.fail("Close failed");
+    }
+
+    // Assert all successful callbacks are invoked
+    for (MockWriteCallback callback : callbacks) {
+      Assert.assertTrue(callback.isSuccess);
+    }
+
+    Assert.assertTrue(client.getSendTimer().getCount() == 50);
+    Assert.assertTrue(client.isCloseCalled);
+  }
+
+  private static SharedResourcesBroker createMockBroker() {
+    Joiner JOINER = Joiner.on(".");
+    Config config = ConfigFactory.parseMap(ImmutableMap.of(
+        JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, SharedLimiterFactory.LIMITER_CLASS_KEY), "qps",
+        JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, RateBasedLimiter.Factory.QPS_KEY), "10"
+    ));
+
+    SharedResourcesBrokerImpl broker = SharedResourcesBrokerFactory.<SimpleScopeType>createDefaultTopLevelBroker(config, SimpleScopeType.GLOBAL.defaultScopeInstance());
+    return broker;
   }
 
   /**
@@ -169,6 +225,31 @@ public class AsyncHttpWriterTest {
     }
   }
 
+  class MockThrottledHttpClient extends ThrottledHttpClient<HttpUriRequest, CloseableHttpResponse> {
+    boolean isCloseCalled = false;
+    int attempts = 0;
+    boolean shouldSendSucceed = true;
+    public MockThrottledHttpClient (SharedResourcesBroker broker) {
+      super (broker, "resource");
+    }
+    @Override
+    public CloseableHttpResponse sendRequestImpl(HttpUriRequest request)
+        throws IOException {
+      attempts++;
+      if (shouldSendSucceed) {
+        // We won't consume the response anyway
+        return null;
+      }
+      throw new IOException("Send failed");
+    }
+
+    @Override
+    public void close()
+        throws IOException {
+      isCloseCalled = true;
+    }
+  }
+
   class MockRequestBuilder implements AsyncWriteRequestBuilder<Object, HttpUriRequest> {
 
     @Override
@@ -215,12 +296,12 @@ public class AsyncHttpWriterTest {
   }
 
   class MockAsyncHttpWriterBuilder extends AsyncHttpWriterBuilder<Object, HttpUriRequest, CloseableHttpResponse> {
-    MockAsyncHttpWriterBuilder(MockHttpClient client, MockRequestBuilder requestBuilder,
+    MockAsyncHttpWriterBuilder(HttpClient client, MockRequestBuilder requestBuilder,
         MockResponseHandler responseHandler) {
       this.client = client;
       this.asyncRequestBuilder = requestBuilder;
       this.responseHandler = responseHandler;
-      this.state = new State();
+      this.state = new WorkUnitState();
       this.queueCapacity = 2;
     }
 

@@ -1,7 +1,8 @@
 package gobblin.http;
 
 import java.io.IOException;
-import java.net.URI;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.http.client.config.RequestConfig;
@@ -19,14 +20,16 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import lombok.Getter;
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.utils.HttpConstants;
 
 
 /**
  * A {@link HttpClient} that sends {@link HttpUriRequest} and gets {@link CloseableHttpResponse}.
  * It encapsulates a {@link CloseableHttpClient} instance to send the {@link HttpUriRequest}
  */
-public class ApacheHttpClient implements HttpClient<HttpUriRequest, CloseableHttpResponse> {
+public class ApacheHttpClient extends ThrottledHttpClient<HttpUriRequest, CloseableHttpResponse> {
   private static final Logger LOG = LoggerFactory.getLogger(ApacheHttpClient.class);
 
   public static final String HTTP_CONN_MANAGER = "connMgrType";
@@ -50,9 +53,10 @@ public class ApacheHttpClient implements HttpClient<HttpUriRequest, CloseableHtt
           .build());
 
   private final CloseableHttpClient client;
-
-  public ApacheHttpClient(HttpClientBuilder builder, Config config) {
+  public ApacheHttpClient(HttpClientBuilder builder, Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
+    super (broker, createLimiterKey(config));
     config = config.withFallback(FALLBACK);
+
     RequestConfig requestConfig = RequestConfig.copy(RequestConfig.DEFAULT)
         .setSocketTimeout(config.getInt(REQUEST_TIME_OUT_MS_KEY))
         .setConnectTimeout(config.getInt(CONNECTION_TIME_OUT_MS_KEY))
@@ -65,7 +69,7 @@ public class ApacheHttpClient implements HttpClient<HttpUriRequest, CloseableHtt
   }
 
   @Override
-  public CloseableHttpResponse sendRequest(HttpUriRequest request) throws IOException {
+  public CloseableHttpResponse sendRequestImpl(HttpUriRequest request) throws IOException {
     return client.execute(request);
   }
 
@@ -94,5 +98,16 @@ public class ApacheHttpClient implements HttpClient<HttpUriRequest, CloseableHtt
   @Override
   public void close() throws IOException {
     client.close();
+  }
+
+  private static String createLimiterKey(Config config) {
+    try {
+      String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
+      URL url = new URL(urlTemplate);
+      LOG.info("Get limiter key [" + url.getProtocol() + url.getPath() + "]");
+      return url.getProtocol() + "/" + url.getHost() + "/" + url.getPort();
+    } catch (MalformedURLException e) {
+      throw new IllegalStateException("Cannot get limiter key ");
+    }
   }
 }
