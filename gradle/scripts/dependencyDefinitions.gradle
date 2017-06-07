@@ -21,8 +21,6 @@ dependencyManagement {
   }
 }
 
-println "java.home is: ${System.getProperty('java.home')}"
-
 ext.externalDependency = [
     "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
     "avro": "org.apache.avro:avro:" + avroVersion,
@@ -89,7 +87,6 @@ ext.externalDependency = [
     "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",
     "jacksonMapper": "org.codehaus.jackson:jackson-mapper-asl:1.9.13",
     "jasypt": "org.jasypt:jasypt:1.9.2",
-    "jdkTools": files("${System.getProperty('java.home')}/../lib/tools.jar"),
     "jodaTime": "joda-time:joda-time:2.9.3",
     "metricsCore": "io.dropwizard.metrics:metrics-core:" + dropwizardMetricsVersion,
     "metricsJvm": "io.dropwizard.metrics:metrics-jvm:" + dropwizardMetricsVersion,
