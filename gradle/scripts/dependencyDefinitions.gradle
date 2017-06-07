@@ -21,6 +21,8 @@ dependencyManagement {
   }
 }
 
+println "java.home is: ${System.getProperty('java.home')}"
+
 ext.externalDependency = [
     "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
     "avro": "org.apache.avro:avro:" + avroVersion,
