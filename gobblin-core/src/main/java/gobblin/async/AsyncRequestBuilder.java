@@ -15,20 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.writer.http;
+package gobblin.async;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
-import gobblin.writer.WriteCallback;
+import java.util.Queue;
 
 
 /**
- * This class represents a record in a buffer
+ * An interface to build an async request from a buffer of records
+ *
+ * @param <D> type of record
+ * @param <RQ> type of request
  */
-@AllArgsConstructor
-@Getter
-public class BufferedRecord<D> {
-  private final D record;
-  private final WriteCallback callback;
+public interface AsyncRequestBuilder<D, RQ> {
+   AsyncRequest<D, RQ> buildRequest(Queue<BufferedRecord<D>> buffer);
 }

@@ -17,15 +17,15 @@
 
 package gobblin.writer;
 
-public interface WriteCallback<T> {
+import gobblin.async.Callback;
 
-  public void onSuccess(WriteResponse<T> writeResponse);
 
-  public void onFailure(Throwable throwable);
+public interface WriteCallback extends Callback<WriteResponse> {
 
-  public static WriteCallback EMPTY = new WriteCallback() {
+  WriteCallback EMPTY = new WriteCallback() {
     @Override
-    public void onSuccess(WriteResponse writeResponse) {}
+    public void onSuccess(WriteResponse result) {}
+
     @Override
     public void onFailure(Throwable throwable) {}
   };

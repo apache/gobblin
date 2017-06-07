@@ -1,7 +1,5 @@
 package gobblin.writer;
 
-import java.net.URL;
-
 import org.apache.avro.generic.GenericRecord;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -17,7 +15,7 @@ import gobblin.http.ApacheHttpClient;
 import gobblin.http.HttpRequestBuilder;
 import gobblin.http.HttpResponseHandler;
 import gobblin.utils.HttpConstants;
-import gobblin.writer.http.AsyncHttpWriterBuilder;
+
 
 @Slf4j
 public class AvroHttpWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, HttpUriRequest, CloseableHttpResponse> {

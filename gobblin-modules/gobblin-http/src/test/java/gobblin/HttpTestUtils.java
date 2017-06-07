@@ -20,7 +20,7 @@ import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestRequestBuilder;
 
 import gobblin.http.HttpOperation;
-import gobblin.writer.http.BufferedRecord;
+import gobblin.async.BufferedRecord;
 
 
 public class HttpTestUtils {

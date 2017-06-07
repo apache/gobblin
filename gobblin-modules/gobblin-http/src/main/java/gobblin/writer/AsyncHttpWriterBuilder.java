@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer.http;
+package gobblin.writer;
 
 import java.io.IOException;
 
@@ -25,6 +25,7 @@ import com.typesafe.config.Config;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.async.AsyncRequestBuilder;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.config.ConfigBuilder;
@@ -33,10 +34,6 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.http.HttpClient;
 import gobblin.http.ResponseHandler;
 import gobblin.util.ConfigUtils;
-import gobblin.writer.AsyncWriterManager;
-import gobblin.writer.DataWriter;
-import gobblin.writer.Destination;
-import gobblin.writer.FluentDataWriterBuilder;
 
 
 /**
@@ -55,7 +52,7 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
   @Getter
   protected HttpClient<RQ, RP> client = null;
   @Getter
-  protected AsyncWriteRequestBuilder<D, RQ> asyncRequestBuilder = null;
+  protected AsyncRequestBuilder<D, RQ> asyncRequestBuilder = null;
   @Getter
   protected ResponseHandler<RP> responseHandler = null;
   @Getter
