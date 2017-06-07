@@ -117,7 +117,7 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
     Flowable<RecordEnvelope<DO>> outputStream =
         inputStream.getRecordStream()
             .flatMap(in -> Flowable.fromIterable(convertRecord(outputSchema, in.getRecord(), workUnitState))
-            .map(in::withRecord));
+            .map(in::withRecord), 1);
     outputStream = outputStream.doOnComplete(this::close);
     return inputStream.withRecordStream(outputStream, outputSchema);
   }
