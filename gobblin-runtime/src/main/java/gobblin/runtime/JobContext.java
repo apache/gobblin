@@ -305,7 +305,6 @@ public class JobContext implements Closeable {
       String taskDataRootDirWithJobId =
           new Path(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), this.jobId).toString();
       this.jobState.setProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY, taskDataRootDirWithJobId);
-
       setTaskStagingDir();
       setTaskOutputDir();
     } else {
@@ -349,7 +348,6 @@ public class JobContext implements Closeable {
           this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)));
     }
   }
-
   /**
    * Return whether staging data should be cleaned up on a per-task basis.
    *
