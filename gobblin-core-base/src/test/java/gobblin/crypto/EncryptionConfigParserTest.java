@@ -105,6 +105,34 @@ public class EncryptionConfigParserTest {
     Assert.assertNull(parsedWriterProperties, "Did not expect to find writer properties");
   }
 
+  @Test
+  public void testConverterWithEntityPrefix() {
+    final String entityName = "MyConverter";
+
+    WorkUnitState wuState = new WorkUnitState();
+    wuState.getJobState().setProp(
+        EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "any");
+    wuState.getJobState().setProp(
+        EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "." + entityName + "." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "aes_rotating");
+    wuState.getJobState().setProp(
+        EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY,
+        "/tmp/foobar");
+    wuState.getJobState().setProp(
+        EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY,
+        "abracadabra");
+    wuState.getJobState().setProp(
+        EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_KEY_NAME,
+        "keyname");
+    wuState.setProp(EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "abc.def", "foobar");
+
+    Map<String, Object> parsedProperties = EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, entityName, wuState);
+    Assert.assertNotNull(parsedProperties, "Expected parser to only return one record");
+    Assert.assertEquals(parsedProperties.size(), 4, "Did not expect abc.def to be picked up in config");
+    Assert.assertEquals(EncryptionConfigParser.getEncryptionType(parsedProperties), "aes_rotating");
+    Map<String, Object> parsedWriterProperties = EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.WRITER, wuState);
+    Assert.assertNull(parsedWriterProperties, "Did not expect to find writer properties");
+  }
+
   private void testWithWriterPrefix(int numBranches, int branch) {
     String branchString = "";
     if (numBranches > 1) {
