@@ -28,6 +28,8 @@ import com.linkedin.r2.filter.FilterChains;
 import com.linkedin.r2.filter.compression.EncodingType;
 import com.linkedin.r2.filter.compression.ServerCompressionFilter;
 import com.linkedin.r2.filter.logging.SimpleLoggingFilter;
+import com.linkedin.r2.filter.message.rest.RestFilter;
+import com.linkedin.r2.filter.message.stream.StreamFilter;
 import com.linkedin.restli.server.RestLiConfig;
 import com.linkedin.restli.server.guice.GuiceRestliServlet;
 
@@ -46,7 +48,9 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -135,8 +139,11 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener im
           bind(new TypeLiteral<Optional<LeaderFinder<URIMetadata>>>() {
           }).annotatedWith(Names.named(LimiterServerResource.LEADER_FINDER_INJECT_NAME)).toInstance(leaderFinder);
 
-          FilterChain filterChain =
-              FilterChains.create(new ServerCompressionFilter(new EncodingType[]{EncodingType.SNAPPY}), new SimpleLoggingFilter());
+          List<RestFilter> restFilters = new ArrayList<>();
+          restFilters.add(new ServerCompressionFilter(EncodingType.SNAPPY.getHttpName()));
+          List<StreamFilter> streamFilters = new ArrayList<>();
+          streamFilters.add(new SimpleLoggingFilter());
+          FilterChain filterChain = FilterChains.create(restFilters, streamFilters);
           bind(FilterChain.class).toInstance(filterChain);
         } catch (NotConfiguredException nce) {
           throw new RuntimeException(nce);

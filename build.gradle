@@ -58,3 +58,16 @@ apply from: 'gradle/scripts/sourcesJar.gradle'
 apply from: 'gradle/scripts/mavenPublishing.gradle'
 apply from: 'gradle/scripts/javaVersionCheck.gradle'
 task wrapper(type: Wrapper) { gradleVersion = '2.13' }
+
+/*
+ * Hack for upgrading pegasus to version 11.0.0. For some reason, the gradle-plugins in
+ * that version fails to bring in "tools.jar" into the classpath. The rest.li team is actively
+ * seeking for a clean fix. This part will be removed later when the fix is ready
+ */
+allprojects {
+  tasks.matching { it.name == 'generateRestModel' }.all {
+    doFirst {
+      it.codegenClasspath += files("${System.getProperty('java.home')}/../lib/tools.jar")
+    }
+  }
+}
