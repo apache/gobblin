@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  */
 @Slf4j
-public class FutureWrappedWriteCallback implements WriteCallback, Future<WriteResponse> {
+public class FutureWrappedWriteCallback implements WriteCallback<Object>, Future<WriteResponse> {
   private WriteCallback _innerCallback;
   private WriteResponse _writeResponse;
   private Throwable _throwable;

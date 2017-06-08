@@ -20,9 +20,9 @@ package gobblin.writer;
 import gobblin.async.Callback;
 
 
-public interface WriteCallback extends Callback<WriteResponse> {
+public interface WriteCallback<T> extends Callback<WriteResponse<T>> {
 
-  WriteCallback EMPTY = new WriteCallback() {
+  WriteCallback EMPTY = new WriteCallback<Object>() {
     @Override
     public void onSuccess(WriteResponse result) {}
 

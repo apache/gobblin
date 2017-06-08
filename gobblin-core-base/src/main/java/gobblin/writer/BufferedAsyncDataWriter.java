@@ -136,7 +136,7 @@ public abstract class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
      * receives the result
      */
     private WriteCallback createBatchCallback (final Batch<D> batch) {
-      return new WriteCallback() {
+      return new WriteCallback<Object>() {
         @Override
         public void onSuccess(WriteResponse writeResponse) {
           LOG.info ("Batch " + batch.getId() + " is on success with size " + batch.getCurrentSizeInByte() + " num of record " + batch.getRecords().size());
