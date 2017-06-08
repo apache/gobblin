@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer.http;
+package gobblin.writer;
 
 import java.io.IOException;
 import java.util.concurrent.Future;
@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 import gobblin.async.AsyncDataDispatcher;
+import gobblin.async.BufferedRecord;
 import gobblin.writer.AsyncDataWriter;
 import gobblin.writer.FutureWrappedWriteCallback;
 import gobblin.writer.WriteCallback;

@@ -19,9 +19,9 @@ import com.linkedin.restli.common.RestConstants;
 
 import gobblin.http.HttpOperation;
 import gobblin.utils.HttpUtils;
-import gobblin.writer.http.AsyncWriteRequest;
-import gobblin.writer.http.AsyncWriteRequestBuilder;
-import gobblin.writer.http.BufferedRecord;
+import gobblin.async.AsyncRequest;
+import gobblin.async.AsyncRequestBuilder;
+import gobblin.async.BufferedRecord;
 
 
 /**
@@ -31,7 +31,7 @@ import gobblin.writer.http.BufferedRecord;
  *   This basic implementation builds a write request from a single record
  * </p>
  */
-public class R2RestRequestBuilder implements AsyncWriteRequestBuilder<GenericRecord, RestRequest> {
+public class R2RestRequestBuilder implements AsyncRequestBuilder<GenericRecord, RestRequest> {
   private static final Logger LOG = LoggerFactory.getLogger(R2RestRequestBuilder.class);
   private static final JacksonDataCodec JACKSON_DATA_CODEC = new JacksonDataCodec();
 
@@ -46,19 +46,19 @@ public class R2RestRequestBuilder implements AsyncWriteRequestBuilder<GenericRec
   }
 
   @Override
-  public AsyncWriteRequest<GenericRecord, RestRequest> buildWriteRequest(Queue<BufferedRecord<GenericRecord>> buffer) {
+  public AsyncRequest<GenericRecord, RestRequest> buildRequest(Queue<BufferedRecord<GenericRecord>> buffer) {
     return buildWriteRequest(buffer.poll());
   }
 
   /**
    * Build a request from a single record
    */
-  private AsyncWriteRequest<GenericRecord, RestRequest> buildWriteRequest(BufferedRecord<GenericRecord> record) {
+  private AsyncRequest<GenericRecord, RestRequest> buildWriteRequest(BufferedRecord<GenericRecord> record) {
     if (record == null) {
       return null;
     }
 
-    AsyncWriteRequest<GenericRecord, RestRequest> request = new AsyncWriteRequest<>();
+    AsyncRequest<GenericRecord, RestRequest> request = new AsyncRequest<>();
     HttpOperation httpOperation = HttpUtils.toHttpOperation(record.getRecord());
     // Set uri
     URI uri = HttpUtils.buildURI(urlTemplate, httpOperation.getKeys(), httpOperation.getQueryParams());

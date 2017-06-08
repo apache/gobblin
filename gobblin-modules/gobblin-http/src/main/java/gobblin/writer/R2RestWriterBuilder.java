@@ -12,7 +12,6 @@ import gobblin.restli.R2Client;
 import gobblin.restli.R2RestRequestBuilder;
 import gobblin.restli.R2RestResponseHandler;
 import gobblin.utils.HttpConstants;
-import gobblin.writer.http.AsyncHttpWriterBuilder;
 
 
 public abstract class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, RestRequest, RestResponse> {

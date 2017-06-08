@@ -1,4 +1,4 @@
-package gobblin.writer.http;
+package gobblin.writer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,6 +17,9 @@ import com.typesafe.config.ConfigFactory;
 import junit.framework.Assert;
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.async.AsyncRequest;
+import gobblin.async.AsyncRequestBuilder;
+import gobblin.async.BufferedRecord;
 import gobblin.broker.BrokerConstants;
 import gobblin.broker.SharedResourcesBrokerFactory;
 import gobblin.broker.SharedResourcesBrokerImpl;
@@ -30,9 +33,6 @@ import gobblin.http.StatusType;
 import gobblin.http.ThrottledHttpClient;
 import gobblin.util.limiter.RateBasedLimiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
-import gobblin.writer.DataWriter;
-import gobblin.writer.WriteCallback;
-import gobblin.writer.WriteResponse;
 
 
 @Test
@@ -250,12 +250,11 @@ public class AsyncHttpWriterTest {
     }
   }
 
-  class MockRequestBuilder implements AsyncWriteRequestBuilder<Object, HttpUriRequest> {
-
+  class MockRequestBuilder implements AsyncRequestBuilder<Object, HttpUriRequest> {
     @Override
-    public AsyncWriteRequest<Object, HttpUriRequest> buildWriteRequest(Queue<BufferedRecord<Object>> buffer) {
+    public AsyncRequest<Object, HttpUriRequest> buildRequest(Queue<BufferedRecord<Object>> buffer) {
       BufferedRecord<Object> item = buffer.poll();
-      AsyncWriteRequest<Object, HttpUriRequest> request = new AsyncWriteRequest<>();
+      AsyncRequest<Object, HttpUriRequest> request = new AsyncRequest<>();
       request.markRecord(item, 1);
       request.setRawRequest(null);
       return request;

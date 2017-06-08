@@ -15,17 +15,20 @@
  * limitations under the License.
  */
 
-package gobblin.writer.http;
+package gobblin.writer;
 
 import java.io.IOException;
 import java.util.Queue;
 
 import lombok.extern.slf4j.Slf4j;
+
+import gobblin.async.AsyncRequest;
+import gobblin.async.AsyncRequestBuilder;
+import gobblin.async.BufferedRecord;
 import gobblin.async.DispatchException;
 import gobblin.http.HttpClient;
 import gobblin.http.ResponseHandler;
 import gobblin.http.ResponseStatus;
-import gobblin.writer.WriteResponse;
 
 
 /**
@@ -42,7 +45,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
 
   private final HttpClient<RQ, RP> httpClient;
   private final ResponseHandler<RP> responseHandler;
-  private final AsyncWriteRequestBuilder<D, RQ> requestBuilder;
+  private final AsyncRequestBuilder<D, RQ> requestBuilder;
   private final int maxAttempts;
 
   public AsyncHttpWriter(AsyncHttpWriterBuilder builder) {
@@ -55,12 +58,12 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
 
   @Override
   protected void dispatch(Queue<BufferedRecord<D>> buffer) throws DispatchException {
-    AsyncWriteRequest<D, RQ> asyncWriteRequest = requestBuilder.buildWriteRequest(buffer);
-    if (asyncWriteRequest == null) {
+    AsyncRequest<D, RQ> asyncRequest = requestBuilder.buildRequest(buffer);
+    if (asyncRequest == null) {
       return;
     }
 
-    RQ rawRequest = asyncWriteRequest.getRawRequest();
+    RQ rawRequest = asyncRequest.getRawRequest();
     RP response;
 
     int attempt = 0;
@@ -71,7 +74,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
         // Retry
         attempt++;
         if (attempt == maxAttempts) {
-          asyncWriteRequest.onFailure(e);
+          onFailure(asyncRequest, e);
           throw new DispatchException("Write failed on IOException", e);
         } else {
           continue;
@@ -82,22 +85,57 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
       switch (status.getType()) {
         case OK:
           // Write succeeds
-          asyncWriteRequest.onSuccess(WriteResponse.EMPTY);
+          onSuccess(asyncRequest, status);
           return;
         case CLIENT_ERROR:
           // Client error. Fail!
           DispatchException clientExp = new DispatchException("Write failed on client error");
-          asyncWriteRequest.onFailure(clientExp);
+          onFailure(asyncRequest, clientExp);
           throw clientExp;
         case SERVER_ERROR:
           // Server side error. Retry
           attempt++;
           if (attempt == maxAttempts) {
             DispatchException serverExp = new DispatchException("Write failed after " + maxAttempts + " attempts.");
-            asyncWriteRequest.onFailure(serverExp);
+            onFailure(asyncRequest, serverExp);
             throw serverExp;
           }
       }
+    }
+  }
+
+  /**
+   * Callback on sending the asyncRequest successfully
+   */
+  protected void onSuccess(AsyncRequest<D, RQ> asyncRequest, ResponseStatus status) {
+    final WriteResponse response = WriteResponse.EMPTY;
+    for (final AsyncRequest.Thunk thunk: asyncRequest.getThunks()) {
+      WriteCallback callback = (WriteCallback) thunk.callback;
+      callback.onSuccess(new WriteResponse() {
+        @Override
+        public Object getRawResponse() {
+          return response.getRawResponse();
+        }
+
+        @Override
+        public String getStringResponse() {
+          return response.getStringResponse();
+        }
+
+        @Override
+        public long bytesWritten() {
+          return thunk.sizeInBytes;
+        }
+      });
+    }
+  }
+
+  /**
+   * Callback on failing to send the asyncRequest
+   */
+  protected void onFailure(AsyncRequest<D, RQ> asyncRequest, Throwable throwable) {
+    for (AsyncRequest.Thunk thunk: asyncRequest.getThunks()) {
+      thunk.callback.onFailure(throwable);
     }
   }
 

@@ -16,9 +16,9 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 
 import gobblin.utils.HttpUtils;
-import gobblin.writer.http.AsyncWriteRequest;
-import gobblin.writer.http.AsyncWriteRequestBuilder;
-import gobblin.writer.http.BufferedRecord;
+import gobblin.async.AsyncRequest;
+import gobblin.async.AsyncRequestBuilder;
+import gobblin.async.BufferedRecord;
 
 
 /**
@@ -26,10 +26,10 @@ import gobblin.writer.http.BufferedRecord;
  *
  * <p>
  *   This basic implementation builds a write request from a single record. However, it has the extensibility to build
- *   a write request from batched records, depending on specific implementation of {@link #buildWriteRequest(Queue)}
+ *   a write request from batched records, depending on specific implementation of {@link #buildRequest(Queue)}
  * </p>
  */
-public class HttpRequestBuilder implements AsyncWriteRequestBuilder<GenericRecord, HttpUriRequest> {
+public class HttpRequestBuilder implements AsyncRequestBuilder<GenericRecord, HttpUriRequest> {
   private static final Logger LOG = LoggerFactory.getLogger(HttpRequestBuilder.class);
 
   private final String urlTemplate;
@@ -43,19 +43,19 @@ public class HttpRequestBuilder implements AsyncWriteRequestBuilder<GenericRecor
   }
 
   @Override
-  public AsyncWriteRequest<GenericRecord, HttpUriRequest> buildWriteRequest(Queue<BufferedRecord<GenericRecord>> buffer) {
+  public AsyncRequest<GenericRecord, HttpUriRequest> buildRequest(Queue<BufferedRecord<GenericRecord>> buffer) {
     return buildWriteRequest(buffer.poll());
   }
 
   /**
    * Build a write request from a single record
    */
-  private AsyncWriteRequest<GenericRecord, HttpUriRequest> buildWriteRequest(BufferedRecord<GenericRecord> record) {
+  private AsyncRequest<GenericRecord, HttpUriRequest> buildWriteRequest(BufferedRecord<GenericRecord> record) {
     if (record == null) {
       return null;
     }
 
-    AsyncWriteRequest<GenericRecord, HttpUriRequest> request = new AsyncWriteRequest<>();
+    AsyncRequest<GenericRecord, HttpUriRequest> request = new AsyncRequest<>();
     HttpOperation httpOperation = HttpUtils.toHttpOperation(record.getRecord());
 
     // Set uri

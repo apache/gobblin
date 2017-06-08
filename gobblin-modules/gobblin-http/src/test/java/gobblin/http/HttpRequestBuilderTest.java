@@ -14,8 +14,8 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import gobblin.HttpTestUtils;
-import gobblin.writer.http.AsyncWriteRequest;
-import gobblin.writer.http.BufferedRecord;
+import gobblin.async.AsyncRequest;
+import gobblin.async.BufferedRecord;
 
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -34,7 +34,7 @@ public class HttpRequestBuilderTest {
     ArgumentCaptor<RequestBuilder> requestBuilderArgument = ArgumentCaptor.forClass(RequestBuilder.class);
 
     Queue<BufferedRecord<GenericRecord>> queue = HttpTestUtils.createQueue(1, false);
-    AsyncWriteRequest<GenericRecord, HttpUriRequest> request = builder.buildWriteRequest(queue);
+    AsyncRequest<GenericRecord, HttpUriRequest> request = builder.buildRequest(queue);
     verify(builder).build(requestBuilderArgument.capture());
 
     RequestBuilder expected = RequestBuilder.post();

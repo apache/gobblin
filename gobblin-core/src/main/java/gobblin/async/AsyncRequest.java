@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer.http;
+package gobblin.async;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,19 +23,15 @@ import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
-import gobblin.writer.WriteCallback;
-import gobblin.writer.WriteResponse;
-
 
 /**
  * A type of write request which may batch several records at a time. It encapsulates the
- * raw request, batch level statistics, and callback of each record that will be invoked
- * on batch level callbacks.
+ * raw request, batch level statistics, and callback of each record
  *
  * @param <D> type of data record
  * @param <RQ> type of raw request
  */
-public class AsyncWriteRequest<D, RQ> {
+public class AsyncRequest<D, RQ> {
   @Getter
   private int recordCount = 0;
   @Getter
@@ -43,43 +39,14 @@ public class AsyncWriteRequest<D, RQ> {
   @Getter @Setter
   private RQ rawRequest;
 
+  @Getter
   private final List<Thunk> thunks = new ArrayList<>();
 
   /**
-   * Callback on sending the batch successfully
-   */
-  public void onSuccess(final WriteResponse response) {
-    for (final Thunk thunk : this.thunks) {
-      thunk.callback.onSuccess(new WriteResponse() {
-        @Override
-        public Object getRawResponse() {
-          return response.getRawResponse();
-        }
-
-        @Override
-        public String getStringResponse() {
-          return response.getStringResponse();
-        }
-
-        @Override
-        public long bytesWritten() {
-          return thunk.sizeInBytes;
-        }
-      });
-    }
-  }
-
-  /**
-   * Callback on failing to send the batch
-   */
-  public void onFailure(Throwable throwable) {
-    for (Thunk thunk : this.thunks) {
-      thunk.callback.onFailure(throwable);
-    }
-  }
-
-  /**
    * Mark the record associated with this request
+   *
+   * @param record buffered record
+   * @param bytesWritten bytes of the record written into the request
    */
   public void markRecord(BufferedRecord<D> record, int bytesWritten) {
     if (record.getCallback() != null) {
@@ -93,11 +60,11 @@ public class AsyncWriteRequest<D, RQ> {
    * A helper class which wraps the callback
    * It may contain more information related to each individual record
    */
-  final private static class Thunk {
-    final WriteCallback callback;
-    final int sizeInBytes;
+  public static final class Thunk {
+    public final Callback callback;
+    public final int sizeInBytes;
 
-    Thunk(WriteCallback callback, int sizeInBytes) {
+    Thunk(Callback callback, int sizeInBytes) {
       this.callback = callback;
       this.sizeInBytes = sizeInBytes;
     }
