@@ -32,7 +32,14 @@ public class TestEncryptionProvider implements CredentialStoreProvider, Encrypti
     String csType = (String)parameters.get("keystore_type"); // Don't want to take compile-time dependency on gobblin-core for this constant
     if (csType.equals(TestRandomCredentialStore.TAG)) {
       int numKeys = Integer.parseInt((String)parameters.getOrDefault("num_keys", "1"));
-      return new TestRandomCredentialStore(numKeys);
+
+      String seedParam = (String)parameters.getOrDefault("random_seed", null);
+      long seed = System.currentTimeMillis();
+      if (seedParam != null) {
+        seed = Long.parseLong(seedParam);
+      }
+
+      return new TestRandomCredentialStore(numKeys, seed);
     }
 
     return null;

@@ -16,10 +16,10 @@
  */
 package gobblin.test.crypto;
 
-import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 import gobblin.crypto.CredentialStore;
 
@@ -30,8 +30,12 @@ public class TestRandomCredentialStore implements CredentialStore {
   private Map<String, byte[]> keys;
 
   public TestRandomCredentialStore(int numKeys) {
+    this(numKeys, System.currentTimeMillis());
+  }
+
+  public TestRandomCredentialStore(int numKeys, long seed) {
     this.keys = new HashMap<>();
-    SecureRandom rand = new SecureRandom();
+    Random rand = new Random(seed);
 
     for (int i = 0; i < numKeys; i++) {
       byte[] keyBuf = new byte[16];

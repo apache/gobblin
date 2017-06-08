@@ -31,14 +31,27 @@ import gobblin.test.crypto.TestRandomCredentialStore;
 public class RandomCredentialStoreTest {
   @Test
   public void testSuccess() {
-    Map<String, Object> params = ImmutableMap.<String, Object>of(
-        "keystore_type", TestRandomCredentialStore.TAG,
-        "num_keys", "4"
-    );
+    Map<String, Object> params =
+        ImmutableMap.<String, Object>of("keystore_type", TestRandomCredentialStore.TAG, "num_keys", "4");
 
     CredentialStore store = new TestEncryptionProvider().buildCredentialStore(params);
 
     Assert.assertNotNull(store);
     Assert.assertEquals(store.getAllEncodedKeys().size(), 4);
+  }
+
+  @Test
+  public void testSeedsGiveRepeatableKeys() {
+    Map<String, Object> params =
+        ImmutableMap.<String, Object>of("keystore_type", TestRandomCredentialStore.TAG, "num_keys", "1", "random_seed",
+            "12345");
+
+    byte[] expectedKey = new byte[]{-42, 32, -97, 92, 49, -77, 97, -125, 34, -87, -40, -18, 120, 7, -56, -22};
+
+    CredentialStore store = new TestEncryptionProvider().buildCredentialStore(params);
+
+    Assert.assertNotNull(store);
+    Assert.assertEquals(store.getAllEncodedKeys().size(), 1);
+    Assert.assertEquals(store.getEncodedKey("0"), expectedKey);
   }
 }
