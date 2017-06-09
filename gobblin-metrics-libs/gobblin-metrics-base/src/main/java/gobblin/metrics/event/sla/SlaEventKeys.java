@@ -33,7 +33,6 @@ public class SlaEventKeys {
 
   public static final String EVENT_ADDITIONAL_METADATA_PREFIX = EVENT_GOBBLIN_STATE_PREFIX + "additionalMetadata.";
 
-  public static final String SOURCE = EVENT_GOBBLIN_STATE_PREFIX + "source";
-  public static final String DESTINATION = EVENT_GOBBLIN_STATE_PREFIX + "destination";
-  public static final String AZKABAN_URL = EVENT_GOBBLIN_STATE_PREFIX + "azkaban_url";
+  public static final String SOURCE_URI = "sourceCluster";
+  public static final String DESTINATION_URI = "destinationCluster";
 }

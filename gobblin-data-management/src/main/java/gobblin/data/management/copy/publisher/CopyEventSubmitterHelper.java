@@ -25,6 +25,7 @@ import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.metrics.event.sla.SlaEventSubmitter;
 
+import java.util.Map;
 
 /**
  * Helper class to submit events for copy job
@@ -42,11 +43,11 @@ public class CopyEventSubmitterHelper {
 
   static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter,
       CopyEntity.DatasetAndPartition datasetAndPartition, String originTimestamp, String upstreamTimestamp,
-      String source, String destination, String azkabanUrl) {
+      Map<String, String> additionalMetadata) {
         SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(DATASET_PUBLISHED_EVENT_NAME)
         .datasetUrn(datasetAndPartition.getDataset().getDatasetURN()).partition(datasetAndPartition.getPartition())
-        .originTimestamp(originTimestamp).upstreamTimestamp(upstreamTimestamp).azkabanExecutionUrl(azkabanUrl).
-        sourceCluster(source).destinationCluster(destination).build().submit();
+            .originTimestamp(originTimestamp).upstreamTimestamp(upstreamTimestamp).additionalMetadata(additionalMetadata)
+            .build().submit();
   }
 
   static void submitFailedDatasetPublish(EventSubmitter eventSubmitter,

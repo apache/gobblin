@@ -118,7 +118,6 @@ public class ConfigurationKeys {
   public static final String FLOW_GROUP_KEY = "flow.group";
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
   public static final String FLOW_EXECUTION_ID_KEY = "flow.executionId";
-  public static final String AZKABAN_EXECUTION_URL = "azkaban.link.execution.url";
 
   /**
    * Common topology configuration properties.

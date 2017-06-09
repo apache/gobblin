@@ -144,9 +144,6 @@ public class SlaEventSubmitter {
     eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.IS_FIRST_PUBLISH), isFirstPublish);
 
     if (additionalMetadata != null) {
-      additionalMetadata.put(withoutPropertiesPrefix(SlaEventKeys.SOURCE), sourceCluster);
-      additionalMetadata.put(withoutPropertiesPrefix(SlaEventKeys.DESTINATION), destinationCluster);
-      additionalMetadata.put(withoutPropertiesPrefix(SlaEventKeys.AZKABAN_URL), azkabanExecutionUrl);
       eventMetadataMap.putAll(additionalMetadata);
     }
     return Maps.newHashMap(Maps.filterValues(eventMetadataMap, NOT_NULL_OR_EMPTY_PREDICATE));

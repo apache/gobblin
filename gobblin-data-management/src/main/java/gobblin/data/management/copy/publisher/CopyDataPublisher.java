@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -34,6 +35,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 
 import gobblin.commit.CommitStep;
@@ -163,6 +165,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
    */
   private void publishFileSet(CopyEntity.DatasetAndPartition datasetAndPartition,
       Collection<WorkUnitState> datasetWorkUnitStates) throws IOException {
+    Map<String, String> additionalMetadata = Maps.newHashMap();
 
     Preconditions.checkArgument(!datasetWorkUnitStates.isEmpty(),
         "publishFileSet received an empty collection work units. This is an error in code.");
@@ -221,9 +224,10 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
       datasetUpstreamTimestamp = 0;
     }
 
+    additionalMetadata.put(SlaEventKeys.SOURCE_URI, this.state.getProp(SlaEventKeys.SOURCE_URI));
+    additionalMetadata.put(SlaEventKeys.DESTINATION_URI, this.state.getProp(SlaEventKeys.DESTINATION_URI));
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(this.eventSubmitter, datasetAndPartition,
-        Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp),
-        this.state.getProp(SlaEventKeys.SOURCE), this.state.getProp(SlaEventKeys.DESTINATION), this.state.getProp(ConfigurationKeys.AZKABAN_EXECUTION_URL, "null"));
+        Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp), additionalMetadata);
     }
 
   private static boolean hasCopyableFiles(Collection<WorkUnitState> workUnits) throws IOException {
