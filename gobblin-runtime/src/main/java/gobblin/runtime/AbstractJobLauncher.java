@@ -83,6 +83,7 @@ import gobblin.util.ParallelRunner;
 import gobblin.writer.initializer.WriterInitializerFactory;
 
 import javax.annotation.Nullable;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 
 
@@ -280,29 +281,42 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * This predicate checks if a work unit should be skipped. If yes, then it will removed
    * from the list of workUnits and it's state will be saved.
+   *
+   * If complement is set to true, then the filter will be reversed
+   *
+   * If a MultiWorkUnit is marked as skipped all WorkUnits contained in it will be skipped.
+   * If a MultiWorkUnit contains some skipped WorkUnits, only those will be skipped.
    */
   @RequiredArgsConstructor
+  @AllArgsConstructor
   private static class SkippedWorkUnitsFilter implements Predicate<WorkUnit> {
     private final JobState jobState;
+    private boolean complement = false;
 
     @Override
     public boolean apply(WorkUnit workUnit) {
       if (workUnit instanceof MultiWorkUnit) {
-        Preconditions.checkArgument(!workUnit.contains(ConfigurationKeys.WORK_UNIT_SKIP_KEY),
-            "Error: MultiWorkUnit cannot be skipped");
-        for (WorkUnit wu : ((MultiWorkUnit) workUnit).getWorkUnits()) {
-          Preconditions.checkArgument(!wu.contains(ConfigurationKeys.WORK_UNIT_SKIP_KEY),
-              "Error: MultiWorkUnit cannot contain skipped WorkUnit");
+        WorkUnitStream wus = ((MultiWorkUnit) workUnit).getWorkUnitsStream();
+        ((MultiWorkUnit) workUnit).removeWorkUnits(wus.filter(new SkippedWorkUnitsFilter(this.jobState, true)));
+        if (workUnit.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_SKIP_KEY, false)) {
+          return complement;
         }
+      } else if (workUnit.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_SKIP_KEY, false)) {
+        setSkipTaskState(this.jobState, workUnit);
+        return complement;
       }
-      if (workUnit.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_SKIP_KEY, false)) {
-        WorkUnitState workUnitState = new WorkUnitState(workUnit, this.jobState);
-        workUnitState.setWorkingState(WorkUnitState.WorkingState.SKIPPED);
-        this.jobState.addSkippedTaskState(new TaskState(workUnitState));
-        return false;
-      }
-      return true;
+      return !complement;
     }
+  }
+
+  /**
+   * Skip the {@link TaskState} corresponding to the WorkUnit
+   */
+  private static void setSkipTaskState(JobState jobState, WorkUnit workUnit) {
+    WorkUnitState workUnitState = new WorkUnitState(workUnit, jobState);
+    workUnitState.setWorkingState(WorkUnitState.WorkingState.SKIPPED);
+    TaskState taskState = new TaskState(workUnitState);
+    jobState.addSkippedTaskState(taskState);
   }
 
   @Override
@@ -676,6 +690,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       workUnit.setId(taskId);
       workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
       workUnit.setProp(ConfigurationKeys.TASK_KEY_KEY, Long.toString(Id.Task.parse(taskId).getSequence()));
+      // In case of MultiWorkUnit, WorkUnit(s) should be assigned different ids
+      if (workUnit instanceof MultiWorkUnit) {
+        ((MultiWorkUnit) workUnit).getWorkUnitsStream().transform(this);
+      }
     }
   }
 

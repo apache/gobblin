@@ -152,4 +152,14 @@ public class MultiWorkUnit extends WorkUnit {
   public static MultiWorkUnit createEmpty() {
     return new MultiWorkUnit();
   }
+
+  public void removeWorkUnits(WorkUnitStream workUnitsToRemove) {
+    for (WorkUnit workUnit : workUnitsToRemove.getMaterializedWorkUnitCollection()) {
+      this.workUnits.remove(workUnit);
+    }
+  }
+
+  public WorkUnitStream getWorkUnitsStream() {
+    return new BasicWorkUnitStream.Builder(this.workUnits).build();
+  }
 }
