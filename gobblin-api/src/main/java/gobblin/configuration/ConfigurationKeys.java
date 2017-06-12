@@ -464,6 +464,7 @@ public class ConfigurationKeys {
    */
   public static final String SOURCE_FILEBASED_DATA_DIRECTORY = "source.filebased.data.directory";
   public static final String SOURCE_FILEBASED_FILES_TO_PULL = "source.filebased.files.to.pull";
+  public static final String SOURCE_FILEBASED_MAX_FILES_PER_RUN = "source.filebased.maxFilesPerRun";
   public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";
   public static final String SOURCE_FILEBASED_FS_URI = "source.filebased.fs.uri";
   public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
