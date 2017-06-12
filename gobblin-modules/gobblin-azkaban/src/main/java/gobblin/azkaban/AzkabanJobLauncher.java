@@ -207,10 +207,11 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
           LOG.info("Cancelling job since SLA is reached: " + this.ownAzkabanSla);
           future.cancel(true);
           isCancelled = true;
-          this.cancel();
+          this.cancelJob(jobListener);
         } finally {
           service.shutdown();
           if (isCancelled) {
+            this.cancel();
             // Need to fail the Azkaban job.
             throw new RuntimeException("Job failed because it reaches SLA limit: " + this.ownAzkabanSla);
           }
@@ -239,13 +240,9 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   public void cancel()
       throws Exception {
     try {
-      cancelJob(this.jobListener);
+      stop();
     } finally {
-      try {
-        stop();
-      } finally {
-        close();
-      }
+      close();
     }
   }
 
