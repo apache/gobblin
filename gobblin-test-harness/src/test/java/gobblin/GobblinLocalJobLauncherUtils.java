@@ -13,7 +13,7 @@ import gobblin.runtime.local.LocalJobLauncher;
 
 
 public class GobblinLocalJobLauncherUtils {
-  public static final String RESOURCE_DIR = "./gobblin-runtime/src/test/resources/runtime_test/";
+  public static final String RESOURCE_DIR = "./gobblin-test-harness/src/test/resources/runtime_test/";
   public static final String SAMPLE_DIR = "test_data/daily/2016/10/01/";
   public static final String DATA_PURGER_COMMIT_DATA = "data.purger.commit.data";
   public static final String STATE_STORE = "state_store";
