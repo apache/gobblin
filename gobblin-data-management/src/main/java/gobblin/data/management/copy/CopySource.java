@@ -147,6 +147,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       final FileSystem sourceFs = getSourceFileSystem(state);
       final FileSystem targetFs = getTargetFileSystem(state);
+      state.setProp(SlaEventKeys.SOURCE_URI, sourceFs.getUri());
+      state.setProp(SlaEventKeys.DESTINATION_URI, targetFs.getUri());
 
       log.info("Identified source file system at {} and target file system at {}.",
           sourceFs.getUri(), targetFs.getUri());

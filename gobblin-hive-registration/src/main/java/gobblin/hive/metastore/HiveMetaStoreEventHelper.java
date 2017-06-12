@@ -135,9 +135,11 @@ public class HiveMetaStoreEventHelper {
   }
 
   // Drop Table
-  protected static void submitSuccessfulTableDrop(EventSubmitter eventSubmitter, String dbName, String tableName) {
+  protected static void submitSuccessfulTableDrop(EventSubmitter eventSubmitter, String dbName,
+      String tableName, String metastoreURI) {
     eventSubmitter.submit(TABLE_DROP+SUCCESS_POSTFIX,
-        ImmutableMap.<String, String> builder().put(DB_NAME, dbName).put(TABLE_NAME, tableName).build());
+        ImmutableMap.<String, String> builder().put(DB_NAME, dbName).put(TABLE_NAME, tableName).
+            put("metastoreURI", metastoreURI).build());
   }
 
   protected static void submitFailedTableDrop(EventSubmitter eventSubmitter, String dbName, String tableName,
@@ -148,9 +150,10 @@ public class HiveMetaStoreEventHelper {
 
   // Drop partition
   protected static void submitSuccessfulPartitionDrop(EventSubmitter eventSubmitter, String dbName, String tableName,
-      List<String> partitionValues) {
+      List<String> partitionValues, String metastoreURI) {
     eventSubmitter.submit(PARTITION_DROP+SUCCESS_POSTFIX, ImmutableMap.<String, String> builder().put(DB_NAME, dbName)
-        .put(TABLE_NAME, tableName).put("PartitionValues", partitionValues.toString()).build());
+        .put(TABLE_NAME, tableName).put("PartitionValues", partitionValues.toString())
+        .put("metastoreURI", metastoreURI).build());
   }
 
   protected static void submitFailedPartitionDrop(EventSubmitter eventSubmitter, String dbName, String tableName,

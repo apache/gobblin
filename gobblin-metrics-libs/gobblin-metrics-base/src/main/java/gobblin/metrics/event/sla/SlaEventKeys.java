@@ -33,4 +33,6 @@ public class SlaEventKeys {
 
   public static final String EVENT_ADDITIONAL_METADATA_PREFIX = EVENT_GOBBLIN_STATE_PREFIX + "additionalMetadata.";
 
+  public static final String SOURCE_URI = "sourceCluster";
+  public static final String DESTINATION_URI = "destinationCluster";
 }

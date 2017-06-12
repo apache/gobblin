@@ -27,7 +27,6 @@ import com.google.common.base.Optional;
 
 import gobblin.commit.CommitStep;
 
-
 /**
  * {@link CommitStep} to deregister a Hive table.
  */

@@ -41,6 +41,8 @@ import com.google.common.primitives.Ints;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.hive.HiveMetaStoreClientFactory;
 import gobblin.hive.HiveLock;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HivePartition;
@@ -258,7 +260,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       if (client.get().tableExists(dbName, tableName)) {
         client.get().dropTable(dbName, tableName);
-        HiveMetaStoreEventHelper.submitSuccessfulTableDrop(eventSubmitter, dbName, tableName);
+        String metastoreURI = this.clientPool.getHiveConf().get(HiveMetaStoreClientFactory.HIVE_METASTORE_TOKEN_SIGNATURE, "null");
+        HiveMetaStoreEventHelper.submitSuccessfulTableDrop(eventSubmitter, dbName, tableName, metastoreURI);
         log.info("Dropped table " + tableName + " in db " + dbName);
       }
     } catch (TException e) {
@@ -272,7 +275,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       List<String> partitionValues) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       client.get().dropPartition(dbName, tableName, partitionValues, false);
-      HiveMetaStoreEventHelper.submitSuccessfulPartitionDrop(eventSubmitter, dbName, tableName, partitionValues);
+      String metastoreURI = this.clientPool.getHiveConf().get(HiveMetaStoreClientFactory.HIVE_METASTORE_TOKEN_SIGNATURE, "null");
+      HiveMetaStoreEventHelper.submitSuccessfulPartitionDrop(eventSubmitter, dbName, tableName, partitionValues, metastoreURI);
       log.info("Dropped partition " + partitionValues + " in table " + tableName + " in db " + dbName);
     } catch (NoSuchObjectException e) {
       // Partition does not exist. Nothing to do
