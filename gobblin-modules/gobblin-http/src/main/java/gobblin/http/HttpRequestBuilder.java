@@ -100,7 +100,7 @@ public class HttpRequestBuilder implements AsyncRequestBuilder<GenericRecord, Ht
     return payload.length();
   }
 
-  private ContentType createContentType(String contentType) {
+  public static ContentType createContentType(String contentType) {
     switch (contentType) {
       case "application/json":
         return ContentType.APPLICATION_JSON;
