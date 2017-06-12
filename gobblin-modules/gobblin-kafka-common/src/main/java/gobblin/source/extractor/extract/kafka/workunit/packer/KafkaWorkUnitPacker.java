@@ -221,6 +221,8 @@ public abstract class KafkaWorkUnitPacker {
 
   /**
    * Combine all {@link WorkUnit}s in the {@link MultiWorkUnit} into a single {@link WorkUnit}.
+   *
+   * all WorkUnits need to either be empty or belong to the same topic 
    */
   protected WorkUnit squeezeMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
     WatermarkInterval interval = getWatermarkIntervalFromMultiWorkUnit(multiWorkUnit);
@@ -234,6 +236,11 @@ public abstract class KafkaWorkUnitPacker {
     WorkUnit workUnit = WorkUnit.create(extract, interval);
     populateMultiPartitionWorkUnit(partitions, workUnit);
     workUnit.setProp(ESTIMATED_WORKUNIT_SIZE, multiWorkUnit.getProp(ESTIMATED_WORKUNIT_SIZE));
+
+    // copy over any topic specific settings from the old workunits
+    for (WorkUnit workUnitToCompact: multiWorkUnit.getWorkUnits()) {
+        workUnit.addAllIfNotExist(workUnitToCompact);
+    }
     LOG.info(String.format("Created MultiWorkUnit for partitions %s", partitions));
     return workUnit;
   }
