@@ -24,7 +24,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-
 import javax.annotation.Nullable;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
@@ -84,7 +83,6 @@ public class CombineRetentionPolicy<T extends DatasetVersion> implements Retenti
 
   @SuppressWarnings("unchecked")
   public CombineRetentionPolicy(Properties props) throws IOException {
-
     Preconditions.checkArgument(props.containsKey(DELETE_SETS_COMBINE_OPERATION), "Combine operation not specified.");
 
     ImmutableList.Builder<RetentionPolicy<T>> builder = ImmutableList.builder();

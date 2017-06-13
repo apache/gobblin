@@ -106,6 +106,11 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
    * </pre>
    */
   public static final String DATASET_PARTITIONS_LIST_KEY = CONFIGURATION_KEY_PREFIX + "dataset.partitions";
+  /**
+   * An option that allows user to create an alias of the pair (policy.class,version.finder.class)
+   * Mainly for simplifying configStore (e.g. in HDFS) file hierarchy.
+   */
+  public static final String DATASET_VERSION_POLICY_ALIAS = CONFIGURATION_KEY_PREFIX + "versionAndPolicy.alias";
 
   private final Path datasetRoot;
   private final List<VersionFinderAndPolicy<T>> versionFindersAndPolicies;
@@ -129,15 +134,21 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
     this.datasetRoot = datasetRoot;
     this.versionFindersAndPolicies = Lists.newArrayList();
 
-    if (config.hasPath(VERSION_FINDER_CLASS_KEY) && config.hasPath(RETENTION_POLICY_CLASS_KEY)) {
+    if (config.hasPath(DATASET_VERSION_POLICY_ALIAS)) {
+      initWithSelectionPolicy(config.getConfig(DATASET_VERSION_POLICY_ALIAS), jobProps);
+    } else if (config.hasPath(VERSION_FINDER_CLASS_KEY) && config.hasPath(RETENTION_POLICY_CLASS_KEY)) {
       initWithRetentionPolicy(config, jobProps, RETENTION_POLICY_CLASS_KEY, VERSION_FINDER_CLASS_KEY);
     } else if (config.hasPath(VERSION_FINDER_CLASS_KEY)) {
       initWithSelectionPolicy(config.getConfig(RETENTION_CONFIGURATION_KEY), jobProps);
     } else if (config.hasPath(DATASET_PARTITIONS_LIST_KEY)) {
       List<? extends Config> versionAndPolicies = config.getConfigList(DATASET_PARTITIONS_LIST_KEY);
+
       for (Config versionAndPolicy : versionAndPolicies) {
         initWithSelectionPolicy(versionAndPolicy, jobProps);
       }
+      /*
+      * Since retention.policy has been regarded as deprecated, should use selection policy here.
+      * */
     } else {
       throw new IllegalArgumentException(
           String.format("Either set version finder at %s and retention policy at %s or set partitions at %s",

@@ -20,7 +20,6 @@ package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -36,13 +35,10 @@ import com.typesafe.config.Config;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 
 import gobblin.config.client.ConfigClient;
 import gobblin.dataset.Dataset;
-import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
-import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.data.management.copy.CopySource;
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
@@ -71,24 +67,13 @@ public class ConfigBasedCopyableDatasetFinder extends ConfigBasedDatasetsFinder 
    */
   @Override
   public List<Dataset> findDatasets() throws IOException {
-    Collection<URI> allDatasetURIs;
-    Set<URI> disabledURIs = ImmutableSet.of();
-    try {
-      allDatasetURIs = configClient.getImportedBy(new URI(whitelistTag.toString()), true);
-      populateDisabledURIs(disabledURIs);
-    } catch (ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
-        | URISyntaxException e) {
-      log.error("Caught error while getting all the datasets URIs " + e.getMessage());
-      throw new RuntimeException(e);
-    }
-
-    Set<URI> leafDatasets = getValidDatasetURIs(allDatasetURIs, disabledURIs, this.commonRoot);
+    Set<URI> leafDatasets = getValidDatasetURIs(this.commonRoot);
     if (leafDatasets.isEmpty()) {
       return ImmutableList.of();
     }
 
+    // Parallel execution for copyDataset for performance consideration.
     final List<Dataset> result = new CopyOnWriteArrayList<>();
-
     Iterator<Callable<Void>> callableIterator =
         Iterators.transform(leafDatasets.iterator(), new Function<URI, Callable<Void>>() {
           @Override

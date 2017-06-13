@@ -16,11 +16,10 @@
  */
 package gobblin.data.management.retention.profile;
 
+import gobblin.configuration.ConfigurationKeys;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -32,7 +31,6 @@ import org.apache.hadoop.fs.Path;
 import com.typesafe.config.Config;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 
 import gobblin.dataset.Dataset;
 import gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
@@ -46,7 +44,8 @@ import lombok.extern.slf4j.Slf4j;
 public class ConfigBasedCleanabledDatasetFinder extends ConfigBasedDatasetsFinder{
 
   private FileSystem fileSystem;
-  public static final String DATASET_PATH = "fullDatasetPath";
+  public static final String DATASET_PATH = ConfigurationKeys.CONFIG_BASED_PREFIX + ".fullDatasetPath";
+
   public ConfigBasedCleanabledDatasetFinder(FileSystem fs, Properties jobProps) throws IOException{
     super(fs, jobProps);
     fileSystem = fs;
@@ -64,22 +63,12 @@ public class ConfigBasedCleanabledDatasetFinder extends ConfigBasedDatasetsFinde
    */
   @Override
   public List<Dataset> findDatasets() throws IOException {
-    Collection<URI> allDatasetURIs;
-    Set<URI> disabledURIs = ImmutableSet.of();
-    try {
-      allDatasetURIs = configClient.getImportedBy(new URI(whitelistTag.toString()), true);
-      populateDisabledURIs(disabledURIs);
-    } catch ( ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
-        | URISyntaxException e) {
-      log.error("Caught error while getting all the datasets URIs " + e.getMessage());
-      throw new RuntimeException(e);
-    }
-
-    Set<URI> leafDatasets = getValidDatasetURIs(allDatasetURIs, disabledURIs, this.commonRoot);
+    Set<URI> leafDatasets = getValidDatasetURIs(this.commonRoot);
     if (leafDatasets.isEmpty()) {
       return ImmutableList.of();
     }
 
+    // Serial execution, or trigger race condition for the trash folder.
     final List<Dataset> result = new ArrayList<>();
     for (URI validURI : leafDatasets) {
       try {
@@ -90,7 +79,7 @@ public class ConfigBasedCleanabledDatasetFinder extends ConfigBasedDatasetsFinde
             new ConfigurableCleanableDataset<>(FileSystem.newInstance(new Configuration()), props, relativizedPath, c, log));
       } catch (ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException e) {
         log.error("Caught error while loading ConfigStore object from given URI");
-        throw new RuntimeException(e) ;
+        throw new RuntimeException(e);
       }
     }
 

@@ -44,7 +44,6 @@ import gobblin.config.client.api.VersionStabilityPolicy;
 import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.config.store.api.VersionDoesNotExistException;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.dataset.DatasetsFinder;
 import gobblin.util.PathUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -62,16 +61,17 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   // specify the whitelist tag in the config store used by data replication or data retention
   // the datasets which import this tag will be processed by data replication or data retention
   public static final String GOBBLIN_CONFIG_STORE_WHITELIST_TAG =
-      CopyConfiguration.COPY_PREFIX + ".whitelist.tag";
+      ConfigurationKeys.CONFIG_BASED_PREFIX + ".whitelist.tag";
 
   // specify the blacklist tags in the config store used by data replication or data retention
   // the datasets which import these tags will NOT be processed by data replication or data retention
   // and blacklist override the whitelist
   public static final String GOBBLIN_CONFIG_STORE_BLACKLIST_TAGS =
-      CopyConfiguration.COPY_PREFIX + ".blacklist.tags";
+      ConfigurationKeys.CONFIG_BASED_PREFIX + ".blacklist.tags";
 
   // specify the common root for all the datasets which will be processed by data replication/data retention
-  public static final String GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT = "dataset.common.root";
+  public static final String GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT =
+      ConfigurationKeys.CONFIG_BASED_PREFIX + ".dataset.common.root";
 
   protected final String storeRoot;
   protected final Path commonRoot;
@@ -114,8 +114,25 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
     this.props = jobProps;
   }
 
-  protected static Set<URI> getValidDatasetURIs(Collection<URI> allDatasetURIs, Set<URI> disabledURISet,
-      Path datasetCommonRoot) {
+  protected Set<URI> getValidDatasetURIs(Path datasetCommonRoot) {
+    Collection<URI> allDatasetURIs;
+    Set<URI> disabledURISet = ImmutableSet.of();
+
+    try {
+      allDatasetURIs = configClient.getImportedBy(new URI(whitelistTag.toString()), true);
+      populateDisabledURIs(disabledURISet);
+    } catch ( ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
+        | URISyntaxException e) {
+      log.error("Caught error while getting all the datasets URIs " + e.getMessage());
+      throw new RuntimeException(e);
+    }
+    return getValidDatasetURIs(allDatasetURIs, disabledURISet, datasetCommonRoot);
+  }
+
+  /**
+   * Extended signature for testing convenience.
+   */
+  protected static Set<URI> getValidDatasetURIs(Collection<URI> allDatasetURIs, Set<URI> disabledURISet, Path datasetCommonRoot){
     if (allDatasetURIs == null || allDatasetURIs.isEmpty()) {
       return ImmutableSet.of();
     }
@@ -163,7 +180,7 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
     return validURISet;
   }
 
-  protected void populateDisabledURIs(Set<URI> disabledURIs) throws
+  private void populateDisabledURIs(Set<URI> disabledURIs) throws
                                              URISyntaxException,
                                              ConfigStoreFactoryDoesNotExistsException,
                                              ConfigStoreCreationException,
