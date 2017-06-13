@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingDeque;
 
+import org.apache.avro.generic.GenericRecord;
+
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.async.AsyncRequest;
@@ -18,7 +20,7 @@ import gobblin.writer.WriteCallback;
 
 /**
  * This converter converts an input record (DI) to an output record (DO) which
- * contains original input data and http response.
+ * contains original input data and http request & response info.
  *
  * Sequence:
  * Convert DI to HttpOperation
@@ -32,7 +34,7 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
 
   protected HttpClient<RQ, RP> httpClient = null;
   protected ResponseHandler<RP> responseHandler = null;
-  protected AsyncRequestBuilder<HttpOperation, RQ> requestBuilder = null;
+  protected AsyncRequestBuilder<GenericRecord, RQ> requestBuilder = null;
 
   @Override
   public final SO convertSchema(SI inputSchema, WorkUnitState workUnit)
@@ -43,12 +45,12 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
     return convertSchemaImpl(inputSchema, workUnit);
   }
 
-  protected abstract HttpClient<RQ, RP>   createHttpClient(WorkUnitState workUnit) throws IllegalStateException;
-  protected abstract ResponseHandler<RP>  createResponseHandler(WorkUnitState workUnit) throws IllegalStateException;
-  protected abstract ConverterRequestBuilder<RQ> createRequestBuilder(WorkUnitState workUnit) throws IllegalStateException;
+  protected abstract HttpClient<RQ, RP>   createHttpClient(WorkUnitState workUnit);
+  protected abstract ResponseHandler<RP>  createResponseHandler(WorkUnitState workUnit);
+  protected abstract AsyncRequestBuilder<GenericRecord, RQ> createRequestBuilder(WorkUnitState workUnit);
   protected abstract HttpOperation generateHttpOperation (DI inputRecord, WorkUnitState state);
   protected abstract SO convertSchemaImpl (SI inputSchema, WorkUnitState workUnit) throws SchemaConversionException;
-  protected abstract DO convertResponse (SO outputSchema, DI input, RQ rawRequest, RP response, ResponseStatus status);
+  protected abstract DO convertResponse (SO outputSchema, DI input, RQ rawRequest, RP response) throws DataConversionException;
 
   @Override
   public final Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
@@ -56,53 +58,41 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
 
     // Convert DI to HttpOperation
     HttpOperation operation = generateHttpOperation(inputRecord, workUnit);
-    BufferedRecord<HttpOperation> bufferedRecord = new BufferedRecord<>(operation, WriteCallback.EMPTY);
+    BufferedRecord<GenericRecord> bufferedRecord = new BufferedRecord<>(operation, WriteCallback.EMPTY);
 
     // Convert HttpOperation to RQ
-    Queue<BufferedRecord<HttpOperation>> buffer = new LinkedBlockingDeque<>();
+    Queue<BufferedRecord<GenericRecord>> buffer = new LinkedBlockingDeque<>();
     buffer.add(bufferedRecord);
-    AsyncRequest<HttpOperation, RQ> request = this.requestBuilder.buildRequest(buffer);
+    AsyncRequest<GenericRecord, RQ> request = this.requestBuilder.buildRequest(buffer);
     RQ rawRequest = request.getRawRequest();
 
     // Execute query and get response
     RP response;
     try {
       response = httpClient.sendRequest(rawRequest);
+
+      // Combine info (DI, RQ, RP etc..) to generate output DO
+      DO output = convertResponse (outputSchema, inputRecord, rawRequest, response);
+
+      ResponseStatus status = responseHandler.handleResponse(response);
+
+      switch (status.getType()) {
+        case OK:
+          // Write succeeds
+          log.debug ("{} send successfully", rawRequest);
+          break;
+        case CLIENT_ERROR:
+          // Client error. Fail!
+          throw new DataConversionException(rawRequest + " send failed due to client error");
+        case SERVER_ERROR:
+          // Server side error. Retry
+          throw new DataConversionException(rawRequest + " send failed due to server error");
+      }
+
+      return new SingleRecordIterable<>(output);
+
     } catch (IOException e) {
-      throw new RuntimeException();
+      throw new DataConversionException(e);
     }
-
-    ResponseStatus status = responseHandler.handleResponse(response);
-
-    switch (status.getType()) {
-      case OK:
-        // Write succeeds
-        log.info ("{} send successfully", rawRequest);
-        break;
-      case CLIENT_ERROR:
-        // Client error. Fail!
-        throw new DataConversionException(rawRequest + " send failed due to client error");
-      case SERVER_ERROR:
-        // Server side error. Retry
-        throw new DataConversionException(rawRequest + " send failed due to server error");
-    }
-
-    // Combine info (DI, RQ, RP, status, etc..) to generate output DO
-    DO output = convertResponse (outputSchema, inputRecord, rawRequest, response, status);
-
-    return new SingleRecordIterable<>(output);
-  }
-
-  public static abstract class ConverterRequestBuilder<RQ> implements AsyncRequestBuilder<HttpOperation, RQ> {
-
-    @Override
-    public final AsyncRequest<HttpOperation, RQ> buildRequest(Queue<BufferedRecord<HttpOperation>> buffer) {
-      AsyncRequest<HttpOperation, RQ> request = new AsyncRequest<>();
-      RQ rawRequest = buildHttpRequest (buffer.poll());
-      request.setRawRequest(rawRequest);
-      return request;
-    }
-
-    public abstract RQ buildHttpRequest (BufferedRecord<HttpOperation> bufferedRecord);
   }
 }

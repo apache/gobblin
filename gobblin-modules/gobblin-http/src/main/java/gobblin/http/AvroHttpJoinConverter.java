@@ -1,5 +1,6 @@
 package gobblin.http;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,35 +14,36 @@ import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 
 /**
  * A type of {@link HttpJoinConverter} with AVRO as input and output format
  *
  * Input:
+ *    User provided record
  *
  * Output:
- *
+ *    User provided record plus http request & response record
  */
 @Slf4j
 public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Schema, Schema, GenericRecord, GenericRecord, RQ, RP> {
+  public static final String HTTP_REQUEST_RESPONSE = "HttpRequestResponse";
 
   @Override
   public Schema convertSchemaImpl(Schema inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
-
-    Schema httpOutputSchema = new Schema.Parser().parse(workUnit.getProp(CONF_PREFIX + "output.schema"));
-
     List<Schema.Field> fields = Lists.newArrayList();
     for (Schema.Field field : inputSchema.getFields()) {
-      Schema.Field newField = new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultVal(), field.order());
+      Schema.Field newField = new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
       fields.add(newField);
     }
 
-    Schema.Field newField = new Schema.Field("httpOutput", httpOutputSchema, "http output schema contains request url and return result", null);
-    fields.add(newField);
+    Schema.Field requestResponseField = new Schema.Field(HTTP_REQUEST_RESPONSE, HttpRequestResponseRecord.getClassSchema(), "http output schema contains request url and return result", null);
+    fields.add(requestResponseField);
 
-    Schema combinedSchema = Schema.createRecord(inputSchema.getName(), "doc", "gobblin.http", false, fields);
+    Schema combinedSchema = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc() + " (Http request and response are contained)", inputSchema.getNamespace(), false);
+    combinedSchema.setFields(fields);
     return combinedSchema;
   }
 
@@ -54,12 +56,12 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
     Iterable<String> keyItrerator = getKeys(workUnit);
     for (String key: keyItrerator) {
       String value = inputRecord.get(key).toString();
-      log.info("Http join converter: key is {}, value is {}", key, value);
+      log.debug("Http join converter: key is {}, value is {}", key, value);
       keyAndValue.put(key, value);
     }
 
     HttpOperation operation = new HttpOperation();
-    operation.put(0, keyAndValue);
+    operation.setKeys(keyAndValue);
 
     return operation;
   }
@@ -72,13 +74,13 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
 
   @Override
   public final GenericRecord convertResponse(Schema outputSchema, GenericRecord inputRecord, RQ rawRequest,
-      RP response, ResponseStatus status) {
+      RP response) throws DataConversionException {
 
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
     Schema httpOutputSchema = null;
     for (Schema.Field field : outputSchema.getFields()) {
-      if (!field.name().equals("httpOutput")) {
-        log.info ("copy... " + field.name());
+      if (!field.name().equals(HTTP_REQUEST_RESPONSE)) {
+        log.debug ("copy... " + field.name());
         Object inputValue = inputRecord.get(field.name());
         outputRecord.put(field.name(), inputValue);
       } else {
@@ -86,10 +88,14 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
       }
     }
 
-    fillHttpOutputData (httpOutputSchema, outputRecord, rawRequest, response, status);
+    try {
+      fillHttpOutputData (httpOutputSchema, outputRecord, rawRequest, response);
+    } catch (IOException e) {
+      throw new DataConversionException(e);
+    }
     return outputRecord;
   }
 
-  public abstract void fillHttpOutputData (Schema httpOutputSchema, GenericRecord outputRecord, RQ rawRequest,
-      RP response, ResponseStatus status);
+  protected abstract void fillHttpOutputData (Schema httpOutputSchema, GenericRecord outputRecord, RQ rawRequest,
+      RP response) throws IOException;
 }
