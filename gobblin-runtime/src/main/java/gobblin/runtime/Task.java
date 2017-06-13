@@ -24,11 +24,9 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
@@ -39,15 +37,11 @@ import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.Futures;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import io.reactivex.flowables.ConnectableFlowable;
-import io.reactivex.schedulers.Schedulers;
 import lombok.NoArgsConstructor;
 
 import gobblin.Constructs;
@@ -60,7 +54,6 @@ import gobblin.fork.CopyHelper;
 import gobblin.fork.CopyNotSupportedException;
 import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
-import gobblin.fork.Forker;
 import gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
 import gobblin.metrics.MetricContext;
@@ -70,7 +63,6 @@ import gobblin.publisher.DataPublisher;
 import gobblin.publisher.SingleTaskDataPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.records.RecordStreamWithMetadata;
 import gobblin.runtime.fork.AsynchronousFork;
 import gobblin.runtime.fork.Fork;
 import gobblin.runtime.fork.SynchronousFork;
@@ -82,7 +74,6 @@ import gobblin.source.extractor.RecordEnvelope;
 import gobblin.source.extractor.StreamingExtractor;
 import gobblin.state.ConstructState;
 import gobblin.util.ConfigUtils;
-import gobblin.util.ExponentialBackoff;
 import gobblin.writer.AcknowledgableWatermark;
 import gobblin.writer.DataWriter;
 import gobblin.writer.FineGrainedWatermarkTracker;
@@ -256,12 +247,12 @@ public class Task implements TaskIFace {
     }
   }
 
-  private boolean areSingleBranchTasksSynchronous(TaskContext taskContext) {
+  protected boolean areSingleBranchTasksSynchronous(TaskContext taskContext) {
     return BooleanUtils.toBoolean(taskContext.getTaskState()
             .getProp(TaskConfigurationKeys.TASK_IS_SINGLE_BRANCH_SYNCHRONOUS, TaskConfigurationKeys.DEFAULT_TASK_IS_SINGLE_BRANCH_SYNCHRONOUS));
   }
 
-  private boolean isStreamingTask() {
+  protected boolean isStreamingTask() {
     return this.taskMode.equals(ExecutionModel.STREAMING);
   }
 
@@ -321,7 +312,9 @@ public class Task implements TaskIFace {
         LOG.warn("Synchronous task execution model is deprecated. Please consider using stream model.");
         runSynchronousModel();
       } else {
-        runStreamModel();
+        new StreamModelTaskRunner(this, this.taskState, this.closer, this.taskContext, this.extractor,
+            this.converter, this.rowChecker, this.taskExecutor, this.taskMode, this.shutdownRequested,
+            this.watermarkTracker, this.watermarkManager, this.watermarkStorage, this.forks, this.watermarkingStrategy).run();
       }
 
       LOG.info("Extracted " + this.recordsPulled + " data records");
@@ -348,74 +341,6 @@ public class Task implements TaskIFace {
       completeShutdown();
     }
   }
-
-  private void runStreamModel() throws Exception {
-    // Get the fork operator. By default IdentityForkOperator is used with a single branch.
-    ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
-
-    RecordStreamWithMetadata<?, ?> stream = this.extractor.recordStream(this.shutdownRequested);
-    ConnectableFlowable connectableStream = stream.getRecordStream().publish();
-    stream = stream.withRecordStream(connectableStream);
-
-    stream = stream.mapStream(s -> s.map(r -> {
-      onRecordExtract();
-      return r;
-    }));
-    if (isStreamingTask()) {
-
-      // Start watermark manager and tracker
-      if (this.watermarkTracker.isPresent()) {
-        this.watermarkTracker.get().start();
-      }
-      this.watermarkManager.get().start();
-
-      ((StreamingExtractor) this.taskContext.getRawSourceExtractor()).start(this.watermarkStorage.get());
-
-      stream = stream.mapStream(s -> s.map(r -> {
-        AcknowledgableWatermark ackableWatermark = new AcknowledgableWatermark(r.getWatermark());
-        if (watermarkTracker.isPresent()) {
-          watermarkTracker.get().track(ackableWatermark);
-        }
-        return r.withAckableWatermark(ackableWatermark);
-      }));
-    }
-    if (this.converter instanceof MultiConverter) {
-      // if multiconverter, unpack it
-      for (Converter cverter : ((MultiConverter) this.converter).getConverters()) {
-        stream = cverter.processStream(stream, this.taskState);
-      }
-    } else {
-      stream = this.converter.processStream(stream, this.taskState);
-    }
-    stream = this.rowChecker.processStream(stream, this.taskState);
-
-    Forker.ForkedStream<?, ?> forkedStreams = new Forker().forkStream(stream, forkOperator, this.taskState);
-
-    boolean isForkAsync = !areSingleBranchTasksSynchronous(this.taskContext) || forkedStreams.getForkedStreams().size() > 1;
-    int bufferSize =
-        this.taskState.getPropAsInt(ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY, ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY);
-
-    for (int fidx = 0; fidx < forkedStreams.getForkedStreams().size(); fidx ++) {
-      RecordStreamWithMetadata<?, ?> forkedStream = forkedStreams.getForkedStreams().get(fidx);
-      if (forkedStream != null) {
-        if (isForkAsync) {
-          forkedStream = forkedStream.mapStream(f -> f.observeOn(Schedulers.from(this.taskExecutor.getForkExecutor()), false, bufferSize));
-        }
-        Fork fork = new Fork(this.taskContext, forkedStream.getSchema(), forkedStreams.getForkedStreams().size(), fidx, this.taskMode);
-        fork.consumeRecordStream(forkedStream);
-        this.forks.put(Optional.of(fork), Optional.of(Futures.immediateFuture(null)));
-        configureStreamingFork(fork, this.watermarkingStrategy);
-      }
-    }
-
-    connectableStream.connect();
-
-    if (!ExponentialBackoff.awaitCondition().callable(() -> this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isDone)).
-        initialDelay(1000L).maxDelay(1000L).maxWait(TimeUnit.MINUTES.toMillis(60)).await()) {
-      throw new TimeoutException("Forks did not finish withing specified timeout.");
-    }
-  }
-
 
   @Deprecated
   private void runSynchronousModel() throws Exception {
@@ -526,7 +451,7 @@ public class Task implements TaskIFace {
     }
   }
 
-  private void configureStreamingFork(Fork fork, String watermarkingStrategy) throws IOException {
+  protected void configureStreamingFork(Fork fork, String watermarkingStrategy) throws IOException {
     if (isStreamingTask()) {
       DataWriter forkWriter = fork.getWriter();
       if (forkWriter instanceof WatermarkAwareWriter) {
@@ -542,7 +467,7 @@ public class Task implements TaskIFace {
     }
   }
 
-  private void onRecordExtract() {
+  protected void onRecordExtract() {
     this.recordsPulled.incrementAndGet();
     this.lastRecordPulledTimestampMillis = System.currentTimeMillis();
   }
