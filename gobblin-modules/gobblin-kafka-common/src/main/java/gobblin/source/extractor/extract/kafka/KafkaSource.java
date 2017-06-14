@@ -17,12 +17,8 @@
 
 package gobblin.source.extractor.extract.kafka;
 
-import gobblin.source.extractor.limiter.LimiterConfigurationKeys;
-import gobblin.source.workunit.MultiWorkUnit;
-
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,17 +28,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
-import java.util.stream.Collectors;
-
-import lombok.Getter;
-import lombok.Setter;
-
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -60,7 +50,9 @@ import gobblin.kafka.client.GobblinKafkaConsumerClient;
 import gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory;
 import gobblin.source.extractor.extract.EventBasedSource;
 import gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
+import gobblin.source.extractor.limiter.LimiterConfigurationKeys;
 import gobblin.source.workunit.Extract;
+import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
@@ -68,7 +60,11 @@ import gobblin.util.DatasetFilterUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.dataset.DatasetUtils;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
 
 /**
@@ -164,7 +160,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           .newInstance().create(ConfigUtils.propertiesToConfig(state.getProperties()));
 
       List<KafkaTopic> topics = getFilteredTopics(state);
-      this.topicsToProcess = new HashSet<>(topics.stream().map(KafkaTopic::getName).collect(toList()));
+      this.topicsToProcess = topics.stream().map(KafkaTopic::getName).collect(toSet());
 
       for (String topic : this.topicsToProcess) {
         LOG.info("Discovered topic " + topic);
