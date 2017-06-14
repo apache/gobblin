@@ -94,4 +94,8 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
       throw new DataConversionException(e);
     }
   }
+
+  public void close() throws IOException {
+    this.httpClient.close();
+  }
 }
