@@ -100,6 +100,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       "gobblin.kafka.extract.allowTableTypeAndNamspaceCustomization";
   public static final String DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS =
       "gobblin.kafka.client.Kafka08ConsumerClient$Factory";
+  public static final String GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE =
+      "gobblin.kafka.shouldEnableDatasetStateStore";
+  public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -118,6 +121,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private Extract.TableType tableType;
   private String extractNameSpace;
   private boolean isFullExtract;
+  private boolean shouldEnableDatasetStateStore;
   private boolean isDatasetStateEnabled;
   private Set<String> topicsToProcess;
 
@@ -153,7 +157,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       extractNameSpace = KafkaSource.DEFAULT_NAMESPACE_NAME;
     }
     isFullExtract = state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY);
-
+    this.shouldEnableDatasetStateStore = state.getPropAsBoolean(GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE,
+        DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE);
     try {
       this.kafkaConsumerClient = kafkaConsumerClientResolver.resolveClass(state
           .getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS, DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS))
@@ -228,7 +233,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     } else if (!workUnit.contains(TOPIC_NAME)) {
       return;
     } else {
-      workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, workUnit.getProp(TOPIC_NAME));
+      addDatasetUrnOptionally(workUnit);
       if (topicSpecificStateMap == null) {
         return;
       } else if (!topicSpecificStateMap.containsKey(workUnit.getProp(TOPIC_NAME))) {
@@ -237,6 +242,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         workUnit.addAll(topicSpecificStateMap.get(workUnit.getProp(TOPIC_NAME)));
       }
     }
+  }
+
+  private void addDatasetUrnOptionally(WorkUnit workUnit) {
+    if (!this.shouldEnableDatasetStateStore) {
+      return;
+    }
+    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, workUnit.getProp(TOPIC_NAME));
   }
 
   private void createEmptyWorkUnitsForSkippedPartitions(Map<String, List<WorkUnit>> workUnits,
@@ -474,7 +486,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       workUnit.addAll(topicSpecificState.get());
     }
     workUnit.setProp(TOPIC_NAME, partition.getTopicName());
-    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, partition.getTopicName());
+    addDatasetUrnOptionally(workUnit);
     workUnit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partition.getTopicName());
     workUnit.setProp(PARTITION_ID, partition.getId());
     workUnit.setProp(LEADER_ID, partition.getLeader().getId());
