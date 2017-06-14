@@ -19,20 +19,16 @@ package gobblin.r2;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.SettableFuture;
-import com.linkedin.common.callback.Callback;
-import com.linkedin.common.util.None;
 import com.linkedin.d2.balancer.*;
 import com.linkedin.r2.transport.common.Client;
-import com.linkedin.r2.transport.common.TransportClientFactory;
 import com.linkedin.r2.transport.common.bridge.client.TransportClient;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
+import com.typesafe.config.ConfigFactory;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -45,7 +41,13 @@ import gobblin.security.ssl.SSLContextFactory;
  */
 public class R2ClientFactory {
   public static final String SSL_ENABLED = "ssl";
-  public static final String ZOOKEEPER_HOSTS = "zkHosts";
+  private static final String ZOOKEEPER_HOSTS = "zkHosts";
+
+  private static final Config FALLBACK =
+      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put(SSL_ENABLED, false)
+          .put("d2.ssl", false)
+          .build());
 
   public enum Schema {
     HTTP,
@@ -86,14 +88,15 @@ public class R2ClientFactory {
    * @return an instance of {@link Client}
    */
   public Client createInstance(Config srcConfig) {
+    Config config = srcConfig.withFallback(FALLBACK);
     switch (schema) {
       case HTTP:
-        return createHttpClient(srcConfig);
+        return createHttpClient(config);
       case D2:
         String confPrefix = schema.name().toLowerCase();
-        if (srcConfig.hasPath(confPrefix)) {
-          Config config = srcConfig.getConfig(confPrefix);
-          return createD2Client(config);
+        if (config.hasPath(confPrefix)) {
+          Config d2Config = config.getConfig(confPrefix);
+          return createD2Client(d2Config);
         } else {
           throw new ConfigException.Missing(confPrefix);
         }
@@ -127,9 +130,6 @@ public class R2ClientFactory {
 
     D2ClientBuilder d2Builder = new D2ClientBuilder().setZkHosts(zkhosts);
 
-    Map<String, TransportClientFactory> clientFactories = createTransportClientFactories();
-    d2Builder.setClientFactories(clientFactories);
-
     boolean isSSLEnabled = config.getBoolean(SSL_ENABLED);
     if (isSSLEnabled) {
       d2Builder.setIsSSLEnabled(true);
@@ -138,35 +138,6 @@ public class R2ClientFactory {
       d2Builder.setSSLParameters(sslContext.getDefaultSSLParameters());
     }
 
-    com.linkedin.d2.balancer.D2Client d2 = d2Builder.build();
-
-    final SettableFuture<None> d2ClientFuture = SettableFuture.create();
-    d2.start(new Callback<None>() {
-      @Override
-      public void onError(Throwable e) {
-        d2ClientFuture.setException(e);
-      }
-      @Override
-      public void onSuccess(None none) {
-        d2ClientFuture.set(none);
-      }
-    });
-
-    try {
-      // Synchronously wait for d2 to start
-      d2ClientFuture.get();
-    } catch (InterruptedException | ExecutionException e) {
-      throw new RuntimeException(e);
-    }
-
-    return new D2ClientProxy(d2, clientFactories.values());
-  }
-
-  private static Map<String, TransportClientFactory> createTransportClientFactories() {
-    return ImmutableMap.<String, TransportClientFactory>builder()
-        .put("http", new HttpClientFactory())
-        //It won't route to SSL port without this.
-        .put("https", new HttpClientFactory())
-        .build();
+    return new D2ClientProxy(d2Builder, isSSLEnabled);
   }
 }

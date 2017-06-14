@@ -26,7 +26,6 @@ import java.security.KeyStore;
 import org.apache.commons.io.FileUtils;
 
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigException;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -63,7 +62,7 @@ public class SSLContextFactory {
   public static SSLContext createInstance(File keyStoreFile, String keyStorePassword, String keyStoreType, File trustStoreFile,
       String trustStorePassword) {
     if (!keyStoreType.equalsIgnoreCase(P12_STORE_TYPE_NAME) && !keyStoreType.equalsIgnoreCase(JKS_STORE_TYPE_NAME)) {
-      throw new RuntimeException("Unsupported keyStoreType: " + keyStoreType);
+      throw new IllegalArgumentException("Unsupported keyStoreType: " + keyStoreType);
     }
 
     try {
@@ -109,16 +108,9 @@ public class SSLContextFactory {
    * @return an instance of {@link SSLContext}
    */
   public static SSLContext createInstance(Config srcConfig) {
+    // srcConfig.getString() will throw ConfigException if any key is missing
     String keyStoreFilePath = srcConfig.getString(KEY_STORE_FILE_PATH);
     String trustStoreFilePath = srcConfig.getString(TRUST_STORE_FILE_PATH);
-
-    if (keyStoreFilePath == null || keyStoreFilePath.length() == 0) {
-      throw new ConfigException.Missing(KEY_STORE_FILE_PATH);
-    }
-    if (trustStoreFilePath == null || trustStoreFilePath.length() == 0) {
-      throw new ConfigException.Missing(TRUST_STORE_FILE_PATH);
-    }
-
     PasswordManager passwdMgr = PasswordManager.getInstance(ConfigUtils.configToState(srcConfig));
     String keyStorePassword = passwdMgr.readPassword(srcConfig.getString(KEY_STORE_PASSWORD));
     String trustStorePassword = passwdMgr.readPassword(srcConfig.getString(TRUST_STORE_PASSWORD));

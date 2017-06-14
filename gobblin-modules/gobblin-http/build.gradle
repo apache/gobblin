@@ -41,6 +41,8 @@ dependencies {
   compile externalDependency.pegasus.d2
   compile externalDependency.pegasus.restliCommon
 
+  testCompile externalDependency.curatorClient
+  testCompile externalDependency.curatorTest
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
 }
