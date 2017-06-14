@@ -33,7 +33,7 @@ import gobblin.utils.HttpUtils;
  */
 @Slf4j
 public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Schema, Schema, GenericRecord, GenericRecord, RQ, RP> {
-  public static final String HTTP_REQUEST_RESPONSE = "HttpRequestResponse";
+  public static final String HTTP_REQUEST_RESPONSE_FIELD = "HttpRequestResponse";
 
   @Override
   public Schema convertSchemaImpl(Schema inputSchema, WorkUnitState workUnitState)
@@ -44,7 +44,7 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
       fields.add(newField);
     }
 
-    Schema.Field requestResponseField = new Schema.Field(HTTP_REQUEST_RESPONSE, HttpRequestResponseRecord.getClassSchema(), "http output schema contains request url and return result", null);
+    Schema.Field requestResponseField = new Schema.Field(HTTP_REQUEST_RESPONSE_FIELD, HttpRequestResponseRecord.getClassSchema(), "http output schema contains request url and return result", null);
     fields.add(requestResponseField);
 
     Schema combinedSchema = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc() + " (Http request and response are contained)", inputSchema.getNamespace(), false);
@@ -91,7 +91,7 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
     Schema httpOutputSchema = null;
     for (Schema.Field field : outputSchema.getFields()) {
-      if (!field.name().equals(HTTP_REQUEST_RESPONSE)) {
+      if (!field.name().equals(HTTP_REQUEST_RESPONSE_FIELD)) {
         log.debug ("copy... " + field.name());
         Object inputValue = inputRecord.get(field.name());
         outputRecord.put(field.name(), inputValue);

@@ -60,6 +60,6 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
     record.setStatusCode(status.getStatusCode());
     record.setContentType(status.getContentType());
     record.setBody(ByteBuffer.wrap(status.getContent()));
-    outputRecord.put(HTTP_REQUEST_RESPONSE, record);
+    outputRecord.put(HTTP_REQUEST_RESPONSE_FIELD, record);
   }
 }
