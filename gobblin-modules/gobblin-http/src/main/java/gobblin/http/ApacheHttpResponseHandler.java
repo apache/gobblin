@@ -17,25 +17,28 @@ import lombok.extern.slf4j.Slf4j;
  * </p>
  */
 @Slf4j
-public class ApacheHttpResponseHandler implements HttpResponseHandler<CloseableHttpResponse> {
+public class ApacheHttpResponseHandler implements ResponseHandler<CloseableHttpResponse> {
 
   @Override
-  public HttpResponseStatus handleResponse(CloseableHttpResponse response) {
-    HttpResponseStatus status = new HttpResponseStatus(StatusType.OK);
+  public ApacheHttpResponseStatus handleResponse(CloseableHttpResponse response) {
+    ApacheHttpResponseStatus status = new ApacheHttpResponseStatus(StatusType.OK);
     int statusCode = response.getStatusLine().getStatusCode();
-
     status.setStatusCode(statusCode);
-    status.setContent(getEntityAsByteArray(response.getEntity()));
-    status.setContentType(response.getEntity().getContentType().getValue());
+
+    if (statusCode >= 300 & statusCode < 500) {
+      status.setType(StatusType.CLIENT_ERROR);
+    } else if (statusCode >= 500) {
+      status.setType(StatusType.SERVER_ERROR);
+    }
+
+    if (status.getType() == StatusType.OK) {
+      status.setContent(getEntityAsByteArray(response.getEntity()));
+      status.setContentType(response.getEntity().getContentType().getValue());
+    }
 
     HttpEntity entity = response.getEntity();
     if (entity != null) {
       consumeEntity(entity);
-    }
-    if (statusCode > 300 & statusCode < 500) {
-      status.setType(StatusType.CLIENT_ERROR);
-    } else if (statusCode >= 500) {
-      status.setType(StatusType.SERVER_ERROR);
     }
 
     return status;

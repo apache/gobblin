@@ -6,6 +6,10 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.avro.generic.GenericRecord;
 
+import com.google.common.collect.ImmutableMap;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.async.AsyncRequest;
@@ -15,8 +19,9 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.http.HttpClient;
 import gobblin.http.HttpOperation;
-import gobblin.http.HttpResponseHandler;
-import gobblin.http.HttpResponseStatus;
+import gobblin.http.ResponseHandler;
+import gobblin.http.ResponseStatus;
+import gobblin.utils.HttpConstants;
 import gobblin.writer.WriteCallback;
 
 /**
@@ -33,8 +38,14 @@ import gobblin.writer.WriteCallback;
 public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converter<SI, SO, DI, DO> {
   public static final String CONF_PREFIX = "gobblin.converter.http.";
 
+  public static final Config DEFAULT_FALLBACK =
+      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put(HttpConstants.CONTENT_TYPE, "application/json")
+          .put(HttpConstants.VERB, "GET")
+          .build());
+
   protected HttpClient<RQ, RP> httpClient = null;
-  protected HttpResponseHandler<RP> responseHandler = null;
+  protected ResponseHandler<RP> responseHandler = null;
   protected AsyncRequestBuilder<GenericRecord, RQ> requestBuilder = null;
 
   @Override
@@ -47,11 +58,11 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
   }
 
   protected abstract HttpClient<RQ, RP>   createHttpClient(WorkUnitState workUnitState);
-  protected abstract HttpResponseHandler<RP>  createResponseHandler(WorkUnitState workUnitState);
+  protected abstract ResponseHandler<RP> createResponseHandler(WorkUnitState workUnitState);
   protected abstract AsyncRequestBuilder<GenericRecord, RQ> createRequestBuilder(WorkUnitState workUnitState);
   protected abstract HttpOperation generateHttpOperation (DI inputRecord, State state);
   protected abstract SO convertSchemaImpl (SI inputSchema, WorkUnitState workUnitState) throws SchemaConversionException;
-  protected abstract DO convertRecordImpl (SO outputSchema, DI input, RQ rawRequest, HttpResponseStatus status) throws DataConversionException;
+  protected abstract DO convertRecordImpl (SO outputSchema, DI input, RQ rawRequest, ResponseStatus status) throws DataConversionException;
 
   @Override
   public final Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnitState)
@@ -72,18 +83,16 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
     try {
       RP response = httpClient.sendRequest(rawRequest);
 
-      HttpResponseStatus status = responseHandler.handleResponse(response);
+      ResponseStatus status = responseHandler.handleResponse(response);
+
 
       switch (status.getType()) {
         case OK:
-          // Write succeeds
-          log.debug ("{} send successfully", rawRequest);
+        case CLIENT_ERROR:
           // Convert (DI, RQ, RP etc..) to output DO
+          log.debug ("{} send with status type {}", rawRequest, status.getType());
           DO output = convertRecordImpl (outputSchema, inputRecord, rawRequest, status);
           return new SingleRecordIterable<>(output);
-        case CLIENT_ERROR:
-          // Client error. Fail!
-          throw new DataConversionException(rawRequest + " send failed due to client error");
         case SERVER_ERROR:
           // Server side error. Retry
           throw new DataConversionException(rawRequest + " send failed due to server error");

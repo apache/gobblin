@@ -15,11 +15,11 @@ import gobblin.config.ConfigBuilder;
 import gobblin.configuration.WorkUnitState;
 import gobblin.http.ApacheHttpClient;
 import gobblin.http.ApacheHttpResponseHandler;
+import gobblin.http.ApacheHttpResponseStatus;
 import gobblin.http.HttpClient;
 import gobblin.http.HttpRequestBuilder;
 import gobblin.http.HttpRequestResponseRecord;
-import gobblin.http.HttpResponseHandler;
-import gobblin.http.HttpResponseStatus;
+import gobblin.http.ResponseStatus;
 import gobblin.utils.HttpConstants;
 
 /**
@@ -34,7 +34,7 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
   }
 
   @Override
-  public HttpResponseHandler<CloseableHttpResponse> createResponseHandler(WorkUnitState workUnit) {
+  public ApacheHttpResponseHandler createResponseHandler(WorkUnitState workUnit) {
     return new ApacheHttpResponseHandler();
   }
 
@@ -42,6 +42,7 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
   protected HttpRequestBuilder createRequestBuilder(WorkUnitState workUnitState) {
 
     Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
+    config.withFallback(DEFAULT_FALLBACK);
     String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);
@@ -50,16 +51,17 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
   }
 
   @Override
-  public void fillHttpOutputData(Schema httpOutputSchema, GenericRecord outputRecord, HttpUriRequest rawRequest,
-      HttpResponseStatus status) throws IOException {
+  protected void fillHttpOutputData(Schema httpOutputSchema, GenericRecord outputRecord, HttpUriRequest rawRequest,
+      ResponseStatus status) throws IOException {
 
+    ApacheHttpResponseStatus apacheStatus = (ApacheHttpResponseStatus) status;
     HttpRequestResponseRecord record = new HttpRequestResponseRecord();
 
     record.setRequestUrl(rawRequest.getURI().toASCIIString());
     record.setMethod(rawRequest.getMethod());
-    record.setStatusCode(status.getStatusCode());
-    record.setContentType(status.getContentType());
-    record.setBody(ByteBuffer.wrap(status.getContent()));
+    record.setStatusCode(apacheStatus.getStatusCode());
+    record.setContentType(apacheStatus.getContentType());
+    record.setBody(apacheStatus.getContent() == null? null: ByteBuffer.wrap(apacheStatus.getContent()));
     outputRecord.put(HTTP_REQUEST_RESPONSE_FIELD, record);
   }
 }

@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import gobblin.http.ApacheHttpClient;
 import gobblin.http.ApacheHttpResponseHandler;
 import gobblin.http.HttpRequestBuilder;
-import gobblin.http.HttpResponseHandler;
 import gobblin.utils.HttpConstants;
 
 

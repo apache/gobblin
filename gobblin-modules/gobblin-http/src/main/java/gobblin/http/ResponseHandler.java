@@ -22,6 +22,6 @@ package gobblin.http;
  *
  * @param <RP> type of response
  */
-public interface HttpResponseHandler<RP> {
-  HttpResponseStatus handleResponse(RP response);
+public interface ResponseHandler<RP> {
+  ResponseStatus handleResponse(RP response);
 }

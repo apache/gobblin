@@ -27,8 +27,8 @@ import gobblin.broker.SimpleScopeType;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.configuration.WorkUnitState;
 import gobblin.http.HttpClient;
-import gobblin.http.HttpResponseHandler;
-import gobblin.http.HttpResponseStatus;
+import gobblin.http.ResponseHandler;
+import gobblin.http.ResponseStatus;
 import gobblin.http.StatusType;
 import gobblin.http.ThrottledHttpClient;
 import gobblin.util.limiter.RateBasedLimiter;
@@ -261,20 +261,20 @@ public class AsyncHttpWriterTest {
     }
   }
 
-  class MockResponseHandler implements HttpResponseHandler<CloseableHttpResponse> {
+  class MockResponseHandler implements ResponseHandler<CloseableHttpResponse> {
     volatile StatusType type = StatusType.OK;
     int attempts = 0;
 
     @Override
-    public HttpResponseStatus handleResponse(CloseableHttpResponse response) {
+    public ResponseStatus handleResponse(CloseableHttpResponse response) {
       attempts++;
       switch (type) {
         case OK:
-          return new HttpResponseStatus(StatusType.OK);
+          return new ResponseStatus(StatusType.OK);
         case CLIENT_ERROR:
-          return new HttpResponseStatus(StatusType.CLIENT_ERROR);
+          return new ResponseStatus(StatusType.CLIENT_ERROR);
         case SERVER_ERROR:
-          return new HttpResponseStatus(StatusType.SERVER_ERROR);
+          return new ResponseStatus(StatusType.SERVER_ERROR);
       }
       return null;
     }

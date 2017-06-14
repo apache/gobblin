@@ -10,7 +10,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 
-import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +17,7 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.http.HttpOperation;
 import gobblin.http.HttpRequestResponseRecord;
-import gobblin.http.HttpResponseStatus;
+import gobblin.http.ResponseStatus;
 import gobblin.utils.HttpUtils;
 
 
@@ -58,7 +57,7 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
    * If keys are not defined, generate HttpOperation by HttpUtils.toHttpOperation
    */
   @Override
-  public HttpOperation generateHttpOperation (GenericRecord inputRecord, State state) {
+  protected HttpOperation generateHttpOperation (GenericRecord inputRecord, State state) {
     Map<String, String> keyAndValue = new HashMap<>();
     Optional<Iterable<String>> keys = getKeys(state);
     HttpOperation operation;
@@ -81,18 +80,18 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
     if (!state.contains(CONF_PREFIX + "keys")) {
       return Optional.empty();
     }
-    String keys = state.getProp(CONF_PREFIX + "keys");
-    return Optional.of(Splitter.on(",").omitEmptyStrings().trimResults().split(keys));
+    Iterable<String> keys = state.getPropAsList(CONF_PREFIX + "keys");
+    return Optional.ofNullable(keys);
   }
 
   @Override
-  public final GenericRecord convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, RQ rawRequest, HttpResponseStatus status) throws DataConversionException {
+  public final GenericRecord convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, RQ rawRequest, ResponseStatus status) throws DataConversionException {
 
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
     Schema httpOutputSchema = null;
     for (Schema.Field field : outputSchema.getFields()) {
       if (!field.name().equals(HTTP_REQUEST_RESPONSE_FIELD)) {
-        log.debug ("copy... " + field.name());
+        log.debug ("Copy {}", field.name());
         Object inputValue = inputRecord.get(field.name());
         outputRecord.put(field.name(), inputValue);
       } else {
@@ -109,5 +108,5 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
   }
 
   protected abstract void fillHttpOutputData (Schema httpOutputSchema, GenericRecord outputRecord, RQ rawRequest,
-      HttpResponseStatus status) throws IOException;
+      ResponseStatus status) throws IOException;
 }
