@@ -37,7 +37,8 @@ public class PublicMethodsCliObjectFactoryTest {
       // Try to build object with missing expected argument.
       object = factory.buildObject(new String[]{}, 0, false, "usage");
       Assert.fail();
-    } catch (ArrayIndexOutOfBoundsException exc) {
+    } catch (IOException exc) {
+      Assert.assertTrue(exc.getCause() instanceof ArrayIndexOutOfBoundsException);
       // Expected
     }
 
