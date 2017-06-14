@@ -12,6 +12,7 @@ import com.typesafe.config.ConfigFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.http.ApacheHttpClient;
+import gobblin.http.ApacheHttpResponseHandler;
 import gobblin.http.HttpRequestBuilder;
 import gobblin.http.HttpResponseHandler;
 import gobblin.utils.HttpConstants;
@@ -35,7 +36,7 @@ public class AvroHttpWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord,
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);
     this.asyncRequestBuilder = new HttpRequestBuilder(urlTemplate, verb, contentType);
-    this.responseHandler = new HttpResponseHandler();
+    this.responseHandler = new ApacheHttpResponseHandler();
     return this;
   }
 }

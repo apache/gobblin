@@ -8,19 +8,18 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
 
 import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 import gobblin.config.ConfigBuilder;
 import gobblin.configuration.WorkUnitState;
-import gobblin.converter.AvroHttpJoinConverter;
 import gobblin.http.ApacheHttpClient;
+import gobblin.http.ApacheHttpResponseHandler;
 import gobblin.http.HttpClient;
 import gobblin.http.HttpRequestBuilder;
 import gobblin.http.HttpRequestResponseRecord;
 import gobblin.http.HttpResponseHandler;
-import gobblin.http.ResponseHandler;
+import gobblin.http.HttpResponseStatus;
 import gobblin.utils.HttpConstants;
 
 /**
@@ -35,8 +34,8 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
   }
 
   @Override
-  public ResponseHandler<CloseableHttpResponse> createResponseHandler(WorkUnitState workUnit) {
-    return new HttpResponseHandler();
+  public HttpResponseHandler<CloseableHttpResponse> createResponseHandler(WorkUnitState workUnit) {
+    return new ApacheHttpResponseHandler();
   }
 
   @Override
@@ -52,15 +51,15 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
 
   @Override
   public void fillHttpOutputData(Schema httpOutputSchema, GenericRecord outputRecord, HttpUriRequest rawRequest,
-      CloseableHttpResponse response) throws IOException {
+      HttpResponseStatus status) throws IOException {
 
     HttpRequestResponseRecord record = new HttpRequestResponseRecord();
 
     record.setRequestUrl(rawRequest.getURI().toASCIIString());
     record.setMethod(rawRequest.getMethod());
-    record.setStatusCode(response.getStatusLine().getStatusCode());
-    record.setContentType(response.getEntity().getContentType().getValue());
-    record.setBody(ByteBuffer.wrap(EntityUtils.toByteArray(response.getEntity())));
+    record.setStatusCode(status.getStatusCode());
+    record.setContentType(status.getContentType());
+    record.setBody(ByteBuffer.wrap(status.getContent()));
     outputRecord.put(HTTP_REQUEST_RESPONSE, record);
   }
 }

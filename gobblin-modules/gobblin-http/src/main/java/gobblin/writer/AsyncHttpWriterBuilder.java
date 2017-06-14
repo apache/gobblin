@@ -32,7 +32,7 @@ import gobblin.config.ConfigBuilder;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.http.HttpClient;
-import gobblin.http.ResponseHandler;
+import gobblin.http.HttpResponseHandler;
 import gobblin.util.ConfigUtils;
 
 
@@ -54,7 +54,7 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
   @Getter
   protected AsyncRequestBuilder<D, RQ> asyncRequestBuilder = null;
   @Getter
-  protected ResponseHandler<RP> responseHandler = null;
+  protected HttpResponseHandler<RP> responseHandler = null;
   @Getter
   protected int queueCapacity = AbstractAsyncDataWriter.DEFAULT_BUFFER_CAPACITY;
   @Getter

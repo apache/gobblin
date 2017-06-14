@@ -1,48 +1,27 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.http;
 
-import java.io.IOException;
-
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-
 /**
- * Basic logic to handle a {@link CloseableHttpResponse} from a http service
+ * An interface to handle a response
  *
- * <p>
- *   A more specific handler understands the content inside the response and is able to customize
- *   the behavior as needed. For example: parsing the entity from a get response, extracting data
- *   sent from the service for a post response, executing more detailed status code handling, etc.
- * </p>
+ * @param <RP> type of response
  */
-public class HttpResponseHandler implements ResponseHandler<CloseableHttpResponse> {
-  private static final Logger LOG = LoggerFactory.getLogger(HttpResponseHandler.class);
-
-  @Override
-  public ResponseStatus handleResponse(CloseableHttpResponse response) {
-    ResponseStatus status = new ResponseStatus(StatusType.OK);
-    int statusCode = response.getStatusLine().getStatusCode();
-    HttpEntity entity = response.getEntity();
-    if (entity != null) {
-      processEntity(entity);
-    }
-    if (statusCode > 300 & statusCode < 500) {
-      status.setType(StatusType.CLIENT_ERROR);
-    } else if (statusCode >= 500) {
-      status.setType(StatusType.SERVER_ERROR);
-    }
-
-    return status;
-  }
-
-  protected void processEntity(HttpEntity entity) {
-    try {
-      EntityUtils.consume(entity);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
+public interface HttpResponseHandler<RP> {
+  HttpResponseStatus handleResponse(RP response);
 }

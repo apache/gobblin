@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -13,12 +14,12 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.HttpJoinConverter;
-import gobblin.converter.SchemaConversionException;
 import gobblin.http.HttpOperation;
 import gobblin.http.HttpRequestResponseRecord;
+import gobblin.http.HttpResponseStatus;
+import gobblin.utils.HttpUtils;
 
 
 /**
@@ -52,33 +53,40 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
   }
 
   /**
-   *  Properties "gobblin.converter.http.keys" should be defined in the workUnit
+   * Extract user defined keys by looking at "gobblin.converter.http.keys"
+   * If keys are defined, extract key-value pair from inputRecord and set it to HttpOperation
+   * If keys are not defined, generate HttpOperation by HttpUtils.toHttpOperation
    */
   @Override
-  public HttpOperation generateHttpOperation (GenericRecord inputRecord, WorkUnitState workUnitState) {
+  public HttpOperation generateHttpOperation (GenericRecord inputRecord, State state) {
     Map<String, String> keyAndValue = new HashMap<>();
-    Iterable<String> keyItrerator = getKeys(workUnitState);
-    for (String key: keyItrerator) {
-      String value = inputRecord.get(key).toString();
-      log.debug("Http join converter: key is {}, value is {}", key, value);
-      keyAndValue.put(key, value);
+    Optional<Iterable<String>> keys = getKeys(state);
+    HttpOperation operation;
+
+    if (keys.isPresent()) {
+      for (String key : keys.get()) {
+        String value = inputRecord.get(key).toString();
+        log.debug("Http join converter: key is {}, value is {}", key, value);
+        keyAndValue.put(key, value);
+      }
+      operation = new HttpOperation();
+      operation.setKeys(keyAndValue);
+    } else {
+      operation = HttpUtils.toHttpOperation(inputRecord);
     }
-
-    HttpOperation operation = new HttpOperation();
-    operation.setKeys(keyAndValue);
-
     return operation;
   }
 
-  public Iterable<String> getKeys (WorkUnitState workUnitState) {
-    String keys = workUnitState.getProp(CONF_PREFIX + "keys");
-    return Splitter.on(",").omitEmptyStrings().trimResults().split(keys);
+  private Optional<Iterable<String>> getKeys (State state) {
+    if (!state.contains(CONF_PREFIX + "keys")) {
+      return Optional.empty();
+    }
+    String keys = state.getProp(CONF_PREFIX + "keys");
+    return Optional.of(Splitter.on(",").omitEmptyStrings().trimResults().split(keys));
   }
 
-
   @Override
-  public final GenericRecord convertResponse(Schema outputSchema, GenericRecord inputRecord, RQ rawRequest,
-      RP response) throws DataConversionException {
+  public final GenericRecord convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, RQ rawRequest, HttpResponseStatus status) throws DataConversionException {
 
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
     Schema httpOutputSchema = null;
@@ -93,7 +101,7 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
     }
 
     try {
-      fillHttpOutputData (httpOutputSchema, outputRecord, rawRequest, response);
+      fillHttpOutputData (httpOutputSchema, outputRecord, rawRequest, status);
     } catch (IOException e) {
       throw new DataConversionException(e);
     }
@@ -101,5 +109,5 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
   }
 
   protected abstract void fillHttpOutputData (Schema httpOutputSchema, GenericRecord outputRecord, RQ rawRequest,
-      RP response) throws IOException;
+      HttpResponseStatus status) throws IOException;
 }

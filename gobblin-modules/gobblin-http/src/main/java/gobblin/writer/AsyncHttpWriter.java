@@ -27,8 +27,8 @@ import gobblin.async.AsyncRequestBuilder;
 import gobblin.async.BufferedRecord;
 import gobblin.async.DispatchException;
 import gobblin.http.HttpClient;
-import gobblin.http.ResponseHandler;
-import gobblin.http.ResponseStatus;
+import gobblin.http.HttpResponseHandler;
+import gobblin.http.HttpResponseStatus;
 
 
 /**
@@ -44,7 +44,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
   private final HttpClient<RQ, RP> httpClient;
-  private final ResponseHandler<RP> responseHandler;
+  private final HttpResponseHandler<RP> responseHandler;
   private final AsyncRequestBuilder<D, RQ> requestBuilder;
   private final int maxAttempts;
 
@@ -81,7 +81,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
         }
       }
 
-      ResponseStatus status = responseHandler.handleResponse(response);
+      HttpResponseStatus status = responseHandler.handleResponse(response);
       switch (status.getType()) {
         case OK:
           // Write succeeds
@@ -107,7 +107,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   /**
    * Callback on sending the asyncRequest successfully
    */
-  protected void onSuccess(AsyncRequest<D, RQ> asyncRequest, ResponseStatus status) {
+  protected void onSuccess(AsyncRequest<D, RQ> asyncRequest, HttpResponseStatus status) {
     final WriteResponse response = WriteResponse.EMPTY;
     for (final AsyncRequest.Thunk thunk: asyncRequest.getThunks()) {
       WriteCallback callback = (WriteCallback) thunk.callback;
