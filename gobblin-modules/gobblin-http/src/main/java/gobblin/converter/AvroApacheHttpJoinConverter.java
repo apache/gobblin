@@ -42,7 +42,7 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
   protected HttpRequestBuilder createRequestBuilder(WorkUnitState workUnitState) {
 
     Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
-    config.withFallback(DEFAULT_FALLBACK);
+    config = config.withFallback(DEFAULT_FALLBACK);
     String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);
@@ -56,7 +56,6 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
 
     ApacheHttpResponseStatus apacheStatus = (ApacheHttpResponseStatus) status;
     HttpRequestResponseRecord record = new HttpRequestResponseRecord();
-
     record.setRequestUrl(rawRequest.getURI().toASCIIString());
     record.setMethod(rawRequest.getMethod());
     record.setStatusCode(apacheStatus.getStatusCode());

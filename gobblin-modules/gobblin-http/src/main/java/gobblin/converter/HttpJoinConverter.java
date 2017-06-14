@@ -48,12 +48,17 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
   protected ResponseHandler<RP> responseHandler = null;
   protected AsyncRequestBuilder<GenericRecord, RQ> requestBuilder = null;
 
-  @Override
-  public final SO convertSchema(SI inputSchema, WorkUnitState workUnitState)
-      throws SchemaConversionException {
+  public HttpJoinConverter init(WorkUnitState workUnitState) {
+    super.init(workUnitState);
     httpClient = createHttpClient(workUnitState);
     responseHandler = createResponseHandler(workUnitState);
     requestBuilder = createRequestBuilder(workUnitState);
+    return this;
+  }
+
+  @Override
+  public final SO convertSchema(SI inputSchema, WorkUnitState workUnitState)
+      throws SchemaConversionException {
     return convertSchemaImpl(inputSchema, workUnitState);
   }
 
