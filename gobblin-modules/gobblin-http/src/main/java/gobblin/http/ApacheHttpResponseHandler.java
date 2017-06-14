@@ -5,9 +5,7 @@ import java.io.IOException;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Basic logic to handle a {@link CloseableHttpResponse} from a http service
@@ -18,31 +16,48 @@ import org.slf4j.LoggerFactory;
  *   sent from the service for a post response, executing more detailed status code handling, etc.
  * </p>
  */
-public class HttpResponseHandler implements ResponseHandler<CloseableHttpResponse> {
-  private static final Logger LOG = LoggerFactory.getLogger(HttpResponseHandler.class);
+@Slf4j
+public class ApacheHttpResponseHandler implements ResponseHandler<CloseableHttpResponse> {
 
   @Override
-  public ResponseStatus handleResponse(CloseableHttpResponse response) {
-    ResponseStatus status = new ResponseStatus(StatusType.OK);
+  public ApacheHttpResponseStatus handleResponse(CloseableHttpResponse response) {
+    ApacheHttpResponseStatus status = new ApacheHttpResponseStatus(StatusType.OK);
     int statusCode = response.getStatusLine().getStatusCode();
-    HttpEntity entity = response.getEntity();
-    if (entity != null) {
-      processEntity(entity);
-    }
-    if (statusCode > 300 & statusCode < 500) {
+    status.setStatusCode(statusCode);
+
+    if (statusCode >= 300 & statusCode < 500) {
       status.setType(StatusType.CLIENT_ERROR);
     } else if (statusCode >= 500) {
       status.setType(StatusType.SERVER_ERROR);
     }
 
+    if (status.getType() == StatusType.OK) {
+      status.setContent(getEntityAsByteArray(response.getEntity()));
+      status.setContentType(response.getEntity().getContentType().getValue());
+    }
+
+    HttpEntity entity = response.getEntity();
+    if (entity != null) {
+      consumeEntity(entity);
+    }
+
     return status;
   }
 
-  protected void processEntity(HttpEntity entity) {
+  private byte[] getEntityAsByteArray(HttpEntity entity) {
+    try {
+      return EntityUtils.toByteArray(entity);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  protected void consumeEntity(HttpEntity entity) {
     try {
       EntityUtils.consume(entity);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
+
 }

@@ -3,7 +3,6 @@ package gobblin.restli;
 import com.linkedin.r2.message.rest.RestResponse;
 
 import gobblin.http.ResponseHandler;
-import gobblin.http.ResponseStatus;
 import gobblin.http.StatusType;
 
 
@@ -18,15 +17,23 @@ import gobblin.http.StatusType;
  */
 public class R2RestResponseHandler implements ResponseHandler<RestResponse> {
 
-  @Override
-  public ResponseStatus handleResponse(RestResponse response) {
-    ResponseStatus status = new ResponseStatus(StatusType.OK);
+  public static final String CONTENT_TYPE_HEADER = "Content-Type";
 
+  @Override
+  public R2ResponseStatus handleResponse(RestResponse response) {
+    R2ResponseStatus status = new R2ResponseStatus(StatusType.OK);
     int statusCode = response.getStatus();
-    if (statusCode > 300 & statusCode < 500) {
+    status.setStatusCode(statusCode);
+
+    if (statusCode >= 300 & statusCode < 500) {
       status.setType(StatusType.CLIENT_ERROR);
     } else if (statusCode >= 500) {
       status.setType(StatusType.SERVER_ERROR);
+    }
+
+    if (status.getType() == StatusType.OK) {
+      status.setContent(response.getEntity());
+      status.setContentType(response.getHeader(CONTENT_TYPE_HEADER));
     }
 
     return status;

@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "HttpRequestResponseRecord",
+  "doc": "Represents an http output record",
+  "namespace": "gobblin.http",
+  "fields" : [
+    {"name": "requestUrl", "type": "string"},
+    {"name": "method", "type": "string"},
+    {"name": "contentType", "type": ["null","string"]},
+    {"name": "statusCode", "type": "int"},
+    {"name": "body", "type": ["null","bytes"]}
+  ]
+}
