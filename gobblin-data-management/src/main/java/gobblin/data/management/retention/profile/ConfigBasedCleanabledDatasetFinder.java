@@ -16,14 +16,29 @@
  */
 package gobblin.data.management.retention.profile;
 
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.collect.Iterators;
+import gobblin.config.client.ConfigClient;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.replication.ConfigBasedMultiDatasets;
+import gobblin.util.ConfigUtils;
+import gobblin.util.Either;
+import gobblin.util.ExecutorsUtils;
+import gobblin.util.executors.IteratorExecutor;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -43,7 +58,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ConfigBasedCleanabledDatasetFinder extends ConfigBasedDatasetsFinder{
 
-  private FileSystem fileSystem;
+  public FileSystem fileSystem;
   public static final String DATASET_PATH = ConfigurationKeys.CONFIG_BASED_PREFIX + ".fullDatasetPath";
 
   public ConfigBasedCleanabledDatasetFinder(FileSystem fs, Properties jobProps) throws IOException{
@@ -51,38 +66,18 @@ public class ConfigBasedCleanabledDatasetFinder extends ConfigBasedDatasetsFinde
     fileSystem = fs;
   }
 
-  /**
-   * For all the leaf-level file found, load their configuration, create CleanableDataset and
-   * add them into Collection datasets.
-   *
-   * Different from {@link gobblin.data.management.copy.replication.ConfigBasedCopyableDatasetFinder}, here we can only
-   * serially create {@link Dataset} as race condition can be triggered with respect to trash folder access when creating
-   * {@link ConfigurableCleanableDataset} object.
-   *
-   * @return The list of cleanable datasets
-   */
-  @Override
-  public List<Dataset> findDatasets() throws IOException {
-    Set<URI> leafDatasets = getValidDatasetURIs(this.commonRoot);
-    if (leafDatasets.isEmpty()) {
-      return ImmutableList.of();
-    }
-
-    // Serial execution, or trigger race condition for the trash folder.
-    final List<Dataset> result = new ArrayList<>();
-    for (URI validURI : leafDatasets) {
-      try {
-        Config c = configClient.getConfig(validURI);
-        Preconditions.checkArgument(c.hasPath(DATASET_PATH), "Missing required configuration in ConfigStore obejct: fullDatasetPath");
-        Path relativizedPath = new Path(c.getString(DATASET_PATH));
-        result.add(
-            new ConfigurableCleanableDataset<>(FileSystem.newInstance(new Configuration()), props, relativizedPath, c, log));
-      } catch (ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException e) {
-        log.error("Caught error while loading ConfigStore object from given URI");
-        throw new RuntimeException(e);
+  protected Callable<Void> findDatasetsCallable(final ConfigClient confClient,
+      final URI u, final Properties p, final Collection<Dataset> datasets) {
+    return new Callable<Void>() {
+      @Override
+      public Void call() throws Exception {
+        // Process each {@link Config}, find dataset and add those into the datasets
+        Config c = confClient.getConfig(u);
+        Dataset datasetForConfig =
+            new ConfigurableCleanableDataset(fileSystem, p, new Path(c.getString(DATASET_PATH)), c, log);
+        datasets.add(datasetForConfig);
+        return null;
       }
-    }
-
-    return result;
+    };
   }
 }

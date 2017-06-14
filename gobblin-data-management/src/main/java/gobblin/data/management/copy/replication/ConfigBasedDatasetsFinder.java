@@ -17,6 +17,15 @@
 
 package gobblin.data.management.copy.replication;
 
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
+import com.typesafe.config.Config;
+import gobblin.data.management.copy.CopySource;
+import gobblin.dataset.Dataset;
+import gobblin.util.Either;
+import gobblin.util.ExecutorsUtils;
+import gobblin.util.executors.IteratorExecutor;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -25,11 +34,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -79,6 +92,7 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   protected final Optional<List<Path>> blacklistTags;
   protected final ConfigClient configClient;
   protected final Properties props;
+  private final int threadPoolSize;
 
 
   public ConfigBasedDatasetsFinder(FileSystem fs, Properties jobProps) throws IOException {
@@ -96,6 +110,9 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
         new Path(jobProps.getProperty(GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT)));
     this.whitelistTag = PathUtils.mergePaths(new Path(this.storeRoot),
         new Path(jobProps.getProperty(GOBBLIN_CONFIG_STORE_WHITELIST_TAG)));
+    this.threadPoolSize = jobProps.containsKey(CopySource.MAX_CONCURRENT_LISTING_SERVICES)
+        ? Integer.parseInt(jobProps.getProperty(CopySource.MAX_CONCURRENT_LISTING_SERVICES))
+        : CopySource.DEFAULT_MAX_CONCURRENT_LISTING_SERVICES;
 
 
     if (jobProps.containsKey(GOBBLIN_CONFIG_STORE_BLACKLIST_TAGS)) {
@@ -197,4 +214,48 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   public Path commonDatasetRoot() {
     return this.commonRoot;
   }
+
+  /**
+   * Based on the {@link #whitelistTag}, find all URI which imports the tag. Then filter out
+   *
+   * 1. disabled dataset URI
+   * 2. None leaf dataset URI
+   *
+   * Then created {@link ConfigBasedDataset} based on the {@link Config} of the URIs
+   */
+  @Override
+  public List<Dataset> findDatasets() throws IOException {
+    Set<URI> leafDatasets = getValidDatasetURIs(this.commonRoot);
+    if (leafDatasets.isEmpty()) {
+      return ImmutableList.of();
+    }
+
+    // Parallel execution for copyDataset for performance consideration.
+    final List<Dataset> result = new CopyOnWriteArrayList<>();
+    Iterator<Callable<Void>> callableIterator =
+        Iterators.transform(leafDatasets.iterator(), new Function<URI, Callable<Void>>() {
+          @Override
+          public Callable<Void> apply(final URI datasetURI) {
+            return findDatasetsCallable(configClient, datasetURI, props, result);
+          }
+        });
+
+    this.executeItertorExecutor(callableIterator);
+    log.info("found {} datasets in ConfigBasedDatasetsFinder", result.size());
+    return result;
+  }
+
+  protected void executeItertorExecutor(Iterator<Callable<Void>> callableIterator) throws IOException {
+    try {
+      IteratorExecutor<Void> executor = new IteratorExecutor<>(callableIterator, this.threadPoolSize,
+          ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
+      List<Either<Void, ExecutionException>> results = executor.executeAndGetResults();
+      IteratorExecutor.logFailures(results, log, 10);
+    } catch (InterruptedException ie) {
+      throw new IOException("Dataset finder is interrupted.", ie);
+    }
+  }
+
+  protected abstract Callable<Void> findDatasetsCallable(final ConfigClient confClient,
+      final URI u, final Properties p, final Collection<Dataset> datasets);
 }
