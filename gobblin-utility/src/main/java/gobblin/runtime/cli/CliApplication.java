@@ -22,6 +22,9 @@ package gobblin.runtime.cli;
  */
 public interface CliApplication {
 
-  void run(String[] args);
+  /**
+   * Run this application. Note the array of args contains the alias of this applicaiton as its firts argument.
+   */
+  void run(String[] args) throws Exception;
 
 }
