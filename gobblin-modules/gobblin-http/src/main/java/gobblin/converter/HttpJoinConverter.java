@@ -1,4 +1,4 @@
-package gobblin.http;
+package gobblin.converter;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -16,6 +16,10 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
+import gobblin.http.HttpClient;
+import gobblin.http.HttpOperation;
+import gobblin.http.ResponseHandler;
+import gobblin.http.ResponseStatus;
 import gobblin.writer.WriteCallback;
 
 /**
@@ -37,27 +41,27 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
   protected AsyncRequestBuilder<GenericRecord, RQ> requestBuilder = null;
 
   @Override
-  public final SO convertSchema(SI inputSchema, WorkUnitState workUnit)
+  public final SO convertSchema(SI inputSchema, WorkUnitState workUnitState)
       throws SchemaConversionException {
-    httpClient = createHttpClient(workUnit);
-    responseHandler = createResponseHandler(workUnit);
-    requestBuilder = createRequestBuilder(workUnit);
-    return convertSchemaImpl(inputSchema, workUnit);
+    httpClient = createHttpClient(workUnitState);
+    responseHandler = createResponseHandler(workUnitState);
+    requestBuilder = createRequestBuilder(workUnitState);
+    return convertSchemaImpl(inputSchema, workUnitState);
   }
 
-  protected abstract HttpClient<RQ, RP>   createHttpClient(WorkUnitState workUnit);
-  protected abstract ResponseHandler<RP>  createResponseHandler(WorkUnitState workUnit);
-  protected abstract AsyncRequestBuilder<GenericRecord, RQ> createRequestBuilder(WorkUnitState workUnit);
-  protected abstract HttpOperation generateHttpOperation (DI inputRecord, WorkUnitState state);
-  protected abstract SO convertSchemaImpl (SI inputSchema, WorkUnitState workUnit) throws SchemaConversionException;
+  protected abstract HttpClient<RQ, RP>   createHttpClient(WorkUnitState workUnitState);
+  protected abstract ResponseHandler<RP>  createResponseHandler(WorkUnitState workUnitState);
+  protected abstract AsyncRequestBuilder<GenericRecord, RQ> createRequestBuilder(WorkUnitState workUnitState);
+  protected abstract HttpOperation generateHttpOperation (DI inputRecord, WorkUnitState workUnitState);
+  protected abstract SO convertSchemaImpl (SI inputSchema, WorkUnitState workUnitState) throws SchemaConversionException;
   protected abstract DO convertResponse (SO outputSchema, DI input, RQ rawRequest, RP response) throws DataConversionException;
 
   @Override
-  public final Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
+  public final Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnitState)
       throws DataConversionException {
 
     // Convert DI to HttpOperation
-    HttpOperation operation = generateHttpOperation(inputRecord, workUnit);
+    HttpOperation operation = generateHttpOperation(inputRecord, workUnitState);
     BufferedRecord<GenericRecord> bufferedRecord = new BufferedRecord<>(operation, WriteCallback.EMPTY);
 
     // Convert HttpOperation to RQ

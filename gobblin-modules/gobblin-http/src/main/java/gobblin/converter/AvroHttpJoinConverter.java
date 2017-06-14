@@ -1,4 +1,4 @@
-package gobblin.http;
+package gobblin.converter;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -15,7 +15,11 @@ import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.DataConversionException;
+import gobblin.converter.HttpJoinConverter;
 import gobblin.converter.SchemaConversionException;
+import gobblin.http.HttpOperation;
+import gobblin.http.HttpRequestResponseRecord;
+
 
 /**
  * A type of {@link HttpJoinConverter} with AVRO as input and output format
@@ -31,7 +35,7 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
   public static final String HTTP_REQUEST_RESPONSE = "HttpRequestResponse";
 
   @Override
-  public Schema convertSchemaImpl(Schema inputSchema, WorkUnitState workUnit)
+  public Schema convertSchemaImpl(Schema inputSchema, WorkUnitState workUnitState)
       throws SchemaConversionException {
     List<Schema.Field> fields = Lists.newArrayList();
     for (Schema.Field field : inputSchema.getFields()) {
@@ -51,9 +55,9 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
    *  Properties "gobblin.converter.http.keys" should be defined in the workUnit
    */
   @Override
-  public HttpOperation generateHttpOperation (GenericRecord inputRecord, WorkUnitState workUnit) {
+  public HttpOperation generateHttpOperation (GenericRecord inputRecord, WorkUnitState workUnitState) {
     Map<String, String> keyAndValue = new HashMap<>();
-    Iterable<String> keyItrerator = getKeys(workUnit);
+    Iterable<String> keyItrerator = getKeys(workUnitState);
     for (String key: keyItrerator) {
       String value = inputRecord.get(key).toString();
       log.debug("Http join converter: key is {}, value is {}", key, value);
@@ -66,8 +70,8 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Sc
     return operation;
   }
 
-  public Iterable<String> getKeys (WorkUnitState workUnit) {
-    String keys = workUnit.getProp(CONF_PREFIX + "keys");
+  public Iterable<String> getKeys (WorkUnitState workUnitState) {
+    String keys = workUnitState.getProp(CONF_PREFIX + "keys");
     return Splitter.on(",").omitEmptyStrings().trimResults().split(keys);
   }
 

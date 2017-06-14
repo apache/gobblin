@@ -1,4 +1,4 @@
-package gobblin.http;
+package gobblin.converter;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -14,6 +14,13 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 import gobblin.config.ConfigBuilder;
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.AvroHttpJoinConverter;
+import gobblin.http.ApacheHttpClient;
+import gobblin.http.HttpClient;
+import gobblin.http.HttpRequestBuilder;
+import gobblin.http.HttpRequestResponseRecord;
+import gobblin.http.HttpResponseHandler;
+import gobblin.http.ResponseHandler;
 import gobblin.utils.HttpConstants;
 
 /**
@@ -22,9 +29,9 @@ import gobblin.utils.HttpConstants;
 @Slf4j
 public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRequest, CloseableHttpResponse> {
   @Override
-  public HttpClient<HttpUriRequest, CloseableHttpResponse> createHttpClient(WorkUnitState workUnit) {
-    Config config = ConfigBuilder.create().loadProps(workUnit.getProperties(), CONF_PREFIX).build();
-    return new ApacheHttpClient(HttpClientBuilder.create(), config, workUnit.getTaskBroker());
+  public HttpClient<HttpUriRequest, CloseableHttpResponse> createHttpClient(WorkUnitState workUnitState) {
+    Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
+    return new ApacheHttpClient(HttpClientBuilder.create(), config, workUnitState.getTaskBroker());
   }
 
   @Override
@@ -33,9 +40,9 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
   }
 
   @Override
-  protected HttpRequestBuilder createRequestBuilder(WorkUnitState workUnit) {
+  protected HttpRequestBuilder createRequestBuilder(WorkUnitState workUnitState) {
 
-    Config config = ConfigBuilder.create().loadProps(workUnit.getProperties(), CONF_PREFIX).build();
+    Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
     String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);
