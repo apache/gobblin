@@ -118,8 +118,7 @@ public class R2ClientFactory {
     properties.put(HttpClientFactory.HTTP_SSL_CONTEXT, sslContext);
     properties.put(HttpClientFactory.HTTP_SSL_PARAMS, sslParameters);
 
-    TransportClient client = new HttpClientFactory().getClient(properties);
-    return new TransportClientAdapter(client);
+    return new R2HttpClientProxy(new HttpClientFactory(), properties);
   }
 
   private Client createD2Client(Config config) {

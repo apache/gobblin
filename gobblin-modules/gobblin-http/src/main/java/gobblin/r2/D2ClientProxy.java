@@ -42,7 +42,7 @@ import com.linkedin.r2.transport.http.client.HttpClientFactory;
 
 
 /**
- * The proxy takes care of {@link TransportClientFactory}s shutdown while shutting down {@link D2Client}
+ * The proxy takes care of {@link TransportClientFactory}s shutdown
  */
 public class D2ClientProxy implements D2Client {
   private final D2Client d2Client;
