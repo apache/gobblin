@@ -23,12 +23,11 @@ import java.util.Map;
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.d2.balancer.*;
 import com.linkedin.r2.transport.common.Client;
-import com.linkedin.r2.transport.common.bridge.client.TransportClient;
-import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -41,6 +40,8 @@ import gobblin.security.ssl.SSLContextFactory;
  */
 public class R2ClientFactory {
   public static final String SSL_ENABLED = "ssl";
+  public static final String PROPERTIES = "properties";
+  public static final String CLIENT_SERVICES_CONFIG = "clientServicesConfig";
   private static final String ZOOKEEPER_HOSTS = "zkHosts";
 
   private static final Config FALLBACK =
@@ -64,17 +65,24 @@ public class R2ClientFactory {
    * Given a {@link Config}, create an instance of {@link Client}
    *
    * <p>
-   *   A sample configuration for https based client is
+   *   A sample configuration for https based client is:
    *   <br> ssl=true
    *   <br> keyStoreFilePath=/path/to/key/store
    *   <br> keyStorePassword=password
    *   <br> keyStoreType=PKCS12
    *   <br> trustStoreFilePath=/path/to/trust/store
    *   <br> trustStorePassword=password
+   *
+   *   <p>
+   *     Http configurations(see {@link HttpClientFactory}) like http.responseMaxSize, http.idleTimeout, etc, can
+   *     be set as:
+   *     <br> properties.http.responseMaxSize=10000
+   *     <br> properties.http.idleTimeout=3000
+   *   </p>
    * </p>
    *
    * <p>
-   *   A sample configuration for a secured d2 client is
+   *   A sample configuration for a secured d2 client is:
    *   <br> d2.zkHosts=zk1.host.com:12000
    *   <br> d2.ssl=true
    *   <br> d2.keyStoreFilePath=/path/to/key/store
@@ -82,6 +90,13 @@ public class R2ClientFactory {
    *   <br> d2.keyStoreType=PKCS12
    *   <br> d2.trustStoreFilePath=/path/to/trust/store
    *   <br> d2.trustStorePassword=password
+   *
+   *   <p>
+   *     Http configurations(see {@link HttpClientFactory}) like http.responseMaxSize, http.idleTimeout, etc, can
+   *     be set as:
+   *     <br> d2.clientServicesConfig.[client_name].http.responseMaxSize=10000
+   *     <br> d2.clientServicesConfig.[client_name].http.idleTimeout=3000
+   *   </p>
    * </p>
    *
    * @param srcConfig configuration
@@ -118,6 +133,10 @@ public class R2ClientFactory {
     properties.put(HttpClientFactory.HTTP_SSL_CONTEXT, sslContext);
     properties.put(HttpClientFactory.HTTP_SSL_PARAMS, sslParameters);
 
+    if (config.hasPath(PROPERTIES)) {
+      properties.putAll(toMap(config.getConfig(PROPERTIES)));
+    }
+
     return new R2HttpClientProxy(new HttpClientFactory(), properties);
   }
 
@@ -137,6 +156,24 @@ public class R2ClientFactory {
       d2Builder.setSSLParameters(sslContext.getDefaultSSLParameters());
     }
 
+    if (config.hasPath(CLIENT_SERVICES_CONFIG)) {
+      Config clientServiceConfig = config.getConfig(CLIENT_SERVICES_CONFIG);
+      Map<String, Map<String, Object>> result = new HashMap<>();
+      for (String key: clientServiceConfig.root().keySet()) {
+        Config value = clientServiceConfig.getConfig(key);
+        result.put(key, toMap(value));
+      }
+      d2Builder.setClientServicesConfig(result);
+    }
+
     return new D2ClientProxy(d2Builder, isSSLEnabled);
+  }
+
+  private static Map<String, Object> toMap(Config config) {
+    Map<String, Object> map = new HashMap<>();
+    for (Map.Entry<String, ConfigValue> entry: config.entrySet()) {
+      map.put(entry.getKey(), entry.getValue().unwrapped());
+    }
+    return map;
   }
 }
