@@ -19,6 +19,7 @@ package gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -114,6 +115,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   private static final String WORK_UNIT_WEIGHT = CopyConfiguration.COPY_PREFIX + ".workUnitWeight";
 
+  private static final String COPY_FILTER_LIST = CopyConfiguration.COPY_PREFIX + ".candidateList";
+  private static final String IS_BLOCK = CopyConfiguration.COPY_PREFIX + ".isBlock";
+
   private final WorkUnitWeighter weighter = new FieldWeighter(WORK_UNIT_WEIGHT);
 
   public MetricContext metricContext;
@@ -159,6 +163,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       final Optional<CopyableFileWatermarkGenerator> watermarkGenerator =
           CopyableFileWatermarkHelper.getCopyableFileWatermarkGenerator(state);
       int maxThreads = state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES);
+      Optional<List<String>> optionalCandidateURNList = Optional.fromNullable(state.getPropAsList(COPY_FILTER_LIST));
+      Optional<Boolean> optionalIsBlock = Optional.fromNullable(Boolean.parseBoolean(state.getProp(IS_BLOCK)));
 
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
@@ -172,7 +178,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       Iterator<CopyableDatasetRequestor> requestorIteratorWithNulls =
           Iterators.transform(iterableDatasetFinder.getDatasetsIterator(),
-              new CopyableDatasetRequestor.Factory(targetFs, copyConfiguration, log));
+              new CopyableDatasetRequestor.Factory(targetFs, copyConfiguration, log, optionalCandidateURNList, optionalIsBlock));
       Iterator<CopyableDatasetRequestor> requestorIterator = Iterators.filter(requestorIteratorWithNulls,
           Predicates.<CopyableDatasetRequestor>notNull());
 
