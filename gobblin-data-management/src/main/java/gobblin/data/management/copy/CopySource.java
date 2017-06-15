@@ -163,9 +163,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       final Optional<CopyableFileWatermarkGenerator> watermarkGenerator =
           CopyableFileWatermarkHelper.getCopyableFileWatermarkGenerator(state);
       int maxThreads = state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES);
-      Optional<List<String>> optionalCandidateURNList = Optional.fromNullable(state.getPropAsList(COPY_FILTER_LIST));
-      Optional<Boolean> optionalIsBlock = Optional.fromNullable(Boolean.parseBoolean(state.getProp(IS_BLOCK)));
+      Optional<List<String>> optionalCandidateURNList =
+          state.contains(COPY_FILTER_LIST) ? Optional.of(state.getPropAsList(COPY_FILTER_LIST)) : Optional.<List<String>>absent();
 
+      Optional<Boolean> optionalIsBlock =
+          state.contains(IS_BLOCK) ? Optional.fromNullable(Boolean.parseBoolean(state.getProp(IS_BLOCK))) : Optional.<Boolean>absent();
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
       DatasetsFinder<CopyableDatasetBase> datasetFinder = DatasetUtils
