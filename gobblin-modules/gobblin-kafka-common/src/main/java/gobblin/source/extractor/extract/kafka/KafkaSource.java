@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
@@ -122,7 +123,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private String extractNameSpace;
   private boolean isFullExtract;
   private boolean shouldEnableDatasetStateStore;
-  private boolean isDatasetStateEnabled;
+  private AtomicBoolean isDatasetStateEnabled;
   private Set<String> topicsToProcess;
 
   private List<String> getLimiterExtractorReportKeys() {
@@ -263,7 +264,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       KafkaPartition partition = entry.getKey();
       if (!this.partitionsToBeProcessed.contains(partition)) {
         String topicName = partition.getTopicName();
-        if (!this.isDatasetStateEnabled || this.topicsToProcess.contains(topicName)) {
+        if (!this.isDatasetStateEnabled.get() || this.topicsToProcess.contains(topicName)) {
           long previousOffset = entry.getValue();
           WorkUnit emptyWorkUnit = createEmptyWorkUnit(partition, previousOffset,
               Optional.fromNullable(topicSpecificStateMap.get(partition.getTopicName())));
@@ -429,7 +430,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
     if (!(workUnitStatesByDatasetUrns.size() == 1 && workUnitStatesByDatasetUrns.keySet().iterator().next()
         .equals(""))) {
-      this.isDatasetStateEnabled = true;
+      this.isDatasetStateEnabled.set(true);
     }
 
     for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
