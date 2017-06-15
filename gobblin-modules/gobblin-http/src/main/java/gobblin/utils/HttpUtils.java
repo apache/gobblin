@@ -2,8 +2,11 @@ package gobblin.utils;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.text.StrSubstitutor;
@@ -14,6 +17,8 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.Gson;
 
 import gobblin.http.HttpOperation;
+import gobblin.http.ResponseStatus;
+import gobblin.http.StatusType;
 import gobblin.util.AvroUtils;
 
 
@@ -86,6 +91,29 @@ public class HttpUtils {
       return uriBuilder.build();
     } catch (URISyntaxException e) {
       throw new RuntimeException("Fail to build uri", e);
+    }
+  }
+
+  public static void updateStatusType(ResponseStatus status, int statusCode, Set<String> errorCodeWhitelist) {
+    if (statusCode >= 300 & statusCode < 500) {
+      List<String> whitelist = Arrays.asList(Integer.toString(statusCode));
+      if (statusCode > 400) {
+        whitelist.add(HttpConstants.CODE_4XX);
+      } else {
+        whitelist.add(HttpConstants.CODE_3XX);
+      }
+      if (whitelist.stream().anyMatch(errorCodeWhitelist::contains)) {
+        status.setType(StatusType.CONTINUE);
+      } else {
+        status.setType(StatusType.CLIENT_ERROR);
+      }
+    } else if (statusCode >= 500) {
+      List<String> whitelist = Arrays.asList(Integer.toString(statusCode), HttpConstants.CODE_5XX);
+      if (whitelist.stream().anyMatch(errorCodeWhitelist::contains)) {
+        status.setType(StatusType.CONTINUE);
+      } else {
+        status.setType(StatusType.SERVER_ERROR);
+      }
     }
   }
 

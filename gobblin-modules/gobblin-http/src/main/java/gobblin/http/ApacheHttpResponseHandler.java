@@ -1,11 +1,16 @@
 package gobblin.http;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.util.EntityUtils;
 import lombok.extern.slf4j.Slf4j;
+
+import gobblin.utils.HttpUtils;
+
 
 /**
  * Basic logic to handle a {@link CloseableHttpResponse} from a http service
@@ -18,6 +23,15 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class ApacheHttpResponseHandler implements ResponseHandler<CloseableHttpResponse> {
+  private final Set<String> errorCodeWhitelist;
+
+  public ApacheHttpResponseHandler() {
+    this(new HashSet<>());
+  }
+
+  public ApacheHttpResponseHandler(Set<String> errorCodeWhitelist) {
+    this.errorCodeWhitelist = errorCodeWhitelist;
+  }
 
   @Override
   public ApacheHttpResponseStatus handleResponse(CloseableHttpResponse response) {
@@ -25,11 +39,7 @@ public class ApacheHttpResponseHandler implements ResponseHandler<CloseableHttpR
     int statusCode = response.getStatusLine().getStatusCode();
     status.setStatusCode(statusCode);
 
-    if (statusCode >= 300 & statusCode < 500) {
-      status.setType(StatusType.CLIENT_ERROR);
-    } else if (statusCode >= 500) {
-      status.setType(StatusType.SERVER_ERROR);
-    }
+    HttpUtils.updateStatusType(status, statusCode, errorCodeWhitelist);
 
     if (status.getType() == StatusType.OK) {
       status.setContent(getEntityAsByteArray(response.getEntity()));

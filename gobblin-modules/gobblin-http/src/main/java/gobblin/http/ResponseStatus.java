@@ -26,7 +26,9 @@ import lombok.Setter;
  */
 public class ResponseStatus {
   @Getter @Setter
-  StatusType type;
+  private StatusType type;
+  @Getter @Setter
+  private int statusCode;
 
   public ResponseStatus(StatusType type) {
     this.type = type;

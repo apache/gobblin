@@ -17,7 +17,7 @@ import gobblin.http.ApacheHttpClient;
 import gobblin.http.ApacheHttpResponseHandler;
 import gobblin.http.ApacheHttpResponseStatus;
 import gobblin.http.HttpClient;
-import gobblin.http.HttpRequestBuilder;
+import gobblin.http.ApacheHttpRequestBuilder;
 import gobblin.http.HttpRequestResponseRecord;
 import gobblin.http.ResponseStatus;
 import gobblin.utils.HttpConstants;
@@ -39,7 +39,7 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
   }
 
   @Override
-  protected HttpRequestBuilder createRequestBuilder(WorkUnitState workUnitState) {
+  protected ApacheHttpRequestBuilder createRequestBuilder(WorkUnitState workUnitState) {
 
     Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
     config.withFallback(DEFAULT_FALLBACK);
@@ -47,7 +47,7 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);
 
-    return new HttpRequestBuilder(urlTemplate, verb, contentType);
+    return new ApacheHttpRequestBuilder(urlTemplate, verb, contentType);
   }
 
   @Override

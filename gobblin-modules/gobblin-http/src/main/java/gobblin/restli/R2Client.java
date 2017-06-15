@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.linkedin.common.callback.Callbacks;
 import com.linkedin.common.util.None;
 import com.linkedin.r2.message.rest.RestRequest;
