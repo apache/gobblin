@@ -146,9 +146,6 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
       for (Config versionAndPolicy : versionAndPolicies) {
         initWithSelectionPolicy(versionAndPolicy, jobProps);
       }
-      /*
-      * Since retention.policy has been regarded as deprecated, should use selection policy here.
-      * */
     } else {
       throw new IllegalArgumentException(
           String.format("Either set version finder at %s and retention policy at %s or set partitions at %s",

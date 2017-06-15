@@ -174,7 +174,7 @@ public class Trash implements GobblinTrash {
    * @throws IOException
    */
   @Override
-  public synchronized boolean moveToTrash(Path path) throws IOException {
+  public boolean moveToTrash(Path path) throws IOException {
     Path fullyResolvedPath = path.isAbsolute() ? path : new Path(this.fs.getWorkingDirectory(), path);
     Path targetPathInTrash = PathUtils.mergePaths(this.trashLocation, fullyResolvedPath);
 
@@ -287,11 +287,13 @@ public class Trash implements GobblinTrash {
   private boolean safeFsMkdir(FileSystem fs, Path f, FsPermission permission) throws IOException {
     try {
       return fs.mkdirs(f, permission);
-    } catch (Exception e) {
+    } catch (IOException e) {
+      // To handle the case when trash folder is created by other threads
+      // The case is rare and we don't put synchronized keywords for performance consideration.
       if (!fs.exists(f)) {
         throw new IOException("Failed to create trash folder while it is still not existed yet.");
       } else {
-        LOG.info("Target folder %s has been created by other threads.", f.toString());
+        LOG.debug("Target folder %s has been created by other threads.", f.toString());
         return true;
       }
     }
