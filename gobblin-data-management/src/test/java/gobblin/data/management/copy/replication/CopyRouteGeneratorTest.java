@@ -71,7 +71,8 @@ public class CopyRouteGeneratorTest {
     Mockito.when(rc.getReplicas()).thenReturn(ImmutableList.<EndPoint> of(notAvailableReplica, replica1, copyToEndPoint));
     Mockito.when(rc.getDataFlowToplogy()).thenReturn(dataFlowTopology);
 
-    CopyRouteGeneratorOptimizedNetworkBandwidth network = new CopyRouteGeneratorOptimizedNetworkBandwidth();
+    CopyRouteGeneratorOptimizedNetworkBandwidthForTest network = new CopyRouteGeneratorOptimizedNetworkBandwidthForTest();
+
     Assert.assertTrue(network.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().equals(replica1));
     Assert.assertTrue(network.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().getWatermark()
         .get().compareTo(new LongWatermark(replica1Watermark)) == 0);
