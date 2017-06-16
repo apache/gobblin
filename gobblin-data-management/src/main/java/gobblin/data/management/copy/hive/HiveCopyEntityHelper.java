@@ -17,6 +17,7 @@
 
 package gobblin.data.management.copy.hive;
 
+import gobblin.hive.avro.HiveAvroSerDeManager;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
@@ -361,6 +362,11 @@ public class HiveCopyEntityHelper {
         if (HiveUtils.isPartitioned(this.dataset.table)) {
           this.sourcePartitions = HiveUtils.getPartitionsMap(multiClient.getClient(source_client), this.dataset.table,
               this.partitionFilter, this.hivePartitionExtendedFilter);
+          for (Map.Entry<List<String>, Partition> partition : this.sourcePartitions.entrySet()) {
+            String newAvroSchemaURL = this.targetTable.getTTable().getSd().getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_URL);
+            partition.getValue().getTPartition().getSd().getSerdeInfo().getParameters().put(HiveAvroSerDeManager.SCHEMA_URL, newAvroSchemaURL);
+          }
+
           // Note: this must be mutable, so we copy the map
           this.targetPartitions =
               this.existingTargetTable.isPresent() ? Maps.newHashMap(
@@ -678,7 +684,7 @@ public class HiveCopyEntityHelper {
     if (desiredTargetTable.isPartitioned()
         && !desiredTargetTable.getPartitionKeys().equals(existingTargetTable.getPartitionKeys())) {
       throw new IOException(String.format(
-          "%s: Desired target table has partition keys %s, existing target table has partition  keys %s. "
+          "%s: Desired target table has partition keys %s, existing target table has partition keys %s. "
               + "Tables are incompatible.",
           this.dataset.tableIdentifier, gson.toJson(desiredTargetTable.getPartitionKeys()),
           gson.toJson(existingTargetTable.getPartitionKeys())));
