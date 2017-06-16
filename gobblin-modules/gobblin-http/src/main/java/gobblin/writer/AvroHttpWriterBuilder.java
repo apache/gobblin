@@ -1,6 +1,5 @@
 package gobblin.writer;
 
-import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.avro.generic.GenericRecord;
@@ -18,6 +17,7 @@ import gobblin.http.ApacheHttpClient;
 import gobblin.http.ApacheHttpResponseHandler;
 import gobblin.http.ApacheHttpRequestBuilder;
 import gobblin.utils.HttpConstants;
+import gobblin.utils.HttpUtils;
 
 
 @Slf4j
@@ -39,7 +39,7 @@ public class AvroHttpWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord,
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);
     this.asyncRequestBuilder = new ApacheHttpRequestBuilder(urlTemplate, verb, contentType);
 
-    Set<String> errorCodeWhitelist = new HashSet<>(config.getStringList(HttpConstants.ERROR_CODE_WHITELIST));
+    Set<String> errorCodeWhitelist = HttpUtils.getErrorCodeWhitelist(config);
     this.responseHandler = new ApacheHttpResponseHandler(errorCodeWhitelist);
     return this;
   }
