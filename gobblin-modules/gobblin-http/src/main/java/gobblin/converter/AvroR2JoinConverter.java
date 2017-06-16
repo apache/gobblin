@@ -13,8 +13,8 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.async.AsyncRequestBuilder;
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.WorkUnitState;
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.http.HttpClient;
 import gobblin.http.HttpRequestResponseRecord;
 import gobblin.http.ResponseHandler;
@@ -45,9 +45,7 @@ public class AvroR2JoinConverter extends AvroHttpJoinConverter<RestRequest, Rest
   }
 
   @Override
-  protected HttpClient<RestRequest, RestResponse> createHttpClient(WorkUnitState workUnitState) {
-    Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
-    config = config.withFallback(DEFAULT_FALLBACK);
+  protected HttpClient<RestRequest, RestResponse> createHttpClient(Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
     String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
 
     // By default, use http schema
@@ -58,18 +56,16 @@ public class AvroR2JoinConverter extends AvroHttpJoinConverter<RestRequest, Rest
 
     R2ClientFactory factory = new R2ClientFactory(schema);
     Client client = factory.createInstance(config);
-    return new R2Client(client, workUnitState.getTaskBroker());
+    return new R2Client(client, broker);
   }
 
   @Override
-  protected ResponseHandler<RestResponse> createResponseHandler(WorkUnitState workUnitState) {
+  protected ResponseHandler<RestResponse> createResponseHandler(Config config) {
     return new R2RestResponseHandler();
   }
 
   @Override
-  protected AsyncRequestBuilder<GenericRecord, RestRequest> createRequestBuilder(WorkUnitState workUnitState) {
-    Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
-    config = config.withFallback(DEFAULT_FALLBACK);
+  protected AsyncRequestBuilder<GenericRecord, RestRequest> createRequestBuilder(Config config) {
     String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);

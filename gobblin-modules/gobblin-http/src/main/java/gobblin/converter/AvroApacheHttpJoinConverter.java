@@ -11,8 +11,9 @@ import org.apache.http.impl.client.HttpClientBuilder;
 
 import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.WorkUnitState;
+
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.http.ApacheHttpClient;
 import gobblin.http.ApacheHttpResponseHandler;
 import gobblin.http.ApacheHttpResponseStatus;
@@ -28,21 +29,18 @@ import gobblin.utils.HttpConstants;
 @Slf4j
 public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRequest, CloseableHttpResponse> {
   @Override
-  public HttpClient<HttpUriRequest, CloseableHttpResponse> createHttpClient(WorkUnitState workUnitState) {
-    Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
-    return new ApacheHttpClient(HttpClientBuilder.create(), config, workUnitState.getTaskBroker());
+  public HttpClient<HttpUriRequest, CloseableHttpResponse> createHttpClient(Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
+    return new ApacheHttpClient(HttpClientBuilder.create(), config, broker);
   }
 
   @Override
-  public ApacheHttpResponseHandler createResponseHandler(WorkUnitState workUnit) {
+  public ApacheHttpResponseHandler createResponseHandler(Config config) {
     return new ApacheHttpResponseHandler();
   }
 
   @Override
-  protected HttpRequestBuilder createRequestBuilder(WorkUnitState workUnitState) {
+  protected HttpRequestBuilder createRequestBuilder(Config config) {
 
-    Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
-    config = config.withFallback(DEFAULT_FALLBACK);
     String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);

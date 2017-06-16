@@ -15,6 +15,9 @@ import lombok.extern.slf4j.Slf4j;
 import gobblin.async.AsyncRequest;
 import gobblin.async.AsyncRequestBuilder;
 import gobblin.async.BufferedRecord;
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.config.ConfigBuilder;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.http.HttpClient;
@@ -37,7 +40,6 @@ import gobblin.writer.WriteCallback;
 @Slf4j
 public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converter<SI, SO, DI, DO> {
   public static final String CONF_PREFIX = "gobblin.converter.http.";
-
   public static final Config DEFAULT_FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
           .put(HttpConstants.CONTENT_TYPE, "application/json")
@@ -50,9 +52,12 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
 
   public HttpJoinConverter init(WorkUnitState workUnitState) {
     super.init(workUnitState);
-    httpClient = createHttpClient(workUnitState);
-    responseHandler = createResponseHandler(workUnitState);
-    requestBuilder = createRequestBuilder(workUnitState);
+    Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
+    config.withFallback(DEFAULT_FALLBACK);
+
+    httpClient = createHttpClient(config, workUnitState.getTaskBroker());
+    responseHandler = createResponseHandler(config);
+    requestBuilder = createRequestBuilder(config);
     return this;
   }
 
@@ -62,9 +67,9 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
     return convertSchemaImpl(inputSchema, workUnitState);
   }
 
-  protected abstract HttpClient<RQ, RP>   createHttpClient(WorkUnitState workUnitState);
-  protected abstract ResponseHandler<RP> createResponseHandler(WorkUnitState workUnitState);
-  protected abstract AsyncRequestBuilder<GenericRecord, RQ> createRequestBuilder(WorkUnitState workUnitState);
+  protected abstract HttpClient<RQ, RP>   createHttpClient(Config config, SharedResourcesBroker<GobblinScopeTypes> broker);
+  protected abstract ResponseHandler<RP> createResponseHandler(Config config);
+  protected abstract AsyncRequestBuilder<GenericRecord, RQ> createRequestBuilder(Config config);
   protected abstract HttpOperation generateHttpOperation (DI inputRecord, State state);
   protected abstract SO convertSchemaImpl (SI inputSchema, WorkUnitState workUnitState) throws SchemaConversionException;
   protected abstract DO convertRecordImpl (SO outputSchema, DI input, RQ rawRequest, ResponseStatus status) throws DataConversionException;
