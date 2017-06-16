@@ -33,7 +33,7 @@ import gobblin.writer.WriteCallback;
  *
  * Sequence:
  * Convert DI to HttpOperation
- * Convert HttpOperation to RQ (by internal ConverterRequestBuilder)
+ * Convert HttpOperation to RQ (by internal AsyncRequestBuilder)
  * Execute http request, get response RP (by HttpClient)
  * Combine info (DI, RQ, RP, status, etc..) to generate output DO
  */
@@ -53,7 +53,7 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
   public HttpJoinConverter init(WorkUnitState workUnitState) {
     super.init(workUnitState);
     Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
-    config.withFallback(DEFAULT_FALLBACK);
+    config = config.withFallback(DEFAULT_FALLBACK);
 
     httpClient = createHttpClient(config, workUnitState.getTaskBroker());
     responseHandler = createResponseHandler(config);
