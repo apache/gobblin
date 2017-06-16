@@ -34,7 +34,7 @@ import gobblin.utils.HttpConstants;
 
 
 public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, RestRequest, RestResponse> {
-  private static final String SCHEMA_D2 = "d2://";
+
   private static final Config FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
           .put(HttpConstants.PROTOCOL_VERSION, "2.0.0")
@@ -60,7 +60,7 @@ public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, R
 
     // By default, use http schema
     R2ClientFactory.Schema schema = R2ClientFactory.Schema.HTTP;
-    if (urlTemplate.startsWith(SCHEMA_D2)) {
+    if (urlTemplate.startsWith(HttpConstants.SCHEMA_D2)) {
       schema = R2ClientFactory.Schema.D2;
     }
 
