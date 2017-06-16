@@ -7,8 +7,12 @@ import java.util.Set;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.restli.R2RestResponseHandler;
 import gobblin.utils.HttpUtils;
 
 
@@ -23,6 +27,7 @@ import gobblin.utils.HttpUtils;
  */
 @Slf4j
 public class ApacheHttpResponseHandler implements ResponseHandler<CloseableHttpResponse> {
+  private static final Logger LOG = LoggerFactory.getLogger(R2RestResponseHandler.class);
   private final Set<String> errorCodeWhitelist;
 
   public ApacheHttpResponseHandler() {
@@ -44,6 +49,8 @@ public class ApacheHttpResponseHandler implements ResponseHandler<CloseableHttpR
     if (status.getType() == StatusType.OK) {
       status.setContent(getEntityAsByteArray(response.getEntity()));
       status.setContentType(response.getEntity().getContentType().getValue());
+    } else {
+      LOG.info("Receive an unsuccessful response with status code: " + statusCode);
     }
 
     HttpEntity entity = response.getEntity();

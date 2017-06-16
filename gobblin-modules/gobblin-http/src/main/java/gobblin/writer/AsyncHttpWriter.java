@@ -96,14 +96,14 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
           onSuccess(asyncRequest, status);
           return;
         case CONTINUE:
-          LOG.warn("Write request continues with code: " + status.getStatusCode());
+          LOG.warn("Http write continues");
           LOG.info(asyncRequest.toString());
 
           onSuccess(asyncRequest, status);
           return;
         case CLIENT_ERROR:
           // Client error. Fail!
-          LOG.error("Write request failed on client error: " + status.getStatusCode());
+          LOG.error("Http write failed on client error");
           LOG.info(asyncRequest.toString());
 
           DispatchException clientExp = new DispatchException("Write failed on client error");
@@ -113,7 +113,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
           // Server side error. Retry
           attempt++;
           if (attempt == maxAttempts) {
-            LOG.error("Write request failed on server error: " + status.getStatusCode());
+            LOG.error("Http write request failed on server error");
             LOG.info(asyncRequest.toString());
 
             DispatchException serverExp = new DispatchException("Write failed after " + maxAttempts + " attempts.");

@@ -11,6 +11,7 @@ import com.linkedin.r2.message.rest.RestResponse;
 import gobblin.http.ResponseHandler;
 import gobblin.http.StatusType;
 import gobblin.utils.HttpUtils;
+import gobblin.writer.AsyncHttpWriter;
 
 
 /**
@@ -23,6 +24,8 @@ import gobblin.utils.HttpUtils;
  * </p>
  */
 public class R2RestResponseHandler implements ResponseHandler<RestResponse> {
+  private static final Logger LOG = LoggerFactory.getLogger(R2RestResponseHandler.class);
+
   public static final String CONTENT_TYPE_HEADER = "Content-Type";
   private final Set<String> errorCodeWhitelist;
 
@@ -45,7 +48,10 @@ public class R2RestResponseHandler implements ResponseHandler<RestResponse> {
     if (status.getType() == StatusType.OK) {
       status.setContent(response.getEntity());
       status.setContentType(response.getHeader(CONTENT_TYPE_HEADER));
+    } else {
+      LOG.info("Receive an unsuccessful response with status code: " + statusCode);
     }
+
 
     return status;
   }

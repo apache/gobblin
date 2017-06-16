@@ -17,6 +17,9 @@
 
 package gobblin.writer;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.collect.ImmutableMap;
@@ -50,8 +53,8 @@ public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, R
     String protocolVersion = config.getString(HttpConstants.PROTOCOL_VERSION);
     asyncRequestBuilder = new R2RestRequestBuilder(urlTemplate, verb, protocolVersion);
 
-    responseHandler = new R2RestResponseHandler();
-
+    Set<String> errorCodeWhitelist = new HashSet<>(config.getStringList(HttpConstants.ERROR_CODE_WHITELIST));
+    responseHandler = new R2RestResponseHandler(errorCodeWhitelist);
     return this;
   }
 

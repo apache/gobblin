@@ -1,5 +1,8 @@
 package gobblin.writer;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.avro.generic.GenericRecord;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -35,7 +38,9 @@ public class AvroHttpWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord,
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);
     this.asyncRequestBuilder = new ApacheHttpRequestBuilder(urlTemplate, verb, contentType);
-    this.responseHandler = new ApacheHttpResponseHandler();
+
+    Set<String> errorCodeWhitelist = new HashSet<>(config.getStringList(HttpConstants.ERROR_CODE_WHITELIST));
+    this.responseHandler = new ApacheHttpResponseHandler(errorCodeWhitelist);
     return this;
   }
 }
