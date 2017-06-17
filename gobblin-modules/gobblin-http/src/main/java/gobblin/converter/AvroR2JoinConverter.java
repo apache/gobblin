@@ -7,17 +7,20 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
+import com.linkedin.r2.transport.common.Client;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.async.AsyncRequestBuilder;
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.WorkUnitState;
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.http.HttpClient;
 import gobblin.http.HttpRequestResponseRecord;
 import gobblin.http.ResponseHandler;
 import gobblin.http.ResponseStatus;
+import gobblin.r2.R2ClientFactory;
+import gobblin.restli.R2Client;
 import gobblin.restli.R2ResponseStatus;
 import gobblin.restli.R2RestRequestBuilder;
 import gobblin.restli.R2RestResponseHandler;
@@ -25,7 +28,8 @@ import gobblin.utils.HttpConstants;
 
 
 @Slf4j
-public abstract class AvroD2JoinConverter extends AvroHttpJoinConverter<RestRequest, RestResponse>{
+public class AvroR2JoinConverter extends AvroHttpJoinConverter<RestRequest, RestResponse>{
+
   @Override
   protected void fillHttpOutputData(Schema schema, GenericRecord outputRecord, RestRequest restRequest,
       ResponseStatus status)
@@ -41,20 +45,27 @@ public abstract class AvroD2JoinConverter extends AvroHttpJoinConverter<RestRequ
   }
 
   @Override
-  protected HttpClient<RestRequest, RestResponse> createHttpClient(WorkUnitState workUnitState) {
-    //TODO: should use R2ClientFactory to initilize R2Client
-    return null;
+  protected HttpClient<RestRequest, RestResponse> createHttpClient(Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
+    String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
+
+    // By default, use http schema
+    R2ClientFactory.Schema schema = R2ClientFactory.Schema.HTTP;
+    if (urlTemplate.startsWith(HttpConstants.SCHEMA_D2)) {
+      schema = R2ClientFactory.Schema.D2;
+    }
+
+    R2ClientFactory factory = new R2ClientFactory(schema);
+    Client client = factory.createInstance(config);
+    return new R2Client(client, broker);
   }
 
   @Override
-  protected ResponseHandler<RestResponse> createResponseHandler(WorkUnitState workUnitState) {
+  protected ResponseHandler<RestResponse> createResponseHandler(Config config) {
     return new R2RestResponseHandler();
   }
 
   @Override
-  protected AsyncRequestBuilder<GenericRecord, RestRequest> createRequestBuilder(WorkUnitState workUnitState) {
-    Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
-    config.withFallback(DEFAULT_FALLBACK);
+  protected AsyncRequestBuilder<GenericRecord, RestRequest> createRequestBuilder(Config config) {
     String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);

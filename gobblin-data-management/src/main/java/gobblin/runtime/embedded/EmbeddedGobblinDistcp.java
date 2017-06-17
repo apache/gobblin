@@ -31,7 +31,7 @@ import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.RecursiveCopyableDataset;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.cli.EmbeddedGobblinCliOption;
+import gobblin.runtime.cli.CliObjectOption;
 import gobblin.runtime.cli.NotOnCli;
 import gobblin.runtime.cli.PublicMethodsGobblinCliFactory;
 import gobblin.runtime.template.ResourceBasedJobTemplate;
@@ -89,7 +89,7 @@ public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
    * Specifies that files in the target should be updated if they have changed in the source. Equivalent to -update
    * option in Hadoop distcp.
    */
-  @EmbeddedGobblinCliOption(description = "Specifies files should be updated if they're different in the source.")
+  @CliObjectOption(description = "Specifies files should be updated if they're different in the source.")
   public EmbeddedGobblinDistcp update() {
     this.setConfiguration(RecursiveCopyableDataset.UPDATE_KEY, Boolean.toString(true));
     return this;
@@ -99,7 +99,7 @@ public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
    * Specifies that files in the target that don't exist in the source should be deleted. Equivalent to -delete
    * option in Hadoop distcp.
    */
-  @EmbeddedGobblinCliOption(description = "Delete files in target that don't exist on source.")
+  @CliObjectOption(description = "Delete files in target that don't exist on source.")
   public EmbeddedGobblinDistcp delete() {
     this.setConfiguration(RecursiveCopyableDataset.DELETE_KEY, Boolean.toString(true));
     return this;
@@ -108,7 +108,7 @@ public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
   /**
    * If {@link #delete()} is used, specifies that newly empty parent directories should also be deleted.
    */
-  @EmbeddedGobblinCliOption(description = "If deleting files on target, also delete newly empty parent directories.")
+  @CliObjectOption(description = "If deleting files on target, also delete newly empty parent directories.")
   public EmbeddedGobblinDistcp deleteEmptyParentDirectories() {
     this.setConfiguration(RecursiveCopyableDataset.DELETE_EMPTY_DIRECTORIES_KEY, Boolean.toString(true));
     return this;

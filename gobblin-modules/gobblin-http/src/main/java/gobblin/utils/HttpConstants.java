@@ -12,6 +12,8 @@ public class HttpConstants {
   public static final String QUERY_PARAMS = "queryParams";
   public static final String HEADERS = "headers";
   public static final String BODY = "body";
+  
+  public static final String SCHEMA_D2 = "d2://";
 
   /** Status code */
   public static final String ERROR_CODE_WHITELIST = "errorCodeWhitelist";

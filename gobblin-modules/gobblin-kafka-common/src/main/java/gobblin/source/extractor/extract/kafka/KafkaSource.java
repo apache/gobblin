@@ -17,8 +17,6 @@
 
 package gobblin.source.extractor.extract.kafka;
 
-import gobblin.source.extractor.limiter.LimiterConfigurationKeys;
-import gobblin.source.workunit.MultiWorkUnit;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,17 +25,15 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
-import java.util.stream.Collectors;
-import lombok.Getter;
-import lombok.Setter;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.google.common.base.Joiner;
+
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -55,13 +51,21 @@ import gobblin.kafka.client.GobblinKafkaConsumerClient;
 import gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory;
 import gobblin.source.extractor.extract.EventBasedSource;
 import gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
+import gobblin.source.extractor.limiter.LimiterConfigurationKeys;
 import gobblin.source.workunit.Extract;
+import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
 import gobblin.util.DatasetFilterUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.dataset.DatasetUtils;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
 
 /**
@@ -97,6 +101,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       "gobblin.kafka.extract.allowTableTypeAndNamspaceCustomization";
   public static final String DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS =
       "gobblin.kafka.client.Kafka08ConsumerClient$Factory";
+  public static final String GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE =
+      "gobblin.kafka.shouldEnableDatasetStateStore";
+  public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -115,8 +122,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private Extract.TableType tableType;
   private String extractNameSpace;
   private boolean isFullExtract;
+  private boolean shouldEnableDatasetStateStore;
+  private AtomicBoolean isDatasetStateEnabled;
+  private Set<String> topicsToProcess;
 
-  private List<String> getLimiterExtractorReportKeys () {
+  private List<String> getLimiterExtractorReportKeys() {
     List<String> keyNames = new ArrayList<>();
     keyNames.add(KafkaSource.TOPIC_NAME);
     keyNames.add(KafkaSource.PARTITION_ID);
@@ -124,10 +134,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   }
 
   private void setLimiterReportKeyListToWorkUnits(List<WorkUnit> workUnits, List<String> keyNameList) {
-    if (keyNameList.isEmpty())
+    if (keyNameList.isEmpty()) {
       return;
+    }
     String keyList = Joiner.on(',').join(keyNameList.iterator());
-    for (WorkUnit workUnit: workUnits) {
+    for (WorkUnit workUnit : workUnits) {
       workUnit.setProp(LimiterConfigurationKeys.LIMITER_REPORT_KEY_LIST, keyList);
     }
   }
@@ -136,30 +147,29 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public List<WorkUnit> getWorkunits(SourceState state) {
     Map<String, List<WorkUnit>> workUnits = Maps.newConcurrentMap();
     if (state.getPropAsBoolean(KafkaSource.GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION)) {
-      String tableTypeStr = state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY,
-          KafkaSource.DEFAULT_TABLE_TYPE.toString());
+      String tableTypeStr =
+          state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, KafkaSource.DEFAULT_TABLE_TYPE.toString());
       tableType = Extract.TableType.valueOf(tableTypeStr);
-      extractNameSpace = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, KafkaSource.DEFAULT_NAMESPACE_NAME);
+      extractNameSpace =
+          state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, KafkaSource.DEFAULT_NAMESPACE_NAME);
     } else {
       // To be compatible, reject table type and namespace configuration keys as previous implementation
       tableType = KafkaSource.DEFAULT_TABLE_TYPE;
       extractNameSpace = KafkaSource.DEFAULT_NAMESPACE_NAME;
     }
     isFullExtract = state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY);
-
+    this.shouldEnableDatasetStateStore = state.getPropAsBoolean(GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE,
+        DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE);
     try {
-      this.kafkaConsumerClient =
-          kafkaConsumerClientResolver
-          .resolveClass(
-              state.getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
-                  DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance()
-          .create(ConfigUtils.propertiesToConfig(state.getProperties()));
+      this.kafkaConsumerClient = kafkaConsumerClientResolver.resolveClass(state
+          .getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS, DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS))
+          .newInstance().create(ConfigUtils.propertiesToConfig(state.getProperties()));
 
       List<KafkaTopic> topics = getFilteredTopics(state);
+      this.topicsToProcess = topics.stream().map(KafkaTopic::getName).collect(toSet());
 
-      for (KafkaTopic topic: topics)
-      {
-        LOG.info("Discovered topic " + topic.getName());
+      for (String topic : this.topicsToProcess) {
+        LOG.info("Discovered topic " + topic);
       }
       Map<String, State> topicSpecificStateMap =
           DatasetUtils.getDatasetSpecificProps(Iterables.transform(topics, new Function<KafkaTopic, String>() {
@@ -178,8 +188,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       Stopwatch createWorkUnitStopwatch = Stopwatch.createStarted();
 
       for (KafkaTopic topic : topics) {
-        threadPool.submit(new WorkUnitCreator(topic, state,
-            Optional.fromNullable(topicSpecificStateMap.get(topic.getName())), workUnits));
+        threadPool.submit(
+            new WorkUnitCreator(topic, state, Optional.fromNullable(topicSpecificStateMap.get(topic.getName())),
+                workUnits));
       }
 
       ExecutorsUtils.shutdownExecutorService(threadPool, Optional.of(LOG), 1L, TimeUnit.HOURS);
@@ -222,13 +233,23 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       }
     } else if (!workUnit.contains(TOPIC_NAME)) {
       return;
-    } else if (topicSpecificStateMap == null) {
-      return;
-    } else if (!topicSpecificStateMap.containsKey(workUnit.getProp(TOPIC_NAME))) {
-      return;
     } else {
-      workUnit.addAll(topicSpecificStateMap.get(workUnit.getProp(TOPIC_NAME)));
+      addDatasetUrnOptionally(workUnit);
+      if (topicSpecificStateMap == null) {
+        return;
+      } else if (!topicSpecificStateMap.containsKey(workUnit.getProp(TOPIC_NAME))) {
+        return;
+      } else {
+        workUnit.addAll(topicSpecificStateMap.get(workUnit.getProp(TOPIC_NAME)));
+      }
     }
+  }
+
+  private void addDatasetUrnOptionally(WorkUnit workUnit) {
+    if (!this.shouldEnableDatasetStateStore) {
+      return;
+    }
+    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, workUnit.getProp(TOPIC_NAME));
   }
 
   private void createEmptyWorkUnitsForSkippedPartitions(Map<String, List<WorkUnit>> workUnits,
@@ -241,16 +262,18 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     // it is not in this.partitionsToBeProcessed.
     for (Map.Entry<KafkaPartition, Long> entry : this.previousOffsets.entrySet()) {
       KafkaPartition partition = entry.getKey();
-
       if (!this.partitionsToBeProcessed.contains(partition)) {
-        long previousOffset = entry.getValue();
-        WorkUnit emptyWorkUnit = createEmptyWorkUnit(partition, previousOffset,
-            Optional.fromNullable(topicSpecificStateMap.get(partition.getTopicName())));
         String topicName = partition.getTopicName();
-        if (workUnits.containsKey(topicName)) {
-          workUnits.get(topicName).add(emptyWorkUnit);
-        } else {
-          workUnits.put(topicName, Lists.newArrayList(emptyWorkUnit));
+        if (!this.isDatasetStateEnabled.get() || this.topicsToProcess.contains(topicName)) {
+          long previousOffset = entry.getValue();
+          WorkUnit emptyWorkUnit = createEmptyWorkUnit(partition, previousOffset,
+              Optional.fromNullable(topicSpecificStateMap.get(partition.getTopicName())));
+
+          if (workUnits.containsKey(topicName)) {
+            workUnits.get(topicName).add(emptyWorkUnit);
+          } else {
+            workUnits.put(topicName, Lists.newArrayList(emptyWorkUnit));
+          }
         }
       }
     }
@@ -322,9 +345,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
       // When unable to get earliest/latest offsets from Kafka, skip the partition and create an empty workunit,
       // so that previousOffset is persisted.
-      LOG.warn(String.format(
-          "Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
-          partition));
+      LOG.warn(String
+          .format("Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
+              partition));
       return previousOffsetNotFound ? null : createEmptyWorkUnit(partition, previousOffset, topicSpecificState);
     }
 
@@ -366,14 +389,14 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
             partition, offsets.getStartOffset(), offsets.getEarliestOffset(), offsets.getLatestOffset());
         String offsetOption =
             state.getProp(RESET_ON_OFFSET_OUT_OF_RANGE, DEFAULT_RESET_ON_OFFSET_OUT_OF_RANGE).toLowerCase();
-        if (offsetOption.equals(LATEST_OFFSET)
-            || (offsetOption.equals(NEAREST_OFFSET) && offsets.getStartOffset() >= offsets.getLatestOffset())) {
+        if (offsetOption.equals(LATEST_OFFSET) || (offsetOption.equals(NEAREST_OFFSET)
+            && offsets.getStartOffset() >= offsets.getLatestOffset())) {
           LOG.warn(
               offsetOutOfRangeMsg + "This partition will start from the latest offset: " + offsets.getLatestOffset());
           offsets.startAtLatestOffset();
         } else if (offsetOption.equals(EARLIEST_OFFSET) || offsetOption.equals(NEAREST_OFFSET)) {
-          LOG.warn(offsetOutOfRangeMsg + "This partition will start from the earliest offset: "
-              + offsets.getEarliestOffset());
+          LOG.warn(offsetOutOfRangeMsg + "This partition will start from the earliest offset: " + offsets
+              .getEarliestOffset());
           offsets.startAtEarliestOffset();
         } else {
           LOG.warn(offsetOutOfRangeMsg + "This partition will be skipped.");
@@ -393,8 +416,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     if (this.previousOffsets.containsKey(partition)) {
       return this.previousOffsets.get(partition);
     }
-    throw new PreviousOffsetNotFoundException(String.format("Previous offset for topic %s, partition %s not found.",
-        partition.getTopicName(), partition.getId()));
+    throw new PreviousOffsetNotFoundException(String
+        .format("Previous offset for topic %s, partition %s not found.", partition.getTopicName(), partition.getId()));
   }
 
   // need to be synchronized as this.previousOffsets need to be initialized once
@@ -402,13 +425,20 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     if (this.doneGettingAllPreviousOffsets) {
       return;
     }
-
     this.previousOffsets.clear();
+    Map<String, Iterable<WorkUnitState>> workUnitStatesByDatasetUrns = state.getPreviousWorkUnitStatesByDatasetUrns();
+
+    if (!(workUnitStatesByDatasetUrns.size() == 1 && workUnitStatesByDatasetUrns.keySet().iterator().next()
+        .equals(""))) {
+      this.isDatasetStateEnabled.set(true);
+    }
+
     for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
       List<KafkaPartition> partitions = KafkaUtils.getPartitions(workUnitState);
       MultiLongWatermark watermark = workUnitState.getActualHighWatermark(MultiLongWatermark.class);
-      Preconditions.checkArgument(partitions.size() == watermark.size(), String.format(
-          "Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions, watermark));
+      Preconditions.checkArgument(partitions.size() == watermark.size(), String
+          .format("Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions,
+              watermark));
       for (int i = 0; i < partitions.size(); i++) {
         if (watermark.get(i) != ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
           this.previousOffsets.put(partitions.get(i), watermark.get(i));
@@ -457,6 +487,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       workUnit.addAll(topicSpecificState.get());
     }
     workUnit.setProp(TOPIC_NAME, partition.getTopicName());
+    addDatasetUrnOptionally(workUnit);
     workUnit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partition.getTopicName());
     workUnit.setProp(PARTITION_ID, partition.getId());
     workUnit.setProp(LEADER_ID, partition.getLeader().getId());
@@ -478,13 +509,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     List<KafkaTopic> topics = this.kafkaConsumerClient.getFilteredTopics(blacklist, whitelist);
     Optional<String> configStoreUri = ConfigStoreUtils.getConfigStoreUri(state.getProperties());
     if (configStoreUri.isPresent()) {
-      List<KafkaTopic> topicsFromConfigStore =
-          ConfigStoreUtils.getTopicsFromConfigStore(state.getProperties(), configStoreUri.get(), this.kafkaConsumerClient);
+      List<KafkaTopic> topicsFromConfigStore = ConfigStoreUtils
+          .getTopicsFromConfigStore(state.getProperties(), configStoreUri.get(), this.kafkaConsumerClient);
 
-      return topics.stream()
-          .filter((KafkaTopic p) -> (topicsFromConfigStore.stream()
-              .anyMatch((KafkaTopic q) -> q.getName().equalsIgnoreCase(p.getName()))))
-          .collect(Collectors.toList());
+      return topics.stream().filter((KafkaTopic p) -> (topicsFromConfigStore.stream()
+          .anyMatch((KafkaTopic q) -> q.getName().equalsIgnoreCase(p.getName())))).collect(toList());
     }
     return topics;
   }
@@ -512,10 +541,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     @Setter
     private long latestOffset = 0;
 
-    private void startAt(long offset) throws StartOffsetOutOfRangeException {
+    private void startAt(long offset)
+        throws StartOffsetOutOfRangeException {
       if (offset < this.earliestOffset || offset > this.latestOffset) {
-        throw new StartOffsetOutOfRangeException(
-            String.format("start offset = %d, earliest offset = %d, latest offset = %d", offset, this.earliestOffset,
+        throw new StartOffsetOutOfRangeException(String
+            .format("start offset = %d, earliest offset = %d, latest offset = %d", offset, this.earliestOffset,
                 this.latestOffset));
       }
       this.startOffset = offset;
@@ -554,6 +584,5 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         throw t;
       }
     }
-
   }
 }

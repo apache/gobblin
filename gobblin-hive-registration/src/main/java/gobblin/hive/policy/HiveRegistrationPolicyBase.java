@@ -19,6 +19,8 @@ package gobblin.hive.policy;
 
 import com.google.common.base.Splitter;
 import com.typesafe.config.Config;
+import gobblin.config.client.ConfigClient;
+import gobblin.config.client.api.VersionStabilityPolicy;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
 import gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
 import gobblin.source.extractor.extract.kafka.KafkaSource;
@@ -98,6 +100,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected final String dbNameSuffix;
   protected final String tableNamePrefix;
   protected final String tableNameSuffix;
+  protected final ConfigClient configClient;
 
   public HiveRegistrationPolicyBase(State props) throws IOException {
     Preconditions.checkNotNull(props);
@@ -116,6 +119,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     this.dbNameSuffix = props.getProp(HIVE_DATABASE_NAME_SUFFIX, StringUtils.EMPTY);
     this.tableNamePrefix = props.getProp(HIVE_TABLE_NAME_PREFIX, StringUtils.EMPTY);
     this.tableNameSuffix = props.getProp(HIVE_TABLE_NAME_SUFFIX, StringUtils.EMPTY);
+    this.configClient =
+        gobblin.config.client.ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
   }
 
   /**
@@ -220,7 +225,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     }
     Optional<Config> configForTopic = Optional.<Config>absent();
     if (primaryTableName.isPresent()) {
-      configForTopic = ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME);
+      configForTopic =
+          ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME, this.configClient);
     }
 
     String additionalNamesProp;

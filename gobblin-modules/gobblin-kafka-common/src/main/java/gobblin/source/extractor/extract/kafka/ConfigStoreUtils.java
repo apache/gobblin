@@ -58,10 +58,9 @@ public class ConfigStoreUtils {
     try {
       Collection<URI> importedBy = configClient.getImportedBy(new URI(tagUri.toString()), true, runtimeConfig);
       return importedBy.stream().filter((URI u) -> u.toString().contains(filterString)).collect(Collectors.toList());
-    } catch (Exception e) {
-      log.info(e.toString());
+    } catch (URISyntaxException | ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException e) {
+      throw new Error(e);
     }
-    return new ArrayList();
   }
 
   public static Optional<String> getConfigStoreUri(Properties properties) {
@@ -88,8 +87,7 @@ public class ConfigStoreUtils {
     return new URI(path.toString());
   }
 
-  public static Optional<Config> getConfigForTopic(Properties properties, String topicKey) {
-    ConfigClient configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
+  public static Optional<Config> getConfigForTopic(Properties properties, String topicKey, ConfigClient configClient) {
     Optional<String> configStoreUri = getConfigStoreUri(properties);
     Optional<Config> config = Optional.<Config>absent();
     if (!configStoreUri.isPresent()) {

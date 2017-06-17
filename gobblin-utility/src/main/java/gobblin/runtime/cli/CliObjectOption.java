@@ -24,17 +24,18 @@ import java.lang.annotation.Target;
 
 
 /**
- * Specifies that the annotated constructor should be used to instantiate the
- * {@link gobblin.runtime.embedded.EmbeddedGobblin} for running from CLI. Note the length of {@link #argumentNames()}
- * must exactly match the number of parameters in the constructor.
- * This annotation will be ignored unless it is applied to a constructor with only {@link String} parameters. Note
- * that annotating multiple valid constructors in the same class is an error.
+ * Specify additional information to use when building a CLI option from a method.
+ * This will only be respected on public methods with none or exactly one {@link String} parameter.
  */
-@Retention(value= RetentionPolicy.RUNTIME) @Target(value= {ElementType.CONSTRUCTOR})
-public @interface EmbeddedGobblinCliSupport {
+@Retention(value= RetentionPolicy.RUNTIME) @Target(value= {ElementType.METHOD})
+public @interface CliObjectOption {
   /**
-   * An array specifying the display name of each constructor parameter as an option in the CLI. The length of this
-   * array must be exactly the same as the number of parameters in the constructor.
+   * The name of the option in cli (e.g. if name="myName", then CLI users would call "-myName" to activate the option).
    */
-  String[] argumentNames() default {};
+  String name() default "";
+
+  /**
+   * A description for the option.
+   */
+  String description() default "";
 }
