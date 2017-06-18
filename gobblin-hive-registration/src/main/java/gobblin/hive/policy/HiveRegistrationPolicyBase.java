@@ -79,6 +79,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   // {@value PRIMARY_TABLE_TOKEN} if present in {@value ADDITIONAL_HIVE_TABLE_NAMES} or dbPrefix.{@value HIVE_TABLE_NAME}
   // .. will be replaced by the table name determined via {@link #getTableName(Path)}
   public static final String PRIMARY_TABLE_TOKEN = "$PRIMARY_TABLE";
+  protected static final ConfigClient configClient =
+      gobblin.config.client.ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
 
   /**
    * A valid db or table name should start with an alphanumeric character, and contains only
@@ -100,7 +102,6 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected final String dbNameSuffix;
   protected final String tableNamePrefix;
   protected final String tableNameSuffix;
-  protected final ConfigClient configClient;
 
   public HiveRegistrationPolicyBase(State props) throws IOException {
     Preconditions.checkNotNull(props);
@@ -119,8 +120,6 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     this.dbNameSuffix = props.getProp(HIVE_DATABASE_NAME_SUFFIX, StringUtils.EMPTY);
     this.tableNamePrefix = props.getProp(HIVE_TABLE_NAME_PREFIX, StringUtils.EMPTY);
     this.tableNameSuffix = props.getProp(HIVE_TABLE_NAME_SUFFIX, StringUtils.EMPTY);
-    this.configClient =
-        gobblin.config.client.ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
   }
 
   /**
