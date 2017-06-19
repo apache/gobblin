@@ -294,7 +294,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    * This function need to be thread safe since it is called in the Runnable
    */
   private List<WorkUnit> getWorkUnitsForTopic(KafkaTopic topic, SourceState state, Optional<State> topicSpecificState) {
+    Timer.Context context = this.metricContext.timer("isTopicQualifiedTimer").time();
     boolean topicQualified = isTopicQualified(topic);
+    context.close();
 
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (KafkaPartition partition : topic.getPartitions()) {

@@ -160,10 +160,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       db.setLocationUri(new Path(this.hiveDbRootDir.get(), dbName + HIVE_DB_EXTENSION).toString());
 
       try {
-        client.createDatabase(db);
         try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_DATABASE).time()) {
-          log.info("Created database " + dbName);
+          client.createDatabase(db);
         }
+        log.info("Created database " + dbName);
         HiveMetaStoreEventHelper.submitSuccessfulDBCreation(this.eventSubmitter, dbName);
         return true;
       } catch (AlreadyExistsException e) {
