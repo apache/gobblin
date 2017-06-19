@@ -32,6 +32,8 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Timer;
+import com.google.common.base.Joiner;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
@@ -60,6 +62,10 @@ import gobblin.util.ConfigUtils;
 import gobblin.util.DatasetFilterUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.dataset.DatasetUtils;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
+import gobblin.source.extractor.limiter.LimiterConfigurationKeys;
+import gobblin.source.workunit.MultiWorkUnit;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -104,6 +110,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final String GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE =
       "gobblin.kafka.shouldEnableDatasetStateStore";
   public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;
+  public static final String OFFSET_FETCH_TIMER = "offsetFetchTimer";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -126,6 +133,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private AtomicBoolean isDatasetStateEnabled;
   private Set<String> topicsToProcess;
 
+  private MetricContext metricContext;
+
   private List<String> getLimiterExtractorReportKeys() {
     List<String> keyNames = new ArrayList<>();
     keyNames.add(KafkaSource.TOPIC_NAME);
@@ -145,6 +154,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
+    this.metricContext = Instrumented.getMetricContext(state, KafkaSource.class);
+
     Map<String, List<WorkUnit>> workUnits = Maps.newConcurrentMap();
     if (state.getPropAsBoolean(KafkaSource.GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION)) {
       String tableTypeStr =
@@ -283,7 +294,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    * This function need to be thread safe since it is called in the Runnable
    */
   private List<WorkUnit> getWorkUnitsForTopic(KafkaTopic topic, SourceState state, Optional<State> topicSpecificState) {
+    Timer.Context context = this.metricContext.timer("isTopicQualifiedTimer").time();
     boolean topicQualified = isTopicQualified(topic);
+    context.close();
 
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (KafkaPartition partition : topic.getPartitions()) {
@@ -323,7 +336,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
     boolean failedToGetKafkaOffsets = false;
 
-    try {
+    try (Timer.Context context = this.metricContext.timer(OFFSET_FETCH_TIMER).time()) {
       offsets.setEarliestOffset(this.kafkaConsumerClient.getEarliestOffset(partition));
       offsets.setLatestOffset(this.kafkaConsumerClient.getLatestOffset(partition));
     } catch (KafkaOffsetRetrievalFailureException e) {
@@ -561,6 +574,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   }
 
   private class WorkUnitCreator implements Runnable {
+    public static final String WORK_UNITS_FOR_TOPIC_TIMER = "workUnitsForTopicTimer";
     private final KafkaTopic topic;
     private final SourceState state;
     private final Optional<State> topicSpecificState;
@@ -576,7 +590,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
     @Override
     public void run() {
-      try {
+      try (Timer.Context context = metricContext.timer(WORK_UNITS_FOR_TOPIC_TIMER).time()) {
         this.allTopicWorkUnits.put(this.topic.getName(),
             KafkaSource.this.getWorkUnitsForTopic(this.topic, this.state, this.topicSpecificState));
       } catch (Throwable t) {
