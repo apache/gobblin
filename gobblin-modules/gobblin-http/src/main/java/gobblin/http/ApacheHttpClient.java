@@ -104,8 +104,9 @@ public class ApacheHttpClient extends ThrottledHttpClient<HttpUriRequest, Closea
     try {
       String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
       URL url = new URL(urlTemplate);
-      LOG.info("Get limiter key [" + url.getProtocol() + url.getPath() + "]");
-      return url.getProtocol() + "/" + url.getHost() + "/" + url.getPort();
+      String key = url.getProtocol() + "/" + url.getHost() + "/" + url.getPort();
+      LOG.info("Get limiter key [" + key + "]");
+      return key;
     } catch (MalformedURLException e) {
       throw new IllegalStateException("Cannot get limiter key ");
     }
