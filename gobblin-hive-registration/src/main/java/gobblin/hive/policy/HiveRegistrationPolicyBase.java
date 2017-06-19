@@ -17,11 +17,15 @@
 
 package gobblin.hive.policy;
 
+import com.codahale.metrics.Timer;
 import com.google.common.base.Splitter;
 import com.typesafe.config.Config;
 import gobblin.config.client.ConfigClient;
 import gobblin.config.client.api.VersionStabilityPolicy;
+import gobblin.hive.HiveRegister;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
 import gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
 import gobblin.source.extractor.extract.kafka.KafkaSource;
 import java.io.IOException;
@@ -92,6 +96,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
    * A valid db or table name should contain at least one letter or '_' (i.e., should not be numbers only).
    */
   private static final Pattern VALID_DB_TABLE_NAME_PATTERN_2 = Pattern.compile(".*[a-z_].*");
+  public static final String CONFIG_FOR_TOPIC_TIMER = "configForTopicTimer";
 
   protected final HiveRegProps props;
   protected final FileSystem fs;
@@ -102,6 +107,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected final String dbNameSuffix;
   protected final String tableNamePrefix;
   protected final String tableNameSuffix;
+
+  protected final MetricContext metricContext;
 
   public HiveRegistrationPolicyBase(State props) throws IOException {
     Preconditions.checkNotNull(props);
@@ -120,6 +127,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     this.dbNameSuffix = props.getProp(HIVE_DATABASE_NAME_SUFFIX, StringUtils.EMPTY);
     this.tableNamePrefix = props.getProp(HIVE_TABLE_NAME_PREFIX, StringUtils.EMPTY);
     this.tableNameSuffix = props.getProp(HIVE_TABLE_NAME_SUFFIX, StringUtils.EMPTY);
+
+    this.metricContext = Instrumented.getMetricContext(props, HiveRegister.class);
   }
 
   /**
@@ -224,8 +233,10 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     }
     Optional<Config> configForTopic = Optional.<Config>absent();
     if (primaryTableName.isPresent()) {
+      Timer.Context context = this.metricContext.timer(CONFIG_FOR_TOPIC_TIMER).time();
       configForTopic =
           ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME, this.configClient);
+      context.close();
     }
 
     String additionalNamesProp;
