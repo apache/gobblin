@@ -126,7 +126,7 @@ public class Trash implements GobblinTrash {
         }
       }
     } else if (!(safeFsMkdir(fs, trashLocation.getParent(), ALL_PERM) && safeFsMkdir(fs, trashLocation, PERM)
-        && safeFsMkdir(fs, new Path(trashLocation, TRASH_IDENTIFIER_FILE)))) {
+        && fs.createNewFile(new Path(trashLocation, TRASH_IDENTIFIER_FILE)))) {
       // Failed to create directory or create trash identifier file.
       throw new IOException("Failed to create trash directory at " + trashLocation.toString());
     }

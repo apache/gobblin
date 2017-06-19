@@ -68,12 +68,9 @@ public class TrashTest {
       Assert.fail();
     } catch(IOException ioe) {}
 
-    // If trash doesn't exist, create
-    if (verify(trash.fs, never()).mkdirs(trash.trash.getTrashLocation(), new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE))) {
-      trash = new TrashTestBase(new Properties(), false, false, true);
-      verify(trash.fs).mkdirs(trash.trash.getTrashLocation(), new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE));
-      verify(trash.fs).createNewFile(new Path(trash.trash.getTrashLocation(), Trash.TRASH_IDENTIFIER_FILE));
-    }
+    trash = new TrashTestBase(new Properties(), false, false, true);
+    verify(trash.fs).mkdirs(trash.trash.getTrashLocation(), new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE));
+    verify(trash.fs).createNewFile(new Path(trash.trash.getTrashLocation(), Trash.TRASH_IDENTIFIER_FILE));
   }
 
   @Test
