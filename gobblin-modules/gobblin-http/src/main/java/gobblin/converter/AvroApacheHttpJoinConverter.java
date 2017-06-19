@@ -39,7 +39,7 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
   }
 
   @Override
-  protected HttpRequestBuilder createRequestBuilder(Config config) {
+  protected ApacheHttpRequestBuilder createRequestBuilder(Config config) {
     String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);
