@@ -212,7 +212,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         os = EncryptionFactory.buildStreamCryptoProvider(encryptionConfig).encodeOutputStream(os);
       }
       try {
-        FileSystem defaultFS = FileSystem.get(new Configuration());
         StreamThrottler<GobblinScopeTypes> throttler =
             this.taskBroker.getSharedResource(new StreamThrottler.Factory<GobblinScopeTypes>(), new EmptyKey());
         ThrottledInputStream throttledInputStream = throttler.throttleInputStream().inputStream(inputStream)
