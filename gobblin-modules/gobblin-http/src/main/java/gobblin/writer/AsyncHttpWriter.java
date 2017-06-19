@@ -96,8 +96,8 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
           onSuccess(asyncRequest, status);
           return;
         case CONTINUE:
-          LOG.warn("Http write continues");
-          LOG.info(asyncRequest.toString());
+          LOG.debug("Http write continues");
+          LOG.debug(asyncRequest.toString());
 
           onSuccess(asyncRequest, status);
           return;
