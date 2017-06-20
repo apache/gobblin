@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +45,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
@@ -121,7 +123,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private final AtomicInteger offsetTooEarlyCount = new AtomicInteger(0);
   private final AtomicInteger offsetTooLateCount = new AtomicInteger(0);
 
-  private GobblinKafkaConsumerClient kafkaConsumerClient;
+  // sharing the kafka consumer may result in contention, so support thread local consumers
+  private final ConcurrentLinkedQueue<GobblinKafkaConsumerClient> kafkaConsumerClientPool = new ConcurrentLinkedQueue();
+  private static final ThreadLocal<GobblinKafkaConsumerClient> kafkaConsumerClient =
+          new ThreadLocal<GobblinKafkaConsumerClient>();
+  private GobblinKafkaConsumerClient sharedKafkaConsumerClient = null;
   private final ClassAliasResolver<GobblinKafkaConsumerClientFactory> kafkaConsumerClientResolver =
       new ClassAliasResolver<>(GobblinKafkaConsumerClientFactory.class);
 
@@ -130,7 +136,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private String extractNameSpace;
   private boolean isFullExtract;
   private boolean shouldEnableDatasetStateStore;
-  private AtomicBoolean isDatasetStateEnabled;
+  private AtomicBoolean isDatasetStateEnabled = new AtomicBoolean(false);
   private Set<String> topicsToProcess;
 
   private MetricContext metricContext;
@@ -171,10 +177,15 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     isFullExtract = state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY);
     this.shouldEnableDatasetStateStore = state.getPropAsBoolean(GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE,
         DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE);
+
     try {
-      this.kafkaConsumerClient = kafkaConsumerClientResolver.resolveClass(state
-          .getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS, DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS))
-          .newInstance().create(ConfigUtils.propertiesToConfig(state.getProperties()));
+      Config config = ConfigUtils.propertiesToConfig(state.getProperties());
+      GobblinKafkaConsumerClientFactory kafkaConsumerClientFactory = kafkaConsumerClientResolver
+              .resolveClass(
+                      state.getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
+                              DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance();
+
+      this.kafkaConsumerClient.set(kafkaConsumerClientFactory.create(config));
 
       List<KafkaTopic> topics = getFilteredTopics(state);
       this.topicsToProcess = topics.stream().map(KafkaTopic::getName).collect(toSet());
@@ -195,6 +206,16 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT);
       ExecutorService threadPool =
           Executors.newFixedThreadPool(numOfThreads, ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
+
+      if (state.getPropAsBoolean(ConfigurationKeys.KAFKA_SOURCE_SHARE_CONSUMER_CLIENT,
+              ConfigurationKeys.DEFAULT_KAFKA_SOURCE_SHARE_CONSUMER_CLIENT)) {
+        this.sharedKafkaConsumerClient = this.kafkaConsumerClient.get();
+      } else {
+        // preallocate one client per thread
+        for (int i = 0; i < numOfThreads; i++) {
+          kafkaConsumerClientPool.offer(kafkaConsumerClientFactory.create(config));
+        }
+      }
 
       Stopwatch createWorkUnitStopwatch = Stopwatch.createStarted();
 
@@ -222,8 +243,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       throw new RuntimeException(e);
     } finally {
       try {
-        if (this.kafkaConsumerClient != null) {
-          this.kafkaConsumerClient.close();
+        if (this.kafkaConsumerClient.get() != null) {
+          this.kafkaConsumerClient.get().close();
+        }
+
+        // cleanup clients from pool
+        for (GobblinKafkaConsumerClient client: kafkaConsumerClientPool) {
+          client.close();
         }
       } catch (IOException e) {
         throw new RuntimeException("Exception closing kafkaConsumerClient");
@@ -337,8 +363,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     boolean failedToGetKafkaOffsets = false;
 
     try (Timer.Context context = this.metricContext.timer(OFFSET_FETCH_TIMER).time()) {
-      offsets.setEarliestOffset(this.kafkaConsumerClient.getEarliestOffset(partition));
-      offsets.setLatestOffset(this.kafkaConsumerClient.getLatestOffset(partition));
+      offsets.setEarliestOffset(this.kafkaConsumerClient.get().getEarliestOffset(partition));
+      offsets.setLatestOffset(this.kafkaConsumerClient.get().getLatestOffset(partition));
     } catch (KafkaOffsetRetrievalFailureException e) {
       failedToGetKafkaOffsets = true;
     }
@@ -441,7 +467,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     this.previousOffsets.clear();
     Map<String, Iterable<WorkUnitState>> workUnitStatesByDatasetUrns = state.getPreviousWorkUnitStatesByDatasetUrns();
 
-    if (!(workUnitStatesByDatasetUrns.size() == 1 && workUnitStatesByDatasetUrns.keySet().iterator().next()
+    if (!workUnitStatesByDatasetUrns.isEmpty() &&
+            !(workUnitStatesByDatasetUrns.size() == 1 && workUnitStatesByDatasetUrns.keySet().iterator().next()
         .equals(""))) {
       this.isDatasetStateEnabled.set(true);
     }
@@ -519,11 +546,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private List<KafkaTopic> getFilteredTopics(SourceState state) {
     List<Pattern> blacklist = DatasetFilterUtils.getPatternList(state, TOPIC_BLACKLIST);
     List<Pattern> whitelist = DatasetFilterUtils.getPatternList(state, TOPIC_WHITELIST);
-    List<KafkaTopic> topics = this.kafkaConsumerClient.getFilteredTopics(blacklist, whitelist);
+    List<KafkaTopic> topics = this.kafkaConsumerClient.get().getFilteredTopics(blacklist, whitelist);
     Optional<String> configStoreUri = ConfigStoreUtils.getConfigStoreUri(state.getProperties());
     if (configStoreUri.isPresent()) {
       List<KafkaTopic> topicsFromConfigStore = ConfigStoreUtils
-          .getTopicsFromConfigStore(state.getProperties(), configStoreUri.get(), this.kafkaConsumerClient);
+          .getTopicsFromConfigStore(state.getProperties(), configStoreUri.get(), this.kafkaConsumerClient.get());
 
       return topics.stream().filter((KafkaTopic p) -> (topicsFromConfigStore.stream()
           .anyMatch((KafkaTopic q) -> q.getName().equalsIgnoreCase(p.getName())))).collect(toList());
@@ -591,11 +618,26 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     @Override
     public void run() {
       try (Timer.Context context = metricContext.timer(WORK_UNITS_FOR_TOPIC_TIMER).time()) {
+        // use shared client if configure, otherwise set a thread local one from the pool
+        if (KafkaSource.this.sharedKafkaConsumerClient != null) {
+          KafkaSource.this.kafkaConsumerClient.set(KafkaSource.this.sharedKafkaConsumerClient);
+        } else {
+          GobblinKafkaConsumerClient client = KafkaSource.this.kafkaConsumerClientPool.poll();
+          Preconditions.checkNotNull(client, "Unexpectedly ran out of preallocated consumer clients");
+          KafkaSource.this.kafkaConsumerClient.set(client);
+        }
+
         this.allTopicWorkUnits.put(this.topic.getName(),
             KafkaSource.this.getWorkUnitsForTopic(this.topic, this.state, this.topicSpecificState));
       } catch (Throwable t) {
         LOG.error("Caught error in creating work unit for " + this.topic.getName(), t);
-        throw t;
+        throw new RuntimeException(t);
+      } finally {
+        // return the client to the pool
+        if (KafkaSource.this.sharedKafkaConsumerClient == null) {
+          KafkaSource.this.kafkaConsumerClientPool.offer(KafkaSource.this.kafkaConsumerClient.get());
+          KafkaSource.this.kafkaConsumerClient.remove();
+        }
       }
     }
   }
