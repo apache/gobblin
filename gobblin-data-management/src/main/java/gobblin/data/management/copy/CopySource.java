@@ -114,10 +114,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String MAX_WORK_UNITS_PER_BIN = CopyConfiguration.COPY_PREFIX + ".binPacking.maxWorkUnitsPerBin";
 
   private static final String WORK_UNIT_WEIGHT = CopyConfiguration.COPY_PREFIX + ".workUnitWeight";
-
-  private static final String COPY_FILTER_LIST = CopyConfiguration.COPY_PREFIX + ".candidateList";
-  private static final String IS_BLOCK = CopyConfiguration.COPY_PREFIX + ".isBlock";
-
   private final WorkUnitWeighter weighter = new FieldWeighter(WORK_UNIT_WEIGHT);
 
   public MetricContext metricContext;
@@ -163,8 +159,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       final Optional<CopyableFileWatermarkGenerator> watermarkGenerator =
           CopyableFileWatermarkHelper.getCopyableFileWatermarkGenerator(state);
       int maxThreads = state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES);
-      Optional<List<String>> optionalCandidateURNList =
-          state.contains(COPY_FILTER_LIST) ? Optional.of(state.getPropAsList(COPY_FILTER_LIST)) : Optional.<List<String>>absent();
 
       Optional<Boolean> optionalIsBlock =
           state.contains(IS_BLOCK) ? Optional.fromNullable(Boolean.parseBoolean(state.getProp(IS_BLOCK))) : Optional.<Boolean>absent();
@@ -180,7 +174,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       Iterator<CopyableDatasetRequestor> requestorIteratorWithNulls =
           Iterators.transform(iterableDatasetFinder.getDatasetsIterator(),
-              new CopyableDatasetRequestor.Factory(targetFs, copyConfiguration, log, optionalCandidateURNList, optionalIsBlock));
+              new CopyableDatasetRequestor.Factory(targetFs, copyConfiguration, log));
       Iterator<CopyableDatasetRequestor> requestorIterator = Iterators.filter(requestorIteratorWithNulls,
           Predicates.<CopyableDatasetRequestor>notNull());
 

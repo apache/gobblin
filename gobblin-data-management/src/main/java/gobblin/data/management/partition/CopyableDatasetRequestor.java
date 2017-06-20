@@ -60,27 +60,10 @@ public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyE
     private final CopyConfiguration copyConfiguration;
     private final Logger log;
 
-    private final Optional<List<String>> candidateURNList;
-    /**
-     * Optional candiate datasetURN list and black/whitelist switch.
-     * If isBlock is true, any dataset on candidate list will be blacklisted.
-     */
-    private final Optional<Boolean> isBlock;
 
     @Nullable
     @Override
     public CopyableDatasetRequestor apply(CopyableDatasetBase input) {
-      boolean filterFlag = true;
-      /**
-       * When block holds(isBlock is true) and candidatelistURN contains this input dataset, should return null.
-       * When isBlock is false and candidatelistURN contians this input dataset, should keep this dataset.
-       */
-      if (candidateURNList.isPresent() && isBlock.isPresent()) {
-        if (!(isBlock.get() ^ candidateListContains(input))) {
-          log.info("Dataset {} will be blacklisted due to user's job-level setting", input.datasetURN() );
-          return null;
-        }
-      }
       IterableCopyableDataset iterableCopyableDataset;
       if (input instanceof IterableCopyableDataset) {
         iterableCopyableDataset = (IterableCopyableDataset) input;
@@ -93,15 +76,6 @@ public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyE
         return null;
       }
       return new CopyableDatasetRequestor(this.targetFs, this.copyConfiguration, iterableCopyableDataset);
-    }
-
-    private boolean candidateListContains(CopyableDatasetBase input) {
-      for (String candidate: candidateURNList.get()) {
-        if ( input.datasetURN().endsWith(candidate)) {
-          return true;
-        }
-      }
-      return false;
     }
   }
 
