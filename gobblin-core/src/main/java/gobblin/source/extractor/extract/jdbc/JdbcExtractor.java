@@ -369,6 +369,15 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
     }
 
+    query = addOptionalWatermarkPredicate(query);
+    return query;
+  }
+
+  /**
+   * @param query
+   * @return query with watermark predicate symbol
+   */
+  protected String addOptionalWatermarkPredicate(String query) {
     String watermarkPredicateSymbol = ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL;
     if (!query.contains(watermarkPredicateSymbol)) {
       query = SqlQueryUtils.addPredicate(query, watermarkPredicateSymbol);
