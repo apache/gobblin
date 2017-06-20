@@ -17,6 +17,7 @@
 
 package gobblin.source.extractor.extract.kafka;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
 import java.util.List;
@@ -24,10 +25,13 @@ import java.util.List;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * A Utils class for Kafka.
  */
+@Slf4j
 public class KafkaUtils {
 
   /**
@@ -139,8 +143,20 @@ public class KafkaUtils {
    * "[topicname].[partitionid].avg.record.millis". If state doesn't contain this property, it returns defaultValue.
    */
   public static double getPartitionAvgRecordMillis(State state, KafkaPartition partition) {
-    return state.getPropAsDouble(
+    double avgRecordMillis = state.getPropAsDouble(
         getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_MILLIS);
+
+    // cap to prevent a poorly behaved topic from impacting the bin-packing
+    int avgFetchTimeCap = state.getPropAsInt(ConfigurationKeys.KAFKA_SOURCE_AVG_FETCH_TIME_CAP,
+            ConfigurationKeys.DEFAULT_KAFKA_SOURCE_AVG_FETCH_TIME_CAP);
+
+    if (avgFetchTimeCap > 0 && avgRecordMillis > avgFetchTimeCap) {
+      log.info("Topic {} partition {} has an average fetch time of {}, capping it to {}", partition.getTopicName(),
+                partition.getId(), avgRecordMillis, avgFetchTimeCap);
+      avgRecordMillis = avgFetchTimeCap;
+    }
+
+    return avgRecordMillis;
   }
 
   /**

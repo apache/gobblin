@@ -121,7 +121,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private final AtomicInteger offsetTooEarlyCount = new AtomicInteger(0);
   private final AtomicInteger offsetTooLateCount = new AtomicInteger(0);
 
-  private GobblinKafkaConsumerClient kafkaConsumerClient;
+  // sharing the kafka consumer may result in contention, so support thread local consumers
+  private static final ThreadLocal<GobblinKafkaConsumerClient> kafkaConsumerClient =
+          new ThreadLocal<GobblinKafkaConsumerClient>();
+  private GobblinKafkaConsumerClient sharedKafkaConsumerClient = null;
   private final ClassAliasResolver<GobblinKafkaConsumerClientFactory> kafkaConsumerClientResolver =
       new ClassAliasResolver<>(GobblinKafkaConsumerClientFactory.class);
 
@@ -172,9 +175,17 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     this.shouldEnableDatasetStateStore = state.getPropAsBoolean(GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE,
         DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE);
     try {
-      this.kafkaConsumerClient = kafkaConsumerClientResolver.resolveClass(state
-          .getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS, DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS))
-          .newInstance().create(ConfigUtils.propertiesToConfig(state.getProperties()));
+      this.kafkaConsumerClient.set(
+              kafkaConsumerClientResolver
+                      .resolveClass(
+                              state.getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
+                                      DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance()
+                      .create(ConfigUtils.propertiesToConfig(state.getProperties())));
+
+      if (state.getPropAsBoolean(ConfigurationKeys.KAFKA_SOURCE_SHARE_CONSUMER_CLIENT,
+              ConfigurationKeys.DEFAULT_KAFKA_SOURCE_SHARE_CONSUMER_CLIENT)) {
+        this.sharedKafkaConsumerClient = this.kafkaConsumerClient.get();
+      }
 
       List<KafkaTopic> topics = getFilteredTopics(state);
       this.topicsToProcess = topics.stream().map(KafkaTopic::getName).collect(toSet());
@@ -222,8 +233,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       throw new RuntimeException(e);
     } finally {
       try {
-        if (this.kafkaConsumerClient != null) {
-          this.kafkaConsumerClient.close();
+        if (this.kafkaConsumerClient.get() != null) {
+          this.kafkaConsumerClient.get().close();
         }
       } catch (IOException e) {
         throw new RuntimeException("Exception closing kafkaConsumerClient");
@@ -337,8 +348,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     boolean failedToGetKafkaOffsets = false;
 
     try (Timer.Context context = this.metricContext.timer(OFFSET_FETCH_TIMER).time()) {
-      offsets.setEarliestOffset(this.kafkaConsumerClient.getEarliestOffset(partition));
-      offsets.setLatestOffset(this.kafkaConsumerClient.getLatestOffset(partition));
+      offsets.setEarliestOffset(this.kafkaConsumerClient.get().getEarliestOffset(partition));
+      offsets.setLatestOffset(this.kafkaConsumerClient.get().getLatestOffset(partition));
     } catch (KafkaOffsetRetrievalFailureException e) {
       failedToGetKafkaOffsets = true;
     }
@@ -519,11 +530,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private List<KafkaTopic> getFilteredTopics(SourceState state) {
     List<Pattern> blacklist = DatasetFilterUtils.getPatternList(state, TOPIC_BLACKLIST);
     List<Pattern> whitelist = DatasetFilterUtils.getPatternList(state, TOPIC_WHITELIST);
-    List<KafkaTopic> topics = this.kafkaConsumerClient.getFilteredTopics(blacklist, whitelist);
+    List<KafkaTopic> topics = this.kafkaConsumerClient.get().getFilteredTopics(blacklist, whitelist);
     Optional<String> configStoreUri = ConfigStoreUtils.getConfigStoreUri(state.getProperties());
     if (configStoreUri.isPresent()) {
       List<KafkaTopic> topicsFromConfigStore = ConfigStoreUtils
-          .getTopicsFromConfigStore(state.getProperties(), configStoreUri.get(), this.kafkaConsumerClient);
+          .getTopicsFromConfigStore(state.getProperties(), configStoreUri.get(), this.kafkaConsumerClient.get());
 
       return topics.stream().filter((KafkaTopic p) -> (topicsFromConfigStore.stream()
           .anyMatch((KafkaTopic q) -> q.getName().equalsIgnoreCase(p.getName())))).collect(toList());
@@ -591,11 +602,33 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     @Override
     public void run() {
       try (Timer.Context context = metricContext.timer(WORK_UNITS_FOR_TOPIC_TIMER).time()) {
+        // use shared client if configure, otherwise create a thread local one
+        if (KafkaSource.this.sharedKafkaConsumerClient != null) {
+          KafkaSource.this.kafkaConsumerClient.set(KafkaSource.this.sharedKafkaConsumerClient);
+        } else {
+          KafkaSource.this.kafkaConsumerClient.set(
+                  kafkaConsumerClientResolver
+                          .resolveClass(
+                                  state.getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
+                                          DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance()
+                          .create(ConfigUtils.propertiesToConfig(state.getProperties())));
+        }
+
         this.allTopicWorkUnits.put(this.topic.getName(),
             KafkaSource.this.getWorkUnitsForTopic(this.topic, this.state, this.topicSpecificState));
       } catch (Throwable t) {
         LOG.error("Caught error in creating work unit for " + this.topic.getName(), t);
-        throw t;
+        throw new RuntimeException(t);
+      } finally {
+        try {
+          // close the client here if using a locally allocated one
+          if (KafkaSource.this.sharedKafkaConsumerClient == null &&
+                  KafkaSource.this.kafkaConsumerClient.get() != null) {
+            KafkaSource.this.kafkaConsumerClient.get().close();
+          }
+        } catch (IOException e) {
+          throw new RuntimeException("Exception closing kafkaConsumerClient");
+        }
       }
     }
   }
