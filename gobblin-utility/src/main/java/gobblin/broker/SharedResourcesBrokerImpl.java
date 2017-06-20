@@ -120,8 +120,9 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
       if (scopedConfig.getScopeType().equals(scopedConfig.getScopeType().rootScope())) {
         config = ConfigUtils.getConfigOrEmpty(scopedConfig.getConfig(), factoryName).withFallback(config);
       } else if (scope != null && SharedResourcesBrokerUtils.isScopeTypeAncestor(scope, scopedConfig.getScopeType())) {
-        config = ConfigUtils.getConfigOrEmpty(scopedConfig.getConfig(), factoryName).getConfig(scope.name())
-            .atKey(scope.name()).withFallback(config);
+        Config tmpConfig = ConfigUtils.getConfigOrEmpty(scopedConfig.getConfig(), factoryName);
+        tmpConfig = ConfigUtils.getConfigOrEmpty(tmpConfig, scope.name());
+        config = tmpConfig.atKey(scope.name()).withFallback(config);
       }
     }
 
