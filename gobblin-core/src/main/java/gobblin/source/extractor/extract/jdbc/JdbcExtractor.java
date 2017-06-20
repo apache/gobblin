@@ -317,11 +317,13 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
           JsonObject jsonObject = gson.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
           targetSchema.add(jsonObject);
           headerColumns.add(targetColumnName);
+          sourceColumnName = "`" + sourceColumnName + "`";
           this.columnList.add(sourceColumnName);
         }
       }
 
       if (this.hasMultipleWatermarkColumns(watermarkColumn)) {
+        derivedWatermarkColumnName = "`" + derivedWatermarkColumnName + "`";
         this.columnList.add(derivedWatermarkColumnName);
         headerColumns.add(derivedWatermarkColumnName);
         targetSchema.add(defaultWatermark);
