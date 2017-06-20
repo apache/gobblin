@@ -134,7 +134,8 @@ public class JobContext implements Closeable {
     this.jobSequence = Long.toString(Id.Job.parse(this.jobId).getSequence());
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId);
 
-    this.jobBroker = instanceBroker.newSubscopedBuilder(new JobScopeInstance(this.jobName, this.jobId)).build();
+    this.jobBroker = instanceBroker.newSubscopedBuilder(new JobScopeInstance(this.jobName, this.jobId))
+        .withOverridingConfig(ConfigUtils.propertiesToConfig(jobProps)).build();
     this.jobCommitPolicy = JobCommitPolicy.getCommitPolicy(jobProps);
 
     this.datasetStateStore = createStateStore(ConfigUtils.propertiesToConfig(jobProps));
