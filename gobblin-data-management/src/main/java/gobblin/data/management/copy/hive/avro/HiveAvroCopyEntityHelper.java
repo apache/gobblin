@@ -22,6 +22,8 @@ import java.net.URI;
 
 import com.google.common.base.Optional;
 
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.Path;
@@ -67,6 +69,40 @@ public class HiveAvroCopyEntityHelper {
         targetTable.getTTable().getSd().getSerdeInfo().getParameters().put(HIVE_TABLE_AVRO_SCHEMA_URL, newAvroSchemaURL);
         log.info(String.format("For table %s, change %s from %s to %s", targetTable.getCompleteName(),
             HIVE_TABLE_AVRO_SCHEMA_URL, oldAvroSchemaURL, newAvroSchemaURL));
+      }
+    }
+  }
+
+  /**
+   * Currently updated the {@link #HIVE_TABLE_AVRO_SCHEMA_URL} location for new hive partitions
+   * @param targetTable, new Table to be registered in hive
+   * @param sourcePartitions, source partitions
+   * @throws IOException
+   */
+  public static void updatePartitionAttributesIfAvro(Table targetTable, Map<List<String>, Partition> sourcePartitions, HiveCopyEntityHelper hiveHelper) throws IOException {
+    if (!isHiveTableAvroType(targetTable)) {
+      return;
+    }
+
+    // need to update the {@link #HIVE_TABLE_AVRO_SCHEMA_URL} location
+    for (Map.Entry<List<String>, Partition> partition : sourcePartitions.entrySet()) {
+      String oldAvroSchemaURL = partition.getValue().getTPartition().getSd().getSerdeInfo().getParameters().get(HIVE_TABLE_AVRO_SCHEMA_URL);
+      if (oldAvroSchemaURL != null) {
+
+        Path oldAvroSchemaPath = new Path(oldAvroSchemaURL);
+        URI sourceFileSystemURI = hiveHelper.getDataset().getFs().getUri();
+
+        if (PathUtils.isAbsoluteAndSchemeAuthorityNull(oldAvroSchemaPath) || (oldAvroSchemaPath.toUri().getScheme().equals(sourceFileSystemURI.getScheme())
+            && oldAvroSchemaPath.toUri().getAuthority().equals(sourceFileSystemURI.getAuthority()))) {
+
+          String newAvroSchemaURL = hiveHelper.getTargetPathHelper()
+              .getTargetPath(oldAvroSchemaPath, hiveHelper.getTargetFileSystem(), Optional.<Partition>absent(), true)
+              .toString();
+
+          partition.getValue().getTPartition().getSd().getSerdeInfo().getParameters().put(HIVE_TABLE_AVRO_SCHEMA_URL, newAvroSchemaURL);
+          log.info(String.format("For partition %s, change %s from %s to %s", partition.getValue().getCompleteName(),
+              HIVE_TABLE_AVRO_SCHEMA_URL, oldAvroSchemaURL, newAvroSchemaURL));
+        }
       }
     }
   }

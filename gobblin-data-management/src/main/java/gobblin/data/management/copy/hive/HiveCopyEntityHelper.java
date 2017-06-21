@@ -17,7 +17,6 @@
 
 package gobblin.data.management.copy.hive;
 
-import gobblin.hive.avro.HiveAvroSerDeManager;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
@@ -362,10 +361,7 @@ public class HiveCopyEntityHelper {
         if (HiveUtils.isPartitioned(this.dataset.table)) {
           this.sourcePartitions = HiveUtils.getPartitionsMap(multiClient.getClient(source_client), this.dataset.table,
               this.partitionFilter, this.hivePartitionExtendedFilter);
-          for (Map.Entry<List<String>, Partition> partition : this.sourcePartitions.entrySet()) {
-            String newAvroSchemaURL = this.targetTable.getTTable().getSd().getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_URL);
-            partition.getValue().getTPartition().getSd().getSerdeInfo().getParameters().put(HiveAvroSerDeManager.SCHEMA_URL, newAvroSchemaURL);
-          }
+          HiveAvroCopyEntityHelper.updatePartitionAttributesIfAvro(this.targetTable, this.sourcePartitions, this);
 
           // Note: this must be mutable, so we copy the map
           this.targetPartitions =
