@@ -17,6 +17,8 @@
 
 package gobblin.writer;
 
+import java.util.Set;
+
 import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.collect.ImmutableMap;
@@ -31,6 +33,7 @@ import gobblin.restli.R2Client;
 import gobblin.restli.R2RestRequestBuilder;
 import gobblin.restli.R2RestResponseHandler;
 import gobblin.utils.HttpConstants;
+import gobblin.utils.HttpUtils;
 
 
 public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, RestRequest, RestResponse> {
@@ -50,8 +53,8 @@ public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, R
     String protocolVersion = config.getString(HttpConstants.PROTOCOL_VERSION);
     asyncRequestBuilder = new R2RestRequestBuilder(urlTemplate, verb, protocolVersion);
 
-    responseHandler = new R2RestResponseHandler();
-
+    Set<String> errorCodeWhitelist = HttpUtils.getErrorCodeWhitelist(config);
+    responseHandler = new R2RestResponseHandler(errorCodeWhitelist);
     return this;
   }
 

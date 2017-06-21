@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 
 import gobblin.utils.HttpUtils;
-import gobblin.async.AsyncRequest;
 import gobblin.async.AsyncRequestBuilder;
 import gobblin.async.BufferedRecord;
 
@@ -29,33 +28,33 @@ import gobblin.async.BufferedRecord;
  *   a write request from batched records, depending on specific implementation of {@link #buildRequest(Queue)}
  * </p>
  */
-public class HttpRequestBuilder implements AsyncRequestBuilder<GenericRecord, HttpUriRequest> {
-  private static final Logger LOG = LoggerFactory.getLogger(HttpRequestBuilder.class);
+public class ApacheHttpRequestBuilder implements AsyncRequestBuilder<GenericRecord, HttpUriRequest> {
+  private static final Logger LOG = LoggerFactory.getLogger(ApacheHttpRequestBuilder.class);
 
   private final String urlTemplate;
   private final String verb;
   private final ContentType contentType;
 
-  public HttpRequestBuilder(String urlTemplate, String verb, String contentType) {
+  public ApacheHttpRequestBuilder(String urlTemplate, String verb, String contentType) {
     this.urlTemplate = urlTemplate;
     this.verb = verb;
     this.contentType = createContentType(contentType);
   }
 
   @Override
-  public AsyncRequest<GenericRecord, HttpUriRequest> buildRequest(Queue<BufferedRecord<GenericRecord>> buffer) {
+  public ApacheHttpRequest<GenericRecord> buildRequest(Queue<BufferedRecord<GenericRecord>> buffer) {
     return buildWriteRequest(buffer.poll());
   }
 
   /**
    * Build a write request from a single record
    */
-  private AsyncRequest<GenericRecord, HttpUriRequest> buildWriteRequest(BufferedRecord<GenericRecord> record) {
+  private ApacheHttpRequest<GenericRecord> buildWriteRequest(BufferedRecord<GenericRecord> record) {
     if (record == null) {
       return null;
     }
 
-    AsyncRequest<GenericRecord, HttpUriRequest> request = new AsyncRequest<>();
+    ApacheHttpRequest<GenericRecord> request = new ApacheHttpRequest<>();
     HttpOperation httpOperation = HttpUtils.toHttpOperation(record.getRecord());
 
     // Set uri

@@ -18,6 +18,7 @@ import com.linkedin.restli.common.ResourceMethod;
 import com.linkedin.restli.common.RestConstants;
 
 import gobblin.http.HttpOperation;
+import gobblin.r2.R2Request;
 import gobblin.utils.HttpUtils;
 import gobblin.async.AsyncRequest;
 import gobblin.async.AsyncRequestBuilder;
@@ -46,19 +47,19 @@ public class R2RestRequestBuilder implements AsyncRequestBuilder<GenericRecord, 
   }
 
   @Override
-  public AsyncRequest<GenericRecord, RestRequest> buildRequest(Queue<BufferedRecord<GenericRecord>> buffer) {
+  public R2Request<GenericRecord> buildRequest(Queue<BufferedRecord<GenericRecord>> buffer) {
     return buildWriteRequest(buffer.poll());
   }
 
   /**
    * Build a request from a single record
    */
-  private AsyncRequest<GenericRecord, RestRequest> buildWriteRequest(BufferedRecord<GenericRecord> record) {
+  private R2Request<GenericRecord> buildWriteRequest(BufferedRecord<GenericRecord> record) {
     if (record == null) {
       return null;
     }
 
-    AsyncRequest<GenericRecord, RestRequest> request = new AsyncRequest<>();
+    R2Request<GenericRecord> request = new R2Request<>();
     HttpOperation httpOperation = HttpUtils.toHttpOperation(record.getRecord());
     // Set uri
     URI uri = HttpUtils.buildURI(urlTemplate, httpOperation.getKeys(), httpOperation.getQueryParams());

@@ -18,7 +18,7 @@ import gobblin.http.ApacheHttpClient;
 import gobblin.http.ApacheHttpResponseHandler;
 import gobblin.http.ApacheHttpResponseStatus;
 import gobblin.http.HttpClient;
-import gobblin.http.HttpRequestBuilder;
+import gobblin.http.ApacheHttpRequestBuilder;
 import gobblin.http.HttpRequestResponseRecord;
 import gobblin.http.ResponseStatus;
 import gobblin.utils.HttpConstants;
@@ -39,13 +39,12 @@ public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRe
   }
 
   @Override
-  protected HttpRequestBuilder createRequestBuilder(Config config) {
-
+  protected ApacheHttpRequestBuilder createRequestBuilder(Config config) {
     String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
     String verb = config.getString(HttpConstants.VERB);
     String contentType = config.getString(HttpConstants.CONTENT_TYPE);
 
-    return new HttpRequestBuilder(urlTemplate, verb, contentType);
+    return new ApacheHttpRequestBuilder(urlTemplate, verb, contentType);
   }
 
   @Override

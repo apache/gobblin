@@ -24,6 +24,8 @@ package gobblin.http;
 public enum StatusType {
   // success
   OK,
+  // something bad happened but safe to continue
+  CONTINUE,
   // error triggered by client
   CLIENT_ERROR,
   // error triggered by server

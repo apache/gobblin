@@ -26,9 +26,7 @@ import com.linkedin.common.util.None;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
-import com.typesafe.config.Config;
 
-import gobblin.broker.iface.NotConfiguredException;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.http.ThrottledHttpClient;
 
