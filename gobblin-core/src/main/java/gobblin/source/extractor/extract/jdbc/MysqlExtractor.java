@@ -273,6 +273,16 @@ public class MysqlExtractor extends JdbcExtractor {
   }
 
   @Override
+  public String getLeftDelimitedIdentifier() {
+    return "`";
+  }
+
+  @Override
+  public String getRightDelimitedIdentifier() {
+    return "`";
+  }
+
+  @Override
   public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit,
       List<Predicate> predicateList) throws IOException {
     return null;

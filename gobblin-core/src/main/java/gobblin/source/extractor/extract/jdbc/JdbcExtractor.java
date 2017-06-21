@@ -317,13 +317,13 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
           JsonObject jsonObject = gson.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
           targetSchema.add(jsonObject);
           headerColumns.add(targetColumnName);
-          sourceColumnName = "`" + sourceColumnName + "`";
+          sourceColumnName = getLeftDelimitedIdentifier() + sourceColumnName + getRightDelimitedIdentifier();
           this.columnList.add(sourceColumnName);
         }
       }
 
       if (this.hasMultipleWatermarkColumns(watermarkColumn)) {
-        derivedWatermarkColumnName = "`" + derivedWatermarkColumnName + "`";
+        derivedWatermarkColumnName = getLeftDelimitedIdentifier() + derivedWatermarkColumnName + getRightDelimitedIdentifier();
         this.columnList.add(derivedWatermarkColumnName);
         headerColumns.add(derivedWatermarkColumnName);
         targetSchema.add(defaultWatermark);
@@ -1147,6 +1147,14 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         break;
     }
     return columnName;
+  }
+
+  public String getLeftDelimitedIdentifier() {
+    return "\"";
+  }
+
+  public String getRightDelimitedIdentifier() {
+    return "\"";
   }
 
   @Override
