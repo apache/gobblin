@@ -298,9 +298,4 @@ public class Trash implements GobblinTrash {
       }
     }
   }
-
-  private boolean safeFsMkdir(FileSystem fs, Path f) throws IOException {
-    return safeFsMkdir(fs, f, FsPermission.getDirDefault());
-  }
-
 }
