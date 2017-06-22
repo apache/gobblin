@@ -1149,12 +1149,18 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     return columnName;
   }
 
+  /**
+   * Default DelimitedIdentifier should be 'double quotes',
+   * but that would make the column name case sensitive in case of Oracle.
+   * @return leftDelimitedIdentifier
+   */
+
   public String getLeftDelimitedIdentifier() {
-    return "\"";
+    return "";
   }
 
   public String getRightDelimitedIdentifier() {
-    return "\"";
+    return "";
   }
 
   @Override
