@@ -94,6 +94,7 @@ public class RetentionTestHelper {
      Properties jobProps = new Properties();
      jobProps.setProperty(CleanableDatasetBase.SKIP_TRASH_KEY, Boolean.toString(true));
      jobProps.setProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI, "dummy");
+     jobProps.setProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_ENABLED, "true");
 
      jobProps.putAll(additionalJobProps);
 

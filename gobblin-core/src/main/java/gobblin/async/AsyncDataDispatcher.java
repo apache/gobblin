@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.AbstractExecutionThreadService;
 
-import javax.annotation.concurrent.ThreadSafe;
+import javax.annotation.concurrent.NotThreadSafe;
 
 
 /**
@@ -43,7 +43,7 @@ import javax.annotation.concurrent.ThreadSafe;
  *
  * @param <D> type of record
  */
-@ThreadSafe
+@NotThreadSafe
 public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadService {
   private static final Logger LOG = LoggerFactory.getLogger(AsyncDataDispatcher.class);
 
@@ -54,15 +54,11 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
   private final Lock lock;
   private final Condition isBufferEmpty;
 
-  // Indicate a buffer empty occurrence
-  private boolean isBufferEmptyOccurred;
-
   public AsyncDataDispatcher(int capacity) {
     super();
     buffer = new ArrayBlockingQueue<>(capacity);
     lock = new ReentrantLock(true);
     isBufferEmpty = lock.newCondition();
-    isBufferEmptyOccurred = false;
     startAsync();
     awaitRunning();
   }
@@ -101,7 +97,7 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
     LOG.info("Start processing records");
     // A main loop to process records
     while (true) {
-      while (buffer.size() == 0) {
+      while (buffer.isEmpty()) {
         // Buffer is empty
         notifyBufferEmptyOccurrence();
         if (!isRunning()) {
@@ -112,16 +108,9 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
         try {
           Thread.sleep(300);
         } catch (InterruptedException e) {
-          LOG.debug("sleep interrupted", e);
+          LOG.warn("Dispatcher sleep interrupted", e);
+          break;
         }
-      }
-
-      // Remove the old buffer empty occurrence
-      try {
-        lock.lock();
-        isBufferEmptyOccurred = false;
-      } finally {
-        lock.unlock();
       }
 
       // Dispatch records
@@ -157,30 +146,27 @@ public abstract class AsyncDataDispatcher<D> extends AbstractExecutionThreadServ
     }
   }
 
-  protected void waitForABufferEmptyOccurrence() {
-    checkRunning("waitForABufferEmptyOccurrence");
+  protected void waitForBufferEmpty() {
+    checkRunning("waitForBufferEmpty");
     try {
       lock.lock();
-      // Waiting for a buffer empty occurrence
-      while (!isBufferEmptyOccurred) {
+      // Waiting buffer empty
+      while (!buffer.isEmpty()) {
         try {
           isBufferEmpty.await();
         } catch (InterruptedException e) {
           throw new RuntimeException("Waiting for buffer flush interrupted", e);
         }
       }
-      // Remove the consumed buffer empty occurrence
-      isBufferEmptyOccurred = false;
     } finally {
       lock.unlock();
-      checkRunning("waitForABufferEmptyOccurrence");
+      checkRunning("waitForBufferEmpty");
     }
   }
 
   private void notifyBufferEmptyOccurrence() {
     try {
       lock.lock();
-      isBufferEmptyOccurred = true;
       isBufferEmpty.signalAll();
     } finally {
       lock.unlock();

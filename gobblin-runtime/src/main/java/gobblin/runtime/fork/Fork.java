@@ -39,6 +39,9 @@ import gobblin.publisher.TaskPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
+import gobblin.records.RecordStreamConsumer;
+import gobblin.records.RecordStreamProcessor;
+import gobblin.records.RecordStreamWithMetadata;
 import gobblin.runtime.BoundedBlockingRecordQueue;
 import gobblin.runtime.ExecutionModel;
 import gobblin.runtime.MultiConverter;
@@ -51,13 +54,14 @@ import gobblin.source.extractor.RecordEnvelope;
 import gobblin.state.ConstructState;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.AcknowledgableRecordEnvelope;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.DataWriterWrapperBuilder;
 import gobblin.writer.Destination;
 import gobblin.writer.PartitionedDataWriter;
 import gobblin.writer.WatermarkAwareWriter;
+
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
 
 /**
@@ -78,7 +82,7 @@ import gobblin.writer.WatermarkAwareWriter;
  * @author Yinan Li
  */
 @SuppressWarnings("unchecked")
-public abstract class Fork implements Closeable, Runnable, FinalState {
+public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S, D>, Runnable {
 
   // Possible state of a fork
   enum ForkState {
@@ -171,6 +175,47 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
 
   private boolean isStreamingMode() {
     return this.executionModel.equals(ExecutionModel.STREAMING);
+  }
+
+  @SuppressWarnings(value = "RV_RETURN_VALUE_IGNORED",
+      justification = "We actually don't care about the return value of subscribe.")
+  public void consumeRecordStream(RecordStreamWithMetadata<D, S> stream)
+      throws RecordStreamProcessor.StreamProcessingException {
+    if (this.converter instanceof MultiConverter) {
+      // if multiconverter, unpack it
+      for (Converter cverter : ((MultiConverter) this.converter).getConverters()) {
+        stream = cverter.processStream(stream, this.taskState);
+      }
+    } else {
+      stream = this.converter.processStream(stream, this.taskState);
+    }
+    stream = this.rowLevelPolicyChecker.processStream(stream, this.taskState);
+    stream = stream.mapStream(s -> s.map(r -> {
+      onEachRecord();
+      return r;
+    }));
+    stream = stream.mapStream(s -> s.doOnSubscribe(subscription -> onStart()));
+    stream = stream.mapStream(s -> s.doOnComplete(() -> verifyAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED)));
+    stream = stream.mapStream(s -> s.doOnCancel(() -> verifyAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED)));
+    stream = stream.mapStream(s -> s.doOnError(exc -> {
+      verifyAndSetForkState(ForkState.RUNNING, ForkState.FAILED);
+      this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), exc);
+    }));
+    stream = stream.mapStream(s -> s.doFinally(this::cleanup));
+    stream.getRecordStream().subscribe(r -> this.writer.get().writeEnvelope((RecordEnvelope) r), e -> logger.error("Failed to process record.", e),
+        () -> {
+          if (this.writer.isPresent()) {
+            this.writer.get().close();
+          }
+        });
+  }
+
+  private void onStart() throws IOException {
+    compareAndSetForkState(ForkState.PENDING, ForkState.RUNNING);
+  }
+
+  private void onEachRecord() throws IOException {
+    buildWriterIfNotPresent();
   }
 
   @Override
@@ -286,11 +331,11 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
         // it may throw so the exception gets propagated to the caller of this method.
         this.logger.info(String.format("Committing data for fork %d of task %s", this.index, this.taskId));
         commitData();
-        compareAndSetForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
+        verifyAndSetForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
         return true;
       }
       this.logger.error(String.format("Fork %d of task %s failed to pass quality checking", this.index, this.taskId));
-      compareAndSetForkState(ForkState.SUCCEEDED, ForkState.FAILED);
+      verifyAndSetForkState(ForkState.SUCCEEDED, ForkState.FAILED);
       return false;
     } catch (Throwable t) {
       this.logger.error(String.format("Fork %d of task %s failed to commit data", this.index, this.taskId), t);
@@ -326,7 +371,9 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
    *         statistics of this {@link Fork} wrapped in an {@link com.google.common.base.Optional},
    *         which means it may be absent if collecting of queue statistics is not enabled.
    */
-  public abstract Optional<BoundedBlockingRecordQueue<Object>.QueueStats> queueStats();
+  public Optional<BoundedBlockingRecordQueue<Object>.QueueStats> queueStats() {
+    return Optional.absent();
+  };
 
   /**
    * Return if this {@link Fork} has succeeded processing all records.
@@ -335,6 +382,10 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
    */
   public boolean isSucceeded() {
     return this.forkState.compareAndSet(ForkState.SUCCEEDED, ForkState.SUCCEEDED);
+  }
+
+  public boolean isDone() {
+    return this.forkState.get() == ForkState.SUCCEEDED || this.forkState.get() == ForkState.FAILED;
   }
 
   @Override
@@ -387,7 +438,9 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
     }
   }
 
-  protected abstract void processRecords() throws IOException, DataConversionException;
+  protected void processRecords() throws IOException, DataConversionException {
+    throw new UnsupportedOperationException();
+  }
 
 
   protected void processRecord(Object record) throws IOException, DataConversionException {
@@ -406,13 +459,13 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
     } else {
       if (isStreamingMode()) {
         // Unpack the record from its container
-        AcknowledgableRecordEnvelope recordEnvelope = (AcknowledgableRecordEnvelope) record;
+        RecordEnvelope recordEnvelope = (RecordEnvelope) record;
         // Convert the record, check its data quality, and finally write it out if quality checking passes.
         for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, recordEnvelope.getRecord(), this.taskState)) {
           if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
             // for each additional record we pass down, increment the acks needed
             ((WatermarkAwareWriter) this.writer.get()).writeEnvelope(
-                recordEnvelope.derivedEnvelope(convertedRecord));
+                recordEnvelope.withRecord(convertedRecord));
           }
         }
         // ack this fork's processing done
@@ -423,14 +476,16 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
         // Convert the record, check its data quality, and finally write it out if quality checking passes.
         for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, record, this.taskState)) {
           if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
-            this.writer.get().write(convertedRecord);
+            this.writer.get().writeEnvelope(new RecordEnvelope<>(convertedRecord));
           }
         }
       }
     }
   }
 
-  protected abstract boolean putRecordImpl(Object record) throws InterruptedException;
+  protected boolean putRecordImpl(Object record) throws InterruptedException {
+    throw new UnsupportedOperationException();
+  };
 
   protected void cleanup() {
   }
@@ -543,8 +598,16 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
    * Compare and set the state of this {@link Fork} to a new state if and only if the current state
    * is equal to the expected state.
    */
-  private void compareAndSetForkState(ForkState expectedState, ForkState newState) {
-    if (!this.forkState.compareAndSet(expectedState, newState)) {
+  private boolean compareAndSetForkState(ForkState expectedState, ForkState newState) {
+    return this.forkState.compareAndSet(expectedState, newState);
+  }
+
+  /**
+   * Compare and set the state of this {@link Fork} to a new state if and only if the current state
+   * is equal to the expected state. Throw an exception if the state did not match.
+   */
+  private void verifyAndSetForkState(ForkState expectedState, ForkState newState) {
+    if (!compareAndSetForkState(expectedState, newState)) {
       throw new IllegalStateException(String
           .format("Expected fork state %s; actual fork state %s", expectedState.name(), this.forkState.get().name()));
     }

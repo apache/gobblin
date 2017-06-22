@@ -15,12 +15,36 @@
  * limitations under the License.
  */
 
+plugins {
+  id "com.commercehub.gradle.plugin.avro-base" version "0.9.0"
+}
+
 apply plugin: 'java'
+apply plugin: "com.commercehub.gradle.plugin.avro-base"
+
+avro {
+  stringType = "string"
+}
+
+task generateAvro(type: com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask) {
+  source("src/main/avro")
+  outputDir = file("src/main/gen-java")
+}
+
+compileJava {
+  dependsOn tasks.generateAvro
+}
 
 dependencies {
   compile project(":gobblin-core")
 
   compile externalDependency.pegasus.d2
+  compile externalDependency.pegasus.restliCommon
+
+  testCompile externalDependency.curatorClient
+  testCompile externalDependency.curatorTest
+  testCompile externalDependency.testng
+  testCompile externalDependency.mockito
 }
 
 configurations {
@@ -34,6 +58,17 @@ configurations {
 
 test {
   workingDir rootProject.rootDir
+}
+
+sourceSets {
+  main {
+    java {
+      srcDir 'src/main/gen-java'
+    }
+    resources {
+      srcDir 'src/main/avro'
+    }
+  }
 }
 
 ext.classification="library"

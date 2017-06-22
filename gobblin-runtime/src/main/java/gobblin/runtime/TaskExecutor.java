@@ -21,12 +21,11 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import gobblin.runtime.fork.AsynchronousFork;
 import gobblin.runtime.fork.Fork;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
@@ -40,9 +39,11 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.util.ExecutorsUtils;
 
+import lombok.Getter;
+
 
 /**
- * A class for executing {@link Task}s and retrying failed ones as well as for executing {@link AsynchronousFork}s.
+ * A class for executing {@link Task}s and retrying failed ones as well as for executing {@link Fork}s.
  *
  * @author Yinan Li
  */
@@ -51,12 +52,10 @@ public class TaskExecutor extends AbstractIdleService {
   private static final Logger LOG = LoggerFactory.getLogger(TaskExecutor.class);
 
   // Thread pool executor for running tasks
-  private final ExecutorService taskExecutor;
-
-  // Scheduled thread pool executor for scheduling task retries
-  private final ScheduledThreadPoolExecutor taskRetryExecutor;
+  private final ScheduledExecutorService taskExecutor;
 
   // A separate thread pool executor for running forks of tasks
+  @Getter
   private final ExecutorService forkExecutor;
 
   // Task retry interval
@@ -70,14 +69,10 @@ public class TaskExecutor extends AbstractIdleService {
     Preconditions.checkArgument(retryIntervalInSeconds > 0, "Task retry interval should be positive");
 
     // Currently a fixed-size thread pool is used to execute tasks. We probably need to revisit this later.
-    this.taskExecutor = Executors.newFixedThreadPool(
+    this.taskExecutor = Executors.newScheduledThreadPool(
         taskExecutorThreadPoolSize,
         ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("TaskExecutor-%d")));
 
-    // Using a separate thread pool for task retries to achieve isolation
-    // between normal task execution and task retries
-    this.taskRetryExecutor = new ScheduledThreadPoolExecutor(coreRetryThreadPoolSize,
-        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("TaskRetryExecutor-%d")));
     this.retryIntervalInSeconds = retryIntervalInSeconds;
 
     this.forkExecutor = new ThreadPoolExecutor(
@@ -127,9 +122,6 @@ public class TaskExecutor extends AbstractIdleService {
     if (this.taskExecutor.isShutdown() || this.taskExecutor.isTerminated()) {
       throw new IllegalStateException("Task thread pool executor is shutdown or terminated");
     }
-    if (this.taskRetryExecutor.isShutdown() || this.taskRetryExecutor.isTerminated()) {
-      throw new IllegalStateException("Task retry thread pool executor is shutdown or terminated");
-    }
     if (this.forkExecutor.isShutdown() || this.forkExecutor.isTerminated()) {
       throw new IllegalStateException("Fork thread pool executor is shutdown or terminated");
     }
@@ -142,11 +134,7 @@ public class TaskExecutor extends AbstractIdleService {
     try {
       ExecutorsUtils.shutdownExecutorService(this.taskExecutor, Optional.of(LOG));
     } finally {
-      try {
-        ExecutorsUtils.shutdownExecutorService(this.taskRetryExecutor, Optional.of(LOG));
-      } finally {
-        ExecutorsUtils.shutdownExecutorService(this.forkExecutor, Optional.of(LOG));
-      }
+      ExecutorsUtils.shutdownExecutorService(this.forkExecutor, Optional.of(LOG));
     }
   }
 
@@ -208,7 +196,7 @@ public class TaskExecutor extends AbstractIdleService {
     // Task retry interval increases linearly with number of retries
     long interval = task.getRetryCount() * this.retryIntervalInSeconds;
     // Schedule the retry of the failed task
-    this.taskRetryExecutor.schedule(task, interval, TimeUnit.SECONDS);
+    this.taskExecutor.schedule(task, interval, TimeUnit.SECONDS);
     LOG.info(String.format("Scheduled retry of failed task %s to run in %d seconds", task.getTaskId(), interval));
     task.incrementRetryCount();
   }

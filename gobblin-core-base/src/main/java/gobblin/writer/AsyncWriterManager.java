@@ -55,6 +55,7 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 import gobblin.metrics.Tag;
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.FinalState;
@@ -257,7 +258,7 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
   }
 
   @Override
-  public void writeEnvelope(AcknowledgableRecordEnvelope<D> recordEnvelope)
+  public void writeEnvelope(RecordEnvelope<D> recordEnvelope)
       throws IOException {
     write(recordEnvelope.getRecord(), recordEnvelope);
   }
@@ -316,7 +317,7 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
   private void attemptWrite(final Attempt attempt) {
     this.recordsAttempted.mark();
     attempt.setPrevAttemptTimestampNanos(System.nanoTime());
-    this.asyncDataWriter.write(attempt.record, new WriteCallback() {
+    this.asyncDataWriter.write(attempt.record, new WriteCallback<Object>() {
 
       @Override
       public void onSuccess(WriteResponse writeResponse) {

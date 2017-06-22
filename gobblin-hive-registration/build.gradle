@@ -20,6 +20,7 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
+  compile project(":gobblin-modules:gobblin-kafka-common")
   compile project(":gobblin-utility")
 
   compile externalDependency.avro

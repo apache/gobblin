@@ -57,6 +57,9 @@ public class SlaEventSubmitter {
   private String dedupeStatus;
   private String completenessPercentage;
   private String isFirstPublish;
+  private String sourceCluster;
+  private String destinationCluster;
+  private String azkabanExecutionUrl;
   @Singular("additionalMetadata") private Map<String, String> additionalMetadata;
 
   /**

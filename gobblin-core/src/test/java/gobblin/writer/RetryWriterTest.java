@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
 import java.io.IOException;
 
 import gobblin.configuration.State;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.writer.exception.NonTransientException;
 import gobblin.util.FinalState;
 
@@ -32,30 +33,30 @@ public class RetryWriterTest {
 
   public void retryTest() throws IOException {
     DataWriter<Void> writer = mock(DataWriter.class);
-    doThrow(new RuntimeException()).when(writer).write(null);
+    doThrow(new RuntimeException()).when(writer).writeEnvelope(any(RecordEnvelope.class));
 
     DataWriterWrapperBuilder<Void> builder = new DataWriterWrapperBuilder<>(writer, new State());
     DataWriter<Void> retryWriter = builder.build();
     try {
-      retryWriter.write(null);
+      retryWriter.writeEnvelope(new RecordEnvelope<>(null));
       Assert.fail("Should have failed.");
     } catch (Exception e) { }
 
-    verify(writer, times(5)).write(null);
+    verify(writer, times(5)).writeEnvelope(any(RecordEnvelope.class));
   }
 
   public void retryTestNonTransientException() throws IOException {
     DataWriter<Void> writer = mock(DataWriter.class);
-    doThrow(new NonTransientException()).when(writer).write(null);
+    doThrow(new NonTransientException()).when(writer).writeEnvelope(any(RecordEnvelope.class));
 
     DataWriterWrapperBuilder<Void> builder = new DataWriterWrapperBuilder<>(writer, new State());
     DataWriter<Void> retryWriter = builder.build();
     try {
-      retryWriter.write(null);
+      retryWriter.writeEnvelope(new RecordEnvelope<>(null));
       Assert.fail("Should have failed.");
     } catch (Exception e) { }
 
-    verify(writer, atMost(1)).write(null);
+    verify(writer, atMost(1)).writeEnvelope(any(RecordEnvelope.class));
   }
 
   public void retryTestSuccess() throws IOException {
@@ -63,9 +64,9 @@ public class RetryWriterTest {
 
     DataWriterWrapperBuilder<Void> builder = new DataWriterWrapperBuilder<>(writer, new State());
     DataWriter<Void> retryWriter = builder.build();
-    retryWriter.write(null);
+    retryWriter.writeEnvelope(new RecordEnvelope<>(null));
 
-    verify(writer, times(1)).write(null);
+    verify(writer, times(1)).writeEnvelope(any(RecordEnvelope.class));
   }
 
   public void retryGetFinalState() throws IOException {

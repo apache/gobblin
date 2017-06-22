@@ -6,6 +6,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import gobblin.compaction.mapreduce.avro.*;
 import gobblin.compaction.parser.CompactionPathParser;
+import gobblin.compaction.verify.InputRecordCountHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.dataset.Dataset;
@@ -56,6 +57,8 @@ public class CompactionAvroJobConfigurator {
   protected boolean isJobCreated = false;
   @Getter
   protected Collection<Path> mapReduceInputPaths = null;
+  @Getter
+  private long fileNameRecordCount = 0;
 
   /**
    * Constructor
@@ -260,14 +263,6 @@ public class CompactionAvroJobConfigurator {
     }
   }
 
-  /**
-   * Examine if a map-reduce job is already created
-   * @return true if job has been created
-   */
-  public boolean isJobCreated() {
-    return isJobCreated;
-  }
-
   private FileSystem getFileSystem(State state)
           throws IOException {
     Configuration conf = HadoopUtils.getConfFromState(state);
@@ -291,21 +286,33 @@ public class CompactionAvroJobConfigurator {
    */
   protected Collection<Path> getGranularInputPaths (Path path) throws IOException {
 
-    boolean renamingRequired = this.state.getPropAsBoolean(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED,
+    boolean appendDelta = this.state.getPropAsBoolean(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED,
             MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
 
-    Set<Path> output = Sets.newHashSet();
+    Set<Path> uncompacted = Sets.newHashSet();
+    Set<Path> total = Sets.newHashSet();
+
     for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, path)) {
-      if (renamingRequired) {
+      if (appendDelta) {
+        // use source dir suffix to identify the delta input paths
         if (!fileStatus.getPath().getParent().toString().endsWith(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_SUFFIX)) {
-          output.add(fileStatus.getPath().getParent());
+          uncompacted.add(fileStatus.getPath().getParent());
         }
+        total.add(fileStatus.getPath().getParent());
       } else {
-        output.add(fileStatus.getPath().getParent());
+        uncompacted.add(fileStatus.getPath().getParent());
       }
     }
 
-    return output;
+    if (appendDelta) {
+      // When the output record count from mr counter doesn't match
+      // the record count from input file names, we prefer file names because
+      // it will be used to calculate the difference of count in next run.
+      this.fileNameRecordCount = new InputRecordCountHelper(this.state).calculateRecordCount (total);
+      log.info ("{} has total input record count (based on file name) {}", path, this.fileNameRecordCount);
+    }
+
+    return uncompacted;
   }
 }
 

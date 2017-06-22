@@ -23,6 +23,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 
 
 /**
@@ -84,7 +85,7 @@ public class ConsoleWriter<D> implements WatermarkAwareWriter<D> {
 
 
   @Override
-  public void writeEnvelope(AcknowledgableRecordEnvelope<D> recordEnvelope)
+  public void writeEnvelope(RecordEnvelope<D> recordEnvelope)
       throws IOException {
     write(recordEnvelope.getRecord());
     recordEnvelope.ack();

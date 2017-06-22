@@ -69,17 +69,21 @@ public interface ConfigStoreTopologyInspector {
    */
   public Collection<ConfigKeyPath> getImportedBy(ConfigKeyPath configKey);
 
+  public Collection<ConfigKeyPath> getImportedBy(ConfigKeyPath configKey, Optional<Config> runtimeConfig);
+
   /**
    * Obtains the list of config keys which are directly and indirectly imported by the specified
    * config key. The import graph is traversed in depth-first manner. For a given config key,
    * explicit imports are listed before implicit imports from the ancestor keys.
-   *
+   *`
    * @param  configKey      the path of the config key whose imports are needed
    * @return the paths of the directly and indirectly imported keys, including config keys imported
    *         by ancestors. The earlier config key in the list will have higher priority when resolving
    *         configuration conflict.
    */
   public List<ConfigKeyPath> getImportsRecursively(ConfigKeyPath configKey);
+
+  public List<ConfigKeyPath> getImportsRecursively(ConfigKeyPath configKey, Optional<Config> runtimeConfig);
 
   /**
    * Obtains all config keys which directly or indirectly import a given config key
@@ -88,4 +92,6 @@ public interface ConfigStoreTopologyInspector {
    *         the specified config key in the specified conf version.
    */
   public Collection<ConfigKeyPath> getImportedByRecursively(ConfigKeyPath configKey);
+
+  public Collection<ConfigKeyPath> getImportedByRecursively(ConfigKeyPath configKey, Optional<Config> runtimeConfig);
 }

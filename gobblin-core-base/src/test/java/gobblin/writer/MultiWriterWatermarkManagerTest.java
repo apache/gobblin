@@ -33,6 +33,7 @@ import com.google.common.base.Optional;
 
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.DefaultCheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.source.extractor.extract.LongWatermark;
 
 import static org.mockito.Matchers.any;
@@ -133,7 +134,7 @@ public class MultiWriterWatermarkManagerTest {
       }
 
       @Override
-      public void writeEnvelope(AcknowledgableRecordEnvelope recordEnvelope)
+      public void writeEnvelope(RecordEnvelope recordEnvelope)
           throws IOException {
         throw new UnsupportedOperationException();
       }
@@ -270,7 +271,7 @@ public class MultiWriterWatermarkManagerTest {
       }
 
       @Override
-      public void writeEnvelope(AcknowledgableRecordEnvelope recordEnvelope)
+      public void writeEnvelope(RecordEnvelope recordEnvelope)
           throws IOException {
         throw new UnsupportedOperationException();
       }

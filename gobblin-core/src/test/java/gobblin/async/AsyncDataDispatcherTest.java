@@ -22,7 +22,7 @@ public class AsyncDataDispatcherTest {
       throws ExecutionException, InterruptedException {
     final TestAsyncDataDispatcher dispatcher = new TestAsyncDataDispatcher();
     // This should work when there is nothing to process
-    dispatcher.waitForABufferEmptyOccurrence();
+    dispatcher.waitForBufferEmpty();
 
     ExecutorService service = Executors.newFixedThreadPool(2);
     Writer writer1 = new Writer(dispatcher);
@@ -141,11 +141,11 @@ public class AsyncDataDispatcherTest {
 
     hasAnException = false;
     try {
-      dispatcher.waitForABufferEmptyOccurrence();
+      dispatcher.waitForBufferEmpty();
     } catch (Exception e) {
       hasAnException = true;
     }
-    Assert.assertTrue(hasAnException, "waitForABufferEmptyOccurrence should get an exception");
+    Assert.assertTrue(hasAnException, "waitForBufferEmpty should get an exception");
 
     hasAnException = false;
     try {
@@ -241,7 +241,7 @@ public class AsyncDataDispatcherTest {
       while (!shouldExit) {
         dispather.put(new Object());
         if (shouldWaitForABufferEmpty) {
-          dispather.waitForABufferEmptyOccurrence();
+          dispather.waitForBufferEmpty();
           aBufferEmptyWaited = true;
         }
         try {

@@ -27,8 +27,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.publisher.BaseDataPublisher;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.cli.EmbeddedGobblinCliOption;
-import gobblin.runtime.cli.EmbeddedGobblinCliSupport;
+import gobblin.runtime.cli.CliObjectOption;
+import gobblin.runtime.cli.CliObjectSupport;
 import gobblin.runtime.cli.PublicMethodsGobblinCliFactory;
 import gobblin.runtime.embedded.EmbeddedGobblin;
 import gobblin.runtime.template.ResourceBasedJobTemplate;
@@ -66,7 +66,7 @@ public class EmbeddedWikipediaExample extends EmbeddedGobblin {
     }
   }
 
-  @EmbeddedGobblinCliSupport(argumentNames = {"topics"})
+  @CliObjectSupport(argumentNames = {"topics"})
   public EmbeddedWikipediaExample(String... topics) throws JobTemplate.TemplateException, IOException {
     super("Wikipedia");
     try {
@@ -80,7 +80,7 @@ public class EmbeddedWikipediaExample extends EmbeddedGobblin {
   /**
    * Set bootstrap lookback, i.e. oldest revision to pull.
    */
-  @EmbeddedGobblinCliOption(description = "Sets the period for which articles should be pulled in ISO time format (e.g. P2D, PT1H)")
+  @CliObjectOption(description = "Sets the period for which articles should be pulled in ISO time format (e.g. P2D, PT1H)")
   public EmbeddedWikipediaExample lookback(String isoLookback) {
     this.setConfiguration(WikipediaExtractor.BOOTSTRAP_PERIOD, isoLookback);
     return this;
@@ -89,7 +89,7 @@ public class EmbeddedWikipediaExample extends EmbeddedGobblin {
   /**
    * Write output to avro files at the given input location.
    */
-  @EmbeddedGobblinCliOption(description = "Write output to Avro files. Specify the output directory as argument.")
+  @CliObjectOption(description = "Write output to Avro files. Specify the output directory as argument.")
   public EmbeddedWikipediaExample avroOutput(String outputPath) {
     this.setConfiguration(ConfigurationKeys.WRITER_BUILDER_CLASS, AvroDataWriterBuilder.class.getName());
     this.setConfiguration(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, Destination.DestinationType.HDFS.name());

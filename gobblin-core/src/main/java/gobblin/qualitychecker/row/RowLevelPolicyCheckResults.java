@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.Maps;
 
 
 /**
@@ -33,7 +34,7 @@ public class RowLevelPolicyCheckResults {
   Map<RowLevelPolicyResultPair, Long> results;
 
   public RowLevelPolicyCheckResults() {
-    this.results = new HashMap<>();
+    this.results = Maps.newConcurrentMap();
   }
 
   public void put(RowLevelPolicy policy, RowLevelPolicy.Result result) {

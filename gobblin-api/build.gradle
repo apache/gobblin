@@ -29,6 +29,7 @@ dependencies {
     compile externalDependency.commonsIo
     compile externalDependency.reflections
     compile externalDependency.typesafeConfig
+    compile externalDependency.reactivex
 
     testCompile externalDependency.testng
     testCompile externalDependency.mockito

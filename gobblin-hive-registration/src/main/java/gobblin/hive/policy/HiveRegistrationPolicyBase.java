@@ -17,7 +17,17 @@
 
 package gobblin.hive.policy;
 
+import com.codahale.metrics.Timer;
+import com.google.common.base.Splitter;
+import com.typesafe.config.Config;
+import gobblin.config.client.ConfigClient;
+import gobblin.config.client.api.VersionStabilityPolicy;
+import gobblin.hive.HiveRegister;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
+import gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
+import gobblin.source.extractor.extract.kafka.KafkaSource;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -73,6 +83,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   // {@value PRIMARY_TABLE_TOKEN} if present in {@value ADDITIONAL_HIVE_TABLE_NAMES} or dbPrefix.{@value HIVE_TABLE_NAME}
   // .. will be replaced by the table name determined via {@link #getTableName(Path)}
   public static final String PRIMARY_TABLE_TOKEN = "$PRIMARY_TABLE";
+  protected static final ConfigClient configClient =
+      gobblin.config.client.ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
 
   /**
    * A valid db or table name should start with an alphanumeric character, and contains only
@@ -84,6 +96,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
    * A valid db or table name should contain at least one letter or '_' (i.e., should not be numbers only).
    */
   private static final Pattern VALID_DB_TABLE_NAME_PATTERN_2 = Pattern.compile(".*[a-z_].*");
+  public static final String CONFIG_FOR_TOPIC_TIMER = "configForTopicTimer";
 
   protected final HiveRegProps props;
   protected final FileSystem fs;
@@ -94,6 +107,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected final String dbNameSuffix;
   protected final String tableNamePrefix;
   protected final String tableNameSuffix;
+
+  protected final MetricContext metricContext;
 
   public HiveRegistrationPolicyBase(State props) throws IOException {
     Preconditions.checkNotNull(props);
@@ -112,6 +127,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     this.dbNameSuffix = props.getProp(HIVE_DATABASE_NAME_SUFFIX, StringUtils.EMPTY);
     this.tableNamePrefix = props.getProp(HIVE_TABLE_NAME_PREFIX, StringUtils.EMPTY);
     this.tableNameSuffix = props.getProp(HIVE_TABLE_NAME_SUFFIX, StringUtils.EMPTY);
+
+    this.metricContext = Instrumented.getMetricContext(props, HiveRegister.class);
   }
 
   /**
@@ -214,6 +231,13 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     if ((primaryTableName = getTableName(path)).isPresent() && !dbPrefix.isPresent()) {
       tableNames.add(primaryTableName.get());
     }
+    Optional<Config> configForTopic = Optional.<Config>absent();
+    if (primaryTableName.isPresent()) {
+      Timer.Context context = this.metricContext.timer(CONFIG_FOR_TOPIC_TIMER).time();
+      configForTopic =
+          ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME, this.configClient);
+      context.close();
+    }
 
     String additionalNamesProp;
     if (dbPrefix.isPresent()) {
@@ -222,11 +246,19 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
       additionalNamesProp = ADDITIONAL_HIVE_TABLE_NAMES;
     }
 
-    if (!Strings.isNullOrEmpty(this.props.getProp(additionalNamesProp))) {
+    if (configForTopic.isPresent() && configForTopic.get().hasPath(additionalNamesProp)) {
+      for (String additionalTableName : Splitter.on(",")
+          .trimResults()
+          .splitToList(configForTopic.get().getString(additionalNamesProp))) {
+        String resolvedTableName =
+            StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN, primaryTableName.get());
+        tableNames.add(this.tableNamePrefix + resolvedTableName + this.tableNameSuffix);
+      }
+    } else if (!Strings.isNullOrEmpty(this.props.getProp(additionalNamesProp))) {
       for (String additionalTableName : this.props.getPropAsList(additionalNamesProp)) {
-        String resolvedTableName = primaryTableName.isPresent() ?
-            StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN, primaryTableName.get()) :
-            additionalTableName;
+        String resolvedTableName =
+            primaryTableName.isPresent() ? StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN,
+                primaryTableName.get()) : additionalTableName;
         tableNames.add(this.tableNamePrefix + resolvedTableName + this.tableNameSuffix);
       }
     }

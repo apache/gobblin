@@ -28,11 +28,18 @@ import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
+import gobblin.records.RecordStreamProcessor;
+import gobblin.records.RecordStreamWithMetadata;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.FinalState;
 import gobblin.util.HadoopUtils;
 
+import io.reactivex.Flowable;
+import lombok.Getter;
 
-public class RowLevelPolicyChecker implements Closeable, FinalState {
+
+public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, RecordStreamProcessor<S, S, D, D> {
 
   private final List<RowLevelPolicy> list;
   private final String stateId;
@@ -40,6 +47,8 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
   private boolean errFileOpen;
   private final Closer closer;
   private RowLevelErrFileWriter writer;
+  @Getter
+  private final RowLevelPolicyCheckResults results;
 
   public RowLevelPolicyChecker(List<RowLevelPolicy> list, String stateId, FileSystem fs) {
     this.list = list;
@@ -48,6 +57,7 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
     this.errFileOpen = false;
     this.closer = Closer.create();
     this.writer = this.closer.register(new RowLevelErrFileWriter(this.fs));
+    this.results = new RowLevelPolicyCheckResults();
   }
 
   public boolean executePolicies(Object record, RowLevelPolicyCheckResults results) throws IOException {
@@ -102,5 +112,16 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
       state.addAll(policy.getFinalState());
     }
     return state;
+  }
+
+  /**
+   * Process the stream and drop any records that fail the quality check.
+   */
+  @Override
+  public RecordStreamWithMetadata<D, S> processStream(RecordStreamWithMetadata<D, S> inputStream, WorkUnitState state) {
+    Flowable<RecordEnvelope<D>> filteredStream =
+        inputStream.getRecordStream().filter(r -> executePolicies(r.getRecord(), this.results));
+    filteredStream = filteredStream.doFinally(this::close);
+    return inputStream.withRecordStream(filteredStream);
   }
 }

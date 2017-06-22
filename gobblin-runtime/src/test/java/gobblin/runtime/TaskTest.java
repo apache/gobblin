@@ -35,11 +35,15 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -80,14 +84,29 @@ public class TaskTest {
     return taskState;
   }
 
+  @DataProvider(name = "stateOverrides")
+  public Object[][] createTestsForDifferentExecutionModes() {
+    State synchronousStateOverrides = new State();
+    synchronousStateOverrides.setProp(ConfigurationKeys.TASK_SYNCHRONOUS_EXECUTION_MODEL_KEY, true);
+
+    State streamStateOverrides = new State();
+    streamStateOverrides.setProp(ConfigurationKeys.TASK_SYNCHRONOUS_EXECUTION_MODEL_KEY, false);
+
+    return new Object[][] {
+        { synchronousStateOverrides },
+        { streamStateOverrides }
+    };
+  }
+
   /**
    * Check if a {@link WorkUnitState.WorkingState} of a {@link Task} is set properly after a {@link Task} fails once,
    * but then is successful the next time.
    */
-  @Test
-  public void testRetryTask() throws Exception {
+  @Test(dataProvider = "stateOverrides")
+  public void testRetryTask(State overrides) throws Exception {
     // Create a TaskState
     TaskState taskState = getEmptyTestTaskState("testRetryTaskId");
+    taskState.addAll(overrides);
     // Create a mock TaskContext
     TaskContext mockTaskContext = mock(TaskContext.class);
     when(mockTaskContext.getExtractor()).thenReturn(new FailOnceExtractor());
@@ -95,6 +114,10 @@ public class TaskTest {
     when(mockTaskContext.getTaskState()).thenReturn(taskState);
     when(mockTaskContext.getTaskLevelPolicyChecker(any(TaskState.class), anyInt()))
         .thenReturn(mock(TaskLevelPolicyChecker.class));
+    when(mockTaskContext.getRowLevelPolicyChecker()).
+        thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
+    when(mockTaskContext.getRowLevelPolicyChecker(anyInt())).
+        thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
 
     // Create a mock TaskPublisher
     TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
@@ -131,7 +154,8 @@ public class TaskTest {
     int numForks = writerCollectors.size();
 
     // Create a mock RowLevelPolicyChecker
-    RowLevelPolicyChecker mockRowLevelPolicyChecker = mock(RowLevelPolicyChecker.class);
+    RowLevelPolicyChecker mockRowLevelPolicyChecker =
+        spy(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
     when(mockRowLevelPolicyChecker.executePolicies(any(Object.class), any(RowLevelPolicyCheckResults.class)))
         .thenReturn(true);
     when(mockRowLevelPolicyChecker.getFinalState()).thenReturn(new State());
@@ -160,11 +184,13 @@ public class TaskTest {
   /**
    * Test that forks work correctly when the operator picks one outgoing fork
    */
-  @Test
-  public void testForkCorrectnessRoundRobin()
+  @Test(dataProvider = "stateOverrides")
+  public void testForkCorrectnessRoundRobin(State overrides)
       throws Exception {
     // Create a TaskState
     TaskState taskState = getEmptyTestTaskState("testForkTaskId");
+    taskState.addAll(overrides);
+
     int numRecords = 9;
     int numForks = 3;
     ForkOperator mockForkOperator = new RoundRobinForkOperator(numForks);
@@ -179,7 +205,7 @@ public class TaskTest {
     int recordsPerFork = numRecords/numForks;
     for (int forkNumber=0; forkNumber < numForks; ++ forkNumber) {
       ArrayList<Object> forkRecords = recordCollectors.get(forkNumber);
-      Assert.assertTrue(forkRecords.size() == recordsPerFork);
+      Assert.assertEquals(forkRecords.size(), recordsPerFork);
       for (int j=0; j < recordsPerFork; ++j) {
         Object forkRecord = forkRecords.get(j);
         Assert.assertEquals((String) forkRecord, "" + (j * recordsPerFork + forkNumber));
@@ -190,11 +216,13 @@ public class TaskTest {
   /**
    * Test that forks work correctly when the operator picks all outgoing forks
    */
-  @Test
-  public void testForkCorrectnessIdentity()
+  @Test(dataProvider = "stateOverrides")
+  public void testForkCorrectnessIdentity(State overrides)
       throws Exception {
     // Create a TaskState
     TaskState taskState = getEmptyTestTaskState("testForkTaskId");
+    taskState.addAll(overrides);
+
     int numRecords = 100;
     int numForks = 5;
 
@@ -208,7 +236,7 @@ public class TaskTest {
     int recordsPerFork = numRecords;
     for (int forkNumber=0; forkNumber < numForks; ++ forkNumber) {
       ArrayList<Object> forkRecords = recordCollectors.get(forkNumber);
-      Assert.assertTrue(forkRecords.size() == recordsPerFork);
+      Assert.assertEquals(forkRecords.size(), recordsPerFork);
       for (int j=0; j < recordsPerFork; ++j) {
         Object forkRecord = forkRecords.get(j);
         Assert.assertEquals((String) forkRecord, "" + j);
@@ -220,11 +248,13 @@ public class TaskTest {
   /**
    * Test that forks work correctly when the operator picks a subset of outgoing forks
    */
-  @Test
-  public void testForkCorrectnessSubset()
+  @Test(dataProvider = "stateOverrides")
+  public void testForkCorrectnessSubset(State overrides)
       throws Exception {
     // Create a TaskState
     TaskState taskState = getEmptyTestTaskState("testForkTaskId");
+    taskState.addAll(overrides);
+
     int numRecords = 20;
     int numForks = 5;
     int subset = 2;
@@ -293,7 +323,7 @@ public class TaskTest {
    */
   private static class FailOnceExtractor implements Extractor<Object, Object> {
 
-    private static final AtomicBoolean HAS_FAILED = new AtomicBoolean();
+    private final AtomicBoolean HAS_FAILED = new AtomicBoolean();
 
     @Override
     public Object getSchema() throws IOException {

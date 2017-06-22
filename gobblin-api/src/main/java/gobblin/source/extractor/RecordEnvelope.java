@@ -19,25 +19,85 @@
 
 package gobblin.source.extractor;
 
+import java.util.function.Function;
+
 import gobblin.annotation.Alpha;
+import gobblin.writer.Ackable;
+
+import javax.annotation.Nullable;
 
 
+/**
+ * An envelope around a record containing metadata and allowing for ack'ing the record.
+ */
 @Alpha
-public class RecordEnvelope<D> {
+public class RecordEnvelope<D> implements Ackable {
 
-  private D _record;
+  private final D _record;
   private final CheckpointableWatermark _watermark;
+  private final Ackable _ackable;
 
-  public RecordEnvelope(D record, CheckpointableWatermark watermark) {
-    _record = record;
-    _watermark = watermark;
+  public RecordEnvelope(D record) {
+    this(record, null, null);
   }
 
+  public RecordEnvelope(D record, CheckpointableWatermark watermark) {
+    this(record, watermark, null);
+  }
+
+  private RecordEnvelope(D record, CheckpointableWatermark watermark, Ackable ackable) {
+    if (record instanceof RecordEnvelope) {
+      throw new IllegalStateException("Cannot wrap a RecordEnvelope in another RecordEnvelope.");
+    }
+    _record = record;
+    _watermark = watermark;
+    _ackable = ackable;
+  }
+
+  /**
+   * @return a new {@link RecordEnvelope} with just the record changed.
+   */
+  public <DO> RecordEnvelope<DO> withRecord(DO newRecord) {
+    return new RecordEnvelope<>(newRecord, _watermark, _ackable);
+  }
+
+  /**
+   * @return a new {@link RecordEnvelope} with just the record changed using a lambda expression.
+   */
+  public <DO> RecordEnvelope<DO> mapRecord(Function<D, DO> mapper) {
+    return new RecordEnvelope<>(mapper.apply(_record), _watermark, _ackable);
+  }
+
+  /**
+   * @return a new {@link RecordEnvelope} with an {@link Ackable} that will be triggered upon {@link #ack()}.
+   * @deprecated this is a temporary method while streaming is refined
+   */
+  @Deprecated
+  public RecordEnvelope<D> withAckableWatermark(Ackable ackableWatermark) {
+    return new RecordEnvelope<>(_record, _watermark, ackableWatermark);
+  }
+
+  /**
+   * @return the record contained.
+   */
   public D getRecord() {
     return _record;
   }
 
-  public CheckpointableWatermark getWatermark() {
+  /**
+   * @return The watermark for this record.
+   */
+  @Nullable public CheckpointableWatermark getWatermark() {
     return _watermark;
   }
+
+  /**
+   * Ack the record upon write.
+   */
+  public void ack() {
+    if (_ackable != null) {
+      _ackable.ack();
+    }
+  }
+
 }

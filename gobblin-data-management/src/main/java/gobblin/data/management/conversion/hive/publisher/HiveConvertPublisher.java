@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 
 import java.util.Set;
+import java.util.regex.Pattern;
+
 import javax.annotation.Nonnull;
 
 import lombok.extern.slf4j.Slf4j;
@@ -33,10 +35,15 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.thrift.TException;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
@@ -56,6 +63,9 @@ import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarkerFactory;
 import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
+import gobblin.data.management.copy.hive.HiveDatasetFinder;
+import gobblin.hive.HiveMetastoreClientPool;
+import gobblin.util.AutoReturnableObject;
 import gobblin.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
@@ -79,6 +89,15 @@ public class HiveConvertPublisher extends DataPublisher {
   private EventSubmitter eventSubmitter;
   private final FileSystem fs;
   private final HiveSourceWatermarker watermarker;
+  private final HiveMetastoreClientPool pool;
+
+  public static final String PARTITION_PARAMETERS_WHITELIST = "hive.conversion.partitionParameters.whitelist";
+  public static final String PARTITION_PARAMETERS_BLACKLIST = "hive.conversion.partitionParameters.blacklist";
+  public static final String COMPLETE_SOURCE_PARTITION_NAME = "completeSourcePartitionName";
+  public static final String COMPLETE_DEST_PARTITION_NAME = "completeDestPartitionName";
+
+  private static final Splitter COMMA_SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
+  private static final Splitter At_SPLITTER = Splitter.on("@").omitEmptyStrings().trimResults();
 
   public HiveConvertPublisher(State state) throws IOException {
     super(state);
@@ -104,6 +123,8 @@ public class HiveConvertPublisher extends DataPublisher {
         GobblinConstructorUtils.invokeConstructor(
             HiveSourceWatermarkerFactory.class, state.getProp(HiveSource.HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY,
                 HiveSource.DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS)).createFromState(state);
+    this.pool = HiveMetastoreClientPool.get(state.getProperties(),
+        Optional.fromNullable(state.getProperties().getProperty(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
   }
 
   @Override
@@ -210,6 +231,11 @@ public class HiveConvertPublisher extends DataPublisher {
       }
     } finally {
       /////////////////////////////////////////
+      // Preserving partition params
+      /////////////////////////////////////////
+      preservePartitionParams(states);
+
+      /////////////////////////////////////////
       // Post publish cleanup
       /////////////////////////////////////////
 
@@ -225,6 +251,132 @@ public class HiveConvertPublisher extends DataPublisher {
         log.error("Failed to cleanup staging directories.", e);
       }
     }
+  }
+
+  @VisibleForTesting
+  public void preservePartitionParams(Collection<? extends WorkUnitState> states) {
+    for (WorkUnitState wus : states) {
+      if (wus.getWorkingState() != WorkingState.COMMITTED) {
+        continue;
+      }
+      if (!wus.contains(COMPLETE_SOURCE_PARTITION_NAME)) {
+        continue;
+      }
+      if (!wus.contains(COMPLETE_DEST_PARTITION_NAME)) {
+        continue;
+      }
+      if (!(wus.contains(PARTITION_PARAMETERS_WHITELIST) || wus.contains(PARTITION_PARAMETERS_BLACKLIST))) {
+        continue;
+      }
+      List<String> whitelist = COMMA_SPLITTER.splitToList(wus.getProp(PARTITION_PARAMETERS_WHITELIST, StringUtils.EMPTY));
+      List<String> blacklist = COMMA_SPLITTER.splitToList(wus.getProp(PARTITION_PARAMETERS_BLACKLIST, StringUtils.EMPTY));
+      String completeSourcePartitionName = wus.getProp(COMPLETE_SOURCE_PARTITION_NAME);
+      String completeDestPartitionName = wus.getProp(COMPLETE_DEST_PARTITION_NAME);
+      if (!copyPartitionParams(completeSourcePartitionName, completeDestPartitionName, whitelist, blacklist)) {
+        log.warn("Unable to copy partition parameters from " + completeSourcePartitionName + " to "
+            + completeDestPartitionName);
+      }
+    }
+  }
+
+  /**
+   * Method to copy partition parameters from source partition to destination partition
+   * @param completeSourcePartitionName dbName@tableName@partitionName
+   * @param completeDestPartitionName dbName@tableName@partitionName
+   */
+  @VisibleForTesting
+  public boolean copyPartitionParams(String completeSourcePartitionName, String completeDestPartitionName,
+      List<String> whitelist, List<String> blacklist) {
+    Optional<Partition> sourcePartitionOptional = getPartitionObject(completeSourcePartitionName);
+    Optional<Partition> destPartitionOptional = getPartitionObject(completeDestPartitionName);
+    if ((!sourcePartitionOptional.isPresent()) || (!destPartitionOptional.isPresent())) {
+      return false;
+    }
+    Map<String, String> sourceParams = sourcePartitionOptional.get().getParameters();
+    Map<String, String> destParams = destPartitionOptional.get().getParameters();
+
+    for (Map.Entry<String, String> param : sourceParams.entrySet()) {
+      if (!matched(whitelist, blacklist, param.getKey())) {
+        continue;
+      }
+      destParams.put(param.getKey(), param.getValue());
+    }
+    destPartitionOptional.get().setParameters(destParams);
+    if (!dropPartition(completeDestPartitionName)) {
+      return false;
+    }
+    if (!addPartition(destPartitionOptional.get(), completeDestPartitionName)) {
+      return false;
+    }
+    return true;
+  }
+
+  @VisibleForTesting
+  public boolean dropPartition(String completePartitionName) {
+    List<String> partitionList = At_SPLITTER.splitToList(completePartitionName);
+    if (partitionList.size() != 3) {
+      log.warn("Invalid partition name " + completePartitionName);
+      return false;
+    }
+    try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
+      client.get().dropPartition(partitionList.get(0), partitionList.get(1), partitionList.get(2), false);
+      return true;
+    } catch (IOException | TException e) {
+      log.warn("Unable to drop Partition " + completePartitionName);
+    }
+    return false;
+  }
+
+  @VisibleForTesting
+  public boolean addPartition(Partition destPartition, String completePartitionName) {
+    try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
+      client.get().add_partition(destPartition);
+      return true;
+    } catch (IOException | TException e) {
+      log.warn("Unable to add Partition " + completePartitionName);
+    }
+    return false;
+  }
+
+  @VisibleForTesting
+  public Optional<Partition> getPartitionObject(String completePartitionName) {
+    try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
+      List<String> partitionList = At_SPLITTER.splitToList(completePartitionName);
+      if (partitionList.size() != 3) {
+        log.warn("Invalid partition name " + completePartitionName);
+        return Optional.<Partition>absent();
+      }
+      Partition sourcePartition =
+          client.get().getPartition(partitionList.get(0), partitionList.get(1), partitionList.get(2));
+      return Optional.fromNullable(sourcePartition);
+    } catch (IOException | TException e) {
+      log.warn("Unable to get partition object from metastore for partition " + completePartitionName);
+    }
+    return Optional.<Partition>absent();
+  }
+
+  @VisibleForTesting
+  private boolean matched(List<String> whitelist, List<String> blacklist, String key) {
+    for (String patternStr : blacklist) {
+      if (Pattern.matches(getRegexPatternString(patternStr), key)) {
+        return false;
+      }
+    }
+
+    for (String patternStr : whitelist) {
+      if (Pattern.matches(getRegexPatternString(patternStr), key)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @VisibleForTesting
+  private String getRegexPatternString(String patternStr) {
+    patternStr = patternStr.replace("*", ".*");
+    StringBuilder builder = new StringBuilder();
+    builder.append("\\b").append(patternStr).append("\\b");
+    return patternStr;
   }
 
   private void moveDirectory(String sourceDir, String targetDir) throws IOException {

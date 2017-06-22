@@ -89,7 +89,7 @@ public class GoogleWebmasterDataFetcherImplTest {
     }
 
     Assert.assertTrue(CollectionUtils.isEqualCollection(pageStrings, allPages));
-    Mockito.verify(client, Mockito.times(1))
+    Mockito.verify(client, Mockito.times(2))
         .getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class), any(List.class),
             any(List.class), eq(0));
   }

@@ -17,12 +17,17 @@
 
 package gobblin.compaction.dataset;
 
+import gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import java.util.stream.Collectors;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -73,9 +78,19 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
     this.tmpOutputDir = getTmpOutputDir();
     this.blacklist = DatasetFilterUtils.getPatternList(state, MRCompactor.COMPACTION_BLACKLIST);
     this.whitelist = DatasetFilterUtils.getPatternList(state, MRCompactor.COMPACTION_WHITELIST);
+    setTopicsFromConfigStore(state);
     this.highPriority = getHighPriorityPatterns();
     this.normalPriority = getNormalPriorityPatterns();
     this.recompactDatasets = getRecompactDatasets();
+  }
+
+  private void setTopicsFromConfigStore(State state) {
+    Set<String> blacklistTopicsFromConfigStore = new HashSet<>();
+    Set<String> whitelistTopicsFromConfigStore = new HashSet<>();
+    ConfigStoreUtils.setTopicsFromConfigStore(state.getProperties(), blacklistTopicsFromConfigStore,
+        whitelistTopicsFromConfigStore, MRCompactor.COMPACTION_BLACKLIST, MRCompactor.COMPACTION_WHITELIST);
+    this.blacklist.addAll(DatasetFilterUtils.getPatternsFromStrings(new ArrayList<>(blacklistTopicsFromConfigStore)));
+    this.whitelist.addAll(DatasetFilterUtils.getPatternsFromStrings(new ArrayList<>(whitelistTopicsFromConfigStore)));
   }
 
   /**

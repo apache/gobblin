@@ -178,7 +178,7 @@ public class KafkaSimpleStreamingTest {
 
 
     // read and verify the record matches we just wrote
-    RecordEnvelope<byte[]> record = kSSE.readRecord(oldRecord);
+    RecordEnvelope<byte[]> record = kSSE.readRecordEnvelope();
     Assert.assertEquals(record.getRecord(), record_1);
 
     // write a second record.
@@ -186,7 +186,7 @@ public class KafkaSimpleStreamingTest {
     producer.flush();
 
     // read the second record using same extractor to verify it matches whats expected
-    record = kSSE.readRecord(oldRecord);
+    record = kSSE.readRecordEnvelope();
     Assert.assertEquals(record.getRecord(), record_2);
 
     // Commit the watermark
@@ -201,7 +201,7 @@ public class KafkaSimpleStreamingTest {
     kSSE = getStreamingExtractor(topic);
 
     kSSE.start(mockWatermarkStorage);
-    record = kSSE.readRecord(oldRecord);
+    record = kSSE.readRecordEnvelope();
 
     // check it matches the data written
     Assert.assertEquals(record.getRecord(), record_3);
@@ -226,7 +226,7 @@ public class KafkaSimpleStreamingTest {
         byte[] reuse = new byte[1];
         RecordEnvelope<byte[]> oldRecord = new RecordEnvelope<>(reuse, kwm);
         try {
-          RecordEnvelope<byte[]> record = kSSE.readRecord(oldRecord);
+          RecordEnvelope<byte[]> record = kSSE.readRecordEnvelope();
         } catch (Exception e) {
           Assert.assertTrue((e instanceof WakeupException) || (e instanceof ClosedChannelException));
         }
@@ -254,7 +254,7 @@ public class KafkaSimpleStreamingTest {
     final KafkaSimpleStreamingExtractor<String, byte[]> kSSE = getStreamingExtractor(topic);
 
     try {
-      kSSE.readRecord(null);
+      kSSE.readRecordEnvelope();
       Assert.fail("Should have thrown an exception");
     } catch (IOException e) {
 

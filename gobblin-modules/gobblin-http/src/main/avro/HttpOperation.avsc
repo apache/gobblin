@@ -1,0 +1,41 @@
+{
+  "type": "record",
+  "name": "HttpOperation",
+  "doc": "Represents an operation to be performed over http",
+  "namespace": "gobblin.http",
+  "fields": [
+    {
+      "name": "keys",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Key of the resource on which the operation is executed. Complex key resources are identified by more than one key. Hence this field is a map as opposed to a string. The map is used to interpolate the url template in job spec."
+    },
+    {
+      "name": "queryParams",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "query parameters."
+    },
+    {
+      "name": "headers",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "header key/value pairs."
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "default": "",
+      "doc": "body of the http request. It must be either a plain string or a json string."
+    }
+  ]
+}

@@ -25,7 +25,7 @@ import java.util.Collection;
 /**
  * A class helps to calculate, serialize, deserialize record count.
  *
- * By using {@link IngestionRecordCountProvider}, the default input file name should in in format
+ * By using {@link IngestionRecordCountProvider}, the default input file name should be in format
  * {file_name}.{record_count}.{extension}. For example, given a file path: "/a/b/c/file.123.avro",
  * the record count will be 123.
  */
@@ -80,7 +80,7 @@ public class InputRecordCountHelper {
     if (!fs.exists(new Path(dir, RECORD_COUNT_FILE))) {
       return 0;
     }
-    
+
     try (BufferedReader br = new BufferedReader(new InputStreamReader(fs.open (new Path (dir, RECORD_COUNT_FILE)), Charsets.UTF_8))) {
       long count = Long.parseLong(br.readLine());
       return count;

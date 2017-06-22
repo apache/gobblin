@@ -57,6 +57,10 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
   }
 
   private void loadRawTopologyFromFallBack() {
+    loadRawTopologyFromFallBack(Optional.<Config>absent());
+  }
+
+  private void loadRawTopologyFromFallBack(Optional<Config> runtimeConfig) {
     // only initialize the topology once
     if (this.initialedTopologyFromFallBack) {
       return;
@@ -66,7 +70,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
     // calls to retrieve cache / set cache if not present
     Collection<ConfigKeyPath> currentLevel = this.getChildren(SingleLinkedListConfigKeyPath.ROOT);
 
-    List<ConfigKeyPath> rootImports = this.getOwnImports(SingleLinkedListConfigKeyPath.ROOT);
+    List<ConfigKeyPath> rootImports = this.getOwnImports(SingleLinkedListConfigKeyPath.ROOT, runtimeConfig);
     Preconditions.checkArgument(rootImports == null || rootImports.size() == 0,
         "Root can not import other nodes, otherwise circular dependency will happen");
 
@@ -74,7 +78,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
       Collection<ConfigKeyPath> nextLevel = new ArrayList<>();
       for (ConfigKeyPath configKeyPath : currentLevel) {
         // calls to retrieve cache / set cache if not present
-        List<ConfigKeyPath> ownImports = this.getOwnImports(configKeyPath);
+        List<ConfigKeyPath> ownImports = this.getOwnImports(configKeyPath, runtimeConfig);
         for (ConfigKeyPath p : ownImports) {
           addToCollectionMapForSingleValue(this.ownImportedByMap, p, configKeyPath);
         }
@@ -282,12 +286,16 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    */
   @Override
   public Collection<ConfigKeyPath> getImportedBy(ConfigKeyPath configKey) {
+    return getImportedBy(configKey, Optional.<Config>absent());
+  }
+
+  public Collection<ConfigKeyPath> getImportedBy(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
     if (this.ownImportedByMap.containsKey(configKey)) {
       return this.ownImportedByMap.get(configKey);
     }
 
     try {
-      Collection<ConfigKeyPath> result = this.fallback.getImportedBy(configKey);
+      Collection<ConfigKeyPath> result = this.fallback.getImportedBy(configKey, runtimeConfig);
       addToCollectionMapForCollectionValue(this.ownImportedByMap, configKey, result);
       return result;
     } catch (UnsupportedOperationException uoe) {
@@ -309,12 +317,16 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    */
   @Override
   public List<ConfigKeyPath> getImportsRecursively(ConfigKeyPath configKey) {
+    return getImportsRecursively(configKey, Optional.<Config>absent());
+  }
+
+  public List<ConfigKeyPath> getImportsRecursively(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
     if (this.recursiveImportMap.containsKey(configKey)) {
       return this.recursiveImportMap.get(configKey);
     }
 
     try {
-      List<ConfigKeyPath> result = this.fallback.getImportsRecursively(configKey);
+      List<ConfigKeyPath> result = this.fallback.getImportsRecursively(configKey, runtimeConfig);
       addToListMapForListValue(this.recursiveImportMap, configKey, result);
       return result;
     } catch (UnsupportedOperationException uoe) {
@@ -349,16 +361,20 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    */
   @Override
   public Collection<ConfigKeyPath> getImportedByRecursively(ConfigKeyPath configKey) {
+    return getImportedByRecursively(configKey, Optional.<Config>absent());
+  }
+
+  public Collection<ConfigKeyPath> getImportedByRecursively(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
     if (this.recursiveImportedByMap.containsKey(configKey)) {
       return this.recursiveImportedByMap.get(configKey);
     }
 
     try {
-      Collection<ConfigKeyPath> result = this.fallback.getImportedByRecursively(configKey);
+      Collection<ConfigKeyPath> result = this.fallback.getImportedByRecursively(configKey, runtimeConfig);
       addToCollectionMapForCollectionValue(this.recursiveImportedByMap, configKey, result);
       return result;
     } catch (UnsupportedOperationException uoe) {
-      loadRawTopologyFromFallBack();
+      loadRawTopologyFromFallBack(runtimeConfig);
       return this.recursiveImportedByMap.get(configKey);
     }
   }

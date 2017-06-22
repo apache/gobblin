@@ -20,6 +20,8 @@ package gobblin.writer;
 import java.io.Closeable;
 import java.io.IOException;
 
+import gobblin.source.extractor.RecordEnvelope;
+
 
 /**
  * An interface for data writers.
@@ -36,8 +38,9 @@ public interface DataWriter<D> extends Closeable {
    * @param record data record to write
    * @throws IOException if there is anything wrong writing the record
    */
-  public void write(D record)
-      throws IOException;
+  default void write(D record) throws IOException {
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * Commit the data written.
@@ -69,4 +72,12 @@ public interface DataWriter<D> extends Closeable {
    */
   public long bytesWritten()
       throws IOException;
+
+  /**
+   * Write the input {@link RecordEnvelope}. By default, just call {@link #write(Object)}.
+   */
+  default void writeEnvelope(RecordEnvelope<D> recordEnvelope) throws IOException {
+    write(recordEnvelope.getRecord());
+    recordEnvelope.ack();
+  }
 }

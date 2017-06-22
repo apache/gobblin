@@ -20,6 +20,7 @@ package gobblin.ingestion.google.webmaster;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
@@ -74,6 +75,13 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
   //This is the requested dimensions sent to Google API
   private final List<GoogleWebmasterFilter.Dimension> _requestedDimensions;
   private final List<GoogleWebmasterDataFetcher.Metric> _requestedMetrics;
+  private final WorkUnitState _wuState;
+  private boolean _failed = false;
+
+  public GoogleWebmasterExtractorIterator(GoogleWebmasterExtractorIterator iterator) {
+    this(iterator._webmaster, iterator._startDate, iterator._endDate, iterator._requestedDimensions,
+        iterator._requestedMetrics, iterator._filterMap, iterator._wuState);
+  }
 
   public GoogleWebmasterExtractorIterator(GoogleWebmasterDataFetcher webmaster, String startDate, String endDate,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
@@ -82,7 +90,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
 
     super(wuState.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_BLOCKING_QUEUE_SIZE, 2000),
         wuState.getPropAsInt(GoggleIngestionConfigurationKeys.SOURCE_ASYNC_ITERATOR_POLL_BLOCKING_TIME, 1));
-
+    _wuState = wuState;
     Preconditions.checkArgument(!filterMap.containsKey(GoogleWebmasterFilter.Dimension.PAGE),
         "Doesn't support filters for page for the time being. Will implement support later. If page filter is provided, the code won't take the responsibility of get all pages, so it will just return all queries for that page.");
 
@@ -105,14 +113,17 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
     ROUND_TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_TIME_OUT, 120);
     Preconditions.checkArgument(ROUND_TIME_OUT > 0, "Time out must be positive.");
 
-    MAX_RETRY_ROUNDS = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_RETRIES, 30);
+    MAX_RETRY_ROUNDS = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_RETRIES, 40);
     Preconditions.checkArgument(MAX_RETRY_ROUNDS >= 0, "Retry rounds cannot be negative.");
 
     ROUND_COOL_DOWN = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_COOL_DOWN, 250);
     Preconditions.checkArgument(ROUND_COOL_DOWN >= 0, "Initial cool down time cannot be negative.");
 
-    double batchesPerSecond =
-        wuState.getPropAsDouble(GoogleWebMasterSource.KEY_QUERIES_TUNING_BATCHES_PER_SECOND, 2.25);
+    // QPS limit can be found at
+    // https://developers.google.com/webmaster-tools/search-console-api-original/v3/limits
+    // Setting the default QPS to be 2 batches per second with a batch of size 2.
+    // So the default QPS is set at 2*2=4.
+    double batchesPerSecond = wuState.getPropAsDouble(GoogleWebMasterSource.KEY_QUERIES_TUNING_BATCHES_PER_SECOND, 2);
     Preconditions.checkArgument(batchesPerSecond > 0, "Requests per second must be positive.");
 
     BATCH_SIZE = wuState.getPropAsInt(GoogleWebMasterSource.KEY_QUERIES_TUNING_BATCH_SIZE, 2);
@@ -133,12 +144,19 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
   @Override
   protected Runnable getProducerRunnable() {
     try {
+      log.info("Start getting all pages for " + this.toString());
       Collection<ProducerJob> allJobs = _webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT);
       return new ResponseProducer(allJobs);
     } catch (Exception e) {
-      log.error(e.getMessage());
+      log.info(this.toString() + " failed while creating a ResponseProducer", e);
+      _failed = true;
+      sleepBeforeRetry();
       throw new RuntimeException(e);
     }
+  }
+
+  public boolean isFailed() {
+    return _failed;
   }
 
   public String getCountry() {
@@ -147,6 +165,26 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
 
   public String getProperty() {
     return _webmaster.getSiteProperty();
+  }
+
+  @Override
+  public String toString() {
+    return String
+        .format("GoogleWebmasterExtractorIterator{property=%s, startDate=%s, endDate=%s, country=%s}", getProperty(),
+            _startDate, _endDate, _country);
+  }
+
+  private static void sleepBeforeRetry() {
+    try {
+      log.info("Sleep 20 seconds before task level retry");
+      //Sleep 30 seconds before restarting, we need to set this because:
+      // 1. Gobblin sleeps for 0 seconds at the first retry.
+      // 2. Gobblin doesn't sleep between subsequent tasks.
+      //See the quote limit at https://developers.google.com/webmaster-tools/search-console-api-original/v3/limits
+      Thread.sleep(20000);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -192,41 +230,42 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
     public void run() {
       int r = 0; //indicates current round.
 
-      //check if any seed got adding back.
-      while (r <= MAX_RETRY_ROUNDS) {
-        int totalPages = 0;
-        for (ProducerJob job : _jobsToProcess) {
-          totalPages += job.getPagesSize();
-        }
-        if (r > 0) {
-          log.info(String.format("Starting #%d round retries of size %d for %s", r, totalPages, _country));
-        }
-        ProgressReporter reporter = new ProgressReporter(log, totalPages);
-
-        //retries needs to be concurrent because multiple threads will write to it.
-        ConcurrentLinkedDeque<ProducerJob> retries = new ConcurrentLinkedDeque<>();
-        ExecutorService es = Executors.newFixedThreadPool(10,
-            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
-
-        List<ProducerJob> batch = new ArrayList<>(BATCH_SIZE);
-
-        while (!_jobsToProcess.isEmpty()) {
-          //This is the only place to poll job from queue. Writing to a new queue is async.
-          ProducerJob job = _jobsToProcess.poll();
-          if (batch.size() < BATCH_SIZE) {
-            batch.add(job);
+      try {
+        //check if any seed got adding back.
+        while (r <= MAX_RETRY_ROUNDS) {
+          int totalPages = 0;
+          for (ProducerJob job : _jobsToProcess) {
+            totalPages += job.getPagesSize();
           }
-          if (batch.size() == BATCH_SIZE) {
+          if (r > 0) {
+            log.info(String.format("Starting #%d round retries of size %d for %s", r, totalPages, _country));
+          }
+          ProgressReporter reporter = new ProgressReporter(log, totalPages);
+
+          //retries needs to be concurrent because multiple threads will write to it.
+          ConcurrentLinkedDeque<ProducerJob> retries = new ConcurrentLinkedDeque<>();
+          ExecutorService es = Executors.newFixedThreadPool(10,
+              ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
+
+          List<ProducerJob> batch = new ArrayList<>(BATCH_SIZE);
+
+          while (!_jobsToProcess.isEmpty()) {
+            //This is the only place to poll job from queue. Writing to a new queue is async.
+            ProducerJob job = _jobsToProcess.poll();
+            if (batch.size() < BATCH_SIZE) {
+              batch.add(job);
+            }
+            if (batch.size() == BATCH_SIZE) {
+              es.submit(getResponses(batch, retries, _dataSink, reporter));
+              batch = new ArrayList<>(BATCH_SIZE);
+            }
+          }
+          //Send the last batch
+          if (!batch.isEmpty()) {
             es.submit(getResponses(batch, retries, _dataSink, reporter));
-            batch = new ArrayList<>(BATCH_SIZE);
           }
-        }
-        //Send the last batch
-        if (!batch.isEmpty()) {
-          es.submit(getResponses(batch, retries, _dataSink, reporter));
-        }
-        log.info(String.format("Submitted all jobs at round %d.", r));
-        try {
+          log.info(String.format("Submitted all jobs at round %d.", r));
+
           es.shutdown(); //stop accepting new requests
           boolean terminated = es.awaitTermination(ROUND_TIME_OUT, TimeUnit.MINUTES);
           if (!terminated) {
@@ -235,36 +274,35 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
                 "Timed out while downloading query data for country-%s at round %d. Next round now has size %d.",
                 _country, r, retries.size()));
           }
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
-        }
 
-        if (retries.isEmpty()) {
-          break; //game over
-        }
+          if (retries.isEmpty()) {
+            break; //game over
+          }
 
-        ++r;
-        _jobsToProcess = retries;
-        try {
+          ++r;
+          _jobsToProcess = retries;
           //Cool down before starting the next round of retry
           Thread.sleep(ROUND_COOL_DOWN);
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
         }
-      }
 
-      if (r == MAX_RETRY_ROUNDS + 1) {
-        log.error(String.format("Exceeded maximum retries. There are %d unprocessed jobs.", _jobsToProcess.size()));
-        StringBuilder sb = new StringBuilder();
-        sb.append("You can add as hot start jobs to continue: ").append(System.lineSeparator())
-            .append(System.lineSeparator());
-        sb.append(ProducerJob.serialize(_jobsToProcess));
-        sb.append(System.lineSeparator());
-        log.error(sb.toString());
+        if (r == MAX_RETRY_ROUNDS + 1) {
+          log.error(String.format("Exceeded maximum retries. There are %d unprocessed jobs.", _jobsToProcess.size()));
+          StringBuilder sb = new StringBuilder();
+          sb.append("You can add as hot start jobs to continue: ").append(System.lineSeparator())
+              .append(System.lineSeparator());
+          sb.append(ProducerJob.serialize(_jobsToProcess));
+          sb.append(System.lineSeparator());
+          log.error(sb.toString());
+        }
+        log.info(String
+            .format("ResponseProducer finishes for %s from %s to %s at retry round %d", _country, _startDate, _endDate,
+                r));
+      } catch (InterruptedException e) {
+        log.info(GoogleWebmasterExtractorIterator.this.toString() + " failed while executing the ResponseProducer");
+        _failed = true;
+        sleepBeforeRetry();
+        throw new RuntimeException(e);
       }
-      log.info(String
-          .format("ResponseProducer finishes for %s from %s to %s at retry round %d", _country, _startDate, _endDate,
-              r));
     }
 
     /**
@@ -318,7 +356,10 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
           try {
             List<ArrayList<ApiDimensionFilter>> filterList = new ArrayList<>(size);
             List<JsonBatchCallback<SearchAnalyticsQueryResponse>> callbackList = new ArrayList<>(size);
+            List<String> jobPages = new ArrayList<>();
+
             for (ProducerJob j : jobs) {
+              jobPages.add(j.getPage());
               final ProducerJob job = j; //to capture this variable
               final String page = job.getPage();
               final ArrayList<ApiDimensionFilter> filters = new ArrayList<>();
@@ -331,6 +372,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
                 public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders)
                     throws IOException {
                   producer.onFailure(e.getMessage(), job, retries);
+                  log.debug(job.getPage() + " failed");
                 }
 
                 @Override
@@ -340,10 +382,12 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
                   List<String[]> results =
                       GoogleWebmasterDataFetcher.convertResponse(_requestedMetrics, searchAnalyticsQueryResponse);
                   producer.onSuccess(job, results, responseQueue, retries);
+                  log.debug(job.getPage() + " succeeded");
                 }
               });
-              log.debug("Ready to submit " + job);
             }
+
+            log.debug("Submitting jobs: " + Arrays.toString(jobPages.toArray()));
             LIMITER.acquirePermits(1);
             _webmaster
                 .performSearchAnalyticsQueryInBatch(jobs, filterList, callbackList, _requestedDimensions, QUERY_LIMIT);
@@ -388,7 +432,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
         }
       }
 
-      log.debug(String.format("Finished %s. Records %d.", job, size));
+      log.debug(String.format("Finished %s. Current Queue size: %d. Record size: %d.", job, responseQueue.size(), size));
       try {
         for (String[] r : results) {
           responseQueue.put(r);

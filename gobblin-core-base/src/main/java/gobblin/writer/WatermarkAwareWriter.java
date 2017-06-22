@@ -24,6 +24,7 @@ import java.util.Map;
 
 import gobblin.annotation.Alpha;
 import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 
 
 /**
@@ -44,7 +45,7 @@ public interface WatermarkAwareWriter<D> extends DataWriter<D> {
    * @param recordEnvelope: a container for the record and the acknowledgable watermark
    * @throws IOException: if this write (or preceding write failures) have caused a fatal exception.
    */
-  void writeEnvelope(AcknowledgableRecordEnvelope<D> recordEnvelope) throws IOException;
+  void writeEnvelope(RecordEnvelope<D> recordEnvelope) throws IOException;
 
   /**
    * @return A Watermark per source that can safely be committed because all records associated with it

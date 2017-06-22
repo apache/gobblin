@@ -29,6 +29,7 @@ import gobblin.configuration.State;
 import gobblin.Constructs;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.MetricNames;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.writer.DataWriter;
 
 
@@ -132,7 +133,7 @@ public class InstrumentedDataWriterTest {
 
   public void testBase(InstrumentedDataWriterBase<String> writer) throws IOException {
 
-    writer.write("test");
+    writer.writeEnvelope(new RecordEnvelope<String>("test"));
 
     Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.getMetricContext());
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.RECORDS_IN_METER), Long.valueOf(1));

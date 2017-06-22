@@ -17,6 +17,7 @@
 package gobblin.crypto;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 
@@ -79,9 +80,41 @@ public class EncryptionConfigParser {
    * @return A list of encryption properties or null if encryption isn't configured
    */
   public static Map<String, Object> getConfigForBranch(EntityType entityType, WorkUnitState workUnitState) {
-    return getConfigForBranch(workUnitState.getJobState(),
+    return getConfigForBranch(entityType, null, workUnitState);
+  }
+
+  /**
+   * Retrieve encryption configuration for the branch the WorKUnitState represents. This will first retrieve
+   * config for a given entity type (converter.encrypt.*) and then merge it with any entity-specific config
+   * (eg converter.FieldEncryptionConverter.*).
+   *
+   * @param entityType Type of entity we are retrieving config for
+   * @param workUnitState State for the object querying config
+   * @return A list of encryption properties or null if encryption isn't configured
+   */
+  public static Map<String, Object> getConfigForBranch(EntityType entityType, String entityName, WorkUnitState workUnitState) {
+
+    Map<String, Object> config = getConfigForBranch(workUnitState.getJobState(),
         entityType.getConfigPrefix(),
         ForkOperatorUtils.getPropertyNameForBranch(workUnitState, ""));
+
+    if (entityName != null) {
+      final String entityPrefix = entityType.getConfigPrefix() + "." + entityName;
+
+      Map<String, Object> entitySpecificConfig = getConfigForBranch(workUnitState.getJobState(), entityPrefix,
+          ForkOperatorUtils.getPropertyNameForBranch(workUnitState, ""));
+
+      if (config == null) {
+        config = entitySpecificConfig;
+      } else if (entitySpecificConfig != null) {
+        // Remove keys that would have been picked up twice - eg converter.FooConverter.encrypt would first
+        // be picked up by the converter.* check
+        config.keySet().removeIf(s -> s.startsWith(entityName + "."));
+        config.putAll(entitySpecificConfig);
+      }
+    }
+
+    return config;
   }
 
   /**

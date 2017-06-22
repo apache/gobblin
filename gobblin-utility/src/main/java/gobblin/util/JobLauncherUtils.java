@@ -158,7 +158,7 @@ public class JobLauncherUtils {
 
     if (state.contains(ConfigurationKeys.ROW_LEVEL_ERR_FILE)) {
       if (state.getPropAsBoolean(ConfigurationKeys.CLEAN_ERR_DIR, ConfigurationKeys.DEFAULT_CLEAN_ERR_DIR)) {
-        Path jobErrPath = new Path(ConfigurationKeys.ROW_LEVEL_ERR_FILE);
+        Path jobErrPath = new Path(state.getProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE));
         log.info("Cleaning up err directory : " + jobErrPath);
         HadoopUtils.deleteIfExists(fs, jobErrPath, true);
       }

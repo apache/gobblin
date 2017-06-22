@@ -48,7 +48,7 @@ public class ThrottleWriterTest {
     long duration = 10L;
     Stopwatch stopwatch = Stopwatch.createStarted();
     while (stopwatch.elapsed(TimeUnit.SECONDS) <= duration) {
-      throttleWriter.write(null);
+      throttleWriter.writeEnvelope(null);
       count++;
     }
 
@@ -76,7 +76,7 @@ public class ThrottleWriterTest {
     long duration = 10L;
     Stopwatch stopwatch = Stopwatch.createStarted();
     while (stopwatch.elapsed(TimeUnit.SECONDS) <= duration) {
-      throttleWriter.write(null);
+      throttleWriter.writeEnvelope(null);
       count++;
     }
 

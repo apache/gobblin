@@ -22,10 +22,12 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeoutException;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.linkedin.common.callback.Callback;
 import com.linkedin.r2.RemoteInvocationException;
+import com.linkedin.r2.RetriableRequestException;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.RestLiResponseException;
@@ -172,7 +174,7 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
           this.exponentialBackoff.awaitNextRetry();
           sendRequest(this.originalRequest, this);
         } else if (error instanceof RemoteInvocationException
-            && error.getCause() instanceof ConnectException) {
+            && shouldCatchExceptionAndSwitchUrl((RemoteInvocationException) error)) {
           this.retries++;
           if (this.retries > RedirectAwareRestClientRequestSender.this.connectionPrefixes.size()) {
             this.underlying.onError(new NonRetriableException("Failed to connect to all available connection prefixes."));
@@ -193,5 +195,10 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
     public void onSuccess(Response<PermitAllocation> result) {
       this.underlying.onSuccess(result);
     }
+  }
+
+  public boolean shouldCatchExceptionAndSwitchUrl(RemoteInvocationException exc) {
+    return exc.getCause() instanceof RetriableRequestException || exc.getCause() instanceof ConnectException
+        || exc.getCause() instanceof TimeoutException;
   }
 }

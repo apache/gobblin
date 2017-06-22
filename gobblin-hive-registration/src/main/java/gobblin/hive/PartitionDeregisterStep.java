@@ -52,7 +52,7 @@ public class PartitionDeregisterStep implements CommitStep {
     HiveTable hiveTable = HiveMetaStoreUtils.getHiveTable(this.table);
     try (HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI)) {
       hiveRegister.dropPartitionIfExists(this.partition.getDbName(), this.partition.getTableName(),
-          hiveTable.getPartitionKeys(), this.partition.getValues());
+      hiveTable.getPartitionKeys(), this.partition.getValues());
     }
   }
 

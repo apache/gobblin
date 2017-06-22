@@ -34,6 +34,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.config.store.api.ConfigStoreFactory;
+import gobblin.util.ConfigUtils;
 
 
 /**
@@ -60,7 +61,7 @@ public abstract class SimpleHadoopFilesystemConfigStoreFactory implements Config
   /** Instantiates a new instance using standard typesafe config defaults:
    * {@link ConfigFactory#load()} */
   public SimpleHadoopFilesystemConfigStoreFactory() {
-    this(ConfigFactory.load().getConfig(DEFAULT_CONFIG_NAMESPACE));
+    this(ConfigUtils.getConfigOrEmpty(ConfigFactory.load(), DEFAULT_CONFIG_NAMESPACE));
   }
 
   /**

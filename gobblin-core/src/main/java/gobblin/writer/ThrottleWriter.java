@@ -27,6 +27,8 @@ import com.github.rholder.retry.RetryerBuilder;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
+import gobblin.source.extractor.RecordEnvelope;
+import gobblin.util.Decorator;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.RateBasedLimiter;
 import gobblin.configuration.ConfigurationKeys;
@@ -39,7 +41,7 @@ import gobblin.util.FinalState;
  * Throttle writer follows decorator pattern that throttles inner writer by either QPS or by bytes.
  * @param <D>
  */
-public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
+public class ThrottleWriter<D> extends WriterWrapper<D> implements Decorator, FinalState, Retriable {
   private static final Logger LOG = LoggerFactory.getLogger(ThrottleWriter.class);
   public static final String WRITER_THROTTLE_TYPE_KEY = "gobblin.writer.throttle_type";
   public static final String WRITER_LIMIT_RATE_LIMIT_KEY = "gobblin.writer.throttle_rate";
@@ -76,6 +78,11 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
     } else {
       throttledTimer = Optional.absent();
     }
+  }
+
+  @Override
+  public Object getDecoratedObject() {
+    return this.writer;
   }
 
   /**
@@ -115,13 +122,13 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
    * @see gobblin.writer.DataWriter#write(java.lang.Object)
    */
   @Override
-  public void write(D record) throws IOException {
+  public void writeEnvelope(RecordEnvelope<D> record) throws IOException {
     try {
       if (ThrottleType.QPS.equals(type)) {
         acquirePermits(1L);
       }
       long beforeWrittenBytes = writer.bytesWritten();
-      writer.write(record);
+      writer.writeEnvelope(record);
 
       if (ThrottleType.Bytes.equals(type)) {
         long delta = writer.bytesWritten() - beforeWrittenBytes;

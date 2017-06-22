@@ -1,0 +1,4 @@
+source.class=gobblin.source.extractor.filebased.TextFileBasedSource
+writer.builder.class="gobblin.writer.test.GobblinTestEventBusWriter$Builder"
+
+extract.table.type=APPEND_ONLY

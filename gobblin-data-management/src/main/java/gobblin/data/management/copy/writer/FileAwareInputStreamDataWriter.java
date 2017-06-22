@@ -64,6 +64,7 @@ import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.data.management.copy.recovery.RecoveryHelper;
 import gobblin.instrumented.writer.InstrumentedDataWriter;
+import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.state.ConstructState;
 import gobblin.util.FileListUtils;
 import gobblin.util.FinalState;

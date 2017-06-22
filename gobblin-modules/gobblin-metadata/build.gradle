@@ -24,6 +24,7 @@ dependencies {
    */
   compile project(":gobblin-api")
   compile project(":gobblin-modules:gobblin-codecs")
+  compile project(":gobblin-utility")
 
   compile externalDependency.gson
   compile externalDependency.jacksonCore

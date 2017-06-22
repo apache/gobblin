@@ -39,6 +39,7 @@ import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.FinalState;
 import gobblin.writer.exception.NonTransientException;
 
@@ -108,19 +109,18 @@ public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements Da
   }
 
   @Override
-  public void write(final D record) throws IOException {
+  public void writeEnvelope(RecordEnvelope<D> recordEnvelope) throws IOException {
     //Need a Callable interface to be wrapped by Retryer.
     Callable<Void> writeCall = new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        writer.write(record);
+        writer.writeEnvelope(recordEnvelope);
         return null;
       }
     };
 
     callWithRetry(writeCall);
   }
-
 
   @Override
   public void commit() throws IOException {

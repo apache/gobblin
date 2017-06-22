@@ -42,6 +42,7 @@ import gobblin.kafka.client.GobblinKafkaConsumerClient;
 import gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory;
 import gobblin.kafka.client.KafkaConsumerRecord;
 import gobblin.metrics.Tag;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.EventBasedExtractor;
@@ -61,6 +62,16 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   protected static final int INITIAL_PARTITION_IDX = -1;
   protected static final Integer MAX_LOG_DECODING_ERRORS = 5;
+
+  // Constants for event submission
+  public static final String TOPIC = "topic";
+  public static final String PARTITION = "partition";
+  public static final String LOW_WATERMARK = "lowWatermark";
+  public static final String ACTUAL_HIGH_WATERMARK = "actualHighWatermark";
+  public static final String EXPECTED_HIGH_WATERMARK = "expectedHighWatermark";
+  public static final String AVG_RECORD_PULL_TIME = "avgRecordPullTime";
+  public static final String GOBBLIN_KAFKA_NAMESPACE = "gobblin.kafka";
+  public static final String KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME = "KafkaExtractorTopicMetadata";
 
   protected final WorkUnitState workUnitState;
   protected final String topicName;
@@ -170,7 +181,13 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           if (nextValidMessage instanceof ByteArrayBasedKafkaRecord) {
             record = decodeRecord((ByteArrayBasedKafkaRecord)nextValidMessage);
           } else if (nextValidMessage instanceof DecodeableKafkaRecord){
-            record = ((DecodeableKafkaRecord<?, D>) nextValidMessage).getValue();
+            // if value is null then this is a bad record that is returned for further error handling, so raise an error
+            if (((DecodeableKafkaRecord) nextValidMessage).getValue() == null) {
+              throw new DataRecordException("Could not decode Kafka record");
+            }
+
+            // get value from decodeable record and convert to the output schema if necessary
+            record = convertRecord(((DecodeableKafkaRecord<?, D>) nextValidMessage).getValue());
           } else {
             throw new IllegalStateException(
                 "Unsupported KafkaConsumerRecord type. The returned record can either be ByteArrayBasedKafkaRecord"
@@ -277,6 +294,17 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   protected abstract D decodeRecord(ByteArrayBasedKafkaRecord kafkaConsumerRecord) throws IOException;
 
+  /**
+   * Convert a record to the output format
+   * @param record the input record
+   * @return the converted record
+   * @throws IOException
+   */
+  protected D convertRecord(D record) throws IOException {
+    // default implementation does no conversion
+    return record;
+  }
+
   @Override
   public long getExpectedRecordCount() {
     return this.lowWatermark.getGap(this.highWatermark);
@@ -284,6 +312,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   @Override
   public void close() throws IOException {
+
+    Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap = Maps.newHashMap();
 
     // Add error partition count and error message count to workUnitState
     this.workUnitState.setProp(ConfigurationKeys.ERROR_PARTITION_COUNT, this.errorPartitions.size());
@@ -293,6 +323,16 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     for (int i = 0; i < this.partitions.size(); i++) {
       LOG.info(String.format("Actual high watermark for partition %s=%d, expected=%d", this.partitions.get(i),
           this.nextWatermark.get(i), this.highWatermark.get(i)));
+
+      Map<String, String> tagsForPartition = Maps.newHashMap();
+      KafkaPartition partition = this.partitions.get(i);
+      tagsForPartition.put(TOPIC, partition.getTopicName());
+      tagsForPartition.put(PARTITION, Integer.toString(partition.getId()));
+      tagsForPartition.put(LOW_WATERMARK, Long.toString(this.lowWatermark.get(i)));
+      tagsForPartition.put(ACTUAL_HIGH_WATERMARK, Long.toString(this.nextWatermark.get(i)));
+      tagsForPartition.put(EXPECTED_HIGH_WATERMARK, Long.toString(this.highWatermark.get(i)));
+
+      tagsForPartitionsMap.put(partition, tagsForPartition);
     }
     this.workUnitState.setActualHighWatermark(this.nextWatermark);
 
@@ -302,10 +342,20 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
         double avgMillis = this.avgMillisPerRecord.get(partition);
         LOG.info(String.format("Avg time to pull a record for partition %s = %f milliseconds", partition, avgMillis));
         KafkaUtils.setPartitionAvgRecordMillis(this.workUnitState, partition, avgMillis);
+        tagsForPartitionsMap.get(partition).put(AVG_RECORD_PULL_TIME, Double.toString(avgMillis));
       } else {
         LOG.info(String.format("Avg time to pull a record for partition %s not recorded", partition));
+        tagsForPartitionsMap.get(partition).put(AVG_RECORD_PULL_TIME, Double.toString(-1));
       }
     }
+
+    if (isInstrumentationEnabled()) {
+      for (Map.Entry<KafkaPartition, Map<String, String>> eventTags : tagsForPartitionsMap.entrySet()) {
+        new EventSubmitter.Builder(getMetricContext(), GOBBLIN_KAFKA_NAMESPACE).build()
+            .submit(KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME, eventTags.getValue());
+      }
+    }
+
     this.closer.close();
   }
 
