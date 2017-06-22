@@ -1,8 +1,6 @@
 package gobblin.http;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.http.client.config.RequestConfig;
@@ -20,15 +18,21 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
+import gobblin.async.Callback;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.utils.HttpConstants;
+import gobblin.utils.HttpUtils;
 
 
 /**
- * A {@link HttpClient} that sends {@link HttpUriRequest} and gets {@link CloseableHttpResponse}.
+ * A synchronous {@link HttpClient} that sends {@link HttpUriRequest} and gets {@link CloseableHttpResponse}.
  * It encapsulates a {@link CloseableHttpClient} instance to send the {@link HttpUriRequest}
+ *
+ * {@link CloseableHttpClient} is used
  */
+@Slf4j
 public class ApacheHttpClient extends ThrottledHttpClient<HttpUriRequest, CloseableHttpResponse> {
   private static final Logger LOG = LoggerFactory.getLogger(ApacheHttpClient.class);
 
@@ -54,7 +58,7 @@ public class ApacheHttpClient extends ThrottledHttpClient<HttpUriRequest, Closea
 
   private final CloseableHttpClient client;
   public ApacheHttpClient(HttpClientBuilder builder, Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
-    super (broker, createLimiterKey(config));
+    super (broker, HttpUtils.createApacheHttpClientLimiterKey(config));
     config = config.withFallback(FALLBACK);
 
     RequestConfig requestConfig = RequestConfig.copy(RequestConfig.DEFAULT)
@@ -71,6 +75,11 @@ public class ApacheHttpClient extends ThrottledHttpClient<HttpUriRequest, Closea
   @Override
   public CloseableHttpResponse sendRequestImpl(HttpUriRequest request) throws IOException {
     return client.execute(request);
+  }
+
+  @Override
+  public void sendAsyncRequestImpl(HttpUriRequest request, Callback<CloseableHttpResponse> callback) throws IOException {
+    throw new UnsupportedOperationException("ApacheHttpClient doesn't support asynchronous send");
   }
 
   private HttpClientConnectionManager getHttpConnManager(Config config) {
@@ -98,20 +107,5 @@ public class ApacheHttpClient extends ThrottledHttpClient<HttpUriRequest, Closea
   @Override
   public void close() throws IOException {
     client.close();
-  }
-
-  private static String createLimiterKey(Config config) {
-    try {
-      String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
-      URL url = new URL(urlTemplate);
-      String key = url.getProtocol() + "/" + url.getHost();
-      if (url.getPort() > 0) {
-        key = key + "/" + url.getPort();
-      }
-      LOG.info("Get limiter key [" + key + "]");
-      return key;
-    } catch (MalformedURLException e) {
-      throw new IllegalStateException("Cannot get limiter key.", e);
-    }
   }
 }

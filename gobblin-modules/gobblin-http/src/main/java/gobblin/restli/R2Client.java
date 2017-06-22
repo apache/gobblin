@@ -20,17 +20,19 @@ package gobblin.restli;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-
 import com.linkedin.common.callback.Callbacks;
 import com.linkedin.common.util.None;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+import gobblin.async.Callback;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.http.ThrottledHttpClient;
 
-
+@Slf4j
 public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
   private final Client client;
 
@@ -53,6 +55,13 @@ public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
   }
 
   @Override
+  public void sendAsyncRequestImpl(RestRequest request, Callback<RestResponse> callback)
+      throws IOException {
+    AsyncR2CallbackWrapper wrapper = new AsyncR2CallbackWrapper(callback);
+    client.restRequest(request, wrapper);
+  }
+
+  @Override
   public void close()
       throws IOException {
     client.shutdown(Callbacks.<None>empty());
@@ -61,4 +70,27 @@ public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
   private static String getLimiterKey () {
     return "D2request/" + "serviceName";
   }
+
+  /**
+   * A wrapper class which passes result from {@link com.linkedin.common.callback.Callback<RestResponse>} to {@link Callback}
+   */
+  @Getter
+  private static class AsyncR2CallbackWrapper implements com.linkedin.common.callback.Callback<RestResponse> {
+    private Callback<RestResponse>  callback = null;
+
+    public AsyncR2CallbackWrapper(Callback<RestResponse>  callback) {
+      this.callback = callback;
+    }
+
+    @Override
+    public void onError(Throwable e) {
+      this.callback.onFailure(e);
+    }
+
+    @Override
+    public void onSuccess(RestResponse result) {
+      this.callback.onSuccess(result);
+    }
+  }
+
 }

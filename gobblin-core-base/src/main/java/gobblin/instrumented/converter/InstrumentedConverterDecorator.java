@@ -26,6 +26,7 @@ import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.records.RecordStreamWithMetadata;
 import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 
@@ -90,5 +91,10 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
   @Override
   public Object getDecoratedObject() {
     return this.embeddedConverter;
+  }
+  @Override
+  public RecordStreamWithMetadata<DO, SO> processStream(RecordStreamWithMetadata<DI, SI> inputStream,
+      WorkUnitState workUnitState) throws SchemaConversionException {
+    return this.embeddedConverter.processStream(inputStream, workUnitState);
   }
 }

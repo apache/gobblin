@@ -8,6 +8,7 @@ import com.codahale.metrics.Timer;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.async.Callback;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.NotConfiguredException;
 import gobblin.broker.iface.SharedResourcesBroker;
@@ -45,7 +46,7 @@ public abstract class ThrottledHttpClient<RQ, RP> implements HttpClient<RQ, RP> 
     }
   }
 
-  public RP sendRequest(RQ request) throws IOException {
+  public final RP sendRequest(RQ request) throws IOException {
     final Timer.Context context = sendTimer.time();
     try {
       if (limiter.acquirePermits(1) != null) {
@@ -61,5 +62,23 @@ public abstract class ThrottledHttpClient<RQ, RP> implements HttpClient<RQ, RP> 
     }
   }
 
+  public final void sendAsyncRequest(RQ request, Callback<RP> callback) throws IOException {
+    final Timer.Context context = sendTimer.time();
+    try {
+      if (limiter.acquirePermits(1) != null) {
+        log.debug ("Acquired permits successfully");
+        sendAsyncRequestImpl (request, callback);
+      } else {
+        throw new IOException ("Acquired permits return null");
+      }
+    } catch (InterruptedException e) {
+      throw new IOException("Throttling is interrupted");
+    } finally {
+      context.stop();
+    }
+  }
+
   public abstract RP sendRequestImpl (RQ request) throws IOException;
+
+  public abstract void sendAsyncRequestImpl (RQ request, Callback<RP> callback) throws IOException;
 }

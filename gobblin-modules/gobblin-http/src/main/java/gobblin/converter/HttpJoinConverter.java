@@ -2,6 +2,7 @@ package gobblin.converter;
 
 import java.io.IOException;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.avro.generic.GenericRecord;
@@ -10,11 +11,13 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.async.AsyncRequest;
 import gobblin.async.AsyncRequestBuilder;
 import gobblin.async.BufferedRecord;
+import gobblin.async.Callback;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.config.ConfigBuilder;
@@ -38,7 +41,7 @@ import gobblin.writer.WriteCallback;
  * Combine info (DI, RQ, RP, status, etc..) to generate output DO
  */
 @Slf4j
-public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converter<SI, SO, DI, DO> {
+public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends AsyncConverter1to1<SI, SO, DI, DO> {
   public static final String CONF_PREFIX = "gobblin.converter.http.";
   public static final Config DEFAULT_FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
@@ -74,8 +77,52 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
   protected abstract SO convertSchemaImpl (SI inputSchema, WorkUnitState workUnitState) throws SchemaConversionException;
   protected abstract DO convertRecordImpl (SO outputSchema, DI input, RQ rawRequest, ResponseStatus status) throws DataConversionException;
 
+  private class HttpJoinConverterContext<SO, DI, DO, RP, RQ> {
+    private final CompletableFuture<DO> future;
+    private final HttpJoinConverter<SI, SO, DI, DO, RQ, RP> converter;
+
+    @Getter
+    private final Callback<RP> callback;
+
+    public HttpJoinConverterContext(HttpJoinConverter converter, SO outputSchema, DI input, RQ rawRequest) {
+      this.future = new CompletableFuture();
+      this.converter = converter;
+      this.callback = new Callback<RP>() {
+        @Override
+        public void onSuccess(RP result) {
+          try {
+            ResponseStatus status = HttpJoinConverterContext.this.converter.responseHandler.handleResponse(result);
+            switch (status.getType()) {
+              case OK:
+              case CLIENT_ERROR:
+                // Convert (DI, RQ, RP etc..) to output DO
+                log.debug("{} send with status type {}", rawRequest, status.getType());
+                DO output = HttpJoinConverterContext.this.converter.convertRecordImpl(outputSchema, input, rawRequest, status);
+                HttpJoinConverterContext.this.future.complete(output);
+              case SERVER_ERROR:
+                // Server side error. Retry
+                throw new DataConversionException(rawRequest + " send failed due to server error");
+              default:
+                throw new DataConversionException(rawRequest + " Should not reach here");
+            }
+          } catch (Exception e) {
+            HttpJoinConverterContext.this.future.completeExceptionally(e);
+          }
+        }
+
+        @Override
+        public void onFailure(Throwable throwable) {
+          HttpJoinConverterContext.this.future.completeExceptionally(throwable);
+        }
+      };
+    }
+  }
+
+  /**
+   * Convert input (DI) to an http request, get http response, and convert it to output (DO) wrapped in a {@link CompletableFuture} object.
+   */
   @Override
-  public final Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnitState)
+  public final CompletableFuture<DO> convertRecordAsync(SO outputSchema, DI inputRecord, WorkUnitState workUnitState)
       throws DataConversionException {
 
     // Convert DI to HttpOperation
@@ -89,29 +136,15 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
     RQ rawRequest = request.getRawRequest();
 
     // Execute query and get response
+    HttpJoinConverterContext context = new HttpJoinConverterContext(this, outputSchema, inputRecord, rawRequest);
 
     try {
-      RP response = httpClient.sendRequest(rawRequest);
-
-      ResponseStatus status = responseHandler.handleResponse(response);
-
-
-      switch (status.getType()) {
-        case OK:
-        case CLIENT_ERROR:
-          // Convert (DI, RQ, RP etc..) to output DO
-          log.debug ("{} send with status type {}", rawRequest, status.getType());
-          DO output = convertRecordImpl (outputSchema, inputRecord, rawRequest, status);
-          return new SingleRecordIterable<>(output);
-        case SERVER_ERROR:
-          // Server side error. Retry
-          throw new DataConversionException(rawRequest + " send failed due to server error");
-        default:
-          throw new DataConversionException(rawRequest + " Should not reach here");
-      }
+      httpClient.sendAsyncRequest(rawRequest, context.getCallback());
     } catch (IOException e) {
       throw new DataConversionException(e);
     }
+
+    return context.future;
   }
 
   public void close() throws IOException {

@@ -3,15 +3,12 @@ package gobblin.restli;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.linkedin.r2.message.rest.RestResponse;
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.http.ResponseHandler;
 import gobblin.http.StatusType;
 import gobblin.utils.HttpUtils;
-import gobblin.writer.AsyncHttpWriter;
 
 
 /**
@@ -23,8 +20,8 @@ import gobblin.writer.AsyncHttpWriter;
  *   sent from the service for a post response, executing more detailed status code handling, etc.
  * </p>
  */
+@Slf4j
 public class R2RestResponseHandler implements ResponseHandler<RestResponse> {
-  private static final Logger LOG = LoggerFactory.getLogger(R2RestResponseHandler.class);
 
   public static final String CONTENT_TYPE_HEADER = "Content-Type";
   private final Set<String> errorCodeWhitelist;
@@ -49,9 +46,8 @@ public class R2RestResponseHandler implements ResponseHandler<RestResponse> {
       status.setContent(response.getEntity());
       status.setContentType(response.getHeader(CONTENT_TYPE_HEADER));
     } else {
-      LOG.info("Receive an unsuccessful response with status code: " + statusCode);
+      log.info("Receive an unsuccessful response with status code: " + statusCode);
     }
-
 
     return status;
   }

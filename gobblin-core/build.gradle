@@ -47,6 +47,7 @@ dependencies {
   compile externalDependency.hiveExec
   compile externalDependency.hiveSerDe
   compile externalDependency.httpclient
+  compile externalDependency.httpasyncclient
   compile externalDependency.httpcore
   compile externalDependency.metricsCore
   compile externalDependency.scala

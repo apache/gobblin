@@ -5,19 +5,18 @@ import java.nio.ByteBuffer;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 
 import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.http.ApacheHttpClient;
+import gobblin.http.ApacheHttpAsyncClient;
 import gobblin.http.ApacheHttpResponseHandler;
 import gobblin.http.ApacheHttpResponseStatus;
-import gobblin.http.HttpClient;
 import gobblin.http.ApacheHttpRequestBuilder;
 import gobblin.http.HttpRequestResponseRecord;
 import gobblin.http.ResponseStatus;
@@ -27,10 +26,10 @@ import gobblin.utils.HttpConstants;
  * Apache version of http join converter
  */
 @Slf4j
-public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRequest, CloseableHttpResponse> {
+public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRequest, HttpResponse> {
   @Override
-  public HttpClient<HttpUriRequest, CloseableHttpResponse> createHttpClient(Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
-    return new ApacheHttpClient(HttpClientBuilder.create(), config, broker);
+  public ApacheHttpAsyncClient createHttpClient(Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
+    return new ApacheHttpAsyncClient(HttpAsyncClientBuilder.create(), config, broker);
   }
 
   @Override
