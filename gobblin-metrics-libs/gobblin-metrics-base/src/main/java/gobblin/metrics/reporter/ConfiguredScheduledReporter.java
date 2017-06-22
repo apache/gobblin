@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Strings;
 import gobblin.configuration.ConfigurationKeys;
 import lombok.Getter;
 
@@ -234,7 +235,8 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
       return currentContextName;
     }
 
-    return JOINER.join(metricsPrefix, metricContextName, tags.get("taskId"), tags.get("forkBranchName"), tags.get("class"));
+    return JOINER.join(Strings.emptyToNull(metricsPrefix),
+            metricContextName, tags.get("taskId"), tags.get("forkBranchName"), tags.get("class"));
   }
 
   @Override
