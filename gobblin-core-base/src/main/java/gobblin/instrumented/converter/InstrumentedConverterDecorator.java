@@ -92,6 +92,11 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
   public Object getDecoratedObject() {
     return this.embeddedConverter;
   }
+
+  /**
+   * This workarounds the issue that {@link Converter#processStream(RecordStreamWithMetadata, WorkUnitState)} will invoke
+   * {@link gobblin.converter.AsyncConverter1to1#convertRecord(Object, Object, WorkUnitState)} directly, which is an unsupported method.
+   */
   @Override
   public RecordStreamWithMetadata<DO, SO> processStream(RecordStreamWithMetadata<DI, SI> inputStream,
       WorkUnitState workUnitState) throws SchemaConversionException {
