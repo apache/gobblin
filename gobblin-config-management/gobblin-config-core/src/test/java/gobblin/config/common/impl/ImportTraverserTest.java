@@ -17,17 +17,7 @@
 
 package gobblin.config.common.impl;
 
-/** Denotes that circular chain is detected by follow the imports path in {@link ConfigStore}. */
 
-public class CircularDependencyException extends RuntimeException {
+public class ImportTraverserTest {
 
-  private static final long serialVersionUID = -164765448729513949L;
-
-  public CircularDependencyException(String message) {
-    super(message);
-  }
-
-  public CircularDependencyException(String message, Throwable cause) {
-    super(message, cause);
-  }
 }
