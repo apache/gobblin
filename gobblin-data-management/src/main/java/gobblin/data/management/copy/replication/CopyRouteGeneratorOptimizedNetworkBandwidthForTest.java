@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package gobblin.data.management.copy.replication;
 
 import java.util.List;
@@ -23,36 +22,25 @@ import com.google.common.base.Optional;
 
 
 /**
- * Provide the basic optimizer implementation in pull mode. The subclass should override the {@link #getOptimizedCopyRoute(List)} function
- * @author mitu
- *
+ * This class is necessary for unit test purpose:
+ * - Mockito cannot mimic the situation where a file system contains a dataset path.
+ * - In {@link CopyRouteGeneratorOptimizedNetworkBandwidth} we neet to check if the dataset is really on the filesystem.
+ * - The {@link CopyRouteGeneratorTest} is testing for route selection,
+ *    so no matter the dataset is indeed existed, the testing purpose can still be achieved.
  */
-public class CopyRouteGeneratorOptimizer extends CopyRouteGeneratorBase {
-
+public class CopyRouteGeneratorOptimizedNetworkBandwidthForTest extends CopyRouteGeneratorOptimizer {
   @Override
-  public Optional<CopyRoute> getPullRoute(ReplicationConfiguration rc, EndPoint copyTo) {
-    if (rc.getCopyMode() == ReplicationCopyMode.PUSH)
-      return Optional.absent();
-
-    DataFlowTopology topology = rc.getDataFlowToplogy();
-    List<DataFlowTopology.DataFlowPath> paths = topology.getDataFlowPaths();
-
-    for (DataFlowTopology.DataFlowPath p : paths) {
-      List<CopyRoute> routes = p.getCopyRoutes();
-      if (routes.isEmpty()) {
+  public Optional<CopyRoute> getOptimizedCopyRoute(List<CopyRoute> routes) {
+    for (CopyRoute copyRoute : routes) {
+      if (!(copyRoute.getCopyFrom() instanceof HadoopFsEndPoint)) {
         continue;
       }
 
-      // All routes under a path pointing to the same copyTo (replica)
-      if (routes.get(0).getCopyTo().equals(copyTo)) {
-        return getOptimizedCopyRoute(routes);
+      HadoopFsEndPoint copyFrom = (HadoopFsEndPoint) (copyRoute.getCopyFrom());
+      if (copyFrom.isFileSystemAvailable()) {
+        return Optional.of(copyRoute);
       }
     }
-
-    return Optional.absent();
-  }
-
-  public Optional<CopyRoute> getOptimizedCopyRoute(List<CopyRoute> routes) {
     return Optional.absent();
   }
 }

@@ -38,24 +38,24 @@ public class CopyRouteGeneratorTest {
     long sourceWatermark   = 1475604606000L; // Oct 4, 2016
 
     ReplicaHadoopFsEndPoint notAvailableReplica = Mockito.mock(ReplicaHadoopFsEndPoint.class);
-    Mockito.when(notAvailableReplica.isAvailable()).thenReturn(false);
+    Mockito.when(notAvailableReplica.isFileSystemAvailable()).thenReturn(false);
     Optional<ComparableWatermark> tmp = Optional.absent();
     Mockito.when(notAvailableReplica.getWatermark()).thenReturn(tmp);
 
     ReplicaHadoopFsEndPoint replica1 = Mockito.mock(ReplicaHadoopFsEndPoint.class);
-    Mockito.when(replica1.isAvailable()).thenReturn(true);
+    Mockito.when(replica1.isFileSystemAvailable()).thenReturn(true);
     ComparableWatermark cw = new LongWatermark(replica1Watermark) ;
     tmp = Optional.of(cw);
     Mockito.when(replica1.getWatermark()).thenReturn(tmp);
 
     SourceHadoopFsEndPoint source = Mockito.mock(SourceHadoopFsEndPoint.class);
-    Mockito.when(source.isAvailable()).thenReturn(true);
+    Mockito.when(source.isFileSystemAvailable()).thenReturn(true);
     cw = new LongWatermark(sourceWatermark);
     tmp = Optional.of(cw);
     Mockito.when(source.getWatermark()).thenReturn(tmp);
 
     ReplicaHadoopFsEndPoint copyToEndPoint = Mockito.mock(ReplicaHadoopFsEndPoint.class);
-    Mockito.when(copyToEndPoint.isAvailable()).thenReturn(true);
+    Mockito.when(copyToEndPoint.isFileSystemAvailable()).thenReturn(true);
 
     CopyRoute cp1 = new CopyRoute(notAvailableReplica, copyToEndPoint);
     CopyRoute cp2 = new CopyRoute(replica1, copyToEndPoint);
@@ -71,7 +71,8 @@ public class CopyRouteGeneratorTest {
     Mockito.when(rc.getReplicas()).thenReturn(ImmutableList.<EndPoint> of(notAvailableReplica, replica1, copyToEndPoint));
     Mockito.when(rc.getDataFlowToplogy()).thenReturn(dataFlowTopology);
 
-    CopyRouteGeneratorOptimizedNetworkBandwidth network = new CopyRouteGeneratorOptimizedNetworkBandwidth();
+    CopyRouteGeneratorOptimizedNetworkBandwidthForTest network = new CopyRouteGeneratorOptimizedNetworkBandwidthForTest();
+
     Assert.assertTrue(network.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().equals(replica1));
     Assert.assertTrue(network.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().getWatermark()
         .get().compareTo(new LongWatermark(replica1Watermark)) == 0);
