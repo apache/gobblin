@@ -274,12 +274,12 @@ public class MysqlExtractor extends JdbcExtractor {
 
   @Override
   public String getLeftDelimitedIdentifier() {
-    return "`";
+    return this.enableDelimitedIdentifier ? "`" : "";
   }
 
   @Override
   public String getRightDelimitedIdentifier() {
-    return "`";
+    return this.enableDelimitedIdentifier ? "`" : "";
   }
 
   @Override
