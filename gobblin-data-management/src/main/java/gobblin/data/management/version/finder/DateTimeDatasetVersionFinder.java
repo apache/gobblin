@@ -57,9 +57,9 @@ public class DateTimeDatasetVersionFinder extends AbstractDatasetVersionFinder<T
    */
   public static final String DATE_TIME_PATTERN_TIMEZONE_KEY = "version.datetime.timezone";
   /**
-   * By default the globPattern is bbtained by replacing all non-slash characters in datetime pattern by *.
+   * By default the globPattern is obtained by replacing all non-slash characters in datetime pattern by *.
    * E.g. yyyy/MM/dd/hh/mm -> *\/*\/*\/*\/*.
-   * If this key is set, we use this globPatter to search for version
+   * If this key is set, we use this globPattern to search for version
    */
   public static final String OPTIONAL_GLOB_PATTERN_TIMEZONE_KEY = "version.globPattern";
 

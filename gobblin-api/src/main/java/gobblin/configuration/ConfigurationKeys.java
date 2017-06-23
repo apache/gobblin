@@ -781,4 +781,9 @@ public class ConfigurationKeys {
    */
   public static final String COMPACTION_SUITE_FACTORY = "compaction.suite.factory";
   public static final String DEFAULT_COMPACTION_SUITE_FACTORY = "CompactionAvroSuiteFactory";
+
+  /**
+   * Configuration related to ConfigStore based copy/retention
+   */
+  public static final String CONFIG_BASED_PREFIX = "gobblin.configBased";
 }

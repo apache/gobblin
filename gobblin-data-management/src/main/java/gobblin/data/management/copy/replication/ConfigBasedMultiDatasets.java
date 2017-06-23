@@ -17,6 +17,7 @@
 
 package gobblin.data.management.copy.replication;
 
+import gobblin.dataset.Dataset;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ConfigBasedMultiDatasets {
 
   private final Properties props;
-  private final List<ConfigBasedDataset> datasets = new ArrayList<>();
+  private final List<Dataset> datasets = new ArrayList<>();
 
   /**
    * if push mode is set in property, only replicate data when
@@ -143,7 +144,7 @@ public class ConfigBasedMultiDatasets {
     }
   }
 
-  public List<ConfigBasedDataset> getConfigBasedDatasetList(){
+  public List<Dataset> getConfigBasedDatasetList(){
     return this.datasets;
   }
 
