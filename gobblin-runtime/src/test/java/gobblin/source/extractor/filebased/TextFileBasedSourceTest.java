@@ -74,6 +74,14 @@ public class TextFileBasedSourceTest {
 
     // if we replace old file, it should repull that file
     Assert.assertTrue(new File(dataDir, "file2").delete());
+
+    // Some systems don't provide modtime so gobblin can't keep of changed files.
+    // run gobblin once with file2 deleted to update the snapshot
+    gobblin.run();
+    events = asserter.getEvents().stream().map(TestingEventBuses.Event::getValue).collect(Collectors.toSet());
+    Assert.assertTrue(events.isEmpty());
+    asserter.clear();
+
     Files.write("record8\nrecord9", new File(dataDir, "file2"), Charsets.UTF_8);
 
     gobblin.run();
