@@ -77,6 +77,9 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends AsyncCon
   protected abstract SO convertSchemaImpl (SI inputSchema, WorkUnitState workUnitState) throws SchemaConversionException;
   protected abstract DO convertRecordImpl (SO outputSchema, DI input, RQ rawRequest, ResponseStatus status) throws DataConversionException;
 
+  /**
+   * A helper class which performs the conversion from http response to DO type output, saved as a {@link CompletableFuture}
+   */
   private class HttpJoinConverterContext<SO, DI, DO, RP, RQ> {
     private final CompletableFuture<DO> future;
     private final HttpJoinConverter<SI, SO, DI, DO, RQ, RP> converter;
@@ -94,11 +97,11 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends AsyncCon
             ResponseStatus status = HttpJoinConverterContext.this.converter.responseHandler.handleResponse(result);
             switch (status.getType()) {
               case OK:
+                HttpJoinConverterContext.this.onSuccess(rawRequest, status, outputSchema, input);
+                break;
               case CLIENT_ERROR:
-                // Convert (DI, RQ, RP etc..) to output DO
-                log.debug("{} send with status type {}", rawRequest, status.getType());
-                DO output = HttpJoinConverterContext.this.converter.convertRecordImpl(outputSchema, input, rawRequest, status);
-                HttpJoinConverterContext.this.future.complete(output);
+                HttpJoinConverterContext.this.onSuccess(rawRequest, status, outputSchema, input);
+                break;
               case SERVER_ERROR:
                 // Server side error. Retry
                 throw new DataConversionException(rawRequest + " send failed due to server error");
@@ -116,10 +119,21 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends AsyncCon
         }
       };
     }
+
+    private void onSuccess(RQ rawRequest, ResponseStatus status, SO outputSchema, DI input) throws DataConversionException {
+      log.debug("{} send with status type {}", rawRequest, status.getType());
+      DO output = this.converter.convertRecordImpl(outputSchema, input, rawRequest, status);
+      HttpJoinConverterContext.this.future.complete(output);
+    }
   }
 
   /**
-   * Convert input (DI) to an http request, get http response, and convert it to output (DO) wrapped in a {@link CompletableFuture} object.
+   * Convert an input record to a future object where an output record will be filled in sometime later
+   * Sequence:
+   *    Convert input (DI) to an http request
+   *    Send http request asynchronously, and registers an http callback
+   *    Create an {@link CompletableFuture} object. When the callback is invoked, this future object is filled in by an output record which is converted from http response.
+   *    Return the future object.
    */
   @Override
   public final CompletableFuture<DO> convertRecordAsync(SO outputSchema, DI inputRecord, WorkUnitState workUnitState)

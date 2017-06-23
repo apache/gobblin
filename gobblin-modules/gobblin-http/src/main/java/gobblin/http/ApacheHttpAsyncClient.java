@@ -100,16 +100,17 @@ public class ApacheHttpAsyncClient extends ThrottledHttpClient<HttpUriRequest, H
   }
 
   /**
-   * A helper class which contains a latch so that we can achieve synchronization.
-   * The same can be achieved by invoking {@link Future#get()}. However the future object returned by
-   * {@link org.apache.http.nio.client.HttpAsyncClient#execute(HttpUriRequest, FutureCallback)} seems not working properly.
+   * A helper class which contains a latch so that we can achieve blocking calls even using
+   * http async client APIs. Same can be achieved by invoking {@link Future#get()} returned by
+   * {@link org.apache.http.nio.client.HttpAsyncClient#execute(HttpUriRequest, FutureCallback)}.
+   * However this method seems to have a synchronization problem. It seems like {@link Future#get()}
+   * is not fully blocked before callback is triggered.
    */
   @Getter
   private static class SyncHttpResponseCallback implements FutureCallback<HttpResponse> {
     private HttpUriRequest request = null;
     private HttpResponse response = null;
     private Exception exception = null;
-    private Callback callback = null;
 
     private final CountDownLatch latch = new CountDownLatch(1);
 

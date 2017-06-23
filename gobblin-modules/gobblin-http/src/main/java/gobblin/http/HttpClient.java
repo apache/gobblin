@@ -37,5 +37,7 @@ public interface HttpClient<RQ, RP> extends Closeable {
   /**
    * Send request asynchronously
    */
-  void sendAsyncRequest(RQ request, Callback<RP> callback) throws IOException;
+  default void sendAsyncRequest(RQ request, Callback<RP> callback) throws IOException {
+    throw new UnsupportedOperationException();
+  }
 }
