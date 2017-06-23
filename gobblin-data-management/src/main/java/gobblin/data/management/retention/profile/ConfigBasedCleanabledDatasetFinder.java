@@ -16,45 +16,30 @@
  */
 package gobblin.data.management.retention.profile;
 
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterators;
-import gobblin.config.client.ConfigClient;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.replication.ConfigBasedMultiDatasets;
-import gobblin.util.ConfigUtils;
-import gobblin.util.Either;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.executors.IteratorExecutor;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Properties;
-import java.util.Set;
-
 import java.util.concurrent.Callable;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
-import org.apache.hadoop.conf.Configuration;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 import gobblin.dataset.Dataset;
 import gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
 import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
-import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
-import gobblin.config.store.api.ConfigStoreCreationException;
+import gobblin.config.client.ConfigClient;
+import gobblin.configuration.ConfigurationKeys;
 
 import lombok.extern.slf4j.Slf4j;
 
+
+/**
+ * Based on the ConfigStore object to find all {@link ConfigurableCleanableDataset}
+ * Specifically for Retention job.
+ */
 @Slf4j
 public class ConfigBasedCleanabledDatasetFinder extends ConfigBasedDatasetsFinder{
 

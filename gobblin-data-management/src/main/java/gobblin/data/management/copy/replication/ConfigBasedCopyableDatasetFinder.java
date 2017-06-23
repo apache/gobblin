@@ -18,6 +18,7 @@ package gobblin.data.management.copy.replication;
 
 
 
+import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -34,6 +35,12 @@ import gobblin.dataset.Dataset;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Based on the ConfigStore object to find all {@link ConfigBasedMultiDatasets} to replicate.
+ * Specifically for replication job.
+ * Normal DistcpNG Job which doesn'involve Dataflow concepts should not use this DatasetFinder but
+ * different implementation of {@link ConfigBasedDatasetsFinder}. 
+ */
 @Slf4j
 public class ConfigBasedCopyableDatasetFinder extends ConfigBasedDatasetsFinder {
 
