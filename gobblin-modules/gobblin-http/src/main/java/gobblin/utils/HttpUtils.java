@@ -1,7 +1,9 @@
 package gobblin.utils;
 
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -20,6 +22,8 @@ import com.google.common.base.Splitter;
 import com.google.gson.Gson;
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.http.HttpOperation;
 import gobblin.http.ResponseStatus;
 import gobblin.http.StatusType;
@@ -29,8 +33,8 @@ import gobblin.util.AvroUtils;
 /**
  * Utilities to build gobblin http components
  */
+@Slf4j
 public class HttpUtils {
-  private static final Logger LOG = LoggerFactory.getLogger(HttpUtils.class);
   private static final Gson GSON = new Gson();
   private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
 
@@ -155,5 +159,21 @@ public class HttpUtils {
   public static Map<String, Object> toMap(String jsonString) {
     Map<String, Object> map = new HashMap<>();
     return GSON.fromJson(jsonString, map.getClass());
+  }
+
+
+  public static String createApacheHttpClientLimiterKey(Config config) {
+    try {
+      String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
+      URL url = new URL(urlTemplate);
+      String key = url.getProtocol() + "/" + url.getHost();
+      if (url.getPort() > 0) {
+        key = key + "/" + url.getPort();
+      }
+      log.info("Get limiter key [" + key + "]");
+      return key;
+    } catch (MalformedURLException e) {
+      throw new IllegalStateException("Cannot get limiter key.", e);
+    }
   }
 }

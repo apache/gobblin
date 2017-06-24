@@ -73,7 +73,6 @@ public abstract class AsyncConverter1to1<SI, SO, DI, DO> extends Converter<SI, S
         inputStream.getRecordStream()
             .flatMapSingle(in -> new SingleAsync(in, convertRecordAsync(outputSchema, in.getRecord(), workUnitState)),
                 false, maxConcurrentAsyncConversions);
-    outputStream = outputStream.doOnComplete(this::close);
     return inputStream.withRecordStream(outputStream, outputSchema);
   }
 

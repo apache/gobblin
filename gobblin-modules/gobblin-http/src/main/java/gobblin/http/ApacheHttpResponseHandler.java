@@ -5,19 +5,14 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.HttpResponse;
 import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import lombok.extern.slf4j.Slf4j;
-
-import gobblin.restli.R2RestResponseHandler;
 import gobblin.utils.HttpUtils;
 
 
 /**
- * Basic logic to handle a {@link CloseableHttpResponse} from a http service
+ * Basic logic to handle a {@link HttpResponse} from a http service
  *
  * <p>
  *   A more specific handler understands the content inside the response and is able to customize
@@ -26,8 +21,7 @@ import gobblin.utils.HttpUtils;
  * </p>
  */
 @Slf4j
-public class ApacheHttpResponseHandler implements ResponseHandler<CloseableHttpResponse> {
-  private static final Logger LOG = LoggerFactory.getLogger(R2RestResponseHandler.class);
+public class ApacheHttpResponseHandler<RP extends HttpResponse> implements ResponseHandler<RP> {
   private final Set<String> errorCodeWhitelist;
 
   public ApacheHttpResponseHandler() {
@@ -39,7 +33,7 @@ public class ApacheHttpResponseHandler implements ResponseHandler<CloseableHttpR
   }
 
   @Override
-  public ApacheHttpResponseStatus handleResponse(CloseableHttpResponse response) {
+  public ApacheHttpResponseStatus handleResponse(RP response) {
     ApacheHttpResponseStatus status = new ApacheHttpResponseStatus(StatusType.OK);
     int statusCode = response.getStatusLine().getStatusCode();
     status.setStatusCode(statusCode);
@@ -50,7 +44,7 @@ public class ApacheHttpResponseHandler implements ResponseHandler<CloseableHttpR
       status.setContent(getEntityAsByteArray(response.getEntity()));
       status.setContentType(response.getEntity().getContentType().getValue());
     } else {
-      LOG.info("Receive an unsuccessful response with status code: " + statusCode);
+      log.info("Receive an unsuccessful response with status code: " + statusCode);
     }
 
     HttpEntity entity = response.getEntity();

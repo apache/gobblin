@@ -20,17 +20,19 @@ package gobblin.restli;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-
 import com.linkedin.common.callback.Callbacks;
 import com.linkedin.common.util.None;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+import gobblin.async.Callback;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.http.ThrottledHttpClient;
 
-
+@Slf4j
 public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
   private final Client client;
 
@@ -50,6 +52,22 @@ public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
       throw new IOException(e);
     }
     return response;
+  }
+
+  @Override
+  public void sendAsyncRequestImpl(RestRequest request, Callback<RestResponse> callback)
+      throws IOException {
+    client.restRequest(request, new com.linkedin.common.callback.Callback<RestResponse>() {
+      @Override
+      public void onError(Throwable e) {
+        callback.onFailure(e);
+      }
+
+      @Override
+      public void onSuccess(RestResponse result) {
+        callback.onSuccess(result);
+      }
+    });
   }
 
   @Override

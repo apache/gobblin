@@ -17,7 +17,6 @@ import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.http.ApacheHttpClient;
 import gobblin.http.ApacheHttpResponseHandler;
 import gobblin.http.ApacheHttpResponseStatus;
-import gobblin.http.HttpClient;
 import gobblin.http.ApacheHttpRequestBuilder;
 import gobblin.http.HttpRequestResponseRecord;
 import gobblin.http.ResponseStatus;
@@ -29,7 +28,7 @@ import gobblin.utils.HttpConstants;
 @Slf4j
 public class AvroApacheHttpJoinConverter extends AvroHttpJoinConverter<HttpUriRequest, CloseableHttpResponse> {
   @Override
-  public HttpClient<HttpUriRequest, CloseableHttpResponse> createHttpClient(Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
+  public ApacheHttpClient createHttpClient(Config config, SharedResourcesBroker<GobblinScopeTypes> broker) {
     return new ApacheHttpClient(HttpClientBuilder.create(), config, broker);
   }
 

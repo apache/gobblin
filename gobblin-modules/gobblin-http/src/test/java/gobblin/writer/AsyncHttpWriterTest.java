@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import gobblin.async.AsyncRequest;
 import gobblin.async.AsyncRequestBuilder;
 import gobblin.async.BufferedRecord;
+import gobblin.async.Callback;
 import gobblin.broker.BrokerConstants;
 import gobblin.broker.SharedResourcesBrokerFactory;
 import gobblin.broker.SharedResourcesBrokerImpl;
@@ -219,6 +220,11 @@ public class AsyncHttpWriterTest {
     }
 
     @Override
+    public void sendAsyncRequest(HttpUriRequest request, Callback<CloseableHttpResponse> callback) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void close()
         throws IOException {
       isCloseCalled = true;
@@ -247,6 +253,11 @@ public class AsyncHttpWriterTest {
     public void close()
         throws IOException {
       isCloseCalled = true;
+    }
+
+    @Override
+    public void sendAsyncRequestImpl(HttpUriRequest request, Callback callback) {
+      throw new UnsupportedOperationException();
     }
   }
 

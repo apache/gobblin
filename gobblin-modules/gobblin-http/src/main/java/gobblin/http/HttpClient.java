@@ -20,6 +20,7 @@ package gobblin.http;
 import java.io.Closeable;
 import java.io.IOException;
 
+import gobblin.async.Callback;
 
 /**
  * An interface to send a request
@@ -32,5 +33,11 @@ public interface HttpClient<RQ, RP> extends Closeable {
    * Send request synchronously
    */
   RP sendRequest(RQ request) throws IOException;
-}
 
+  /**
+   * Send request asynchronously
+   */
+  default void sendAsyncRequest(RQ request, Callback<RP> callback) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+}
