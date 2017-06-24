@@ -17,6 +17,8 @@
 
 package gobblin.writer;
 
+import java.util.Set;
+
 import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.collect.ImmutableMap;
@@ -31,10 +33,11 @@ import gobblin.restli.R2Client;
 import gobblin.restli.R2RestRequestBuilder;
 import gobblin.restli.R2RestResponseHandler;
 import gobblin.utils.HttpConstants;
+import gobblin.utils.HttpUtils;
 
 
 public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, RestRequest, RestResponse> {
-  private static final String SCHEMA_D2 = "d2://";
+
   private static final Config FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
           .put(HttpConstants.PROTOCOL_VERSION, "2.0.0")
@@ -50,8 +53,8 @@ public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, R
     String protocolVersion = config.getString(HttpConstants.PROTOCOL_VERSION);
     asyncRequestBuilder = new R2RestRequestBuilder(urlTemplate, verb, protocolVersion);
 
-    responseHandler = new R2RestResponseHandler();
-
+    Set<String> errorCodeWhitelist = HttpUtils.getErrorCodeWhitelist(config);
+    responseHandler = new R2RestResponseHandler(errorCodeWhitelist);
     return this;
   }
 
@@ -60,7 +63,7 @@ public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, R
 
     // By default, use http schema
     R2ClientFactory.Schema schema = R2ClientFactory.Schema.HTTP;
-    if (urlTemplate.startsWith(SCHEMA_D2)) {
+    if (urlTemplate.startsWith(HttpConstants.SCHEMA_D2)) {
       schema = R2ClientFactory.Schema.D2;
     }
 

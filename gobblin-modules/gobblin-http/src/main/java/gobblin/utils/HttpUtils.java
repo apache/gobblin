@@ -2,8 +2,13 @@ package gobblin.utils;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.text.StrSubstitutor;
@@ -11,9 +16,13 @@ import org.apache.http.client.utils.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Splitter;
 import com.google.gson.Gson;
+import com.typesafe.config.Config;
 
 import gobblin.http.HttpOperation;
+import gobblin.http.ResponseStatus;
+import gobblin.http.StatusType;
 import gobblin.util.AvroUtils;
 
 
@@ -23,6 +32,8 @@ import gobblin.util.AvroUtils;
 public class HttpUtils {
   private static final Logger LOG = LoggerFactory.getLogger(HttpUtils.class);
   private static final Gson GSON = new Gson();
+  private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
+
 
   /**
    * Convert the given {@link GenericRecord} to {@link HttpOperation}
@@ -86,6 +97,52 @@ public class HttpUtils {
       return uriBuilder.build();
     } catch (URISyntaxException e) {
       throw new RuntimeException("Fail to build uri", e);
+    }
+  }
+
+  /**
+   * Get a {@link List<String>} from a comma separated string
+   */
+  public static List<String> getStringList(String list) {
+    return LIST_SPLITTER.splitToList(list);
+  }
+
+  /**
+   * Get the error code whitelist from a config
+   */
+  public static Set<String> getErrorCodeWhitelist(Config config) {
+    String list = config.getString(HttpConstants.ERROR_CODE_WHITELIST).toLowerCase();
+    return new HashSet<>(getStringList(list));
+  }
+
+  /**
+   * Update {@link StatusType} of a {@link ResponseStatus} based on statusCode and error code white list
+   *
+   * @param status a status report after handling the a response
+   * @param statusCode a status code in http domain
+   * @param errorCodeWhitelist a whitelist specifies what http error codes are tolerable
+   */
+  public static void updateStatusType(ResponseStatus status, int statusCode, Set<String> errorCodeWhitelist) {
+    if (statusCode >= 300 & statusCode < 500) {
+      List<String> whitelist = new ArrayList<>();
+      whitelist.add(Integer.toString(statusCode));
+      if (statusCode > 400) {
+        whitelist.add(HttpConstants.CODE_4XX);
+      } else {
+        whitelist.add(HttpConstants.CODE_3XX);
+      }
+      if (whitelist.stream().anyMatch(errorCodeWhitelist::contains)) {
+        status.setType(StatusType.CONTINUE);
+      } else {
+        status.setType(StatusType.CLIENT_ERROR);
+      }
+    } else if (statusCode >= 500) {
+      List<String> whitelist = Arrays.asList(Integer.toString(statusCode), HttpConstants.CODE_5XX);
+      if (whitelist.stream().anyMatch(errorCodeWhitelist::contains)) {
+        status.setType(StatusType.CONTINUE);
+      } else {
+        status.setType(StatusType.SERVER_ERROR);
+      }
     }
   }
 

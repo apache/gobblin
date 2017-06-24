@@ -17,9 +17,13 @@
 
 package gobblin.source.extractor.filebased;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -127,13 +131,27 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
 
     // Get list of files that need to be pulled
     List<String> currentFsSnapshot = this.getcurrentFsSnapshot(state);
-    HashSet<String> filesWithTimeToPull = new HashSet<>(currentFsSnapshot);
-    filesWithTimeToPull.removeAll(prevFsSnapshot);
-    List<String> filesToPull = new ArrayList<>();
-    Iterator<String> it = filesWithTimeToPull.iterator();
-    while (it.hasNext()) {
-      String filesWithoutTimeToPull[] = it.next().split(this.splitPattern);
-      filesToPull.add(filesWithoutTimeToPull[0]);
+    // The snapshot we want to save. This might not be the full snapshot if we don't pull all files.
+    List<String> effectiveSnapshot = Lists.newArrayList();
+    List<String> filesToPull = Lists.newArrayList();
+
+    int maxFilesToPull = state.getPropAsInt(ConfigurationKeys.SOURCE_FILEBASED_MAX_FILES_PER_RUN, Integer.MAX_VALUE);
+    int filesSelectedForPull = 0;
+    if (currentFsSnapshot.size() > maxFilesToPull) {
+      // if we're going to not pull all files, sort them lexicographically so there is some order in which they are ingested
+      // note currentFsSnapshot.size > maxFilesToPull does not imply we will ignore some of them, as we still have to diff
+      // against the previous snapshot. Just a quick check if it even makes sense to sort the files.
+      Collections.sort(currentFsSnapshot);
+    }
+    for (String file: currentFsSnapshot) {
+      if (prevFsSnapshot.contains(file)) {
+        effectiveSnapshot.add(file);
+      } else if ((filesSelectedForPull++) < maxFilesToPull) {
+        filesToPull.add(file.split(this.splitPattern)[0]);
+        effectiveSnapshot.add(file);
+      } else {
+        // file is not pulled this run
+      }
     }
 
     if (!filesToPull.isEmpty()) {
@@ -156,7 +174,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
 
         // Eventually these setters should be integrated with framework support for generalized watermark handling
         partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT,
-            StringUtils.join(currentFsSnapshot, ","));
+            StringUtils.join(effectiveSnapshot, ","));
 
         List<String> partitionFilesToPull = filesToPull.subList(fileOffset,
             fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition);
@@ -191,21 +209,29 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
    */
   public List<String> getcurrentFsSnapshot(State state) {
     List<String> results = new ArrayList<>();
-    String path = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/*"
-        + state.getProp(ConfigurationKeys.SOURCE_ENTITY) + "*";
+    String path = getLsPattern(state);
 
     try {
       log.info("Running ls command with input " + path);
       results = this.fsHelper.ls(path);
       for (int i = 0; i < results.size(); i++) {
-        String filePath = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + results.get(i);
+        File parsedFile = new File(new URI(results.get(i)));
+
+        String filePath = (parsedFile.isAbsolute()
+            ? parsedFile
+            : new File(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY), parsedFile.toString())).getAbsolutePath();
         results.set(i, filePath + this.splitPattern + this.fsHelper.getFileMTime(filePath));
       }
-    } catch (FileBasedHelperException e) {
+    } catch (FileBasedHelperException | URISyntaxException e) {
       log.error("Not able to fetch the filename/file modified time to " + e.getMessage() + " will not pull any files",
           e);
     }
     return results;
+  }
+
+  protected String getLsPattern(State state) {
+    return state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/*"
+        + state.getProp(ConfigurationKeys.SOURCE_ENTITY) + "*";
   }
 
   @Override

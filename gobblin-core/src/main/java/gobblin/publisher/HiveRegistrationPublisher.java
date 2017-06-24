@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
 
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
@@ -44,6 +45,8 @@ import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
 import gobblin.hive.spec.HiveSpec;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
 import gobblin.util.ExecutorsUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -66,15 +69,18 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
   private static final String DATA_PUBLISH_TIME = HiveRegistrationPublisher.class.getName() + ".lastDataPublishTime";
   private static final Splitter LIST_SPLITTER_COMMA = Splitter.on(",").trimResults().omitEmptyStrings();
+  public static final String HIVE_SPEC_COMPUTATION_TIMER = "hiveSpecComputationTimer";
   private final Closer closer = Closer.create();
   private final HiveRegister hiveRegister;
   private final ExecutorService hivePolicyExecutor;
+  private final MetricContext metricContext;
 
   public HiveRegistrationPublisher(State state) {
     super(state);
     this.hiveRegister = this.closer.register(HiveRegister.get(state));
     this.hivePolicyExecutor = ExecutorsUtils.loggingDecorator(Executors.newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d"))));
+    this.metricContext = Instrumented.getMetricContext(state, HiveRegistrationPublisher.class);
   }
 
   @Override
@@ -126,7 +132,9 @@ public class HiveRegistrationPublisher extends DataPublisher {
           completionService.submit(new Callable<Collection<HiveSpec>>() {
             @Override
             public Collection<HiveSpec> call() throws Exception {
-              return policy.getHiveSpecs(new Path(path));
+              try (Timer.Context context = metricContext.timer(HIVE_SPEC_COMPUTATION_TIMER).time()) {
+                return policy.getHiveSpecs(new Path(path));
+              }
             }
           });
         }

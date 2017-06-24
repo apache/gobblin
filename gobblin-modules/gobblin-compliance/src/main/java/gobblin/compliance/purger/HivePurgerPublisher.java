@@ -158,13 +158,13 @@ public class HivePurgerPublisher extends DataPublisher {
   }
 
   private String getDataSize(String rawDataSize, String totalDataSize) {
-    int rawDataSizeVal = Integer.parseInt(rawDataSize);
-    int totalDataSizeVal = Integer.parseInt(totalDataSize);
-    int dataSize = totalDataSizeVal;
+    long rawDataSizeVal = Long.parseLong(rawDataSize);
+    long totalDataSizeVal = Long.parseLong(totalDataSize);
+    long dataSize = totalDataSizeVal;
     if (totalDataSizeVal <= 0) {
       dataSize = rawDataSizeVal;
     }
-    return Integer.toString(dataSize);
+    return Long.toString(dataSize);
   }
 
   public void publishMetadata(Collection<? extends WorkUnitState> states) {

@@ -20,6 +20,9 @@ package gobblin.writer;
 import java.io.IOException;
 import java.util.Queue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.async.AsyncRequest;
@@ -41,6 +44,8 @@ import gobblin.http.ResponseStatus;
  */
 @Slf4j
 public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
+  private static final Logger LOG = LoggerFactory.getLogger(AsyncHttpWriter.class);
+
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
   private final HttpClient<RQ, RP> httpClient;
@@ -74,6 +79,9 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
         // Retry
         attempt++;
         if (attempt == maxAttempts) {
+          LOG.error("Fail to send request");
+          LOG.info(asyncRequest.toString());
+
           onFailure(asyncRequest, e);
           throw new DispatchException("Write failed on IOException", e);
         } else {
@@ -87,8 +95,17 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
           // Write succeeds
           onSuccess(asyncRequest, status);
           return;
+        case CONTINUE:
+          LOG.debug("Http write continues");
+          LOG.debug(asyncRequest.toString());
+
+          onSuccess(asyncRequest, status);
+          return;
         case CLIENT_ERROR:
           // Client error. Fail!
+          LOG.error("Http write failed on client error");
+          LOG.info(asyncRequest.toString());
+
           DispatchException clientExp = new DispatchException("Write failed on client error");
           onFailure(asyncRequest, clientExp);
           throw clientExp;
@@ -96,6 +113,9 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
           // Server side error. Retry
           attempt++;
           if (attempt == maxAttempts) {
+            LOG.error("Http write request failed on server error");
+            LOG.info(asyncRequest.toString());
+
             DispatchException serverExp = new DispatchException("Write failed after " + maxAttempts + " attempts.");
             onFailure(asyncRequest, serverExp);
             throw serverExp;
