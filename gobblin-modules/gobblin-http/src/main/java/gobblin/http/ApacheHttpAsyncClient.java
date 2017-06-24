@@ -141,33 +141,6 @@ public class ApacheHttpAsyncClient extends ThrottledHttpClient<HttpUriRequest, H
     }
   }
 
-
-  /**
-   * A wrapper class which passes result from {@link FutureCallback} to {@link Callback}
-   */
-  private static class AsyncHttpResponseCallbackWrapper implements FutureCallback<HttpResponse> {
-    private Callback<HttpResponse> callback = null;
-
-    public AsyncHttpResponseCallbackWrapper(Callback<HttpResponse> callback) {
-      this.callback = callback;
-    }
-
-    @Override
-    public void completed(HttpResponse result) {
-      this.callback.onSuccess(result);
-    }
-
-    @Override
-    public void failed(Exception ex) {
-      this.callback.onFailure(ex);
-    }
-
-    @Override
-    public void cancelled() {
-      throw new UnsupportedOperationException("Should not be cancelled");
-    }
-  }
-
   @Override
   public HttpResponse sendRequestImpl(HttpUriRequest request) throws IOException {
     SyncHttpResponseCallback callback = new SyncHttpResponseCallback(request);
@@ -186,8 +159,22 @@ public class ApacheHttpAsyncClient extends ThrottledHttpClient<HttpUriRequest, H
 
   @Override
   public void sendAsyncRequestImpl(HttpUriRequest request, Callback<HttpResponse> callback) throws IOException {
-    AsyncHttpResponseCallbackWrapper wrapper = new AsyncHttpResponseCallbackWrapper(callback);
-    this.client.execute(request, wrapper);
+    this.client.execute(request, new FutureCallback<HttpResponse>() {
+      @Override
+      public void completed(HttpResponse result) {
+        callback.onSuccess(result);
+      }
+
+      @Override
+      public void failed(Exception ex) {
+        callback.onFailure(ex);
+      }
+
+      @Override
+      public void cancelled() {
+        throw new UnsupportedOperationException();
+      }
+    });
   }
 
   @Override
