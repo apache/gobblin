@@ -89,9 +89,9 @@ public class ConfigBasedDataset implements CopyableDataset {
       } catch (IOException e1) {
         // ignored
       }
+    } else {
+      this.datasetURN = e.toString();
     }
-
-    this.datasetURN = e.toString();
   }
 
   @Override

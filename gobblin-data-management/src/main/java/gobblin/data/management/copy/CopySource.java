@@ -19,6 +19,7 @@ package gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -113,7 +114,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String MAX_WORK_UNITS_PER_BIN = CopyConfiguration.COPY_PREFIX + ".binPacking.maxWorkUnitsPerBin";
 
   private static final String WORK_UNIT_WEIGHT = CopyConfiguration.COPY_PREFIX + ".workUnitWeight";
-
   private final WorkUnitWeighter weighter = new FieldWeighter(WORK_UNIT_WEIGHT);
 
   public MetricContext metricContext;
@@ -160,6 +160,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           CopyableFileWatermarkHelper.getCopyableFileWatermarkGenerator(state);
       int maxThreads = state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES);
 
+      Optional<Boolean> optionalIsBlock =
+          state.contains(IS_BLOCK) ? Optional.fromNullable(Boolean.parseBoolean(state.getProp(IS_BLOCK))) : Optional.<Boolean>absent();
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
       DatasetsFinder<CopyableDatasetBase> datasetFinder = DatasetUtils

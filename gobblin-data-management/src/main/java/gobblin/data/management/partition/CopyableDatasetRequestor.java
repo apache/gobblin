@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.base.Optional;
 
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
@@ -58,6 +59,7 @@ public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyE
     private final FileSystem targetFs;
     private final CopyConfiguration copyConfiguration;
     private final Logger log;
+
 
     @Nullable
     @Override
