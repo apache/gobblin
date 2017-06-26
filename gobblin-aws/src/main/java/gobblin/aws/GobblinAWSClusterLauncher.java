@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -52,8 +53,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.Service;
-import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -117,7 +116,7 @@ public class GobblinAWSClusterLauncher {
   private final String helixClusterName;
   private final HelixManager helixManager;
   private final EventBus eventBus = new EventBus(GobblinAWSClusterLauncher.class.getSimpleName());
-  private volatile Optional<ServiceManager> serviceManager = Optional.absent();
+  private final CountDownLatch countDownLatch = new CountDownLatch(1);
   private AWSClusterSecurityManager awsClusterSecurityManager;
   private AWSSdkClient awsSdkClient;
 
@@ -254,25 +253,20 @@ public class GobblinAWSClusterLauncher {
    *
    * @throws IOException If there's something wrong launching the cluster
    */
-  public void launch() throws IOException {
+  public void launch() throws IOException, InterruptedException {
     this.eventBus.register(this);
 
     // Create Helix cluster and connect to it
-    HelixUtils.createGobblinHelixCluster(this.zkConnectionString, this.helixClusterName);
+    HelixUtils.createGobblinHelixCluster(this.zkConnectionString, this.helixClusterName, false);
     LOGGER.info("Created Helix cluster " + this.helixClusterName);
 
     connectHelixManager();
-
-    // Start all the services
-    List<Service> services = Lists.newArrayList();
-    services.add(this.awsClusterSecurityManager);
-    this.serviceManager = Optional.of(new ServiceManager(services));
-    this.serviceManager.get().startAsync();
 
     // Core logic to launch cluster
     this.clusterId = getClusterId();
 
     // TODO: Add cluster monitoring
+    countDownLatch.await();
   }
 
   /**
@@ -292,21 +286,18 @@ public class GobblinAWSClusterLauncher {
         sendShutdownRequest();
       }
 
-      if (this.serviceManager.isPresent()) {
-        this.serviceManager.get().stopAsync().awaitStopped(5, TimeUnit.MINUTES);
-      }
-
       disconnectHelixManager();
     } finally {
       try {
         if (this.clusterId.isPresent()) {
-           cleanUpClusterWorkDirectory(this.clusterId.get());
+          cleanUpClusterWorkDirectory(this.clusterId.get());
         }
       } finally {
         this.closer.close();
       }
     }
-
+    
+    this.countDownLatch.countDown();
     this.stopped = true;
   }
 
