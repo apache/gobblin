@@ -213,55 +213,11 @@ public class KafkaSimpleStreamingTest {
    * original thread calls close on the extractor and verifies the waiting thread gets an expected exception and exits
    * as expected.
    */
-  @Test(timeOut = 10000)
-  public void testThreadedExtractor() {
-    final String topic = "testThreadedExtractor";
-    final KafkaSimpleStreamingExtractor<String, byte[]> kSSE = getStreamingExtractor(topic);
-
-    Thread waitingThread = new Thread () {
-      public void run () {
-        TopicPartition tP = new TopicPartition(topic, 0);
-        KafkaSimpleStreamingExtractor.KafkaWatermark kwm =
-            new KafkaSimpleStreamingExtractor.KafkaWatermark(tP, new LongWatermark(0));
-        byte[] reuse = new byte[1];
-        RecordEnvelope<byte[]> oldRecord = new RecordEnvelope<>(reuse, kwm);
-        try {
-          RecordEnvelope<byte[]> record = kSSE.readRecordEnvelope();
-        } catch (Exception e) {
-          Assert.assertTrue((e instanceof WakeupException) || (e instanceof ClosedChannelException));
-        }
-      }
-    };
-    waitingThread.start();
-    try {
-      kSSE.close();
-      waitingThread.join();
-    } catch (Exception e) {
-      // should never come here
-      throw new Error(e);
-    }
-  }
-
 
 
   /**
    * Test that the extractor barfs on not calling start
    */
-  @Test(timeOut = 10000)
-  public void testExtractorStart() {
 
-    final String topic = "testExtractorStart";
-    final KafkaSimpleStreamingExtractor<String, byte[]> kSSE = getStreamingExtractor(topic);
-
-    try {
-      kSSE.readRecordEnvelope();
-      Assert.fail("Should have thrown an exception");
-    } catch (IOException e) {
-
-    } catch (Exception e) {
-      Assert.fail("Should only throw IOException");
-    }
-
-  }
 
 }

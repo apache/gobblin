@@ -107,6 +107,7 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
       throws DataConversionException {
 
     GenericRecord avroRecord = new GenericData.Record(outputSchema);
+    LOG.info("arjun JsonIntermediateToAvroConverter called!");
     long maxFailedConversions = workUnit.getPropAsLong(ConfigurationKeys.CONVERTER_AVRO_MAX_CONVERSION_FAILURES,
         ConfigurationKeys.DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES);
 

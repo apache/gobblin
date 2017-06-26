@@ -460,7 +460,7 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT = false;
 
   public static final String ENABLE_DELIMITED_IDENTIFIER = "enable.delimited.identifier";
-  public static final boolean DEFAULT_DELIMITED_IDENTIFIER = false;
+  public static final boolean DEFAULT_ENABLE_DELIMITED_IDENTIFIER = false;
 
   /**
    * Configuration properties used by the FileBasedExtractor

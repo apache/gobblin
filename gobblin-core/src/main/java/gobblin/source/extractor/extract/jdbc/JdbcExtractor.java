@@ -290,7 +290,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     String inputQuery = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
     String watermarkColumn = workUnitState.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
     this.enableDelimitedIdentifier = workUnitState.getPropAsBoolean(
-        ConfigurationKeys.ENABLE_DELIMITED_IDENTIFIER, ConfigurationKeys.DEFAULT_DELIMITED_IDENTIFIER);
+        ConfigurationKeys.ENABLE_DELIMITED_IDENTIFIER, ConfigurationKeys.DEFAULT_ENABLE_DELIMITED_IDENTIFIER);
     JsonObject defaultWatermark = this.getDefaultWatermark();
     String derivedWatermarkColumnName = defaultWatermark.get("columnName").getAsString();
     this.setSampleRecordCount(this.exractSampleRecordCountFromQuery(inputQuery));
