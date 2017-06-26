@@ -32,7 +32,7 @@ public class R2RestRequestBuilderTest {
    */
   public void testBuildWriteRequest()
       throws URISyntaxException, IOException {
-    String urlTemplate = "a/part1:${part1}/a/part2:${part2}";
+    String urlTemplate = "http://www.test.com/a/part1:${part1}/a/part2:${part2}";
     String verb = "update";
     String protocolVersion = "2.0.0";
 
@@ -43,7 +43,7 @@ public class R2RestRequestBuilderTest {
     AsyncRequest<GenericRecord, RestRequest> request = builder.buildRequest(queue);
     verify(builder).build(requestBuilderArgument.capture());
 
-    RestRequestBuilder expected = new RestRequestBuilder(new URI("a/part1:01/a/part2:02?param1=01"));
+    RestRequestBuilder expected = new RestRequestBuilder(new URI("http://www.test.com/a/part1:01/a/part2:02?param1=01"));
     expected.setMethod("PUT");
     expected.setHeader(RestConstants.HEADER_RESTLI_PROTOCOL_VERSION, protocolVersion);
     expected.setHeader(RestConstants.HEADER_RESTLI_REQUEST_METHOD, verb.toLowerCase());
