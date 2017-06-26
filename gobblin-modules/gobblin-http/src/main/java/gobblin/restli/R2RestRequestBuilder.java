@@ -96,8 +96,8 @@ public class R2RestRequestBuilder implements AsyncRequestBuilder<GenericRecord, 
     }
 
     builder.setHeader(RestConstants.HEADER_CONTENT_TYPE, RestConstants.HEADER_VALUE_APPLICATION_JSON);
-    DataMap data = new DataMap(HttpUtils.toMap(payload));
     try {
+      DataMap data = JACKSON_DATA_CODEC.stringToMap(payload);
       byte[] bytes = JACKSON_DATA_CODEC.mapToBytes(data);
       builder.setEntity(bytes);
       return bytes.length;
