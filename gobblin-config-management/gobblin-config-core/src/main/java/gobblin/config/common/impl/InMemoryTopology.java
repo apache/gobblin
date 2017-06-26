@@ -191,7 +191,6 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
       }
 
       List<ConfigKeyPath> imports = Lists.newArrayList(getOwnImports(key, runtimeConfig));
-      //imports.add(key.getParent());
       return imports;
     }, this.recursiveImportMap).traverseGraphRecursively(configKey);
   }
