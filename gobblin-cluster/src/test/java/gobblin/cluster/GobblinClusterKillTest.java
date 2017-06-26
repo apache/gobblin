@@ -27,8 +27,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
@@ -177,8 +181,6 @@ public class GobblinClusterKillTest {
   public void testKillWorker() throws TimeoutException, InterruptedException {
     Collection<File> matches = Collections.EMPTY_LIST;
 
-    final File writerOutputDir = new File(_testDirPath + "/writer-output/gobblin/util/test/HelloWorldSource/");
-    final File jobOutputDir = new File(_testDirPath + "/job-output/gobblin/util/test/HelloWorldSource/");
     final File testJobFile = new File(_jobDirPath + "/GobblinClusterKillTestJob.conf");
 
     // Job file should exist
@@ -188,7 +190,9 @@ public class GobblinClusterKillTest {
         .assertTrue(new Predicate<Void>() {
       @Override
       public boolean apply(Void input) {
-        if (writerOutputDir.exists()) {
+        File writerOutputDir = getWriterOutputDir();
+
+        if (writerOutputDir != null && writerOutputDir.exists()) {
           return FileUtils.listFiles(writerOutputDir, new String[]{"txt"}, true).size() >= 25;
         } else {
           return false;
@@ -196,6 +200,7 @@ public class GobblinClusterKillTest {
       }
     }, "Waiting for writer output");
 
+    File writerOutputDir = getWriterOutputDir();
     LOG.info("{} matches found before disconnecting worker",
         FileUtils.listFiles(writerOutputDir, new String[]{"txt"}, true).size());
 
@@ -205,7 +210,9 @@ public class GobblinClusterKillTest {
         .assertTrue(new Predicate<Void>() {
       @Override
       public boolean apply(Void input) {
-        if (jobOutputDir.exists()) {
+        File jobOutputDir = getJobOutputDir();
+
+        if (jobOutputDir != null && jobOutputDir.exists()) {
           return FileUtils.listFiles(jobOutputDir, new String[]{"txt"}, true).size() >= 100;
         } else {
           return false;
@@ -222,8 +229,6 @@ public class GobblinClusterKillTest {
   @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testKillWorker")
   public void testKillManager() throws IOException, TimeoutException, InterruptedException {
     Collection<File> matches = Collections.EMPTY_LIST;
-    final File writerOutputDir = new File(_testDirPath + "/writer-output/gobblin/util/test/HelloWorldSource/");
-    final File jobOutputDir = new File(_testDirPath + "/job-output/gobblin/util/test/HelloWorldSource/");
 
     // reinitialize test directory
     setupTestDir();
@@ -235,7 +240,9 @@ public class GobblinClusterKillTest {
         .assertTrue(new Predicate<Void>() {
       @Override
       public boolean apply(Void input) {
-        if (writerOutputDir.exists()) {
+        File writerOutputDir = getWriterOutputDir();
+
+        if (writerOutputDir != null && writerOutputDir.exists()) {
           return FileUtils.listFiles(writerOutputDir, new String[]{"txt"}, true).size() >= 25;
         } else {
           return false;
@@ -247,7 +254,9 @@ public class GobblinClusterKillTest {
         .assertTrue(new Predicate<Void>() {
       @Override
       public boolean apply(Void input) {
-        if (jobOutputDir.exists()) {
+        File jobOutputDir = getJobOutputDir();
+
+        if (jobOutputDir != null && jobOutputDir.exists()) {
           return FileUtils.listFiles(jobOutputDir, new String[]{"txt"}, true).size() >= 100;
         } else {
           return false;
@@ -265,9 +274,6 @@ public class GobblinClusterKillTest {
   @Test(groups = { "disabledOnTravis" }, enabled=true, dependsOnMethods = "testKillManager")
   public void testRestartManager() throws IOException, TimeoutException, InterruptedException {
     Collection<File> matches = Collections.EMPTY_LIST;
-    final File writerOutputDir = new File(_testDirPath + "/writer-output/gobblin/util/test/HelloWorldSource/");
-    final File jobOutputDir = new File(_testDirPath + "/job-output/gobblin/util/test/HelloWorldSource/");
-
     // reinitialize test directory
     setupTestDir();
 
@@ -288,7 +294,9 @@ public class GobblinClusterKillTest {
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {
-            if (writerOutputDir.exists()) {
+            File writerOutputDir = getWriterOutputDir();
+
+            if (writerOutputDir != null && writerOutputDir.exists()) {
               return FileUtils.listFiles(writerOutputDir, new String[]{"txt"}, true).size() >= 25;
             } else {
               return false;
@@ -300,7 +308,9 @@ public class GobblinClusterKillTest {
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {
-            if (jobOutputDir.exists()) {
+            File jobOutputDir = getJobOutputDir();
+
+            if (jobOutputDir != null && jobOutputDir.exists()) {
               return FileUtils.listFiles(jobOutputDir, new String[]{"txt"}, true).size() >= 100;
             } else {
               return false;
@@ -330,4 +340,50 @@ public class GobblinClusterKillTest {
 
     _testingZKServer.close();
   }
+
+  /**
+   * Get a file that matches the glob pattern in the base directory
+   * @param base directory to check
+   * @param glob the glob pattern to match
+   * @return a {@link File} if found, otherwise null
+   */
+  private File getFileFromGlob(String base, String glob) {
+    try (DirectoryStream<java.nio.file.Path> dirStream = Files.newDirectoryStream(Paths.get(base), glob)) {
+
+      Iterator<java.nio.file.Path> iter = dirStream.iterator();
+      if (iter.hasNext()) {
+        java.nio.file.Path path = iter.next();
+        return path.toFile();
+      } else {
+        return null;
+      }
+    } catch (IOException e) {
+      return null;
+    }
+  }
+
+  /**
+   * Find the writer output directory
+   * @return a {@link File} if directory found, otherwise null
+   */
+  private File getWriterOutputDir() {
+    File writerOutputJobDir = getFileFromGlob(_testDirPath + "/writer-output", "job*");
+    File writerOutputDir = null;
+
+    if (writerOutputJobDir != null) {
+      writerOutputDir = new File(writerOutputJobDir, "gobblin/util/test/HelloWorldSource");
+    }
+
+    return writerOutputDir;
+  }
+
+  /**
+   * Find the job output directory
+   * @return a {@link File} if directory found, otherwise null
+   */
+  private File getJobOutputDir() {
+    return getFileFromGlob(_testDirPath + "/job-output/gobblin/util/test/HelloWorldSource/",
+        "*_append");
+  }
 }
+
