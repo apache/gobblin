@@ -67,11 +67,15 @@ public class FlattenNestedKeyConverter extends Converter<Schema, Schema, Generic
 
     Config config = ConfigUtils.propertiesToConfig(workUnit.getProperties()).getConfig(getClass().getSimpleName());
     List<String> nestedKeys = ConfigUtils.getStringList(config, FIELDS_TO_FLATTEN);
+    // No keys need flatten
+    if (nestedKeys == null || nestedKeys.size() == 0) {
+      return inputSchema;
+    }
 
     List<Field> fields = new ArrayList<>();
     // Clone the existing fields
     for (Field field : inputSchema.getFields()) {
-      fields.add(new Field(field.name(), field.schema(), field.doc(), field.defaultVal(), field.order()));
+      fields.add(new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order()));
     }
 
     // Convert each of nested keys into a top level field
@@ -98,7 +102,7 @@ public class FlattenNestedKeyConverter extends Converter<Schema, Schema, Generic
       Field field = optional.get();
 
       // Make a copy under a new name
-      Field copy = new Field(name, field.schema(), field.doc(), field.defaultVal(), field.order());
+      Field copy = new Field(name, field.schema(), field.doc(), field.defaultValue(), field.order());
       fields.add(copy);
     }
 
@@ -111,6 +115,11 @@ public class FlattenNestedKeyConverter extends Converter<Schema, Schema, Generic
   @Override
   public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
+    // No fields need flatten
+    if (fieldNameMap.size() == 0) {
+      return new SingleRecordIterable<>(inputRecord);
+    }
+
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
     for (Field field : outputSchema.getFields()) {
       String fieldName = field.name();

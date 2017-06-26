@@ -17,9 +17,6 @@
 
 package gobblin.util;
 
-import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility;
-import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
-
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -334,10 +331,6 @@ public class AvroUtils {
   public static GenericRecord convertRecordSchema(GenericRecord record, Schema newSchema) throws IOException {
     if (record.getSchema().equals(newSchema)) {
       return record;
-    }
-
-    if (checkReaderWriterCompatibility(newSchema, record.getSchema()).getType() != COMPATIBLE) {
-      LOG.debug("Record schema not compatible with writer schema. Converting record schema to writer schema may fail.");
     }
 
     try {
