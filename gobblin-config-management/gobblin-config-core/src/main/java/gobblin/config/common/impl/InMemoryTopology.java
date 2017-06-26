@@ -184,20 +184,16 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
   }
 
   public List<ConfigKeyPath> getImportsRecursively(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
-    try {
-      return new ImportTraverser(key -> {
+    return new ImportTraverser<>(key -> {
 
-        if (key.isRootPath()) {
-          return new LinkedList<>();
-        }
+      if (key.isRootPath()) {
+        return new LinkedList<>();
+      }
 
-        List<ConfigKeyPath> imports = Lists.newArrayList(getOwnImports(key, runtimeConfig));
-        //imports.add(key.getParent());
-        return imports;
-      }, this.recursiveImportMap).traverseGraphRecursively(configKey);
-    } catch (ExecutionException ee) {
-      throw new RuntimeException(ee.getCause());
-    }
+      List<ConfigKeyPath> imports = Lists.newArrayList(getOwnImports(key, runtimeConfig));
+      //imports.add(key.getParent());
+      return imports;
+    }, this.recursiveImportMap).traverseGraphRecursively(configKey);
   }
 
   /**
@@ -217,11 +213,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
   }
 
   public Collection<ConfigKeyPath> getImportedByRecursively(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
-    try {
-      return new ImportTraverser(key -> Lists.newLinkedList(getImportedBy(key, runtimeConfig)),
-          this.recursiveImportedByMap).traverseGraphRecursively(configKey);
-    } catch (ExecutionException ee) {
-      throw new RuntimeException(ee.getCause());
-    }
+    return new ImportTraverser<>(key -> Lists.newLinkedList(getImportedBy(key, runtimeConfig)),
+        this.recursiveImportedByMap).traverseGraphRecursively(configKey);
   }
 }

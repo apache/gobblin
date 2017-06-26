@@ -24,11 +24,10 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
+import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 
-import gobblin.config.store.api.ConfigKeyPath;
-
-import javax.annotation.concurrent.NotThreadSafe;
 import lombok.RequiredArgsConstructor;
 
 
@@ -36,45 +35,61 @@ import lombok.RequiredArgsConstructor;
  * This class computes a traversal of a graph. Starting at the provided node, it uses the {@link #traversalFunction}
  * to generate a DFS traversal of the graph. The traversal is guaranteed to contain each node at most once. If a cycle
  * is detected during traversal, a {@link CircularDependencyException} will be thrown.
+ *
+ * Note: This class may dead-lock if used concurrently and there are cycles in the traversed graph.
  */
 @RequiredArgsConstructor
-@NotThreadSafe
-class ImportTraverser {
-  private final Set<ConfigKeyPath> nodePath = new HashSet<>();
+class ImportTraverser<T> {
   /** The function returning the ordered neighbors for the input node. */
-  private final Function<ConfigKeyPath, List<ConfigKeyPath>> traversalFunction;
+  private final Function<T, List<T>> traversalFunction;
   /** A cache used for storing traversals at various nodes. */
-  private final Cache<ConfigKeyPath, LinkedList<ConfigKeyPath>> traversalCache;
+  private final Cache<T, LinkedList<T>> traversalCache;
+
 
   /**
    * Traverse the graph starting at the provided node.
-   * @param node starting node.
+   * @param startingNode starting node.
    * @return a List containing the DFS traversal starting at the node.
-   * @throws ExecutionException if a cycle is found (the cause will be a {@link CircularDependencyException}) or
-   *                  if {@link #traversalFunction} throws an exception.
+   * @throws CircularDependencyException if there is a circular dependency in the loaded traversal.
    */
-  public List<ConfigKeyPath> traverseGraphRecursively(ConfigKeyPath node)
-      throws ExecutionException {
-    return this.traversalCache.get(node, () -> computeRecursiveTraversal(node));
+  List<T> traverseGraphRecursively(T startingNode) {
+    return doTraverseGraphRecursively(startingNode, new HashSet<>());
   }
 
-  private LinkedList<ConfigKeyPath> computeRecursiveTraversal(ConfigKeyPath node) {
+  private List<T> doTraverseGraphRecursively(T node, Set<T> nodePath) {
+    try {
+      return this.traversalCache.get(node, () -> computeRecursiveTraversal(node, nodePath));
+    } catch (ExecutionException | UncheckedExecutionException ee) {
+      throw unpackExecutionException(ee);
+    }
+  }
+
+  /**
+   * Actually compute the traversal if it is not in the cache.
+   */
+  private LinkedList<T> computeRecursiveTraversal(T node, Set<T> nodePath) {
     try {
 
-      LinkedList<ConfigKeyPath> imports = new LinkedList<>();
-      Set<ConfigKeyPath> alreadyIncludedImports = new HashSet<>();
+      nodePath.add(node);
 
-      for (ConfigKeyPath neighbor : this.traversalFunction.apply(node)) {
-        addSubtraversal(neighbor, imports, alreadyIncludedImports);
+      LinkedList<T> imports = new LinkedList<>();
+      Set<T> alreadyIncludedImports = new HashSet<>();
+
+      for (T neighbor : this.traversalFunction.apply(node)) {
+        addSubtraversal(neighbor, imports, alreadyIncludedImports, nodePath);
       }
 
+      nodePath.remove(node);
       return imports;
     } catch (ExecutionException ee) {
       throw new RuntimeException(ee);
     }
   }
 
-  private void addSubtraversal(ConfigKeyPath node, LinkedList<ConfigKeyPath> imports, Set<ConfigKeyPath> alreadyIncludedImports)
+  /**
+   * Add a sub-traversal for a neighboring node.
+   */
+  private void addSubtraversal(T node, LinkedList<T> imports, Set<T> alreadyIncludedImports, Set<T> nodePath)
       throws ExecutionException {
 
     if (nodePath.contains(node)) {
@@ -83,21 +98,34 @@ class ImportTraverser {
 
     if (addNodeIfNotAlreadyIncluded(node, imports, alreadyIncludedImports)) {
       nodePath.add(node);
-      for (ConfigKeyPath inheritedFromParent : traverseGraphRecursively(node)) {
+      for (T inheritedFromParent : doTraverseGraphRecursively(node, nodePath)) {
         addNodeIfNotAlreadyIncluded(inheritedFromParent, imports, alreadyIncludedImports);
       }
       nodePath.remove(node);
     }
   }
 
-  private boolean addNodeIfNotAlreadyIncluded(ConfigKeyPath thisImport,
-      LinkedList<ConfigKeyPath> imports, Set<ConfigKeyPath> alreadyIncludedImports) {
+  /**
+   * Only add node to traversal if it is not already included in it.
+   */
+  private boolean addNodeIfNotAlreadyIncluded(T thisImport,
+      LinkedList<T> imports, Set<T> alreadyIncludedImports) {
     if (alreadyIncludedImports.contains(thisImport)) {
       return false;
     }
     imports.add(thisImport);
     alreadyIncludedImports.add(thisImport);
     return true;
+  }
+
+  /**
+   * Due to recursive nature of algorithm, we may end up with multiple layers of exceptions. Unpack them.
+   */
+  private RuntimeException unpackExecutionException(Throwable exc) {
+    while (exc instanceof ExecutionException || exc instanceof UncheckedExecutionException) {
+      exc = exc.getCause();
+    }
+    return Throwables.propagate(exc);
   }
 
 }
