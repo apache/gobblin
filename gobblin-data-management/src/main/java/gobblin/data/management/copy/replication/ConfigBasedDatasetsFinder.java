@@ -17,15 +17,6 @@
 
 package gobblin.data.management.copy.replication;
 
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
-import com.typesafe.config.Config;
-import gobblin.data.management.copy.CopySource;
-import gobblin.dataset.Dataset;
-import gobblin.util.Either;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.executors.IteratorExecutor;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -39,10 +30,11 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -50,6 +42,10 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
+import com.typesafe.config.Config;
 
 import gobblin.config.client.ConfigClient;
 import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
@@ -59,6 +55,12 @@ import gobblin.config.store.api.VersionDoesNotExistException;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.dataset.DatasetsFinder;
 import gobblin.util.PathUtils;
+import gobblin.data.management.copy.CopyConfiguration;
+import gobblin.data.management.copy.CopySource;
+import gobblin.dataset.Dataset;
+import gobblin.util.Either;
+import gobblin.util.ExecutorsUtils;
+import gobblin.util.executors.IteratorExecutor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -86,6 +88,14 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   public static final String GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT =
       ConfigurationKeys.CONFIG_BASED_PREFIX + ".dataset.common.root";
 
+  // In addition to the white/blacklist tags, this configuration let the user to black/whitelist some datasets
+  // in the job-level configuration, which is not in configStore
+  // as to have easier approach to black/whitelist some datasets.
+  // The semantics keep still as tag, which the blacklist override whitelist if any dataset in common.
+  public static final String JOB_LEVEL_BLACKLIST = CopyConfiguration.COPY_PREFIX + ".configBased.blacklist" ;
+  public static final String JOB_LEVEL_WHITELIST = CopyConfiguration.COPY_PREFIX + ".configBased.whitelist" ;
+
+
   protected final String storeRoot;
   protected final Path commonRoot;
   protected final Path whitelistTag;
@@ -93,6 +103,9 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   protected final ConfigClient configClient;
   protected final Properties props;
   private final int threadPoolSize;
+
+  private Optional<List<String>> blacklistURNs;
+  private Optional<List<String>> whitelistURNs;
 
 
   public ConfigBasedDatasetsFinder(FileSystem fs, Properties jobProps) throws IOException {
@@ -129,14 +142,34 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
 
     configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
     this.props = jobProps;
+
+
+    if (props.containsKey(JOB_LEVEL_BLACKLIST)) {
+      this.blacklistURNs = Optional.of(Splitter.on(",").omitEmptyStrings().splitToList(props.getProperty(JOB_LEVEL_BLACKLIST)));
+    } else {
+      this.blacklistURNs = Optional.absent();
+    }
+
+    if (props.containsKey(JOB_LEVEL_WHITELIST)) {
+      this.whitelistURNs = Optional.of(Splitter.on(",").omitEmptyStrings().splitToList(props.getProperty(JOB_LEVEL_WHITELIST)));
+    } else {
+      this.whitelistURNs = Optional.absent();
+    }
   }
 
   protected Set<URI> getValidDatasetURIs(Path datasetCommonRoot) {
     Collection<URI> allDatasetURIs;
-    Set<URI> disabledURISet = ImmutableSet.of();
+    Set<URI> disabledURISet = new HashSet();
+    if (this.blacklistURNs.isPresent()) {
+      for(String urn : this.blacklistURNs.get()) {
+        disabledURISet.add(this.datasetURNtoURI(urn));
+      }
+    }
 
     try {
-      allDatasetURIs = configClient.getImportedBy(new URI(whitelistTag.toString()), true);
+      // get all the URIs which imports {@link #replicationTag} or all from whitelistURNs
+      allDatasetURIs = this.whitelistURNs.isPresent()
+          ? this.whitelistURNs.get().stream().map(u -> this.datasetURNtoURI(u)).collect(Collectors.toList()) : configClient.getImportedBy(new URI(whitelistTag.toString()), true);
       populateDisabledURIs(disabledURISet);
     } catch ( ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
         | URISyntaxException e) {
@@ -192,16 +225,18 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
     for (URI disable : disabledURISet) {
       if (validURISet.remove(disable)) {
         log.info("skip disabled dataset " + disable);
+      } else {
+        log.info("There's no URI " + disable + " available in validURISet.");
       }
     }
     return validURISet;
   }
 
   private void populateDisabledURIs(Set<URI> disabledURIs) throws
-                                             URISyntaxException,
-                                             ConfigStoreFactoryDoesNotExistsException,
-                                             ConfigStoreCreationException,
-                                             VersionDoesNotExistException {
+                                                           URISyntaxException,
+                                                           ConfigStoreFactoryDoesNotExistsException,
+                                                           ConfigStoreCreationException,
+                                                           VersionDoesNotExistException {
     if (this.blacklistTags.isPresent()) {
       disabledURIs = new HashSet<URI>();
       for (Path s : this.blacklistTags.get()) {
@@ -253,6 +288,18 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
       IteratorExecutor.logFailures(results, log, 10);
     } catch (InterruptedException ie) {
       throw new IOException("Dataset finder is interrupted.", ie);
+    }
+  }
+
+  /**
+   * Helper funcition for converting datasetURN into URI
+   */
+  private URI datasetURNtoURI(String datasetURN) {
+    try {
+      return new URI(PathUtils.mergePaths(new Path(this.storeRoot), new Path(datasetURN)).toString());
+    }catch (URISyntaxException e) {
+      log.error("Dataset with URN:" + datasetURN + " cannot be converted into URI. Skip the dataset");
+      return null;
     }
   }
 

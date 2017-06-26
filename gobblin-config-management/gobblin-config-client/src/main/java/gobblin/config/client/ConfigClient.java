@@ -301,6 +301,7 @@ public class ConfigClient {
     }
 
     String currentVersion = cs.getCurrentVersion();
+    LOG.info("Current config store version number: " + currentVersion);
     // topology related
     ConfigStoreBackedTopology csTopology = new ConfigStoreBackedTopology(cs, currentVersion);
     InMemoryTopology inMemoryTopology = new InMemoryTopology(csTopology);
