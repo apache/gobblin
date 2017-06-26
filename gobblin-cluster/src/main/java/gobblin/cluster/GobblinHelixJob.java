@@ -54,7 +54,9 @@ public class GobblinHelixJob extends BaseGobblinJob {
     JobDataMap dataMap = context.getJobDetail().getJobDataMap();
 
     final JobScheduler jobScheduler = (JobScheduler) dataMap.get(JobScheduler.JOB_SCHEDULER_KEY);
-    final Properties jobProps = (Properties) dataMap.get(JobScheduler.PROPERTIES_KEY);
+    // the properties may get mutated during job execution and the scheduler reuses it for the next round of scheduling,
+    // so clone it
+    final Properties jobProps = (Properties)((Properties) dataMap.get(JobScheduler.PROPERTIES_KEY)).clone();
     final JobListener jobListener = (JobListener) dataMap.get(JobScheduler.JOB_LISTENER_KEY);
     HelixManager helixManager = (HelixManager) dataMap.get(GobblinHelixJobScheduler.HELIX_MANAGER_KEY);
     Path appWorkDir = (Path) dataMap.get(GobblinHelixJobScheduler.APPLICATION_WORK_DIR_KEY);
