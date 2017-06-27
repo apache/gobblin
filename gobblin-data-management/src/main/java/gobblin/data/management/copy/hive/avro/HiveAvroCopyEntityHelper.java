@@ -22,9 +22,12 @@ import java.net.URI;
 
 import com.google.common.base.Optional;
 
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 
@@ -46,12 +49,32 @@ public class HiveAvroCopyEntityHelper {
    * @throws IOException
    */
   public static void updateTableAttributesIfAvro(Table targetTable, HiveCopyEntityHelper hiveHelper) throws IOException {
-    if (!isHiveTableAvroType(targetTable)) {
-      return;
+    if (isHiveTableAvroType(targetTable)) {
+      updateAvroSchemaURL(targetTable.getCompleteName(), targetTable.getTTable().getSd(), hiveHelper);
     }
+  }
 
-    // need to update the {@link #HIVE_TABLE_AVRO_SCHEMA_URL} location
-    String oldAvroSchemaURL = targetTable.getTTable().getSd().getSerdeInfo().getParameters().get(HIVE_TABLE_AVRO_SCHEMA_URL);
+  /**
+   * Currently updated the {@link #HIVE_TABLE_AVRO_SCHEMA_URL} location for new hive partitions
+   * @param targetTable, new Table to be registered in hive
+   * @param sourcePartitions, source partitions
+   * @throws IOException
+   */
+  public static void updatePartitionAttributesIfAvro(Table targetTable, Map<List<String>, Partition> sourcePartitions, HiveCopyEntityHelper hiveHelper) throws IOException {
+    if (isHiveTableAvroType(targetTable)) {
+      for (Map.Entry<List<String>, Partition> partition : sourcePartitions.entrySet()) {
+        updateAvroSchemaURL(partition.getValue().getCompleteName(), partition.getValue().getTPartition().getSd(), hiveHelper);
+      }
+    }
+  }
+
+  /**
+   *
+   * @param entity, name of the entity to be changed, e.g. hive table or partition
+   * @param sd, StorageDescriptor of the entity
+   */
+  public static void updateAvroSchemaURL(String entity, StorageDescriptor sd, HiveCopyEntityHelper hiveHelper) {
+    String oldAvroSchemaURL = sd.getSerdeInfo().getParameters().get(HIVE_TABLE_AVRO_SCHEMA_URL);
     if (oldAvroSchemaURL != null) {
 
       Path oldAvroSchemaPath = new Path(oldAvroSchemaURL);
@@ -64,8 +87,8 @@ public class HiveAvroCopyEntityHelper {
         String newAvroSchemaURL = hiveHelper.getTargetPathHelper().getTargetPath(oldAvroSchemaPath, hiveHelper.getTargetFileSystem(),
             Optional.<Partition>absent(), true).toString();
 
-        targetTable.getTTable().getSd().getSerdeInfo().getParameters().put(HIVE_TABLE_AVRO_SCHEMA_URL, newAvroSchemaURL);
-        log.info(String.format("For table %s, change %s from %s to %s", targetTable.getCompleteName(),
+        sd.getSerdeInfo().getParameters().put(HIVE_TABLE_AVRO_SCHEMA_URL, newAvroSchemaURL);
+        log.info(String.format("For entity %s, change %s from %s to %s", entity,
             HIVE_TABLE_AVRO_SCHEMA_URL, oldAvroSchemaURL, newAvroSchemaURL));
       }
     }
