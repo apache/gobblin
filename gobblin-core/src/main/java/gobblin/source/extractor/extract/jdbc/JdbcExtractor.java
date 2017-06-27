@@ -76,6 +76,8 @@ import gobblin.source.workunit.WorkUnit;
  */
 public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement>
     implements SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
+  public static final String JOIN_OPERATION_REGEX = "([a-zA-Z_].*)\\.([a-zA-Z_].*)(\\s*)=(\\s*)([a-zA-Z_].*)\\.([a-zA-Z_].*)";
+
   private static final Gson gson = new Gson();
   private List<String> headerRecord;
   private boolean firstPull = true;
@@ -288,6 +290,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException, IOException {
     this.log.info("Extract metadata using JDBC");
     String inputQuery = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
+    if (hasJoinOperation(inputQuery)) {
+      throw new RuntimeException("Join operation is not supported");
+    }
+
     String watermarkColumn = workUnitState.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
     this.enableDelimitedIdentifier = workUnitState.getPropAsBoolean(
         ConfigurationKeys.ENABLE_DELIMITED_IDENTIFIER, ConfigurationKeys.DEFAULT_ENABLE_DELIMITED_IDENTIFIER);
@@ -1127,6 +1133,17 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     schema.setDefaultValue(null);
     schema.setUnique(false);
     return schema;
+  }
+
+  /**
+   * Check if the query contains any join operation
+   */
+  public static boolean hasJoinOperation(String query) {
+    if (query == null || query.length() == 0) {
+      return false;
+    }
+
+    return query.matches(JOIN_OPERATION_REGEX);
   }
 
   /**
