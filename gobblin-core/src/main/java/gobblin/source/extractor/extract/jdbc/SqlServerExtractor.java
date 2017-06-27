@@ -61,6 +61,16 @@ public class SqlServerExtractor extends JdbcExtractor {
   }
 
   @Override
+  public String getLeftDelimitedIdentifier() {
+    return this.enableDelimitedIdentifier ? "[" : "";
+  }
+
+  @Override
+  public String getRightDelimitedIdentifier() {
+    return this.enableDelimitedIdentifier ? "]" : "";
+  }
+
+  @Override
   public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
     log.debug("Build query to get schema");
     List<Command> commands = new ArrayList<>();
