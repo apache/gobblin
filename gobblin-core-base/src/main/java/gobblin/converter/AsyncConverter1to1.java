@@ -65,7 +65,6 @@ public abstract class AsyncConverter1to1<SI, SO, DI, DO> extends Converter<SI, S
   @Override
   public RecordStreamWithMetadata<DO, SO> processStream(RecordStreamWithMetadata<DI, SI> inputStream,
       WorkUnitState workUnitState) throws SchemaConversionException {
-    init(workUnitState);
     int maxConcurrentAsyncConversions = workUnitState.getPropAsInt(MAX_CONCURRENT_ASYNC_CONVERSIONS_KEY,
         DEFAULT_MAX_CONCURRENT_ASYNC_CONVERSIONS);
     SO outputSchema = convertSchema(inputStream.getSchema(), workUnitState);

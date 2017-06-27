@@ -31,7 +31,7 @@ import gobblin.utils.HttpUtils;
  *    User provided record plus http request & response record
  */
 @Slf4j
-public abstract class AvroHttpJoinConverter<RQ, RP> extends HttpJoinConverter<Schema, Schema, GenericRecord, GenericRecord, RQ, RP> {
+public abstract class AvroHttpJoinConverter<RQ, RP> extends AsyncHttpJoinConverter<Schema, Schema, GenericRecord, GenericRecord, RQ, RP> {
   public static final String HTTP_REQUEST_RESPONSE_FIELD = "HttpRequestResponse";
 
   @Override
