@@ -34,6 +34,8 @@ import com.typesafe.config.Config;
 
 import gobblin.config.store.api.ConfigKeyPath;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 
 /**
  * InMemoryTopology will return stale data if the internal config store is Not {@link gobblin.config.store.api.ConfigStoreWithStableVersioning}
@@ -52,6 +54,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
   private final Cache<ConfigKeyPath, LinkedList<ConfigKeyPath>> recursiveImportedByMap = CacheBuilder.newBuilder().build();
   private final Cache<ConfigKeyPath, Collection<ConfigKeyPath>> ownImportedByMap = CacheBuilder.newBuilder().build();
 
+  @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Access is in fact thread safe.")
   private ImmutableMultimap<ConfigKeyPath, ConfigKeyPath> fullImportedByMap = null;
 
   public InMemoryTopology(ConfigStoreTopologyInspector fallback) {
@@ -190,7 +193,10 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
         return new LinkedList<>();
       }
 
-      List<ConfigKeyPath> imports = Lists.newArrayList(getOwnImports(key, runtimeConfig));
+      List<ConfigKeyPath> imports = Lists.newArrayList();
+      imports.addAll(Lists.reverse(getOwnImports(key, runtimeConfig)));
+      imports.add(key.getParent());
+
       return imports;
     }, this.recursiveImportMap).traverseGraphRecursively(configKey);
   }

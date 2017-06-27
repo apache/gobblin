@@ -53,10 +53,10 @@ class ImportTraverser<T> {
    * @throws CircularDependencyException if there is a circular dependency in the loaded traversal.
    */
   List<T> traverseGraphRecursively(T startingNode) {
-    return doTraverseGraphRecursively(startingNode, new HashSet<>());
+    return doTraverseGraphRecursively(startingNode, new NodePath<>(startingNode));
   }
 
-  private List<T> doTraverseGraphRecursively(T node, Set<T> nodePath) {
+  private List<T> doTraverseGraphRecursively(T node, NodePath<T> nodePath) {
     try {
       return this.traversalCache.get(node, () -> computeRecursiveTraversal(node, nodePath));
     } catch (ExecutionException | UncheckedExecutionException ee) {
@@ -67,19 +67,19 @@ class ImportTraverser<T> {
   /**
    * Actually compute the traversal if it is not in the cache.
    */
-  private LinkedList<T> computeRecursiveTraversal(T node, Set<T> nodePath) {
+  private LinkedList<T> computeRecursiveTraversal(T node, NodePath<T> nodePath) {
     try {
 
-      nodePath.add(node);
 
       LinkedList<T> imports = new LinkedList<>();
       Set<T> alreadyIncludedImports = new HashSet<>();
 
       for (T neighbor : this.traversalFunction.apply(node)) {
+        nodePath.appendNode(neighbor);
         addSubtraversal(neighbor, imports, alreadyIncludedImports, nodePath);
+        nodePath.popTail();
       }
 
-      nodePath.remove(node);
       return imports;
     } catch (ExecutionException ee) {
       throw new RuntimeException(ee);
@@ -89,19 +89,13 @@ class ImportTraverser<T> {
   /**
    * Add a sub-traversal for a neighboring node.
    */
-  private void addSubtraversal(T node, LinkedList<T> imports, Set<T> alreadyIncludedImports, Set<T> nodePath)
+  private void addSubtraversal(T node, LinkedList<T> imports, Set<T> alreadyIncludedImports, NodePath<T> nodePath)
       throws ExecutionException {
 
-    if (nodePath.contains(node)) {
-      throw new CircularDependencyException(node + " is part of a cycle.");
-    }
-
     if (addNodeIfNotAlreadyIncluded(node, imports, alreadyIncludedImports)) {
-      nodePath.add(node);
       for (T inheritedFromParent : doTraverseGraphRecursively(node, nodePath)) {
         addNodeIfNotAlreadyIncluded(inheritedFromParent, imports, alreadyIncludedImports);
       }
-      nodePath.remove(node);
     }
   }
 
@@ -126,6 +120,42 @@ class ImportTraverser<T> {
       exc = exc.getCause();
     }
     return Throwables.propagate(exc);
+  }
+
+  /**
+   * Stores node path for giving appropriate exception when a cycle is found.
+   * @param <T>
+   */
+  private static class NodePath<T> {
+    private final Set<T> nodesSet = new HashSet<>();
+    private final LinkedList<T> nodesList = new LinkedList<T>();
+
+    public NodePath(T initialNode) {
+      this.nodesSet.add(initialNode);
+      this.nodesList.add(initialNode);
+    }
+
+    public void appendNode(T node) {
+      if (this.nodesSet.contains(node)) {
+        throw new CircularDependencyException("Found cycle in traversal: " + computePath(node));
+      }
+      this.nodesSet.add(node);
+      this.nodesList.add(node);
+    }
+
+    public void popTail() {
+      T removed = this.nodesList.removeLast();
+      this.nodesSet.remove(removed);
+    }
+
+    private String computePath(T node) {
+      StringBuilder sb = new StringBuilder();
+      for (T t : this.nodesList.subList(this.nodesList.indexOf(node), this.nodesList.size())) {
+        sb.append(t).append(" -> ");
+      }
+      sb.append(node);
+      return sb.toString();
+    }
   }
 
 }

@@ -223,9 +223,11 @@ public class TestCircularDependency {
     InMemoryTopology inMemory = new InMemoryTopology(csTopology);
 
     List<ConfigKeyPath> result = inMemory.getImportsRecursively(nertzHighPriorityTag);
-    Assert.assertTrue(result.size() == 2);
+    Assert.assertEquals(result.size(), 4);
     Iterator<ConfigKeyPath> it = result.iterator();
     Assert.assertEquals(it.next(), tag2);
     Assert.assertEquals(it.next(), tag);
+    Assert.assertTrue(it.next().isRootPath());
+    Assert.assertEquals(it.next(), highPriorityTag);
   }
 }

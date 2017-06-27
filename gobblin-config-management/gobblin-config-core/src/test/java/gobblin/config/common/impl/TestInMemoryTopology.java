@@ -35,6 +35,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
@@ -179,11 +180,9 @@ public class TestInMemoryTopology {
 
     // test import recursively
     result = inMemory.getImportsRecursively(identity);
-    Assert.assertTrue(result.size()==3);
-    it = result.iterator();
-    Assert.assertEquals(it.next(), espressoTag);
-    Assert.assertEquals(it.next(), nertzTag2);
-    Assert.assertEquals(it.next(), highPriorityTag);
+    Assert.assertEquals(result.size(), 8);
+    Assert.assertEquals(result, Lists.newArrayList(highPriorityTag, tag, SingleLinkedListConfigKeyPath.ROOT,
+        espressoTag, nertzTag2, tag2, databases, data));
 
     // test own imported by
     result = inMemory.getImportedBy(nertzTag2);
