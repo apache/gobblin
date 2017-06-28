@@ -62,11 +62,12 @@ public class MRCompactionTask extends MRTask {
         for (CompactionCompleteAction action: actions) {
           action.onCompactionJobComplete(dataset);
         }
+        super.onMRTaskComplete(true, null);
       } catch (IOException e) {
-        throw new RuntimeException(e);
+        super.onMRTaskComplete(false, e);
       }
     } else {
-      super.onMRTaskComplete(isSuccess, throwable);
+      super.onMRTaskComplete(false, throwable);
     }
   }
 
