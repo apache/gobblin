@@ -37,7 +37,7 @@ import gobblin.writer.test.TestingEventBuses;
 
 public class TextFileBasedSourceTest {
 
-  @Test
+  @Test(groups = { "disabledOnTravis" })
   public void test() throws Exception {
     File stateStoreDir = Files.createTempDir();
     stateStoreDir.deleteOnExit();
