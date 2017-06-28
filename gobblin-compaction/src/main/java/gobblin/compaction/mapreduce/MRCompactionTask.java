@@ -48,6 +48,7 @@ public class MRCompactionTask extends MRTask {
     for (CompactionVerifier verifier : verifiers) {
       if (!verifier.verify(dataset)) {
         log.error("Verification {} for {} is not passed.", verifier.getName(), dataset.datasetURN());
+        this.onMRTaskComplete (false, null);
         return;
       }
     }

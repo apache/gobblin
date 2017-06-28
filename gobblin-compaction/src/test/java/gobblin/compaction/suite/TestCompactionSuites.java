@@ -24,7 +24,6 @@ public class TestCompactionSuites {
     public List<CompactionCompleteAction<FileSystemDataset>> getCompactionCompleteActions() {
       ArrayList<CompactionCompleteAction<FileSystemDataset>> array = new ArrayList<>();
       array.add((dataset) -> {
-        log.info ("############# => " + dataset.datasetURN());
         if (dataset.datasetURN().contains(TestCompactionSuiteFactories.DATASET_FAIL))
           throw new RuntimeException("test-hive-registration-failure");
       });

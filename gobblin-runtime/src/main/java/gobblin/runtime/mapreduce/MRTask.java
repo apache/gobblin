@@ -81,8 +81,9 @@ public class MRTask extends BaseAbstractTask {
     }
   }
 
+  @Override
   public void commit() {
-    log.debug ("Mark state " + this.workingState);
+    log.debug ("State is set to {} inside onMRTaskComplete.", this.workingState);
   }
 
   @Override
