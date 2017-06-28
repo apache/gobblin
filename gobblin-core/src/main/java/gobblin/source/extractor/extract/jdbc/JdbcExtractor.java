@@ -1140,11 +1140,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
   /**
    * Check if the SELECT query covers multiple tables
-   *
-   * <p>
-   *   The idea is to check if "," shows up in the "FROM" clause. The space before the next SQL keyword determines
-   *   the end of the "FROM" clause
-   * </p>
    */
   public static boolean hasMultipleTables(String selectQuery) {
     if (selectQuery == null || selectQuery.length() == 0) {
