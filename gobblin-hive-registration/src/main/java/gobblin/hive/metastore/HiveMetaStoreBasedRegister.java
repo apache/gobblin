@@ -19,7 +19,6 @@ package gobblin.hive.metastore;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,12 +38,10 @@ import org.joda.time.DateTime;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.primitives.Ints;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.hive.HiveMetaStoreClientFactory;
 import gobblin.hive.HiveLock;
 import gobblin.hive.HiveMetastoreClientPool;
@@ -94,6 +91,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public static final String GET_HIVE_TABLE = HIVE_REGISTER_METRICS_PREFIX + "getTableTimer";
   public static final String DROP_TABLE = HIVE_REGISTER_METRICS_PREFIX + "dropTableTimer";
   public static final String PATH_REGISTER_TIMER = HIVE_REGISTER_METRICS_PREFIX + "pathRegisterTimer";
+  public static final String OPTIMIZED_CHECK_ENABLED = "hiveRegister.doubleLockPatternCheck.enabled";
 
   private final HiveMetastoreClientPool clientPool;
   private final HiveLock locks = new HiveLock();
@@ -106,7 +104,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
     super(state);
 
-    this.optimizedChecks = state.getPropAsBoolean("gobblin.test.optimize", false);
+    this.optimizedChecks = state.getPropAsBoolean(this.OPTIMIZED_CHECK_ENABLED, true);
 
     GenericObjectPoolConfig config = new GenericObjectPoolConfig();
     config.setMaxTotal(this.props.getNumThreads());
