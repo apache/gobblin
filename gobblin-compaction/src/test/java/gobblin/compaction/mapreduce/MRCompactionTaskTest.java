@@ -1,8 +1,11 @@
 package gobblin.compaction.mapreduce;
 
 import com.google.common.io.Files;
+import gobblin.compaction.audit.AuditCountClientFactory;
 import gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import gobblin.compaction.source.CompactionSource;
+import gobblin.compaction.verify.CompactionAuditCountVerifier;
+import gobblin.compaction.verify.CompactionVerifier;
 import gobblin.compaction.verify.InputRecordCountHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
@@ -156,6 +159,16 @@ public class MRCompactionTaskTest {
 
   }
 
+  private EmbeddedGobblin createEmbeddedGobblinForAllFailures (String name, String basePath) {
+    return createEmbeddedGobblin(name, basePath)
+        .setConfiguration(AuditCountClientFactory.AUDIT_COUNT_CLIENT_FACTORY, "KafkaAuditCountHttpClientFactory")
+        .setConfiguration(CompactionAuditCountVerifier.GOBBLIN_TIER, "dummy")
+        .setConfiguration(CompactionAuditCountVerifier.ORIGIN_TIER, "dummy")
+        .setConfiguration(CompactionAuditCountVerifier.PRODUCER_TIER, "dummy")
+        .setConfiguration(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0")
+        .setConfiguration(CompactionVerifier.COMPACTION_VERIFICATION_ITERATION_COUNT_LIMIT, "2");
+  }
+
    @Test
    public void testWorkUnitStream () throws Exception {
      File basePath = Files.createTempDir();
@@ -175,4 +188,24 @@ public class MRCompactionTaskTest {
 
      Assert.assertTrue(result.isSuccessful());
    }
+
+  @Test
+  public void testWorkUnitStreamForAllFailures () throws Exception {
+    File basePath = Files.createTempDir();
+    basePath.deleteOnExit();
+    GenericRecord r1 = createRandomRecord();
+    // verify 24 hours
+    for (int i = 1; i < 25; ++i) {
+      String path = "Identity/MemberAccount/minutely/2017/04/03/" + i + "/20_30/run_2017-04-03-10-20";
+      File jobDir = new File(basePath, path);
+      Assert.assertTrue(jobDir.mkdirs());
+
+      writeFileWithContent(jobDir, "file_random", r1, 20);
+    }
+
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblinForAllFailures("workunit_stream_partial", basePath.getAbsolutePath().toString());
+    JobExecutionResult result = embeddedGobblin.run();
+
+    Assert.assertFalse(result.isSuccessful());
+  }
 }

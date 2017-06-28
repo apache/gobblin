@@ -117,8 +117,9 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
         Stopwatch stopwatch = Stopwatch.createStarted();
         int threads = this.state.getPropAsInt(CompactionVerifier.COMPACTION_VERIFICATION_THREADS, 5);
         long timeOutInMinute = this.state.getPropAsLong(CompactionVerifier.COMPACTION_VERIFICATION_TIMEOUT_MINUTES, 30);
-
-        while (datasets.size() > 0) {
+        long iterationCountLimit = this.state.getPropAsLong(CompactionVerifier.COMPACTION_VERIFICATION_ITERATION_COUNT_LIMIT, Integer.MAX_VALUE);
+        long iteration = 0;
+        while (datasets.size() > 0 && iteration++ < iterationCountLimit) {
           Iterator<Callable<VerifiedDataset>> verifierIterator =
                   Iterators.transform (datasets.iterator(), new Function<Dataset, Callable<VerifiedDataset>>() {
                     @Override
