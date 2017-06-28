@@ -47,6 +47,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.util.TablesNamesFinder;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.password.PasswordManager;
@@ -1146,20 +1151,22 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       return false;
     }
 
-    String queryLowercase = selectQuery.toLowerCase();
-    int tableListStartIndex = queryLowercase.indexOf(" from ") + 6;
+    try {
+      net.sf.jsqlparser.statement.Statement statement = CCJSqlParserUtil.parse(selectQuery);
 
-    // Split the string after FROM clause by space(consecutive spaces as a single space)
-    final String spaceRegex = " +";
-    String[] items = queryLowercase.substring(tableListStartIndex).trim().split(spaceRegex);
+      Select selectStatement;
+      if (statement instanceof Select) {
+        selectStatement = (Select) statement;
+      } else {
+        throw new RuntimeException("Expect SELECT query!");
+      }
 
-    // "From tableA,tableB"
-    if (items.length == 1) {
-      return items[0].contains(",");
+      TablesNamesFinder tablesNamesFinder = new TablesNamesFinder();
+      List<String> tableList = tablesNamesFinder.getTableList(selectStatement);
+      return tableList.size() > 1;
+    } catch (JSQLParserException e) {
+      throw new RuntimeException(e);
     }
-
-    // Cases like "FROM tableA, tableB <SQL KEYWORD>"
-    return items[0].contains(",") || items[1].contains(",");
   }
 
   /**

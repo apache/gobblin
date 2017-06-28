@@ -42,6 +42,7 @@ dependencies {
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
   compile externalDependency.jsch
+  compile externalDependency.jsqlParser
   compile externalDependency.commonsLang3
   compile externalDependency.commonsIo
   compile externalDependency.hiveExec

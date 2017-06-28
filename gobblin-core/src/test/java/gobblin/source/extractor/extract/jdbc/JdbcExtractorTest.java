@@ -123,7 +123,7 @@ public class JdbcExtractorTest {
     assertTrue(commands.get(1).getParams().get(0).contains("unsigned"));
   }
 
-  public void testHasJoinOperation() {
+  public void testHasMultipleTables() {
     boolean result;
 
     // no space
@@ -131,20 +131,17 @@ public class JdbcExtractorTest {
     Assert.assertTrue(result);
 
     // has space
-    result = JdbcExtractor.hasMultipleTables("select a.fromLoc from a aliasA, b aliasB");
+    result = JdbcExtractor.hasMultipleTables("select a.fromLoc from a aliasA , b aliasB");
     Assert.assertTrue(result);
     result = JdbcExtractor.hasMultipleTables("select a.fromLoc from a , b");
     Assert.assertTrue(result);
     result = JdbcExtractor.hasMultipleTables("select a.fromLoc from a ,     b");
     Assert.assertTrue(result);
 
-
     // simple query
     result = JdbcExtractor.hasMultipleTables("select a.fromLoc from a");
     Assert.assertFalse(result);
-
-    // comma shows up after the next keyword
-    result = JdbcExtractor.hasMultipleTables("select a.fromLoc from a where a.id=hello,world");
+    result = JdbcExtractor.hasMultipleTables("select a.fromLoc from a where a.id=\"hello,world\"");
     Assert.assertFalse(result);
   }
 }
