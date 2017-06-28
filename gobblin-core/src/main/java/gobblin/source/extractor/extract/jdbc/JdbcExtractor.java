@@ -1147,10 +1147,11 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     }
 
     String queryLowercase = selectQuery.toLowerCase();
-    int tableListStartIndex = selectQuery.indexOf("from") + 4;
+    int tableListStartIndex = queryLowercase.indexOf(" from ") + 6;
 
-    // Split the string after FROM clause by space
-    String[] items = selectQuery.substring(tableListStartIndex).trim().split(" ");
+    // Split the string after FROM clause by space(consecutive spaces as a single space)
+    final String spaceRegex = " +";
+    String[] items = queryLowercase.substring(tableListStartIndex).trim().split(spaceRegex);
 
     // "From tableA,tableB"
     if (items.length == 1) {
