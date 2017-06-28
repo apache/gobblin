@@ -126,32 +126,25 @@ public class JdbcExtractorTest {
   public void testHasJoinOperation() {
     boolean result;
 
-    // plain join
-    result = JdbcExtractor.hasJoinOperation("select a.id, b.name where a.id=b.id");
+    // no space
+    result = JdbcExtractor.hasMultipleTables("from a,b");
     Assert.assertTrue(result);
 
     // has space
-    result = JdbcExtractor.hasJoinOperation("select a.id, b.name where a.id = b.id");
+    result = JdbcExtractor.hasMultipleTables("from a aliasA, b aliasB");
+    Assert.assertTrue(result);
+    result = JdbcExtractor.hasMultipleTables("from a , b");
+    Assert.assertTrue(result);
+    result = JdbcExtractor.hasMultipleTables("from a ,b");
     Assert.assertTrue(result);
 
-    // table name with number
-    result = JdbcExtractor.hasJoinOperation("select a1.id, b2.name where a1.id=b2.id");
-    Assert.assertTrue(result);
 
-    // column name with number
-    result = JdbcExtractor.hasJoinOperation("select abc.id1, bde.name1 where abc.id1=bde.id1");
-    Assert.assertTrue(result);
-
-    // float number
-    result = JdbcExtractor.hasJoinOperation("select a.id, a.name where a.id=1.0");
+    // simple query
+    result = JdbcExtractor.hasMultipleTables("from a");
     Assert.assertFalse(result);
 
-    // float number
-    result = JdbcExtractor.hasJoinOperation("select a.id, a.name where a.id=.011");
-    Assert.assertFalse(result);
-
-    // bit number
-    result = JdbcExtractor.hasJoinOperation("select a.id, a.name where a.id=0x111");
+    // comma shows up after the next keyword
+    result = JdbcExtractor.hasMultipleTables("from a where a.id=hello,world");
     Assert.assertFalse(result);
   }
 }

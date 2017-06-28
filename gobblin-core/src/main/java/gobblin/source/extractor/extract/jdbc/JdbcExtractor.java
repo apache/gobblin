@@ -76,8 +76,6 @@ import gobblin.source.workunit.WorkUnit;
  */
 public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement>
     implements SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
-  public static final String JOIN_OPERATION_REGEX = "([a-zA-Z_].*)\\.([a-zA-Z_].*)(\\s*)=(\\s*)([a-zA-Z_].*)\\.([a-zA-Z_].*)";
-
   private static final Gson gson = new Gson();
   private List<String> headerRecord;
   private boolean firstPull = true;
@@ -290,8 +288,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException, IOException {
     this.log.info("Extract metadata using JDBC");
     String inputQuery = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
-    if (hasJoinOperation(inputQuery)) {
-      throw new RuntimeException("Join operation is not supported");
+    if (hasMultipleTables(inputQuery)) {
+      throw new RuntimeException("Query across multiple tables not supported");
     }
 
     String watermarkColumn = workUnitState.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
@@ -1136,14 +1134,31 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   /**
-   * Check if the query contains any join operation
+   * Check if the SELECT query covers multiple tables
+   *
+   * <p>
+   *   The idea is to check if "," shows up in the "FROM" clause. The space of the next SQL keyword is used to determine
+   *   the end of the "FROM" clause.
+   * </p>
    */
-  public static boolean hasJoinOperation(String query) {
-    if (query == null || query.length() == 0) {
+  public static boolean hasMultipleTables(String selectQuery) {
+    if (selectQuery == null || selectQuery.length() == 0) {
       return false;
     }
 
-    return query.matches(JOIN_OPERATION_REGEX);
+    String queryLowercase = selectQuery.toLowerCase();
+    int tableListStartIndex = selectQuery.indexOf("from") + 4;
+
+    // Split the string after FROM clause by space
+    String[] items = selectQuery.substring(tableListStartIndex).trim().split(" ");
+
+    // "From tableA,tableB"
+    if (items.length == 1) {
+      return items[0].contains(",");
+    }
+
+    // Cases like "FROM tableA, tableB <SQL KEYWORD>"
+    return items[0].contains(",") || items[1].contains(",");
   }
 
   /**
