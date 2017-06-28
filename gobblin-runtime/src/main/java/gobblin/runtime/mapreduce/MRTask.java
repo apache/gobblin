@@ -26,6 +26,7 @@ import gobblin.runtime.task.BaseAbstractTask;
 import java.io.IOException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 
@@ -70,12 +71,19 @@ public class MRTask extends BaseAbstractTask {
   }
 
   public void onMRTaskComplete (boolean isSuccess, Throwable t) throws RuntimeException {
-    if (isSuccess)
-      log.info ("Successfully run MR job.");
-    else if (t == null)
-      log.info ("Failed to run MR job");
-    else
-      log.info ("Failed to run MR job with exception {}", t.toString());
+    if (isSuccess) {
+      this.workingState = WorkUnitState.WorkingState.SUCCESSFUL;
+    } else if (t == null) {
+      this.workingState = WorkUnitState.WorkingState.FAILED;
+    } else {
+      log.error ("Failed to run MR job with exception {}", ExceptionUtils.getStackTrace(t));
+      this.workingState = WorkUnitState.WorkingState.FAILED;
+    }
+  }
+
+  @Override
+  public void commit() {
+    log.debug ("State is set to {} inside onMRTaskComplete.", this.workingState);
   }
 
   @Override
@@ -90,17 +98,14 @@ public class MRTask extends BaseAbstractTask {
 
       if (job.isSuccessful()) {
         this.eventSubmitter.submit(Events.MR_JOB_SUCCESSFUL, Events.JOB_URL, job.getTrackingURL());
-        this.workingState = WorkUnitState.WorkingState.SUCCESSFUL;
         this.onMRTaskComplete(true, null);
       } else {
         this.eventSubmitter.submit(Events.MR_JOB_FAILED, Events.JOB_URL, job.getTrackingURL());
-        this.workingState = WorkUnitState.WorkingState.FAILED;
         this.onMRTaskComplete (false, null);
       }
     } catch (Throwable t) {
       log.error("Failed to run MR job.", t);
       this.eventSubmitter.submit(Events.MR_JOB_FAILED, Events.FAILURE_CONTEXT, t.getMessage());
-      this.workingState = WorkUnitState.WorkingState.FAILED;
       this.onMRTaskComplete (false, t);
     }
   }

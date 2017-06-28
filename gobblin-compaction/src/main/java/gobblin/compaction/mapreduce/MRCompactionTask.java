@@ -48,6 +48,7 @@ public class MRCompactionTask extends MRTask {
     for (CompactionVerifier verifier : verifiers) {
       if (!verifier.verify(dataset)) {
         log.error("Verification {} for {} is not passed.", verifier.getName(), dataset.datasetURN());
+        this.onMRTaskComplete (false, null);
         return;
       }
     }
@@ -62,11 +63,12 @@ public class MRCompactionTask extends MRTask {
         for (CompactionCompleteAction action: actions) {
           action.onCompactionJobComplete(dataset);
         }
+        super.onMRTaskComplete(true, null);
       } catch (IOException e) {
-        throw new RuntimeException(e);
+        super.onMRTaskComplete(false, e);
       }
     } else {
-      super.onMRTaskComplete(isSuccess, throwable);
+      super.onMRTaskComplete(false, throwable);
     }
   }
 
