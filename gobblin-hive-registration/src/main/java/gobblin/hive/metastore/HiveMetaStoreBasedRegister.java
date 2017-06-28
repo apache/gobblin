@@ -19,8 +19,10 @@ package gobblin.hive.metastore;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
@@ -97,9 +99,14 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   private final HiveLock locks = new HiveLock();
   private final EventSubmitter eventSubmitter;
   private final MetricContext metricContext;
+  private final ConcurrentHashMap<String, String> dbsExist = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, String> tbsExist = new ConcurrentHashMap<>();
+  private final boolean optimizedChecks;
 
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
     super(state);
+
+    this.optimizedChecks = state.getPropAsBoolean("gobblin.test.optimize", false);
 
     GenericObjectPoolConfig config = new GenericObjectPoolConfig();
     config.setMaxTotal(this.props.getNumThreads());
@@ -140,10 +147,15 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   }
 
   private boolean createDbIfNotExists(IMetaStoreClient client, String dbName) throws IOException {
-    Database db = new Database();
-    db.setName(dbName);
-
+    // If database exists, not necessary to proceed.
+    if (this.optimizedChecks && this.dbsExist.containsKey(dbName)) {
+      return false;
+    }
+    // Proceed if Database is not existed.
     try (AutoCloseableLock lock = this.locks.getDbLock(dbName)) {
+      Database db = new Database();
+      db.setName(dbName);
+
       try {
         try (Timer.Context context = this.metricContext.timer(GET_HIVE_DATABASE).time()) {
           client.getDatabase(db.getName());
@@ -165,6 +177,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         }
         log.info("Created database " + dbName);
         HiveMetaStoreEventHelper.submitSuccessfulDBCreation(this.eventSubmitter, dbName);
+        dbsExist.put(dbName, "");
         return true;
       } catch (AlreadyExistsException e) {
         return false;
@@ -237,40 +250,49 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     String dbName = table.getDbName();
     String tableName = table.getTableName();
     try (AutoCloseableLock lock = this.locks.getTableLock(dbName, tableName)) {
-      try {
-        try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
-          client.createTable(getTableWithCreateTimeNow(table));
-        }
-        log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
-      } catch (AlreadyExistsException e) {
-        log.info("Table {} already exists in db {}.", tableName, dbName);
+      // If table already existed we can save one RPC.
+      if (!this.optimizedChecks || !this.tbsExist.containsKey(dbName + ":" + tableName)) {
         try {
-          HiveTable existingTable;
-          try (Timer.Context context = this.metricContext.timer(GET_HIVE_TABLE).time()) {
-            existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
+          try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
+            client.createTable(getTableWithCreateTimeNow(table));
+            this.tbsExist.put(dbName + ":" + tableName, "");
+            log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
+            return;
+          } catch (AlreadyExistsException e) {
           }
-          if (needToUpdateTable(existingTable, spec.getTable())) {
-            try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
-              client.alter_table(dbName, tableName, getTableWithCreateTime(table, existingTable));
-            }
-            log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
-          }
-        } catch (TException e2) {
+        }catch (TException e) {
           log.error(
-              String.format("Unable to create or alter Hive table %s in db %s: " + e2.getMessage(), tableName, dbName),
-              e2);
-          throw e2;
+              String.format("Unable to create Hive table %s in db %s: " + e.getMessage(), tableName, dbName), e);
+          throw e;
         }
-      } catch (TException e) {
+      }
+
+      log.info("Table {} already exists in db {}.", tableName, dbName);
+      try {
+        HiveTable existingTable;
+        try (Timer.Context context = this.metricContext.timer(GET_HIVE_TABLE).time()) {
+          existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
+        }
+        if (needToUpdateTable(existingTable, spec.getTable())) {
+          try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
+            client.alter_table(dbName, tableName, getTableWithCreateTime(table, existingTable));
+          }
+          log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
+        }
+      } catch (TException e2) {
         log.error(
-            String.format("Unable to create Hive table %s in db %s: " + e.getMessage(), tableName, dbName), e);
-        throw e;
+            String.format("Unable to create or alter Hive table %s in db %s: " + e2.getMessage(), tableName, dbName),
+            e2);
+        throw e2;
       }
     }
   }
 
   @Override
   public boolean existsTable(String dbName, String tableName) throws IOException {
+    if (this.optimizedChecks && this.tbsExist.containsKey(dbName + ":" + tableName )) {
+      return true;
+    }
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       try (Timer.Context context = this.metricContext.timer(TABLE_EXISTS).time()) {
         return client.get().tableExists(dbName, tableName);
