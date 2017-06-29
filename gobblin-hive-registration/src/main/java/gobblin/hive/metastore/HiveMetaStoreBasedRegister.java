@@ -17,11 +17,15 @@
 
 package gobblin.hive.metastore;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
@@ -93,7 +97,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public static final String PATH_REGISTER_TIMER = HIVE_REGISTER_METRICS_PREFIX + "pathRegisterTimer";
   /**
    * To reduce lock aquisition and RPC to metaStoreClient, we cache the result of query regarding to
-   * the existence of databases and tables in {@link #dbsExist} and {@link #tbsExist} respectively,
+   * the existence of databases and tables in {@link #tableAndDbExistenceCache},
    * so that for databases/tables existed in cache, a RPC for query the existence can be saved.
    *
    * We make this optimization configurable by setting {@link #OPTIMIZED_CHECK_ENABLED} to be true.
@@ -104,8 +108,25 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   private final HiveLock locks = new HiveLock();
   private final EventSubmitter eventSubmitter;
   private final MetricContext metricContext;
-  private final ConcurrentHashMap<String, String> dbsExist = new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<String, String> tbsExist = new ConcurrentHashMap<>();
+
+  /**
+   * Local cache that contains records for both databases and tables.
+   * To distinguish tables with the same name but in different databases,
+   * use the <databaseName>:<tableName> as the key.
+   *
+   * The value(true/false) in cache doesn't really matter, the existence of entry in cache guarantee the table is existed on hive.
+   * The value in k-v pair in cache indicates:
+   * when the first time a table/database is loaded into the cache, whether they existed on the remote hiveMetaStore side.
+   */
+  CacheLoader<String, Boolean> cacheLoader = new CacheLoader<String, Boolean>() {
+  @Override
+    public Boolean load(String key) throws Exception {
+      return true;
+    }
+  };
+  Cache<String, Boolean> tableAndDbExistenceCache = CacheBuilder.newBuilder().build(cacheLoader);
+
+
   private final boolean optimizedChecks;
 
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
@@ -151,15 +172,59 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     }
   }
 
-  private boolean createDbIfNotExists(IMetaStoreClient client, String dbName) throws IOException {
-    // If database exists, not necessary to proceed.
-    if (this.optimizedChecks && this.dbsExist.containsKey(dbName)) {
+  /**
+   * If table existed on Hive side will return false;
+   * Or will create the table thru. RPC and return retVal from remote MetaStore.
+   */
+  private boolean ensureHiveTableExistenceBeforeAlternation(String tableName, String dbName, IMetaStoreClient client,
+      Table table, HiveSpec spec) throws TException{
+    try (AutoCloseableLock lock = this.locks.getTableLock(dbName, tableName)) {
+      try {
+        try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
+          client.createTable(getTableWithCreateTimeNow(table));
+          log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
+          return true;
+        } catch (AlreadyExistsException e) {
+        }
+      }catch (TException e) {
+        log.error(
+            String.format("Unable to create Hive table %s in db %s: " + e.getMessage(), tableName, dbName), e);
+        throw e;
+      }
+
+      log.info("Table {} already exists in db {}.", tableName, dbName);
+      try {
+        HiveTable existingTable;
+        try (Timer.Context context = this.metricContext.timer(GET_HIVE_TABLE).time()) {
+          existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
+        }
+        if (needToUpdateTable(existingTable, spec.getTable())) {
+          try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
+            client.alter_table(dbName, tableName, getTableWithCreateTime(table, existingTable));
+          }
+          log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
+        }
+      } catch (TException e2) {
+        log.error(
+            String.format("Unable to create or alter Hive table %s in db %s: " + e2.getMessage(), tableName, dbName),
+            e2);
+        throw e2;
+      }
+      // When the logic up to here it means table already existed in db and alteration happen. Return false.
       return false;
     }
-    // Proceed if Database is not existed.
-    try (AutoCloseableLock lock = this.locks.getDbLock(dbName)) {
+  }
+
+
+  /**
+   * If databse existed on Hive side will return false;
+   * Or will create the table thru. RPC and return retVal from remote MetaStore.
+   * @param hiveDbName is the hive databases to be checked for existence
+   */
+  private boolean ensureHiveDbExistence(String hiveDbName, IMetaStoreClient client) throws IOException{
+    try (AutoCloseableLock lock = this.locks.getDbLock(hiveDbName)) {
       Database db = new Database();
-      db.setName(dbName);
+      db.setName(hiveDbName);
 
       try {
         try (Timer.Context context = this.metricContext.timer(GET_HIVE_DATABASE).time()) {
@@ -174,22 +239,45 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
       Preconditions.checkState(this.hiveDbRootDir.isPresent(),
           "Missing required property " + HiveRegProps.HIVE_DB_ROOT_DIR);
-      db.setLocationUri(new Path(this.hiveDbRootDir.get(), dbName + HIVE_DB_EXTENSION).toString());
+      db.setLocationUri(new Path(this.hiveDbRootDir.get(), hiveDbName + HIVE_DB_EXTENSION).toString());
 
       try {
         try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_DATABASE).time()) {
           client.createDatabase(db);
         }
-        log.info("Created database " + dbName);
-        HiveMetaStoreEventHelper.submitSuccessfulDBCreation(this.eventSubmitter, dbName);
-        dbsExist.put(dbName, "");
+        log.info("Created database " + hiveDbName);
+        HiveMetaStoreEventHelper.submitSuccessfulDBCreation(this.eventSubmitter, hiveDbName);
         return true;
       } catch (AlreadyExistsException e) {
         return false;
       } catch (TException e) {
-        HiveMetaStoreEventHelper.submitFailedDBCreation(this.eventSubmitter, dbName, e);
-        throw new IOException("Unable to create Hive database " + dbName, e);
+        HiveMetaStoreEventHelper.submitFailedDBCreation(this.eventSubmitter, hiveDbName, e);
+        throw new IOException("Unable to create Hive database " + hiveDbName, e);
       }
+    }
+  }
+
+  /**
+   * @return true if the db is successfully created.
+   *         false if the db already exists.
+   * @throws IOException
+   */
+  private boolean createDbIfNotExists(IMetaStoreClient client, String dbName) throws IOException {
+    boolean retVal;
+    if (this.optimizedChecks) {
+      try {
+        retVal = this.tableAndDbExistenceCache.get(dbName, new Callable<Boolean>() {
+          @Override
+          public Boolean call() throws Exception {
+            return ensureHiveDbExistence(dbName, client);
+          }
+        });
+      } catch (ExecutionException ee) {
+        throw new IOException("Database existence checking throwing execution exception.");
+      }
+      return retVal;
+    } else {
+      return this.ensureHiveDbExistence(dbName, client);
     }
   }
 
@@ -250,52 +338,33 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     }
   }
 
-  private void createOrAlterTable(IMetaStoreClient client, Table table, HiveSpec spec) throws TException {
-
+  private void createOrAlterTable(IMetaStoreClient client, Table table, HiveSpec spec) throws TException, IOException {
     String dbName = table.getDbName();
     String tableName = table.getTableName();
-    try (AutoCloseableLock lock = this.locks.getTableLock(dbName, tableName)) {
-      // If table already existed we can save one RPC.
-      if (!this.optimizedChecks || !this.tbsExist.containsKey(dbName + ":" + tableName)) {
-        try {
-          try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
-            client.createTable(getTableWithCreateTimeNow(table));
-            this.tbsExist.put(dbName + ":" + tableName, "");
-            log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
-            return;
-          } catch (AlreadyExistsException e) {
-          }
-        }catch (TException e) {
-          log.error(
-              String.format("Unable to create Hive table %s in db %s: " + e.getMessage(), tableName, dbName), e);
-          throw e;
-        }
-      }
-
-      log.info("Table {} already exists in db {}.", tableName, dbName);
+    boolean tableExistenceInCache;
+    if (this.optimizedChecks) {
       try {
-        HiveTable existingTable;
-        try (Timer.Context context = this.metricContext.timer(GET_HIVE_TABLE).time()) {
-          existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
-        }
-        if (needToUpdateTable(existingTable, spec.getTable())) {
-          try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
-            client.alter_table(dbName, tableName, getTableWithCreateTime(table, existingTable));
+        this.tableAndDbExistenceCache.get(dbName + ":" + tableName, new Callable<Boolean>() {
+          @Override
+          public Boolean call() throws Exception {
+            return ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table, spec);
           }
-          log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
-        }
-      } catch (TException e2) {
-        log.error(
-            String.format("Unable to create or alter Hive table %s in db %s: " + e2.getMessage(), tableName, dbName),
-            e2);
-        throw e2;
+        });
+      } catch (ExecutionException ee) {
+        throw new IOException("Table existence checking throwing execution exception.");
       }
+    } else {
+      this.ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table, spec);
     }
   }
 
+
+
+
+
   @Override
   public boolean existsTable(String dbName, String tableName) throws IOException {
-    if (this.optimizedChecks && this.tbsExist.containsKey(dbName + ":" + tableName )) {
+    if (this.optimizedChecks && this.tableAndDbExistenceCache.getIfPresent(dbName + ":" + tableName ) != null ) {
       return true;
     }
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
