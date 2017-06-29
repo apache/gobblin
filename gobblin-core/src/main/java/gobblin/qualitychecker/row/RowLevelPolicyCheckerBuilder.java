@@ -84,6 +84,7 @@ public class RowLevelPolicyCheckerBuilder {
 
   public RowLevelPolicyChecker build()
       throws Exception {
-    return new RowLevelPolicyChecker(createPolicyList(), this.state.getId(), WriterUtils.getWriterFS(this.state, 1, 0));
+    return new RowLevelPolicyChecker(createPolicyList(), this.state.getId(),
+        WriterUtils.getWriterFS(this.state, 1, 0), this.state);
   }
 }

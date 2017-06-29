@@ -351,6 +351,10 @@ public class ConfigurationKeys {
   public static final String DEFAULT_QUALITY_CHECKER_TIMEZONE = PST_TIMEZONE_NAME;
   public static final String CLEAN_ERR_DIR = QUALITY_CHECKER_PREFIX + ".clean.err.dir";
   public static final boolean DEFAULT_CLEAN_ERR_DIR = false;
+  /** Set the approximate max number of records to write in err_file for each task. Note the actual number of records
+   * written may be anything from 0 to about the value set + 100. */
+  public static final String ROW_LEVEL_ERR_FILE_RECORDS_PER_TASK = QUALITY_CHECKER_PREFIX + ".row.errFile.recordsPerTask";
+  public static final long DEFAULT_ROW_LEVEL_ERR_FILE_RECORDS_PER_TASK = 1000000;
 
   /**
    * Configuration properties used by the row count policies.
