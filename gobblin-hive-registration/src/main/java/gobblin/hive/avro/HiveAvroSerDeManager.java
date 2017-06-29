@@ -55,8 +55,8 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
   public static final String DEFAULT_SCHEMA_FILE_NAME = "_schema.avsc";
   public static final String SCHEMA_LITERAL_LENGTH_LIMIT = "schema.literal.length.limit";
   public static final int DEFAULT_SCHEMA_LITERAL_LENGTH_LIMIT = 4000;
-  public static final String HIVE_SPEC_SCHEMA_READING_TIMER = "AvroReading";
-  public static final String HIVE_SPEC_SCHEMA_WRITING_TIMER = "AvroWriting";
+  public static final String HIVE_SPEC_SCHEMA_READING_TIMER = "hiveAvroSerdeManager.schemaReadTimer";
+  public static final String HIVE_SPEC_SCHEMA_WRITING_TIMER = "hiveAvroSerdeManager.schemaWriteTimer";
 
   protected final FileSystem fs;
   protected final boolean useSchemaFile;

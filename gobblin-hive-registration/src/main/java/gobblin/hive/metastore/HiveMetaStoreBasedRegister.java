@@ -91,7 +91,14 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public static final String GET_HIVE_TABLE = HIVE_REGISTER_METRICS_PREFIX + "getTableTimer";
   public static final String DROP_TABLE = HIVE_REGISTER_METRICS_PREFIX + "dropTableTimer";
   public static final String PATH_REGISTER_TIMER = HIVE_REGISTER_METRICS_PREFIX + "pathRegisterTimer";
-  public static final String OPTIMIZED_CHECK_ENABLED = "hiveRegister.doubleLockPatternCheck.enabled";
+  /**
+   * To reduce lock aquisition and RPC to metaStoreClient, we cache the result of query regarding to
+   * the existence of databases and tables in {@link #dbsExist} and {@link #tbsExist} respectively,
+   * so that for databases/tables existed in cache, a RPC for query the existence can be saved.
+   *
+   * We make this optimization configurable by setting {@link #OPTIMIZED_CHECK_ENABLED} to be true.
+   */
+  public static final String OPTIMIZED_CHECK_ENABLED = "hiveRegister.cacheDbTableExistence";
 
   private final HiveMetastoreClientPool clientPool;
   private final HiveLock locks = new HiveLock();
