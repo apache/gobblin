@@ -26,7 +26,8 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.event.TimingEvent;
+import gobblin.metrics.event.EventName;
+import gobblin.runtime.EventMetadataUtils;
 import gobblin.runtime.JobContext;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
@@ -55,16 +56,16 @@ public class ClusterEventMetadataGeneratorTest {
 
     Mockito.when(jobContext.getJobState()).thenReturn(jobState);
 
-    ClusterEventMetadataGenerator metadataGenerator = new ClusterEventMetadataGenerator(jobContext);
+    ClusterEventMetadataGenerator metadataGenerator = new ClusterEventMetadataGenerator();
 
     Map<String, String> metadata;
 
     // processed count is not in job cancel event
-    metadata = metadataGenerator.getMetadata(TimingEvent.LauncherTimings.JOB_CANCEL);
+    metadata = metadataGenerator.getMetadata(jobContext, EventName.JOB_CANCEL);
     Assert.assertEquals(metadata.get("processedCount"), null);
 
     // processed count is in job complete event
-    metadata = metadataGenerator.getMetadata(TimingEvent.LauncherTimings.JOB_COMPLETE);
+    metadata = metadataGenerator.getMetadata(jobContext, EventName.getEnumFromEventId("JobCompleteTimer"));
     Assert.assertEquals(metadata.get("processedCount"), "23");
   }
 
@@ -79,23 +80,23 @@ public class ClusterEventMetadataGeneratorTest {
     taskState1.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, "exception1");
     taskState2.setTaskId("2");
     taskState2.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, "exception2");
-    taskState2.setProp(ClusterEventMetadataGenerator.TASK_FAILURE_MESSAGE_KEY, "failureMessage2");
+    taskState2.setProp(EventMetadataUtils.TASK_FAILURE_MESSAGE_KEY, "failureMessage2");
 
     jobState.addTaskState(taskState1);
     jobState.addTaskState(taskState2);
 
     Mockito.when(jobContext.getJobState()).thenReturn(jobState);
 
-    ClusterEventMetadataGenerator metadataGenerator = new ClusterEventMetadataGenerator(jobContext);
+    ClusterEventMetadataGenerator metadataGenerator = new ClusterEventMetadataGenerator();
 
     Map<String, String> metadata;
 
     // error message is not in job commit event
-    metadata = metadataGenerator.getMetadata(TimingEvent.LauncherTimings.JOB_COMMIT);
+    metadata = metadataGenerator.getMetadata(jobContext, EventName.JOB_COMMIT);
     Assert.assertEquals(metadata.get("message"), null);
 
     // error message is in job failed event
-    metadata = metadataGenerator.getMetadata(TimingEvent.LauncherTimings.JOB_FAILED);
+    metadata = metadataGenerator.getMetadata(jobContext, EventName.JOB_FAILED);
     Assert.assertTrue(metadata.get("message").startsWith("failureMessage"));
     Assert.assertTrue(metadata.get("message").contains("exception1"));
     Assert.assertTrue(metadata.get("message").contains("exception2"));

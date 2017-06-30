@@ -19,6 +19,9 @@ package gobblin.runtime.api;
 
 import java.util.Map;
 
+import gobblin.metrics.event.EventName;
+import gobblin.runtime.JobContext;
+
 /**
  * For generating additional event metadata to associate with an event.
  */
@@ -28,5 +31,5 @@ public interface EventMetadataGenerator {
    * @param eventName the event name used to determine which additional metadata should be emitted
    * @return {@link Map} with the additional metadata
    */
-  Map<String, String> getMetadata(String eventName);
+  Map<String, String> getMetadata(JobContext jobContext, EventName eventName);
 }

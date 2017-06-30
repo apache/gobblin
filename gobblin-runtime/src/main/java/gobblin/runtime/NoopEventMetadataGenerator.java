@@ -22,17 +22,12 @@ import java.util.Map;
 import com.google.common.collect.ImmutableMap;
 
 import gobblin.annotation.Alias;
+import gobblin.metrics.event.EventName;
 import gobblin.runtime.api.EventMetadataGenerator;
 
 @Alias("noop")
 public class NoopEventMetadataGenerator implements EventMetadataGenerator{
-  JobContext jobContext;
-
-  public NoopEventMetadataGenerator(JobContext jobContext) {
-    this.jobContext = jobContext;
-  }
-
-  public Map<String, String> getMetadata(String eventName) {
+  public Map<String, String> getMetadata(JobContext jobContext, EventName eventName) {
     return ImmutableMap.of();
   }
 }

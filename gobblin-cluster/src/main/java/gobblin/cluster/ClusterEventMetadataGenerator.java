@@ -24,7 +24,8 @@ import com.google.common.collect.ImmutableMap;
 
 import gobblin.annotation.Alias;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.event.TimingEvent;
+import gobblin.metrics.event.EventName;
+import gobblin.runtime.EventMetadataUtils;
 import gobblin.runtime.JobContext;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.api.EventMetadataGenerator;
@@ -36,73 +37,22 @@ import gobblin.runtime.api.EventMetadataGenerator;
  */
 @Alias("cluster")
 public class ClusterEventMetadataGenerator implements EventMetadataGenerator{
-  public static final String TASK_FAILURE_MESSAGE_KEY = "task.failure.message";
+  public static final String PROCESSED_COUNT_KEY = "processedCount";
+  public static final String MESSAGE_KEY = "message";
 
-  private JobContext jobContext;
+  public Map<String, String> getMetadata(JobContext jobContext, EventName eventName) {
+    List<TaskState> taskStates = jobContext.getJobState().getTaskStates();
 
-  public ClusterEventMetadataGenerator(JobContext jobContext) {
-    this.jobContext = jobContext;
-  }
-
-  public Map<String, String> getMetadata(String eventName) {
     switch (eventName) {
-      case TimingEvent.LauncherTimings.JOB_COMPLETE:
-        return ImmutableMap.of("processedCount", Long.toString(getProcessedCount()));
-      case TimingEvent.LauncherTimings.JOB_FAILED:
-        return ImmutableMap.of("message", getTaskFailureExceptions());
+      case JOB_COMPLETE:
+        return ImmutableMap.of(PROCESSED_COUNT_KEY, Long.toString(EventMetadataUtils.getProcessedCount(taskStates)));
+      case JOB_FAILED:
+        return ImmutableMap.of(MESSAGE_KEY, EventMetadataUtils.getTaskFailureExceptions(taskStates));
       default:
         break;
     }
 
     return ImmutableMap.of();
-  }
-
-  /**
-   * Get the number of records written by all the writers
-   * @return Sum of the writer records written count across all tasks
-   */
-  private long getProcessedCount() {
-    List<TaskState> taskStates = this.jobContext.getJobState().getTaskStates();
-    long value = 0;
-
-    for (TaskState taskState : taskStates) {
-      value += taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN, 0);
-    }
-
-    return value;
-  }
-
-  /**
-   * Get failure messages
-   * @return The concatenated failure messages from all the task states
-   */
-  private String getTaskFailureExceptions() {
-    StringBuffer sb = new StringBuffer();
-
-    // Add task failure messages in a group followed by task failure exceptions
-    appendTaskStateValues(sb, TASK_FAILURE_MESSAGE_KEY);
-    appendTaskStateValues(sb, ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY);
-
-    return sb.toString();
-  }
-
-  /**
-   * Append values for the given key from all {@link TaskState}s
-   * @param sb a {@link StringBuffer} to hold the output
-   * @param key the key of the values to retrieve
-   */
-  private void appendTaskStateValues(StringBuffer sb, String key) {
-    List<TaskState> taskStates = this.jobContext.getJobState().getTaskStates();
-
-    // Add task failure messages in a group followed by task failure exceptions
-    for (TaskState taskState : taskStates) {
-      if (taskState.contains(key)) {
-        if (sb.length() != 0) {
-          sb.append(",");
-        }
-        sb.append(taskState.getProp(key));
-      }
-    }
   }
 }
 
