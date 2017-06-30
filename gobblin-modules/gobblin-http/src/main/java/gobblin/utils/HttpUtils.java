@@ -13,10 +13,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.avro.generic.GenericRecord;
+import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.http.client.utils.URIBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
 import com.google.gson.Gson;
@@ -174,6 +173,35 @@ public class HttpUtils {
       return key;
     } catch (MalformedURLException e) {
       throw new IllegalStateException("Cannot get limiter key.", e);
+    }
+  }
+
+  /**
+   * Convert D2 URL template into a string used for throttling limiter
+   *
+   * Valid:
+   *    d2://host/${resource-id}
+   *
+   * Invalid:
+   *    d2://host${resource-id}, because we cannot differentiate the host
+   */
+  public static String createR2ClientLimiterKey(Config config) {
+
+    String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
+    try {
+      String escaped = URIUtil.encodeQuery(urlTemplate);
+      URI uri = new URI(escaped);
+      if (uri.getHost() == null)
+        throw new RuntimeException("Cannot get host part from uri" + urlTemplate);
+
+      String key = uri.getScheme() + "/" + uri.getHost();
+      if (uri.getPort() > 0) {
+        key = key + "/" + uri.getPort();
+      }
+      log.info("Get limiter key [" + key + "]");
+      return key;
+    } catch (Exception e) {
+      throw new RuntimeException("Cannot create R2 limiter key", e);
     }
   }
 }

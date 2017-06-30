@@ -56,7 +56,7 @@ public class AvroR2JoinConverter extends AvroHttpJoinConverter<RestRequest, Rest
 
     R2ClientFactory factory = new R2ClientFactory(schema);
     Client client = factory.createInstance(config);
-    return new R2Client(client, broker);
+    return new R2Client(client, config, broker);
   }
 
   @Override
