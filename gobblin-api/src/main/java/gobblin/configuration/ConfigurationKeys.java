@@ -185,6 +185,12 @@ public class ConfigurationKeys {
   public static final String REQUIRED_ATRRIBUTES_LIST = "gobblin.template.required_attributes";
 
   /**
+   * Configuration for emitting job events
+   */
+  public static final String EVENT_METADATA_GENERATOR_CLASS_KEY = "event.metadata.generator.class";
+  public static final String DEFAULT_EVENT_METADATA_GENERATOR_CLASS_KEY = "noop";
+
+  /**
    * Configuration properties used internally.
    */
   public static final String JOB_ID_KEY = "job.id";
