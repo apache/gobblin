@@ -20,10 +20,10 @@ import gobblin.http.HttpRequestResponseRecord;
 import gobblin.http.ResponseHandler;
 import gobblin.http.ResponseStatus;
 import gobblin.r2.R2ClientFactory;
-import gobblin.restli.R2Client;
-import gobblin.restli.R2ResponseStatus;
-import gobblin.restli.R2RestRequestBuilder;
-import gobblin.restli.R2RestResponseHandler;
+import gobblin.r2.R2Client;
+import gobblin.r2.R2ResponseStatus;
+import gobblin.r2.R2RestRequestBuilder;
+import gobblin.r2.R2RestResponseHandler;
 import gobblin.utils.HttpConstants;
 
 
@@ -60,7 +60,7 @@ public class AvroR2JoinConverter extends AvroHttpJoinConverter<RestRequest, Rest
   }
 
   @Override
-  protected ResponseHandler<RestResponse> createResponseHandler(Config config) {
+  protected ResponseHandler<RestRequest, RestResponse> createResponseHandler(Config config) {
     return new R2RestResponseHandler();
   }
 

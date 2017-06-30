@@ -1,4 +1,4 @@
-package gobblin.restli;
+package gobblin.r2;
 
 import com.linkedin.data.ByteString;
 

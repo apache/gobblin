@@ -1,4 +1,4 @@
-package gobblin.restli;
+package gobblin.r2;
 
 import java.io.IOException;
 import java.net.URI;
@@ -18,9 +18,7 @@ import com.linkedin.restli.common.ResourceMethod;
 import com.linkedin.restli.common.RestConstants;
 
 import gobblin.http.HttpOperation;
-import gobblin.r2.R2Request;
 import gobblin.utils.HttpUtils;
-import gobblin.async.AsyncRequest;
 import gobblin.async.AsyncRequestBuilder;
 import gobblin.async.BufferedRecord;
 

@@ -15,17 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.http;
-
-import gobblin.net.Request;
+package gobblin.net;
 
 
 /**
- * An interface to handle a response
+ * The request adapter for any kind of request/response model
  *
- * @param <RQ> type of raw request
- * @param <RP> type of response
+ * @param <RQ> the actual type of raw request
  */
-public interface ResponseHandler<RQ, RP> {
-  ResponseStatus handleResponse(Request<RQ> request, RP response);
+public interface Request<RQ> {
+  RQ getRawRequest();
 }

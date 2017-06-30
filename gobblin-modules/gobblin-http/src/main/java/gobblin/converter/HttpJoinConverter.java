@@ -47,7 +47,7 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
           .build());
 
   protected HttpClient<RQ, RP> httpClient = null;
-  protected ResponseHandler<RP> responseHandler = null;
+  protected ResponseHandler<RQ, RP> responseHandler = null;
   protected AsyncRequestBuilder<GenericRecord, RQ> requestBuilder = null;
 
   public HttpJoinConverter init(WorkUnitState workUnitState) {
@@ -68,7 +68,7 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
   }
 
   protected abstract HttpClient<RQ, RP>   createHttpClient(Config config, SharedResourcesBroker<GobblinScopeTypes> broker);
-  protected abstract ResponseHandler<RP> createResponseHandler(Config config);
+  protected abstract ResponseHandler<RQ, RP> createResponseHandler(Config config);
   protected abstract AsyncRequestBuilder<GenericRecord, RQ> createRequestBuilder(Config config);
   protected abstract HttpOperation generateHttpOperation (DI inputRecord, State state);
   protected abstract SO convertSchemaImpl (SI inputSchema, WorkUnitState workUnitState) throws SchemaConversionException;
@@ -93,7 +93,7 @@ public abstract class HttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Converte
     try {
       RP response = httpClient.sendRequest(rawRequest);
 
-      ResponseStatus status = responseHandler.handleResponse(response);
+      ResponseStatus status = responseHandler.handleResponse(request, response);
 
 
       switch (status.getType()) {

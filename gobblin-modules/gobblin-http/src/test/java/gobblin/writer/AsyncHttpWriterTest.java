@@ -32,6 +32,7 @@ import gobblin.http.ResponseHandler;
 import gobblin.http.ResponseStatus;
 import gobblin.http.StatusType;
 import gobblin.http.ThrottledHttpClient;
+import gobblin.net.Request;
 import gobblin.util.limiter.RateBasedLimiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
 
@@ -272,12 +273,12 @@ public class AsyncHttpWriterTest {
     }
   }
 
-  class MockResponseHandler implements ResponseHandler<CloseableHttpResponse> {
+  class MockResponseHandler implements ResponseHandler<HttpUriRequest, CloseableHttpResponse> {
     volatile StatusType type = StatusType.OK;
     int attempts = 0;
 
     @Override
-    public ResponseStatus handleResponse(CloseableHttpResponse response) {
+    public ResponseStatus handleResponse(Request<HttpUriRequest> request, CloseableHttpResponse response) {
       attempts++;
       switch (type) {
         case OK:
