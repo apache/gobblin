@@ -69,7 +69,7 @@ public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, R
 
     R2ClientFactory factory = new R2ClientFactory(schema);
     Client client = factory.createInstance(config);
-    return new R2Client(client, getBroker());
+    return new R2Client(client, config, getBroker());
   }
 }
 
