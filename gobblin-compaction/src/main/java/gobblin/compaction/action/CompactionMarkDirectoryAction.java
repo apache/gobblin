@@ -16,10 +16,10 @@ import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 
 
 @Slf4j
@@ -52,8 +52,7 @@ public class CompactionMarkDirectoryAction implements CompactionCompleteAction<F
 
       // submit events if directory is renamed
       if (eventSubmitter != null) {
-        Map<String, String> eventMetadataMap = new HashMap<>();
-        eventMetadataMap.put("datasetUrn", dataset.datasetURN());
+        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN());
         eventMetadataMap.put(CompactionSlaEventHelper.RENAME_DIR_PATHS, Joiner.on(',').join(paths));
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_MARK_DIR_EVENT, eventMetadataMap);
       }

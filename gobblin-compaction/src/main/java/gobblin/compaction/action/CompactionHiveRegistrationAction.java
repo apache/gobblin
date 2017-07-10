@@ -17,11 +17,11 @@ import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 
 
 /**
@@ -53,8 +53,7 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
 
       // submit events for hive registration
       if (eventSubmitter != null) {
-        Map<String, String> eventMetadataMap = new HashMap<>();
-        eventMetadataMap.put("datasetUrn", dataset.datasetURN());
+        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN());
         eventMetadataMap.put(CompactionSlaEventHelper.HIVE_REGISTRATION_PATHS, Joiner.on(',').join(paths));
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_HIVE_REGISTRATION_EVENT, eventMetadataMap);
       }

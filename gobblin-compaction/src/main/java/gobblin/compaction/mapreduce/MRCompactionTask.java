@@ -10,13 +10,13 @@ import gobblin.metrics.event.EventSubmitter;
 import gobblin.runtime.TaskContext;
 import gobblin.runtime.mapreduce.MRTask;
 
-import java.util.HashMap;
 import java.util.List;
 import java.io.IOException;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.mapreduce.Job;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Customized task of type {@link MRTask}, which runs MR job to compact dataset.
@@ -37,7 +37,7 @@ public class MRCompactionTask extends MRTask {
     this.suite = CompactionSuiteUtils.getCompactionSuiteFactory (taskContext.getTaskState()).
             createSuite(taskContext.getTaskState());
     this.dataset = this.suite.load(taskContext.getTaskState());
-    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, "gobblin.MRCompactionTask")
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE)
         .addMetadata(additionalEventMetadata()).build();
   }
 
@@ -82,8 +82,7 @@ public class MRCompactionTask extends MRTask {
   }
 
   private void submitEvent(String eventName) {
-    Map<String, String> eventMetadataMap = new HashMap<>();
-    eventMetadataMap.put("datasetUrn", this.dataset.datasetURN());
+    Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, this.dataset.datasetURN());
     this.eventSubmitter.submit(eventName, eventMetadataMap);
   }
 

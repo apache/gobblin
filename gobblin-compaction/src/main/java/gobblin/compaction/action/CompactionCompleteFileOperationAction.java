@@ -1,5 +1,6 @@
 package gobblin.compaction.action;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import gobblin.compaction.dataset.DatasetHelper;
 import gobblin.compaction.event.CompactionSlaEventHelper;
@@ -24,7 +25,6 @@ import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -111,8 +111,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
 
       // submit events for record count
       if (eventSubmitter != null) {
-        Map<String, String> eventMetadataMap = new HashMap<>();
-        eventMetadataMap.put("datasetUrn", dataset.datasetURN());
+        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN());
         eventMetadataMap.put(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_RECORD_COUNT_EVENT, eventMetadataMap);
       }

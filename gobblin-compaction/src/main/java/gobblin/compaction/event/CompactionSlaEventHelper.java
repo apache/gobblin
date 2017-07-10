@@ -46,6 +46,7 @@ public class CompactionSlaEventHelper {
 
   private static final Logger LOG = LoggerFactory.getLogger(CompactionSlaEventHelper.class);
   public static final String RECOMPATED_METADATA_NAME = "recompacted";
+  public static final String DATASET_URN = "datasetUrn";
   public static final String DATASET_OUTPUT_PATH = "datasetOutputPath";
   public static final String LATE_RECORD_COUNT = "lateRecordCount";
   public static final String REGULAR_RECORD_COUNT = "regularRecordCount";
