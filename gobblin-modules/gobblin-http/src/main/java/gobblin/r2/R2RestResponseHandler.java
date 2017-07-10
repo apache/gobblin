@@ -1,5 +1,6 @@
 package gobblin.r2;
 
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -9,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import gobblin.http.ResponseHandler;
 import gobblin.http.StatusType;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.net.Request;
 import gobblin.utils.HttpUtils;
 
@@ -27,6 +30,7 @@ public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestR
 
   public static final String CONTENT_TYPE_HEADER = "Content-Type";
   private final Set<String> errorCodeWhitelist;
+  MetricContext metricsContext = new MetricContext.Builder("R2ResponseStatus").build();
 
   public R2RestResponseHandler() {
     this(new HashSet<>());
@@ -42,12 +46,15 @@ public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestR
     int statusCode = response.getStatus();
     status.setStatusCode(statusCode);
 
+    EventSubmitter.Builder eventSubmitterBuilder = new EventSubmitter.Builder(metricsContext, this.getClass().getSimpleName());
+
     HttpUtils.updateStatusType(status, statusCode, errorCodeWhitelist);
 
     if (status.getType() == StatusType.OK) {
       status.setContent(response.getEntity());
       status.setContentType(response.getHeader(CONTENT_TYPE_HEADER));
     } else {
+      eventSubmitterBuilder.addMetadata("request", request.toString()).addMetadata("statusCode", String.valueOf(statusCode)).build().submit("R2FailedRequest");
       log.info("Receive an unsuccessful response with status code: " + statusCode);
     }
 
