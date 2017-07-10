@@ -46,16 +46,22 @@ public class CompactionSlaEventHelper {
 
   private static final Logger LOG = LoggerFactory.getLogger(CompactionSlaEventHelper.class);
   public static final String RECOMPATED_METADATA_NAME = "recompacted";
+  public static final String DATASET_URN = "datasetUrn";
   public static final String DATASET_OUTPUT_PATH = "datasetOutputPath";
   public static final String LATE_RECORD_COUNT = "lateRecordCount";
   public static final String REGULAR_RECORD_COUNT = "regularRecordCount";
   public static final String NEED_RECOMPACT = "needRecompact";
+  public static final String RECORD_COUNT_TOTAL = "recordCountTotal";
+  public static final String HIVE_REGISTRATION_PATHS = "hiveRegistrationPaths";
+  public static final String RENAME_DIR_PATHS = "renameDirPaths";
 
   public static final String COMPACTION_COMPLETED_EVENT_NAME = "CompactionCompleted";
   public static final String COMPACTION_FAILED_EVENT_NAME = "CompactionFailed";
   public static final String COMPLETION_VERIFICATION_FAILED_EVENT_NAME = "CompletenessCannotBeVerified";
   public static final String COMPLETION_VERIFICATION_SUCCESS_EVENT_NAME = "CompletenessVerified";
   public static final String COMPACTION_RECORD_COUNT_EVENT = "CompactionRecordCounts";
+  public static final String COMPACTION_HIVE_REGISTRATION_EVENT = "CompactionHiveRegistration";
+  public static final String COMPACTION_MARK_DIR_EVENT = "CompactionMarkDirComplete";
 
   /**
    * Get an {@link SlaEventSubmitterBuilder} that has dataset urn, partition, record count, previous publish timestamp

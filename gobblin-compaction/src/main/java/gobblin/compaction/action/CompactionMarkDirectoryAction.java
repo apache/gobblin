@@ -1,9 +1,12 @@
 package gobblin.compaction.action;
 
+import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
 import gobblin.dataset.FileSystemDataset;
+import gobblin.metrics.event.EventSubmitter;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +16,11 @@ import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Map;
+
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
+
 
 @Slf4j
 @AllArgsConstructor
@@ -20,8 +28,11 @@ public class CompactionMarkDirectoryAction implements CompactionCompleteAction<F
   protected State state;
   private CompactionAvroJobConfigurator configurator;
   private FileSystem fs;
-
+  private EventSubmitter eventSubmitter;
   public CompactionMarkDirectoryAction(State state, CompactionAvroJobConfigurator configurator) {
+    if (!(state instanceof WorkUnitState)) {
+      throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
+    }
     this.state = state;
     this.configurator = configurator;
     this.fs = configurator.getFs();
@@ -38,6 +49,17 @@ public class CompactionMarkDirectoryAction implements CompactionCompleteAction<F
         log.info("[{}] Renaming {} to {}", dataset.datasetURN(), path, newPath);
         fs.rename(path, newPath);
       }
+
+      // submit events if directory is renamed
+      if (eventSubmitter != null) {
+        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(),
+            CompactionSlaEventHelper.RENAME_DIR_PATHS, Joiner.on(',').join(paths));
+        this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_MARK_DIR_EVENT, eventMetadataMap);
+      }
     }
+  }
+
+  public void addEventSubmitter(EventSubmitter submitter) {
+    this.eventSubmitter = submitter;
   }
 }
