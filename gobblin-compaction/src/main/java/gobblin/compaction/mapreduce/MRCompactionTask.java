@@ -1,16 +1,19 @@
 package gobblin.compaction.mapreduce;
 
 import gobblin.compaction.action.CompactionCompleteAction;
+import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.compaction.suite.CompactionSuite;
 import gobblin.compaction.suite.CompactionSuiteUtils;
 import gobblin.compaction.verify.CompactionVerifier;
 import gobblin.dataset.Dataset;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.runtime.TaskContext;
 import gobblin.runtime.mapreduce.MRTask;
 
+import java.util.HashMap;
 import java.util.List;
 import java.io.IOException;
-
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.mapreduce.Job;
@@ -25,7 +28,7 @@ import org.apache.hadoop.mapreduce.Job;
 public class MRCompactionTask extends MRTask {
   protected final CompactionSuite suite;
   protected final Dataset dataset;
-
+  protected final EventSubmitter eventSubmitter;
   /**
    * Constructor
    */
@@ -34,6 +37,8 @@ public class MRCompactionTask extends MRTask {
     this.suite = CompactionSuiteUtils.getCompactionSuiteFactory (taskContext.getTaskState()).
             createSuite(taskContext.getTaskState());
     this.dataset = this.suite.load(taskContext.getTaskState());
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, "gobblin.MRCompactionTask")
+        .addMetadata(additionalEventMetadata()).build();
   }
 
   /**
@@ -48,7 +53,7 @@ public class MRCompactionTask extends MRTask {
     for (CompactionVerifier verifier : verifiers) {
       if (!verifier.verify(dataset)) {
         log.error("Verification {} for {} is not passed.", verifier.getName(), dataset.datasetURN());
-        this.onMRTaskComplete (false, null);
+        this.onMRTaskComplete (false, new IOException("Compaction verification for MR is failed"));
         return;
       }
     }
@@ -61,15 +66,25 @@ public class MRCompactionTask extends MRTask {
       try {
         List<CompactionCompleteAction> actions = this.suite.getCompactionCompleteActions();
         for (CompactionCompleteAction action: actions) {
+          action.addEventSubmitter(eventSubmitter);
           action.onCompactionJobComplete(dataset);
         }
+        submitEvent(CompactionSlaEventHelper.COMPACTION_COMPLETED_EVENT_NAME);
         super.onMRTaskComplete(true, null);
       } catch (IOException e) {
+        submitEvent(CompactionSlaEventHelper.COMPACTION_FAILED_EVENT_NAME);
         super.onMRTaskComplete(false, e);
       }
     } else {
+      submitEvent(CompactionSlaEventHelper.COMPACTION_FAILED_EVENT_NAME);
       super.onMRTaskComplete(false, throwable);
     }
+  }
+
+  private void submitEvent(String eventName) {
+    Map<String, String> eventMetadataMap = new HashMap<>();
+    eventMetadataMap.put("datasetUrn", this.dataset.datasetURN());
+    this.eventSubmitter.submit(eventName, eventMetadataMap);
   }
 
   /**
