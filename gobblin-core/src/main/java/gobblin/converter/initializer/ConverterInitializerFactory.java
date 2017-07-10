@@ -17,6 +17,7 @@
 
 package gobblin.converter.initializer;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
@@ -25,13 +26,14 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.converter.jdbc.AvroToJdbcEntryConverter;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.commands.JdbcWriterCommandsFactory;
 import gobblin.source.workunit.WorkUnitStream;
 
 
 public class ConverterInitializerFactory {
+  private static final String GET_INITIALIZER_METHOD = "getInitializer";
+  private static final Class<?> GET_INITIALIZER_PARAMS[] = { State.class, WorkUnitStream.class, int.class, int.class };
+
   private static final NoopConverterInitializer NOOP = new NoopConverterInitializer();
   private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().omitEmptyStrings();
 
@@ -68,15 +70,27 @@ public class ConverterInitializerFactory {
     }
 
     List<ConverterInitializer> cis = Lists.newArrayList();
-    JdbcWriterCommandsFactory factory = new JdbcWriterCommandsFactory();
     for (String converterClass : converterClasses) {
-      if (AvroToJdbcEntryConverter.class.getName().equals(converterClass)) {
-        if (workUnits.isSafeToMaterialize()) {
-          cis.add(new AvroToJdbcEntryConverterInitializer(state, workUnits.getMaterializedWorkUnitCollection(),
-              factory, branches, branchId));
-        } else {
-          throw new RuntimeException(AvroToJdbcEntryConverter.class.getName() + " does not support work unit streams.");
-        }
+      Class<?> klazz;
+      try {
+        klazz = Class.forName(converterClass);
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException(e);
+      }
+
+      Method method;
+      try {
+        method = klazz.getMethod(GET_INITIALIZER_METHOD, GET_INITIALIZER_PARAMS);
+      } catch (NoSuchMethodException e) {
+        // Skip
+        continue;
+      }
+
+      try {
+        Object initializer = method.invoke(klazz.newInstance(), state, workUnits, branches, branchId);
+        cis.add((ConverterInitializer)initializer);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
     }
     return new MultiConverterInitializer(cis);

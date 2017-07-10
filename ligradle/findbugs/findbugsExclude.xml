@@ -46,7 +46,7 @@
   </Match>
   <!-- Ignored until https://github.com/linkedin/gobblin/issues/976 has been resolved -->
   <Match>
-    <Class name="gobblin.source.extractor.extract.jdbc.JdbcExtractor" />
+    <Class name="gobblin.source.jdbc.JdbcExtractor" />
     <Bug pattern="OBL_UNSATISFIED_OBLIGATION,ODR_OPEN_DATABASE_RESOURCE" />
   </Match>
 </FindBugsFilter>

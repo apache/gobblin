@@ -21,9 +21,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.source.workunit.WorkUnitStream;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.JdbcWriterBuilder;
-import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
@@ -33,6 +32,9 @@ import com.google.common.collect.Lists;
  * Factory method pattern class provides WriterInitializer based on writer and state.
  */
 public class WriterInitializerFactory {
+  private static final String GET_INITIALIZER_METHOD = "getInitializer";
+  private static final Class<?> GET_INITIALIZER_PARAMS[] = { State.class, WorkUnitStream.class, int.class, int.class };
+
   private static final NoopWriterInitializer NOOP = new NoopWriterInitializer();
 
   /**
@@ -61,14 +63,25 @@ public class WriterInitializerFactory {
     String writerBuilderKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, branchId);
     String writerBuilderClass = state.getProp(writerBuilderKey, ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS);
 
-    if(JdbcWriterBuilder.class.getName().equals(writerBuilderClass)) {
-      if (workUnits.isSafeToMaterialize()) {
-        return new JdbcWriterInitializer(state, workUnits.getMaterializedWorkUnitCollection(),
-            new JdbcWriterCommandsFactory(), branches, branchId);
-      } else {
-        throw new RuntimeException(JdbcWriterBuilder.class.getName() + " does not support work unit streams.");
-      }
+    Class<?> klazz;
+    try {
+      klazz = Class.forName(writerBuilderClass);
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(e);
     }
-    return NOOP;
+
+    Method method;
+    try {
+      method = klazz.getMethod(GET_INITIALIZER_METHOD, GET_INITIALIZER_PARAMS);
+    } catch (NoSuchMethodException e) {
+      return NOOP;
+    }
+
+    try {
+      Object initializer = method.invoke(klazz.newInstance(), state, workUnits, branches, branchId);
+      return (WriterInitializer) initializer;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
