@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.restli;
+package gobblin.r2;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import com.linkedin.common.callback.Callbacks;
 import com.linkedin.common.util.None;
+import com.linkedin.r2.message.rest.RestException;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.async.Callback;
@@ -37,7 +37,7 @@ public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
   private final Client client;
 
   public R2Client(Client client, SharedResourcesBroker broker) {
-    super (broker, getLimiterKey());
+    super(broker, getLimiterKey());
     this.client = client;
   }
 
@@ -49,7 +49,13 @@ public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
     try {
       response = responseFuture.get();
     } catch (InterruptedException | ExecutionException e) {
-      throw new IOException(e);
+      // The service may choose to throw an exception as a way to report error
+      Throwable t = e.getCause();
+      if (t != null && t instanceof RestException) {
+        response = ((RestException) t).getResponse();
+      } else {
+        throw new IOException(e);
+      }
     }
     return response;
   }

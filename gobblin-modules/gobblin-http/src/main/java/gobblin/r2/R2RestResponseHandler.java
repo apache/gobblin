@@ -1,13 +1,15 @@
-package gobblin.restli;
+package gobblin.r2;
 
 import java.util.HashSet;
 import java.util.Set;
 
+import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.http.ResponseHandler;
 import gobblin.http.StatusType;
+import gobblin.net.Request;
 import gobblin.utils.HttpUtils;
 
 
@@ -21,7 +23,7 @@ import gobblin.utils.HttpUtils;
  * </p>
  */
 @Slf4j
-public class R2RestResponseHandler implements ResponseHandler<RestResponse> {
+public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestResponse> {
 
   public static final String CONTENT_TYPE_HEADER = "Content-Type";
   private final Set<String> errorCodeWhitelist;
@@ -35,7 +37,7 @@ public class R2RestResponseHandler implements ResponseHandler<RestResponse> {
   }
 
   @Override
-  public R2ResponseStatus handleResponse(RestResponse response) {
+  public R2ResponseStatus handleResponse(Request<RestRequest> request, RestResponse response) {
     R2ResponseStatus status = new R2ResponseStatus(StatusType.OK);
     int statusCode = response.getStatus();
     status.setStatusCode(statusCode);

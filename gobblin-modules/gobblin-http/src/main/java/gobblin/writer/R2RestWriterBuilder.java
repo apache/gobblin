@@ -29,9 +29,9 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.r2.R2ClientFactory;
-import gobblin.restli.R2Client;
-import gobblin.restli.R2RestRequestBuilder;
-import gobblin.restli.R2RestResponseHandler;
+import gobblin.r2.R2Client;
+import gobblin.r2.R2RestRequestBuilder;
+import gobblin.r2.R2RestResponseHandler;
 import gobblin.utils.HttpConstants;
 import gobblin.utils.HttpUtils;
 
