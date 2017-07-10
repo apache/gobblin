@@ -52,8 +52,8 @@ public class CompactionMarkDirectoryAction implements CompactionCompleteAction<F
 
       // submit events if directory is renamed
       if (eventSubmitter != null) {
-        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN());
-        eventMetadataMap.put(CompactionSlaEventHelper.RENAME_DIR_PATHS, Joiner.on(',').join(paths));
+        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(),
+            CompactionSlaEventHelper.RENAME_DIR_PATHS, Joiner.on(',').join(paths));
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_MARK_DIR_EVENT, eventMetadataMap);
       }
     }

@@ -111,8 +111,8 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
 
       // submit events for record count
       if (eventSubmitter != null) {
-        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN());
-        eventMetadataMap.put(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
+        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(),
+            CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_RECORD_COUNT_EVENT, eventMetadataMap);
       }
 
