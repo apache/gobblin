@@ -17,7 +17,6 @@
 
 package gobblin.converter.initializer;
 
-import java.lang.reflect.Method;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
@@ -26,14 +25,12 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.converter.Converter;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.source.workunit.WorkUnitStream;
 
 
 public class ConverterInitializerFactory {
-  private static final String GET_INITIALIZER_METHOD = "getInitializer";
-  private static final Class<?> GET_INITIALIZER_PARAMS[] = { State.class, WorkUnitStream.class, int.class, int.class };
-
   private static final NoopConverterInitializer NOOP = new NoopConverterInitializer();
   private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().omitEmptyStrings();
 
@@ -71,26 +68,16 @@ public class ConverterInitializerFactory {
 
     List<ConverterInitializer> cis = Lists.newArrayList();
     for (String converterClass : converterClasses) {
-      Class<?> klazz;
+      Converter converter;
       try {
-        klazz = Class.forName(converterClass);
-      } catch (ClassNotFoundException e) {
-        throw new RuntimeException(e);
-      }
-
-      Method method;
-      try {
-        method = klazz.getMethod(GET_INITIALIZER_METHOD, GET_INITIALIZER_PARAMS);
-      } catch (NoSuchMethodException e) {
-        // Skip
-        continue;
-      }
-
-      try {
-        Object initializer = method.invoke(klazz.newInstance(), state, workUnits, branches, branchId);
-        cis.add((ConverterInitializer)initializer);
+        converter = (Converter) Class.forName(converterClass).newInstance();
       } catch (Exception e) {
         throw new RuntimeException(e);
+      }
+
+      ConverterInitializer initializer = converter.getInitializer(state, workUnits, branches, branchId);
+      if (initializer != null) {
+        cis.add(initializer);
       }
     }
     return new MultiConverterInitializer(cis);

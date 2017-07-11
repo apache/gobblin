@@ -15,36 +15,35 @@
  * limitations under the License.
  */
 
-package gobblin.source.jdbc;
+package gobblin.source.extractor.extract.jdbc;
 
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.exception.ExtractPrepareException;
 import java.io.IOException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.extract.QueryBasedSource;
+import gobblin.source.extractor.exception.ExtractPrepareException;
+import gobblin.source.jdbc.TeradataExtractor;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.QueryBasedSource;
-
 
 /**
- * An implementation of sqlserver source to get work units
+ * An implementation of Teradata source to get work units
  *
- * @author nveeramr
+ * @author ypopov
  */
-public class SqlServerSource extends QueryBasedSource<JsonArray, JsonElement> {
-  private static final Logger LOG = LoggerFactory.getLogger(SqlServerSource.class);
+@Slf4j
+public class TeradataSource extends QueryBasedSource<JsonArray, JsonElement> {
 
-  @Override
-  public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
+  public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state)
+      throws IOException {
     Extractor<JsonArray, JsonElement> extractor = null;
     try {
-      extractor = new SqlServerExtractor(state).build();
+      extractor = new TeradataExtractor(state).build();
     } catch (ExtractPrepareException e) {
-      LOG.error("Failed to prepare extractor: error - " + e.getMessage());
+      log.error("Failed to prepare extractor: error - {}", e.getMessage());
       throw new IOException(e);
     }
     return extractor;

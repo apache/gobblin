@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.jdbc;
+package gobblin.source.extractor.extract.jdbc;
 
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.exception.ExtractPrepareException;
@@ -28,6 +28,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.extract.QueryBasedSource;
+import gobblin.source.jdbc.OracleExtractor;
 
 
 /**

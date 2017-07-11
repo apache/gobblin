@@ -22,9 +22,11 @@ import java.io.IOException;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.initializer.ConverterInitializer;
 import gobblin.records.RecordStreamProcessor;
 import gobblin.records.RecordStreamWithMetadata;
 import gobblin.source.extractor.RecordEnvelope;
+import gobblin.source.workunit.WorkUnitStream;
 import gobblin.util.FinalState;
 
 import io.reactivex.Flowable;
@@ -120,5 +122,9 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
             .map(in::withRecord), 1);
     outputStream = outputStream.doOnComplete(this::close);
     return inputStream.withRecordStream(outputStream, outputSchema);
+  }
+
+  public ConverterInitializer getInitializer(State state, WorkUnitStream workUnits, int branches, int branchId) {
+    return null;
   }
 }

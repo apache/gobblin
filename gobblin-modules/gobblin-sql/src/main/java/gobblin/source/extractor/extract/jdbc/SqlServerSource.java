@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.jdbc;
+package gobblin.source.extractor.extract.jdbc;
 
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.exception.ExtractPrepareException;
@@ -28,21 +28,22 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.extract.QueryBasedSource;
+import gobblin.source.jdbc.SqlServerExtractor;
 
 
 /**
- * An implementation of mysql source to get work units
+ * An implementation of sqlserver source to get work units
  *
  * @author nveeramr
  */
-public class MysqlSource extends QueryBasedSource<JsonArray, JsonElement> {
-  private static final Logger LOG = LoggerFactory.getLogger(MysqlSource.class);
+public class SqlServerSource extends QueryBasedSource<JsonArray, JsonElement> {
+  private static final Logger LOG = LoggerFactory.getLogger(SqlServerSource.class);
 
   @Override
   public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
     Extractor<JsonArray, JsonElement> extractor = null;
     try {
-      extractor = new MysqlExtractor(state).build();
+      extractor = new SqlServerExtractor(state).build();
     } catch (ExtractPrepareException e) {
       LOG.error("Failed to prepare extractor: error - " + e.getMessage());
       throw new IOException(e);
