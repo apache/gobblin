@@ -16,6 +16,8 @@
  */
 
 package gobblin.compaction.source;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
@@ -24,6 +26,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.typesafe.config.ConfigFactory;
+
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.suite.CompactionSuiteUtils;
 import gobblin.data.management.dataset.DatasetUtils;
@@ -35,6 +39,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.dataset.SimpleDatasetHierarchicalPrioritizer;
 import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
 import gobblin.runtime.JobState;
@@ -50,6 +55,16 @@ import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.executors.IteratorExecutor;
+import gobblin.util.request_allocation.AllocatedRequestsIterator;
+import gobblin.util.request_allocation.HierarchicalAllocator;
+import gobblin.util.request_allocation.RequestAllocator;
+import gobblin.util.request_allocation.RequestAllocatorConfig;
+import gobblin.util.request_allocation.Requestor;
+import gobblin.data.management.dataset.SimpleDatasetRequest;
+import gobblin.data.management.dataset.SimpleDatasetRequestor;
+import gobblin.util.request_allocation.ResourcePool;
+
+import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -79,6 +94,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   private CompactionSuite suite;
   private Path tmpJobDir;
   private FileSystem fs;
+  private RequestAllocator<SimpleDatasetRequest> allocator;
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -91,6 +107,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       fs = getSourceFileSystem(state);
       suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
 
+      initAllocator(state);
       initJobDir(state);
       copyJarDependencies(state);
       DatasetsFinder finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
@@ -101,7 +118,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       CompactionWorkUnitIterator workUnitIterator = new CompactionWorkUnitIterator ();
 
       // Spawn a single thread to create work units
-      new Thread(new SingleWorkUnitGeneratorService (state, datasets, workUnitIterator)).start();
+      new Thread(new SingleWorkUnitGeneratorService (state, prioritize(datasets, state), workUnitIterator), "SingleWorkUnitGeneratorService").start();
       return new BasicWorkUnitStream.Builder (workUnitIterator).build();
 
     } catch (IOException e) {
@@ -168,7 +185,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
             }
           }
 
-          this.datasets = failedDatasets;
+          this.datasets = prioritize(failedDatasets, state);
           if (stopwatch.elapsed(TimeUnit.MINUTES) > timeOutInMinute) {
             break;
           }
@@ -190,6 +207,42 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       }
 
     }
+  }
+
+  private void initAllocator (State state) {
+    try{
+      Comparator<SimpleDatasetRequest> prioritizer = new SimpleDatasetHierarchicalPrioritizer(state);
+
+      RequestAllocatorConfig.Builder<SimpleDatasetRequest> configBuilder =
+          RequestAllocatorConfig.builder(new SimpleDatasetRequest.SimpleDatasetRequestEstimator()).allowParallelization(1)
+              .withLimitedScopeConfig(ConfigFactory.empty());
+
+        configBuilder.withPrioritizer(prioritizer);
+
+      allocator = new HierarchicalAllocator.Factory().createRequestAllocator(configBuilder.build());
+    } catch (Exception e) {
+      throw new RuntimeException("Cannot initialize allocator");
+    }
+  }
+
+  private List<Dataset> prioritize (List<Dataset> datasets, State state) {
+    double maxPool = state.getPropAsDouble(MRCompactor.COMPACTION_DATASETS_MAX_COUNT, MRCompactor.DEFUALT_COMPACTION_DATASETS_MAX_COUNT);
+    ResourcePool pool = ResourcePool.builder().maxResource(SimpleDatasetRequest.SIMPLE_DATASET_COUNT_DIMENSION, maxPool).build();
+
+    List<Dataset> newList = new ArrayList<>();
+    AllocatedRequestsIterator<SimpleDatasetRequest> allocatedRequests = this.allocator.allocateRequests(Iterators.transform(datasets.iterator(), new Function<Dataset, Requestor<SimpleDatasetRequest>>() {
+      @Nullable
+      @Override
+      public SimpleDatasetRequestor apply(@Nullable Dataset input) {
+        return new SimpleDatasetRequestor(input);
+      }
+    }), pool);
+
+    while(allocatedRequests.hasNext()) {
+      SimpleDatasetRequest request = allocatedRequests.next();
+      newList.add(request.getDataset());
+    }
+    return newList;
   }
 
   private static class DatasetVerificationException extends Exception {

@@ -1,14 +1,33 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.compaction.mapreduce;
 
 import com.google.common.io.Files;
 import gobblin.compaction.audit.AuditCountClientFactory;
 import gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import gobblin.compaction.source.CompactionSource;
+import gobblin.data.management.dataset.SimpleDatasetHierarchicalPrioritizer;
 import gobblin.compaction.suite.TestCompactionSuiteFactories;
 import gobblin.compaction.verify.CompactionAuditCountVerifier;
 import gobblin.compaction.verify.CompactionVerifier;
 import gobblin.compaction.verify.InputRecordCountHelper;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
 import gobblin.runtime.api.JobExecutionResult;
 import gobblin.runtime.embedded.EmbeddedGobblin;
@@ -157,7 +176,8 @@ public class MRCompactionTaskTest {
             .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/" + name)
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d")
-            .setConfiguration(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
+            .setConfiguration(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0")
+        .setConfiguration(CopyConfiguration.PRIORITIZER_ALIAS_KEY, "SimpleTiers");
 
   }
 
@@ -173,6 +193,13 @@ public class MRCompactionTaskTest {
   private EmbeddedGobblin createEmbeddedGobblinForHiveRegistrationFailure (String name, String basePath) {
     return createEmbeddedGobblin(name, basePath)
         .setConfiguration(ConfigurationKeys.COMPACTION_SUITE_FACTORY, "HiveRegistrationFailureFactory");
+  }
+
+  private EmbeddedGobblin createEmbeddedGobblinWithPriority (String name, String basePath) {
+    return createEmbeddedGobblin(name, basePath)
+        .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".0", "Identity")
+        .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".1", "EVG")
+        .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".2", "BizProfile");
   }
 
    @Test
@@ -237,5 +264,38 @@ public class MRCompactionTaskTest {
     JobExecutionResult result = embeddedGobblin.run();
 
     Assert.assertFalse(result.isSuccessful());
+  }
+
+  @Test
+  public void testPrioritization () throws Exception {
+    File basePath = Files.createTempDir();
+    basePath.deleteOnExit();
+    GenericRecord r1 = createRandomRecord();
+    // verify 24 hours
+    for (int i = 1; i < 3; ++i) {
+      String path = "Identity/MemberAccount/minutely/2017/04/03/" + i + "/20_30/run_2017-04-03-10-20";
+      File jobDir = new File(basePath, path);
+      Assert.assertTrue(jobDir.mkdirs());
+      writeFileWithContent(jobDir, "file_random", r1, 20);
+    }
+
+    for (int i = 1; i < 3; ++i) {
+      String path = "EVG/People/minutely/2017/04/03/" + i + "/20_30/run_2017-04-03-10-20";
+      File jobDir = new File(basePath, path);
+      Assert.assertTrue(jobDir.mkdirs());
+      writeFileWithContent(jobDir, "file_random", r1, 20);
+    }
+
+    for (int i = 1; i < 3; ++i) {
+      String path = "BizProfile/BizCompany/minutely/2017/04/03/" + i + "/20_30/run_2017-04-03-10-20";
+      File jobDir = new File(basePath, path);
+      Assert.assertTrue(jobDir.mkdirs());
+      writeFileWithContent(jobDir, "file_random", r1, 20);
+    }
+
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblinWithPriority("workunit_stream_priority", basePath.getAbsolutePath().toString());
+    JobExecutionResult result = embeddedGobblin.run();
+
+    Assert.assertTrue(result.isSuccessful());
   }
 }
