@@ -22,33 +22,33 @@ import java.util.Map;
 
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 
 public class JsonCredentialStoreTest {
-  @Test
-  public void canLoadKeystore() throws IOException {
-    Path ksPath = new Path(getClass().getResource("/crypto/test_json_keystore.json").toString());
-    JsonCredentialStore credentialStore = new JsonCredentialStore(ksPath);
+  private static final byte[] KEY1_EXPECTED_VAL = new byte[] { 2, 79, 74, 11, 93, -118, 15, 29, -97, -78, 64, -7, -89, 74, 63, -119 };
+
+  @DataProvider(name="codecInfo")
+  public static Object[][] codecInfo() {
+    return new Object[][] {
+        { HexKeyToStringCodec.TAG, new HexKeyToStringCodec() },
+        { Base64KeyToStringCodec.TAG, new Base64KeyToStringCodec() }
+    };
+  }
+
+  @Test(dataProvider = "codecInfo")
+  public void canLoadKeystore(String codecType, KeyToStringCodec codec) throws IOException {
+    Path ksPath = new Path(getClass().getResource("/crypto/test_json_keystore." + codecType + ".json").toString());
+    JsonCredentialStore credentialStore = new JsonCredentialStore(ksPath, codec);
 
     Map<String, byte[]> allKeys = credentialStore.getAllEncodedKeys();
     Assert.assertEquals(allKeys.size(), 29);
+    Assert.assertEquals(credentialStore.getEncodedKey("0001"), KEY1_EXPECTED_VAL);
+
     for (Map.Entry<String, byte[]> key : allKeys.entrySet()) {
       Assert.assertEquals(credentialStore.getEncodedKey(key.getKey()), key.getValue());
       Assert.assertEquals(key.getValue().length, 16);
     }
-  }
-
-  @Test
-  public void canBuildKeystore() {
-    Path ksPath = new Path(getClass().getResource("/crypto/test_json_keystore.json").toString());
-    String type = JsonCredentialStore.TAG;
-
-    Map<String, Object> properties = new HashMap<>();
-    properties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, ksPath.toString());
-    properties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_TYPE_KEY, type);
-    properties.put(EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "insecure_shift");
-
-    Assert.assertNotNull(EncryptionFactory.buildStreamCryptoProvider(properties));
   }
 }

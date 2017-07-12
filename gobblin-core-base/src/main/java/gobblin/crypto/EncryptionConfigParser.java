@@ -36,10 +36,19 @@ import gobblin.util.ForkOperatorUtils;
 @Slf4j
 public class EncryptionConfigParser {
   /**
-   * Encryption parameters for converters
+   * Encryption parameters for converters and writers.
    *  Algorithm: Encryption algorithm. Can be 'any' to let the system choose one.
-   *  keystore_path: Location for the java keystore where encryption keys can be found
-   *  keystore_password: Password the keystore is encrypted with
+   *
+   *  Keystore parameters:
+   *   keystore_type: Type of keystore to build. Gobblin supports 'java' (a JCEKSKeystoreCredenetialStore)
+   *                  and 'json' (a JSONCredentialStore).
+   *   keystore_path: Location for the java keystore where encryption keys can be found
+   *   keystore_password: Password the keystore is encrypted with
+   *   keystore_encoding: Encoding of the key value in a file. Could be 'hex', 'base64', or
+   *                      other implementation defined values.
+   *
+   *   Note that some of these parameters may be optional depending on the type of keystore -- for example,
+   *   a java keystore does not look at the encoding parameter.
    */
   static final String WRITER_ENCRYPT_PREFIX = ConfigurationKeys.WRITER_PREFIX + ".encrypt";
   static final String CONVERTER_ENCRYPT_PREFIX = "converter.encrypt";
@@ -52,7 +61,11 @@ public class EncryptionConfigParser {
   public static final String ENCRYPTION_KEYSTORE_TYPE_KEY = "keystore_type";
   public static final String ENCRYPTION_KEYSTORE_TYPE_KEY_DEFAULT = "java";
 
+  public static final String ENCRYPTION_KEYSTORE_ENCODING_KEY = "keystore_encoding";
+  public static final String ENCRYPTION_KEYSTORE_ENCODING_DEFAULT = "hex";
+
   public static final String ENCRYPTION_TYPE_ANY = "any";
+
 
   /**
    * Represents the entity we are trying to retrieve configuration for. Internally this
@@ -178,6 +191,10 @@ public class EncryptionConfigParser {
 
   public static String getKeyName(Map<String, Object> parameters) {
     return (String)parameters.get(ENCRYPTION_KEY_NAME);
+  }
+
+  public static String getKeystoreEncoding(Map<String, Object> parameters) {
+    return (String)parameters.getOrDefault(ENCRYPTION_KEYSTORE_ENCODING_KEY, ENCRYPTION_KEYSTORE_ENCODING_DEFAULT);
   }
 
   /**
