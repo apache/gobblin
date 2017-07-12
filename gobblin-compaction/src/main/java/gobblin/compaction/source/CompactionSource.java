@@ -108,7 +108,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       fs = getSourceFileSystem(state);
       suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
 
-      initAllocator(state);
+      initRequestAllocator(state);
       initJobDir(state);
       copyJarDependencies(state);
       DatasetsFinder finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
@@ -210,7 +210,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     }
   }
 
-  private void initAllocator (State state) {
+  private void initRequestAllocator (State state) {
     try {
       ResourceEstimator estimator = GobblinConstructorUtils.<ResourceEstimator>invokeLongestConstructor(
           new ClassAliasResolver(ResourceEstimator.class).resolveClass(state.getProp(ConfigurationKeys.COMPACTION_ESTIMATOR, ConfigurationKeys.DEFAULT_COMPACTION_ESTIMATOR)));
@@ -234,8 +234,10 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       } else {
         allocator = RequestAllocatorUtils.inferFromConfig(configBuilder.build());
       }
+    } catch (RuntimeException e) {
+      throw e;
     } catch (Exception e) {
-      throw new RuntimeException("Cannot initialize allocator");
+      throw new RuntimeException("Cannot initialize allocator", e);
     }
   }
 
