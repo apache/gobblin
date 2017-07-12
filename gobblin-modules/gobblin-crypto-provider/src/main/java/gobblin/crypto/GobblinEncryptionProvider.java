@@ -130,7 +130,7 @@ public class GobblinEncryptionProvider implements CredentialStoreProvider, Encry
       case Base64KeyToStringCodec.TAG:
         return new Base64KeyToStringCodec();
       default:
-        throw new IllegalArgumentException("Don't know how to build hex to string codec for type " + encodingName);
+        throw new IllegalArgumentException("Don't know how to build key to string codec for type " + encodingName);
     }
   }
 
