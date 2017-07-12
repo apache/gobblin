@@ -95,6 +95,11 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   public static final String JOB_LEVEL_BLACKLIST = CopyConfiguration.COPY_PREFIX + ".configBased.blacklist" ;
   public static final String JOB_LEVEL_WHITELIST = CopyConfiguration.COPY_PREFIX + ".configBased.whitelist" ;
 
+  // There are some cases that WATERMARK checking is desired, like
+  // Unexpected data loss on target while not changing watermark accordingly.
+  // This configuration make WATERMARK checking configurable for operation convenience, default true
+  public static final String WATERMARK_ENABLE = CopyConfiguration.COPY_PREFIX + ".configBased.watermark.enabled" ;
+
 
   protected final String storeRoot;
   protected final Path commonRoot;
