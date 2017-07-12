@@ -78,9 +78,10 @@ public class LiAvroDeserializerBase {
    *
    * @param topic topic associated with the data
    * @param data serialized bytes
+   * @param outputSchema the schema to deserialize to. If null then the record schema is used.
    * @return deserialized object
    */
-  public GenericRecord deserialize(String topic, byte[] data)
+  public GenericRecord deserialize(String topic, byte[] data, Schema outputSchema)
       throws SerializationException {
     try {
       // MAGIC_BYTE | schemaId-bytes | avro_payload
@@ -92,6 +93,7 @@ public class LiAvroDeserializerBase {
       Schema schema = _schemaRegistry.getById(schemaId);
       Decoder decoder = DecoderFactory.get().binaryDecoder(data, 1 + MD5Digest.MD5_BYTES_LENGTH,
           data.length - MD5Digest.MD5_BYTES_LENGTH - 1, null);
+      _datumReader.setExpected(outputSchema);
       _datumReader.setSchema(schema);
       try {
         GenericRecord record = _datumReader.read(null, decoder);
@@ -103,6 +105,17 @@ public class LiAvroDeserializerBase {
     } catch (IOException | SchemaRegistryException e) {
       throw new SerializationException("Error during Deserialization", e);
     }
+  }
+
+  /**
+   *
+   * @param topic topic associated with the data
+   * @param data serialized bytes
+   * @return deserialized object
+   */
+  public GenericRecord deserialize(String topic, byte[] data)
+          throws SerializationException {
+    return deserialize(topic, data, null);
   }
 
   public void close() {

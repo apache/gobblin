@@ -42,10 +42,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class LiKafkaByteArrayMsgToAvroConverter<S> extends ToAvroConverterBase<S, byte[]> {
   KafkaSchemaRegistry schemaRegistry;
+  LiAvroDeserializerBase deserializer;
 
   @Override
   public Converter<S, Schema, byte[], GenericRecord> init(WorkUnitState workUnit) {
     this.schemaRegistry = KafkaSchemaRegistryFactory.getSchemaRegistry(workUnit.getProperties());
+    this.deserializer = new LiAvroDeserializerBase(this.schemaRegistry);
     return this;
   }
 
@@ -66,7 +68,7 @@ public class LiKafkaByteArrayMsgToAvroConverter<S> extends ToAvroConverterBase<S
       throws DataConversionException {
     try {
       String topic = workUnit.getProp(KafkaSource.TOPIC_NAME);
-      GenericRecord record = new LiAvroDeserializerBase(schemaRegistry).deserialize(topic, inputRecord);
+      GenericRecord record = this.deserializer.deserialize(topic, inputRecord, outputSchema);
       return new SingleRecordIterable<>(record);
     } catch (SerializationException e) {
       log.error("Cannot decode one record.", e);
