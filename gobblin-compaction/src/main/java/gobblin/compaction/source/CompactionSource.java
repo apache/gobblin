@@ -16,6 +16,7 @@
  */
 
 package gobblin.compaction.source;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
@@ -24,8 +25,10 @@ import com.google.common.base.Optional;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.suite.CompactionSuiteUtils;
+import gobblin.config.ConfigBuilder;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
 import gobblin.compaction.suite.CompactionSuite;
@@ -46,10 +49,23 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.BasicWorkUnitStream;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.source.workunit.WorkUnitStream;
+import gobblin.util.ClassAliasResolver;
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.executors.IteratorExecutor;
+import gobblin.util.reflection.GobblinConstructorUtils;
+import gobblin.util.request_allocation.GreedyAllocator;
+import gobblin.util.request_allocation.HierarchicalAllocator;
+import gobblin.util.request_allocation.HierarchicalPrioritizer;
+import gobblin.util.request_allocation.RequestAllocator;
+import gobblin.util.request_allocation.RequestAllocatorConfig;
+import gobblin.util.request_allocation.RequestAllocatorUtils;
+import gobblin.data.management.dataset.SimpleDatasetRequest;
+import gobblin.data.management.dataset.SimpleDatasetRequestor;
+import gobblin.util.request_allocation.ResourceEstimator;
+import gobblin.util.request_allocation.ResourcePool;
+
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -79,6 +95,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   private CompactionSuite suite;
   private Path tmpJobDir;
   private FileSystem fs;
+  private RequestAllocator<SimpleDatasetRequest> allocator;
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -91,6 +108,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       fs = getSourceFileSystem(state);
       suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
 
+      initRequestAllocator(state);
       initJobDir(state);
       copyJarDependencies(state);
       DatasetsFinder finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
@@ -101,7 +119,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       CompactionWorkUnitIterator workUnitIterator = new CompactionWorkUnitIterator ();
 
       // Spawn a single thread to create work units
-      new Thread(new SingleWorkUnitGeneratorService (state, datasets, workUnitIterator)).start();
+      new Thread(new SingleWorkUnitGeneratorService (state, prioritize(datasets, state), workUnitIterator), "SingleWorkUnitGeneratorService").start();
       return new BasicWorkUnitStream.Builder (workUnitIterator).build();
 
     } catch (IOException e) {
@@ -168,7 +186,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
             }
           }
 
-          this.datasets = failedDatasets;
+          this.datasets = prioritize(failedDatasets, state);
           if (stopwatch.elapsed(TimeUnit.MINUTES) > timeOutInMinute) {
             break;
           }
@@ -190,6 +208,47 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       }
 
     }
+  }
+
+  private void initRequestAllocator (State state) {
+    try {
+      ResourceEstimator estimator = GobblinConstructorUtils.<ResourceEstimator>invokeLongestConstructor(
+          new ClassAliasResolver(ResourceEstimator.class).resolveClass(state.getProp(ConfigurationKeys.COMPACTION_ESTIMATOR,
+              SimpleDatasetRequest.SimpleDatasetCountEstimator.class.getName())));
+
+      RequestAllocatorConfig.Builder<SimpleDatasetRequest> configBuilder =
+          RequestAllocatorConfig.builder(estimator).allowParallelization(1).withLimitedScopeConfig(ConfigBuilder.create()
+              .loadProps(state.getProperties(), ConfigurationKeys.COMPACTION_PRIORITIZATION_PREFIX).build());
+
+      if (!state.contains(ConfigurationKeys.COMPACTION_PRIORITIZER_ALIAS)) {
+        allocator = new GreedyAllocator<>(configBuilder.build());
+        return;
+      }
+
+      Comparator<SimpleDatasetRequest> prioritizer = GobblinConstructorUtils.<Comparator>invokeLongestConstructor(
+          new ClassAliasResolver(Comparator.class).resolveClass(state.getProp(ConfigurationKeys.COMPACTION_PRIORITIZER_ALIAS)), state);
+
+      configBuilder.withPrioritizer(prioritizer);
+
+      if (prioritizer instanceof HierarchicalPrioritizer) {
+        allocator = new HierarchicalAllocator.Factory().createRequestAllocator(configBuilder.build());
+      } else {
+        allocator = RequestAllocatorUtils.inferFromConfig(configBuilder.build());
+      }
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Cannot initialize allocator", e);
+    }
+  }
+
+  private List<Dataset> prioritize (List<Dataset> datasets, State state) {
+    double maxPool = state.getPropAsDouble(MRCompactor.COMPACTION_DATASETS_MAX_COUNT, MRCompactor.DEFUALT_COMPACTION_DATASETS_MAX_COUNT);
+    ResourcePool pool = ResourcePool.builder().maxResource(SimpleDatasetRequest.SIMPLE_DATASET_COUNT_DIMENSION, maxPool).build();
+
+    Iterator<Dataset> newList = Iterators.transform(
+        this.allocator.allocateRequests(datasets.stream().map(SimpleDatasetRequestor::new).iterator(), pool), (input) -> input.getDataset());
+    return Lists.newArrayList(newList);
   }
 
   private static class DatasetVerificationException extends Exception {

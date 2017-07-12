@@ -142,6 +142,8 @@ public class MRCompactor implements Compactor {
   public static final String COMPACTION_DATASETS_FINDER = COMPACTION_PREFIX + "datasets.finder";
   public static final String DEFAULT_COMPACTION_DATASETS_FINDER = TimeBasedSubDirDatasetsFinder.class.getName();
 
+  public static final String COMPACTION_DATASETS_MAX_COUNT = COMPACTION_PREFIX + "datasets.max.count";
+  public static final double DEFUALT_COMPACTION_DATASETS_MAX_COUNT = 1000000000;
 
   // Rename source directories as a compaction complete indication
   // Compaction jobs using this completion mode can't share input sources
