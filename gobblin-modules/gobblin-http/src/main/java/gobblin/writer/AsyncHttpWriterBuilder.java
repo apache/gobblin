@@ -87,7 +87,7 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
     }
 
     this.state = (WorkUnitState) state;
-    this.metricContext = Instrumented.getMetricContext(this.state, AsyncDataWriter.class);
+    this.metricContext = Instrumented.getMetricContext(this.state, AsyncHttpWriter.class);
     this.broker = this.state.getTaskBroker();
     Config config = ConfigBuilder.create().loadProps(state.getProperties(), CONF_PREFIX).build();
     config = config.withFallback(FALLBACK);
