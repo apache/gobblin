@@ -1,18 +1,19 @@
 package gobblin.r2;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
-import lombok.extern.slf4j.Slf4j;
-
+import gobblin.configuration.State;
 import gobblin.http.ResponseHandler;
 import gobblin.http.StatusType;
+import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.net.Request;
 import gobblin.utils.HttpUtils;
+import gobblin.writer.AsyncDataWriter;
+import java.util.HashSet;
+import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -28,15 +29,22 @@ import gobblin.utils.HttpUtils;
 public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestResponse> {
 
   public static final String CONTENT_TYPE_HEADER = "Content-Type";
+  private final String R2_RESPONSE_EVENT_NAMESPACE = "gobblin.http.r2.response";
+  private final String R2_FAILED_REQUEST = "R2FailedRequest";
+  private final String REQUEST = "request";
+  private final String STATUS_CODE = "statusCode";
   private final Set<String> errorCodeWhitelist;
-  MetricContext metricsContext = new MetricContext.Builder("R2ResponseStatus").build();
+  MetricContext metricsContext;
+  EventSubmitter.Builder eventSubmitterBuilder;
 
   public R2RestResponseHandler() {
-    this(new HashSet<>());
+    this(new HashSet<>(), Instrumented.getMetricContext(new State(), AsyncDataWriter.class));
   }
 
-  public R2RestResponseHandler(Set<String> errorCodeWhitelist) {
+  public R2RestResponseHandler(Set<String> errorCodeWhitelist, MetricContext metricContext) {
     this.errorCodeWhitelist = errorCodeWhitelist;
+    this.metricsContext = metricContext;
+    eventSubmitterBuilder = new EventSubmitter.Builder(metricsContext, R2_RESPONSE_EVENT_NAMESPACE);
   }
 
   @Override
@@ -44,16 +52,14 @@ public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestR
     R2ResponseStatus status = new R2ResponseStatus(StatusType.OK);
     int statusCode = response.getStatus();
     status.setStatusCode(statusCode);
-
-    EventSubmitter.Builder eventSubmitterBuilder = new EventSubmitter.Builder(metricsContext, this.getClass().getSimpleName());
-
     HttpUtils.updateStatusType(status, statusCode, errorCodeWhitelist);
 
     if (status.getType() == StatusType.OK) {
       status.setContent(response.getEntity());
       status.setContentType(response.getHeader(CONTENT_TYPE_HEADER));
     } else {
-      eventSubmitterBuilder.addMetadata("request", request.toString()).addMetadata("statusCode", String.valueOf(statusCode)).build().submit("R2FailedRequest");
+      eventSubmitterBuilder.addMetadata(REQUEST, request.toString()).addMetadata(STATUS_CODE, String.valueOf(statusCode))
+          .build().submit(R2_FAILED_REQUEST);
       log.info("Receive an unsuccessful response with status code: " + statusCode);
     }
 
