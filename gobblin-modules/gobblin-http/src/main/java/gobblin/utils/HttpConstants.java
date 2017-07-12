@@ -12,7 +12,7 @@ public class HttpConstants {
   public static final String QUERY_PARAMS = "queryParams";
   public static final String HEADERS = "headers";
   public static final String BODY = "body";
-  
+
   public static final String SCHEMA_D2 = "d2://";
 
   /** Status code */
@@ -20,4 +20,8 @@ public class HttpConstants {
   public static final String CODE_3XX = "3xx";
   public static final String CODE_4XX = "4xx";
   public static final String CODE_5XX = "5xx";
+
+  /** Event constants */
+  public static final String REQUEST = "request";
+  public static final String STATUS_CODE = "statusCode";
 }

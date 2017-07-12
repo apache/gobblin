@@ -17,16 +17,10 @@
 
 package gobblin.writer;
 
-import java.io.IOException;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
 import gobblin.async.AsyncRequestBuilder;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
@@ -35,8 +29,13 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.http.HttpClient;
 import gobblin.http.ResponseHandler;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
 import gobblin.util.ConfigUtils;
 import gobblin.utils.HttpConstants;
+import java.io.IOException;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -54,6 +53,8 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
           .put(HttpConstants.ERROR_CODE_WHITELIST, "")
           .build());
 
+  @Getter
+  MetricContext metricContext;
   @Getter
   protected WorkUnitState state;
   @Getter
@@ -86,6 +87,7 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
     }
 
     this.state = (WorkUnitState) state;
+    this.metricContext = Instrumented.getMetricContext(this.state, AsyncHttpWriter.class);
     this.broker = this.state.getTaskBroker();
     Config config = ConfigBuilder.create().loadProps(state.getProperties(), CONF_PREFIX).build();
     config = config.withFallback(FALLBACK);

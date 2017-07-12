@@ -17,25 +17,23 @@
 
 package gobblin.writer;
 
-import java.util.Set;
-
-import org.apache.avro.generic.GenericRecord;
-
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
-import gobblin.r2.R2ClientFactory;
 import gobblin.r2.R2Client;
+import gobblin.r2.R2ClientFactory;
 import gobblin.r2.R2RestRequestBuilder;
 import gobblin.r2.R2RestResponseHandler;
 import gobblin.utils.HttpConstants;
 import gobblin.utils.HttpUtils;
+import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.generic.GenericRecord;
 
-
+@Slf4j
 public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, RestRequest, RestResponse> {
 
   private static final Config FALLBACK =
@@ -54,7 +52,7 @@ public class R2RestWriterBuilder extends AsyncHttpWriterBuilder<GenericRecord, R
     asyncRequestBuilder = new R2RestRequestBuilder(urlTemplate, verb, protocolVersion);
 
     Set<String> errorCodeWhitelist = HttpUtils.getErrorCodeWhitelist(config);
-    responseHandler = new R2RestResponseHandler(errorCodeWhitelist);
+    responseHandler = new R2RestResponseHandler(errorCodeWhitelist, metricContext);
     return this;
   }
 
