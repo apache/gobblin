@@ -50,14 +50,14 @@ public class JsonCredentialStore implements CredentialStore {
   /**
    * Instantiate a new keystore using the file at the provided path
    */
-  public JsonCredentialStore(String path) throws IOException {
-    this(new Path(path));
+  public JsonCredentialStore(String path, KeyToStringCodec codec) throws IOException {
+    this(new Path(path), codec);
   }
 
   /**
    * Instantiate a new keystore using the file at the provided path
    */
-  public JsonCredentialStore(Path path) throws IOException {
+  public JsonCredentialStore(Path path, KeyToStringCodec codec) throws IOException {
     credentials =  new HashMap<>();
 
     FileSystem fs = path.getFileSystem(new Configuration());
@@ -72,7 +72,7 @@ public class JsonCredentialStore implements CredentialStore {
       while (it.hasNext()) {
         Map.Entry<String, JsonNode> field = it.next();
         String keyId = field.getKey();
-        byte[] key = DatatypeConverter.parseHexBinary(field.getValue().getTextValue());
+        byte[] key = codec.decodeKey(field.getValue().getTextValue());
 
         credentials.put(keyId, key);
       }

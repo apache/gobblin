@@ -107,13 +107,30 @@ public class GobblinEncryptionProvider implements CredentialStoreProvider, Encry
         case JCEKSKeystoreCredentialStore.TAG:
           return new JCEKSKeystoreCredentialStore(ks_path, ks_password);
         case JsonCredentialStore.TAG:
-          return new JsonCredentialStore(ks_path);
+          return new JsonCredentialStore(ks_path, buildKeyToStringCodec(parameters));
         default:
           return null;
       }
     } catch (IOException e) {
       log.error("Error building credential store, returning null", e);
       return null;
+    }
+  }
+
+  /**
+   * Build a KeyToStringCodec based on parameters. To reduce complexity we don't build these
+   * through a ServiceLocator since hopefully the # of key encodings is small.
+   * @param parameters Config parameters used to build the codec
+   */
+  private KeyToStringCodec buildKeyToStringCodec(Map<String, Object> parameters) {
+    String encodingName = EncryptionConfigParser.getKeystoreEncoding(parameters);
+    switch (encodingName) {
+      case HexKeyToStringCodec.TAG:
+        return new HexKeyToStringCodec();
+      case Base64KeyToStringCodec.TAG:
+        return new Base64KeyToStringCodec();
+      default:
+        throw new IllegalArgumentException("Don't know how to build hex to string codec for type " + encodingName);
     }
   }
 
