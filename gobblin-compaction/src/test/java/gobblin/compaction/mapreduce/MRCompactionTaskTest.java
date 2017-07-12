@@ -176,9 +176,7 @@ public class MRCompactionTaskTest {
             .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/" + name)
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d")
-            .setConfiguration(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0")
-        .setConfiguration(CopyConfiguration.PRIORITIZER_ALIAS_KEY, "SimpleTiers");
-
+            .setConfiguration(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
   }
 
   private EmbeddedGobblin createEmbeddedGobblinForAllFailures (String name, String basePath) {
@@ -197,7 +195,7 @@ public class MRCompactionTaskTest {
 
   private EmbeddedGobblin createEmbeddedGobblinWithPriority (String name, String basePath) {
     return createEmbeddedGobblin(name, basePath)
-        .setConfiguration(ConfigurationKeys.COMPACTION_PRIORITIZER_ALIAS, "SimpleTiers")
+        .setConfiguration(ConfigurationKeys.COMPACTION_PRIORITIZER_ALIAS, "TieredDatasets")
         .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".0", "Identity")
         .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".1", "EVG")
         .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".2", "BizProfile");

@@ -45,12 +45,14 @@ public class SimpleDatasetRequest implements Request<SimpleDatasetRequest> {
     return requestor;
   }
 
-  @Alias("SimpleEstimator")
-  public static class SimpleDatasetRequestEstimator implements ResourceEstimator<SimpleDatasetRequest> {
+  /**
+   * A simple {@link ResourceEstimator} which counts {@link SimpleDatasetRequest} as the only dimension
+   */
+  public static class SimpleDatasetCountEstimator implements ResourceEstimator<SimpleDatasetRequest> {
     static class Factory implements ResourceEstimator.Factory<SimpleDatasetRequest> {
       @Override
       public ResourceEstimator<SimpleDatasetRequest>  create(Config config) {
-        return new SimpleDatasetRequestEstimator();
+        return new SimpleDatasetCountEstimator();
       }
     }
 

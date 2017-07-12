@@ -799,7 +799,6 @@ public class ConfigurationKeys {
   public static final String COMPACTION_PRIORITIZATION_PREFIX = COMPACTION_PREFIX + "prioritization.";
   public static final String COMPACTION_PRIORITIZER_ALIAS = COMPACTION_PRIORITIZATION_PREFIX + "prioritizerAlias";
   public static final String COMPACTION_ESTIMATOR = COMPACTION_PRIORITIZATION_PREFIX + "estimator";
-  public static final String DEFAULT_COMPACTION_ESTIMATOR = "SimpleEstimator";
 
   /**
    * Configuration related to ConfigStore based copy/retention

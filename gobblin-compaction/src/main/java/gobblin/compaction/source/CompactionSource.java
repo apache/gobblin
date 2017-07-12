@@ -213,7 +213,8 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   private void initRequestAllocator (State state) {
     try {
       ResourceEstimator estimator = GobblinConstructorUtils.<ResourceEstimator>invokeLongestConstructor(
-          new ClassAliasResolver(ResourceEstimator.class).resolveClass(state.getProp(ConfigurationKeys.COMPACTION_ESTIMATOR, ConfigurationKeys.DEFAULT_COMPACTION_ESTIMATOR)));
+          new ClassAliasResolver(ResourceEstimator.class).resolveClass(state.getProp(ConfigurationKeys.COMPACTION_ESTIMATOR,
+              SimpleDatasetRequest.SimpleDatasetCountEstimator.class.getName())));
 
       RequestAllocatorConfig.Builder<SimpleDatasetRequest> configBuilder =
           RequestAllocatorConfig.builder(estimator).allowParallelization(1).withLimitedScopeConfig(ConfigBuilder.create()

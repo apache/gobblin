@@ -51,7 +51,7 @@ import gobblin.util.request_allocation.SimpleHierarchicalPrioritizer;
  * {@link #TIER_KEY}.0 = pattern_0
  * {@link #TIER_KEY}.1 = pattern_1
  */
-@Alias("SimpleTiers")
+@Alias("TieredDatasets")
 public class SimpleDatasetHierarchicalPrioritizer extends SimpleHierarchicalPrioritizer<SimpleDatasetRequest>
     implements Serializable {
 
