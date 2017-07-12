@@ -22,6 +22,11 @@ import java.io.IOException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.configuration.State;
+import gobblin.source.workunit.WorkUnitStream;
+import gobblin.writer.initializer.NoopWriterInitializer;
+import gobblin.writer.initializer.WriterInitializer;
+
 
 /**
  * A builder class for {@link DataWriter}.
@@ -123,6 +128,10 @@ public abstract class DataWriterBuilder<S, D> {
     this.writerAttemptId = attemptId;
     log.debug("With writerAttemptId: {}", this.writerAttemptId);
     return this;
+  }
+
+  public WriterInitializer getInitializer(State state, WorkUnitStream workUnits, int branches, int branchId) {
+    return NoopWriterInitializer.INSTANCE;
   }
 
   /**

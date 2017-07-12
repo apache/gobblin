@@ -29,8 +29,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.jdbc.MysqlExtractor;
-import gobblin.source.extractor.extract.jdbc.SqlServerExtractor;
 
 
 /**
@@ -54,20 +52,6 @@ public class TimestampWatermarkTest {
   public void setUpBeforeClass() throws Exception {
     this.tsWatermark = new TimestampWatermark(COLUMN, this.watermarkFormat);
     this.workunitState.setId("");
-  }
-
-  @Test
-  public void testGetWatermarkConditionMySql() throws Exception {
-    MysqlExtractor extractor = new MysqlExtractor(this.workunitState);
-    Assert.assertEquals(this.tsWatermark.getWatermarkCondition(extractor, WATERMARK_VALUE, OPERATOR),
-        COLUMN + " " + OPERATOR + " '2014-10-29 13:30:15'");
-  }
-
-  @Test
-  public void testGetWatermarkConditionSqlServer() throws Exception {
-    SqlServerExtractor extractor = new SqlServerExtractor(this.workunitState);
-    Assert.assertEquals(this.tsWatermark.getWatermarkCondition(extractor, WATERMARK_VALUE, OPERATOR),
-        COLUMN + " " + OPERATOR + " '2014-10-29 13:30:15'");
   }
 
   @Test(expectedExceptions = java.lang.IllegalArgumentException.class)

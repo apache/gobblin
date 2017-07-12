@@ -25,14 +25,12 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.converter.jdbc.AvroToJdbcEntryConverter;
+import gobblin.converter.Converter;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.commands.JdbcWriterCommandsFactory;
 import gobblin.source.workunit.WorkUnitStream;
 
 
 public class ConverterInitializerFactory {
-  private static final NoopConverterInitializer NOOP = new NoopConverterInitializer();
   private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().omitEmptyStrings();
 
   /**
@@ -64,20 +62,19 @@ public class ConverterInitializerFactory {
     List<String> converterClasses = COMMA_SPLITTER.splitToList(state.getProp(converterClassesParam, ""));
 
     if (converterClasses.isEmpty()) {
-      return NOOP;
+      return NoopConverterInitializer.INSTANCE;
     }
 
     List<ConverterInitializer> cis = Lists.newArrayList();
-    JdbcWriterCommandsFactory factory = new JdbcWriterCommandsFactory();
     for (String converterClass : converterClasses) {
-      if (AvroToJdbcEntryConverter.class.getName().equals(converterClass)) {
-        if (workUnits.isSafeToMaterialize()) {
-          cis.add(new AvroToJdbcEntryConverterInitializer(state, workUnits.getMaterializedWorkUnitCollection(),
-              factory, branches, branchId));
-        } else {
-          throw new RuntimeException(AvroToJdbcEntryConverter.class.getName() + " does not support work unit streams.");
-        }
+      Converter converter;
+      try {
+        converter = (Converter) Class.forName(converterClass).newInstance();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
+
+      cis.add(converter.getInitializer(state, workUnits, branches, branchId));
     }
     return new MultiConverterInitializer(cis);
   }

@@ -18,36 +18,26 @@
 apply plugin: 'java'
 
 dependencies {
-    compile project(":gobblin-api")
-    compile project(":gobblin-core")
-    compile project(":gobblin-utility")
-    compile project(":gobblin-modules:gobblin-sql")
+  compile project(":gobblin-core")
 
-    compile externalDependency.guava
-    compile externalDependency.gson
-    compile externalDependency.lombok
-    compile externalDependency.slf4j
-    compile externalDependency.jodaTime
-    compile externalDependency.jacksonCore
-    compile externalDependency.jacksonMapper
-    compile externalDependency.commonsLang3
-    compile externalDependency.commonsIo
-    compile externalDependency.httpclient
-    compile externalDependency.httpcore
-    compile externalDependency.salesforceWsc
-    compile externalDependency.salesforcePartner
+  compile externalDependency.calciteCore
 
-    testCompile externalDependency.testng
+  testCompile externalDependency.testng
+  testCompile externalDependency.mockito
+  testCompile externalDependency.mockRunnerJdbc
 }
 
 configurations {
-    compile {
-        transitive = false
-    }
+  compile { transitive = false }
+  // Remove xerces dependencies because of versioning issues. Standard JRE implementation should
+  // work. See also http://stackoverflow.com/questions/11677572/dealing-with-xerces-hell-in-java-maven
+  // HADOOP-5254 and MAPREDUCE-5664
+  all*.exclude group: 'xml-apis'
+  all*.exclude group: 'xerces'
 }
 
 test {
-    workingDir rootProject.rootDir
+  workingDir rootProject.rootDir
 }
 
 ext.classification="library"

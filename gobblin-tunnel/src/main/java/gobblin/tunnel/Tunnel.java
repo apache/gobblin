@@ -39,8 +39,8 @@ import gobblin.util.ExecutorsUtils;
  * support the concept of "proxies", let alone HTTP proxies, and hence a solution is needed to enable this.
  *
  * This class provides a method of tunneling arbitrary protocols like JDBC connections over an HTTP proxy. Note that
- * while it is currently only implemented for JDBC (see {@link gobblin.source.extractor.extract.jdbc.JdbcExtractor} and
- * {@link gobblin.source.extractor.extract.jdbc.JdbcExtractor}), it can be extended to work with any other
+ * while it is currently only implemented for JDBC (see {@link gobblin.source.jdbc.JdbcExtractor} and
+ * {@link gobblin.source.jdbc.JdbcExtractor}), it can be extended to work with any other
  * TCP-based protocol.
  *
  * The way the Tunnel works is as follows:

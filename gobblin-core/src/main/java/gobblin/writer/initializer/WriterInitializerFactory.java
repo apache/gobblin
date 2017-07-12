@@ -21,8 +21,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.source.workunit.WorkUnitStream;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.JdbcWriterBuilder;
-import gobblin.writer.commands.JdbcWriterCommandsFactory;
+import gobblin.writer.DataWriterBuilder;
 
 import java.util.List;
 
@@ -33,8 +32,6 @@ import com.google.common.collect.Lists;
  * Factory method pattern class provides WriterInitializer based on writer and state.
  */
 public class WriterInitializerFactory {
-  private static final NoopWriterInitializer NOOP = new NoopWriterInitializer();
-
   /**
    * Provides WriterInitializer based on the writer. Mostly writer is decided by the Writer builder (and destination) that user passes.
    * If there's more than one branch, it will instantiate same number of WriterInitializer instance as number of branches and combine it into MultiWriterInitializer.
@@ -61,14 +58,13 @@ public class WriterInitializerFactory {
     String writerBuilderKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, branchId);
     String writerBuilderClass = state.getProp(writerBuilderKey, ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS);
 
-    if(JdbcWriterBuilder.class.getName().equals(writerBuilderClass)) {
-      if (workUnits.isSafeToMaterialize()) {
-        return new JdbcWriterInitializer(state, workUnits.getMaterializedWorkUnitCollection(),
-            new JdbcWriterCommandsFactory(), branches, branchId);
-      } else {
-        throw new RuntimeException(JdbcWriterBuilder.class.getName() + " does not support work unit streams.");
-      }
+    DataWriterBuilder dataWriterBuilder;
+    try {
+      dataWriterBuilder = (DataWriterBuilder) Class.forName(writerBuilderClass).newInstance();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
-    return NOOP;
+
+    return dataWriterBuilder.getInitializer(state, workUnits, branches, branchId);
   }
 }

@@ -68,7 +68,7 @@ import gobblin.source.extractor.exception.RestApiConnectionException;
 import gobblin.source.extractor.exception.SchemaException;
 import gobblin.source.extractor.extract.Command;
 import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.extractor.extract.jdbc.SqlQueryUtils;
+import gobblin.source.jdbc.SqlQueryUtils;
 import gobblin.source.extractor.extract.restapi.RestApiCommand;
 import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
 import gobblin.source.extractor.extract.restapi.RestApiConnector;
