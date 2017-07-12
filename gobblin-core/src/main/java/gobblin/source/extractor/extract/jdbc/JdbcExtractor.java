@@ -93,6 +93,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   private long totalRecordCount = 0;
   private boolean nextRecord = true;
   private int unknownColumnCounter = 1;
+  protected boolean enableDelimitedIdentifier = false;
 
   private Logger log = LoggerFactory.getLogger(JdbcExtractor.class);
 
@@ -288,6 +289,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     this.log.info("Extract metadata using JDBC");
     String inputQuery = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
     String watermarkColumn = workUnitState.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
+    this.enableDelimitedIdentifier = workUnitState.getPropAsBoolean(
+        ConfigurationKeys.ENABLE_DELIMITED_IDENTIFIER, ConfigurationKeys.DEFAULT_ENABLE_DELIMITED_IDENTIFIER);
     JsonObject defaultWatermark = this.getDefaultWatermark();
     String derivedWatermarkColumnName = defaultWatermark.get("columnName").getAsString();
     this.setSampleRecordCount(this.exractSampleRecordCountFromQuery(inputQuery));
@@ -317,11 +320,13 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
           JsonObject jsonObject = gson.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
           targetSchema.add(jsonObject);
           headerColumns.add(targetColumnName);
+          sourceColumnName = getLeftDelimitedIdentifier() + sourceColumnName + getRightDelimitedIdentifier();
           this.columnList.add(sourceColumnName);
         }
       }
 
       if (this.hasMultipleWatermarkColumns(watermarkColumn)) {
+        derivedWatermarkColumnName = getLeftDelimitedIdentifier() + derivedWatermarkColumnName + getRightDelimitedIdentifier();
         this.columnList.add(derivedWatermarkColumnName);
         headerColumns.add(derivedWatermarkColumnName);
         targetSchema.add(defaultWatermark);
@@ -1154,6 +1159,25 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         break;
     }
     return columnName;
+  }
+
+  /**
+   * Default DelimitedIdentifier is 'double quotes',
+   * but that would make the column name case sensitive in some of the systems, e.g. Oracle.
+   * Queries may fail if
+   * (1) enableDelimitedIdentifier is true, and
+   * (2) Queried system is case sensitive when using double quotes as delimited identifier, and
+   * (3) Intended column name does not match the column name in the schema including case.
+   *
+   * @return leftDelimitedIdentifier
+   */
+
+  public String getLeftDelimitedIdentifier() {
+    return this.enableDelimitedIdentifier ? "\"" : "";
+  }
+
+  public String getRightDelimitedIdentifier() {
+    return this.enableDelimitedIdentifier ? "\"" : "";
   }
 
   @Override

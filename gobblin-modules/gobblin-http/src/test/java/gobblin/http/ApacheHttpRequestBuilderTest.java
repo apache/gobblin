@@ -28,7 +28,7 @@ public class ApacheHttpRequestBuilderTest {
    */
   public void testBuildWriteRequest()
       throws IOException {
-    String urlTemplate = "a/part1:${part1}/a/part2:${part2}";
+    String urlTemplate = "http://www.test.com/a/part1:${part1}/a/part2:${part2}";
     String verb = "post";
     ApacheHttpRequestBuilder builder = spy(new ApacheHttpRequestBuilder(urlTemplate, verb, "application/json"));
     ArgumentCaptor<RequestBuilder> requestBuilderArgument = ArgumentCaptor.forClass(RequestBuilder.class);
@@ -38,7 +38,7 @@ public class ApacheHttpRequestBuilderTest {
     verify(builder).build(requestBuilderArgument.capture());
 
     RequestBuilder expected = RequestBuilder.post();
-    expected.setUri("a/part1:01/a/part2:02?param1=01");
+    expected.setUri("http://www.test.com/a/part1:01/a/part2:02?param1=01");
     String payloadStr = "{\"id\":\"id0\"}";
     expected.addHeader(HttpHeaders.CONTENT_TYPE, ContentType.APPLICATION_JSON.getMimeType())
         .setEntity(new StringEntity(payloadStr, ContentType.APPLICATION_JSON));

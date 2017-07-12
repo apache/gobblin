@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.compaction.source;
 import java.util.Iterator;
 import java.util.List;
@@ -9,8 +26,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.suite.CompactionSuiteUtils;
-import gobblin.compaction.verify.CompactionThresholdVerifier;
-import gobblin.compaction.verify.CompactionTimeRangeVerifier;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
 import gobblin.compaction.suite.CompactionSuite;
@@ -117,8 +132,9 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
         Stopwatch stopwatch = Stopwatch.createStarted();
         int threads = this.state.getPropAsInt(CompactionVerifier.COMPACTION_VERIFICATION_THREADS, 5);
         long timeOutInMinute = this.state.getPropAsLong(CompactionVerifier.COMPACTION_VERIFICATION_TIMEOUT_MINUTES, 30);
-
-        while (datasets.size() > 0) {
+        long iterationCountLimit = this.state.getPropAsLong(CompactionVerifier.COMPACTION_VERIFICATION_ITERATION_COUNT_LIMIT, Integer.MAX_VALUE);
+        long iteration = 0;
+        while (datasets.size() > 0 && iteration++ < iterationCountLimit) {
           Iterator<Callable<VerifiedDataset>> verifierIterator =
                   Iterators.transform (datasets.iterator(), new Function<Dataset, Callable<VerifiedDataset>>() {
                     @Override

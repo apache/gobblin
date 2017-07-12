@@ -6,8 +6,11 @@ import java.util.Set;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.util.EntityUtils;
 import lombok.extern.slf4j.Slf4j;
+
+import gobblin.net.Request;
 import gobblin.utils.HttpUtils;
 
 
@@ -21,7 +24,7 @@ import gobblin.utils.HttpUtils;
  * </p>
  */
 @Slf4j
-public class ApacheHttpResponseHandler<RP extends HttpResponse> implements ResponseHandler<RP> {
+public class ApacheHttpResponseHandler<RP extends HttpResponse> implements ResponseHandler<HttpUriRequest, RP> {
   private final Set<String> errorCodeWhitelist;
 
   public ApacheHttpResponseHandler() {
@@ -33,7 +36,7 @@ public class ApacheHttpResponseHandler<RP extends HttpResponse> implements Respo
   }
 
   @Override
-  public ApacheHttpResponseStatus handleResponse(RP response) {
+  public ApacheHttpResponseStatus handleResponse(Request<HttpUriRequest> request, RP response) {
     ApacheHttpResponseStatus status = new ApacheHttpResponseStatus(StatusType.OK);
     int statusCode = response.getStatusLine().getStatusCode();
     status.setStatusCode(statusCode);

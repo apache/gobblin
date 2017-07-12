@@ -1,7 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.compaction.action;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import gobblin.compaction.dataset.DatasetHelper;
+import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.mapreduce.MRCompactorJobRunner;
@@ -9,7 +28,9 @@ import gobblin.compaction.mapreduce.avro.AvroKeyMapper;
 import gobblin.compaction.parser.CompactionPathParser;
 import gobblin.compaction.verify.InputRecordCountHelper;
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
 import gobblin.dataset.FileSystemDataset;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
 import lombok.AllArgsConstructor;
@@ -22,6 +43,7 @@ import org.apache.hadoop.mapreduce.Job;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -31,13 +53,17 @@ import java.util.List;
 @AllArgsConstructor
 public class CompactionCompleteFileOperationAction implements CompactionCompleteAction<FileSystemDataset> {
 
-  protected State state;
+  protected WorkUnitState state;
   private CompactionAvroJobConfigurator configurator;
   private InputRecordCountHelper helper;
+  private EventSubmitter eventSubmitter;
   private FileSystem fs;
 
   public CompactionCompleteFileOperationAction (State state, CompactionAvroJobConfigurator configurator) {
-    this.state = state;
+    if (!(state instanceof WorkUnitState)) {
+      throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
+    }
+    this.state = (WorkUnitState) state;
     this.helper = new InputRecordCountHelper(state);
     this.configurator = configurator;
     this.fs = configurator.getFs();
@@ -100,10 +126,20 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         newTotalRecords = counter.getValue();
       }
 
-      // write record count
+      // submit events for record count
+      if (eventSubmitter != null) {
+        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(),
+            CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
+        this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_RECORD_COUNT_EVENT, eventMetadataMap);
+      }
+
       InputRecordCountHelper.writeRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()), newTotalRecords);
       log.info("Updating record count from {} to {} in {} ", oldTotalRecords, newTotalRecords, dstPath);
     }
+  }
+
+  public void addEventSubmitter(EventSubmitter eventSubmitter) {
+    this.eventSubmitter = eventSubmitter;
   }
 
   public String getName () {

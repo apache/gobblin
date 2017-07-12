@@ -64,6 +64,8 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 
 import gobblin.annotation.Alpha;
@@ -86,13 +88,9 @@ public class AWSSdkClient {
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
-  private volatile AmazonEC2 amazonEC2;
-  private volatile AmazonS3 amazonS3;
-  private volatile AmazonAutoScaling amazonAutoScaling;
-  private volatile long lastCacheRefreshTime = 0;
-
-  private final AWSClusterSecurityManager awsClusterSecurityManager;
-  private final Region region;
+  private Supplier<AmazonEC2> amazonEC2Supplier;
+  private Supplier<AmazonS3> amazonS3Supplier;
+  private Supplier<AmazonAutoScaling> amazonAutoScalingSupplier;
 
   /***
    * Initialize the AWS SDK Client
@@ -100,9 +98,32 @@ public class AWSSdkClient {
    * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
    * @param region The Amazon AWS {@link Region}
    */
-  public AWSSdkClient(AWSClusterSecurityManager awsClusterSecurityManager, Region region) {
-    this.awsClusterSecurityManager = awsClusterSecurityManager;
-    this.region = region;
+  public AWSSdkClient(final AWSClusterSecurityManager awsClusterSecurityManager, final Region region) {
+    this.amazonEC2Supplier = Suppliers.memoize(new Supplier<AmazonEC2>() {
+      @Override
+      public AmazonEC2 get() {
+        AmazonEC2Client amazonEC2 = new AmazonEC2Client(awsClusterSecurityManager.getCredentialsProvider());
+        amazonEC2.setRegion(region);
+        return amazonEC2;
+      }
+    });
+    this.amazonS3Supplier = Suppliers.memoize(new Supplier<AmazonS3>() {
+      @Override
+      public AmazonS3 get() {
+        AmazonS3Client amazonS3 = new AmazonS3Client(awsClusterSecurityManager.getCredentialsProvider());
+        amazonS3.setRegion(region);
+        return amazonS3;
+      }
+    });
+    this.amazonAutoScalingSupplier = Suppliers.memoize(new Supplier<AmazonAutoScaling>() {
+      @Override
+      public AmazonAutoScaling get() {
+        AmazonAutoScalingClient amazonAutoScaling =
+                new AmazonAutoScalingClient(awsClusterSecurityManager.getCredentialsProvider());
+        amazonAutoScaling.setRegion(region);
+        return amazonAutoScaling;
+      }
+    });
   }
 
   /***
@@ -480,25 +501,7 @@ public class AWSSdkClient {
    * @return Amazon EC2 client to invoke service methods on Amazon EC2
    */
   public AmazonEC2 getEc2Client() {
-
-    if (lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
-        awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
-      return amazonEC2;
-    }
-
-    synchronized (AWSSdkClient.class) {
-      if (!(lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
-          awsClusterSecurityManager.getLastRefreshTimeInMillis())) {
-        if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
-          amazonEC2 = new AmazonEC2Client(awsClusterSecurityManager.getBasicSessionCredentials());
-        } else {
-          amazonEC2 = new AmazonEC2Client(awsClusterSecurityManager.getBasicAWSCredentials());
-        }
-        amazonEC2.setRegion(region);
-      }
-    }
-
-    return amazonEC2;
+    return amazonEC2Supplier.get();
   }
 
   /***
@@ -507,25 +510,7 @@ public class AWSSdkClient {
    * @return Amazon AutoScaling client to invoke service methods on Amazon AutoScaling
    */
   public AmazonAutoScaling getAmazonAutoScalingClient() {
-
-    if (lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
-        awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
-      return amazonAutoScaling;
-    }
-
-    synchronized (AWSSdkClient.class) {
-      if (!(lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
-          awsClusterSecurityManager.getLastRefreshTimeInMillis())) {
-        if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
-          amazonAutoScaling = new AmazonAutoScalingClient(awsClusterSecurityManager.getBasicSessionCredentials());
-        } else {
-          amazonAutoScaling = new AmazonAutoScalingClient(awsClusterSecurityManager.getBasicAWSCredentials());
-        }
-        amazonAutoScaling.setRegion(region);
-      }
-    }
-
-    return amazonAutoScaling;
+    return amazonAutoScalingSupplier.get();
   }
 
   /***
@@ -534,24 +519,6 @@ public class AWSSdkClient {
    * @return Amazon S3 client to invoke service methods on Amazon S3
    */
   public AmazonS3 getS3Client() {
-
-    if (lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
-        awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
-      return amazonS3;
-    }
-
-    synchronized (AWSSdkClient.class) {
-      if (!(lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
-          awsClusterSecurityManager.getLastRefreshTimeInMillis())) {
-        if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
-          amazonS3 = new AmazonS3Client(awsClusterSecurityManager.getBasicSessionCredentials());
-        } else {
-          amazonS3 = new AmazonS3Client(awsClusterSecurityManager.getBasicAWSCredentials());
-        }
-        amazonS3.setRegion(region);
-      }
-    }
-
-    return amazonS3;
+    return amazonS3Supplier.get();
   }
 }

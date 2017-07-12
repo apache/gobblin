@@ -1,8 +1,12 @@
 package gobblin.compaction.mapreduce;
 
 import com.google.common.io.Files;
+import gobblin.compaction.audit.AuditCountClientFactory;
 import gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import gobblin.compaction.source.CompactionSource;
+import gobblin.compaction.suite.TestCompactionSuiteFactories;
+import gobblin.compaction.verify.CompactionAuditCountVerifier;
+import gobblin.compaction.verify.CompactionVerifier;
 import gobblin.compaction.verify.InputRecordCountHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
@@ -152,8 +156,23 @@ public class MRCompactionTaskTest {
             .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
             .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/" + name)
             .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
-            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d");
+            .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d")
+            .setConfiguration(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
 
+  }
+
+  private EmbeddedGobblin createEmbeddedGobblinForAllFailures (String name, String basePath) {
+    return createEmbeddedGobblin(name, basePath)
+        .setConfiguration(AuditCountClientFactory.AUDIT_COUNT_CLIENT_FACTORY, "KafkaAuditCountHttpClientFactory")
+        .setConfiguration(CompactionAuditCountVerifier.GOBBLIN_TIER, "dummy")
+        .setConfiguration(CompactionAuditCountVerifier.ORIGIN_TIER, "dummy")
+        .setConfiguration(CompactionAuditCountVerifier.PRODUCER_TIER, "dummy")
+        .setConfiguration(CompactionVerifier.COMPACTION_VERIFICATION_ITERATION_COUNT_LIMIT, "2");
+  }
+
+  private EmbeddedGobblin createEmbeddedGobblinForHiveRegistrationFailure (String name, String basePath) {
+    return createEmbeddedGobblin(name, basePath)
+        .setConfiguration(ConfigurationKeys.COMPACTION_SUITE_FACTORY, "HiveRegistrationFailureFactory");
   }
 
    @Test
@@ -162,7 +181,7 @@ public class MRCompactionTaskTest {
      basePath.deleteOnExit();
      GenericRecord r1 = createRandomRecord();
      // verify 24 hours
-     for (int i = 22; i < 25; ++i) {
+     for (int i = 22; i < 24; ++i) {
        String path = "Identity/MemberAccount/minutely/2017/04/03/" + i + "/20_30/run_2017-04-03-10-20";
        File jobDir = new File(basePath, path);
        Assert.assertTrue(jobDir.mkdirs());
@@ -175,4 +194,48 @@ public class MRCompactionTaskTest {
 
      Assert.assertTrue(result.isSuccessful());
    }
+
+  @Test
+  public void testWorkUnitStreamForAllFailures () throws Exception {
+    File basePath = Files.createTempDir();
+    basePath.deleteOnExit();
+    GenericRecord r1 = createRandomRecord();
+    // verify 24 hours
+    for (int i = 1; i < 24; ++i) {
+      String path = "Identity/MemberAccount/minutely/2017/04/03/" + i + "/20_30/run_2017-04-03-10-20";
+      File jobDir = new File(basePath, path);
+      Assert.assertTrue(jobDir.mkdirs());
+
+      writeFileWithContent(jobDir, "file_random", r1, 20);
+    }
+
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblinForAllFailures("workunit_stream_all_failure", basePath.getAbsolutePath().toString());
+    JobExecutionResult result = embeddedGobblin.run();
+
+    Assert.assertFalse(result.isSuccessful());
+  }
+
+  @Test
+  public void testHiveRegistrationFailure () throws Exception {
+    File basePath = Files.createTempDir();
+    basePath.deleteOnExit();
+    GenericRecord r1 = createRandomRecord();
+
+    // success dataset
+    String path1 = TestCompactionSuiteFactories.DATASET_SUCCESS + "/20_30/run_2017-04-03-10-20";
+    File jobDir1 = new File(basePath, path1);
+    Assert.assertTrue(jobDir1.mkdirs());
+    writeFileWithContent(jobDir1, "file_random", r1, 20);
+
+    // failed dataset
+    String path2 = TestCompactionSuiteFactories.DATASET_FAIL + "/20_30/run_2017-04-03-10-20";
+    File jobDir2 = new File(basePath, path2);
+    Assert.assertTrue(jobDir2.mkdirs());
+    writeFileWithContent(jobDir2, "file_random", r1, 20);
+
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblinForHiveRegistrationFailure("hive_registration_failure", basePath.getAbsolutePath().toString());
+    JobExecutionResult result = embeddedGobblin.run();
+
+    Assert.assertFalse(result.isSuccessful());
+  }
 }

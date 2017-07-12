@@ -1,4 +1,4 @@
-package gobblin.restli;
+package gobblin.r2;
 
 import java.io.IOException;
 import java.net.URI;
@@ -18,9 +18,7 @@ import com.linkedin.restli.common.ResourceMethod;
 import com.linkedin.restli.common.RestConstants;
 
 import gobblin.http.HttpOperation;
-import gobblin.r2.R2Request;
 import gobblin.utils.HttpUtils;
-import gobblin.async.AsyncRequest;
 import gobblin.async.AsyncRequestBuilder;
 import gobblin.async.BufferedRecord;
 
@@ -96,8 +94,8 @@ public class R2RestRequestBuilder implements AsyncRequestBuilder<GenericRecord, 
     }
 
     builder.setHeader(RestConstants.HEADER_CONTENT_TYPE, RestConstants.HEADER_VALUE_APPLICATION_JSON);
-    DataMap data = new DataMap(HttpUtils.toMap(payload));
     try {
+      DataMap data = JACKSON_DATA_CODEC.stringToMap(payload);
       byte[] bytes = JACKSON_DATA_CODEC.mapToBytes(data);
       builder.setEntity(bytes);
       return bytes.length;

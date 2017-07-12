@@ -185,6 +185,12 @@ public class ConfigurationKeys {
   public static final String REQUIRED_ATRRIBUTES_LIST = "gobblin.template.required_attributes";
 
   /**
+   * Configuration for emitting job events
+   */
+  public static final String EVENT_METADATA_GENERATOR_CLASS_KEY = "event.metadata.generator.class";
+  public static final String DEFAULT_EVENT_METADATA_GENERATOR_CLASS_KEY = "noop";
+
+  /**
    * Configuration properties used internally.
    */
   public static final String JOB_ID_KEY = "job.id";
@@ -351,6 +357,10 @@ public class ConfigurationKeys {
   public static final String DEFAULT_QUALITY_CHECKER_TIMEZONE = PST_TIMEZONE_NAME;
   public static final String CLEAN_ERR_DIR = QUALITY_CHECKER_PREFIX + ".clean.err.dir";
   public static final boolean DEFAULT_CLEAN_ERR_DIR = false;
+  /** Set the approximate max number of records to write in err_file for each task. Note the actual number of records
+   * written may be anything from 0 to about the value set + 100. */
+  public static final String ROW_LEVEL_ERR_FILE_RECORDS_PER_TASK = QUALITY_CHECKER_PREFIX + ".row.errFile.recordsPerTask";
+  public static final long DEFAULT_ROW_LEVEL_ERR_FILE_RECORDS_PER_TASK = 1000000;
 
   /**
    * Configuration properties used by the row count policies.
@@ -458,6 +468,9 @@ public class ConfigurationKeys {
   public static final String SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT =
       "source.querybased.promoteUnsignedIntToBigInt";
   public static final boolean DEFAULT_SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT = false;
+
+  public static final String ENABLE_DELIMITED_IDENTIFIER = "enable.delimited.identifier";
+  public static final boolean DEFAULT_ENABLE_DELIMITED_IDENTIFIER = false;
 
   /**
    * Configuration properties used by the FileBasedExtractor

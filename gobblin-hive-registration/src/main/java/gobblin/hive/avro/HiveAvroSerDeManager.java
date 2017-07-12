@@ -17,6 +17,9 @@
 
 package gobblin.hive.avro;
 
+import com.codahale.metrics.Timer;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
 import java.io.IOException;
 
 import org.apache.avro.Schema;
@@ -52,12 +55,16 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
   public static final String DEFAULT_SCHEMA_FILE_NAME = "_schema.avsc";
   public static final String SCHEMA_LITERAL_LENGTH_LIMIT = "schema.literal.length.limit";
   public static final int DEFAULT_SCHEMA_LITERAL_LENGTH_LIMIT = 4000;
+  public static final String HIVE_SPEC_SCHEMA_READING_TIMER = "hiveAvroSerdeManager.schemaReadTimer";
+  public static final String HIVE_SPEC_SCHEMA_WRITING_TIMER = "hiveAvroSerdeManager.schemaWriteTimer";
 
   protected final FileSystem fs;
   protected final boolean useSchemaFile;
   protected final String schemaFileName;
   protected final int schemaLiteralLengthLimit;
   protected final HiveSerDeWrapper serDeWrapper = HiveSerDeWrapper.get("AVRO");
+
+  private final MetricContext metricContext ;
 
   public HiveAvroSerDeManager(State props) throws IOException {
     super(props);
@@ -66,6 +73,8 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
     this.schemaFileName = props.getProp(SCHEMA_FILE_NAME, DEFAULT_SCHEMA_FILE_NAME);
     this.schemaLiteralLengthLimit =
         props.getPropAsInt(SCHEMA_LITERAL_LENGTH_LIMIT, DEFAULT_SCHEMA_LITERAL_LENGTH_LIMIT);
+
+    this.metricContext = Instrumented.getMetricContext(props, HiveAvroSerDeManager.class);
   }
 
   /**
@@ -118,8 +127,13 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
     if (this.useSchemaFile) {
       hiveUnit.setSerDeProp(SCHEMA_URL, schemaFile.toString());
     } else {
-      Schema schema = getDirectorySchema(path);
-      addSchemaFromAvroFile(schema, schemaFile, hiveUnit);
+      Schema schema ;
+      try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_READING_TIMER).time()) {
+        schema = getDirectorySchema(path);
+      }
+      try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_WRITING_TIMER).time()) {
+        addSchemaFromAvroFile(schema, schemaFile, hiveUnit);
+      }
     }
   }
 

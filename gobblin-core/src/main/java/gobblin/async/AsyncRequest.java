@@ -23,6 +23,8 @@ import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
+import gobblin.net.Request;
+
 
 /**
  * A type of write request which may batch several records at a time. It encapsulates the
@@ -31,7 +33,7 @@ import lombok.Setter;
  * @param <D> type of data record
  * @param <RQ> type of raw request
  */
-public class AsyncRequest<D, RQ> {
+public class AsyncRequest<D, RQ> implements Request<RQ> {
   @Getter
   private int recordCount = 0;
   @Getter

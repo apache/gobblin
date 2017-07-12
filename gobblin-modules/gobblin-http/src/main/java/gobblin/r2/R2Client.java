@@ -15,29 +15,33 @@
  * limitations under the License.
  */
 
-package gobblin.restli;
+package gobblin.r2;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import com.linkedin.common.callback.Callbacks;
 import com.linkedin.common.util.None;
+import com.linkedin.r2.message.rest.RestException;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
-import lombok.Getter;
+import com.typesafe.config.Config;
+
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.async.Callback;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.http.ThrottledHttpClient;
+import gobblin.utils.HttpUtils;
+
 
 @Slf4j
 public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
   private final Client client;
 
-  public R2Client(Client client, SharedResourcesBroker broker) {
-    super (broker, getLimiterKey());
+  public R2Client(Client client, Config config, SharedResourcesBroker broker) {
+    super (broker, HttpUtils.createR2ClientLimiterKey(config));
     this.client = client;
   }
 
@@ -49,7 +53,13 @@ public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
     try {
       response = responseFuture.get();
     } catch (InterruptedException | ExecutionException e) {
-      throw new IOException(e);
+      // The service may choose to throw an exception as a way to report error
+      Throwable t = e.getCause();
+      if (t != null && t instanceof RestException) {
+        response = ((RestException) t).getResponse();
+      } else {
+        throw new IOException(e);
+      }
     }
     return response;
   }
@@ -74,9 +84,5 @@ public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
   public void close()
       throws IOException {
     client.shutdown(Callbacks.<None>empty());
-  }
-
-  private static String getLimiterKey () {
-    return "D2request/" + "serviceName";
   }
 }

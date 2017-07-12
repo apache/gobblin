@@ -361,6 +361,8 @@ public class HiveCopyEntityHelper {
         if (HiveUtils.isPartitioned(this.dataset.table)) {
           this.sourcePartitions = HiveUtils.getPartitionsMap(multiClient.getClient(source_client), this.dataset.table,
               this.partitionFilter, this.hivePartitionExtendedFilter);
+          HiveAvroCopyEntityHelper.updatePartitionAttributesIfAvro(this.targetTable, this.sourcePartitions, this);
+
           // Note: this must be mutable, so we copy the map
           this.targetPartitions =
               this.existingTargetTable.isPresent() ? Maps.newHashMap(
@@ -678,7 +680,7 @@ public class HiveCopyEntityHelper {
     if (desiredTargetTable.isPartitioned()
         && !desiredTargetTable.getPartitionKeys().equals(existingTargetTable.getPartitionKeys())) {
       throw new IOException(String.format(
-          "%s: Desired target table has partition keys %s, existing target table has partition  keys %s. "
+          "%s: Desired target table has partition keys %s, existing target table has partition keys %s. "
               + "Tables are incompatible.",
           this.dataset.tableIdentifier, gson.toJson(desiredTargetTable.getPartitionKeys()),
           gson.toJson(existingTargetTable.getPartitionKeys())));

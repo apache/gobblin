@@ -17,11 +17,15 @@
 
 package gobblin.http;
 
+import gobblin.net.Request;
+
+
 /**
  * An interface to handle a response
  *
+ * @param <RQ> type of raw request
  * @param <RP> type of response
  */
-public interface ResponseHandler<RP> {
-  ResponseStatus handleResponse(RP response);
+public interface ResponseHandler<RQ, RP> {
+  ResponseStatus handleResponse(Request<RQ> request, RP response);
 }

@@ -49,7 +49,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
   private final HttpClient<RQ, RP> httpClient;
-  private final ResponseHandler<RP> responseHandler;
+  private final ResponseHandler<RQ, RP> responseHandler;
   private final AsyncRequestBuilder<D, RQ> requestBuilder;
   private final int maxAttempts;
 
@@ -89,7 +89,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
         }
       }
 
-      ResponseStatus status = responseHandler.handleResponse(response);
+      ResponseStatus status = responseHandler.handleResponse(asyncRequest, response);
       switch (status.getType()) {
         case OK:
           // Write succeeds

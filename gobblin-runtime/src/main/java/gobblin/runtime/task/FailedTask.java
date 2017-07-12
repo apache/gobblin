@@ -1,5 +1,6 @@
 package gobblin.runtime.task;
 
+import gobblin.configuration.WorkUnitState;
 import gobblin.publisher.DataPublisher;
 import gobblin.publisher.NoopPublisher;
 import gobblin.runtime.JobState;
@@ -14,9 +15,13 @@ public class FailedTask extends BaseAbstractTask {
     super(taskContext);
   }
 
+  public void commit() {
+    this.workingState = WorkUnitState.WorkingState.FAILED;
+  }
+
   @Override
   public void run() {
-    throw new RuntimeException();
+    this.workingState = WorkUnitState.WorkingState.FAILED;
   }
 
   public static class FailedWorkUnit extends WorkUnit {

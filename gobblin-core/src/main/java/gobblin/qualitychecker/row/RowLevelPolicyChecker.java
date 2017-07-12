@@ -20,6 +20,7 @@ package gobblin.qualitychecker.row;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -27,6 +28,7 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.records.RecordStreamProcessor;
@@ -36,6 +38,7 @@ import gobblin.util.FinalState;
 import gobblin.util.HadoopUtils;
 
 import io.reactivex.Flowable;
+import javax.annotation.concurrent.ThreadSafe;
 import lombok.Getter;
 
 
@@ -46,11 +49,16 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
   private final FileSystem fs;
   private boolean errFileOpen;
   private final Closer closer;
+  private final FrontLoadedSampler sampler;
   private RowLevelErrFileWriter writer;
   @Getter
   private final RowLevelPolicyCheckResults results;
 
   public RowLevelPolicyChecker(List<RowLevelPolicy> list, String stateId, FileSystem fs) {
+    this(list, stateId, fs, new State());
+  }
+
+  public RowLevelPolicyChecker(List<RowLevelPolicy> list, String stateId, FileSystem fs, State state) {
     this.list = list;
     this.stateId = stateId;
     this.fs = fs;
@@ -58,6 +66,8 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
     this.closer = Closer.create();
     this.writer = this.closer.register(new RowLevelErrFileWriter(this.fs));
     this.results = new RowLevelPolicyCheckResults();
+    this.sampler = new FrontLoadedSampler(state.getPropAsLong(ConfigurationKeys.ROW_LEVEL_ERR_FILE_RECORDS_PER_TASK,
+        ConfigurationKeys.DEFAULT_ROW_LEVEL_ERR_FILE_RECORDS_PER_TASK), 1.5);
   }
 
   public boolean executePolicies(Object record, RowLevelPolicyCheckResults results) throws IOException {
@@ -69,13 +79,15 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
         if (p.getType().equals(RowLevelPolicy.Type.FAIL)) {
           throw new RuntimeException("RowLevelPolicy " + p + " failed on record " + record);
         } else if (p.getType().equals(RowLevelPolicy.Type.ERR_FILE)) {
-          if (!this.errFileOpen) {
-            this.writer.open(getErrFilePath(p));
-            this.writer.write(record);
-          } else {
-            this.writer.write(record);
+          if (this.sampler.acceptNext()) {
+            if (!this.errFileOpen) {
+              this.writer.open(getErrFilePath(p));
+              this.writer.write(record);
+            } else {
+              this.writer.write(record);
+            }
+            this.errFileOpen = true;
           }
-          this.errFileOpen = true;
         }
         return false;
       }
@@ -123,5 +135,54 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
         inputStream.getRecordStream().filter(r -> executePolicies(r.getRecord(), this.results));
     filteredStream = filteredStream.doFinally(this::close);
     return inputStream.withRecordStream(filteredStream);
+  }
+
+  /**
+   * A sampler used to ensure the err file contains at most around {@link #targetRecordsAccepted}
+   * records.
+   *
+   * Basically, we will write the first {@link #targetRecordsAccepted} records without sampling. After that we apply a
+   * rapidly decaying sampling to make sure we write at most about 100 additional records, spread out through the
+   * rest of the stream.
+   */
+  @ThreadSafe
+  static class FrontLoadedSampler {
+
+    private final long targetRecordsAccepted;
+    /**
+     * Specifies how sampling decays at the tail end of the stream (after the first {@link #targetRecordsAccepted} have
+     * been accepeted). We will accept at most roughly
+     * {@link #targetRecordsAccepted} + 8/log_{10}({@link #decayFactor}) records total.
+     */
+    private final double decayFactor;
+    private final AtomicLong errorRecords = new AtomicLong();
+    private final AtomicLong nextErrorRecordWritten = new AtomicLong();
+
+    public FrontLoadedSampler(long targetRecordsAccepted, double decayFactor) {
+      this.targetRecordsAccepted = targetRecordsAccepted;
+      this.decayFactor = Math.max(1, decayFactor);
+      if (this.targetRecordsAccepted <= 0) {
+        this.nextErrorRecordWritten.set(Long.MAX_VALUE);
+      }
+    }
+
+    public boolean acceptNext() {
+      long recordNum = this.errorRecords.getAndIncrement();
+      while (recordNum >= this.nextErrorRecordWritten.get()) {
+        if (this.nextErrorRecordWritten.compareAndSet(recordNum, computeNextErrorRecordWritten())) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    private long computeNextErrorRecordWritten() {
+      long current = this.nextErrorRecordWritten.get();
+      if (current < this.targetRecordsAccepted) {
+        return current + 1;
+      } else {
+        return (long) (this.decayFactor * current) + 1;
+      }
+    }
   }
 }

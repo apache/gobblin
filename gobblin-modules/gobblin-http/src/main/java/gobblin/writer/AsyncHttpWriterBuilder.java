@@ -61,7 +61,7 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
   @Getter
   protected AsyncRequestBuilder<D, RQ> asyncRequestBuilder = null;
   @Getter
-  protected ResponseHandler<RP> responseHandler = null;
+  protected ResponseHandler<RQ, RP> responseHandler = null;
   @Getter
   protected int queueCapacity = AbstractAsyncDataWriter.DEFAULT_BUFFER_CAPACITY;
   @Getter
