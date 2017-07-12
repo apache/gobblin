@@ -16,7 +16,6 @@
  */
 
 package gobblin.compaction.source;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -26,10 +25,10 @@ import com.google.common.base.Optional;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.typesafe.config.ConfigFactory;
 
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.suite.CompactionSuiteUtils;
+import gobblin.config.ConfigBuilder;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
 import gobblin.compaction.suite.CompactionSuite;
@@ -39,7 +38,6 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.dataset.SimpleDatasetHierarchicalPrioritizer;
 import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
 import gobblin.runtime.JobState;
@@ -51,20 +49,23 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.BasicWorkUnitStream;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.source.workunit.WorkUnitStream;
+import gobblin.util.ClassAliasResolver;
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.executors.IteratorExecutor;
-import gobblin.util.request_allocation.AllocatedRequestsIterator;
+import gobblin.util.reflection.GobblinConstructorUtils;
+import gobblin.util.request_allocation.GreedyAllocator;
 import gobblin.util.request_allocation.HierarchicalAllocator;
+import gobblin.util.request_allocation.HierarchicalPrioritizer;
 import gobblin.util.request_allocation.RequestAllocator;
 import gobblin.util.request_allocation.RequestAllocatorConfig;
-import gobblin.util.request_allocation.Requestor;
+import gobblin.util.request_allocation.RequestAllocatorUtils;
 import gobblin.data.management.dataset.SimpleDatasetRequest;
 import gobblin.data.management.dataset.SimpleDatasetRequestor;
+import gobblin.util.request_allocation.ResourceEstimator;
 import gobblin.util.request_allocation.ResourcePool;
 
-import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -210,16 +211,29 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   }
 
   private void initAllocator (State state) {
-    try{
-      Comparator<SimpleDatasetRequest> prioritizer = new SimpleDatasetHierarchicalPrioritizer(state);
+    try {
+      ResourceEstimator estimator = GobblinConstructorUtils.<ResourceEstimator>invokeLongestConstructor(
+          new ClassAliasResolver(ResourceEstimator.class).resolveClass(state.getProp(ConfigurationKeys.COMPACTION_ESTIMATOR, ConfigurationKeys.DEFAULT_COMPACTION_ESTIMATOR)));
 
       RequestAllocatorConfig.Builder<SimpleDatasetRequest> configBuilder =
-          RequestAllocatorConfig.builder(new SimpleDatasetRequest.SimpleDatasetRequestEstimator()).allowParallelization(1)
-              .withLimitedScopeConfig(ConfigFactory.empty());
+          RequestAllocatorConfig.builder(estimator).allowParallelization(1).withLimitedScopeConfig(ConfigBuilder.create()
+              .loadProps(state.getProperties(), ConfigurationKeys.COMPACTION_PRIORITIZATION_PREFIX).build());
 
-        configBuilder.withPrioritizer(prioritizer);
+      if (!state.contains(ConfigurationKeys.COMPACTION_PRIORITIZER_ALIAS)) {
+        allocator = new GreedyAllocator<>(configBuilder.build());
+        return;
+      }
 
-      allocator = new HierarchicalAllocator.Factory().createRequestAllocator(configBuilder.build());
+      Comparator<SimpleDatasetRequest> prioritizer = GobblinConstructorUtils.<Comparator>invokeLongestConstructor(
+          new ClassAliasResolver(Comparator.class).resolveClass(state.getProp(ConfigurationKeys.COMPACTION_PRIORITIZER_ALIAS)), state);
+
+      configBuilder.withPrioritizer(prioritizer);
+
+      if (prioritizer instanceof HierarchicalPrioritizer) {
+        allocator = new HierarchicalAllocator.Factory().createRequestAllocator(configBuilder.build());
+      } else {
+        allocator = RequestAllocatorUtils.inferFromConfig(configBuilder.build());
+      }
     } catch (Exception e) {
       throw new RuntimeException("Cannot initialize allocator");
     }
@@ -229,20 +243,9 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     double maxPool = state.getPropAsDouble(MRCompactor.COMPACTION_DATASETS_MAX_COUNT, MRCompactor.DEFUALT_COMPACTION_DATASETS_MAX_COUNT);
     ResourcePool pool = ResourcePool.builder().maxResource(SimpleDatasetRequest.SIMPLE_DATASET_COUNT_DIMENSION, maxPool).build();
 
-    List<Dataset> newList = new ArrayList<>();
-    AllocatedRequestsIterator<SimpleDatasetRequest> allocatedRequests = this.allocator.allocateRequests(Iterators.transform(datasets.iterator(), new Function<Dataset, Requestor<SimpleDatasetRequest>>() {
-      @Nullable
-      @Override
-      public SimpleDatasetRequestor apply(@Nullable Dataset input) {
-        return new SimpleDatasetRequestor(input);
-      }
-    }), pool);
-
-    while(allocatedRequests.hasNext()) {
-      SimpleDatasetRequest request = allocatedRequests.next();
-      newList.add(request.getDataset());
-    }
-    return newList;
+    Iterator<Dataset> newList = Iterators.transform(
+        this.allocator.allocateRequests(datasets.stream().map(SimpleDatasetRequestor::new).iterator(), pool), (input) -> input.getDataset());
+    return Lists.newArrayList(newList);
   }
 
   private static class DatasetVerificationException extends Exception {

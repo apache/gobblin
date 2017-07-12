@@ -30,7 +30,9 @@ import lombok.Getter;
 import gobblin.dataset.Dataset;
 import gobblin.util.request_allocation.PushDownRequestor;
 
-
+/**
+ * A simple {@link gobblin.util.request_allocation.Requestor} used to generate a single {@link SimpleDatasetRequest}
+ */
 @AllArgsConstructor
 public class SimpleDatasetRequestor implements PushDownRequestor<SimpleDatasetRequest> {
   @Getter

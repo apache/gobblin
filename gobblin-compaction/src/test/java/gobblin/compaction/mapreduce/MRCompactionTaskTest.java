@@ -197,6 +197,7 @@ public class MRCompactionTaskTest {
 
   private EmbeddedGobblin createEmbeddedGobblinWithPriority (String name, String basePath) {
     return createEmbeddedGobblin(name, basePath)
+        .setConfiguration(ConfigurationKeys.COMPACTION_PRIORITIZER_ALIAS, "SimpleTiers")
         .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".0", "Identity")
         .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".1", "EVG")
         .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".2", "BizProfile");

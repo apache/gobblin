@@ -22,6 +22,7 @@ import com.typesafe.config.Config;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import gobblin.annotation.Alias;
 import gobblin.dataset.Dataset;
 import gobblin.util.request_allocation.Request;
 import gobblin.util.request_allocation.Requestor;
@@ -29,7 +30,9 @@ import gobblin.util.request_allocation.ResourceEstimator;
 import gobblin.util.request_allocation.ResourcePool;
 import gobblin.util.request_allocation.ResourceRequirement;
 
-
+/**
+ * A simple {@link Request} which represents a {@link Dataset}
+ */
 @AllArgsConstructor
 public class SimpleDatasetRequest implements Request<SimpleDatasetRequest> {
 
@@ -42,6 +45,7 @@ public class SimpleDatasetRequest implements Request<SimpleDatasetRequest> {
     return requestor;
   }
 
+  @Alias("SimpleEstimator")
   public static class SimpleDatasetRequestEstimator implements ResourceEstimator<SimpleDatasetRequest> {
     static class Factory implements ResourceEstimator.Factory<SimpleDatasetRequest> {
       @Override
