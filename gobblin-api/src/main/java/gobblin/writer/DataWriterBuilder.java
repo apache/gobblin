@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.State;
 import gobblin.source.workunit.WorkUnitStream;
+import gobblin.writer.initializer.NoopWriterInitializer;
 import gobblin.writer.initializer.WriterInitializer;
 
 
@@ -130,7 +131,7 @@ public abstract class DataWriterBuilder<S, D> {
   }
 
   public WriterInitializer getInitializer(State state, WorkUnitStream workUnits, int branches, int branchId) {
-    return null;
+    return NoopWriterInitializer.INSTANCE;
   }
 
   /**

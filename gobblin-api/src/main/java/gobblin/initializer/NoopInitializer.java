@@ -15,25 +15,19 @@
  * limitations under the License.
  */
 
-package gobblin.converter.initializer;
+package gobblin.initializer;
 
 import lombok.ToString;
-import gobblin.initializer.Initializer;
-import gobblin.initializer.NoopInitializer;
-
 
 @ToString
-public class NoopConverterInitializer implements ConverterInitializer {
-  private final Initializer initializer = new NoopInitializer();
+public class NoopInitializer implements Initializer {
+  public static final NoopInitializer INSTANCE = new NoopInitializer();
+
+  private NoopInitializer() {}
 
   @Override
-  public void initialize() {
-    this.initializer.initialize();
-  }
+  public void initialize() {}
 
   @Override
-  public void close() {
-    this.initializer.close();
-  }
-
+  public void close() {}
 }

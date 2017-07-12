@@ -32,8 +32,6 @@ import com.google.common.collect.Lists;
  * Factory method pattern class provides WriterInitializer based on writer and state.
  */
 public class WriterInitializerFactory {
-  private static final NoopWriterInitializer NOOP = new NoopWriterInitializer();
-
   /**
    * Provides WriterInitializer based on the writer. Mostly writer is decided by the Writer builder (and destination) that user passes.
    * If there's more than one branch, it will instantiate same number of WriterInitializer instance as number of branches and combine it into MultiWriterInitializer.
@@ -67,11 +65,6 @@ public class WriterInitializerFactory {
       throw new RuntimeException(e);
     }
 
-    WriterInitializer initializer = dataWriterBuilder.getInitializer(state, workUnits, branches, branchId);
-    if (initializer != null) {
-      return initializer;
-    }
-
-    return NOOP;
+    return dataWriterBuilder.getInitializer(state, workUnits, branches, branchId);
   }
 }

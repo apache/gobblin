@@ -23,6 +23,7 @@ import java.io.IOException;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.initializer.ConverterInitializer;
+import gobblin.converter.initializer.NoopConverterInitializer;
 import gobblin.records.RecordStreamProcessor;
 import gobblin.records.RecordStreamWithMetadata;
 import gobblin.source.extractor.RecordEnvelope;
@@ -125,6 +126,6 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
   }
 
   public ConverterInitializer getInitializer(State state, WorkUnitStream workUnits, int branches, int branchId) {
-    return null;
+    return NoopConverterInitializer.INSTANCE;
   }
 }

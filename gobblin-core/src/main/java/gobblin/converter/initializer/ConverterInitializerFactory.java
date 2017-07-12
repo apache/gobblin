@@ -31,7 +31,6 @@ import gobblin.source.workunit.WorkUnitStream;
 
 
 public class ConverterInitializerFactory {
-  private static final NoopConverterInitializer NOOP = new NoopConverterInitializer();
   private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().omitEmptyStrings();
 
   /**
@@ -63,7 +62,7 @@ public class ConverterInitializerFactory {
     List<String> converterClasses = COMMA_SPLITTER.splitToList(state.getProp(converterClassesParam, ""));
 
     if (converterClasses.isEmpty()) {
-      return NOOP;
+      return NoopConverterInitializer.INSTANCE;
     }
 
     List<ConverterInitializer> cis = Lists.newArrayList();
@@ -75,10 +74,7 @@ public class ConverterInitializerFactory {
         throw new RuntimeException(e);
       }
 
-      ConverterInitializer initializer = converter.getInitializer(state, workUnits, branches, branchId);
-      if (initializer != null) {
-        cis.add(initializer);
-      }
+      cis.add(converter.getInitializer(state, workUnits, branches, branchId));
     }
     return new MultiConverterInitializer(cis);
   }

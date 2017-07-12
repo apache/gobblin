@@ -15,15 +15,20 @@
  * limitations under the License.
  */
 
-package gobblin.writer.initializer;
+package gobblin.converter.initializer;
 
 import lombok.ToString;
 import gobblin.initializer.Initializer;
 import gobblin.initializer.NoopInitializer;
 
+
 @ToString
-public class NoopWriterInitializer implements WriterInitializer {
-  private final Initializer initializer = new NoopInitializer();
+public class NoopConverterInitializer implements ConverterInitializer {
+  public static final NoopConverterInitializer INSTANCE = new NoopConverterInitializer();
+
+  private final Initializer initializer = NoopInitializer.INSTANCE;
+
+  private NoopConverterInitializer() {}
 
   @Override
   public void initialize() {
@@ -34,4 +39,5 @@ public class NoopWriterInitializer implements WriterInitializer {
   public void close() {
     this.initializer.close();
   }
+
 }
