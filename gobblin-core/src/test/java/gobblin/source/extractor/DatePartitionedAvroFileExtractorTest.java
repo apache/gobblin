@@ -37,6 +37,7 @@ import gobblin.source.DatePartitionedAvroFileSource;
 import gobblin.source.workunit.Extract.TableType;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.stream.RecordEnvelope;
 import gobblin.writer.AvroDataWriterBuilder;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;

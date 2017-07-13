@@ -32,7 +32,7 @@ import com.google.common.collect.Sets;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.records.RecordStreamWithMetadata;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.util.ExponentialBackoff;
 
 import io.reactivex.Flowable;
@@ -57,7 +57,7 @@ public class AsyncConverter1to1Test {
     Set<String> outputRecords = Sets.newConcurrentHashSet();
 
     converter.processStream(stream, workUnitState).getRecordStream().subscribeOn(Schedulers.newThread())
-        .subscribe(r -> outputRecords.add(r.getRecord()), errors::add, () -> done.set(true));
+        .subscribe(r -> outputRecords.add(((RecordEnvelope<String>)r).getRecord()), errors::add, () -> done.set(true));
 
     // Release record 0
     Assert.assertTrue(
@@ -111,7 +111,7 @@ public class AsyncConverter1to1Test {
     Set<String> outputRecords = Sets.newConcurrentHashSet();
 
     converter.processStream(stream, workUnitState).getRecordStream().subscribeOn(Schedulers.newThread())
-        .subscribe(r -> outputRecords.add(r.getRecord()), errors::add, () -> done.set(true));
+        .subscribe(r -> outputRecords.add(((RecordEnvelope<String>)r).getRecord()), errors::add, () -> done.set(true));
 
     Assert.assertTrue(ExponentialBackoff.awaitCondition().maxWait(100L).callable(() -> errors.size() > 0).await());
 

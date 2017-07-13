@@ -31,9 +31,12 @@ import com.google.common.io.Closer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.stream.ControlMessage;
+import gobblin.records.ControlMessageHandler;
 import gobblin.records.RecordStreamProcessor;
 import gobblin.records.RecordStreamWithMetadata;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
+import gobblin.stream.StreamEntity;
 import gobblin.util.FinalState;
 import gobblin.util.HadoopUtils;
 
@@ -131,10 +134,26 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
    */
   @Override
   public RecordStreamWithMetadata<D, S> processStream(RecordStreamWithMetadata<D, S> inputStream, WorkUnitState state) {
-    Flowable<RecordEnvelope<D>> filteredStream =
-        inputStream.getRecordStream().filter(r -> executePolicies(r.getRecord(), this.results));
+    Flowable<StreamEntity<D>> filteredStream =
+        inputStream.getRecordStream().filter(r -> {
+          if (r instanceof ControlMessage) {
+            getMessageHandler().handleMessage((ControlMessage) r);
+            return true;
+          } else if (r instanceof RecordEnvelope) {
+            return executePolicies(((RecordEnvelope) r).getRecord(), this.results);
+          } else {
+            return true;
+          }
+        });
     filteredStream = filteredStream.doFinally(this::close);
     return inputStream.withRecordStream(filteredStream);
+  }
+
+  /**
+   * @return a {@link ControlMessageHandler}.
+   */
+  protected ControlMessageHandler getMessageHandler() {
+    return ControlMessageHandler.NOOP;
   }
 
   /**

@@ -39,7 +39,7 @@ import gobblin.metrics.MetricNames;
 import gobblin.metrics.Tag;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.util.FinalState;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;

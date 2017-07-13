@@ -33,15 +33,13 @@ import org.testng.annotations.Test;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.writer.AvroDataWriterBuilder;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.Destination;
 import gobblin.writer.PartitionedDataWriter;
 import gobblin.writer.WriterOutputFormat;
-import gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
-import gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 
 
 /**

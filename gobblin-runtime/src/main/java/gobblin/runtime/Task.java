@@ -70,7 +70,7 @@ import gobblin.runtime.task.TaskIFace;
 import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.source.extractor.StreamingExtractor;
 import gobblin.state.ConstructState;
 import gobblin.util.ConfigUtils;

@@ -23,7 +23,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 
 
 /**

@@ -29,7 +29,7 @@ import gobblin.configuration.State;
 import gobblin.Constructs;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.MetricNames;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.writer.DataWriter;
 
 

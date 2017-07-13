@@ -21,7 +21,7 @@ import java.io.IOException;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 
 
 /**

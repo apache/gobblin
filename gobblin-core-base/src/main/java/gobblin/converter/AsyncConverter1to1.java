@@ -22,8 +22,10 @@ import java.util.concurrent.CompletableFuture;
 import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.stream.ControlMessage;
 import gobblin.records.RecordStreamWithMetadata;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
+import gobblin.stream.StreamEntity;
 
 import io.reactivex.Flowable;
 import io.reactivex.Single;
@@ -68,10 +70,19 @@ public abstract class AsyncConverter1to1<SI, SO, DI, DO> extends Converter<SI, S
     int maxConcurrentAsyncConversions = workUnitState.getPropAsInt(MAX_CONCURRENT_ASYNC_CONVERSIONS_KEY,
         DEFAULT_MAX_CONCURRENT_ASYNC_CONVERSIONS);
     SO outputSchema = convertSchema(inputStream.getSchema(), workUnitState);
-    Flowable<RecordEnvelope<DO>> outputStream =
+    Flowable<StreamEntity<DO>> outputStream =
         inputStream.getRecordStream()
-            .flatMapSingle(in -> new SingleAsync(in, convertRecordAsync(outputSchema, in.getRecord(), workUnitState)),
-                false, maxConcurrentAsyncConversions);
+            .flatMapSingle(in -> {
+              if (in instanceof ControlMessage) {
+                getMessageHandler().handleMessage((ControlMessage) in);
+                return Single.just((ControlMessage<DO>) in);
+              } else if (in instanceof RecordEnvelope) {
+                RecordEnvelope<DI> recordEnvelope = (RecordEnvelope<DI>) in;
+                return new SingleAsync(recordEnvelope, convertRecordAsync(outputSchema, recordEnvelope.getRecord(), workUnitState));
+              } else {
+                throw new IllegalStateException("Expected ControlMessage or RecordEnvelope.");
+              }
+            }, false, maxConcurrentAsyncConversions);
     return inputStream.withRecordStream(outputStream, outputSchema);
   }
 

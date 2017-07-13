@@ -19,7 +19,8 @@ package gobblin.records;
 
 import java.util.function.Function;
 
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
+import gobblin.stream.StreamEntity;
 
 import io.reactivex.Flowable;
 import lombok.Data;
@@ -32,20 +33,20 @@ import lombok.Data;
  */
 @Data
 public class RecordStreamWithMetadata<D, S> {
-  private final Flowable<RecordEnvelope<D>> recordStream;
+  private final Flowable<StreamEntity<D>> recordStream;
   private final S schema;
 
   /**
    * @return a new {@link RecordStreamWithMetadata} with a different {@link #recordStream} but same schema.
    */
-  public <DO> RecordStreamWithMetadata<DO, S> withRecordStream(Flowable<RecordEnvelope<DO>> newRecordStream) {
+  public <DO> RecordStreamWithMetadata<DO, S> withRecordStream(Flowable<StreamEntity<DO>> newRecordStream) {
     return withRecordStream(newRecordStream, this.schema);
   }
 
   /**
    * @return a new {@link RecordStreamWithMetadata} with a different {@link #recordStream} and {@link #schema}.
    */
-  public <DO, SO> RecordStreamWithMetadata<DO, SO> withRecordStream(Flowable<RecordEnvelope<DO>> newRecordStream, SO newSchema) {
+  public <DO, SO> RecordStreamWithMetadata<DO, SO> withRecordStream(Flowable<StreamEntity<DO>> newRecordStream, SO newSchema) {
     return new RecordStreamWithMetadata<>(newRecordStream, newSchema);
   }
 
@@ -54,7 +55,21 @@ public class RecordStreamWithMetadata<D, S> {
    * lambda expression on the stream.
    */
   public <DO> RecordStreamWithMetadata<DO, S>
-      mapStream(Function<? super Flowable<RecordEnvelope<D>>, ? extends Flowable<RecordEnvelope<DO>>> transform) {
+      mapStream(Function<? super Flowable<StreamEntity<D>>, ? extends Flowable<StreamEntity<DO>>> transform) {
     return new RecordStreamWithMetadata<>(transform.apply(this.recordStream), this.schema);
+  }
+
+  /**
+   * Apply the input mapping function to {@link RecordEnvelope}s, while letting other kinds of {@link StreamEntity}
+   * to pass through.
+   */
+  public <DO> RecordStreamWithMetadata<DO, S> mapRecords(Function<RecordEnvelope<D>, RecordEnvelope<DO>> transform) {
+    return withRecordStream(this.recordStream.map(entity -> {
+      if (entity instanceof RecordEnvelope) {
+        return transform.apply((RecordEnvelope<D>) entity);
+      } else {
+        return (StreamEntity<DO>) entity;
+      }
+    }));
   }
 }

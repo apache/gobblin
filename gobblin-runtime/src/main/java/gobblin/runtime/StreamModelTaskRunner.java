@@ -79,10 +79,10 @@ public class StreamModelTaskRunner {
     ConnectableFlowable connectableStream = stream.getRecordStream().publish();
     stream = stream.withRecordStream(connectableStream);
 
-    stream = stream.mapStream(s -> s.map(r -> {
+    stream = stream.mapRecords(r -> {
       this.task.onRecordExtract();
       return r;
-    }));
+    });
     if (this.task.isStreamingTask()) {
 
       // Start watermark manager and tracker
@@ -93,13 +93,13 @@ public class StreamModelTaskRunner {
 
       ((StreamingExtractor) this.taskContext.getRawSourceExtractor()).start(this.watermarkStorage.get());
 
-      stream = stream.mapStream(s -> s.map(r -> {
+      stream = stream.mapRecords(r -> {
         AcknowledgableWatermark ackableWatermark = new AcknowledgableWatermark(r.getWatermark());
         if (watermarkTracker.isPresent()) {
           watermarkTracker.get().track(ackableWatermark);
         }
         return r.withAckableWatermark(ackableWatermark);
-      }));
+      });
     }
     if (this.converter instanceof MultiConverter) {
       // if multiconverter, unpack it

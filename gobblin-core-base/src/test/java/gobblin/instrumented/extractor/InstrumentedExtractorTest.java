@@ -32,7 +32,7 @@ import gobblin.metrics.MetricNames;
 import gobblin.records.RecordStreamWithMetadata;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 
 
 public class InstrumentedExtractorTest {
@@ -121,7 +121,7 @@ public class InstrumentedExtractorTest {
       throws DataRecordException, IOException {
 
     RecordStreamWithMetadata<String, String> stream = extractor.recordStream(new AtomicBoolean(false));
-    RecordEnvelope<String> r = stream.getRecordStream().firstOrError().blockingGet();
+    RecordEnvelope<String> r = (RecordEnvelope<String>) stream.getRecordStream().firstOrError().blockingGet();
 
     Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.getMetricContext());
     Assert.assertEquals(metrics.get(MetricNames.ExtractorMetrics.RECORDS_READ_METER), Long.valueOf(1));

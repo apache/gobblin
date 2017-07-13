@@ -21,7 +21,6 @@ package gobblin.writer;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -55,7 +54,7 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 import gobblin.metrics.Tag;
 import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.FinalState;

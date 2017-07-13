@@ -40,8 +40,10 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
+import gobblin.records.ControlMessageHandler;
 import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.ControlMessage;
+import gobblin.stream.RecordEnvelope;
 import gobblin.util.AvroUtils;
 import gobblin.util.FinalState;
 import gobblin.writer.partitioner.WriterPartitioner;
@@ -290,4 +292,20 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     return watermarkTracker.getAllUnacknowledgedWatermarks();
   }
 
+  @Override
+  public ControlMessageHandler getMessageHandler() {
+    return new PartitionDataWriterMessageHandler();
+  }
+
+  /**
+   * A {@link ControlMessageHandler} that clones the message and lets each writer handle it.
+   */
+  private class PartitionDataWriterMessageHandler implements ControlMessageHandler {
+    @Override
+    public void handleMessage(ControlMessage message) {
+      for (DataWriter writer : PartitionedDataWriter.this.partitionWriters.asMap().values()) {
+        writer.getMessageHandler().handleMessage((ControlMessage) message.getClone());
+      }
+    }
+  }
 }

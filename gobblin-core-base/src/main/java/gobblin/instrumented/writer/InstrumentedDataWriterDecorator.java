@@ -26,12 +26,12 @@ import com.google.common.base.Preconditions;
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.records.ControlMessageHandler;
 import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 import gobblin.util.FinalState;
-import gobblin.writer.AcknowledgableRecordEnvelope;
 import gobblin.writer.DataWriter;
 import gobblin.writer.WatermarkAwareWriter;
 
@@ -145,5 +145,10 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
     Preconditions.checkState(isWatermarkCapable());
     return watermarkAwareWriter.get().getUnacknowledgedWatermark();
+  }
+
+  @Override
+  public ControlMessageHandler getMessageHandler() {
+    return this.embeddedWriter.getMessageHandler();
   }
 }

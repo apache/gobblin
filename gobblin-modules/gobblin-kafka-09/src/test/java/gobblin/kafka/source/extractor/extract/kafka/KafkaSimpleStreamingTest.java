@@ -43,7 +43,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.kafka.KafkaTestBase;
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingExtractor;
 import gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource;

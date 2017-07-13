@@ -24,7 +24,7 @@ import java.util.Map;
 
 import gobblin.annotation.Alpha;
 import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 
 
 /**

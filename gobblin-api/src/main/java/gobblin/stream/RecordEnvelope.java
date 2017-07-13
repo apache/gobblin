@@ -1,27 +1,28 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-package gobblin.source.extractor;
+package gobblin.stream;
 
 import java.util.function.Function;
 
 import gobblin.annotation.Alpha;
+import gobblin.fork.CopyHelper;
+import gobblin.fork.CopyNotSupportedException;
+import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.writer.Ackable;
 
 import javax.annotation.Nullable;
@@ -31,7 +32,7 @@ import javax.annotation.Nullable;
  * An envelope around a record containing metadata and allowing for ack'ing the record.
  */
 @Alpha
-public class RecordEnvelope<D> implements Ackable {
+public class RecordEnvelope<D> extends StreamEntity<D> {
 
   private final D _record;
   private final CheckpointableWatermark _watermark;
@@ -46,6 +47,8 @@ public class RecordEnvelope<D> implements Ackable {
   }
 
   private RecordEnvelope(D record, CheckpointableWatermark watermark, Ackable ackable) {
+    super(ackable);
+
     if (record instanceof RecordEnvelope) {
       throw new IllegalStateException("Cannot wrap a RecordEnvelope in another RecordEnvelope.");
     }
@@ -91,13 +94,12 @@ public class RecordEnvelope<D> implements Ackable {
     return _watermark;
   }
 
-  /**
-   * Ack the record upon write.
-   */
-  public void ack() {
-    if (_ackable != null) {
-      _ackable.ack();
+  @Override
+  public StreamEntity<D> getClone() {
+    try {
+      return withRecord((D) CopyHelper.copy(_record));
+    } catch (CopyNotSupportedException cnse) {
+      throw new UnsupportedOperationException(cnse);
     }
   }
-
 }

@@ -25,7 +25,9 @@ import com.google.common.collect.Lists;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.records.RecordStreamWithMetadata;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.ControlMessage;
+import gobblin.stream.RecordEnvelope;
+import gobblin.stream.StreamEntity;
 
 import io.reactivex.Flowable;
 import io.reactivex.flowables.ConnectableFlowable;
@@ -64,8 +66,16 @@ public class Forker {
         .format("Number of forked schemas [%d] is not equal to number of branches [%d]", forkedSchemas.size(),
             branches));
 
-    Flowable<RecordWithForkMap<D>> forkedStream = inputStream.getRecordStream().map(r ->
-        new RecordWithForkMap<>(r, forkOperator.forkDataRecord(workUnitState, r.getRecord())));
+    Flowable<RecordWithForkMap<D>> forkedStream = inputStream.getRecordStream().map(r -> {
+      if (r instanceof RecordEnvelope) {
+        RecordEnvelope<D> recordEnvelope = (RecordEnvelope<D>) r;
+        return new RecordWithForkMap<>(recordEnvelope, forkOperator.forkDataRecord(workUnitState, recordEnvelope.getRecord()));
+      } else if (r instanceof ControlMessage) {
+        return new RecordWithForkMap<D>((ControlMessage<D>) r);
+      } else {
+        throw new IllegalStateException("Expected RecordEnvelope or ControlMessage.");
+      }
+    });
 
     if (activeForks > 1) {
       forkedStream = forkedStream.share();
@@ -77,7 +87,7 @@ public class Forker {
     for(int i = 0; i < forkedSchemas.size(); i++) {
       if (forkedSchemas.get(i)) {
         final int idx = i;
-        Flowable<RecordEnvelope<D>> thisStream =
+        Flowable<StreamEntity<D>> thisStream =
             forkedStream.filter(new ForkFilter<>(idx)).map(RecordWithForkMap::getRecordCopyIfNecessary);
         forkStreams.add(inputStream.withRecordStream(thisStream,
             mustCopy ? (S) CopyHelper.copy(inputStream.getSchema()) : inputStream.getSchema()));
@@ -112,7 +122,7 @@ public class Forker {
 
     @Override
     public boolean test(RecordWithForkMap<D> dRecordWithForkMap) {
-      return dRecordWithForkMap.getForkMap().get(this.forkIdx);
+      return dRecordWithForkMap.sendToBranch(this.forkIdx);
     }
   }
 
@@ -120,7 +130,7 @@ public class Forker {
    * Used to hold a record as well and the map specifying which forks it should go to.
    */
   private static class RecordWithForkMap<D> {
-    private final RecordEnvelope<D> record;
+    private final StreamEntity<D> record;
     private final List<Boolean> forkMap;
     private final boolean mustCopy;
 
@@ -130,16 +140,26 @@ public class Forker {
       this.mustCopy = mustCopy(forkMap);
     }
 
-    private RecordEnvelope<D> getRecordCopyIfNecessary() throws CopyNotSupportedException {
+    public RecordWithForkMap(ControlMessage<D> record) {
+      this.record = record;
+      this.forkMap = null;
+      this.mustCopy = true;
+    }
+
+    private StreamEntity<D> getRecordCopyIfNecessary() throws CopyNotSupportedException {
       if(this.mustCopy) {
-        return this.record.withRecord((D) CopyHelper.copy(this.record.getRecord()));
+        return this.record.getClone();
       } else {
         return this.record;
       }
     }
 
-    public List<Boolean> getForkMap() {
-      return this.forkMap;
+    public boolean sendToBranch(int idx) {
+      if (record instanceof RecordEnvelope) {
+        return this.forkMap.get(idx);
+      } else {
+        return true;
+      }
     }
 
   }
