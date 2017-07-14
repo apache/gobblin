@@ -74,4 +74,15 @@ public class ServiceConfigKeys {
   // Template Catalog Keys
   public static final String TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.fullyQualifiedPath";
 
+  // Keys related to user-specified policy on route slection.
+
+  // Undesired connection to form an executable JobSpec.
+  // Formatted as a String list, each entry contains a string in the format of "Source1:Sink1",
+  // which indicates that data movement from source1 to sink1 should be avoided.
+  public static final String POLICY_BASED_BLOCKED_CONNECTION = GOBBLIN_SERVICE_PREFIX + "blocked.connection";
+  // Complete path of how the data movement is executed from source to sink.
+  // Formatted as a String, each hop separated by comma, from source to sink in order.
+  public static final String POLICY_BASED_DATA_MOVEMENT_PATH = GOBBLIN_SERVICE_PREFIX + "full.data.path";
+  // Priority criteria for multiple SpecExecutorInstance has the same capabilities.
+  public static final String POLICY_BASED_SPEC_EXECUTOR_SELECTION = GOBBLIN_SERVICE_PREFIX + "specExecutor.selection.policy";
 }
