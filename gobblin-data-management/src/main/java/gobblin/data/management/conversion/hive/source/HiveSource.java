@@ -17,7 +17,9 @@
 package gobblin.data.management.conversion.hive.source;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
+
 import java.io.IOException;
+import java.net.URI;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +45,7 @@ import com.google.gson.Gson;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.SourceState;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.avro.SchemaNotFoundException;
@@ -115,6 +118,8 @@ public class HiveSource implements Source {
 
   public static final String HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS = "hive.source.createWorkunitsForPartitions";
   public static final boolean DEFAULT_HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS = true;
+
+  public static final String HIVE_SOURCE_FS_URI = "hive.source.fs.uri";
 
   /***
    * Comma separated list of keywords to look for in path of table (in non-partitioned case) / partition (in partitioned case)
@@ -192,7 +197,7 @@ public class HiveSource implements Source {
     this.updateProvider = UpdateProviderFactory.create(state);
     this.metricContext = Instrumented.getMetricContext(state, HiveSource.class);
     this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, EventConstants.CONVERSION_NAMESPACE).build();
-    this.avroSchemaManager = new AvroSchemaManager(getSourceFs(), state);
+    this.avroSchemaManager = new AvroSchemaManager(getSourceFs(state), state);
     this.workunits = Lists.newArrayList();
 
     this.watermarker =
@@ -202,7 +207,7 @@ public class HiveSource implements Source {
 
     EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.CONVERSION_SETUP_EVENT);
     this.datasetFinder = GobblinConstructorUtils.invokeConstructor(HiveDatasetFinder.class,
-        state.getProp(HIVE_SOURCE_DATASET_FINDER_CLASS_KEY, DEFAULT_HIVE_SOURCE_DATASET_FINDER_CLASS), getSourceFs(), state.getProperties(),
+        state.getProp(HIVE_SOURCE_DATASET_FINDER_CLASS_KEY, DEFAULT_HIVE_SOURCE_DATASET_FINDER_CLASS), getSourceFs(state), state.getProperties(),
         this.eventSubmitter);
     int maxLookBackDays = state.getPropAsInt(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS);
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
@@ -242,6 +247,7 @@ public class HiveSource implements Source {
             this.watermarker.getExpectedHighWatermark(hiveDataset.getTable(), tableProcessTime);
         HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
         hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
+        hiveWorkUnit.setTableLocation(hiveDataset.getTable().getSd().getLocation());
         hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
 
         EventWorkunitUtils.setTableSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue(),
@@ -285,7 +291,6 @@ public class HiveSource implements Source {
     List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), partitionFilter);
 
     for (Partition sourcePartition : sourcePartitions) {
-
       if (isOlderThanLookback(sourcePartition)) {
         continue;
       }
@@ -312,8 +317,11 @@ public class HiveSource implements Source {
 
           HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
           hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
+          hiveWorkUnit.setTableLocation(hiveDataset.getTable().getSd().getLocation());
           hiveWorkUnit.setPartitionSchemaUrl(this.avroSchemaManager.getSchemaUrl(sourcePartition));
           hiveWorkUnit.setPartitionName(sourcePartition.getName());
+          hiveWorkUnit.setPartitionLocation(sourcePartition.getLocation());
+          hiveWorkUnit.setPartitionKeys(sourcePartition.getTable().getPartitionKeys());
           hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedPartitionHighWatermark));
 
           EventWorkunitUtils.setPartitionSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), sourcePartition, updateTime,
@@ -409,7 +417,7 @@ public class HiveSource implements Source {
   public Extractor getExtractor(WorkUnitState state) throws IOException {
     try {
       return classAliasResolver.resolveClass(state.getProp(HIVE_SOURCE_EXTRACTOR_TYPE, DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE))
-          .newInstance().createExtractor(state, getSourceFs());
+          .newInstance().createExtractor(state, getSourceFs(state));
     } catch (Exception e) {
       throw new IOException(e);
     }
@@ -419,8 +427,11 @@ public class HiveSource implements Source {
   public void shutdown(SourceState state) {
   }
 
-  private static FileSystem getSourceFs() throws IOException {
-    return FileSystem.get(HadoopUtils.newConfiguration());
+  private static FileSystem getSourceFs(State state) throws IOException {
+    if (state.contains(HIVE_SOURCE_FS_URI)) {
+      return FileSystem.get(URI.create(state.getProp(HIVE_SOURCE_FS_URI)), HadoopUtils.getConfFromState(state));
+    }
+    return FileSystem.get(HadoopUtils.getConfFromState(state));
   }
 
   /**
