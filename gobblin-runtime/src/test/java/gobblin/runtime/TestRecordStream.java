@@ -107,7 +107,6 @@ public class TestRecordStream {
     Task task = spy(realTask);
     doNothing().when(task).submitTaskCommittedEvent();
 
-    // The first run of the Task should fail
     task.run();
     task.commit();
     Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
