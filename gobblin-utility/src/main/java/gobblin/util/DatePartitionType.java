@@ -17,12 +17,13 @@ import java.util.Map;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeFieldType;
+import org.joda.time.chrono.ISOChronology;
 
 
 /**
  * Temporal granularity types for writing ({@link gobblin.writer.partitioner.TimeBasedWriterPartitioner}) and reading
  * ({@link gobblin.source.DatePartitionedAvroFileSource}) date partitioned data.
- * 
+ *
  * @author Lorand Bendig
  *
  */
@@ -62,7 +63,7 @@ public enum DatePartitionType {
 
   /**
    * @param pattern full partitioning pattern
-   * @return a DateTimeFieldType corresponding to the smallest temporal unit in the pattern. 
+   * @return a DateTimeFieldType corresponding to the smallest temporal unit in the pattern.
    * E.g for yyyy/MM/dd {@link DateTimeFieldType#dayOfMonth()}
    */
   public static DateTimeFieldType getLowestIntervalUnit(String pattern) {
@@ -75,15 +76,23 @@ public enum DatePartitionType {
     }
     return intervalUnit;
   }
-  
+
+  /**
+   * Get the number of milliseconds associated with a partition type. Eg
+   * getUnitMilliseconds() of DatePartitionType.MINUTE = 60,000.
+   */
+  public long getUnitMilliseconds() {
+    return dateTimeField.getDurationType().getField(ISOChronology.getInstance()).getUnitMillis();
+  }
+
   public DateTimeFieldType getDateTimeFieldType() {
     return dateTimeField;
   }
-  
+
   public int getField(DateTime dateTime) {
     return dateTime.get(this.dateTimeField);
   }
-  
+
   public String getDateTimePattern() {
     return dateTimePattern;
   }
