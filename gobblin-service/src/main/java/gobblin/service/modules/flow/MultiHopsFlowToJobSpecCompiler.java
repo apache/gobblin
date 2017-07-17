@@ -24,12 +24,14 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
@@ -55,15 +57,25 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
            should ensure the updates of following two data structures atomic with TopologySpec Catagory updates */
   // Inverted index for specExecutor: Given a pair of source and sink in the format of "source-string"
   // Users are free to inject Prioritization criteria in the PriorityQueue.
+  @Getter
   private Map<String, PriorityQueue<SpecExecutorInstanceProducer>> specExecutorInvertedIndex = new HashMap<>();
   // Adjacency List to indicate connection between different hops, for convenience of pathFinding.
+  @Getter
   private Map<String, List<String>> adjacencyList = new HashMap<>();
 
   //Contains the user-specified connection that are not desired to appear in JobSpec.
   //It can be used for avoiding known expensive or undesired data movement.
-  private Optional<Multimap<String, String>> optionalPolicyBasedBlockedConnection;
+  public Optional<Multimap<String, String>> optionalPolicyBasedBlockedConnection;
   // Contains user-specified complete path of how the data movement is executed from source to sink.
   private Optional<String> optionalUserSpecifiedPath;
+
+  public MultiHopsFlowToJobSpecCompiler(Config config){
+    this(config, Optional.absent(), true);
+  }
+
+  public MultiHopsFlowToJobSpecCompiler(Config config, Optional<Logger> log){
+    this(config, log, true);
+  }
 
   public MultiHopsFlowToJobSpecCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
@@ -97,12 +109,11 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   /**
-   * @param topologySpecMap Contains all topologySpec that currently existed
    * @return Transform all topologySpec into a adjacency list for convenience of path finding.
    *         A path here represents a complete route from source to sink, with possibly multiple hops in the between.
    * This function is invoked right before the adjacency list is to be used, ensuring up-to-date connection info.
    */
-  private void inMemoryAdjacencyListAndInvertedIndexGenerator(Map<URI, TopologySpec> topologySpecMap){
+  public void inMemoryAdjacencyListAndInvertedIndexGenerator(){
     for( TopologySpec topologySpec : topologySpecMap.values()) {
       adjacencyListAndInvertedListGenerateHelper(topologySpec);
     }
@@ -129,7 +140,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   // there's no updates on TopologySpec, or user should be aware of the possibility
   // that a topologySpec not being reflected in pathFinding.
   private void pathFinding(Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap, Spec spec){
-    inMemoryAdjacencyListAndInvertedIndexGenerator(topologySpecMap);
+    inMemoryAdjacencyListAndInvertedIndexGenerator();
     if (optionalUserSpecifiedPath.isPresent()) {
       log.info("Starting to evaluate user's specified path ... ");
       if (userSpecifiedPathVerificator(specExecutorInstanceMap, spec)){
@@ -142,12 +153,11 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       }
     }
     else {
-      Set<String> visited = new HashSet();
       List<String> resultPath = new ArrayList<>();
       FlowSpec flowSpec = (FlowSpec) spec;
       String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);
       String destination = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
-      pathFindingHelper(source, destination, resultPath, visited);
+      bfsPathFindingHelper(source, destination, resultPath);
 
       for (int i = 0 ; i < resultPath.size() - 1 ; i ++ ) {
         specExecutorInstanceMap.put(jobSpecGenerator(flowSpec),
@@ -156,7 +166,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     }
   }
 
-  private void pathFindingHelper(String source, String sink, List<String> resultPath, Set<String> visited) {
+  private void dfsPathFindingHelper(String source, String sink, List<String> resultPath, Set<String> visited) {
     if ( resultPath.get(resultPath.size() - 1).equals(sink)){
       return;
     }
@@ -165,10 +175,39 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       visited.add(source);
       for(String adjacentNode: this.adjacencyList.get(source)) {
         if (!visited.contains(adjacentNode)){
-          pathFindingHelper(adjacentNode, sink, resultPath, visited);
+          dfsPathFindingHelper(adjacentNode, sink, resultPath, visited);
         }
       }
     }
+  }
+
+  private boolean bfsPathFindingHelper(String source, String sink, List<String> resultPath) {
+    LinkedList<String> bfsQueue = new LinkedList<>();
+    Set<String> visited = new HashSet<>();
+    bfsQueue.offer(source);
+
+    while(!bfsQueue.isEmpty()){
+      String topNode = bfsQueue.poll();
+      resultPath.add(topNode);
+      if (topNode.equals(sink)){
+        return true;
+      } else{
+        visited.add(topNode);
+      }
+
+      for(String adjacentNode:this.adjacencyList.get(topNode)) {
+        if (!visited.contains(adjacentNode)){
+          bfsQueue.offer(adjacentNode);
+        }
+      }
+    }
+    return false;
+  }
+
+  // TODO: Make the path finding process more genertic, even adding the weight information to it.
+  // Not limit the path to be static.
+  private boolean dijkstraBasedPathFindingHelper(String source, String sink, List<String> resultPath){
+    return true;
   }
 
   // If path specified not existed, return false;

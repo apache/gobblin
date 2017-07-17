@@ -31,6 +31,7 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,11 @@ import lombok.Getter;
 // Provide base implementation for constructing multi-hops route.
 public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
 
+  @Getter
   protected final Map<URI, TopologySpec> topologySpecMap;
+  // Template that corresponds to each <source, dest> pair.
+  // TODO: Understand how the JobSpec's equal method is implemented.
+  protected final Map<Pair<ServiceNode, ServiceNode>, List<URI>> edgeTemplateMap;
   protected final Config config;
   protected final Logger log;
   protected final Optional<FSJobCatalog> templateCatalog;
@@ -98,6 +103,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
     }
 
     this.topologySpecMap = Maps.newConcurrentMap();
+    this.edgeTemplateMap = Maps.newConcurrentMap();
     this.config = config;
 
     /***

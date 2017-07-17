@@ -152,7 +152,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     return flowSpecBuilder.build();
   }
 
-  public URI computeTopologySpecURI(String parent, String current) {
+  public static URI computeTopologySpecURI(String parent, String current) {
     // Make sure this is relative
     return PathUtils.relativizePath(new Path(current), new Path(parent)).toUri();
   }
