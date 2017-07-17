@@ -91,14 +91,14 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
       throws IOException {
     // This implementation assumes snapshots are always in the root directory and the number of them
     // remains relatively small
-    long maxTimeToProcess = new DateTime().minus(leadTime).getMillis();
+    long maxAllowedWatermark = new DateTime().minus(leadTime).getMillis();
 
     try {
       this.helper.connect();
       FileSystem fs = helper.getFileSystem();
       List<FileInfo> filesToProcess = new ArrayList<>();
 
-      List<FileInfo> outerDirectories = getOuterDirectories(fs, minWatermark, maxTimeToProcess);
+      List<FileInfo> outerDirectories = getOuterDirectories(fs, minWatermark, maxAllowedWatermark);
       for (FileInfo outerDirectory: outerDirectories) {
         FileStatus[] files = fs.listStatus(
             new Path(outerDirectory.getFilePath()),

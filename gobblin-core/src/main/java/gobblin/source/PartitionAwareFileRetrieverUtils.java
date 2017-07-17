@@ -34,8 +34,6 @@ import static gobblin.source.PartitionedFileSourceBase.DEFAULT_PARTITIONED_SOURC
 public class PartitionAwareFileRetrieverUtils {
   /**
    * Retrieve the lead time duration from the LEAD_TIME and LEAD_TIME granularity config settings.
-   * @param state
-   * @return
    */
   public static Duration getLeadTimeDurationFromConfig(State state) {
     String leadTimeProp = state.getProp(DATE_PARTITIONED_SOURCE_PARTITION_LEAD_TIME);
