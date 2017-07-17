@@ -50,7 +50,8 @@ import gobblin.runtime.TaskContext;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.util.TaskMetrics;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.ControlMessage;
+import gobblin.stream.RecordEnvelope;
 import gobblin.state.ConstructState;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
@@ -202,7 +203,13 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), exc);
     }));
     stream = stream.mapStream(s -> s.doFinally(this::cleanup));
-    stream.getRecordStream().subscribe(r -> this.writer.get().writeEnvelope((RecordEnvelope) r), e -> logger.error("Failed to process record.", e),
+    stream.getRecordStream().subscribe(r -> {
+        if (r instanceof RecordEnvelope) {
+          this.writer.get().writeEnvelope((RecordEnvelope) r);
+        } else if (r instanceof ControlMessage) {
+          this.writer.get().getMessageHandler().handleMessage((ControlMessage) r);
+        }
+      }, e -> logger.error("Failed to process record.", e),
         () -> {
           if (this.writer.isPresent()) {
             this.writer.get().close();

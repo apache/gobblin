@@ -18,18 +18,16 @@
 package gobblin.writer;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.source.extractor.extract.LongWatermark;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 
 public class ConsoleWriterTest {

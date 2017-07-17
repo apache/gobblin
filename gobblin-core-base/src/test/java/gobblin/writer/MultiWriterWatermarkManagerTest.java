@@ -33,7 +33,7 @@ import com.google.common.base.Optional;
 
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.source.extractor.extract.LongWatermark;
 
 import static org.mockito.Matchers.any;

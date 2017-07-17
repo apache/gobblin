@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import gobblin.records.RecordStreamWithMetadata;
+import gobblin.stream.RecordEnvelope;
+import gobblin.stream.StreamEntity;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import io.reactivex.Emitter;
@@ -103,7 +105,7 @@ public interface Extractor<S, D> extends Closeable {
    */
   default RecordStreamWithMetadata<D, S> recordStream(AtomicBoolean shutdownRequest) throws IOException {
     S schema = getSchema();
-    Flowable<RecordEnvelope<D>> recordStream = Flowable.generate(() -> shutdownRequest, (BiConsumer<AtomicBoolean, Emitter<RecordEnvelope<D>>>) (state, emitter) -> {
+    Flowable<StreamEntity<D>> recordStream = Flowable.generate(() -> shutdownRequest, (BiConsumer<AtomicBoolean, Emitter<StreamEntity<D>>>) (state, emitter) -> {
       if (state.get()) {
         emitter.onComplete();
       }

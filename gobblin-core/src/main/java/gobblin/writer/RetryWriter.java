@@ -39,7 +39,8 @@ import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.records.ControlMessageHandler;
+import gobblin.stream.RecordEnvelope;
 import gobblin.util.FinalState;
 import gobblin.writer.exception.NonTransientException;
 
@@ -200,4 +201,8 @@ public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements Da
     return state;
   }
 
+  @Override
+  public ControlMessageHandler getMessageHandler() {
+    return this.writer.getMessageHandler();
+  }
 }

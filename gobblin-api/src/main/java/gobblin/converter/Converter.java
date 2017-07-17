@@ -24,10 +24,13 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.initializer.ConverterInitializer;
 import gobblin.converter.initializer.NoopConverterInitializer;
+import gobblin.stream.ControlMessage;
+import gobblin.records.ControlMessageHandler;
 import gobblin.records.RecordStreamProcessor;
 import gobblin.records.RecordStreamWithMetadata;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.source.workunit.WorkUnitStream;
+import gobblin.stream.StreamEntity;
 import gobblin.util.FinalState;
 
 import io.reactivex.Flowable;
@@ -117,12 +120,29 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
       WorkUnitState workUnitState) throws SchemaConversionException {
     init(workUnitState);
     SO outputSchema = convertSchema(inputStream.getSchema(), workUnitState);
-    Flowable<RecordEnvelope<DO>> outputStream =
+    Flowable<StreamEntity<DO>> outputStream =
         inputStream.getRecordStream()
-            .flatMap(in -> Flowable.fromIterable(convertRecord(outputSchema, in.getRecord(), workUnitState))
-            .map(in::withRecord), 1);
+            .flatMap(in -> {
+              if (in instanceof ControlMessage) {
+                getMessageHandler().handleMessage((ControlMessage) in);
+                return Flowable.just(((ControlMessage<DO>) in));
+              } else if (in instanceof RecordEnvelope) {
+                RecordEnvelope<DI> recordEnvelope = (RecordEnvelope<DI>) in;
+                return Flowable.fromIterable(convertRecord(outputSchema, recordEnvelope.getRecord(), workUnitState)).
+                    map(recordEnvelope::withRecord);
+              } else {
+                throw new UnsupportedOperationException();
+              }
+            }, 1);
     outputStream = outputStream.doOnComplete(this::close);
     return inputStream.withRecordStream(outputStream, outputSchema);
+  }
+
+  /**
+   * @return {@link ControlMessageHandler} to call for each {@link ControlMessage} received.
+   */
+  public ControlMessageHandler getMessageHandler() {
+    return ControlMessageHandler.NOOP;
   }
 
   public ConverterInitializer getInitializer(State state, WorkUnitStream workUnits, int branches, int branchId) {

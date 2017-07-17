@@ -29,7 +29,7 @@ import gobblin.metrics.MetricContext;
 import gobblin.records.RecordStreamWithMetadata;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 import gobblin.util.FinalState;
@@ -74,14 +74,14 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
       return this.embeddedExtractor.recordStream(shutdownRequest);
     }
     RecordStreamWithMetadata<D, S> stream = this.embeddedExtractor.recordStream(shutdownRequest);
-    stream = stream.mapStream(s -> s.map(r -> {
+    stream = stream.mapRecords(r -> {
       if (this.lastRecordTime == 0) {
         this.lastRecordTime = System.nanoTime();
       }
       afterRead(r.getRecord(), this.lastRecordTime);
       this.lastRecordTime = System.nanoTime();
       return r;
-    }));
+    });
     return stream;
   }
 

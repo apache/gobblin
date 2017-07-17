@@ -56,7 +56,7 @@ import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.DefaultCheckpointableWatermark;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.source.extractor.StreamingExtractor;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.Extract;

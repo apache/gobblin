@@ -46,7 +46,7 @@ import gobblin.metrics.kafka.SchemaRegistryException;
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.source.extractor.StreamingExtractor;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.WatermarkSerializerHelper;

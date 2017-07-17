@@ -27,7 +27,7 @@ import com.github.rholder.retry.RetryerBuilder;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.util.Decorator;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.RateBasedLimiter;

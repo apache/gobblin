@@ -21,7 +21,7 @@ import static org.mockito.Mockito.*;
 import java.io.IOException;
 
 import gobblin.configuration.State;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.writer.exception.NonTransientException;
 import gobblin.util.FinalState;
 

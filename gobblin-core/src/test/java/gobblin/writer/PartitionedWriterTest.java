@@ -30,7 +30,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.writer.test.TestPartitionAwareWriterBuilder;
 import gobblin.writer.test.TestPartitioner;

@@ -20,7 +20,8 @@ package gobblin.writer;
 import java.io.Closeable;
 import java.io.IOException;
 
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.records.ControlMessageHandler;
+import gobblin.stream.RecordEnvelope;
 
 
 /**
@@ -79,5 +80,12 @@ public interface DataWriter<D> extends Closeable {
   default void writeEnvelope(RecordEnvelope<D> recordEnvelope) throws IOException {
     write(recordEnvelope.getRecord());
     recordEnvelope.ack();
+  }
+
+  /**
+   * @return A {@link ControlMessageHandler}.
+   */
+  default ControlMessageHandler getMessageHandler() {
+    return ControlMessageHandler.NOOP;
   }
 }

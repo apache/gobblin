@@ -40,7 +40,7 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.RecordEnvelope;
+import gobblin.stream.RecordEnvelope;
 import gobblin.source.extractor.extract.EventBasedSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
