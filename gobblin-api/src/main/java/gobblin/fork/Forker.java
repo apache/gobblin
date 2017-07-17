@@ -148,7 +148,7 @@ public class Forker {
 
     private StreamEntity<D> getRecordCopyIfNecessary() throws CopyNotSupportedException {
       if(this.mustCopy) {
-        return this.record.getClone();
+        return this.record.getSingleClone();
       } else {
         return this.record;
       }

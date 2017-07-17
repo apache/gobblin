@@ -25,12 +25,19 @@ package gobblin.writer;
 public interface Ackable {
 
   /**
-   * Acknowledge this entity
+   * Acknowledge this entity as a success.
    */
   void ack();
+
+  /**
+   * Mark this entity as failed to process.
+   */
+  void nack(Throwable error);
 
   Ackable NoopAckable = new Ackable() {
     @Override
     public void ack() {}
+
+    public void nack(Throwable error) {}
   };
 }

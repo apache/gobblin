@@ -17,29 +17,125 @@
 
 package gobblin.stream;
 
-import gobblin.writer.Ackable;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.List;
 
-import lombok.AllArgsConstructor;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+
+import gobblin.writer.Ackable;
+import gobblin.writer.HierarchicalAckable;
 
 
 /**
  * An entity in the Gobblin ingestion stream.
  * @param <D> the type of records represented in the stream.
  */
-@AllArgsConstructor
 public abstract class StreamEntity<D> implements Ackable {
 
-  private final Ackable _ackable;
+  private final List<Ackable> _callbacks;
+  private boolean _callbacksUsedForDerivedEntity = false;
+
+  protected StreamEntity() {
+    _callbacks = Lists.newArrayList();
+  }
+
+  protected StreamEntity(StreamEntity<?> upstreamEntity) {
+    _callbacks = upstreamEntity.getCallbacksForDerivedEntity();
+  }
+
+  protected StreamEntity(ForkedEntityBuilder forkedEntityBuilder) {
+    _callbacks = forkedEntityBuilder.getChildCallback();
+  }
 
   @Override
   public void ack() {
-    if (_ackable != null) {
-      _ackable.ack();
+    for (Ackable ackable : _callbacks) {
+      ackable.ack();
     }
+  }
+
+  @Override
+  public void nack(Throwable error) {
+    for (Ackable ackable : _callbacks) {
+      ackable.nack(error);
+    }
+  }
+
+  private synchronized List<Ackable> getCallbacksForDerivedEntity() {
+    Preconditions.checkState(!_callbacksUsedForDerivedEntity,
+        "StreamEntity was attempted to use more than once for a derived entity.");
+    _callbacksUsedForDerivedEntity = true;
+    return _callbacks;
+  }
+
+  public void addCallBack(Ackable ackable) {
+    _callbacks.add(ackable);
+  }
+
+  private void setCallbacks(List<Ackable> callbacks) {
+    _callbacks.addAll(callbacks);
   }
 
   /**
    * @return a clone of this {@link StreamEntity}.
    */
-  public abstract StreamEntity<D> getClone();
+  public final StreamEntity<D> getSingleClone() {
+    StreamEntity<D> entity = buildClone();
+    entity.setCallbacks(getCallbacksForDerivedEntity());
+    return entity;
+  }
+
+  /**
+   * @return a clone of this {@link StreamEntity}. Implementations need not worry about the callbacks, they will be set
+   * automatically.
+   */
+  protected abstract StreamEntity<D> buildClone();
+
+  public ForkCloner forkCloner() {
+    return new ForkCloner();
+  }
+
+  public ForkedEntityBuilder forkedEntityBuilder() {
+    return new ForkedEntityBuilder();
+  }
+
+  public class ForkCloner implements Closeable {
+
+    private final ForkedEntityBuilder _forkedEntityBuilder = new ForkedEntityBuilder();
+
+    private ForkCloner() {
+    }
+
+    public StreamEntity<D> getClone() {
+      StreamEntity<D> entity = buildClone();
+      entity.setCallbacks(_forkedEntityBuilder.getChildCallback());
+      return entity;
+    }
+
+    @Override
+    public void close() throws IOException {
+      _forkedEntityBuilder.close();
+    }
+  }
+
+  public class ForkedEntityBuilder implements Closeable {
+    private final HierarchicalAckable _hierarchicalAckable;
+
+    public ForkedEntityBuilder() {
+      List<Ackable> callbacks = getCallbacksForDerivedEntity();
+      _hierarchicalAckable = callbacks.isEmpty() ? null : new HierarchicalAckable(callbacks);
+    }
+
+    private List<Ackable> getChildCallback() {
+      return _hierarchicalAckable == null ? Lists.newArrayList() : Lists.newArrayList(_hierarchicalAckable.newChildAckable());
+    }
+
+    @Override
+    public void close() throws IOException {
+      _hierarchicalAckable.close();
+    }
+  }
+
 }
