@@ -2,33 +2,35 @@
 # Job configurations (can be changed)
 # ====================================================================
 
-job.name=GobblinPushToExternalTest
-job.description=Gobblin job for pushing data to S3
+job.name=GobblinDatabaseCopyTest
+job.description=Gobblin job for copy to S3
 
 
 
-# target publishing location for copy
-data.publisher.final.dir=<testfolder>
+# target publishing location for copy 
+# The folder containing result files that will show up in the s3
+data.publisher.final.dir=<Full local(target) FS Path>
 
 gobblin.dataset.profile.class=gobblin.data.management.copy.CopyableGlobDatasetFinder
-gobblin.dataset.pattern=< Dataset pattern describing your to-be-copied data's location >
-#gobblin.dataset.pattern=<Dataset location pattern based on your filesystem>
+
+#e.g. s3a://gobblinoutput/
+source.filebased.fs.uri=<Full Remote FS Path>
+gobblin.dataset.pattern=<Remote Dataset Pattern>
 
 # For s3 to work, Need to also add hadoop-aws.jar as the dependency in the classpath. 
-# Attention that don't use any version later than **2.6.3** (Which means, pre-2015, very old)
-# Or you will hit into some messy dependecies problem related to hadoop version and amazon dependencies. 
 fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
-writer.encrypted.fs.s3a.access.key=<Encrypted Access Key>
-writer.encrypted.fs.s3a.secret.key=<Encrypted Secret Key>
-fs.s3a.buffer.dir=<Local Buffer folder>
-writer.fs.uri=<Full Bucket Path>
+source.filebased.encrypted.fs.s3a.access.key=<Encrypted Access Key>
+source.filebased.encrypted.fs.s3a.secret.key=<Encrypted Secret key>
+fs.s3a.buffer.dir=<Local Copy Bufer>
+# e.g. file:///
+writer.fs.uri=<Local FS Uri>
 gobblin.copy.recursive.update=true
 
 #You can disable ssl if necessary
 #fs.s3a.connection.ssl.enabled=false
 
-#Some encryption-related stuff, the content is 'gobblin'
-encrypt.key.loc=<Local File Path for master password>
+#Loationfor masterPassword file
+encrypt.key.loc=<Local master password file location>
 
 
 # ====================================================================
