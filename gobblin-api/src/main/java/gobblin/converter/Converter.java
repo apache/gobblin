@@ -19,6 +19,7 @@ package gobblin.converter;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Iterator;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -128,8 +129,25 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
                 return Flowable.just(((ControlMessage<DO>) in));
               } else if (in instanceof RecordEnvelope) {
                 RecordEnvelope<DI> recordEnvelope = (RecordEnvelope<DI>) in;
-                return Flowable.fromIterable(convertRecord(outputSchema, recordEnvelope.getRecord(), workUnitState)).
-                    map(recordEnvelope::withRecord);
+                Iterator<DO> convertedIterable = convertRecord(outputSchema, recordEnvelope.getRecord(), workUnitState).iterator();
+
+                if (!convertedIterable.hasNext()) {
+                  // if the iterable is empty, ack the record, return an empty flowable
+                  in.ack();
+                  return Flowable.empty();
+                }
+
+                DO firstRecord = convertedIterable.next();
+                if (!convertedIterable.hasNext()) {
+                  // if the iterable has only one element, use RecordEnvelope.withRecord, which is more efficient
+                  return Flowable.just(recordEnvelope.withRecord(firstRecord));
+                } else {
+                  // if the iterable has multiple records, use a ForkRecordBuilder
+                  RecordEnvelope<DI>.ForkRecordBuilder<DO> forkRecordBuilder = recordEnvelope.forkRecordBuilder();
+                  return Flowable.just(firstRecord).concatWith(Flowable.fromIterable(() -> convertedIterable))
+                      .map(forkRecordBuilder::childRecord).doOnComplete(forkRecordBuilder::close);
+                }
+
               } else {
                 throw new UnsupportedOperationException();
               }

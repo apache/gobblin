@@ -18,18 +18,37 @@
 package gobblin.stream;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import gobblin.writer.Ackable;
-import gobblin.writer.HierarchicalAckable;
+import gobblin.ack.Ackable;
+import gobblin.ack.HierarchicalAckable;
 
 
 /**
  * An entity in the Gobblin ingestion stream.
+ *
+ * Note:
+ * When transforming or cloning a stream entity, it is important to construct the new entity in the correct way to ensure callbacks
+ * are spread correctly:
+ *
+ * 1-to-1 entity transformation constructor:
+ *   super(oldEntity, true);
+ *
+ * 1-to-n entity transformation:
+ *   ForkedEntityBuilder forkedEntityBuilder = new ForkedEntityBuilder();
+ *
+ *   super(forkedEntityBuilder, true);
+ *
+ *   forkedEntityBuilder.close();
+ *
+ * Cloning entity:
+ *   ForkCloner forkCloner = record.forkCloner();
+ *   forkCloner.getClone();
+ *   forkCloner.close();
+ *
  * @param <D> the type of records represented in the stream.
  */
 public abstract class StreamEntity<D> implements Ackable {
@@ -41,12 +60,20 @@ public abstract class StreamEntity<D> implements Ackable {
     _callbacks = Lists.newArrayList();
   }
 
-  protected StreamEntity(StreamEntity<?> upstreamEntity) {
-    _callbacks = upstreamEntity.getCallbacksForDerivedEntity();
+  protected StreamEntity(StreamEntity<?> upstreamEntity, boolean copyCallbacks) {
+    if (copyCallbacks) {
+      _callbacks = upstreamEntity.getCallbacksForDerivedEntity();
+    } else {
+      _callbacks = Lists.newArrayList();
+    }
   }
 
-  protected StreamEntity(ForkedEntityBuilder forkedEntityBuilder) {
-    _callbacks = forkedEntityBuilder.getChildCallback();
+  protected StreamEntity(ForkedEntityBuilder forkedEntityBuilder, boolean copyCallbacks) {
+    if (copyCallbacks) {
+      _callbacks = forkedEntityBuilder.getChildCallback();
+    } else {
+      _callbacks = Lists.newArrayList();
+    }
   }
 
   @Override
@@ -70,8 +97,9 @@ public abstract class StreamEntity<D> implements Ackable {
     return _callbacks;
   }
 
-  public void addCallBack(Ackable ackable) {
+  public StreamEntity<D> addCallBack(Ackable ackable) {
     _callbacks.add(ackable);
+    return this;
   }
 
   private void setCallbacks(List<Ackable> callbacks) {
@@ -97,10 +125,6 @@ public abstract class StreamEntity<D> implements Ackable {
     return new ForkCloner();
   }
 
-  public ForkedEntityBuilder forkedEntityBuilder() {
-    return new ForkedEntityBuilder();
-  }
-
   public class ForkCloner implements Closeable {
 
     private final ForkedEntityBuilder _forkedEntityBuilder = new ForkedEntityBuilder();
@@ -115,7 +139,7 @@ public abstract class StreamEntity<D> implements Ackable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
       _forkedEntityBuilder.close();
     }
   }
@@ -123,18 +147,20 @@ public abstract class StreamEntity<D> implements Ackable {
   public class ForkedEntityBuilder implements Closeable {
     private final HierarchicalAckable _hierarchicalAckable;
 
-    public ForkedEntityBuilder() {
+    protected ForkedEntityBuilder() {
       List<Ackable> callbacks = getCallbacksForDerivedEntity();
       _hierarchicalAckable = callbacks.isEmpty() ? null : new HierarchicalAckable(callbacks);
     }
 
-    private List<Ackable> getChildCallback() {
+    protected List<Ackable> getChildCallback() {
       return _hierarchicalAckable == null ? Lists.newArrayList() : Lists.newArrayList(_hierarchicalAckable.newChildAckable());
     }
 
     @Override
-    public void close() throws IOException {
-      _hierarchicalAckable.close();
+    public void close() {
+      if (_hierarchicalAckable != null) {
+        _hierarchicalAckable.close();
+      }
     }
   }
 

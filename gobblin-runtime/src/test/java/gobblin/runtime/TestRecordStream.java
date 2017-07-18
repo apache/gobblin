@@ -32,6 +32,7 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
+import gobblin.ack.BasicAckableForTesting;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
@@ -55,7 +56,6 @@ import gobblin.writer.DataWriterBuilder;
 
 import io.reactivex.Flowable;
 import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
 import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.*;
 
@@ -69,7 +69,7 @@ public class TestRecordStream {
   public void testControlMessages() throws Exception {
 
     MyExtractor extractor = new MyExtractor(new StreamEntity[]{new RecordEnvelope<>("a"),
-        new MyControlMessage("1"), new RecordEnvelope<>("b"), new MyControlMessage("2")});
+        new BasicTestControlMessage("1"), new RecordEnvelope<>("b"), new BasicTestControlMessage("2")});
     MyConverter converter = new MyConverter();
     MyDataWriter writer = new MyDataWriter();
 
@@ -112,10 +112,66 @@ public class TestRecordStream {
     Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
 
     Assert.assertEquals(converter.records, Lists.newArrayList("a", "b"));
-    Assert.assertEquals(converter.messages, Lists.newArrayList(new MyControlMessage("1"), new MyControlMessage("2")));
+    Assert.assertEquals(converter.messages, Lists.newArrayList(new BasicTestControlMessage("1"), new BasicTestControlMessage("2")));
 
     Assert.assertEquals(writer.records, Lists.newArrayList("a", "b"));
-    Assert.assertEquals(writer.messages, Lists.newArrayList(new MyControlMessage("1"), new MyControlMessage("2")));
+    Assert.assertEquals(writer.messages, Lists.newArrayList(new BasicTestControlMessage("1"), new BasicTestControlMessage("2")));
+  }
+
+  @Test
+  public void testAcks() throws Exception {
+
+    StreamEntity[] entities = new StreamEntity[]{new RecordEnvelope<>("a"),
+        new BasicTestControlMessage("1"), new RecordEnvelope<>("b"), new BasicTestControlMessage("2")};
+
+    BasicAckableForTesting ackable = new BasicAckableForTesting();
+    for (int i = 0; i < entities.length; i++) {
+      entities[i].addCallBack(ackable);
+    }
+
+    MyExtractor extractor = new MyExtractor(entities);
+    MyConverter converter = new MyConverter();
+    MyDataWriter writer = new MyDataWriter();
+
+    // Create a TaskState
+    TaskState taskState = getEmptyTestTaskState("testRetryTaskId");
+    taskState.setProp(ConfigurationKeys.TASK_SYNCHRONOUS_EXECUTION_MODEL_KEY, false);
+    // Create a mock TaskContext
+    TaskContext mockTaskContext = mock(TaskContext.class);
+    when(mockTaskContext.getExtractor()).thenReturn(extractor);
+    when(mockTaskContext.getForkOperator()).thenReturn(new IdentityForkOperator());
+    when(mockTaskContext.getTaskState()).thenReturn(taskState);
+    when(mockTaskContext.getConverters()).thenReturn(Lists.newArrayList(converter));
+    when(mockTaskContext.getTaskLevelPolicyChecker(any(TaskState.class), anyInt()))
+        .thenReturn(mock(TaskLevelPolicyChecker.class));
+    when(mockTaskContext.getRowLevelPolicyChecker()).
+        thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
+    when(mockTaskContext.getRowLevelPolicyChecker(anyInt())).
+        thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
+    when(mockTaskContext.getDataWriterBuilder(anyInt(), anyInt())).thenReturn(writer);
+
+    // Create a mock TaskPublisher
+    TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
+    when(mockTaskPublisher.canPublish()).thenReturn(TaskPublisher.PublisherState.SUCCESS);
+    when(mockTaskContext.getTaskPublisher(any(TaskState.class), any(TaskLevelPolicyCheckResults.class)))
+        .thenReturn(mockTaskPublisher);
+
+    // Create a mock TaskStateTracker
+    TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
+
+    // Create a TaskExecutor - a real TaskExecutor must be created so a Fork is run in a separate thread
+    TaskExecutor taskExecutor = new TaskExecutor(new Properties());
+
+    // Create the Task
+    Task realTask = new Task(mockTaskContext, mockTaskStateTracker, taskExecutor, Optional.<CountDownLatch> absent());
+    Task task = spy(realTask);
+    doNothing().when(task).submitTaskCommittedEvent();
+
+    task.run();
+    task.commit();
+    Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
+
+    Assert.assertEquals(ackable.acked, 4);
   }
 
   TaskState getEmptyTestTaskState(String taskId) {
@@ -157,17 +213,6 @@ public class TestRecordStream {
     @Override
     public RecordStreamWithMetadata<String, String> recordStream(AtomicBoolean shutdownRequest) throws IOException {
       return new RecordStreamWithMetadata<>(Flowable.fromArray(this.stream), "schema");
-    }
-  }
-
-  @AllArgsConstructor
-  @EqualsAndHashCode
-  static class MyControlMessage extends ControlMessage<String> {
-    private final String id;
-
-    @Override
-    public StreamEntity<String> getClone() {
-      return new MyControlMessage(this.id);
     }
   }
 

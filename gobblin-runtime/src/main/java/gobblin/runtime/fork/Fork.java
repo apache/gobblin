@@ -208,6 +208,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
           this.writer.get().writeEnvelope((RecordEnvelope) r);
         } else if (r instanceof ControlMessage) {
           this.writer.get().getMessageHandler().handleMessage((ControlMessage) r);
+          r.ack();
         }
       }, e -> logger.error("Failed to process record.", e),
         () -> {

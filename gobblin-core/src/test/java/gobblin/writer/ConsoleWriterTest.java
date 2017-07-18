@@ -94,7 +94,7 @@ public class ConsoleWriterTest {
     CheckpointableWatermark watermark =
         new DefaultCheckpointableWatermark(source, new LongWatermark(value));
     AcknowledgableWatermark ackable = new AcknowledgableWatermark(watermark);
-    RecordEnvelope<String> mockEnvelope = new RecordEnvelope<>(content).withAckableWatermark(ackable);
+    RecordEnvelope<String> mockEnvelope = (RecordEnvelope<String>) new RecordEnvelope<>(content).addCallBack(ackable);
     consoleWriter.writeEnvelope(mockEnvelope);
     Assert.assertTrue(ackable.isAcked());
   }
