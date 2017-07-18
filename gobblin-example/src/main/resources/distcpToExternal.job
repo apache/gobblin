@@ -2,27 +2,33 @@
 # Job configurations (can be changed)
 # ====================================================================
 
-job.name=GobblinDatabaseCopyTest
-job.description=Gobblin job for copy to S3
+job.name=GobblinPushToExternalTest
+job.description=Gobblin job for pushing data to S3
 
 
 
 # target publishing location for copy
-data.publisher.final.dir=/
+data.publisher.final.dir=<testfolder>
 
 gobblin.dataset.profile.class=gobblin.data.management.copy.CopyableGlobDatasetFinder
-gobblin.dataset.pattern=/Users/lesun/Documents/localGobblinTest/localtest/*
+gobblin.dataset.pattern=< Dataset pattern describing your to-be-copied data's location >
+#gobblin.dataset.pattern=<Dataset location pattern based on your filesystem>
 
-# Necessary configuration to put for S3, for example
 # For s3 to work, Need to also add hadoop-aws.jar as the dependency in the classpath. 
+# Attention that don't use any version later than **2.6.3** (Which means, pre-2015, very old)
+# Or you will hit into some messy dependecies problem related to hadoop version and amazon dependencies. 
 fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
-fs.s3a.access.key=<DO NOT UPLOAD CREDENTIAL>
-fs.s3a.secret.key=<DO NOT UPLOAD CREDENTIAL>
-fs.s3a.buffer.dir=/tmp/buffer/
-writer.fs.uri=s3a://gobblinoutput/testfolder
+writer.encrypted.fs.s3a.access.key=<Encrypted Access Key>
+writer.encrypted.fs.s3a.secret.key=<Encrypted Secret Key>
+fs.s3a.buffer.dir=<Local Buffer folder>
+writer.fs.uri=<Full Bucket Path>
+gobblin.copy.recursive.update=true
 
 #You can disable ssl if necessary
 #fs.s3a.connection.ssl.enabled=false
+
+#Some encryption-related stuff, the content is 'gobblin'
+encrypt.key.loc=<Local File Path for master password>
 
 
 # ====================================================================
@@ -49,4 +55,3 @@ state.store.dir=${work.dir}/state-store
 writer.staging.dir=${work.dir}/taskStaging
 writer.output.dir=${work.dir}/taskOutput
 mr.job.root.dir=${work.dir}/working
-
