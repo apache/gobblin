@@ -98,7 +98,8 @@ public class StreamModelTaskRunner {
         if (watermarkTracker.isPresent()) {
           watermarkTracker.get().track(ackableWatermark);
         }
-        return r.withAckableWatermark(ackableWatermark);
+        r.addCallBack(ackableWatermark);
+        return r;
       });
     }
     if (this.converter instanceof MultiConverter) {

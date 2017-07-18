@@ -71,7 +71,7 @@ public class Forker {
         RecordEnvelope<D> recordEnvelope = (RecordEnvelope<D>) r;
         return new RecordWithForkMap<>(recordEnvelope, forkOperator.forkDataRecord(workUnitState, recordEnvelope.getRecord()));
       } else if (r instanceof ControlMessage) {
-        return new RecordWithForkMap<D>((ControlMessage<D>) r);
+        return new RecordWithForkMap<D>((ControlMessage<D>) r, branches);
       } else {
         throw new IllegalStateException("Expected RecordEnvelope or ControlMessage.");
       }
@@ -133,22 +133,41 @@ public class Forker {
     private final StreamEntity<D> record;
     private final List<Boolean> forkMap;
     private final boolean mustCopy;
+    private final StreamEntity.ForkCloner cloner;
+    private long copiesLeft;
 
     public RecordWithForkMap(RecordEnvelope<D> record, List<Boolean> forkMap) {
       this.record = record;
       this.forkMap = Lists.newArrayList(forkMap);
       this.mustCopy = mustCopy(forkMap);
+      this.copiesLeft = this.forkMap.stream().filter(x -> x).count();
+      this.cloner = buildForkCloner();
     }
 
-    public RecordWithForkMap(ControlMessage<D> record) {
+    public RecordWithForkMap(ControlMessage<D> record, int activeBranchesForRecord) {
       this.record = record;
       this.forkMap = null;
-      this.mustCopy = true;
+      this.copiesLeft = activeBranchesForRecord;
+      this.mustCopy = this.copiesLeft > 1;
+      this.cloner = buildForkCloner();
     }
 
-    private StreamEntity<D> getRecordCopyIfNecessary() throws CopyNotSupportedException {
+    private StreamEntity.ForkCloner buildForkCloner() {
+      if (this.mustCopy) {
+        return this.record.forkCloner();
+      } else {
+        return null;
+      }
+    }
+
+    private synchronized StreamEntity<D> getRecordCopyIfNecessary() throws CopyNotSupportedException {
       if(this.mustCopy) {
-        return this.record.getSingleClone();
+        StreamEntity<D> clone = this.cloner.getClone();
+        this.copiesLeft--;
+        if (this.copiesLeft <= 0) {
+          this.cloner.close();
+        }
+        return clone;
       } else {
         return this.record;
       }

@@ -140,7 +140,11 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
             getMessageHandler().handleMessage((ControlMessage) r);
             return true;
           } else if (r instanceof RecordEnvelope) {
-            return executePolicies(((RecordEnvelope) r).getRecord(), this.results);
+            boolean accept = executePolicies(((RecordEnvelope) r).getRecord(), this.results);
+            if (!accept) {
+              r.ack();
+            }
+            return accept;
           } else {
             return true;
           }
