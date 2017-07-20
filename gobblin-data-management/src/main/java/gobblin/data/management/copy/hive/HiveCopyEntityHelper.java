@@ -619,10 +619,27 @@ public class HiveCopyEntityHelper {
       if (shouldCopy) {
         builder.copyFile(sourcePath);
       } else {
-        // if not copying, we want to keep the file in the target
+        // If not copying, we want to keep the file in the target
         // at the end of this loop, all files in targetExistingPaths will be marked for deletion, so remove this file
         targetExistingPaths.remove(newPath);
         desiredTargetExistingPaths.remove(newPath);
+      }
+
+      // If target already has the path and it should be copied,
+      // delete the existing target path, even if deleteMethod is NO_DELETE
+      if (targetExistingPaths.containsKey(newPath) && shouldCopy) {
+        builder.deleteFile(newPath);
+        targetExistingPaths.remove(newPath);
+        desiredTargetExistingPaths.remove(newPath);
+      }
+    }
+
+    // If deleteMethod is NO_DELETE, clear targetExistingPaths,
+    // so nothing goes to pathsToDelete
+    if (helper.deleteMethod == DeregisterFileDeleteMethod.NO_DELETE) {
+      for (Path delete : targetExistingPaths.keySet()) {
+        targetExistingPaths.remove(delete);
+        desiredTargetExistingPaths.remove(delete);
       }
     }
 
