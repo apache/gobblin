@@ -18,18 +18,23 @@
 package gobblin.service.modules.flow;
 
 import com.typesafe.config.ConfigValueFactory;
+import gobblin.annotation.Alpha;
+import gobblin.runtime.api.FlowEdge;
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
+import gobblin.runtime.api.ServiceNode;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.job_spec.ResolvedJobSpec;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -56,13 +61,37 @@ import gobblin.util.ConfigUtils;
 import lombok.Getter;
 
 // Provide base implementation for constructing multi-hops route.
+@Alpha
 public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
 
+  // The following two maps are required to be update in atomic, ideally.
+  // Since {@link SpecCompiler} is an {@link SpecCatalogListener}, it is expected that anyS Spec change should be reflected
+  // to these data structures.
   @Getter
+  @Setter
   protected final Map<URI, TopologySpec> topologySpecMap;
-  // Template that corresponds to each <source, dest> pair.
-  // TODO: Understand how the JobSpec's equal method is implemented.
-  protected final Map<Pair<ServiceNode, ServiceNode>, List<URI>> edgeTemplateMap;
+  /**
+   * Mapping between SpecExecutorInstance's URI and the corresponding object.
+   * This map is constructed mainly for querying purpose
+   */
+  @Getter
+  @Setter
+  protected final Map<URI, SpecExecutorInstanceProducer> specExecutorInstanceProducerMap;
+
+
+  /**
+   * Mapping between each FlowEdge and a list of applicable Templates.
+   * Compiler should obtain this Map info from {@link gobblin.service.modules.orchestration.Orchestrator} or even higher level,
+   * since {@link TopologySpec} doesn't contain Templates.
+   * Key: EdgeIdentifier from {@link gobblin.runtime.api.FlowEdge#getEdgeIdentity()}
+   * Value: List of template URI.
+   */
+  // TODO: Define how template info are injected.
+  @Getter
+  @Setter
+  protected final Map<String, List<URI>> edgeTemplateMap;
+
+
   protected final Config config;
   protected final Logger log;
   protected final Optional<FSJobCatalog> templateCatalog;
@@ -103,6 +132,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
     }
 
     this.topologySpecMap = Maps.newConcurrentMap();
+    this.specExecutorInstanceProducerMap = Maps.newConcurrentMap();
     this.edgeTemplateMap = Maps.newConcurrentMap();
     this.config = config;
 
@@ -128,18 +158,25 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
   }
 
   @Override
-  public void onAddSpec(Spec addedSpec) {
+  public synchronized void onAddSpec(Spec addedSpec) {
     topologySpecMap.put(addedSpec.getUri(), (TopologySpec) addedSpec);
+    specExecutorInstanceProducerMap.put(((TopologySpec) addedSpec).getSpecExecutorInstanceProducer().getUri(),
+        ((TopologySpec) addedSpec).getSpecExecutorInstanceProducer());
   }
 
   @Override
-  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
-    topologySpecMap.remove(deletedSpecURI);
+  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+    if (topologySpecMap.containsKey(deletedSpecURI)) {
+      specExecutorInstanceProducerMap.remove(topologySpecMap.get(deletedSpecURI).getSpecExecutorInstanceProducer().getUri());
+      topologySpecMap.remove(deletedSpecURI);
+    }
   }
 
   @Override
-  public void onUpdateSpec(Spec updatedSpec) {
+  public synchronized void onUpdateSpec(Spec updatedSpec) {
     topologySpecMap.put(updatedSpec.getUri(), (TopologySpec) updatedSpec);
+    specExecutorInstanceProducerMap.put(((TopologySpec) updatedSpec).getSpecExecutorInstanceProducer().getUri(),
+        ((TopologySpec) updatedSpec).getSpecExecutorInstanceProducer());
   }
 
   @Nonnull
@@ -175,6 +212,12 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
 
   public abstract Map<Spec, SpecExecutorInstanceProducer> compileFlow(Spec spec);
 
+  /**
+   * Naive implementation of generating jobSpec, which fetch the first available template,
+   * in an exemplified single-hop FlowCompiler implementation.
+   * @param flowSpec
+   * @return
+   */
   protected JobSpec jobSpecGenerator(FlowSpec flowSpec){
     JobSpec jobSpec;
     JobSpec.Builder jobSpecBuilder = JobSpec.builder(flowSpec.getUri())
@@ -218,5 +261,4 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
     jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobSpec.getConfig()));
     return jobSpec;
   }
-
 }

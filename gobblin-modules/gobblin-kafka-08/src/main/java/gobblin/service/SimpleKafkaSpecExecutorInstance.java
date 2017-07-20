@@ -17,7 +17,7 @@
 
 package gobblin.service;
 
-import com.google.common.util.concurrent.AbstractIdleService;
+import gobblin.runtime.api.BaseServiceNodeImpl;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -28,6 +28,7 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -36,6 +37,7 @@ import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.Spec;
+import gobblin.runtime.api.ServiceNode;
 import gobblin.runtime.api.SpecExecutorInstance;
 import gobblin.util.CompletedFuture;
 import gobblin.util.ConfigUtils;
@@ -50,7 +52,7 @@ public class SimpleKafkaSpecExecutorInstance extends AbstractIdleService impleme
   protected final Config _config;
   protected final Logger _log;
   protected final URI _specExecutorInstanceUri;
-  protected final Map<String, String> _capabilities;
+  protected final Map<ServiceNode, ServiceNode> _capabilities;
 
   protected static final String VERB_KEY = "Verb";
 
@@ -71,7 +73,7 @@ public class SimpleKafkaSpecExecutorInstance extends AbstractIdleService impleme
         List<String> currentCapability = SPLIT_BY_COLON.splitToList(capability);
         Preconditions.checkArgument(currentCapability.size() == 2, "Only one source:destination pair is supported "
             + "per capability, found: " + currentCapability);
-        _capabilities.put(currentCapability.get(0), currentCapability.get(1));
+        _capabilities.put(new BaseServiceNodeImpl(currentCapability.get(0)), new BaseServiceNodeImpl(currentCapability.get(1)));
       }
     }
   }
@@ -97,7 +99,7 @@ public class SimpleKafkaSpecExecutorInstance extends AbstractIdleService impleme
   }
 
   @Override
-  public Future<? extends Map<String, String>> getCapabilities() {
+  public Future<? extends Map<ServiceNode, ServiceNode>> getCapabilities() {
     return new CompletedFuture<>(_capabilities, null);
   }
 

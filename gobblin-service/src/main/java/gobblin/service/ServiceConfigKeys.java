@@ -85,4 +85,6 @@ public class ServiceConfigKeys {
   public static final String POLICY_BASED_DATA_MOVEMENT_PATH = GOBBLIN_SERVICE_PREFIX + "full.data.path";
   // Priority criteria for multiple SpecExecutorInstance has the same capabilities.
   public static final String POLICY_BASED_SPEC_EXECUTOR_SELECTION = GOBBLIN_SERVICE_PREFIX + "specExecutor.selection.policy";
+  // Topology edge weight enabled or not.
+  public static final String TOPOLOGY_EDGE_WEIGHT_ENABLED = GOBBLIN_SERVICE_PREFIX + "edgeWeight.enabled";
 }

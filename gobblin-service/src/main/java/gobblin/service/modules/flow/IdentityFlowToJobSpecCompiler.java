@@ -17,6 +17,7 @@
 
 package gobblin.service.modules.flow;
 
+import gobblin.runtime.api.ServiceNode;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -79,12 +80,12 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
 
     for (TopologySpec topologySpec : topologySpecMap.values()) {
       try {
-        Map<String, String> capabilities = (Map<String, String>) topologySpec.getSpecExecutorInstanceProducer().getCapabilities().get();
-        for (Map.Entry<String, String> capability : capabilities.entrySet()) {
+        Map<ServiceNode, ServiceNode> capabilities = (Map<ServiceNode, ServiceNode>) topologySpec.getSpecExecutorInstanceProducer().getCapabilities().get();
+        for (Map.Entry<ServiceNode, ServiceNode> capability : capabilities.entrySet()) {
           log.info(String.format("Evaluating current JobSpec: %s against TopologySpec: %s with "
               + "capability of source: %s and destination: %s ", jobSpec.getUri(),
               topologySpec.getUri(), capability.getKey(), capability.getValue()));
-          if (source.equals(capability.getKey()) && destination.equals(capability.getValue())) {
+          if (source.equals(capability.getKey().getNodeName()) && destination.equals(capability.getValue().getNodeName())) {
             specExecutorInstanceMap.put(jobSpec, topologySpec.getSpecExecutorInstanceProducer());
             log.info(String.format("Current JobSpec: %s is executable on TopologySpec: %s. Added TopologySpec as candidate.",
                 jobSpec.getUri(), topologySpec.getUri()));

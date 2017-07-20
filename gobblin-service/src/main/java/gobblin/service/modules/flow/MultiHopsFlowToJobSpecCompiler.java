@@ -17,22 +17,23 @@
 
 package gobblin.service.modules.flow;
 
-import gobblin.runtime.api.FlowSpec;
+import avro.shaded.com.google.common.annotations.VisibleForTesting;
+import gobblin.runtime.api.BaseServiceNodeImpl;
+import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.JobTemplate;
+import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.job_spec.ResolvedJobSpec;
 import java.net.URI;
-import java.util.ArrayList;
+import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
-import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.jgrapht.alg.DijkstraShortestPath;
+import org.jgrapht.graph.WeightedMultigraph;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
@@ -41,33 +42,50 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.typesafe.config.Config;
 
+import gobblin.runtime.api.FlowEdge;
+import gobblin.runtime.api.ServiceNode;
+import gobblin.runtime.api.FlowSpec;
 import gobblin.instrumented.Instrumented;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.service.ServiceConfigKeys;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 // Users are capable to inject hints/prioritization into route selection, in two forms:
 // 1. PolicyBasedBlockedConnection: Define some undesired routes
 // 2. Specified a complete path. FlowCompiler is responsible to verify if the path given is valid.
 
+@Slf4j
 public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
 
-  /* TODO: When the connection between hops is no longer configuration based,
-           should ensure the updates of following two data structures atomic with TopologySpec Catagory updates */
-  // Inverted index for specExecutor: Given a pair of source and sink in the format of "source-string"
-  // Users are free to inject Prioritization criteria in the PriorityQueue.
+  /* TODO:
+    1. When the connection between hops is no longer configuration based,
+     should ensure the updates of following two data structures atomic with TopologySpec Catagory updates
+    2. Figure out a way to inject weight information in Topology. We provide listenable interface in weightGraph, so
+     those changes in topology should reflect in weightGraph as well.
+  */
+
   @Getter
-  private Map<String, PriorityQueue<SpecExecutorInstanceProducer>> specExecutorInvertedIndex = new HashMap<>();
-  // Adjacency List to indicate connection between different hops, for convenience of pathFinding.
-  @Getter
-  private Map<String, List<String>> adjacencyList = new HashMap<>();
+  private WeightedMultigraph<ServiceNode, FlowEdge> weightedGraph =
+      new WeightedMultigraph<>(LoadBasedFlowEdgeImpl.class);
 
   //Contains the user-specified connection that are not desired to appear in JobSpec.
   //It can be used for avoiding known expensive or undesired data movement.
   public Optional<Multimap<String, String>> optionalPolicyBasedBlockedConnection;
   // Contains user-specified complete path of how the data movement is executed from source to sink.
   private Optional<String> optionalUserSpecifiedPath;
+  // If the weight of edge in topology is considered in path finding process.
+  // TODO: The way for injecting/updating edge weight need to be defined.
+  private boolean edgeWeightEnabled = false;
+
+  // Default setting for FlowEdgeMetric, which is totally based on DefaultLoad as a constant.
+  // Will change all usage of {@link #defaultFlowEdgeMetric} once there's well-defined way to inject edge metric information.
+  private static int DEFAULT_SPEC_EXECUTOR_LOAD = 1 ;
+  private BaseFlowEdgeMetricImpl defaultFlowEdgeMetric = new BaseFlowEdgeMetricImpl(this.DEFAULT_SPEC_EXECUTOR_LOAD);
+
 
   public MultiHopsFlowToJobSpecCompiler(Config config){
     this(config, Optional.absent(), true);
@@ -90,12 +108,19 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     else{
       this.optionalPolicyBasedBlockedConnection = Optional.absent();
     }
+
     if (config.hasPath(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH) &&
         StringUtils.isNotBlank(config.getString(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH))){
       optionalUserSpecifiedPath = Optional.of(config.getString(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH));
     }
     else{
       optionalUserSpecifiedPath = Optional.absent();
+    }
+
+    if (config.hasPath(ServiceConfigKeys.TOPOLOGY_EDGE_WEIGHT_ENABLED)
+        && StringUtils.isNotBlank(config.getString(ServiceConfigKeys.TOPOLOGY_EDGE_WEIGHT_ENABLED))) {
+      edgeWeightEnabled = config.getString(ServiceConfigKeys.TOPOLOGY_EDGE_WEIGHT_ENABLED)
+          .toLowerCase().equals("true") ? true : false;
     }
   }
 
@@ -109,117 +134,84 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   /**
-   * @return Transform all topologySpec into a adjacency list for convenience of path finding.
-   *         A path here represents a complete route from source to sink, with possibly multiple hops in the between.
-   * This function is invoked right before the adjacency list is to be used, ensuring up-to-date connection info.
+   * @return Transform a {@link TopologySpec} into a instance of {@link org.jgrapht.graph.WeightedMultigraph}
+   * and filter out connections between blacklisted vertices that user specified.
+   * The side-effect of this function only stays in memory, so each time a logical flow is compiled, the multigraph will
+   * be re-calculated.
+   *
+   * TODO: Have finer granularity of edge filtering, which is removing a triplet of <SourceNode, targetNode, SpecExectorInstance>
+   *   But this could involve more knowledge from users where they are required to specify SpecExecutorInstance as well.
    */
-  public void inMemoryAdjacencyListAndInvertedIndexGenerator(){
+  private void inMemoryWeightGraphGenerator(){
     for( TopologySpec topologySpec : topologySpecMap.values()) {
-      adjacencyListAndInvertedListGenerateHelper(topologySpec);
+      weightGraphGenerateHelper(topologySpec);
     }
 
     // Filter out connection appearing in {@link optionalPolicyBasedBlockedConnection}
     if (optionalPolicyBasedBlockedConnection.isPresent()) {
       for (Map.Entry<String, String> singleBlacklistEntry:optionalPolicyBasedBlockedConnection.get().entries()){
-        String blockedConnnectionKey = singleBlacklistEntry.getKey();
-        String blockedConnectionValue = singleBlacklistEntry.getValue();
-        if (adjacencyList.get(blockedConnnectionKey).contains(blockedConnectionValue)) {
-          adjacencyList.get(blockedConnnectionKey).remove(blockedConnectionValue);
-          if (adjacencyList.get(blockedConnnectionKey).size() == 0){
-            adjacencyList.remove(blockedConnnectionKey);
-          }
+        ServiceNode blockedNodeSrc = new BaseServiceNodeImpl(singleBlacklistEntry.getKey());
+        ServiceNode blockedNodeDst = new BaseServiceNodeImpl(singleBlacklistEntry.getValue());
+        if (weightedGraph.containsEdge(blockedNodeSrc, blockedNodeDst)){
+          weightedGraph.removeAllEdges(blockedNodeSrc, blockedNodeDst);
         }
       }
     }
   }
 
-  // Basically a depth-first-search for connecting source and sink by multiple hops in between.
+  // Basically a dijkstra path finding for connecting source and sink by multiple hops in between.
   // If there's any user-specified prioritization, conduct the DFS and see if the user-specified path is available.
 
   // TODO: It is expected to introduce stronger locking mechanism to ensure when pathFinding is going on
   // there's no updates on TopologySpec, or user should be aware of the possibility
   // that a topologySpec not being reflected in pathFinding.
   private void pathFinding(Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap, Spec spec){
-    inMemoryAdjacencyListAndInvertedIndexGenerator();
+    inMemoryWeightGraphGenerator();
+    FlowSpec flowSpec = (FlowSpec) spec;
     if (optionalUserSpecifiedPath.isPresent()) {
       log.info("Starting to evaluate user's specified path ... ");
-      if (userSpecifiedPathVerificator(specExecutorInstanceMap, spec)){
+      if (userSpecifiedPathVerificator(specExecutorInstanceMap, flowSpec)){
         log.info("User specified path[ " + optionalUserSpecifiedPath.get() + "] successfully verified.");
         return;
       }
       else {
         log.error("Will not execute user specified path[ " + optionalUserSpecifiedPath.get());
-
+        log.info("Start to execute FlowCompiler's algorithm for valid data movement path");
       }
     }
-    else {
-      List<String> resultPath = new ArrayList<>();
-      FlowSpec flowSpec = (FlowSpec) spec;
-      String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);
-      String destination = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
-      bfsPathFindingHelper(source, destination, resultPath);
 
-      for (int i = 0 ; i < resultPath.size() - 1 ; i ++ ) {
-        specExecutorInstanceMap.put(jobSpecGenerator(flowSpec),
-            specExecutorInvertedIndex.get(keyGenerationHelper(resultPath.get(i), resultPath.get(i+1))).peek());
-      }
-    }
-  }
-
-  private void dfsPathFindingHelper(String source, String sink, List<String> resultPath, Set<String> visited) {
-    if ( resultPath.get(resultPath.size() - 1).equals(sink)){
-      return;
-    }
-    else{
-      resultPath.add(source);
-      visited.add(source);
-      for(String adjacentNode: this.adjacencyList.get(source)) {
-        if (!visited.contains(adjacentNode)){
-          dfsPathFindingHelper(adjacentNode, sink, resultPath, visited);
-        }
-      }
+    ServiceNode sourceNode = new BaseServiceNodeImpl(flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY));
+    ServiceNode targetNode = new BaseServiceNodeImpl(flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY));
+    List<FlowEdge> resultEdgePath = dijkstraBasedPathFindingHelper(sourceNode, targetNode);
+    for (int i = 0 ; i < resultEdgePath.size() - 1 ; i ++ ) {
+      FlowEdge tmpFlowEdge = resultEdgePath.get(i);
+      ServiceNode edgeSrcNode = ((LoadBasedFlowEdgeImpl)tmpFlowEdge).getSourceNode();
+      ServiceNode edgeTgtNode = ((LoadBasedFlowEdgeImpl)tmpFlowEdge).getTargetNode();
+      specExecutorInstanceMap.put(jobSpecGenerator(edgeSrcNode, edgeTgtNode, flowSpec),
+          ((LoadBasedFlowEdgeImpl)(resultEdgePath.get(i))).getSpecExecutorInstanceProducer());
     }
   }
 
-  private boolean bfsPathFindingHelper(String source, String sink, List<String> resultPath) {
-    LinkedList<String> bfsQueue = new LinkedList<>();
-    Set<String> visited = new HashSet<>();
-    bfsQueue.offer(source);
-
-    while(!bfsQueue.isEmpty()){
-      String topNode = bfsQueue.poll();
-      resultPath.add(topNode);
-      if (topNode.equals(sink)){
-        return true;
-      } else{
-        visited.add(topNode);
-      }
-
-      for(String adjacentNode:this.adjacencyList.get(topNode)) {
-        if (!visited.contains(adjacentNode)){
-          bfsQueue.offer(adjacentNode);
-        }
-      }
-    }
-    return false;
-  }
-
-  // TODO: Make the path finding process more genertic, even adding the weight information to it.
-  // Not limit the path to be static.
-  private boolean dijkstraBasedPathFindingHelper(String source, String sink, List<String> resultPath){
-    return true;
+  // Conduct dijkstra algorithm for finding shoretest path on WeightedDirectedMultiGraph.
+  @VisibleForTesting
+  public List<FlowEdge> dijkstraBasedPathFindingHelper(ServiceNode sourceNode, ServiceNode targetNode){
+    DijkstraShortestPath<ServiceNode, FlowEdge> dijkstraShortestPath =
+        new DijkstraShortestPath(this.weightedGraph, sourceNode, targetNode);
+    return dijkstraShortestPath.getPathEdgeList();
   }
 
   // If path specified not existed, return false;
   // else return true.
-  private boolean userSpecifiedPathVerificator(Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap, Spec spec){
+  private boolean userSpecifiedPathVerificator(Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap, FlowSpec flowSpec){
     Map<Spec, SpecExecutorInstanceProducer> tmpSpecExecutorInstanceMap = new HashMap<>();
     List<String> userSpecfiedPath = Arrays.asList(optionalUserSpecifiedPath.get().split(","));
     for (int i = 0 ; i < userSpecfiedPath.size() - 1 ; i ++ ) {
-      if (adjacencyList.get(userSpecfiedPath.get(i)).contains(userSpecfiedPath.get(i + 1)) &&
-          specExecutorInvertedIndex.containsKey(keyGenerationHelper(userSpecfiedPath.get(i), userSpecfiedPath.get(i + 1)))) {
-        tmpSpecExecutorInstanceMap.put(jobSpecGenerator((FlowSpec) spec),
-            specExecutorInvertedIndex.get(keyGenerationHelper(userSpecfiedPath.get(i), userSpecfiedPath.get(i + 1))).peek());
+      ServiceNode sourceNode = new BaseServiceNodeImpl(userSpecfiedPath.get(i));
+      ServiceNode targetNode = new BaseServiceNodeImpl(userSpecfiedPath.get(i+1));
+      if (weightedGraph.containsVertex(sourceNode) && weightedGraph.containsVertex(targetNode) &&
+      weightedGraph.containsEdge(sourceNode, targetNode)) {
+        tmpSpecExecutorInstanceMap.put(jobSpecGenerator(sourceNode, targetNode, flowSpec),
+            (((LoadBasedFlowEdgeImpl)weightedGraph.getEdge(sourceNode, targetNode)).getSpecExecutorInstanceProducer()));
       }
       else {
         log.error("User Specified Path is invalid");
@@ -230,30 +222,27 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     return true;
   }
 
-  // Helper functions that will be invoked every time a new topologySpec's information is digested to
-  // update AdjacencyList and InvertedList.
-  private void adjacencyListAndInvertedListGenerateHelper(TopologySpec topologySpec){
+  // Helper function for transform TopologySpecMap into a weightedDirectedGraph.
+  private void weightGraphGenerateHelper(TopologySpec topologySpec){
     try{
-      Map<String, String> capabilities =
-          (Map<String, String>) topologySpec.getSpecExecutorInstanceProducer().getCapabilities().get();
-      for (Map.Entry<String, String> capability : capabilities.entrySet()) {
+      Map<ServiceNode, ServiceNode> capabilities =
+          topologySpec.getSpecExecutorInstanceProducer().getCapabilities().get();
+      for (Map.Entry<ServiceNode, ServiceNode> capability : capabilities.entrySet()) {
+        ServiceNode sourceNode = capability.getKey();
+        ServiceNode targetNode = capability.getValue();
+        if (!weightedGraph.containsVertex(sourceNode)){
+          weightedGraph.addVertex(sourceNode);
+        }
+        if (!weightedGraph.containsVertex(targetNode)){
+          weightedGraph.addVertex(targetNode);
+        }
 
-        if (adjacencyList.containsKey(capability.getKey())){
-          adjacencyList.get(capability.getKey()).add(capability.getValue());
-        }
-        else{
-          adjacencyList.put(capability.getKey(), Arrays.asList(capability.getValue()));
-        }
+        FlowEdge flowEdge = new LoadBasedFlowEdgeImpl
+            (sourceNode, targetNode, defaultFlowEdgeMetric, topologySpec.getSpecExecutorInstanceProducer());
 
-        if (specExecutorInvertedIndex.containsKey(keyGenerationHelper(capability.getKey(),capability.getValue()))){
-          specExecutorInvertedIndex.get(keyGenerationHelper(capability.getKey(),capability.getValue()))
-              .add(topologySpec.getSpecExecutorInstanceProducer());
-        }
-        else {
-          PriorityQueue<SpecExecutorInstanceProducer> pq =
-              new PriorityQueue<>(new SpecExecutorInstanceProducerComparator());
-          pq.add(topologySpec.getSpecExecutorInstanceProducer());
-          specExecutorInvertedIndex.put(keyGenerationHelper(capability.getKey(),capability.getValue()), pq);
+        // In Multi-Graph if flowEdge existed, just skip it.
+        if (!weightedGraph.containsEdge(flowEdge)) {
+          weightedGraph.addEdge(sourceNode, targetNode, flowEdge);
         }
       }
     } catch (InterruptedException | ExecutionException e) {
@@ -262,20 +251,54 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     }
   }
 
-  // Helper function for generating key in invertedList for query SpecExecutorInstance using pair of source and sink.
-  private String keyGenerationHelper(String source, String sink){
-    return source + "-" + sink;
+  /**
+   * Generate JobSpec based on the #templateURI that user specified.
+   */
+  private JobSpec jobSpecGenerator(ServiceNode sourceNode, ServiceNode targetNode,
+      FlowEdge flowEdge, URI templateURI, FlowSpec flowSpec){
+    JobSpec jobSpec;
+    JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSepcURIGenerator(flowSpec, sourceNode, targetNode))
+        .withConfig(flowSpec.getConfig())
+        .withDescription(flowSpec.getDescription())
+        .withVersion(flowSpec.getVersion());
+    if (edgeTemplateMap.get(flowEdge.getEdgeIdentity()).contains(templateURI)){
+      jobSpecBuilder.withTemplate(templateURI);
+      try{
+        jobSpec = new ResolvedJobSpec(jobSpecBuilder.build(), templateCatalog.get());
+        log.info("Resolved JobSpec properties are: " + jobSpec.getConfigAsProperties());
+      }catch (SpecNotFoundException | JobTemplate.TemplateException e) {
+        throw new RuntimeException("Could not resolve template in JobSpec from TemplateCatalog", e);
+      }
+    }
+    else {
+      jobSpec = jobSpecBuilder.build();
+      log.info("Unresolved JobSpec properties are: " + jobSpec.getConfigAsProperties());
+    }
+    return jobSpec;
   }
 
-  private class SpecExecutorInstanceProducerComparator implements Comparator<SpecExecutorInstanceProducer> {
-    public int compare(SpecExecutorInstanceProducer p1, SpecExecutorInstanceProducer p2) {
-      if (config.hasPath(ServiceConfigKeys.POLICY_BASED_SPEC_EXECUTOR_SELECTION)) {
-        // TODO: Add policies here to handle the case when there are multiple SpecExecutors having the same capabilities
-        // Switch ():
-        return 1;
-      }
-      // If no policy specified simply favor the former one.
-      else return 1;
+  /**
+   * A naive implementation of resolving templates in each JobSpec among Multi-hop FlowSpec.
+   * Handling the case when edge is not specified.
+   * Select the first available tempalate.
+   * Set as the default invocation.
+   */
+  private JobSpec jobSpecGenerator(ServiceNode sourceNode, ServiceNode targetNode, FlowSpec flowSpec){
+    FlowEdge flowEdge = weightedGraph.getAllEdges(sourceNode, targetNode).iterator().next();
+    URI firstTemplateURI = edgeTemplateMap.get(flowEdge.getEdgeIdentity()).get(0);
+    return this.jobSpecGenerator(sourceNode, targetNode, flowEdge, firstTemplateURI, flowSpec);
+  }
+
+  /**
+   * A naive implementation of generating a jobSpec's URI within a multi-hop logicial Flow.
+   */
+  public static URI jobSepcURIGenerator(FlowSpec flowSpec, ServiceNode sourceNode, ServiceNode targetNode) {
+    try {
+      return new URI(flowSpec.getUri().getScheme(), flowSpec.getUri().getAuthority(),
+          "/" + sourceNode.getNodeName() + "-" + targetNode.getNodeName(), null);
+    } catch (URISyntaxException e){
+      log.error("URI construction failed when jobSpec from " + sourceNode.getNodeName() + " to " + targetNode.getNodeName());
+      throw new RuntimeException();
     }
   }
 }

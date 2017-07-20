@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.service.modules.flow;
+package gobblin.runtime.api;
 
-/**
- * Abstraction of a Node in {@link gobblin.runtime.api.TopologySpec}
- */
-public interface ServiceNode {
+
+public interface FlowEdge {
+
   /**
-   * @return The name of node.
+   * @return Identifier of edge which is, by default consisting of source and destination Name with colon in the between.
    */
-  public String getNodeName();
+  String getEdgeIdentity();
 
 }

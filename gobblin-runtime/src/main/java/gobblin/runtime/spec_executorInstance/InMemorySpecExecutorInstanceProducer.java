@@ -17,6 +17,7 @@
 
 package gobblin.runtime.spec_executorInstance;
 
+import gobblin.runtime.api.BaseServiceNodeImpl;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -36,6 +37,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import gobblin.runtime.api.ServiceNode;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.Spec;
@@ -54,7 +56,7 @@ public class InMemorySpecExecutorInstanceProducer implements SpecExecutorInstanc
   protected final Map<URI, Spec> provisionedSpecs;
   @SuppressWarnings (justification="No bug", value="SE_BAD_FIELD")
   protected final Config config;
-  protected final Map<String, String> capabilities;
+  protected final Map<ServiceNode, ServiceNode> capabilities;
 
   public InMemorySpecExecutorInstanceProducer(Config config) {
     this(config, Optional.<Logger>absent());
@@ -76,7 +78,7 @@ public class InMemorySpecExecutorInstanceProducer implements SpecExecutorInstanc
         List<String> currentCapability = SPLIT_BY_COLON.splitToList(capability);
         Preconditions.checkArgument(currentCapability.size() == 2, "Only one source:destination pair is supported "
             + "per capability, found: " + currentCapability);
-        this.capabilities.put(currentCapability.get(0), currentCapability.get(1));
+        this.capabilities.put(new BaseServiceNodeImpl(currentCapability.get(0)), new BaseServiceNodeImpl(currentCapability.get(1)));
       }
     }
   }
@@ -106,7 +108,7 @@ public class InMemorySpecExecutorInstanceProducer implements SpecExecutorInstanc
   }
 
   @Override
-  public Future<? extends Map<String, String>> getCapabilities() {
+  public Future<? extends Map<ServiceNode, ServiceNode>> getCapabilities() {
     return new CompletedFuture(this.capabilities, null);
   }
 
