@@ -44,9 +44,11 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
 
   @Override
   public String getEdgeIdentity(){
-    return this.sourceNode.getNodeName() + "-"
-        + specExecutorInstanceProducer.getUri() + "-"
-        + this.targetNode.getNodeName();
+    return this.calculateEdgeIdentity(this.sourceNode, this.targetNode, this.specExecutorInstanceProducer);
+  }
+
+  public static String calculateEdgeIdentity(ServiceNode sourceNode, ServiceNode targetNode, SpecExecutorInstanceProducer specExecutorInstanceProducer){
+    return sourceNode.getNodeName() + "-" + specExecutorInstanceProducer.getUri() + "-" + targetNode.getNodeName();
   }
 
   public double getEdgeLoad(){

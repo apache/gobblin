@@ -134,7 +134,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   /**
-   * @return Transform a {@link TopologySpec} into a instance of {@link org.jgrapht.graph.WeightedMultigraph}
+   * @return Transform a set of {@link TopologySpec} into a instance of {@link org.jgrapht.graph.WeightedMultigraph}
    * and filter out connections between blacklisted vertices that user specified.
    * The side-effect of this function only stays in memory, so each time a logical flow is compiled, the multigraph will
    * be re-calculated.
@@ -154,8 +154,17 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
         ServiceNode blockedNodeDst = new BaseServiceNodeImpl(singleBlacklistEntry.getValue());
         if (weightedGraph.containsEdge(blockedNodeSrc, blockedNodeDst)){
           weightedGraph.removeAllEdges(blockedNodeSrc, blockedNodeDst);
+          vertexSafeDeletionAttempt(blockedNodeSrc, weightedGraph);
+          vertexSafeDeletionAttempt(blockedNodeSrc, weightedGraph);
         }
       }
+    }
+  }
+
+  private void vertexSafeDeletionAttempt(ServiceNode node, WeightedMultigraph weightedGraph){
+    if (weightedGraph.inDegreeOf(node) == 0 && weightedGraph.outDegreeOf(node) == 0){
+      log.info("Node " + node.getNodeName() + " has no connection with it therefore delete it.");
+      weightedGraph.removeVertex(node);
     }
   }
 

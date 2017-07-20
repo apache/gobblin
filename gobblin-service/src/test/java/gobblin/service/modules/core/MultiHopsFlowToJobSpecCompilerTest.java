@@ -33,8 +33,11 @@ import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.jgrapht.graph.WeightedMultigraph;
 import org.slf4j.Logger;
@@ -69,9 +72,14 @@ public class MultiHopsFlowToJobSpecCompilerTest {
   private static final String TOPOLOGY_SPEC_STORE_DIR = "/tmp/orchestrator/topologyTestSpecStore_" + System.currentTimeMillis();
   private static final String FLOW_SPEC_STORE_DIR = "/tmp/orchestrator/flowTestSpecStore_" + System.currentTimeMillis();
 
-
+  private ServiceNode vertexSource;
+  private ServiceNode vertexHopA;
+  private ServiceNode vertexHopB;
+  private ServiceNode vertexHopC;
+  private ServiceNode vertexSink;
 
   private MultiHopsFlowToJobSpecCompiler compilerWithTemplateCalague;
+  private Map<String, List<URI>> edgeTemplateMap;
 
 
   @BeforeClass
@@ -87,6 +95,12 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     String testPath = TEST_SOURCE_NAME + "," + TEST_HOP_NAME_A + "," + TEST_HOP_NAME_B + "," + TEST_SINK_NAME;
     compilerWithTemplateCatalogProperties.setProperty(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH, testPath);
     this.compilerWithTemplateCalague = new MultiHopsFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(compilerWithTemplateCatalogProperties));
+
+    ServiceNode vertexSource = new BaseServiceNodeImpl(TEST_SOURCE_NAME);
+    ServiceNode vertexHopA = new BaseServiceNodeImpl(TEST_HOP_NAME_A);
+    ServiceNode vertexHopB = new BaseServiceNodeImpl(TEST_HOP_NAME_B);
+    ServiceNode vertexHopC = new BaseServiceNodeImpl(TEST_HOP_NAME_C);
+    ServiceNode vertexSink = new BaseServiceNodeImpl(TEST_SINK_NAME);
 
   }
 
@@ -124,11 +138,6 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     this.compilerWithTemplateCalague.compileFlow(flowSpec);
     WeightedMultigraph<ServiceNode, FlowEdge> weightedGraph = compilerWithTemplateCalague.getWeightedGraph();
 
-    ServiceNode vertexSource = new BaseServiceNodeImpl(TEST_SOURCE_NAME);
-    ServiceNode vertexHopA = new BaseServiceNodeImpl(TEST_HOP_NAME_A);
-    ServiceNode vertexHopB = new BaseServiceNodeImpl(TEST_HOP_NAME_B);
-    ServiceNode vertexSink = new BaseServiceNodeImpl(TEST_SINK_NAME);
-
     Assert.assertTrue(weightedGraph.containsVertex(vertexSource));
     Assert.assertTrue(weightedGraph.containsVertex(vertexHopA));
     Assert.assertTrue(weightedGraph.containsVertex(vertexHopB));
@@ -156,11 +165,6 @@ public class MultiHopsFlowToJobSpecCompilerTest {
 
   @Test
   public void testDijkstraPathFinding(){
-    ServiceNode vertexSource = new BaseServiceNodeImpl(TEST_SOURCE_NAME);
-    ServiceNode vertexSink = new BaseServiceNodeImpl(TEST_SINK_NAME);
-    ServiceNode vertexHopA = new BaseServiceNodeImpl(TEST_HOP_NAME_A);
-    ServiceNode vertexHopB = new BaseServiceNodeImpl(TEST_HOP_NAME_B);
-    ServiceNode vertexHopC = new BaseServiceNodeImpl(TEST_HOP_NAME_C);
 
     FlowSpec flowSpec = initFlowSpec();
     TopologySpec topologySpec_1 = initTopologySpec(TEST_SOURCE_NAME, TEST_HOP_NAME_A, TEST_HOP_NAME_B, TEST_SINK_NAME);
@@ -199,7 +203,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     properties.put("specStore.fs.dir", TOPOLOGY_SPEC_STORE_DIR);
     String capabilitiesString = "";
     for(int i =0 ; i < args.length - 1 ; i ++ ) {
-      capabilitiesString = capabilitiesString + ( args[i] + "," + args[i+1] + ",");
+      capabilitiesString = capabilitiesString + ( args[i] + ":" + args[i+1] + ",");
     }
     Assert.assertEquals(capabilitiesString.charAt(capabilitiesString.length() - 1) , ',');
     capabilitiesString = capabilitiesString.substring(0, capabilitiesString.length() - 1 );
@@ -255,6 +259,15 @@ public class MultiHopsFlowToJobSpecCompilerTest {
   private boolean edgeEqual(FlowEdge a, FlowEdge b){
     return (a.getEdgeIdentity().equals(b.getEdgeIdentity()) &&
         ((LoadBasedFlowEdgeImpl)a).getEdgeLoad() == ((LoadBasedFlowEdgeImpl)b).getEdgeLoad());
+  }
+
+  // Use this function for 
+  private void populateTemplateMap(WeightedMultigraph<ServiceNode, FlowEdge> weightedGraph, URI exempliedURI){
+    this.edgeTemplateMap.clear();
+    Set<FlowEdge> allEdges = weightedGraph.edgeSet();
+    for ( FlowEdge edge : allEdges ) {
+      this.edgeTemplateMap.put(edge.getEdgeIdentity(), Arrays.asList(exempliedURI)) ;
+    }
   }
 
 }
