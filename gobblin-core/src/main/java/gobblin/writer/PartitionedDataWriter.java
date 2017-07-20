@@ -304,7 +304,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     @Override
     public void handleMessage(ControlMessage message) {
       for (DataWriter writer : PartitionedDataWriter.this.partitionWriters.asMap().values()) {
-        writer.getMessageHandler().handleMessage((ControlMessage) message.getClone());
+        writer.getMessageHandler().handleMessage((ControlMessage) message.getSingleClone());
       }
     }
   }

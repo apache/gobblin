@@ -17,67 +17,73 @@
 
 package gobblin.stream;
 
-import java.util.function.Function;
-
 import gobblin.annotation.Alpha;
 import gobblin.fork.CopyHelper;
 import gobblin.fork.CopyNotSupportedException;
 import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.writer.Ackable;
 
 import javax.annotation.Nullable;
 
 
 /**
  * An envelope around a record containing metadata and allowing for ack'ing the record.
+ *
+ * Note:
+ * When transforming or cloning a record, it is important to do it in the correct way to ensure callbacks and watermarks
+ * are spread correctly:
+ *
+ * 1-to-1 record transformation:
+ *   record.withRecord(transformedRecord);
+ *
+ * 1-to-n record transformation:
+ *   ForkRecordBuilder forkRecordBuilder = record.forkRecordBuilder();
+ *   forkRecordBuilder.childRecord(transformed1);
+ *   forkRecordBuilder.childRecord(transformed2);
+ *   forkRecordBuilder.close();
+ *
+ * Cloning record:
+ *   ForkCloner forkCloner = record.forkCloner();
+ *   forkCloner.getClone();
+ *   forkCloner.close();
  */
 @Alpha
 public class RecordEnvelope<D> extends StreamEntity<D> {
 
   private final D _record;
+  @Nullable
   private final CheckpointableWatermark _watermark;
-  private final Ackable _ackable;
 
   public RecordEnvelope(D record) {
-    this(record, null, null);
+    this(record, (CheckpointableWatermark) null);
+  }
+
+  private RecordEnvelope(D record, RecordEnvelope<?> parentRecord, boolean copyCallbacks) {
+    super(parentRecord, copyCallbacks);
+    _record = record;
+    _watermark = parentRecord._watermark;
+  }
+
+  private RecordEnvelope(D record, RecordEnvelope<?>.ForkRecordBuilder<D> forkRecordBuilder, boolean copyCallbacks) {
+    super(forkRecordBuilder, copyCallbacks);
+    _record = record;
+    _watermark = forkRecordBuilder.getRecordEnvelope()._watermark;
   }
 
   public RecordEnvelope(D record, CheckpointableWatermark watermark) {
-    this(record, watermark, null);
-  }
-
-  private RecordEnvelope(D record, CheckpointableWatermark watermark, Ackable ackable) {
-    super(ackable);
-
+    super();
     if (record instanceof RecordEnvelope) {
       throw new IllegalStateException("Cannot wrap a RecordEnvelope in another RecordEnvelope.");
     }
+
     _record = record;
     _watermark = watermark;
-    _ackable = ackable;
   }
 
   /**
    * @return a new {@link RecordEnvelope} with just the record changed.
    */
   public <DO> RecordEnvelope<DO> withRecord(DO newRecord) {
-    return new RecordEnvelope<>(newRecord, _watermark, _ackable);
-  }
-
-  /**
-   * @return a new {@link RecordEnvelope} with just the record changed using a lambda expression.
-   */
-  public <DO> RecordEnvelope<DO> mapRecord(Function<D, DO> mapper) {
-    return new RecordEnvelope<>(mapper.apply(_record), _watermark, _ackable);
-  }
-
-  /**
-   * @return a new {@link RecordEnvelope} with an {@link Ackable} that will be triggered upon {@link #ack()}.
-   * @deprecated this is a temporary method while streaming is refined
-   */
-  @Deprecated
-  public RecordEnvelope<D> withAckableWatermark(Ackable ackableWatermark) {
-    return new RecordEnvelope<>(_record, _watermark, ackableWatermark);
+    return new RecordEnvelope<>(newRecord, this, true);
   }
 
   /**
@@ -95,11 +101,37 @@ public class RecordEnvelope<D> extends StreamEntity<D> {
   }
 
   @Override
-  public StreamEntity<D> getClone() {
+  protected StreamEntity<D> buildClone() {
     try {
-      return withRecord((D) CopyHelper.copy(_record));
+      return new RecordEnvelope<>((D) CopyHelper.copy(_record), this, false);
     } catch (CopyNotSupportedException cnse) {
       throw new UnsupportedOperationException(cnse);
+    }
+  }
+
+  /**
+   * Obtain a {@link ForkRecordBuilder} to create derivative records to this record.
+   */
+  public <DO> ForkRecordBuilder<DO> forkRecordBuilder() {
+    return new ForkRecordBuilder<>();
+  }
+
+  /**
+   * Used to create derivative records with the same callbacks and watermarks.
+   */
+  public class ForkRecordBuilder<DO> extends StreamEntity.ForkedEntityBuilder {
+    private ForkRecordBuilder() {
+    }
+
+    /**
+     * Create a new child {@link RecordEnvelope} with the specified record.
+     */
+    public RecordEnvelope<DO> childRecord(DO newRecord) {
+      return new RecordEnvelope<>(newRecord, this, true);
+    }
+
+    RecordEnvelope<D> getRecordEnvelope() {
+      return RecordEnvelope.this;
     }
   }
 }

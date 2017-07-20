@@ -715,7 +715,7 @@ public class Task implements TaskIFace {
         copyInstance++;
         if (isStreamingTask()) {
           // Send the record, watermark pair down the fork
-          recordForFork = ((RecordEnvelope) recordForFork).withAckableWatermark(watermark.incrementAck());
+          ((RecordEnvelope) recordForFork).addCallBack(watermark.incrementAck());
         }
         // Put the record into the record queue of each fork. A put may timeout and return a false, in which
         // case the put is retried until it is successful.

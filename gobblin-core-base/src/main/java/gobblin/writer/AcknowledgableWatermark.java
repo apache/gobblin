@@ -21,8 +21,7 @@ package gobblin.writer;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.base.Preconditions;
-
+import gobblin.ack.Ackable;
 import gobblin.source.extractor.CheckpointableWatermark;
 
 

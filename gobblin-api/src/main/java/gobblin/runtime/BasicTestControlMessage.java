@@ -15,23 +15,25 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package gobblin.runtime;
 
-import gobblin.configuration.WorkUnitState;
+import gobblin.stream.ControlMessage;
+import gobblin.stream.StreamEntity;
+
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+
 
 /**
- * Implementation of {@link Converter} that returns the inputSchema unmodified and each inputRecord unmodified
+ * A basic {@link ControlMessage} used for testing.
  */
-public class IdentityConverter<S, D> extends Converter<S, S, D, D> {
+@AllArgsConstructor
+@EqualsAndHashCode
+public class BasicTestControlMessage<T> extends ControlMessage<T> {
+  private final String id;
 
   @Override
-  public Object convertSchema(Object inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return inputSchema;
-  }
-
-  @Override
-  public Iterable<Object> convertRecord(Object outputSchema, Object inputRecord, WorkUnitState workUnit)
-      throws DataConversionException {
-    return new SingleRecordIterable<>(inputRecord);
+  public StreamEntity<T> buildClone() {
+    return new BasicTestControlMessage(this.id);
   }
 }

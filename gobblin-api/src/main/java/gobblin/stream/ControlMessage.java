@@ -24,6 +24,6 @@ package gobblin.stream;
  */
 public abstract class ControlMessage<D> extends StreamEntity<D> {
   public ControlMessage() {
-    super(null);
+    super();
   }
 }
