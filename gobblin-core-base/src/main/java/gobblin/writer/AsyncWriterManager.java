@@ -46,6 +46,8 @@ import javax.annotation.Nonnull;
 
 import lombok.Getter;
 import lombok.Setter;
+
+import gobblin.ack.Ackable;
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;

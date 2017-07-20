@@ -15,23 +15,24 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
-
-import gobblin.configuration.WorkUnitState;
+package gobblin.ack;
 
 /**
- * Implementation of {@link Converter} that returns the inputSchema unmodified and each inputRecord unmodified
+ * An ackable used for testing that just counts the times it is acked and nacked.
  */
-public class IdentityConverter<S, D> extends Converter<S, S, D, D> {
+public class BasicAckableForTesting implements Ackable {
+  public int acked = 0;
+  public int nacked = 0;
+  public Throwable throwable;
 
   @Override
-  public Object convertSchema(Object inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return inputSchema;
+  public void ack() {
+    this.acked++;
   }
 
   @Override
-  public Iterable<Object> convertRecord(Object outputSchema, Object inputRecord, WorkUnitState workUnit)
-      throws DataConversionException {
-    return new SingleRecordIterable<>(inputRecord);
+  public void nack(Throwable error) {
+    this.nacked++;
+    this.throwable = error;
   }
 }

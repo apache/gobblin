@@ -19,6 +19,7 @@
 
 package gobblin.writer;
 
+import gobblin.ack.Ackable;
 import gobblin.annotation.Alpha;
 import gobblin.source.extractor.CheckpointableWatermark;
 

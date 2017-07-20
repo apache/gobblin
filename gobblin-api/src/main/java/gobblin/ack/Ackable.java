@@ -15,23 +15,29 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
-
-import gobblin.configuration.WorkUnitState;
+package gobblin.ack;
 
 /**
- * Implementation of {@link Converter} that returns the inputSchema unmodified and each inputRecord unmodified
+ * An interface for entities that can be acked
  */
-public class IdentityConverter<S, D> extends Converter<S, S, D, D> {
+public interface Ackable {
 
-  @Override
-  public Object convertSchema(Object inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return inputSchema;
+  /**
+   * Acknowledge this entity as a success.
+   */
+  void ack();
+
+  /**
+   * Mark this entity as failed to process.
+   */
+  default void nack(Throwable error) {
+    // do nothing by default
   }
 
-  @Override
-  public Iterable<Object> convertRecord(Object outputSchema, Object inputRecord, WorkUnitState workUnit)
-      throws DataConversionException {
-    return new SingleRecordIterable<>(inputRecord);
-  }
+  Ackable NoopAckable = new Ackable() {
+    @Override
+    public void ack() {}
+
+    public void nack(Throwable error) {}
+  };
 }
