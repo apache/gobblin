@@ -6,7 +6,7 @@ GOBBLIN 0.11.0
 ## HIGHLIGHTS 
 
 * Introduced Java 8.
-* Introduce ReactiveX to enable record level stream processing.
+* Introduced ReactiveX to enable record level stream processing.
 * Introduced Calcite to help sql building and processing.
 * New Converters: HttpJoinConverter, FlattenNestedKeyConverter, AvroStringFieldEncryptorConverter, AvroToBytesConverter, BytesToAvroConverter
 * New Http constructs: ApacheHttpClient, ApacheHttpAsyncClient, R2Client.
