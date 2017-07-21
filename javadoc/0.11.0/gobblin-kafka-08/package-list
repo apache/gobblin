@@ -1,0 +1,8 @@
+gobblin.kafka.client
+gobblin.kafka.serialize
+gobblin.kafka.tool
+gobblin.kafka.writer
+gobblin.metrics
+gobblin.metrics.kafka
+gobblin.service
+gobblin.source.extractor.extract.kafka

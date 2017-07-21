@@ -1,0 +1,16 @@
+gobblin.compaction
+gobblin.compaction.action
+gobblin.compaction.audit
+gobblin.compaction.conditions
+gobblin.compaction.dataset
+gobblin.compaction.event
+gobblin.compaction.hive
+gobblin.compaction.hive.registration
+gobblin.compaction.hivebasedconstructs
+gobblin.compaction.listeners
+gobblin.compaction.mapreduce
+gobblin.compaction.mapreduce.avro
+gobblin.compaction.parser
+gobblin.compaction.source
+gobblin.compaction.suite
+gobblin.compaction.verify

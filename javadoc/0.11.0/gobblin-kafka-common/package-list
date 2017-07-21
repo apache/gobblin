@@ -1,0 +1,9 @@
+gobblin.converter
+gobblin.kafka.client
+gobblin.kafka.schemareg
+gobblin.kafka.serialize
+gobblin.kafka.writer
+gobblin.metrics.kafka
+gobblin.metrics.reporter.util
+gobblin.source.extractor.extract.kafka
+gobblin.source.extractor.extract.kafka.workunit.packer
