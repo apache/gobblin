@@ -1,6 +1,6 @@
 layout: page
 title: Gobblin Javadoc packages 0.10.0
-permalink: /javadoc/latest/
+permalink: /javadoc/0.10.0/
 ---
 
 * [gobblin-data-management](gobblin-data-management)
