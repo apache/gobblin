@@ -205,4 +205,9 @@ public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements Da
   public ControlMessageHandler getMessageHandler() {
     return this.writer.getMessageHandler();
   }
+
+  @Override
+  public void flush() throws IOException {
+    this.writer.flush();
+  }
 }

@@ -101,5 +101,12 @@ public class ConsoleWriter<D> implements WatermarkAwareWriter<D> {
     throw new UnsupportedOperationException("This writer does not keep track of uncommitted watermarks");
   }
 
+  /**
+   * Flush console output
+   */
+  @Override
+  public void flush() throws IOException {
+    System.out.flush();
+  }
 }
 

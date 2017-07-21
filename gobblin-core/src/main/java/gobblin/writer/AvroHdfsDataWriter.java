@@ -110,4 +110,13 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   public boolean isSpeculativeAttemptSafe() {
     return this.writerAttemptIdOptional.isPresent() && this.getClass() == AvroHdfsDataWriter.class;
   }
+
+  /**
+   * Flush the writer
+   * @throws IOException
+   */
+  @Override
+  public void flush() throws IOException {
+    this.writer.flush();
+  }
 }

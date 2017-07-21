@@ -154,4 +154,9 @@ public class MetadataWriterWrapper<D> implements DataWriter<Object> {
       throws IOException {
     wrappedWriter.close();
   }
+
+  @Override
+  public void flush() throws IOException {
+    wrappedWriter.flush();
+  }
 }

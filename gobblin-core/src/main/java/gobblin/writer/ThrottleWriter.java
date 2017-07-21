@@ -210,4 +210,9 @@ public class ThrottleWriter<D> extends WriterWrapper<D> implements Decorator, Fi
     state.setProp(THROTTLED_TIME_KEY, this.throttledTime);
     return state;
   }
+
+  @Override
+  public void flush() throws IOException {
+    this.writer.flush();
+  }
 }
