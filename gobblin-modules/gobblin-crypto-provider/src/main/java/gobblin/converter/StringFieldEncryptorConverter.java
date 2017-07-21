@@ -48,8 +48,8 @@ public abstract class StringFieldEncryptorConverter<SCHEMA, DATA> extends Conver
   @Override
   public Converter<SCHEMA, SCHEMA, DATA, DATA> init(WorkUnitState workUnit) {
     super.init(workUnit);
-    Map<String, Object> config =
-        EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, getClass().getSimpleName(), workUnit);
+    Map<String, Object> config = EncryptionConfigParser
+        .getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, getClass().getSimpleName(), workUnit);
     encryptor = EncryptionFactory.buildStreamCryptoProvider(config);
 
     String fieldsToEncryptConfig = workUnit.getProp(FIELDS_TO_ENCRYPT_CONFIG_NAME, null);
@@ -71,31 +71,31 @@ public abstract class StringFieldEncryptorConverter<SCHEMA, DATA> extends Conver
   @Override
   public Iterable<DATA> convertRecord(SCHEMA outputSchema, DATA inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    try {
-      RecordAccessor accessor = getRecordAccessor(inputRecord);
+    RecordAccessor accessor = getRecordAccessor(inputRecord);
 
-      for (String field : fieldsToEncrypt) {
-        Map<String, String> stringsToEncrypt = accessor.getMultiAsString(field);
+    for (String field : fieldsToEncrypt) {
+      Map<String, String> stringsToEncrypt = accessor.getMultiAsString(field);
 
-        for (Map.Entry<String, String> entry : stringsToEncrypt.entrySet()) {
-          byte[] bytes = entry.getValue().getBytes(StandardCharsets.UTF_8);
+      for (Map.Entry<String, String> entry : stringsToEncrypt.entrySet()) {
+        byte[] bytes = entry.getValue().getBytes(StandardCharsets.UTF_8);
 
-          ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
+        try {
           OutputStream cipherStream = encryptor.encodeOutputStream(outputStream);
           cipherStream.write(bytes);
           cipherStream.flush();
           cipherStream.close();
-
-          byte[] cipherBytes = outputStream.toByteArray();
-          accessor.set(entry.getKey(), new String(cipherBytes, StandardCharsets.UTF_8));
+        } catch (IOException | IllegalArgumentException | IllegalStateException e) {
+          throw new DataConversionException("Error while encrypting field " + field + ": " + e.getMessage(), e);
         }
-      }
 
-      return Collections.singleton(inputRecord);
-    } catch (IOException e) {
-      throw new DataConversionException("Error encrypting field", e);
+        byte[] cipherBytes = outputStream.toByteArray();
+        accessor.set(entry.getKey(), new String(cipherBytes, StandardCharsets.UTF_8));
+      }
     }
+
+    return Collections.singleton(inputRecord);
   }
 
   protected List<String> getFieldsToEncrypt() {
