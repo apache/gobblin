@@ -70,6 +70,7 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
             // Update the location of files while keep the existing table entity.
             log.warn("Source table will not be deregistered while file locaiton has been changed, update source table's"
                 + " file location to" + this.helper.getTargetTable().getDataLocation());
+            existingTargetTable = Optional.absent();
             break ;
           case REPLACE_TABLE:
             // Required to de-register the original table.

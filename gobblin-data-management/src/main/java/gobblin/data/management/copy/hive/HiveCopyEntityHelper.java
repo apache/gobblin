@@ -624,23 +624,6 @@ public class HiveCopyEntityHelper {
         targetExistingPaths.remove(newPath);
         desiredTargetExistingPaths.remove(newPath);
       }
-
-      // If target already has the path and it should be copied,
-      // delete the existing target path, even if deleteMethod is NO_DELETE
-      if (targetExistingPaths.containsKey(newPath) && shouldCopy) {
-        builder.deleteFile(newPath);
-        targetExistingPaths.remove(newPath);
-        desiredTargetExistingPaths.remove(newPath);
-      }
-    }
-
-    // If deleteMethod is NO_DELETE, clear targetExistingPaths,
-    // so nothing goes to pathsToDelete
-    if (helper.deleteMethod == DeregisterFileDeleteMethod.NO_DELETE) {
-      for (Path delete : targetExistingPaths.keySet()) {
-        targetExistingPaths.remove(delete);
-        desiredTargetExistingPaths.remove(delete);
-      }
     }
 
     multiTimer.nextStage(Stages.COMPUTE_DELETE_PATHS);
