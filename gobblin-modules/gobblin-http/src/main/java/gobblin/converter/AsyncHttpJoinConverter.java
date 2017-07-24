@@ -101,15 +101,18 @@ public abstract class AsyncHttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Asy
                 AsyncHttpJoinConverterContext.this.onSuccess(request.getRawRequest(), status, outputSchema, input);
                 break;
               case CLIENT_ERROR:
+                log.error ("Http converter client error with request {}", request.getRawRequest());
                 AsyncHttpJoinConverterContext.this.onSuccess(request.getRawRequest(), status, outputSchema, input);
                 break;
               case SERVER_ERROR:
                 // Server side error. Retry
+                log.error ("Http converter server error with request {}", request.getRawRequest());
                 throw new DataConversionException(request.getRawRequest() + " send failed due to server error");
               default:
                 throw new DataConversionException(request.getRawRequest() + " Should not reach here");
             }
           } catch (Exception e) {
+            log.error ("Http converter exception {} with request {}", e.toString(), request.getRawRequest());
             AsyncHttpJoinConverterContext.this.future.completeExceptionally(e);
           }
         }
