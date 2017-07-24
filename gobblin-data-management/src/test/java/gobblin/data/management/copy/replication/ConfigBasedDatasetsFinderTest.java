@@ -17,17 +17,24 @@
 
 package gobblin.data.management.copy.replication;
 
+import gobblin.configuration.ConfigurationKeys;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder.*;
 
 
 /**
@@ -70,5 +77,45 @@ public class ConfigBasedDatasetsFinderTest {
     Assert.assertTrue(validURIs.contains(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily_dedup")));
     Assert.assertTrue(validURIs.contains(new URI("/data/derived/browsemaps/entities/comp")));
     Assert.assertTrue(validURIs.contains(new URI("/data/derived/browsemaps/entities/anet")));
+  }
+
+  @Test
+  public void testValidURIsWithBlacklist() throws URISyntaxException, IOException {
+    /* tmp ConfigStore structure:
+       /tmp/configStore/test/A
+          /A/A1
+       /tmp/configStore/test/B
+          /B/B1
+       /tmp/configStore/test/C
+          /C/C1/C11
+          /C/C1/C12
+
+       Will finally have A1, B1, C11
+     */
+    FileSystem fs = FileSystem.get(new Configuration()) ;
+    Properties jobProps = new Properties() ;
+    fs.mkdirs(new Path("/tmp/configStore/test"));
+    fs.mkdirs(new Path("/tmp/configStore/test/A"));
+    fs.mkdirs(new Path("/tmp/configStore/test/B"));
+    fs.mkdirs(new Path("/tmp/configStore/test/C"));
+    fs.create(new Path("/tmp/configStore/test/A/A1"));
+    fs.create(new Path("/tmp/configStore/test/B/B1"));
+    fs.mkdirs(new Path("/tmp/configStore/test/C/C1"));
+    fs.create(new Path("/tmp/configStore/test/C/C1/C11"));
+    fs.create(new Path("/tmp/configStore/test/C/C1/C12"));
+    jobProps.setProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI, "/tmp/configStore/");
+    jobProps.setProperty(GOBBLIN_CONFIG_STORE_WHITELIST_TAG, "/");
+    jobProps.setProperty(GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT, "test");
+
+    ConfigBasedDatasetsFinder configBasedDatasetsFinder = new ConfigBasedCopyableDatasetFinder(fs, jobProps);
+    List<URI> uriList = configBasedDatasetsFinder.datasetURNtoURI("C/*");
+
+    Assert.assertTrue(uriList.size() == 2);
+    Assert.assertTrue(uriList.contains(new URI("/tmp/configStore/test/C/C1/C11")));
+    Assert.assertTrue(uriList.contains(new URI("/tmp/configStore/test/C/C1/C12")));
+
+    // Clean up
+    fs.delete( new Path("/tmp/configStore"), true);
+    return;
   }
 }

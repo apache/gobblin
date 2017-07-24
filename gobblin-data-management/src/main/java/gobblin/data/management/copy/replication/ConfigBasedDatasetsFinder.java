@@ -17,6 +17,7 @@
 
 package gobblin.data.management.copy.replication;
 
+import gobblin.util.FileListUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -35,6 +36,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -62,6 +64,7 @@ import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.executors.IteratorExecutor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.fs.PathFilter;
 
 
 /**
@@ -89,8 +92,8 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
       ConfigurationKeys.CONFIG_BASED_PREFIX + ".dataset.common.root";
 
   // In addition to the white/blacklist tags, this configuration let the user to black/whitelist some datasets
-  // in the job-level configuration, which is not in configStore
-  // as to have easier approach to black/whitelist some datasets.
+  // in the job-level configuration, which is not specified in configStore
+  // as to have easier approach to black/whitelist some datasets on operation side.
   // The semantics keep still as tag, which the blacklist override whitelist if any dataset in common.
   public static final String JOB_LEVEL_BLACKLIST = CopyConfiguration.COPY_PREFIX + ".configBased.blacklist" ;
   public static final String JOB_LEVEL_WHITELIST = CopyConfiguration.COPY_PREFIX + ".configBased.whitelist" ;
@@ -108,6 +111,7 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   protected final ConfigClient configClient;
   protected final Properties props;
   private final int threadPoolSize;
+  private FileSystem fs;
 
   private Optional<List<String>> blacklistURNs;
   private Optional<List<String>> whitelistURNs;
@@ -123,6 +127,7 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
     Preconditions.checkArgument(jobProps.containsKey(GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT),
         "missing required config entery " + GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT);
 
+    this.fs = fs;
     this.storeRoot = jobProps.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI);
     this.commonRoot = PathUtils.mergePaths(new Path(this.storeRoot),
         new Path(jobProps.getProperty(GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT)));
@@ -167,14 +172,15 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
     Set<URI> disabledURISet = new HashSet();
     if (this.blacklistURNs.isPresent()) {
       for(String urn : this.blacklistURNs.get()) {
-        disabledURISet.add(this.datasetURNtoURI(urn));
+        disabledURISet.addAll(this.datasetURNtoURI(urn));
       }
     }
 
     try {
       // get all the URIs which imports {@link #replicationTag} or all from whitelistURNs
       allDatasetURIs = this.whitelistURNs.isPresent()
-          ? this.whitelistURNs.get().stream().map(u -> this.datasetURNtoURI(u)).collect(Collectors.toList()) : configClient.getImportedBy(new URI(whitelistTag.toString()), true);
+          ? this.whitelistURNs.get().stream().flatMap(u -> this.datasetURNtoURI(u).stream()).collect(Collectors.toList())
+          : configClient.getImportedBy(new URI(whitelistTag.toString()), true);
       populateDisabledURIs(disabledURISet);
     } catch ( ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
         | URISyntaxException e) {
@@ -298,12 +304,31 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
 
   /**
    * Helper funcition for converting datasetURN into URI
+   * Enable Pattern-like support.
    */
-  private URI datasetURNtoURI(String datasetURN) {
+  public List<URI> datasetURNtoURI(String datasetURN) {
+    Path mergedPath = PathUtils.mergePaths(this.commonRoot, new Path(datasetURN));
+    List<URI> resultURIs = new ArrayList<>();
     try {
-      return new URI(PathUtils.mergePaths(new Path(this.storeRoot), new Path(datasetURN)).toString());
+      // mergedPath is possibly to have pattern-format characters like '*'
+      FileStatus[] matchedPaths = fs.globStatus(mergedPath);
+      for (FileStatus matchedPath: matchedPaths) {
+        List<FileStatus> fileStatuses = FileListUtils.listFilesRecursively(fs, matchedPath.getPath(), new PathFilter() {
+          @Override
+          public boolean accept(Path path) {
+            return true;
+          }
+        });
+        for (FileStatus fileStatus : fileStatuses) {
+          resultURIs.add(new URI(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
+        }
+      }
+      return resultURIs;
     }catch (URISyntaxException e) {
       log.error("Dataset with URN:" + datasetURN + " cannot be converted into URI. Skip the dataset");
+      return null;
+    }catch (IOException ioe){
+      log.error("DatasetURN with pattern:" + mergedPath.toString() + " cannot be resolved");
       return null;
     }
   }
