@@ -14,29 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.metadata;
+package gobblin.writer;
 
-import gobblin.writer.FsWriterMetrics;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
-/**
- * Interface for an object that can merge metadata from several work units together.
- * @param <T> Type of the metadata record that will be merged
- */
-public interface MetadataMerger<T> {
-  /**
-   * Process a metadata record, merging it with all previously processed records.
-   * @param metadata Record to process
-   */
-  void update(T metadata);
-
-  /**
-   * Process a metrics record, merging it with all previously processed records.
-   */
-  void update(FsWriterMetrics metrics);
-
-  /**
-   * Get a metadata record that is a representation of all records passed into update().
-   */
-  T getMergedMetadata();
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class PartitionIdentifier {
+  String partitionKey;
+  int branchId;
 }
