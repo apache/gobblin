@@ -37,6 +37,11 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends AsyncHttpJoinConvert
   @Override
   public Schema convertSchemaImpl(Schema inputSchema, WorkUnitState workUnitState)
       throws SchemaConversionException {
+
+    if (inputSchema == null) {
+      throw new SchemaConversionException("input schema is empty");
+    }
+
     List<Schema.Field> fields = Lists.newArrayList();
     for (Schema.Field field : inputSchema.getFields()) {
       Schema.Field newField = new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
@@ -86,6 +91,10 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends AsyncHttpJoinConvert
 
   @Override
   public final GenericRecord convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, RQ rawRequest, ResponseStatus status) throws DataConversionException {
+
+    if (outputSchema == null) {
+      throw new DataConversionException("output schema is empty");
+    }
 
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
     Schema httpOutputSchema = null;

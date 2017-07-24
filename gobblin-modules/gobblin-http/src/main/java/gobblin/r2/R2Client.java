@@ -67,6 +67,7 @@ public class R2Client extends ThrottledHttpClient<RestRequest, RestResponse> {
   @Override
   public void sendAsyncRequestImpl(RestRequest request, Callback<RestResponse> callback)
       throws IOException {
+    log.debug ("Request URI : {} ", request.getURI());
     client.restRequest(request, new com.linkedin.common.callback.Callback<RestResponse>() {
       @Override
       public void onError(Throwable e) {
