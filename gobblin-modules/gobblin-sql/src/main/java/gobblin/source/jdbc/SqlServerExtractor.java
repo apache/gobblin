@@ -188,7 +188,8 @@ public class SqlServerExtractor extends JdbcExtractor {
     String host = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     String port = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
     String database = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
-    String url = "jdbc:sqlserver://" + host.trim() + ":" + port + ";databaseName=" + database.trim();
+    String url = "jdbc:sqlserver://" + host.trim() + ":" + port +
+        (StringUtils.isEmpty(database) ? "" : (";databaseName=" + database.trim()));
     return url;
   }
 
