@@ -54,6 +54,7 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   private final OutputStream stagingFileOutputStream;
   private final DatumWriter<GenericRecord> datumWriter;
   private final DataFileWriter<GenericRecord> writer;
+  private final boolean skipEmptyRecord;
 
   // Number of records successfully written
   protected final AtomicLong count = new AtomicLong(0);
@@ -71,6 +72,7 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
     this.stagingFileOutputStream = createStagingFileOutputStream();
     this.datumWriter = new GenericDatumWriter<>();
     this.writer = this.closer.register(createDataFileWriter(codecFactory));
+    this.skipEmptyRecord = state.getPropAsBoolean(ConfigurationKeys.CONVERTER_SKIP_FAILED_RECORD, false);
   }
 
   public FileSystem getFileSystem() {
@@ -79,6 +81,11 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
 
   @Override
   public void write(GenericRecord record) throws IOException {
+
+    if (skipEmptyRecord && record == null) {
+      return;
+    }
+
     Preconditions.checkNotNull(record);
 
     this.writer.append(record);
