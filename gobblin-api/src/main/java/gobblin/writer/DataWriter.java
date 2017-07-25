@@ -18,9 +18,11 @@
 package gobblin.writer;
 
 import java.io.Closeable;
+import java.io.Flushable;
 import java.io.IOException;
 
 import gobblin.records.ControlMessageHandler;
+import gobblin.records.FlushControlMessageHandler;
 import gobblin.stream.RecordEnvelope;
 
 
@@ -31,7 +33,7 @@ import gobblin.stream.RecordEnvelope;
  *
  * @author Yinan Li
  */
-public interface DataWriter<D> extends Closeable {
+public interface DataWriter<D> extends Closeable, Flushable {
 
   /**
    * Write a source data record in Avro format using the given converter.
@@ -83,9 +85,17 @@ public interface DataWriter<D> extends Closeable {
   }
 
   /**
+   * Default handler calls flush on this object when a {@link gobblin.stream.FlushControlMessage} is received
    * @return A {@link ControlMessageHandler}.
    */
   default ControlMessageHandler getMessageHandler() {
-    return ControlMessageHandler.NOOP;
+    return new FlushControlMessageHandler(this);
+  }
+
+  /**
+   * Flush data written by the writer. By default, does nothing.
+   * @throws IOException
+   */
+  default void flush() throws IOException {
   }
 }

@@ -151,4 +151,9 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   public ControlMessageHandler getMessageHandler() {
     return this.embeddedWriter.getMessageHandler();
   }
+
+  @Override
+  public void flush() throws IOException {
+    this.embeddedWriter.flush();
+  }
 }

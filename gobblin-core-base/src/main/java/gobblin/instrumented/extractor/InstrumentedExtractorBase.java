@@ -21,6 +21,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
@@ -37,12 +38,18 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 import gobblin.metrics.Tag;
+import gobblin.records.RecordStreamWithMetadata;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.stream.RecordEnvelope;
+import gobblin.stream.StreamEntity;
 import gobblin.util.FinalState;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
+import io.reactivex.Emitter;
+import io.reactivex.Flowable;
+import io.reactivex.functions.BiConsumer;
+
 import javax.annotation.Nullable;
 
 
@@ -140,6 +147,53 @@ public abstract class InstrumentedExtractorBase<S, D>
   }
 
   /**
+   * @param shutdownRequest an {@link AtomicBoolean} that becomes true when a shutdown has been requested.
+   * @return a {@link Flowable} with the records from this source. Note the flowable should honor downstream backpressure.
+   */
+  @Override
+   public RecordStreamWithMetadata<D, S> recordStream(AtomicBoolean shutdownRequest) throws IOException {
+    S schema = getSchema();
+    Flowable<StreamEntity<D>> recordStream = Flowable.generate(() -> shutdownRequest, (BiConsumer<AtomicBoolean, Emitter<StreamEntity<D>>>) (state, emitter) -> {
+      if (state.get()) {
+        emitter.onComplete();
+      }
+      try {
+        long startTimeNanos = 0;
+
+        if (isInstrumentationEnabled()) {
+          startTimeNanos = System.nanoTime();
+          beforeRead();
+        }
+
+        StreamEntity<D> record = readStreamEntityImpl();
+
+        if (isInstrumentationEnabled()) {
+          D unwrappedRecord = null;
+
+          if (record instanceof RecordEnvelope) {
+            unwrappedRecord = ((RecordEnvelope<D>) record).getRecord();
+          }
+
+          afterRead(unwrappedRecord, startTimeNanos);
+        }
+
+        if (record != null) {
+          emitter.onNext(record);
+        } else {
+          emitter.onComplete();
+        }
+      } catch (DataRecordException | IOException exc) {
+        if (isInstrumentationEnabled()) {
+          onException(exc);
+        }
+        emitter.onError(exc);
+      }
+    });
+    recordStream = recordStream.doFinally(this::close);
+    return new RecordStreamWithMetadata<>(recordStream, schema);
+  }
+
+  /**
    * Called before each record is read.
    */
   public void beforeRead() {}
@@ -164,6 +218,14 @@ public abstract class InstrumentedExtractorBase<S, D>
     if (DataRecordException.class.isInstance(exception)) {
       Instrumented.markMeter(this.dataRecordExceptionsMeter);
     }
+  }
+
+  /**
+   * Subclasses should implement this or {@link #readRecordEnvelopeImpl()}
+   * instead of {@link gobblin.source.extractor.Extractor#readRecord}
+   */
+  protected StreamEntity<D> readStreamEntityImpl() throws DataRecordException, IOException {
+    return readRecordEnvelopeImpl();
   }
 
   /**

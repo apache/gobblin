@@ -126,4 +126,13 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
   public boolean isSpeculativeAttemptSafe() {
     return this.writerAttemptIdOptional.isPresent() && this.getClass() == SimpleDataWriter.class;
   }
+
+  /**
+   * Flush the staging file
+   * @throws IOException
+   */
+  @Override
+  public void flush() throws IOException {
+    this.stagingFileOutputStream.flush();
+  }
 }

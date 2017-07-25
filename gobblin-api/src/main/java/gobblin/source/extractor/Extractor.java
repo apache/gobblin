@@ -100,6 +100,13 @@ public interface Extractor<S, D> extends Closeable {
   }
 
   /**
+   * Read an {@link StreamEntity}. By default, just return result of {@link #readRecordEnvelope()}.
+   */
+  default StreamEntity<D> readStreamEntity() throws DataRecordException, IOException {
+    return readRecordEnvelope();
+  }
+
+  /**
    * @param shutdownRequest an {@link AtomicBoolean} that becomes true when a shutdown has been requested.
    * @return a {@link Flowable} with the records from this source. Note the flowable should honor downstream backpressure.
    */
@@ -110,7 +117,7 @@ public interface Extractor<S, D> extends Closeable {
         emitter.onComplete();
       }
       try {
-        RecordEnvelope<D> record = readRecordEnvelope();
+        StreamEntity<D> record = readStreamEntity();
         if (record != null) {
           emitter.onNext(record);
         } else {

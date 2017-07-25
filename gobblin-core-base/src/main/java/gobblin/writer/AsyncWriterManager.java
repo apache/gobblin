@@ -487,6 +487,14 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
     log.info("Successfully committed {} records.", recordsWrittenFinal);
   }
 
+  /**
+   * Flush the underlying writer.
+   */
+  @Override
+  public void flush() throws IOException {
+    this.asyncDataWriter.flush();
+  }
+
   public static AsyncWriterManagerBuilder builder() {
     return new AsyncWriterManagerBuilder();
   }

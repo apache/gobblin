@@ -49,6 +49,7 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.stream.ControlMessage;
+import gobblin.stream.FlushControlMessage;
 import gobblin.stream.RecordEnvelope;
 import gobblin.stream.StreamEntity;
 import gobblin.writer.DataWriter;
@@ -73,39 +74,7 @@ public class TestRecordStream {
     MyConverter converter = new MyConverter();
     MyDataWriter writer = new MyDataWriter();
 
-    // Create a TaskState
-    TaskState taskState = getEmptyTestTaskState("testRetryTaskId");
-    taskState.setProp(ConfigurationKeys.TASK_SYNCHRONOUS_EXECUTION_MODEL_KEY, false);
-    // Create a mock TaskContext
-    TaskContext mockTaskContext = mock(TaskContext.class);
-    when(mockTaskContext.getExtractor()).thenReturn(extractor);
-    when(mockTaskContext.getForkOperator()).thenReturn(new IdentityForkOperator());
-    when(mockTaskContext.getTaskState()).thenReturn(taskState);
-    when(mockTaskContext.getConverters()).thenReturn(Lists.newArrayList(converter));
-    when(mockTaskContext.getTaskLevelPolicyChecker(any(TaskState.class), anyInt()))
-        .thenReturn(mock(TaskLevelPolicyChecker.class));
-    when(mockTaskContext.getRowLevelPolicyChecker()).
-        thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
-    when(mockTaskContext.getRowLevelPolicyChecker(anyInt())).
-        thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
-    when(mockTaskContext.getDataWriterBuilder(anyInt(), anyInt())).thenReturn(writer);
-
-    // Create a mock TaskPublisher
-    TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
-    when(mockTaskPublisher.canPublish()).thenReturn(TaskPublisher.PublisherState.SUCCESS);
-    when(mockTaskContext.getTaskPublisher(any(TaskState.class), any(TaskLevelPolicyCheckResults.class)))
-        .thenReturn(mockTaskPublisher);
-
-    // Create a mock TaskStateTracker
-    TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
-
-    // Create a TaskExecutor - a real TaskExecutor must be created so a Fork is run in a separate thread
-    TaskExecutor taskExecutor = new TaskExecutor(new Properties());
-
-    // Create the Task
-    Task realTask = new Task(mockTaskContext, mockTaskStateTracker, taskExecutor, Optional.<CountDownLatch> absent());
-    Task task = spy(realTask);
-    doNothing().when(task).submitTaskCommittedEvent();
+    Task task = setupTask(extractor, writer, converter);
 
     task.run();
     task.commit();
@@ -116,6 +85,28 @@ public class TestRecordStream {
 
     Assert.assertEquals(writer.records, Lists.newArrayList("a", "b"));
     Assert.assertEquals(writer.messages, Lists.newArrayList(new BasicTestControlMessage("1"), new BasicTestControlMessage("2")));
+  }
+
+  @Test
+  public void testFlushControlMessages() throws Exception {
+    MyExtractor extractor = new MyExtractor(new StreamEntity[]{new RecordEnvelope<>("a"),
+        new FlushControlMessage(new FlushControlMessage.FlushReason("flush1")), new RecordEnvelope<>("b"),
+        new FlushControlMessage(new FlushControlMessage.FlushReason("flush2"))});
+    MyConverter converter = new MyConverter();
+    MyFlushDataWriter writer = new MyFlushDataWriter();
+
+    Task task = setupTask(extractor, writer, converter);
+
+    task.run();
+    task.commit();
+    Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
+
+    Assert.assertEquals(converter.records, Lists.newArrayList("a", "b"));
+    Assert.assertEquals(converter.messages, Lists.newArrayList(new FlushControlMessage(new FlushControlMessage.FlushReason("flush1")),
+        new FlushControlMessage(new FlushControlMessage.FlushReason("flush2"))));
+
+    Assert.assertEquals(writer.records, Lists.newArrayList("a", "b"));
+    Assert.assertEquals(writer.messages, Lists.newArrayList("flush called", "flush called"));
   }
 
   @Test
@@ -186,6 +177,44 @@ public class TestRecordStream {
     return taskState;
   }
 
+  private Task setupTask(Extractor extractor, DataWriterBuilder writer, Converter converter) throws Exception {
+    // Create a TaskState
+    TaskState taskState = getEmptyTestTaskState("testRetryTaskId");
+    taskState.setProp(ConfigurationKeys.TASK_SYNCHRONOUS_EXECUTION_MODEL_KEY, false);
+    // Create a mock TaskContext
+    TaskContext mockTaskContext = mock(TaskContext.class);
+    when(mockTaskContext.getExtractor()).thenReturn(extractor);
+    when(mockTaskContext.getForkOperator()).thenReturn(new IdentityForkOperator());
+    when(mockTaskContext.getTaskState()).thenReturn(taskState);
+    when(mockTaskContext.getConverters()).thenReturn(Lists.newArrayList(converter));
+    when(mockTaskContext.getTaskLevelPolicyChecker(any(TaskState.class), anyInt()))
+        .thenReturn(mock(TaskLevelPolicyChecker.class));
+    when(mockTaskContext.getRowLevelPolicyChecker()).
+        thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
+    when(mockTaskContext.getRowLevelPolicyChecker(anyInt())).
+        thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
+    when(mockTaskContext.getDataWriterBuilder(anyInt(), anyInt())).thenReturn(writer);
+
+    // Create a mock TaskPublisher
+    TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
+    when(mockTaskPublisher.canPublish()).thenReturn(TaskPublisher.PublisherState.SUCCESS);
+    when(mockTaskContext.getTaskPublisher(any(TaskState.class), any(TaskLevelPolicyCheckResults.class)))
+        .thenReturn(mockTaskPublisher);
+
+    // Create a mock TaskStateTracker
+    TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
+
+    // Create a TaskExecutor - a real TaskExecutor must be created so a Fork is run in a separate thread
+    TaskExecutor taskExecutor = new TaskExecutor(new Properties());
+
+    // Create the Task
+    Task realTask = new Task(mockTaskContext, mockTaskStateTracker, taskExecutor, Optional.<CountDownLatch> absent());
+    Task task = spy(realTask);
+    doNothing().when(task).submitTaskCommittedEvent();
+
+    return task;
+  }
+
   @AllArgsConstructor
   static class MyExtractor implements Extractor<String, String> {
     private final StreamEntity<String>[] stream;
@@ -253,7 +282,6 @@ public class TestRecordStream {
 
     @Override
     public void close() throws IOException {}
-
   }
 
   static class MyConverter extends Converter<String, String, String, String> {
@@ -275,6 +303,45 @@ public class TestRecordStream {
     @Override
     public ControlMessageHandler getMessageHandler() {
       return messages::add;
+    }
+  }
+
+  static class MyFlushDataWriter extends DataWriterBuilder<String, String> implements DataWriter<String> {
+    private List<String> records = new ArrayList<>();
+    private List<String> messages = new ArrayList<>();
+
+    @Override
+    public void write(String record) throws IOException {
+      this.records.add(record);
+    }
+
+    @Override
+    public void commit() throws IOException {}
+
+    @Override
+    public void cleanup() throws IOException {}
+
+    @Override
+    public long recordsWritten() {
+      return 0;
+    }
+
+    @Override
+    public long bytesWritten() throws IOException {
+      return 0;
+    }
+
+    @Override
+    public DataWriter<String> build() throws IOException {
+      return this;
+    }
+
+    @Override
+    public void close() throws IOException {}
+
+    @Override
+    public void flush() throws IOException {
+      messages.add("flush called");
     }
   }
 

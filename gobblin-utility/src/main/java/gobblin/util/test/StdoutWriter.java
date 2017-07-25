@@ -64,6 +64,11 @@ public class StdoutWriter<D> implements DataWriter<D> {
     return _numBytesWritten;
   }
 
+  @Override
+  public void flush() throws IOException {
+    System.out.flush();
+  }
+
   public static class Builder<D> extends DataWriterBuilder<Object, D> {
     @Override
     public DataWriter<D> build() throws IOException {
