@@ -29,7 +29,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -49,6 +51,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metadata.MetadataMerger;
+import gobblin.metadata.types.StaticStringMetadataMerger;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.ParallelRunner;
@@ -149,7 +152,14 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     this.parallelRunnerCloser = Closer.create();
   }
 
-  private MetadataMerger<String> buildMetadataMergerForBranch(int branchId) {
+  private MetadataMerger<String> buildMetadataMergerForBranch(String metadataFromConfig, int branchId,
+      Path existingMetadataPath) {
+    // Legacy behavior -- if we shouldn't publish writer state, instantiate a static metadata merger
+    // that just returns the metadata from config (if any)
+    if (!shouldPublishWriterMetadataForBranch(branchId)) {
+      return new StaticStringMetadataMerger(metadataFromConfig);
+    }
+
     String keyName = ForkOperatorUtils
         .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_KEY, this.numBranches,
             branchId);
@@ -170,6 +180,16 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         @SuppressWarnings("unchecked")
         MetadataMerger<String> casted = (MetadataMerger<String>) merger;
 
+        // Merge existing metadata from the partition if it exists..
+        String existingMetadata = loadExistingMetadata(existingMetadataPath, branchId);
+        if (existingMetadata != null) {
+          casted.update(existingMetadata);
+        }
+
+        // Then metadata from the config...
+        if (metadataFromConfig != null) {
+          casted.update(metadataFromConfig);
+        }
         return casted;
       } catch (ClassCastException e) {
         throw new IllegalArgumentException(className + " does not implement the MetadataMerger interface", e);
@@ -178,6 +198,24 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       throw new IllegalArgumentException("Specified metadata merger class " + className + " not found!", e);
     } catch (ReflectiveOperationException e) {
       throw new IllegalArgumentException("Error building merger class " + className, e);
+    }
+  }
+
+  /**
+   * Read in existing metadata as a UTF8 string.
+   */
+  private String loadExistingMetadata(Path metadataFilename, int branchId) {
+    try {
+      FileSystem fsForBranch = writerFileSystemByBranches.get(branchId);
+      if (!fsForBranch.exists(metadataFilename)) {
+        return null;
+      }
+      FSDataInputStream existingMetadata = writerFileSystemByBranches.get(branchId).open(metadataFilename);
+      return IOUtils.toString(existingMetadata, StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      LOG.warn("IOException {} while trying to read existing metadata {} - treating as null", e.getMessage(),
+          metadataFilename.toString());
+      return null;
     }
   }
 
@@ -410,35 +448,25 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
     // There should be one merged metadata file per branch; first merge all of the pieces together
     mergeMetadataAndCollectPartitionNames(states, partitions);
-    if (metadataMergers.isEmpty()) {
-      // no metadata mergers were configured or no data was found - fallback to legacy behavior
-       for (WorkUnitState workUnitState : states) {
-        publishMetadata(workUnitState);
-      }
-    }
-
     partitions.removeIf(Objects::isNull);
 
-    // Now, pick an arbitrary WorkUnitState and publish its metadata. We assume that publisher config settings
-    // are the same across all workunits so it doesn't really matter which workUnit we call publishMetadata() for.
+    // Now, pick an arbitrary WorkUnitState to get config information around metadata such as
+    // the desired output filename. We assume that publisher config settings
+    // are the same across all workunits so it doesn't really matter which workUnit we retrieve this information
+    // from.
 
     WorkUnitState anyState = states.iterator().next();
     for (int branchId = 0; branchId < numBranches; branchId++) {
-      if (!shouldPublishMetadataForBranch(branchId)) {
-        LOG.debug("Metadata publishing disabled on branch {}", branchId);
-        continue;
-      }
-
       String mdOutputPath = getMetadataOutputPathFromState(anyState, branchId);
       String userSpecifiedPath = getUserSpecifiedOutputPathFromState(anyState, branchId);
 
       if (partitions.isEmpty() || userSpecifiedPath != null) {
-        publishMetadata(getMergedMetadataForState(anyState, null, branchId),
+        publishMetadata(getMergedMetadataForPartitionAndBranch(null, branchId),
             branchId,
             getMetadataOutputFileForBranch(anyState, branchId));
       } else {
         for (String partition : partitions) {
-          publishMetadata(getMergedMetadataForState(anyState, partition, branchId),
+          publishMetadata(getMergedMetadataForPartitionAndBranch(partition, branchId),
               branchId,
               new Path(new Path(mdOutputPath, partition), getMetadataFileNameForBranch(anyState, branchId)));
         }
@@ -446,6 +474,20 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     }
   }
 
+  /*
+   * Metadata that we publish can come from several places:
+   *  - It can be passed in job config (DATA_PUBLISHER_METADATA_STR)
+   *  - It can be picked up from previous runs of a job (if the output partition already exists)
+   *  -- The above two are handled when we construct a new MetadataMerger
+   *
+   *  - The source/converters/writers associated with each branch of a job may add their own metadata
+   *    (eg: this dataset is encrypted using AES256). This is returned by getIntermediateMetadataFromState()
+   *    and fed into the MetadataMerger.
+   *  - FsWriterMetrics can be emitted and rolled up into metadata. These metrics are specific to a {partition, branch}
+   *    combo as they mention per-output file metrics. This is also fed into metadata mergers.
+   *
+   *  Each writer should only be a part of one branch, but it may be responsible for multiple partitions.
+   */
   private void mergeMetadataAndCollectPartitionNames(Collection<? extends WorkUnitState> states,
       Set<String> partitionPaths) {
 
@@ -477,17 +519,21 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         partitionPaths.add(null);
       }
 
+      final String configBasedMetadata = getMetadataFromWorkUnitState(workUnitState);
+
       // Now update all metadata mergers with branch metadata + partition metrics
       for (int branchId = 0; branchId < numBranches; branchId++) {
-        if (shouldPublishMetadataForBranch(branchId)) {
-          String md = getIntermediateMetadataFromState(workUnitState, branchId);
-          for (String partition : partitionPaths) {
-            PartitionIdentifier partitionIdentifier = new PartitionIdentifier(partition, branchId);
-            final int branch = branchId;
-            MetadataMerger<String> mdMerger =
-                metadataMergers.computeIfAbsent(partitionIdentifier, k -> buildMetadataMergerForBranch(branch));
+        for (String partition : partitionPaths) {
+          PartitionIdentifier partitionIdentifier = new PartitionIdentifier(partition, branchId);
+          final int branch = branchId;
+          MetadataMerger<String> mdMerger = metadataMergers.computeIfAbsent(partitionIdentifier,
+              k -> buildMetadataMergerForBranch(configBasedMetadata, branch,
+                  getMetadataOutputFileForBranch(workUnitState, branch)));
+          if (shouldPublishWriterMetadataForBranch(branchId)) {
+            String md = getIntermediateMetadataFromState(workUnitState, branchId);
             mdMerger.update(md);
-            Set<FsWriterMetrics> metricsForPartition = metricsByPartition.getOrDefault(partitionIdentifier, Collections.emptySet());
+            Set<FsWriterMetrics> metricsForPartition =
+                metricsByPartition.getOrDefault(partitionIdentifier, Collections.emptySet());
             for (FsWriterMetrics metrics : metricsForPartition) {
               mdMerger.update(metrics);
             }
@@ -497,6 +543,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     }
   }
 
+
   /**
    * Publish metadata for each branch. We expect the metadata to be of String format and
    * populated in either the WRITER_MERGED_METADATA_KEY state or the WRITER_METADATA_KEY configuration key.
@@ -504,28 +551,22 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   @Override
   public void publishMetadata(WorkUnitState state)
       throws IOException {
-
-    // For each branch - retrieve metadata and metadata output directory from task state; then publish
-    for (int branchId = 0; branchId < this.numBranches; branchId++) {
-      String metadataValue = getMergedMetadataForState(state, null, branchId);
-      if (metadataValue == null) {
-        //Nothing to write
-        continue;
-      }
-      Path metadataOutputPath = getMetadataOutputFileForBranch(state, branchId);
-      publishMetadata(metadataValue, branchId, metadataOutputPath);
-    }
+    publishMetadata(Collections.singleton(state));
   }
 
   /**
    * Publish metadata to a set of paths
    */
-
   private void publishMetadata(String metadataValue, int branchId, Path metadataOutputPath)
       throws IOException {
     try {
       if (metadataOutputPath == null) {
         LOG.info("Metadata output path not set for branch " + String.valueOf(branchId) + ", not publishing.");
+        return;
+      }
+
+      if (metadataValue == null) {
+        LOG.info("No metadata collected for branch " + String.valueOf(branchId) + ", not publishing.");
         return;
       }
 
@@ -610,7 +651,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
    * If metadata mergers are not configured, instead return the metadata from job config that was
    * passed in by the user.
    */
-  private String getMergedMetadataForState(WorkUnitState state, String partitionId, int branchId) {
+  private String getMergedMetadataForPartitionAndBranch(String partitionId, int branchId) {
     String mergedMd = null;
     MetadataMerger<String> mergerForBranch = metadataMergers.get(new PartitionIdentifier(partitionId, branchId));
     if (mergerForBranch != null) {
@@ -620,17 +661,20 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       }
     }
 
-    if (mergedMd == null) {
-      mergedMd = state.getProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_STR);
-    }
-
     return mergedMd;
   }
 
-  private boolean shouldPublishMetadataForBranch(int branchId) {
+  private boolean shouldPublishWriterMetadataForBranch(int branchId) {
     String keyName = ForkOperatorUtils
         .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_KEY, this.numBranches, branchId);
     return this.getState().getPropAsBoolean(keyName, false);
+  }
+
+  /**
+   * Retrieve metadata from job state config
+   */
+  private String getMetadataFromWorkUnitState(WorkUnitState workUnitState) {
+    return workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_STR);
   }
 
   /**

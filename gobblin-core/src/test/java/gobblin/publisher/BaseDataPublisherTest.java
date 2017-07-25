@@ -18,6 +18,7 @@ package gobblin.publisher;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -194,6 +195,45 @@ public class BaseDataPublisherTest {
 
     File mdFile = openMetadataFile(s, 1, 0);
     Assert.assertFalse(mdFile.exists(), "Internal metadata from writer should not be written out if no merger is set in config");
+  }
+
+  @Test
+  public void testMergesExistingMetadata() throws IOException {
+    File publishPath = Files.createTempDir();
+    try {
+      // Copy the metadata file from resources into the publish path
+      InputStream mdStream = this.getClass().getClassLoader().getResourceAsStream("publisher/sample_metadata.json");
+      try (FileOutputStream fOs = new FileOutputStream(new File(publishPath, "metadata.json"))) {
+        IOUtils.copy(mdStream, fOs);
+      }
+
+      State s = buildDefaultState(1);
+      String md = new GlobalMetadata().toJson();
+
+      s.removeProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR);
+      s.setProp(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_KEY, "true");
+      s.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, publishPath.getAbsolutePath());
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR, "false");
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_FILE, "metadata.json");
+
+      WorkUnitState wuState1 = new WorkUnitState();
+      FsWriterMetrics metrics1 = buildWriterMetrics("newfile.json", null, 0, 90);
+      wuState1.setProp(FsDataWriter.FS_WRITER_METRICS_KEY, metrics1.toJson());
+      wuState1.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      addStateToWorkunit(s, wuState1);
+
+      BaseDataPublisher publisher = new BaseDataPublisher(s);
+      publisher.publishMetadata(ImmutableList.of(wuState1));
+
+      checkMetadata(new File(publishPath.getAbsolutePath(), "metadata.json"), 4,185,
+          new FsWriterMetrics.FileInfo("foo3.json", 30),
+          new FsWriterMetrics.FileInfo("foo1.json", 10),
+          new FsWriterMetrics.FileInfo("foo4.json", 55),
+          new FsWriterMetrics.FileInfo("newfile.json", 90));
+    } finally {
+      FileUtils.deleteDirectory(publishPath);
+    }
   }
 
   @Test
