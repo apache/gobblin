@@ -54,13 +54,13 @@ public abstract class AsyncHttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Asy
   protected HttpClient<RQ, RP> httpClient = null;
   protected ResponseHandler<RQ, RP> responseHandler = null;
   protected AsyncRequestBuilder<GenericRecord, RQ> requestBuilder = null;
-  protected boolean skipEmtptyRecord;
+  protected boolean skipFailedRecord;
 
   public AsyncHttpJoinConverter init(WorkUnitState workUnitState) {
     super.init(workUnitState);
     Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
     config = config.withFallback(DEFAULT_FALLBACK);
-    skipEmtptyRecord = workUnitState.getPropAsBoolean(ConfigurationKeys.CONVERTER_SKIP_FAILED_RECORD, false);
+    skipFailedRecord = workUnitState.getPropAsBoolean(ConfigurationKeys.CONVERTER_SKIP_FAILED_RECORD, false);
     httpClient = createHttpClient(config, workUnitState.getTaskBroker());
     responseHandler = createResponseHandler(config);
     requestBuilder = createRequestBuilder(config);
@@ -123,7 +123,7 @@ public abstract class AsyncHttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Asy
         public void onFailure(Throwable throwable) {
           log.error ("Http converter on failure with request {}", request.getRawRequest());
 
-          if (skipEmtptyRecord) {
+          if (skipFailedRecord) {
             AsyncHttpJoinConverterContext.this.future.complete(null);
           } else {
             AsyncHttpJoinConverterContext.this.future.completeExceptionally(throwable);
