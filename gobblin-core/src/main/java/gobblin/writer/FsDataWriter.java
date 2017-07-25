@@ -151,7 +151,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
 
     this.partitionKey = builder.getPartitionPath(properties);
     if (builder.getPartitionPath(properties) != null) {
-      properties.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + builder.getWriterId(), partitionKey);
+      properties.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + "_" + builder.getWriterId(), partitionKey);
     }
   }
 
