@@ -18,7 +18,6 @@ package gobblin.data.management.copy.replication;
 
 
 
-import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -29,6 +28,7 @@ import java.util.concurrent.Callable;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.typesafe.config.Config;
+import com.google.common.base.Optional;
 
 import gobblin.config.client.ConfigClient;
 import gobblin.dataset.Dataset;
@@ -39,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
  * Based on the ConfigStore object to find all {@link ConfigBasedMultiDatasets} to replicate.
  * Specifically for replication job.
  * Normal DistcpNG Job which doesn'involve Dataflow concepts should not use this DatasetFinder but
- * different implementation of {@link ConfigBasedDatasetsFinder}. 
+ * different implementation of {@link ConfigBasedDatasetsFinder}.
  */
 @Slf4j
 public class ConfigBasedCopyableDatasetFinder extends ConfigBasedDatasetsFinder {
@@ -49,13 +49,15 @@ public class ConfigBasedCopyableDatasetFinder extends ConfigBasedDatasetsFinder 
   }
 
   protected Callable<Void> findDatasetsCallable(final ConfigClient confClient,
-      final URI u, final Properties p, final Collection<Dataset> datasets) {
+      final URI u, final Properties p, Optional<List<String>> blacklistPatterns, Optional<List<String>> whitelistPatterns,
+      final Collection<Dataset> datasets) {
     return new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         // Process each {@link Config}, find dataset and add those into the datasets
         Config c = confClient.getConfig(u);
-        List<Dataset> datasetForConfig = new ConfigBasedMultiDatasets(c, p).getConfigBasedDatasetList();
+        List<Dataset> datasetForConfig =
+            new ConfigBasedMultiDatasets(c, p, blacklistPatterns, whitelistPatterns).getConfigBasedDatasetList();
         datasets.addAll(datasetForConfig);
         return null;
       }

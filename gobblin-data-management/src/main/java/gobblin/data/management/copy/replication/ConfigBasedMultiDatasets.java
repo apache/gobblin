@@ -17,6 +17,7 @@
 
 package gobblin.data.management.copy.replication;
 
+import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import gobblin.dataset.Dataset;
 import java.io.IOException;
 import java.net.URI;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import java.util.regex.Pattern;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -52,16 +54,26 @@ public class ConfigBasedMultiDatasets {
 
   private final Properties props;
   private final List<Dataset> datasets = new ArrayList<>();
+  private Optional<List<Pattern>> blacklist = Optional.of(new ArrayList<>());
+  private Optional<List<Pattern>> whitelist = Optional.of(new ArrayList<>());
+
 
   /**
    * if push mode is set in property, only replicate data when
    * 1. Push mode is set in Config store
-   * 2. CopyTo cluster in sync with property with {@link #ConfigurationKeys.WRITER_FILE_SYSTEM_URI}
+   * 2. CopyTo cluster in sync with property with 'writer.fs.uri'
    */
   public static final String REPLICATION_PUSH_MODE = CopyConfiguration.COPY_PREFIX + ".replicationPushMode";
 
-  public ConfigBasedMultiDatasets (Config c, Properties props){
+  // Dummy constructor, return empty datasets.
+  public ConfigBasedMultiDatasets(){
+    this.props = new Properties();
+  }
+
+  public ConfigBasedMultiDatasets (Config c, Properties props,
+      Optional<List<String>> blacklistPatterns, Optional<List<String>> whitelistPatterns){
     this.props = props;
+    blacklist = patternListInitHelper(blacklistPatterns);
 
     try {
       FileSystem executionCluster = FileSystem.get(new Configuration());
@@ -83,6 +95,19 @@ public class ConfigBasedMultiDatasets {
     } catch (IOException ioe) {
       log.error("Can not decide current execution cluster ", ioe);
 
+    }
+  }
+
+  private Optional<List<Pattern>> patternListInitHelper(Optional<List<String>> patterns){
+    if (patterns.isPresent() && patterns.get().size() >= 1) {
+      List<Pattern> tmpPatterns = new ArrayList<>();
+      for (String pattern : patterns.get()){
+        tmpPatterns.add(Pattern.compile(pattern));
+      }
+      return Optional.of(tmpPatterns);
+    }
+    else{
+      return Optional.absent();
     }
   }
 
@@ -116,7 +141,12 @@ public class ConfigBasedMultiDatasets {
 
             HadoopFsEndPoint ep = (HadoopFsEndPoint)cr.getCopyTo();
             if(ep.getFsURI().toString().equals(pushModeTargetCluster)){
-              this.datasets.add(new ConfigBasedDataset(rc, this.props, cr));
+              // For a candidate dataset, iterate thru. all available blacklist patterns.
+              ConfigBasedDataset configBasedDataset = new ConfigBasedDataset(rc, this.props, cr);
+              if (blacklistFilteringHelper(configBasedDataset, this.blacklist)){
+                this.datasets.add(configBasedDataset);
+              }
+
             }
           }
         }// inner for loops ends
@@ -138,9 +168,30 @@ public class ConfigBasedMultiDatasets {
       if(needGenerateCopyEntity(replica, executionClusterURI)){
         Optional<CopyRoute> copyRoute = cpGen.getPullRoute(rc, replica);
         if(copyRoute.isPresent()){
-          this.datasets.add(new ConfigBasedDataset(rc, this.props, copyRoute.get()));
+          ConfigBasedDataset configBasedDataset = new ConfigBasedDataset(rc, this.props, copyRoute.get());
+          if (blacklistFilteringHelper(configBasedDataset, this.blacklist)){
+            this.datasets.add(configBasedDataset);
+          }
         }
       }
+    }
+  }
+
+  @VisibleForTesting
+  public boolean blacklistFilteringHelper(ConfigBasedDataset configBasedDataset, Optional<List<Pattern>> patternList){
+    String datasetURN = configBasedDataset.datasetURN();
+    if (patternList.isPresent()) {
+      for(Pattern pattern: patternList.get()) {
+        if (pattern.matcher(datasetURN).find()){
+          return false;
+        }
+      }
+      // If the dataset get thru. all blacklist check, accept it.
+      return true;
+    }
+    // If blacklist not specified, automatically accept the dataset.
+    else {
+      return true;
     }
   }
 

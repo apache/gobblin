@@ -16,9 +16,11 @@
  */
 package gobblin.data.management.retention.profile;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 
@@ -52,7 +54,7 @@ public class ConfigBasedCleanabledDatasetFinder extends ConfigBasedDatasetsFinde
   }
 
   protected Callable<Void> findDatasetsCallable(final ConfigClient confClient,
-      final URI u, final Properties p, final Collection<Dataset> datasets) {
+      final URI u, final Properties p, Optional<List<String>> blacklistURNs, Optional<List<String>> whitelistURNs, final Collection<Dataset> datasets) {
     return new Callable<Void>() {
       @Override
       public Void call() throws Exception {

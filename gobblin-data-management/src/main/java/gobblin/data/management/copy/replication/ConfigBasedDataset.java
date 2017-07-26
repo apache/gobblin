@@ -81,6 +81,13 @@ public class ConfigBasedDataset implements CopyableDataset {
     calculateDatasetURN();
   }
 
+  public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute, String datasetURN) {
+    this.props = props;
+    this.copyRoute = copyRoute;
+    this.rc = rc;
+    this.datasetURN = datasetURN;
+  }
+
   private void calculateDatasetURN(){
     EndPoint e = this.copyRoute.getCopyTo();
     if (e instanceof HadoopFsEndPoint) {

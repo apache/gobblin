@@ -17,7 +17,6 @@
 
 package gobblin.data.management.copy.replication;
 
-import gobblin.util.FileListUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -34,9 +33,7 @@ import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -64,7 +61,6 @@ import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.executors.IteratorExecutor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.fs.PathFilter;
 
 
 /**
@@ -94,7 +90,9 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   // In addition to the white/blacklist tags, this configuration let the user to black/whitelist some datasets
   // in the job-level configuration, which is not specified in configStore
   // as to have easier approach to black/whitelist some datasets on operation side.
-  // The semantics keep still as tag, which the blacklist override whitelist if any dataset in common.
+  // The semantics keep still as tag, in which the blacklist override whitelist if any dataset in common.
+  // Noted that tag-based dataset discover happens at the first, before the job-level glob-pattern based filtering.
+  // The later is therefore the enhancement on the former one.
   public static final String JOB_LEVEL_BLACKLIST = CopyConfiguration.COPY_PREFIX + ".configBased.blacklist" ;
   public static final String JOB_LEVEL_WHITELIST = CopyConfiguration.COPY_PREFIX + ".configBased.whitelist" ;
 
@@ -113,8 +111,8 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   private final int threadPoolSize;
   private FileSystem fs;
 
-  private Optional<List<String>> blacklistURNs;
-  private Optional<List<String>> whitelistURNs;
+  public final Optional<List<String>> blacklistPatterns;
+  public final Optional<List<String>> whitelistPatterns;
 
 
   public ConfigBasedDatasetsFinder(FileSystem fs, Properties jobProps) throws IOException {
@@ -155,45 +153,43 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
 
 
     if (props.containsKey(JOB_LEVEL_BLACKLIST)) {
-      this.blacklistURNs = Optional.of(Splitter.on(",").omitEmptyStrings().splitToList(props.getProperty(JOB_LEVEL_BLACKLIST)));
+      this.blacklistPatterns = Optional.of(Splitter.on(",").omitEmptyStrings().splitToList(props.getProperty(JOB_LEVEL_BLACKLIST)));
     } else {
-      this.blacklistURNs = Optional.absent();
+      this.blacklistPatterns = Optional.absent();
     }
 
     if (props.containsKey(JOB_LEVEL_WHITELIST)) {
-      this.whitelistURNs = Optional.of(Splitter.on(",").omitEmptyStrings().splitToList(props.getProperty(JOB_LEVEL_WHITELIST)));
+      this.whitelistPatterns = Optional.of(Splitter.on(",").omitEmptyStrings().splitToList(props.getProperty(JOB_LEVEL_WHITELIST)));
     } else {
-      this.whitelistURNs = Optional.absent();
+      this.whitelistPatterns = Optional.absent();
     }
   }
 
+  /**
+   * Semantic of two-level black/whitelist:
+   * - Whitelist always respect blacklist.
+   * - Job-level black/whitelist is NOT OVERRIDING dataset-level black/whitelist but enhance it.
+   */
   protected Set<URI> getValidDatasetURIs(Path datasetCommonRoot) {
     Collection<URI> allDatasetURIs;
     Set<URI> disabledURISet = new HashSet();
-    if (this.blacklistURNs.isPresent()) {
-      for(String urn : this.blacklistURNs.get()) {
-        disabledURISet.addAll(this.datasetURNtoURI(urn));
-      }
-    }
 
+    // This try block basically populate the Valid dataset URI set.
     try {
-      // get all the URIs which imports {@link #replicationTag} or all from whitelistURNs
-      allDatasetURIs = this.whitelistURNs.isPresent()
-          ? this.whitelistURNs.get().stream().flatMap(u -> this.datasetURNtoURI(u).stream()).collect(Collectors.toList())
-          : configClient.getImportedBy(new URI(whitelistTag.toString()), true);
-      populateDisabledURIs(disabledURISet);
+      allDatasetURIs = configClient.getImportedBy(new URI(whitelistTag.toString()), true);
+      enhanceDisabledURIsWithBlackListTag(disabledURISet);
     } catch ( ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
         | URISyntaxException e) {
       log.error("Caught error while getting all the datasets URIs " + e.getMessage());
       throw new RuntimeException(e);
     }
-    return getValidDatasetURIs(allDatasetURIs, disabledURISet, datasetCommonRoot);
+    return getValidDatasetURIsHelper(allDatasetURIs, disabledURISet, datasetCommonRoot);
   }
 
   /**
    * Extended signature for testing convenience.
    */
-  protected static Set<URI> getValidDatasetURIs(Collection<URI> allDatasetURIs, Set<URI> disabledURISet, Path datasetCommonRoot){
+  protected static Set<URI> getValidDatasetURIsHelper(Collection<URI> allDatasetURIs, Set<URI> disabledURISet, Path datasetCommonRoot){
     if (allDatasetURIs == null || allDatasetURIs.isEmpty()) {
       return ImmutableSet.of();
     }
@@ -243,13 +239,12 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
     return validURISet;
   }
 
-  private void populateDisabledURIs(Set<URI> disabledURIs) throws
+  private void enhanceDisabledURIsWithBlackListTag(Set<URI> disabledURIs) throws
                                                            URISyntaxException,
                                                            ConfigStoreFactoryDoesNotExistsException,
                                                            ConfigStoreCreationException,
                                                            VersionDoesNotExistException {
     if (this.blacklistTags.isPresent()) {
-      disabledURIs = new HashSet<URI>();
       for (Path s : this.blacklistTags.get()) {
         disabledURIs.addAll(configClient.getImportedBy(new URI(s.toString()), true));
       }
@@ -282,7 +277,7 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
         Iterators.transform(leafDatasets.iterator(), new Function<URI, Callable<Void>>() {
           @Override
           public Callable<Void> apply(final URI datasetURI) {
-            return findDatasetsCallable(configClient, datasetURI, props, result);
+            return findDatasetsCallable(configClient, datasetURI, props, blacklistPatterns, whitelistPatterns, result);
           }
         });
 
@@ -304,35 +299,20 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
 
   /**
    * Helper funcition for converting datasetURN into URI
-   * Enable Pattern-like support.
+   * Note that here the URN can possibly being specified with pattern, i.e. with wildcards like `*`
+   * It will be resolved by configStore.
    */
-  public List<URI> datasetURNtoURI(String datasetURN) {
-    Path mergedPath = PathUtils.mergePaths(this.commonRoot, new Path(datasetURN));
-    List<URI> resultURIs = new ArrayList<>();
+  private URI datasetURNtoURI(String datasetURN) {
     try {
-      // mergedPath is possibly to have pattern-format characters like '*'
-      FileStatus[] matchedPaths = fs.globStatus(mergedPath);
-      for (FileStatus matchedPath: matchedPaths) {
-        List<FileStatus> fileStatuses = FileListUtils.listFilesRecursively(fs, matchedPath.getPath(), new PathFilter() {
-          @Override
-          public boolean accept(Path path) {
-            return true;
-          }
-        });
-        for (FileStatus fileStatus : fileStatuses) {
-          resultURIs.add(new URI(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
-        }
-      }
-      return resultURIs;
+      return new URI(PathUtils.mergePaths(new Path(this.storeRoot), new Path(datasetURN)).toString());
     }catch (URISyntaxException e) {
       log.error("Dataset with URN:" + datasetURN + " cannot be converted into URI. Skip the dataset");
-      return null;
-    }catch (IOException ioe){
-      log.error("DatasetURN with pattern:" + mergedPath.toString() + " cannot be resolved");
       return null;
     }
   }
 
   protected abstract Callable<Void> findDatasetsCallable(final ConfigClient confClient,
-      final URI u, final Properties p, final Collection<Dataset> datasets);
+      final URI u, final Properties p, Optional<List<String>> blacklistPatterns, Optional<List<String>> whitelistPatterns,
+      final Collection<Dataset> datasets);
+
 }

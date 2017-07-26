@@ -17,8 +17,15 @@
 
 package gobblin.data.management.copy.replication;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.typesafe.config.Config;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.dataset.Dataset;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -28,9 +35,9 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
+import java.util.regex.Pattern;
 import org.apache.hadoop.fs.Path;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -71,7 +78,7 @@ public class ConfigBasedDatasetsFinderTest {
     Set<URI> disabled = new HashSet<URI>();
     disabled.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily"));
 
-    Set<URI> validURIs = ConfigBasedDatasetsFinder.getValidDatasetURIs(allDatasetURIs, disabled, new Path("/data/derived"));
+    Set<URI> validURIs = ConfigBasedDatasetsFinder.getValidDatasetURIsHelper(allDatasetURIs, disabled, new Path("/data/derived"));
 
     Assert.assertTrue(validURIs.size() == 3);
     Assert.assertTrue(validURIs.contains(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily_dedup")));
@@ -80,42 +87,31 @@ public class ConfigBasedDatasetsFinderTest {
   }
 
   @Test
-  public void testValidURIsWithBlacklist() throws URISyntaxException, IOException {
-    /* tmp ConfigStore structure:
-       /tmp/configStore/test/A
-          /A/A1
-       /tmp/configStore/test/B
-          /B/B1
-       /tmp/configStore/test/C
-          /C/C1/C11
-          /C/C1/C12
+  public void blacklistPatternTest() {
+    Properties properties = new Properties();
+    properties.setProperty("gobblin.selected.policy", "random");
+    properties.setProperty("source","random");
+    properties.setProperty("replicas", "random");
 
-       Will finally have A1, B1, C11
-     */
-    FileSystem fs = FileSystem.get(new Configuration()) ;
-    Properties jobProps = new Properties() ;
-    fs.mkdirs(new Path("/tmp/configStore/test"));
-    fs.mkdirs(new Path("/tmp/configStore/test/A"));
-    fs.mkdirs(new Path("/tmp/configStore/test/B"));
-    fs.mkdirs(new Path("/tmp/configStore/test/C"));
-    fs.create(new Path("/tmp/configStore/test/A/A1"));
-    fs.create(new Path("/tmp/configStore/test/B/B1"));
-    fs.mkdirs(new Path("/tmp/configStore/test/C/C1"));
-    fs.create(new Path("/tmp/configStore/test/C/C1/C11"));
-    fs.create(new Path("/tmp/configStore/test/C/C1/C12"));
-    jobProps.setProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI, "/tmp/configStore/");
-    jobProps.setProperty(GOBBLIN_CONFIG_STORE_WHITELIST_TAG, "/");
-    jobProps.setProperty(GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT, "test");
+    ConfigBasedMultiDatasets configBasedMultiDatasets = new ConfigBasedMultiDatasets();
 
-    ConfigBasedDatasetsFinder configBasedDatasetsFinder = new ConfigBasedCopyableDatasetFinder(fs, jobProps);
-    List<URI> uriList = configBasedDatasetsFinder.datasetURNtoURI("C/*");
+    ReplicationConfiguration rc = Mockito.mock(ReplicationConfiguration.class);
+    CopyRoute cr = Mockito.mock(CopyRoute.class);
+    ConfigBasedDataset configBasedDataset = new ConfigBasedDataset(rc, new Properties(), cr, "/test/tmp/word");
+    ConfigBasedDataset configBasedDataset2 = new ConfigBasedDataset(rc, new Properties(), cr, "/test/a_temporary/word");
+    ConfigBasedDataset configBasedDataset3 = new ConfigBasedDataset(rc, new Properties(), cr, "/test/go/word");
 
-    Assert.assertTrue(uriList.size() == 2);
-    Assert.assertTrue(uriList.contains(new URI("/tmp/configStore/test/C/C1/C11")));
-    Assert.assertTrue(uriList.contains(new URI("/tmp/configStore/test/C/C1/C12")));
 
-    // Clean up
-    fs.delete( new Path("/tmp/configStore"), true);
-    return;
+    Pattern pattern1 = Pattern.compile(".*_temporary.*");
+    Pattern pattern2 = Pattern.compile(".*tmp.*");
+    List<Pattern> patternList = new ArrayList<>();
+    patternList.add(pattern1);
+    patternList.add(pattern2);
+
+    Assert.assertFalse(configBasedMultiDatasets.blacklistFilteringHelper(configBasedDataset, Optional.of(patternList)));
+    Assert.assertFalse(configBasedMultiDatasets.blacklistFilteringHelper(configBasedDataset2, Optional.of(patternList)));
+    Assert.assertTrue(configBasedMultiDatasets.blacklistFilteringHelper(configBasedDataset3, Optional.of(patternList)));
+
+
   }
 }
