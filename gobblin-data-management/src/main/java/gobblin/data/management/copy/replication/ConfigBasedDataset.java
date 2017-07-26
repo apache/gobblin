@@ -70,12 +70,15 @@ public class ConfigBasedDataset implements CopyableDataset {
   private final CopyRoute copyRoute;
   private final ReplicationConfiguration rc;
   private String datasetURN;
+  private boolean watermarkEnabled;
 
   public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute) {
     this.props = props;
     this.copyRoute = copyRoute;
     this.rc = rc;
     calculateDatasetURN();
+    this.watermarkEnabled = Boolean.parseBoolean
+        (this.props.getProperty(ConfigBasedDatasetsFinder.WATERMARK_ENABLE, "true"));
   }
 
   public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute, String datasetURN) {
@@ -117,14 +120,16 @@ public class ConfigBasedDataset implements CopyableDataset {
       return copyableFiles;
     }
 
-    if ((!copyFromRaw.getWatermark().isPresent() && copyToRaw.getWatermark().isPresent())
-        || (copyFromRaw.getWatermark().isPresent() && copyToRaw.getWatermark().isPresent()
-            && copyFromRaw.getWatermark().get().compareTo(copyToRaw.getWatermark().get()) <= 0)) {
-      log.info(
-          "No need to copy as destination watermark >= source watermark with source watermark {}, for dataset with metadata {}",
-          copyFromRaw.getWatermark().isPresent() ? copyFromRaw.getWatermark().get().toJson() : "N/A",
-          this.rc.getMetaData());
-      return copyableFiles;
+    if (this.watermarkEnabled) {
+      if ((!copyFromRaw.getWatermark().isPresent() && copyToRaw.getWatermark().isPresent()) || (
+          copyFromRaw.getWatermark().isPresent() && copyToRaw.getWatermark().isPresent()
+              && copyFromRaw.getWatermark().get().compareTo(copyToRaw.getWatermark().get()) <= 0)) {
+        log.info(
+            "No need to copy as destination watermark >= source watermark with source watermark {}, for dataset with metadata {}",
+            copyFromRaw.getWatermark().isPresent() ? copyFromRaw.getWatermark().get().toJson() : "N/A",
+            this.rc.getMetaData());
+        return copyableFiles;
+      }
     }
 
     HadoopFsEndPoint copyFrom = (HadoopFsEndPoint) copyFromRaw;
@@ -201,7 +206,7 @@ public class ConfigBasedDataset implements CopyableDataset {
           deleteCommitStep, 0));
     }
 
-    // generate the watermark file
+    // generate the watermark file even if watermark checking is disabled. Make sure it can come into functional once disired.
     if ((!watermarkMetadataCopied) && copyFrom.getWatermark().isPresent()) {
       copyableFiles.add(new PostPublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String> newHashMap(),
           new WatermarkMetadataGenerationCommitStep(copyTo.getFsURI().toString(), copyTo.getDatasetPath(),

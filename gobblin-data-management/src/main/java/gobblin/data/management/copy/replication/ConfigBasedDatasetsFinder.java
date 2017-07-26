@@ -95,6 +95,11 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   // Tag-based dataset discover happens at the first, before the job-level glob-pattern based filtering.
   public static final String JOB_LEVEL_BLACKLIST = CopyConfiguration.COPY_PREFIX + ".configBased.blacklist" ;
 
+  // There are some cases that WATERMARK checking is desired, like
+  // Unexpected data loss on target while not changing watermark accordingly.
+  // This configuration make WATERMARK checking configurable for operation convenience, default true
+  public static final String WATERMARK_ENABLE = CopyConfiguration.COPY_PREFIX + ".configBased.watermark.enabled" ;
+
 
   protected final String storeRoot;
   protected final Path commonRoot;
