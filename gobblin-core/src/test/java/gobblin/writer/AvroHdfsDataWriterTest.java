@@ -40,6 +40,7 @@ import com.google.gson.reflect.TypeToken;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.FinalState;
 
 
 /**
@@ -55,6 +56,7 @@ public class AvroHdfsDataWriterTest {
   private Schema schema;
   private DataWriter<GenericRecord> writer;
   private String filePath;
+  private State properties;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -73,7 +75,7 @@ public class AvroHdfsDataWriterTest {
     this.filePath = TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" + TestConstants.TEST_EXTRACT_TABLE
         + "/" + TestConstants.TEST_EXTRACT_ID + "_" + TestConstants.TEST_EXTRACT_PULL_TYPE;
 
-    State properties = new State();
+    properties = new State();
     properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE);
     properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, TestConstants.TEST_FS_URI);
     properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR, TestConstants.TEST_STAGING_DIR);
@@ -122,6 +124,15 @@ public class AvroHdfsDataWriterTest {
     Assert.assertEquals(user3.get("favorite_color").toString(), "blue");
 
     reader.close();
+
+    FsWriterMetrics metrics = FsWriterMetrics.fromJson(properties.getProp(FsDataWriter.FS_WRITER_METRICS_KEY));
+    Assert.assertEquals(metrics.fileInfos.size(),1);
+    FsWriterMetrics.FileInfo fileInfo = metrics.fileInfos.iterator().next();
+
+    Assert.assertEquals(fileInfo.fileName, TestConstants.TEST_FILE_NAME);
+    Assert.assertEquals(fileInfo.numRecords, 3);
+    Assert.assertNull(metrics.partitionInfo.partitionKey);
+    Assert.assertEquals(metrics.partitionInfo.branchId, 0);
   }
 
   @AfterClass

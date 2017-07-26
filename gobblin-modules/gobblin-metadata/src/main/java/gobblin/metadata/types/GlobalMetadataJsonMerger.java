@@ -19,6 +19,7 @@ package gobblin.metadata.types;
 import java.io.IOException;
 
 import gobblin.metadata.MetadataMerger;
+import gobblin.writer.FsWriterMetrics;
 
 
 /**
@@ -40,6 +41,23 @@ public class GlobalMetadataJsonMerger implements MetadataMerger<String> {
     } catch (IOException e) {
       throw new IllegalArgumentException("Error parsing metadata", e);
     }
+  }
+
+  @Override
+  public void update(FsWriterMetrics metrics) {
+    long numRecords = mergedMetadata.getNumRecords();
+    int numFiles = mergedMetadata.getNumFiles();
+
+    for (FsWriterMetrics.FileInfo fileInfo: metrics.getFileInfos()) {
+      numRecords += fileInfo.getNumRecords();
+      numFiles += 1;
+
+      mergedMetadata.setFileMetadata(fileInfo.getFileName(), GlobalMetadata.NUM_RECORDS_KEY,
+          Long.valueOf(fileInfo.getNumRecords()));
+    }
+
+    mergedMetadata.setNumRecords(numRecords);
+    mergedMetadata.setNumOutputFiles(numFiles);
   }
 
   @Override

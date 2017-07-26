@@ -18,14 +18,17 @@ package gobblin.publisher;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -41,6 +44,9 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.metadata.MetadataMerger;
 import gobblin.metadata.types.GlobalMetadata;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.writer.FsDataWriter;
+import gobblin.writer.FsWriterMetrics;
+import gobblin.writer.PartitionIdentifier;
 
 
 /**
@@ -192,6 +198,256 @@ public class BaseDataPublisherTest {
   }
 
   @Test
+  public void testMergesExistingMetadata() throws IOException {
+    File publishPath = Files.createTempDir();
+    try {
+      // Copy the metadata file from resources into the publish path
+      InputStream mdStream = this.getClass().getClassLoader().getResourceAsStream("publisher/sample_metadata.json");
+      try (FileOutputStream fOs = new FileOutputStream(new File(publishPath, "metadata.json"))) {
+        IOUtils.copy(mdStream, fOs);
+      }
+
+      State s = buildDefaultState(1);
+      String md = new GlobalMetadata().toJson();
+
+      s.removeProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR);
+      s.setProp(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_KEY, "true");
+      s.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, publishPath.getAbsolutePath());
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR, "false");
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_FILE, "metadata.json");
+
+      WorkUnitState wuState1 = new WorkUnitState();
+      FsWriterMetrics metrics1 = buildWriterMetrics("newfile.json", null, 0, 90);
+      wuState1.setProp(FsDataWriter.FS_WRITER_METRICS_KEY, metrics1.toJson());
+      wuState1.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      addStateToWorkunit(s, wuState1);
+
+      BaseDataPublisher publisher = new BaseDataPublisher(s);
+      publisher.publishMetadata(ImmutableList.of(wuState1));
+
+      checkMetadata(new File(publishPath.getAbsolutePath(), "metadata.json"), 4,185,
+          new FsWriterMetrics.FileInfo("foo3.json", 30),
+          new FsWriterMetrics.FileInfo("foo1.json", 10),
+          new FsWriterMetrics.FileInfo("foo4.json", 55),
+          new FsWriterMetrics.FileInfo("newfile.json", 90));
+    } finally {
+      FileUtils.deleteDirectory(publishPath);
+    }
+  }
+
+  @Test
+  public void testWithFsMetricsNoPartitions() throws IOException {
+    File publishPath = Files.createTempDir();
+    try {
+      State s = buildDefaultState(1);
+      String md = new GlobalMetadata().toJson();
+
+      s.removeProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR);
+      s.setProp(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_KEY, "true");
+      s.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, publishPath.getAbsolutePath());
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR, "false");
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_FILE, "metadata.json");
+
+      WorkUnitState wuState1 = new WorkUnitState();
+      FsWriterMetrics metrics1 = buildWriterMetrics("foo1.json", null, 0, 10);
+      wuState1.setProp(FsDataWriter.FS_WRITER_METRICS_KEY, metrics1.toJson());
+      wuState1.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      addStateToWorkunit(s, wuState1);
+
+      WorkUnitState wuState2 = new WorkUnitState();
+      FsWriterMetrics metrics3 = buildWriterMetrics("foo3.json", null, 1, 30);
+      wuState2.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      wuState2.setProp(FsDataWriter.FS_WRITER_METRICS_KEY, metrics3.toJson());
+      addStateToWorkunit(s, wuState2);
+
+      WorkUnitState wuState3 = new WorkUnitState();
+      FsWriterMetrics metrics4 = buildWriterMetrics("foo4.json", null, 2, 55);
+      wuState3.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      wuState3.setProp(FsDataWriter.FS_WRITER_METRICS_KEY, metrics4.toJson());
+      addStateToWorkunit(s, wuState3);
+
+      BaseDataPublisher publisher = new BaseDataPublisher(s);
+      publisher.publishMetadata(ImmutableList.of(wuState1, wuState2, wuState3));
+
+      checkMetadata(new File(publishPath.getAbsolutePath(), "metadata.json"), 3, 95,
+          new FsWriterMetrics.FileInfo("foo3.json", 30),
+          new FsWriterMetrics.FileInfo("foo1.json", 10),
+          new FsWriterMetrics.FileInfo("foo4.json", 55));
+    } finally {
+      FileUtils.deleteDirectory(publishPath);
+    }
+  }
+
+  @Test
+  public void testWithFsMetricsAndPartitions() throws IOException {
+    File publishPath = Files.createTempDir();
+    try {
+      File part1 = new File(publishPath, "1-2-3-4");
+      part1.mkdir();
+
+      File part2 = new File(publishPath, "5-6-7-8");
+      part2.mkdir();
+
+      State s = buildDefaultState(1);
+      String md = new GlobalMetadata().toJson();
+
+      s.removeProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR);
+      s.setProp(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_KEY, "true");
+      s.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, publishPath.getAbsolutePath());
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR, "false");
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_FILE, "metadata.json");
+
+      WorkUnitState wuState1 = new WorkUnitState();
+      FsWriterMetrics metrics1 = buildWriterMetrics("foo1.json", "1-2-3-4", 0, 10);
+      FsWriterMetrics metrics2 = buildWriterMetrics("foo1.json", "5-6-7-8",10, 20);
+      wuState1.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY, "1-2-3-4");
+      wuState1.setProp(FsDataWriter.FS_WRITER_METRICS_KEY, metrics1.toJson());
+      wuState1.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + "_0", "1-2-3-4");
+      wuState1.setProp(FsDataWriter.FS_WRITER_METRICS_KEY + " _0", metrics2.toJson());
+      wuState1.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + "_1", "5-6-7-8");
+      wuState1.setProp(FsDataWriter.FS_WRITER_METRICS_KEY + " _1", metrics2.toJson());
+      wuState1.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      addStateToWorkunit(s, wuState1);
+
+      WorkUnitState wuState2 = new WorkUnitState();
+      FsWriterMetrics metrics3 = buildWriterMetrics("foo3.json", "1-2-3-4", 1, 30);
+      wuState2.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY, "1-2-3-4");
+      wuState2.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      wuState2.setProp(FsDataWriter.FS_WRITER_METRICS_KEY, metrics3.toJson());
+      addStateToWorkunit(s, wuState2);
+
+      WorkUnitState wuState3 = new WorkUnitState();
+      FsWriterMetrics metrics4 = buildWriterMetrics("foo4.json", "5-6-7-8", 2, 55);
+      wuState3.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY, "5-6-7-8");
+      wuState3.setProp(ConfigurationKeys.WRITER_METADATA_KEY, md);
+      wuState3.setProp(FsDataWriter.FS_WRITER_METRICS_KEY, metrics4.toJson());
+      addStateToWorkunit(s, wuState3);
+
+      BaseDataPublisher publisher = new BaseDataPublisher(s);
+      publisher.publishMetadata(ImmutableList.of(wuState1, wuState2, wuState3));
+
+      checkMetadata(new File(part1, "metadata.json"), 2, 40,
+          new FsWriterMetrics.FileInfo("foo3.json", 30),
+          new FsWriterMetrics.FileInfo("foo1.json", 10));
+      checkMetadata(new File(part2, "metadata.json"), 2, 75,
+          new FsWriterMetrics.FileInfo("foo1.json", 20),
+          new FsWriterMetrics.FileInfo("foo4.json", 55));
+    } finally {
+      FileUtils.deleteDirectory(publishPath);
+    }
+  }
+
+  @Test
+  public void testWithFsMetricsBranchesAndPartitions() throws IOException {
+    File publishPaths[] = new File[] {
+        Files.createTempDir(), // branch 0
+        Files.createTempDir(), // branch 1
+    };
+
+    try {
+      List<File[]> branchPaths = Arrays.stream(publishPaths).map(branchPath -> new File[] {
+          new File(branchPath, "1-2-3-4"),
+          new File(branchPath, "5-6-7-8")
+      }).collect(Collectors.toList());
+
+      branchPaths.forEach(partitionPaths -> Arrays.stream(partitionPaths).forEach(File::mkdir));
+
+      State s = buildDefaultState(2);
+      String md = new GlobalMetadata().toJson();
+
+      s.removeProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR);
+      s.setProp(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_KEY + ".0", "true");
+      s.setProp(ConfigurationKeys.DATA_PUBLISH_WRITER_METADATA_KEY + ".1", "true");
+      s.setProp(ConfigurationKeys.WRITER_METADATA_KEY + ".0", md);
+      s.setProp(ConfigurationKeys.WRITER_METADATA_KEY + ".1", md);
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + ".0", publishPaths[0].getAbsolutePath());
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + ".1", publishPaths[1].getAbsolutePath());
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR, "false");
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR + ".0", "false");
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR + ".1", "false");
+      s.setProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_FILE, "metadata.json");
+
+      WorkUnitState wuState1 = new WorkUnitState();
+      FsWriterMetrics metrics1 = buildWriterMetrics("foo1.json", "1-2-3-4", 0, 10);
+      FsWriterMetrics metrics2 = buildWriterMetrics("foo1.json", "5-6-7-8",10, 20);
+      wuState1.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + ".0", "1-2-3-4");
+      wuState1.setProp(FsDataWriter.FS_WRITER_METRICS_KEY + ".0", metrics1.toJson());
+      wuState1.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + ".0_0", "1-2-3-4");
+      wuState1.setProp(FsDataWriter.FS_WRITER_METRICS_KEY + ".0_0", metrics2.toJson());
+      wuState1.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + ".0" + "_1", "5-6-7-8");
+      wuState1.setProp(FsDataWriter.FS_WRITER_METRICS_KEY + ".0_1", metrics2.toJson());
+      wuState1.setProp(ConfigurationKeys.WRITER_METADATA_KEY + ".0", md);
+      addStateToWorkunit(s, wuState1);
+
+      WorkUnitState wuState2 = new WorkUnitState();
+      FsWriterMetrics metrics3 = buildWriterMetrics("foo3.json", "1-2-3-4", 1, 1, 30);
+      wuState2.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + ".1", "1-2-3-4");
+      wuState2.setProp(ConfigurationKeys.WRITER_METADATA_KEY + ".1", md);
+      wuState2.setProp(FsDataWriter.FS_WRITER_METRICS_KEY + ".1", metrics3.toJson());
+      addStateToWorkunit(s, wuState2);
+
+      WorkUnitState wuState3 = new WorkUnitState();
+      FsWriterMetrics metrics4 = buildWriterMetrics("foo4.json", "5-6-7-8", 2, 55);
+      wuState3.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + ".0", "5-6-7-8");
+      wuState3.setProp(ConfigurationKeys.WRITER_METADATA_KEY + ".0", md);
+      wuState3.setProp(FsDataWriter.FS_WRITER_METRICS_KEY + ".0", metrics4.toJson());
+      addStateToWorkunit(s, wuState3);
+
+      BaseDataPublisher publisher = new BaseDataPublisher(s);
+      publisher.publishMetadata(ImmutableList.of(wuState1, wuState2, wuState3));
+
+      checkMetadata(new File(branchPaths.get(0)[0], "metadata.json.0"), 1, 10,
+          new FsWriterMetrics.FileInfo("foo1.json", 10));
+      checkMetadata(new File(branchPaths.get(0)[1], "metadata.json.0"), 2, 75,
+          new FsWriterMetrics.FileInfo("foo1.json", 20),
+          new FsWriterMetrics.FileInfo("foo4.json", 55));
+      checkMetadata(new File(branchPaths.get(1)[0], "metadata.json.1"), 1, 30,
+          new FsWriterMetrics.FileInfo("foo3.json", 30));
+    } finally {
+      Arrays.stream(publishPaths).forEach(dir -> {
+        try {
+          FileUtils.deleteDirectory(dir);
+        } catch (IOException e) {
+          throw new RuntimeException("IOError");
+        }
+      });
+    }
+  }
+
+  private void checkMetadata(File file, int expectedNumFiles, int expectedNumRecords,
+      FsWriterMetrics.FileInfo... expectedFileInfo)
+      throws IOException {
+    Assert.assertTrue(file.exists(), "Expected file " + file.getAbsolutePath() + " to exist");
+    String contents = IOUtils.toString(new FileInputStream(file), StandardCharsets.UTF_8);
+    GlobalMetadata metadata = GlobalMetadata.fromJson(contents);
+
+    Assert.assertEquals(metadata.getNumFiles(), expectedNumFiles, "# of files do not match");
+    Assert.assertEquals(metadata.getNumRecords(), expectedNumRecords, "# of records do not match");
+    for (FsWriterMetrics.FileInfo fileInfo : expectedFileInfo) {
+      long recordsInMetadata =
+          ((Number) metadata.getFileMetadata(fileInfo.getFileName(), GlobalMetadata.NUM_RECORDS_KEY)).longValue();
+      Assert.assertEquals(recordsInMetadata, fileInfo.getNumRecords(),
+          "# of records in file-level metadata do not match");
+    }
+  }
+
+
+  private FsWriterMetrics buildWriterMetrics(String fileName, String partitionKey, int writerId, int numRecords) {
+    return buildWriterMetrics(fileName, partitionKey, writerId, 0, numRecords);
+  }
+
+  private FsWriterMetrics buildWriterMetrics(String fileName, String partitionKey, int writerId, int branchId, int numRecords) {
+    return new FsWriterMetrics(
+        String.format("writer%d", writerId),
+        new PartitionIdentifier(partitionKey, branchId),
+        ImmutableList.of(new FsWriterMetrics.FileInfo(fileName, numRecords))
+    );
+  }
+
+  @Test
   public void testWithPartitionKey() throws IOException {
     File publishPath = Files.createTempDir();
     try {
@@ -240,6 +496,11 @@ public class BaseDataPublisherTest {
     }
 
     @Override
+    public void update(FsWriterMetrics metrics) {
+
+    }
+
+    @Override
     public String getMergedMetadata() {
       return String.valueOf(sum);
     }
@@ -260,6 +521,11 @@ public class BaseDataPublisherTest {
     @Override
     public String getMergedMetadata() {
       return String.valueOf(product);
+    }
+
+    @Override
+    public void update(FsWriterMetrics metrics) {
+
     }
   }
 

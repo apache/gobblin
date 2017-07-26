@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
@@ -59,6 +60,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
 
   public static final String WRITER_INCLUDE_RECORD_COUNT_IN_FILE_NAMES =
       ConfigurationKeys.WRITER_PREFIX + ".include.record.count.in.file.names";
+  public static final String FS_WRITER_METRICS_KEY = "fs_writer_metrics";
 
   protected final State properties;
   protected final String id;
@@ -67,6 +69,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   protected final String fileName;
   protected final FileSystem fs;
   protected final Path stagingFile;
+  protected final String partitionKey;
   private final GlobalMetadata defaultMetadata;
   protected Path outputFile;
   protected final String allOutputFilesPropName;
@@ -146,9 +149,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
       this.defaultMetadata.addTransferEncoding(c.getTag());
     }
 
-    String partitionPath = builder.getPartitionPath(properties);
+    this.partitionKey = builder.getPartitionPath(properties);
     if (builder.getPartitionPath(properties) != null) {
-      properties.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + builder.getWriterId(), partitionPath);
+      properties.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + "_" + builder.getWriterId(), partitionKey);
     }
   }
 
@@ -275,6 +278,13 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     } else {
       this.properties.appendToSetProp(this.allOutputFilesPropName, getOutputFilePath());
     }
+
+    FsWriterMetrics metrics = new FsWriterMetrics(
+        this.id,
+        new PartitionIdentifier(this.partitionKey, this.branchId),
+        ImmutableSet.of(new FsWriterMetrics.FileInfo(this.outputFile.getName(), recordsWritten()))
+    );
+    this.properties.setProp(FS_WRITER_METRICS_KEY, metrics.toJson());
   }
 
   private synchronized String addRecordCountToFileName()

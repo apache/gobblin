@@ -58,10 +58,12 @@ public class GlobalMetadata {
 
   private transient boolean markedImmutable;
 
-  private final static String DATASET_URN_KEY = "Dataset-URN";
-  private final static String TRANSFER_ENCODING_KEY = "Transfer-Encoding";
-  private final static String CONTENT_TYPE_KEY = "Content-Type";
-  private final static String INNER_CONTENT_TYPE_KEY = "Inner-Content-Type";
+  public final static String DATASET_URN_KEY = "Dataset-URN";
+  public final static String TRANSFER_ENCODING_KEY = "Transfer-Encoding";
+  public final static String CONTENT_TYPE_KEY = "Content-Type";
+  public final static String INNER_CONTENT_TYPE_KEY = "Inner-Content-Type";
+  public final static String NUM_RECORDS_KEY = "Num-Records";
+  public final static String NUM_FILES_KEY = "Num-Files";
 
 
   /**
@@ -238,6 +240,21 @@ public class GlobalMetadata {
   public String getInnerContentType() {
     return (String)getDatasetMetadata(INNER_CONTENT_TYPE_KEY);
   }
+
+  /**
+   * Convenience method to set the number of files in the dataset
+   */
+  public void setNumOutputFiles(int numFiles) {
+    setDatasetMetadata(NUM_FILES_KEY, numFiles);
+  }
+
+  /**
+   * Convenience method to set the number of records in the dataset
+   */
+  public void setNumRecords(long numRecords) {
+    setDatasetMetadata(NUM_RECORDS_KEY, numRecords);
+  }
+
   /**
    * Get an arbitrary dataset-level metadata key
    */
@@ -275,6 +292,17 @@ public class GlobalMetadata {
     encodings.add(encoding);
 
     setDatasetMetadata(TRANSFER_ENCODING_KEY, encodings);
+  }
+
+  public long getNumRecords() {
+    // When reading from JSON, Jackson could parse as an int so we need to use a more generic type
+    Number numRecords = (Number)getDatasetMetadata(NUM_RECORDS_KEY);
+    return (numRecords != null) ? numRecords.longValue() : 0L;
+  }
+
+  public int getNumFiles() {
+    Integer numFiles = (Integer)getDatasetMetadata(NUM_FILES_KEY);
+    return (numFiles != null)  ? numFiles : 0;
   }
 
   // File-level  metadata
