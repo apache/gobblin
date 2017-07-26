@@ -154,9 +154,10 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   }
 
   /**
-   * Semantic of two-level black/whitelist:
+   * Semantic of black/whitelist:
    * - Whitelist always respect blacklist.
-   * - Job-level black/whitelist is NOT OVERRIDING dataset-level black/whitelist but enhance it.
+   * - Job-level blacklist is reponsible for dataset filtering instead of dataset discovery. i.e.
+   *   There's no implementation of job-level whitelist currently. 
    */
   protected Set<URI> getValidDatasetURIs(Path datasetCommonRoot) {
     Collection<URI> allDatasetURIs;
