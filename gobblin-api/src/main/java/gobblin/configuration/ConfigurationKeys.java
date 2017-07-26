@@ -278,7 +278,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "\0";
   public static final String CONVERTER_AVRO_FIELD_PICK_FIELDS = "converter.avro.fields";
   public static final String CONVERTER_AVRO_JDBC_ENTRY_FIELDS_PAIRS = "converter.avro.jdbc.entry_fields_pairs";
-
+  public static final String CONVERTER_SKIP_FAILED_RECORD = "converter.skipFailedRecord";
 
   /**
    * Fork operator configuration properties.
@@ -322,6 +322,7 @@ public class ConfigurationKeys {
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
   public static final String WRITER_EAGER_INITIALIZATION_KEY = WRITER_PREFIX + ".eager.initialization";
   public static final String WRITER_PARTITIONER_CLASS = WRITER_PREFIX + ".partitioner.class";
+  public static final String WRITER_SKIP_NULL_RECORD = WRITER_PREFIX + ".skipNullRecord";
   public static final boolean DEFAULT_WRITER_EAGER_INITIALIZATION = false;
   public static final String WRITER_GROUP_NAME = WRITER_PREFIX + ".group.name";
   public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";

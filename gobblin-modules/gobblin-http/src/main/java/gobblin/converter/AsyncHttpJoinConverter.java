@@ -21,6 +21,7 @@ import gobblin.async.Callback;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.config.ConfigBuilder;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.http.HttpClient;
@@ -30,6 +31,7 @@ import gobblin.http.ResponseStatus;
 import gobblin.net.Request;
 import gobblin.utils.HttpConstants;
 import gobblin.writer.WriteCallback;
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
 /**
  * This converter converts an input record (DI) to an output record (DO) which
@@ -53,12 +55,13 @@ public abstract class AsyncHttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Asy
   protected HttpClient<RQ, RP> httpClient = null;
   protected ResponseHandler<RQ, RP> responseHandler = null;
   protected AsyncRequestBuilder<GenericRecord, RQ> requestBuilder = null;
+  protected boolean skipFailedRecord;
 
   public AsyncHttpJoinConverter init(WorkUnitState workUnitState) {
     super.init(workUnitState);
     Config config = ConfigBuilder.create().loadProps(workUnitState.getProperties(), CONF_PREFIX).build();
     config = config.withFallback(DEFAULT_FALLBACK);
-
+    skipFailedRecord = workUnitState.getPropAsBoolean(ConfigurationKeys.CONVERTER_SKIP_FAILED_RECORD, false);
     httpClient = createHttpClient(config, workUnitState.getTaskBroker());
     responseHandler = createResponseHandler(config);
     requestBuilder = createRequestBuilder(config);
@@ -117,9 +120,17 @@ public abstract class AsyncHttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Asy
           }
         }
 
+        @SuppressWarnings(value = "NP_NONNULL_PARAM_VIOLATION",
+            justification = "CompletableFuture will replace null value with NIL")
         @Override
         public void onFailure(Throwable throwable) {
-          AsyncHttpJoinConverterContext.this.future.completeExceptionally(throwable);
+          log.error ("Http converter on failure with request {}", request.getRawRequest());
+
+          if (skipFailedRecord) {
+            AsyncHttpJoinConverterContext.this.future.complete( null);
+          } else {
+            AsyncHttpJoinConverterContext.this.future.completeExceptionally(throwable);
+          }
         }
       };
     }
