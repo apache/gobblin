@@ -31,6 +31,7 @@ import gobblin.http.ResponseStatus;
 import gobblin.net.Request;
 import gobblin.utils.HttpConstants;
 import gobblin.writer.WriteCallback;
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
 /**
  * This converter converts an input record (DI) to an output record (DO) which
@@ -119,12 +120,14 @@ public abstract class AsyncHttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Asy
           }
         }
 
+        @SuppressWarnings(value = "NP_NONNULL_PARAM_VIOLATION",
+            justification = "CompletableFuture will replace null value with NIL")
         @Override
         public void onFailure(Throwable throwable) {
           log.error ("Http converter on failure with request {}", request.getRawRequest());
 
           if (skipFailedRecord) {
-            AsyncHttpJoinConverterContext.this.future.complete(null);
+            AsyncHttpJoinConverterContext.this.future.complete( null);
           } else {
             AsyncHttpJoinConverterContext.this.future.completeExceptionally(throwable);
           }
