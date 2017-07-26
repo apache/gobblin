@@ -87,19 +87,13 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   public static final String GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT =
       ConfigurationKeys.CONFIG_BASED_PREFIX + ".dataset.common.root";
 
-  // In addition to the white/blacklist tags, this configuration let the user to black/whitelist some datasets
+  // In addition to the white/blacklist tags, this configuration let the user to whitelist some datasets
   // in the job-level configuration, which is not specified in configStore
   // as to have easier approach to black/whitelist some datasets on operation side.
-  // The semantics keep still as tag, in which the blacklist override whitelist if any dataset in common.
-  // Noted that tag-based dataset discover happens at the first, before the job-level glob-pattern based filtering.
-  // The later is therefore the enhancement on the former one.
+  // White job-level blacklist is different from tag-based blacklist since the latter is part of dataset discovery
+  // but the former is filtering process.
+  // Tag-based dataset discover happens at the first, before the job-level glob-pattern based filtering.
   public static final String JOB_LEVEL_BLACKLIST = CopyConfiguration.COPY_PREFIX + ".configBased.blacklist" ;
-  public static final String JOB_LEVEL_WHITELIST = CopyConfiguration.COPY_PREFIX + ".configBased.whitelist" ;
-
-  // There are some cases that WATERMARK checking is desired, like
-  // Unexpected data loss on target while not changing watermark accordingly.
-  // This configuration make WATERMARK checking configurable for operation convenience, default true
-  public static final String WATERMARK_ENABLE = CopyConfiguration.COPY_PREFIX + ".configBased.watermark.enabled" ;
 
 
   protected final String storeRoot;
@@ -112,7 +106,6 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   private FileSystem fs;
 
   public final Optional<List<String>> blacklistPatterns;
-  public final Optional<List<String>> whitelistPatterns;
 
 
   public ConfigBasedDatasetsFinder(FileSystem fs, Properties jobProps) throws IOException {
@@ -158,11 +151,6 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
       this.blacklistPatterns = Optional.absent();
     }
 
-    if (props.containsKey(JOB_LEVEL_WHITELIST)) {
-      this.whitelistPatterns = Optional.of(Splitter.on(",").omitEmptyStrings().splitToList(props.getProperty(JOB_LEVEL_WHITELIST)));
-    } else {
-      this.whitelistPatterns = Optional.absent();
-    }
   }
 
   /**
@@ -277,7 +265,7 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
         Iterators.transform(leafDatasets.iterator(), new Function<URI, Callable<Void>>() {
           @Override
           public Callable<Void> apply(final URI datasetURI) {
-            return findDatasetsCallable(configClient, datasetURI, props, blacklistPatterns, whitelistPatterns, result);
+            return findDatasetsCallable(configClient, datasetURI, props, blacklistPatterns, result);
           }
         });
 
@@ -312,7 +300,7 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   }
 
   protected abstract Callable<Void> findDatasetsCallable(final ConfigClient confClient,
-      final URI u, final Properties p, Optional<List<String>> blacklistPatterns, Optional<List<String>> whitelistPatterns,
+      final URI u, final Properties p, Optional<List<String>> blacklistPatterns,
       final Collection<Dataset> datasets);
 
 }

@@ -18,14 +18,7 @@
 package gobblin.data.management.copy.replication;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.typesafe.config.Config;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.dataset.Dataset;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -40,8 +33,6 @@ import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import static gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder.*;
 
 
 /**

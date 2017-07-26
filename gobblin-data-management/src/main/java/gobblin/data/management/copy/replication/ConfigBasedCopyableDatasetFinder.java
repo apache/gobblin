@@ -49,15 +49,14 @@ public class ConfigBasedCopyableDatasetFinder extends ConfigBasedDatasetsFinder 
   }
 
   protected Callable<Void> findDatasetsCallable(final ConfigClient confClient,
-      final URI u, final Properties p, Optional<List<String>> blacklistPatterns, Optional<List<String>> whitelistPatterns,
-      final Collection<Dataset> datasets) {
+      final URI u, final Properties p, Optional<List<String>> blacklistPatterns, final Collection<Dataset> datasets) {
     return new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         // Process each {@link Config}, find dataset and add those into the datasets
         Config c = confClient.getConfig(u);
         List<Dataset> datasetForConfig =
-            new ConfigBasedMultiDatasets(c, p, blacklistPatterns, whitelistPatterns).getConfigBasedDatasetList();
+            new ConfigBasedMultiDatasets(c, p, blacklistPatterns).getConfigBasedDatasetList();
         datasets.addAll(datasetForConfig);
         return null;
       }

@@ -55,7 +55,6 @@ public class ConfigBasedMultiDatasets {
   private final Properties props;
   private final List<Dataset> datasets = new ArrayList<>();
   private Optional<List<Pattern>> blacklist = Optional.of(new ArrayList<>());
-  private Optional<List<Pattern>> whitelist = Optional.of(new ArrayList<>());
 
 
   /**
@@ -71,7 +70,7 @@ public class ConfigBasedMultiDatasets {
   }
 
   public ConfigBasedMultiDatasets (Config c, Properties props,
-      Optional<List<String>> blacklistPatterns, Optional<List<String>> whitelistPatterns){
+      Optional<List<String>> blacklistPatterns){
     this.props = props;
     blacklist = patternListInitHelper(blacklistPatterns);
 
@@ -146,7 +145,10 @@ public class ConfigBasedMultiDatasets {
               if (blacklistFilteringHelper(configBasedDataset, this.blacklist)){
                 this.datasets.add(configBasedDataset);
               }
-
+              else{
+                log.info("Dataset" + configBasedDataset.datasetURN() + " has been filtered out because of blacklist pattern:"
+                    + this.blacklist.get().toString());
+              }
             }
           }
         }// inner for loops ends
@@ -172,12 +174,19 @@ public class ConfigBasedMultiDatasets {
           if (blacklistFilteringHelper(configBasedDataset, this.blacklist)){
             this.datasets.add(configBasedDataset);
           }
+          else{
+            log.info("Dataset" + configBasedDataset.datasetURN() + " has been filtered out because of blacklist pattern:"
+                + this.blacklist.get().toString());
+          }
         }
       }
     }
   }
 
   @VisibleForTesting
+  /**
+   * Return false if the target configBasedDataset should be kept in the blacklist.
+   */
   public boolean blacklistFilteringHelper(ConfigBasedDataset configBasedDataset, Optional<List<Pattern>> patternList){
     String datasetURN = configBasedDataset.datasetURN();
     if (patternList.isPresent()) {

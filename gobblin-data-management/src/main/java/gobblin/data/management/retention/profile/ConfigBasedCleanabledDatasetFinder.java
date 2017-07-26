@@ -54,7 +54,7 @@ public class ConfigBasedCleanabledDatasetFinder extends ConfigBasedDatasetsFinde
   }
 
   protected Callable<Void> findDatasetsCallable(final ConfigClient confClient,
-      final URI u, final Properties p, Optional<List<String>> blacklistURNs, Optional<List<String>> whitelistURNs, final Collection<Dataset> datasets) {
+      final URI u, final Properties p, Optional<List<String>> blacklistURNs, final Collection<Dataset> datasets) {
     return new Callable<Void>() {
       @Override
       public Void call() throws Exception {
