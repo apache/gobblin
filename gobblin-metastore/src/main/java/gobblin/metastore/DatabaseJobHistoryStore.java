@@ -108,7 +108,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     List<URL> filteredUrls = Lists.newArrayList(Iterables.filter(configurationBuilder.getUrls(), new Predicate<URL>() {
       @Override
       public boolean apply(@Nullable URL input) {
-        return !input.getProtocol().equals("file") || new File(input.getFile()).exists();
+        return input != null && (!input.getProtocol().equals("file") || new File(input.getFile()).exists());
       }
     }));
     configurationBuilder.setUrls(filteredUrls);
