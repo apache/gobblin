@@ -214,11 +214,11 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
       log.info("Running ls command with input " + path);
       results = this.fsHelper.ls(path);
       for (int i = 0; i < results.size(); i++) {
-        File parsedFile = new File(new URI(results.get(i)));
+        URI uri = new URI(results.get(i));
+        File file = uri.isAbsolute()?
+            new File(uri) : new File(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY), uri.toString());
 
-        String filePath = (parsedFile.isAbsolute()
-            ? parsedFile
-            : new File(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY), parsedFile.toString())).getAbsolutePath();
+        String filePath = file.getAbsolutePath();
         results.set(i, filePath + this.splitPattern + this.fsHelper.getFileMTime(filePath));
       }
     } catch (FileBasedHelperException | URISyntaxException e) {
