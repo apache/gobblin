@@ -17,7 +17,9 @@
 
 package gobblin.metastore;
 
+import javax.annotation.Nullable;
 import javax.sql.DataSource;
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
@@ -27,10 +29,14 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.api.MigrationInfoService;
 import org.flywaydb.core.api.MigrationVersion;
+import org.reflections.Configuration;
 import org.reflections.Reflections;
 import org.reflections.util.ClasspathHelper;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 
@@ -40,6 +46,7 @@ import gobblin.rest.JobExecutionInfo;
 import gobblin.rest.JobExecutionQuery;
 
 import org.reflections.util.ClasspathHelper;
+import org.reflections.util.ConfigurationBuilder;
 
 
 /**
@@ -52,6 +59,9 @@ import org.reflections.util.ClasspathHelper;
  * @author Yinan Li
  */
 public class DatabaseJobHistoryStore implements JobHistoryStore {
+  // Scan all packages in the classpath with prefix gobblin.metastore.database when
+  // class is loaded. Since scan is expensive we do it only once when class is loaded.
+  private static final Reflections reflections = new Reflections(getConfigurationBuilder());
   private final VersionedDatabaseJobHistoryStore versionedStore;
 
   @Inject
@@ -92,16 +102,26 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     return ClasspathHelper.forManifest(ClasspathHelper.forClassLoader(classLoaders));
   }
 
+  private static Configuration getConfigurationBuilder() {
+    ConfigurationBuilder configurationBuilder=  ConfigurationBuilder.build("gobblin.metastore.database",
+        effectiveClassPathUrls(DatabaseJobHistoryStore.class.getClassLoader()));
+    List<URL> filteredUrls = Lists.newArrayList(Iterables.filter(configurationBuilder.getUrls(), new Predicate<URL>() {
+      @Override
+      public boolean apply(@Nullable URL input) {
+        return input != null && (!input.getProtocol().equals("file") || new File(input.getFile()).exists());
+      }
+    }));
+    configurationBuilder.setUrls(filteredUrls);
+    return configurationBuilder;
+  }
+
   private static VersionedDatabaseJobHistoryStore findVersionedDatabaseJobHistoryStore(MigrationVersion requiredVersion)
       throws IllegalAccessException, InstantiationException, ClassNotFoundException {
     Class<?> foundClazz = null;
     Class<?> defaultClazz = null;
     MigrationVersion defaultVersion = MigrationVersion.EMPTY;
-    // Scan all packages
-    Reflections reflections = new Reflections("gobblin.metastore.database",
-        effectiveClassPathUrls(DatabaseJobHistoryStore.class.getClassLoader()));
     for (Class<?> clazz : Sets.intersection(reflections.getTypesAnnotatedWith(SupportedDatabaseVersion.class),
-        reflections.getSubTypesOf(VersionedDatabaseJobHistoryStore.class))) {
+            reflections.getSubTypesOf(VersionedDatabaseJobHistoryStore.class))) {
       SupportedDatabaseVersion annotation = clazz.getAnnotation(SupportedDatabaseVersion.class);
       String version = annotation.version();
       MigrationVersion actualVersion = MigrationVersion.fromVersion(Strings.isNullOrEmpty(version) ? null : version);
