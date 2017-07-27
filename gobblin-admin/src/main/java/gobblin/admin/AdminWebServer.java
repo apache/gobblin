@@ -45,6 +45,8 @@ public class AdminWebServer extends AbstractIdleService {
 
   private final URI restServerUri;
   private final URI serverUri;
+  private final String hideJobsWithoutTasksByDefault;
+  private final long refreshInterval;
   protected Server server;
 
   public AdminWebServer(Properties properties, URI restServerUri) {
@@ -54,6 +56,10 @@ public class AdminWebServer extends AbstractIdleService {
     this.restServerUri = restServerUri;
     int port = getPort(properties);
     this.serverUri = URI.create(String.format("http://%s:%d", getHost(properties), port));
+    this.hideJobsWithoutTasksByDefault = properties.getProperty(
+            ConfigurationKeys.ADMIN_SERVER_HIDE_JOBS_WITHOUT_TASKS_BY_DEFAULT_KEY,
+            ConfigurationKeys.DEFAULT_ADMIN_SERVER_HIDE_JOBS_WITHOUT_TASKS_BY_DEFAULT);
+    this.refreshInterval = getRefreshInterval(properties);
   }
 
   @Override
@@ -72,7 +78,7 @@ public class AdminWebServer extends AbstractIdleService {
   }
 
   private Handler buildSettingsHandler() {
-    final String responseTemplate = "var Gobblin = window.Gobblin || {};" + "Gobblin.settings = {restServerUrl:\"%s\"}";
+    final String responseTemplate = "var Gobblin = window.Gobblin || {};" + "Gobblin.settings = {restServerUrl:\"%s\", hideJobsWithoutTasksByDefault:%s, refreshInterval:%s}";
 
     return new AbstractHandler() {
       @Override
@@ -81,7 +87,8 @@ public class AdminWebServer extends AbstractIdleService {
         if (request.getRequestURI().equals("/js/settings.js")) {
           response.setContentType("application/javascript");
           response.setStatus(HttpServletResponse.SC_OK);
-          response.getWriter().println(String.format(responseTemplate, AdminWebServer.this.restServerUri.toString()));
+          response.getWriter().println(String.format(responseTemplate, AdminWebServer.this.restServerUri.toString(),
+              AdminWebServer.this.hideJobsWithoutTasksByDefault, AdminWebServer.this.refreshInterval));
           baseRequest.setHandled(true);
         }
       }
@@ -113,5 +120,11 @@ public class AdminWebServer extends AbstractIdleService {
 
   private static String getHost(Properties properties) {
     return properties.getProperty(ConfigurationKeys.ADMIN_SERVER_HOST_KEY, ConfigurationKeys.DEFAULT_ADMIN_SERVER_HOST);
+  }
+
+  private static long getRefreshInterval(Properties properties) {
+    return Long.parseLong(
+        properties.getProperty(ConfigurationKeys.ADMIN_SERVER_REFRESH_INTERVAL_KEY,
+                "" + ConfigurationKeys.DEFAULT_ADMIN_SERVER_REFRESH_INTERVAL));
   }
 }

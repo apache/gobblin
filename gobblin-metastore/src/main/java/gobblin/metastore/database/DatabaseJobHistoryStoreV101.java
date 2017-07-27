@@ -120,14 +120,14 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
   private static final String LIST_DISTINCT_JOB_EXECUTION_QUERY_TEMPLATE =
       "SELECT j.job_id FROM gobblin_job_executions j, "
           + "(SELECT MAX(last_modified_ts) AS most_recent_ts, job_name "
-          + "FROM gobblin_job_executions GROUP BY job_name) max_results "
+          + "FROM gobblin_job_executions%s GROUP BY job_name) max_results "
           + "WHERE j.job_name = max_results.job_name AND j.last_modified_ts = max_results.most_recent_ts";
   private static final String LIST_RECENT_JOB_EXECUTION_QUERY_TEMPLATE =
-      "SELECT job_id FROM gobblin_job_executions";
+      "SELECT job_id FROM gobblin_job_executions%s";
 
   private static final String JOB_NAME_QUERY_BY_TABLE_STATEMENT_TEMPLATE =
       "SELECT j.job_name FROM gobblin_job_executions j, gobblin_task_executions t "
-          + "WHERE j.job_id=t.job_id AND %s GROUP BY j.job_name";
+          + "WHERE j.job_id=t.job_id AND %s%s GROUP BY j.job_name";
 
   private static final String JOB_ID_QUERY_BY_JOB_NAME_STATEMENT_TEMPLATE =
       "SELECT job_id FROM gobblin_job_executions WHERE job_name=?";
@@ -149,6 +149,8 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
 
   private static final String TASK_PROPERTY_QUERY_STATEMENT_TEMPLATE =
     "SELECT job_id,p.task_id,property_key,property_value FROM gobblin_task_properties p JOIN gobblin_task_executions t ON t.task_id = p.task_id WHERE job_id IN (%s)";
+
+  private static final String FILTER_JOBS_WITH_TASKS = "(`state` != 'COMMITTED' OR launched_tasks > 0)";
 
   private DataSource dataSource;
 
@@ -706,6 +708,10 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
       }
     }
 
+    if (!query.isIncludeJobsWithoutTasks()) {
+      jobIdByNameQuery += " AND " + FILTER_JOBS_WITH_TASKS;
+    }
+
     // Add ORDER BY
     jobIdByNameQuery += " ORDER BY created_ts DESC";
 
@@ -735,8 +741,14 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
 
     Filter tableFilter = constructTableFilter(query.getId().getTable());
 
+    String jobsWithoutTaskFilter = "";
+    if (!query.isIncludeJobsWithoutTasks()) {
+      jobsWithoutTaskFilter = " AND " + FILTER_JOBS_WITH_TASKS;
+    }
+
     // Construct the query for job names by table definition
-    String jobNameByTableQuery = String.format(JOB_NAME_QUERY_BY_TABLE_STATEMENT_TEMPLATE, tableFilter.getFilter());
+    String jobNameByTableQuery = String.format(JOB_NAME_QUERY_BY_TABLE_STATEMENT_TEMPLATE, tableFilter.getFilter(),
+        jobsWithoutTaskFilter);
 
     List<JobExecutionInfo> jobExecutionInfos = Lists.newArrayList();
     // Query job names by table definition
@@ -777,6 +789,12 @@ public class DatabaseJobHistoryStoreV101 implements VersionedDatabaseJobHistoryS
     } else {
       listJobExecutionsQuery = LIST_RECENT_JOB_EXECUTION_QUERY_TEMPLATE;
     }
+
+    String jobsWithoutTaskFilter = "";
+    if (!query.isIncludeJobsWithoutTasks()) {
+      jobsWithoutTaskFilter = " WHERE " + FILTER_JOBS_WITH_TASKS;
+    }
+    listJobExecutionsQuery = String.format(listJobExecutionsQuery, jobsWithoutTaskFilter);
     listJobExecutionsQuery += " ORDER BY last_modified_ts DESC";
 
     try (PreparedStatement queryStatement = connection.prepareStatement(listJobExecutionsQuery)) {

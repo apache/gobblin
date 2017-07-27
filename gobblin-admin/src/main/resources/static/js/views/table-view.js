@@ -22,15 +22,19 @@ var app = app || {}
   app.TableView = Backbone.View.extend({
     tableControlTemplate: _.template($('#table-control-template').html()),
     tableTemplate: _.template($('#table-template').html()),
+    tableBodyTemplate: _.template($('#table-body-template').html()),
 
     initialize: function (options) {
-      this.setElement(options.el)
-      this.collection = options.collection
-      this.columnSchema = options.columnSchema
-      this.includeJobToggle = options.includeJobToggle || false
-      this.resultsLimit = options.resultsLimit || 100
-
-      this.render()
+      var self = this
+      self.setElement(options.el)
+      self.collectionResolver = options.collectionResolver || function(c) { return c }
+      self.collection = options.collection
+      self.columnSchema = options.columnSchema
+      self.includeJobToggle = options.includeJobToggle || false
+      self.includeJobsWithTasksToggle = options.includeJobsWithTasksToggle || false
+      self.hideJobsWithoutTasksByDefault = options.hideJobsWithoutTasksByDefault || Gobblin.settings.hideJobsWithoutTasksByDefault || false
+      self.resultsLimit = options.resultsLimit || 100
+      self.listenTo(self.collection, 'reset', self.refreshData);
     },
 
     render: function () {
@@ -38,40 +42,82 @@ var app = app || {}
 
       self.$el.find('#table-control-container').html(self.tableControlTemplate({
         includeJobToggle: self.includeJobToggle,
+        includeJobsWithTasksToggle: self.includeJobsWithTasksToggle,
+        hideJobsWithoutTasksByDefault: self.hideJobsWithoutTasksByDefault,
         resultsLimit: self.resultsLimit
       }))
-    },
 
-    renderData: function () {
-      // Data should be fetched by parent view before calling this function
-      var self = this
       var columnHeaders = Gobblin.columnSchemas[self.columnSchema]
 
       self.$el.find('#table-container').html(self.tableTemplate({
         includeJobToggle: self.includeJobToggle,
-        columnHeaders: columnHeaders,
-        data: self.collection.map(function (execution) {
-          var row = []
+        includeJobsWithTasksToggle: self.includeJobsWithTasksToggle,
+        hideJobsWithoutTasksByDefault: self.hideJobsWithoutTasksByDefault,
+        columnHeaders: columnHeaders
+      }))
 
+      self.$el.find('#table-container table tbody').html(self.tableBodyTemplate({
+        data: []
+      }))
+
+      var sortList = []
+      for (var i in columnHeaders) {
+        if ('sortInitialOrder' in columnHeaders[i]) {
+          if (columnHeaders[i].sortInitialOrder === 'asc') {
+            sortList.push([parseInt(i), 0])
+          } else if (columnHeaders[i].sortInitialOrder === 'desc') {
+            sortList.push([parseInt(i), 1])
+          }
+        }
+      }
+      if (sortList.length == 0) {
+        sortList.push([0,0])
+      }
+
+      // TODO attach elsewhere?
+      self.$el.find('#jobs-table').tablesorter({
+        theme: 'bootstrap',
+        headerTemplate: '{content} {icon}',
+        widthFixed: true,
+        widgets: [ 'uitheme', 'filter' ],
+        sortList: sortList
+      })
+      .tablesorterPager({
+        container: self.$el.find('#jobs-table-pager'),
+        output: '{startRow} - {endRow} / {filteredRows} ({totalRows})',
+        fixedHeight: false,
+        removeRows: true
+      });
+      self.initialized = true
+    },
+
+    refreshData: function() {
+      var self = this
+      if (self.initialized) {
+        self.tableCollection = self.collectionResolver(self.collection)
+        var columnHeaders = Gobblin.columnSchemas[self.columnSchema]
+        var table = self.$el.find('#table-container table')
+        var page = table[0].config.pager.page + 1
+        var data = self.tableCollection.map(function (execution) {
+          var row = []
           for (var i in columnHeaders) {
             row.push(execution[columnHeaders[i].fn]())
           }
           return row
         })
-      }))
-
-      // TODO attach elsewhere?
-      $('table').tablesorter({
-        theme: 'bootstrap',
-        headerTemplate: '{content} {icon}',
-        widgets: [ 'uitheme' ]
-      })
+        var tableBody = table.find('tbody')
+        tableBody.empty()
+        tableBody.html(self.tableBodyTemplate({ data: data }))
+        table.trigger('update', [true])
+        table.trigger('pagerUpdate', page)
+      }
     },
 
     getLimit: function () {
-      var limitElem = this.$el.find('#results-limit')
-      if (limitElem.val().length === 0) {
-        return limitElem.attr('placeholder')
+      var self = this
+      var limitElem = self.$el.find('#results-limit')
+      if (limitElem.val() === undefined || limitElem.val().length === 0) {
+        return self.resultsLimit
       }
       return limitElem.val()
     }
