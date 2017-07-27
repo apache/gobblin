@@ -28,13 +28,13 @@ var app = app || {}
     },
 
     index: function () {
-      new app.OverView()
+      Gobblin.ViewManager.showView(new app.OverView())
     },
     job: function (name) {
-      new app.JobView(name)
+      Gobblin.ViewManager.showView(new app.JobView(name))
     },
     jobDetails: function (id) {
-      new app.JobExecutionView(id)
+      Gobblin.ViewManager.showView(new app.JobExecutionView(id))
     }
   })
 
