@@ -592,7 +592,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       this.taskExecutor = new TaskExecutor(context.getConfiguration());
+
       this.taskStateTracker = new MRTaskStateTracker(context);
+
       this.serviceManager = new ServiceManager(Lists.newArrayList(this.taskExecutor, this.taskStateTracker));
       try {
         this.serviceManager.startAsync().awaitHealthy(5, TimeUnit.SECONDS);

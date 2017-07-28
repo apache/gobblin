@@ -17,9 +17,13 @@
 
 package gobblin.runtime;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.io.Closer;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
+import gobblin.publisher.HiveRegistrationPublisher;
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -66,6 +70,8 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
   private final Path outputTaskStateDir;
 
+  private final Optional<Closeable> taskCollectorHanlder;
+
   public TaskStateCollectorService(Properties jobProps, JobState jobState, EventBus eventBus,
       StateStore<TaskState> taskStateStore, Path outputTaskStateDir) {
     this.jobState = jobState;
@@ -79,6 +85,9 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     this.outputTaskStatesCollectorIntervalSeconds =
         Integer.parseInt(jobProps.getProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_INTERVAL_SECONDS,
             Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_COLLECTOR_INTERVAL_SECONDS)));
+
+    this.taskCollectorHanlder = Optional.fromNullable(TaskStateCollectorHandlerFactory
+        .newCloseableHanlder(this.jobState));
   }
 
   @Override
@@ -158,6 +167,18 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     for (TaskState taskState : taskStateQueue) {
       taskState.setJobState(this.jobState);
       this.jobState.addTaskState(taskState);
+    }
+
+    // Finish any addtional steps defined in handler globally.
+    // Currently implemented handler for Hive registration only.
+    if (taskCollectorHanlder.isPresent() &&
+        this.jobState.getPropAsBoolean(ConfigurationKeys.PIPELINED_HIVE_REGISTRATION_ENABLE)){
+      LOGGER.info("Enabled Pipelined HiveRegistrationPublisher for %s tasks", taskStateQueue.size());
+      try(Closer closer = Closer.create()){
+        HiveRegistrationPublisher hiveRegistrationPublisher =
+            (HiveRegistrationPublisher) (closer.register(this.taskCollectorHanlder.get()));
+        hiveRegistrationPublisher.publishData(taskStateQueue);
+      }
     }
 
     // Notify the listeners for the completion of the tasks

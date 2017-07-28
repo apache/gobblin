@@ -75,6 +75,9 @@ public class HiveRegistrationPublisher extends DataPublisher {
   private final ExecutorService hivePolicyExecutor;
   private final MetricContext metricContext;
 
+  /**
+   * @param state This is a Job State
+   */
   public HiveRegistrationPublisher(State state) {
     super(state);
     this.hiveRegister = this.closer.register(HiveRegister.get(state));
@@ -96,6 +99,9 @@ public class HiveRegistrationPublisher extends DataPublisher {
   @Override
   public void initialize() throws IOException {}
 
+  /**
+   * @param states This is a collection of TaskState.
+   */
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
     CompletionService<Collection<HiveSpec>> completionService =
