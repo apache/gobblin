@@ -641,6 +641,10 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_GRAPHITE_EVENTS_VALUE_AS_KEY = Boolean.toString(false);
   public static final String METRICS_REPORTING_GRAPHITE_SENDING_TYPE =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.graphite.sending.type";
+  public static final String METRICS_REPORTING_GRAPHITE_PREFIX = METRICS_CONFIGURATIONS_PREFIX
+          + "reporting.graphite.prefix";
+  public static final String DEFAULT_METRICS_REPORTING_GRAPHITE_PREFIX = "";
+
   public static final String DEFAULT_METRICS_REPORTING_GRAPHITE_SENDING_TYPE = "TCP";
 
   //InfluxDB-based reporting

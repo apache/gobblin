@@ -23,7 +23,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
@@ -39,17 +38,13 @@ import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
-
-import javax.annotation.Nullable;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -559,6 +554,8 @@ public class GobblinMetrics {
     GraphiteConnectionType connectionType;
     String type = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_SENDING_TYPE,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_SENDING_TYPE).toUpperCase();
+    String prefix = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_PREFIX,
+        ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_PREFIX);
     try {
       connectionType = GraphiteConnectionType.valueOf(type);
     } catch (IllegalArgumentException exception) {
@@ -572,6 +569,7 @@ public class GobblinMetrics {
         GraphiteReporter.Factory.newBuilder().withConnectionType(connectionType)
             .withConnection(hostname, port).withMetricContextName(
             this.metricContext.getName()) //contains the current job id
+            .withMetricsPrefix(prefix)
             .build(properties);
       } catch (IOException e) {
         LOGGER.error("Failed to create Graphite metrics reporter. Will not report metrics to Graphite.", e);
@@ -590,6 +588,7 @@ public class GobblinMetrics {
             GraphiteEventReporter.Factory.forContext(RootMetricContext.get())
               .withConnectionType(connectionType)
               .withConnection(hostname, eventsPort)
+              .withPrefix(prefix)
               .withEmitValueAsKey(emitValueAsKey)
               .build();
         this.codahaleScheduledReporters.add(this.codahaleReportersCloser.register(eventReporter));
