@@ -17,9 +17,7 @@
 
 package gobblin.runtime;
 
-import com.google.common.base.Predicate;
-import gobblin.metastore.FsStateStore;
-import gobblin.metastore.StateStore;
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -35,9 +33,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Queues;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractScheduledService;
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ParallelRunner;
+import gobblin.metastore.FsStateStore;
+import gobblin.metastore.StateStore;
+import gobblin.publisher.HiveRegistrationPublisher;
 
 
 /**
@@ -66,6 +70,8 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
   private final Path outputTaskStateDir;
 
+  private final Optional<Closeable> taskCollectorHandler;
+
   public TaskStateCollectorService(Properties jobProps, JobState jobState, EventBus eventBus,
       StateStore<TaskState> taskStateStore, Path outputTaskStateDir) {
     this.jobState = jobState;
@@ -79,6 +85,9 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     this.outputTaskStatesCollectorIntervalSeconds =
         Integer.parseInt(jobProps.getProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_INTERVAL_SECONDS,
             Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_COLLECTOR_INTERVAL_SECONDS)));
+
+    this.taskCollectorHandler = Optional.fromNullable(TaskStateCollectorHandlerFactory
+        .newCloseableHanlder(this.jobState));
   }
 
   @Override
@@ -158,6 +167,18 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     for (TaskState taskState : taskStateQueue) {
       taskState.setJobState(this.jobState);
       this.jobState.addTaskState(taskState);
+    }
+
+    // Finish any addtional steps defined in handler globally.
+    // Currently implemented handler for Hive registration only.
+    if (taskCollectorHandler.isPresent() &&
+        this.jobState.getPropAsBoolean(ConfigurationKeys.PIPELINED_HIVE_REGISTRATION_ENABLED)){
+      LOGGER.info("Enabled Pipelined HiveRegistrationPublisher for %s tasks", taskStateQueue.size());
+
+      try(HiveRegistrationPublisher hiveRegistrationPublisher
+          = (HiveRegistrationPublisher)this.taskCollectorHandler.get()){
+        hiveRegistrationPublisher.publishData(taskStateQueue);
+      }
     }
 
     // Notify the listeners for the completion of the tasks
