@@ -20,6 +20,7 @@ package gobblin.runtime.app;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -34,14 +35,15 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.annotation.Alpha;
-import gobblin.admin.AdminWebServer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.rest.JobExecutionInfoServer;
+import gobblin.runtime.api.AdminWebServerFactory;
 import gobblin.runtime.services.JMXReportingService;
 import gobblin.runtime.services.MetricsReportingService;
 import gobblin.util.ApplicationLauncherUtils;
+import gobblin.util.ClassAliasResolver;
 
 
 /**
@@ -52,7 +54,7 @@ import gobblin.util.ApplicationLauncherUtils;
  * <ul>
  *   <li>{@link MetricsReportingService} is optional and controlled by {@link ConfigurationKeys#METRICS_ENABLED_KEY}</li>
  *   <li>{@link JobExecutionInfoServer} is optional and controlled by {@link ConfigurationKeys#JOB_EXECINFO_SERVER_ENABLED_KEY}</li>
- *   <li>{@link AdminWebServer} is optional and controlled by {@link ConfigurationKeys#ADMIN_SERVER_ENABLED_KEY}</li>
+ *   <li>AdminWebServer is optional and controlled by {@link ConfigurationKeys#ADMIN_SERVER_ENABLED_KEY}</li>
  *   <li>{@link JMXReportingService} is mandatory</li>
  * </ul>
  *
@@ -224,10 +226,27 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
 
       if (adminUiServerEnabled) {
         LOG.info("Will launch the admin UI server");
-        addService(new AdminWebServer(properties, executionInfoServer.getAdvertisedServerUri()));
+        addService(createAdminServer(properties, executionInfoServer.getAdvertisedServerUri()));
       }
     } else if (adminUiServerEnabled) {
       LOG.warn("Not launching the admin UI because the job execution info server is not enabled");
+    }
+  }
+
+  public static Service createAdminServer(Properties properties,
+                                          URI executionInfoServerURI) {
+    String factoryClassName = properties.getProperty(ConfigurationKeys.ADMIN_SERVER_FACTORY_CLASS_KEY,
+                                                 ConfigurationKeys.DEFAULT_ADMIN_SERVER_FACTORY_CLASS);
+    ClassAliasResolver<AdminWebServerFactory> classResolver =
+        new ClassAliasResolver<>(AdminWebServerFactory.class);
+    try
+    {
+      AdminWebServerFactory factoryInstance = classResolver.resolveClass(factoryClassName).newInstance();
+      return factoryInstance.createInstance(properties, executionInfoServerURI);
+    }
+    catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+      throw new RuntimeException("Unable to instantiate the AdminWebServer factory. " +
+           "Have you included the module in the gobblin distribution? :" + e, e);
     }
   }
 

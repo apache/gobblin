@@ -61,7 +61,6 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
-
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -84,17 +83,16 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.admin.AdminWebServer;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinClusterUtils;
 import gobblin.cluster.GobblinHelixConstants;
 import gobblin.cluster.HelixUtils;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.rest.JobExecutionInfoServer;
+import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.util.ConfigUtils;
 import gobblin.util.EmailUtils;
 import gobblin.util.ExecutorsUtils;
@@ -290,7 +288,8 @@ public class GobblinYarnAppLauncher {
       services.add(executionInfoServer);
       if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
         LOGGER.info("Starting the admin UI server since it is enabled");
-        services.add(new AdminWebServer(properties, executionInfoServer.getAdvertisedServerUri()));
+        services.add(ServiceBasedAppLauncher.createAdminServer(properties,
+                                                               executionInfoServer.getAdvertisedServerUri()));
       }
     } else if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
       LOGGER.warn("NOT starting the admin UI because the job execution info server is NOT enabled");
@@ -379,7 +378,7 @@ public class GobblinYarnAppLauncher {
 
   @Subscribe
   public void handleGetApplicationReportFailureEvent(
-      @SuppressWarnings("unused") GetApplicationReportFailureEvent getApplicationReportFailureEvent) {
+      GetApplicationReportFailureEvent getApplicationReportFailureEvent) {
     int numConsecutiveFailures = this.getApplicationReportFailureCount.incrementAndGet();
     if (numConsecutiveFailures > this.maxGetApplicationReportFailures) {
       LOGGER.warn(String
