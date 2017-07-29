@@ -676,10 +676,13 @@ public class ConfigurationKeys {
   public static final String DEFAULT_REST_SERVER_PORT = "8080";
   public static final String REST_SERVER_ADVERTISED_URI_KEY = "rest.server.advertised.uri";
 
-  /**
+  /*
    * Admin server configuration properties.
    */
   public static final String ADMIN_SERVER_ENABLED_KEY = "admin.server.enabled";
+  /** The name of the class with the admin interface. The class must implement the
+   * AdminWebServerFactory interface .*/
+  public static final String ADMIN_SERVER_FACTORY_CLASS_KEY = "admin.server.factory.type";
   public static final String ADMIN_SERVER_HOST_KEY = "admin.server.host";
   public static final String DEFAULT_ADMIN_SERVER_HOST = "localhost";
   public static final String ADMIN_SERVER_PORT_KEY = "admin.server.port";
@@ -688,6 +691,8 @@ public class ConfigurationKeys {
   public static final String DEFAULT_ADMIN_SERVER_HIDE_JOBS_WITHOUT_TASKS_BY_DEFAULT = "false";
   public static final String ADMIN_SERVER_REFRESH_INTERVAL_KEY = "admin.server.refresh_interval";
   public static final long DEFAULT_ADMIN_SERVER_REFRESH_INTERVAL = 30000;
+
+  public static final String DEFAULT_ADMIN_SERVER_FACTORY_CLASS = "gobblin.admin.DefaultAdminWebServerFactory";
 
   /**
    * Kafka job configurations.

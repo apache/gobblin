@@ -14,30 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.admin;
 
-dependencies {
-  // Example jobs
-  // compile project(':gobblin-example')
+import java.net.URI;
+import java.util.Properties;
 
-  // Admin Web Server
-  // compile project(':gobblin-admin')
+import com.google.common.util.concurrent.Service;
 
-  // Gobblin Azkaban integration
-  // compile project(':gobblin-modules:gobblin-azkaban')
+import gobblin.annotation.Alias;
+import gobblin.runtime.api.AdminWebServerFactory;
 
-  // Source/converters for compliance-related processing
-  // compile project(':gobblin-modules:gobblin-compliance')
+/**
+ * A factory for the default implementation of the admin web server
+ */
+@Alias(value="default")
+public class DefaultAdminWebServerFactory implements AdminWebServerFactory {
 
-  // Couchbase writer
-  // compile project(':gobblin-modules:gobblin-couchbase')
+  /** {@inheritDoc} */
+  @Override
+  public Service createInstance(Properties config, URI executionInfoServerURI) {
+    return new AdminWebServer(config, executionInfoServerURI);
+  }
 
-  // Google ingestion integration: Drive, Analytics, Webmaster
-  // compile project(':gobblin-modules:google-ingestion')
-
-  // Kafka integration (source, writer, metrics) -- choose one
-  // compile project(':gobblin-modules:gobblin-kafka-08')
-  // compile project(':gobblin-modules:gobblin-kafka-09')
-
-  // Gobblin Helix modules
-  // compile project(':gobblin-modules:gobblin-helix')
 }
