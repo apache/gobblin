@@ -511,7 +511,7 @@ public class HiveAvroORCQueryGenerator {
       if (hiveColumns.isPresent()) {
         hiveColumns.get().put(name, type);
       }
-      columns.append(String.format("  `%s` %s COMMENT '%s'", name, type, comment));
+      columns.append(String.format("  `%s` %s COMMENT '%s'", name, type, escapeStringForHive(comment)));
     }
 
     return columns.toString();
@@ -848,7 +848,7 @@ public class HiveAvroORCQueryGenerator {
             ddl.add(String.format("USE %s%n", finalDbName));
             ddl.add(String.format("ALTER TABLE `%s` CHANGE COLUMN %s %s %s COMMENT '%s'",
                 finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
-                destinationField.getComment()));
+                escapeStringForHive(destinationField.getComment())));
           }
           found = true;
           break;
@@ -1101,4 +1101,16 @@ public class HiveAvroORCQueryGenerator {
       return String.format("'%s'", value);
     }
   };
+
+  private static String escapeStringForHive(String st) {
+    char backslash = '\\';
+    char singleQuote = '\'';
+    char semicolon = ';';
+    String escapedSingleQuote = String.valueOf(backslash) + String.valueOf(singleQuote);
+    String escapedSemicolon = String.valueOf(backslash) + String.valueOf(semicolon);
+
+    st = st.replace(String.valueOf(singleQuote), escapedSingleQuote)
+        .replace(String.valueOf(semicolon), escapedSemicolon);
+    return st;
+  }
 }
