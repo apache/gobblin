@@ -17,6 +17,7 @@
 
 package gobblin.data.management.copy.hive;
 
+import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
@@ -259,6 +260,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
             }
 
             return createHiveDataset(table, datasetConfig);
+          } catch (IllegalArgumentException e) {
+            Throwables.propagate(e);
           } catch (Throwable t) {
             log.error(String.format("Failed to create HiveDataset for table %s.%s", dbAndTable.getDb(), dbAndTable.getTable()), t);
 
