@@ -20,6 +20,7 @@ package gobblin.writer;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
@@ -81,8 +82,19 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       @Override
       public DataWriter<D> load(final GenericRecord key)
           throws Exception {
+        /* wrap the data writer to allow the option to close the writer on flush */
         return PartitionedDataWriter.this.closer
-            .register(new InstrumentedPartitionedDataWriterDecorator<>(createPartitionWriter(key), state, key));
+            .register(new InstrumentedPartitionedDataWriterDecorator<>(
+                new CloseOnFlushWriterWrapper<D>(new Supplier<DataWriter<D>>() {
+                  @Override
+                  public DataWriter<D> get() {
+                    try {
+                      return createPartitionWriter(key);
+                    } catch (IOException e) {
+                      throw new RuntimeException("Error creating writer", e);
+                    }
+                  }
+                }, state), state, key));
       }
     });
 
@@ -106,9 +118,24 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       }
     } else {
       this.shouldPartition = false;
-      DataWriter<D> dataWriter = builder.build();
+      // Support configuration to close the DataWriter on flush to allow publishing intermediate results in a task
+      CloseOnFlushWriterWrapper closeOnFlushWriterWrapper =
+          new CloseOnFlushWriterWrapper<D>(new Supplier<DataWriter<D>>() {
+            @Override
+            public DataWriter<D> get() {
+              try {
+                return builder.withWriterId(PartitionedDataWriter.this.baseWriterId + "_"
+                    + PartitionedDataWriter.this.writerIdSuffix++).build();
+              } catch (IOException e) {
+                throw new RuntimeException("Error creating writer", e);
+              }
+            }
+          }, state);
+      DataWriter<D> dataWriter = (DataWriter)closeOnFlushWriterWrapper.getDecoratedObject();
+
       InstrumentedDataWriterDecorator<D> writer =
-          this.closer.register(new InstrumentedDataWriterDecorator<>(dataWriter, state));
+          this.closer.register(new InstrumentedDataWriterDecorator<>(closeOnFlushWriterWrapper, state));
+
       this.isSpeculativeAttemptSafe = this.isDataWriterForPartitionSafe(dataWriter);
       this.isWatermarkCapable = this.isDataWriterWatermarkCapable(dataWriter);
       this.partitionWriters.put(NON_PARTITIONED_WRITER_KEY, writer);
