@@ -17,12 +17,15 @@
 
 package gobblin.runtime;
 
-import com.google.common.base.Enums;
-import com.google.common.base.Optional;
-import gobblin.publisher.HiveRegistrationPublisher;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Properties;
+
+import com.google.common.base.Enums;
+import com.google.common.base.Optional;
+
+import gobblin.publisher.HiveRegistrationPublisher;
+
 import lombok.extern.slf4j.Slf4j;
 
 import static gobblin.configuration.ConfigurationKeys.*;
@@ -42,7 +45,8 @@ public class TaskStateCollectorHandlerFactory {
     Properties jobProps = jobState.getProperties();
 
     Optional<TaskStateCollectorHandlerType> handlerType = Enums.getIfPresent(TaskStateCollectorHandlerType.class,
-        jobProps.containsKey(TASK_STATE_COLLECTOR_HANDLER_TYPE)? jobProps.getProperty(TASK_STATE_COLLECTOR_HANDLER_TYPE):"DEFAULT");
+        jobProps.containsKey(TASK_STATE_COLLECTOR_HANDLER_CLASS)? jobProps.getProperty(
+            TASK_STATE_COLLECTOR_HANDLER_CLASS):"DEFAULT");
 
     if (handlerType.isPresent()) {
       switch ((handlerType.get())) {
@@ -52,7 +56,7 @@ public class TaskStateCollectorHandlerFactory {
           return new Closeable() {
             @Override
             public void close() throws IOException {
-              log.info("A dummy TaskStateCollectorHanlder, do nothing");
+              log.info("A dummy TaskStateCollectorHandler, do nothing");
             }
           };
         default:
