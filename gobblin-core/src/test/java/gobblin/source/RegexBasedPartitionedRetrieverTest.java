@@ -24,6 +24,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 
+import org.joda.time.DateTime;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -37,7 +38,8 @@ public class RegexBasedPartitionedRetrieverTest {
   private Path tempDir;
 
   private enum DateToUse {
-    APR_1_2017(1491004800000L), APR_3_2017(1491177600000L), MAY_1_2017(1493596800000L);
+    APR_1_2017(1491004800000L), APR_3_2017(1491177600000L), MAY_1_2017(1493596800000L),
+    TWENTY_THREE_HOURS_AGO(new DateTime().minusHours(23).getMillis());
 
     private final long value;
 
@@ -93,11 +95,31 @@ public class RegexBasedPartitionedRetrieverTest {
     r.init(state);
 
     List<PartitionAwareFileRetriever.FileInfo> files = r.getFilesToProcess(DateToUse.APR_3_2017.getValue() - 1, 9999);
+    Assert.assertEquals(files.size(), 3);
+
+    verifyFile(files.get(0), DateToUse.APR_3_2017.getValue());
+    verifyFile(files.get(1), DateToUse.MAY_1_2017.getValue());
+    verifyFile(files.get(2), DateToUse.TWENTY_THREE_HOURS_AGO.getValue());
+ }
+
+ @Test
+ public void testLeadtime() throws IOException {
+     String snapshotRegex = "(\\d+)-PT-\\d+";
+    RegexBasedPartitionedRetriever r = new RegexBasedPartitionedRetriever("txt");
+    SourceState state = new SourceState();
+    state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "file:///");
+    state.setProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY, tempDir.toString());
+    state.setProp(PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_PATTERN,
+        snapshotRegex);
+    state.setProp(PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_LEAD_TIME_GRANULARITY, "DAY");
+    state.setProp(PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_LEAD_TIME, "1");
+    r.init(state);
+
+    List<PartitionAwareFileRetriever.FileInfo> files = r.getFilesToProcess(DateToUse.APR_3_2017.getValue() - 1, 9999);
     Assert.assertEquals(files.size(), 2);
 
     verifyFile(files.get(0), DateToUse.APR_3_2017.getValue());
     verifyFile(files.get(1), DateToUse.MAY_1_2017.getValue());
-
  }
 
   private void verifyFile(PartitionAwareFileRetriever.FileInfo fileInfo, long value) {
