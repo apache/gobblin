@@ -23,14 +23,11 @@ import java.util.concurrent.Future;
 
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
-
 
 /**
  * Defines a SpecExecutorInstance (typically a standalone instance, cluster or Azkaban deployment)
  * that can execute a {@link Spec}.
  */
-@Alpha
 public interface SpecExecutorInstance {
   /** An URI identifying the SpecExecutorInstance. */
   URI getUri();
@@ -45,7 +42,7 @@ public interface SpecExecutorInstance {
   Future<String> getHealth();
 
   /** Source : Destination processing capabilities of SpecExecutorInstance. */
-  Future<? extends Map<String, String>> getCapabilities();
+  Future<? extends Map<ServiceNode, ServiceNode>> getCapabilities();
 
   public static enum Verb {
     ADD(1, "add"),
