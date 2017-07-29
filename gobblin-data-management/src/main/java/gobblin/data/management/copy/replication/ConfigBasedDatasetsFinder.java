@@ -108,9 +108,11 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   protected final ConfigClient configClient;
   protected final Properties props;
   private final int threadPoolSize;
-  private FileSystem fs;
 
-  public final Optional<List<String>> blacklistPatterns;
+  /**
+   * The blacklist Pattern, will be used in ConfigBasedDataset class which has the access to FileSystem.
+   */
+  private final Optional<List<String>> blacklistPatterns;
 
 
   public ConfigBasedDatasetsFinder(FileSystem fs, Properties jobProps) throws IOException {
@@ -123,7 +125,6 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
     Preconditions.checkArgument(jobProps.containsKey(GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT),
         "missing required config entery " + GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT);
 
-    this.fs = fs;
     this.storeRoot = jobProps.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI);
     this.commonRoot = PathUtils.mergePaths(new Path(this.storeRoot),
         new Path(jobProps.getProperty(GOBBLIN_CONFIG_STORE_DATASET_COMMON_ROOT)));
@@ -162,7 +163,7 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
    * Semantic of black/whitelist:
    * - Whitelist always respect blacklist.
    * - Job-level blacklist is reponsible for dataset filtering instead of dataset discovery. i.e.
-   *   There's no implementation of job-level whitelist currently. 
+   *   There's no implementation of job-level whitelist currently.
    */
   protected Set<URI> getValidDatasetURIs(Path datasetCommonRoot) {
     Collection<URI> allDatasetURIs;
