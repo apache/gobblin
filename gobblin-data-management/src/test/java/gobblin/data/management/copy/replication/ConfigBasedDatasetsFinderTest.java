@@ -17,15 +17,20 @@
 
 package gobblin.data.management.copy.replication;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 
+import java.util.regex.Pattern;
 import org.apache.hadoop.fs.Path;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -64,11 +69,40 @@ public class ConfigBasedDatasetsFinderTest {
     Set<URI> disabled = new HashSet<URI>();
     disabled.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily"));
 
-    Set<URI> validURIs = ConfigBasedDatasetsFinder.getValidDatasetURIs(allDatasetURIs, disabled, new Path("/data/derived"));
+    Set<URI> validURIs = ConfigBasedDatasetsFinder.getValidDatasetURIsHelper(allDatasetURIs, disabled, new Path("/data/derived"));
 
     Assert.assertTrue(validURIs.size() == 3);
     Assert.assertTrue(validURIs.contains(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily_dedup")));
     Assert.assertTrue(validURIs.contains(new URI("/data/derived/browsemaps/entities/comp")));
     Assert.assertTrue(validURIs.contains(new URI("/data/derived/browsemaps/entities/anet")));
+  }
+
+  @Test
+  public void blacklistPatternTest() {
+    Properties properties = new Properties();
+    properties.setProperty("gobblin.selected.policy", "random");
+    properties.setProperty("source","random");
+    properties.setProperty("replicas", "random");
+
+    ConfigBasedMultiDatasets configBasedMultiDatasets = new ConfigBasedMultiDatasets();
+
+    ReplicationConfiguration rc = Mockito.mock(ReplicationConfiguration.class);
+    CopyRoute cr = Mockito.mock(CopyRoute.class);
+    ConfigBasedDataset configBasedDataset = new ConfigBasedDataset(rc, new Properties(), cr, "/test/tmp/word");
+    ConfigBasedDataset configBasedDataset2 = new ConfigBasedDataset(rc, new Properties(), cr, "/test/a_temporary/word");
+    ConfigBasedDataset configBasedDataset3 = new ConfigBasedDataset(rc, new Properties(), cr, "/test/go/word");
+
+
+    Pattern pattern1 = Pattern.compile(".*_temporary.*");
+    Pattern pattern2 = Pattern.compile(".*tmp.*");
+    List<Pattern> patternList = new ArrayList<>();
+    patternList.add(pattern1);
+    patternList.add(pattern2);
+
+    Assert.assertFalse(configBasedMultiDatasets.blacklistFilteringHelper(configBasedDataset, Optional.of(patternList)));
+    Assert.assertFalse(configBasedMultiDatasets.blacklistFilteringHelper(configBasedDataset2, Optional.of(patternList)));
+    Assert.assertTrue(configBasedMultiDatasets.blacklistFilteringHelper(configBasedDataset3, Optional.of(patternList)));
+
+
   }
 }

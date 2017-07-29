@@ -76,9 +76,16 @@ public class ConfigBasedDataset implements CopyableDataset {
     this.props = props;
     this.copyRoute = copyRoute;
     this.rc = rc;
+    calculateDatasetURN();
     this.watermarkEnabled = Boolean.parseBoolean
         (this.props.getProperty(ConfigBasedDatasetsFinder.WATERMARK_ENABLE, "true"));
-    calculateDatasetURN();
+  }
+
+  public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute, String datasetURN) {
+    this.props = props;
+    this.copyRoute = copyRoute;
+    this.rc = rc;
+    this.datasetURN = datasetURN;
   }
 
   private void calculateDatasetURN(){
