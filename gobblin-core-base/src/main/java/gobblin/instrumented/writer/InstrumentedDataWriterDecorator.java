@@ -50,8 +50,9 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
     super(state, Optional.<Class<?>> of(DecoratorUtils.resolveUnderlyingObject(writer).getClass()));
     this.embeddedWriter = this.closer.register(writer);
     this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(writer);
-    if (this.embeddedWriter instanceof WatermarkAwareWriter) {
-      this.watermarkAwareWriter = Optional.of((WatermarkAwareWriter) this.embeddedWriter);
+    Object underlying = DecoratorUtils.resolveUnderlyingObject(embeddedWriter);
+    if (underlying instanceof WatermarkAwareWriter) {
+      this.watermarkAwareWriter = Optional.of((WatermarkAwareWriter) underlying);
     } else {
       this.watermarkAwareWriter = Optional.absent();
     }
