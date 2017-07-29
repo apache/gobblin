@@ -619,7 +619,7 @@ public class HiveCopyEntityHelper {
       if (shouldCopy) {
         builder.copyFile(sourcePath);
       } else {
-        // if not copying, we want to keep the file in the target
+        // If not copying, we want to keep the file in the target
         // at the end of this loop, all files in targetExistingPaths will be marked for deletion, so remove this file
         targetExistingPaths.remove(newPath);
         desiredTargetExistingPaths.remove(newPath);
