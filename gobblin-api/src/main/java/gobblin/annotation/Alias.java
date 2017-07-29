@@ -22,8 +22,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import gobblin.util.ClassAliasResolver;
+
+
 /**
  * Denotes that a class has an alias.
+ * Using {@link ClassAliasResolver#resolve(String)}, an alias can be resolved to cannonical name of the annotated class
  */
 @Documented @Retention(value=RetentionPolicy.RUNTIME) @Target(value=ElementType.TYPE)
 public @interface Alias {
