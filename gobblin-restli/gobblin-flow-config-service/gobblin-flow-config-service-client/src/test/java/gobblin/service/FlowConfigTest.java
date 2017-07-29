@@ -23,7 +23,6 @@ import java.net.ServerSocket;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
-import org.eclipse.jetty.http.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -39,6 +38,7 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.client.RestLiResponseException;
+import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 
@@ -119,7 +119,7 @@ public class FlowConfigTest {
     try {
       _client.createFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.UNPROCESSABLE_ENTITY_422);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_422_UNPROCESSABLE_ENTITY.getCode());
       return;
     }
 
@@ -139,7 +139,7 @@ public class FlowConfigTest {
     try {
       _client.createFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.UNPROCESSABLE_ENTITY_422);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_422_UNPROCESSABLE_ENTITY.getCode());
       return;
     }
 
@@ -171,7 +171,7 @@ public class FlowConfigTest {
     try {
       _client.createFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.CONFLICT_409);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_409_CONFLICT.getCode());
       return;
     }
 
@@ -233,7 +233,7 @@ public class FlowConfigTest {
     try {
       _client.getFlowConfig(flowId);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_404_NOT_FOUND.getCode());
       return;
     }
 
@@ -247,7 +247,7 @@ public class FlowConfigTest {
     try {
       _client.getFlowConfig(flowId);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_404_NOT_FOUND.getCode());
       return;
     }
 
@@ -261,7 +261,7 @@ public class FlowConfigTest {
     try {
       _client.getFlowConfig(flowId);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_404_NOT_FOUND.getCode());
       return;
     }
 
@@ -282,7 +282,7 @@ public class FlowConfigTest {
     try {
       _client.updateFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_404_NOT_FOUND.getCode());
       return;
     }
 
