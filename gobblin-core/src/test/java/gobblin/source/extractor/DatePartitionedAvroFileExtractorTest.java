@@ -98,13 +98,15 @@ public class DatePartitionedAvroFileExtractorTest {
     this.schema = new Schema.Parser().parse(AVRO_SCHEMA);
 
     //set up datetime objects
-    DateTime now = new DateTime(TZ).minusHours(2);
+    DateTime now = new DateTime(TZ).minusHours(6);
     this.startDateTime =
         new DateTime(now.getYear(), now.getMonthOfYear(), now.getDayOfMonth(), now.getHourOfDay(), 30, 0, TZ);
 
     //create records, shift their timestamp by 1 minute
     DateTime recordDt = startDateTime;
-    for (int i = 0; i < RECORD_SIZE; i++) {
+    recordTimestamps[0] = recordDt.getMillis();
+    recordDt = recordDt.plusHours(4);
+    for (int i = 1; i < RECORD_SIZE; i++) {
       recordDt = recordDt.plusMinutes(1);
       recordTimestamps[i] = recordDt.getMillis();
     }
@@ -170,6 +172,37 @@ public class DatePartitionedAvroFileExtractorTest {
   }
 
   @Test
+  public void testReadPartitionsByMinuteWithLeadtime() throws IOException, DataRecordException {
+
+    DatePartitionedAvroFileSource source = new DatePartitionedAvroFileSource();
+
+    SourceState state = new SourceState();
+    state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
+    state.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, SOURCE_ENTITY);
+    state.setProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY, OUTPUT_DIR + Path.SEPARATOR + SOURCE_ENTITY);
+    state.setProp(ConfigurationKeys.SOURCE_ENTITY, SOURCE_ENTITY);
+    state.setProp(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS, 2);
+
+    state.setProp("date.partitioned.source.partition.pattern", DATE_PATTERN);
+    state.setProp("date.partitioned.source.min.watermark.value", DateTimeFormat.forPattern(DATE_PATTERN).print(
+        this.startDateTime.minusMinutes(1)));
+    state.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, TableType.SNAPSHOT_ONLY);
+    state.setProp("date.partitioned.source.partition.prefix", PREFIX);
+    state.setProp("date.partitioned.source.partition.suffix", SUFFIX);
+    state.setProp("date.partitioned.source.partition.lead_time.size", "3");
+    state.setProp("date.partitioned.source.partition.lead_time.granularity", "HOUR");
+
+    /*
+     * Since lead time is 3 hours, only the first WorkUnit (which is 6 hours old, rest are 2hrs) should get
+     * picked up
+     */
+    List<WorkUnit> workunits = source.getWorkunits(state);
+
+    Assert.assertEquals(workunits.size(), 1);
+    verifyWorkUnits(workunits, workunits.size());
+  }
+
+  @Test
   public void testWorksNoPrefix() throws IOException, DataRecordException {
     DatePartitionedAvroFileSource source = new DatePartitionedAvroFileSource();
 
@@ -195,7 +228,11 @@ public class DatePartitionedAvroFileExtractorTest {
 
   private void verifyWorkUnits(List<WorkUnit> workunits)
       throws IOException, DataRecordException {
-    for (int i = 0; i < RECORD_SIZE; i++) {
+    verifyWorkUnits(workunits, RECORD_SIZE);
+  }
+
+  private void verifyWorkUnits(List<WorkUnit> workunits, int expectedSize) throws DataRecordException, IOException {
+    for (int i = 0; i < expectedSize; i++) {
       WorkUnit workUnit = ((MultiWorkUnit) workunits.get(i)).getWorkUnits().get(0);
       WorkUnitState wuState = new WorkUnitState(workunits.get(i), new State());
       wuState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);

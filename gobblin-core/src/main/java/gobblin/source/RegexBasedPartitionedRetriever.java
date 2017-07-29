@@ -27,6 +27,8 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +47,7 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
   private HadoopFsHelper helper;
   private Path sourceDir;
   private final String expectedExtension;
+  private Duration leadTime;
 
   public RegexBasedPartitionedRetriever(String expectedExtension) {
     this.expectedExtension = expectedExtension;
@@ -57,6 +60,7 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
       PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_PATTERN
     );
 
+    this.leadTime = PartitionAwareFileRetrieverUtils.getLeadTimeDurationFromConfig(state);
     this.pattern = Pattern.compile(regexPattern);
     this.helper = new HadoopFsHelper(state);
     this.sourceDir = new Path(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY));
@@ -87,12 +91,14 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
       throws IOException {
     // This implementation assumes snapshots are always in the root directory and the number of them
     // remains relatively small
+    long maxAllowedWatermark = new DateTime().minus(leadTime).getMillis();
+
     try {
       this.helper.connect();
       FileSystem fs = helper.getFileSystem();
       List<FileInfo> filesToProcess = new ArrayList<>();
 
-      List<FileInfo> outerDirectories = getOuterDirectories(fs, minWatermark);
+      List<FileInfo> outerDirectories = getOuterDirectories(fs, minWatermark, maxAllowedWatermark);
       for (FileInfo outerDirectory: outerDirectories) {
         FileStatus[] files = fs.listStatus(
             new Path(outerDirectory.getFilePath()),
@@ -117,7 +123,7 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
     }
   }
 
-  private List<FileInfo> getOuterDirectories(FileSystem fs, long minWatermark) throws IOException {
+  private List<FileInfo> getOuterDirectories(FileSystem fs, long minWatermark, long maxAllowedWatermark) throws IOException {
     LOGGER.debug("Listing contents of {}", sourceDir);
 
     FileStatus[] fileStatus = fs.listStatus(sourceDir);
@@ -133,7 +139,7 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
         long watermark = getWatermarkFromString(
             extractWatermarkFromDirectory(file.getPath().getName())
         );
-        if (watermark > minWatermark) {
+        if (watermark > minWatermark && watermark < maxAllowedWatermark) {
           LOGGER.info("Processing directory {} with watermark {}",
               file.getPath(),
               watermark);
@@ -143,8 +149,8 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
               watermark
           ));
         } else {
-          LOGGER.info("Ignoring directory {} - watermark {} is less than minWatermark {}", file.getPath(), watermark,
-              minWatermark);
+          LOGGER.info("Ignoring directory {} - watermark {} is not between minWatermark {} and (now-leadTime) {}",
+              file.getPath(), watermark, minWatermark, maxAllowedWatermark);
         }
       } catch (IllegalArgumentException e) {
         LOGGER.info("Directory {} ({}) does not match pattern {}; skipping", file.getPath().getName(),

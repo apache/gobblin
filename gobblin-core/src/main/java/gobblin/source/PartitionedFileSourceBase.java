@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
@@ -75,6 +76,21 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.granularity";
   public static final DatePartitionType DEFAULT_DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY =
       DatePartitionType.HOUR;
+
+  /**
+   * The partition 'lead time' allows a job to ignore a date partition for a given amount of time.
+   * For example, if the lead_time is set to 1 day and the job is run on Jul 1 2017 at 2am, the job
+   * will only process partitions from Jun 30 2017 at 2am and before.
+   */
+  public static final String DATE_PARTITIONED_SOURCE_PARTITION_LEAD_TIME =
+      DATE_PARTITIONED_SOURCE_PREFIX + ".partition.lead_time.size";
+  public static final Duration DEFAULT_PARTITIONED_SOURCE_PARTITION_LEAD_TIME = new Duration(0);
+
+  public static final String DATE_PARTITIONED_SOURCE_PARTITION_LEAD_TIME_GRANULARITY =
+      DATE_PARTITIONED_SOURCE_PREFIX + ".partition.lead_time.granularity";
+
+  public static final DatePartitionType DEFAULT_DATE_PARTITIONED_SOURCE_PARTITION_LEAD_TIME_GRANULARITY =
+      DEFAULT_DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY;
 
   /**
   * A String of the format defined by {@link #DATE_PARTITIONED_SOURCE_PARTITION_PATTERN} or

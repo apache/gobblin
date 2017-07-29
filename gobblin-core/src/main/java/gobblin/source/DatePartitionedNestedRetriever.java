@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
 import org.joda.time.DurationFieldType;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -45,6 +46,7 @@ import gobblin.source.extractor.hadoop.HadoopFsHelper;
 import gobblin.util.DatePartitionType;
 
 import static gobblin.source.PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_PATTERN;
+
 
 /**
  * PartitionRetriever that is optimized for nested directory structures where data is dumped on a regular basis
@@ -69,6 +71,7 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
   private FileSystem fs;
   private HadoopFsHelper helper;
   private final String expectedExtension;
+  private Duration leadTimeDuration;
 
   public DatePartitionedNestedRetriever(String expectedExtension) {
     this.expectedExtension = expectedExtension;
@@ -86,13 +89,14 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
     this.sourcePartitionSuffix =
         state.getProp(PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX, StringUtils.EMPTY);
     this.sourceDir = new Path(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY));
+    this.leadTimeDuration = PartitionAwareFileRetrieverUtils.getLeadTimeDurationFromConfig(state);
     this.helper = new HadoopFsHelper(state);
   }
 
   @Override
   public List<FileInfo> getFilesToProcess(long minWatermark, int maxFilesToReturn)
       throws IOException {
-    DateTime currentDay = new DateTime();
+    DateTime currentDay = new DateTime().minus(leadTimeDuration);
     DateTime lowWaterMarkDate = new DateTime(minWatermark);
     List<FileInfo> filesToProcess = new ArrayList<>();
 
