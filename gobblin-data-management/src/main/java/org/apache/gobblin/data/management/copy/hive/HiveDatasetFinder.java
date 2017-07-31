@@ -97,7 +97,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
    * This is an optional key.
    * The fully qualified name of a {@link Function} class which returns the relative uri of a dataset in the config store
    */
-  public static final String CONFIG_STORE_DATASET_URI_BUILDER_CLASS = "gobblin.config.management.datasetUriBuilderClass";
+  public static final String CONFIG_STORE_DATASET_URI_BUILDER_CLASS = "org.apache.gobblin.config.management.datasetUriBuilderClass";
 
   // Event names
   private static final String DATASET_FOUND = "DatasetFound";

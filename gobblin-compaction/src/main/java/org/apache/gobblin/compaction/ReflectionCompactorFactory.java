@@ -36,7 +36,7 @@ public class ReflectionCompactorFactory implements CompactorFactory {
 
   @VisibleForTesting
   static final String COMPACTION_COMPACTOR_CLASS = "compaction.compactor.class";
-  private static final String DEFAULT_COMPACTION_COMPACTOR_CLASS = "gobblin.compaction.mapreduce.MRCompactor";
+  private static final String DEFAULT_COMPACTION_COMPACTOR_CLASS = "org.apache.gobblin.compaction.mapreduce.MRCompactor";
 
   @Override
   public Compactor createCompactor(Properties properties, List<Tag<String>> tags,

@@ -39,7 +39,7 @@ public class PredicateRetentionPolicy implements RetentionPolicy<DatasetVersion>
 
   private final Predicate<DatasetVersion> predicate;
 
-  private static final String RETENTION_POLICY_PREDICATE_CLASS = "gobblin.retention.retention.policy.predicate.class";
+  private static final String RETENTION_POLICY_PREDICATE_CLASS = "org.apache.gobblin.retention.retention.policy.predicate.class";
 
   @SuppressWarnings("unchecked")
   public PredicateRetentionPolicy(Properties props) throws InstantiationException, IllegalAccessException,

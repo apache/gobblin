@@ -93,10 +93,10 @@ public class ComplianceConfigurationKeys {
       COMPLIANCE_PREFIX + ".retention.selection.policy.class";
 
   public static final String DATASET_SELECTION_POLICY_CLASS = COMPLIANCE_PREFIX + ".dataset.selection.policy.class";
-  public static final String DEFAULT_DATASET_SELECTION_POLICY_CLASS = "gobblin.compliance.HivePartitionDatasetPolicy";
+  public static final String DEFAULT_DATASET_SELECTION_POLICY_CLASS = "org.apache.gobblin.compliance.HivePartitionDatasetPolicy";
 
   public static final String PURGER_COMMIT_POLICY_CLASS = COMPLIANCE_PREFIX + ".purger.commit.policy.class";
-  public static final String DEFAULT_PURGER_COMMIT_POLICY_CLASS = "gobblin.compliance.purger.HivePurgerCommitPolicy";
+  public static final String DEFAULT_PURGER_COMMIT_POLICY_CLASS = "org.apache.gobblin.compliance.purger.HivePurgerCommitPolicy";
 
   public static final String RETENTION_VERSION_CLEANER_CLASS_KEY =
       COMPLIANCE_PREFIX + ".retention.version.cleaner.class";
@@ -116,7 +116,7 @@ public class ComplianceConfigurationKeys {
   // Path to the compliance id in the dataset descriptor json object.
   public static final String DATASET_DESCRIPTOR_FIELDPATH = COMPLIANCE_PREFIX + ".dataset.descriptor.fieldPath";
   public static final String DATASET_DESCRIPTOR_CLASS = COMPLIANCE_PREFIX + ".dataset.descriptor.class";
-  public static final String DEFAULT_DATASET_DESCRIPTOR_CLASS = "gobblin.compliance.DatasetDescriptorImpl";
+  public static final String DEFAULT_DATASET_DESCRIPTOR_CLASS = "org.apache.gobblin.compliance.DatasetDescriptorImpl";
 
   // Name of the table containing the compliance ids based on which purging will take place.
   public static final String COMPLIANCE_ID_TABLE_KEY = COMPLIANCE_PREFIX + ".purger.complianceIdTable";

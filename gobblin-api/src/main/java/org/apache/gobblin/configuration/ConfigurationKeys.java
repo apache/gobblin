@@ -144,7 +144,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_CLASS_KEY = "source.class";
   public static final String CONVERTER_CLASSES_KEY = "converter.classes";
   public static final String FORK_OPERATOR_CLASS_KEY = "fork.operator.class";
-  public static final String DEFAULT_FORK_OPERATOR_CLASS = "gobblin.fork.IdentityForkOperator";
+  public static final String DEFAULT_FORK_OPERATOR_CLASS = "org.apache.gobblin.fork.IdentityForkOperator";
   public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
   public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
   // If true, commit of different datasets will be performed in parallel
@@ -306,7 +306,7 @@ public class ConfigurationKeys {
   public static final String WRITER_TRUNCATE_STAGING_TABLE = WRITER_PREFIX + ".truncate.staging.table";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
-  public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
+  public static final String DEFAULT_WRITER_BUILDER_CLASS = "org.apache.gobblin.writer.AvroDataWriterBuilder";
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
   public static final String WRITER_FILE_PATH = WRITER_PREFIX + ".file.path";
   public static final String WRITER_FILE_PATH_TYPE = WRITER_PREFIX + ".file.path.type";
@@ -608,7 +608,7 @@ public class ConfigurationKeys {
   public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
-  public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS = "gobblin.metrics.kafka.KafkaReporterFactory";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS = "org.apache.gobblin.metrics.kafka.KafkaReporterFactory";
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
   public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =
@@ -699,7 +699,7 @@ public class ConfigurationKeys {
   public static final String ADMIN_SERVER_REFRESH_INTERVAL_KEY = "admin.server.refresh_interval";
   public static final long DEFAULT_ADMIN_SERVER_REFRESH_INTERVAL = 30000;
 
-  public static final String DEFAULT_ADMIN_SERVER_FACTORY_CLASS = "gobblin.admin.DefaultAdminWebServerFactory";
+  public static final String DEFAULT_ADMIN_SERVER_FACTORY_CLASS = "org.apache.gobblin.admin.DefaultAdminWebServerFactory";
 
   /**
    * Kafka job configurations.

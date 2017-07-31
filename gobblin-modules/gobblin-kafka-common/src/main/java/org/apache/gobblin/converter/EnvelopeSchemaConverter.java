@@ -54,7 +54,7 @@ public class EnvelopeSchemaConverter extends Converter<Schema, String, GenericRe
   public static final String PAYLOAD_FIELD = "EnvelopeSchemaConverter.payloadField";
   public static final String DEFAULT_PAYLOAD_SCHEMA_ID_FIELD ="payloadSchemaId";
   public static final String DEFAULT_PAYLOAD_FIELD = "payload";
-  public static final String DEFAULT_KAFKA_SCHEMA_REGISTRY_FACTORY_CLASS = "gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory";
+  public static final String DEFAULT_KAFKA_SCHEMA_REGISTRY_FACTORY_CLASS = "org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory";
 
   private Optional<AvroSchemaFieldRemover> fieldRemover;
   private KafkaSchemaRegistry registry;
