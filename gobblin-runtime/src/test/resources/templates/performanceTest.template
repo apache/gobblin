@@ -2,5 +2,5 @@ source.class=gobblin.util.test.FastSequentialSource
 FastSequentialSource.maxRecordsPerWorkUnit=1000000000
 FastSequentialSource.maxSecondsPerWorkUnit=60
 
-writer.builder.class="gobblin.writer.test.GobblinTestEventBusWriter$Builder"
+writer.builder.class="org.apache.gobblin.writer.test.GobblinTestEventBusWriter$Builder"
 writer.GobblinTestEventBusWriter.mode=COUNTING
