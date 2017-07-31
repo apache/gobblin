@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import com.google.common.base.Objects;
 
-import gobblin.util.callbacks.Callback;
+import org.apache.gobblin.util.callbacks.Callback;
 
 /**
  * {@link JobSpecScheduler} callbacks.

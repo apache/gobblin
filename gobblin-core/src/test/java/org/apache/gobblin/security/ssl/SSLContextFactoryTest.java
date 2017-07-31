@@ -1,4 +1,4 @@
-package gobblin.security.ssl;
+package org.apache.gobblin.security.ssl;
 
 import java.io.IOException;
 import java.util.HashMap;

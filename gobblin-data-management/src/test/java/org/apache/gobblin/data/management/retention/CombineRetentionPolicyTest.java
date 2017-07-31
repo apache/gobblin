@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
-import gobblin.data.management.retention.policy.CombineRetentionPolicy;
-import gobblin.data.management.retention.test.ContainsARetentionPolicy;
-import gobblin.data.management.retention.test.ContainsBRetentionPolicy;
-import gobblin.data.management.retention.test.ContainsCRetentionPolicy;
-import gobblin.data.management.version.DatasetVersion;
-import gobblin.data.management.version.FileStatusDatasetVersion;
-import gobblin.data.management.version.StringDatasetVersion;
-import gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.data.management.retention.policy.CombineRetentionPolicy;
+import org.apache.gobblin.data.management.retention.test.ContainsARetentionPolicy;
+import org.apache.gobblin.data.management.retention.test.ContainsBRetentionPolicy;
+import org.apache.gobblin.data.management.retention.test.ContainsCRetentionPolicy;
+import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.version.FileStatusDatasetVersion;
+import org.apache.gobblin.data.management.version.StringDatasetVersion;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 
 import javax.annotation.Nullable;
 import java.io.IOException;

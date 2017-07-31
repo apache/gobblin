@@ -15,20 +15,20 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.qualitychecker;
+package org.apache.gobblin.instrumented.qualitychecker;
 
 import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.MetricsHelper;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.Constructs;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.MetricNames;
-import gobblin.qualitychecker.row.RowLevelPolicy;
+import org.apache.gobblin.MetricsHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.MetricNames;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicy;
 
 
 public class InstrumentedRowLevelPolicyTest {

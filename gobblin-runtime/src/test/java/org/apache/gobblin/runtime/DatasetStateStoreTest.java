@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -30,20 +30,20 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metastore.FsStateStore;
-import gobblin.metastore.StateStore;
-import gobblin.runtime.local.LocalJobLauncher;
-import gobblin.source.Source;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.AbstractSource;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.runtime.local.LocalJobLauncher;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.extract.AbstractSource;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
 
 
 /**

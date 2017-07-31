@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.avro;
+package org.apache.gobblin.converter.avro;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -23,15 +23,15 @@ import org.apache.avro.generic.GenericRecord;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.converter.Converter;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.EmptyIterable;
-import gobblin.util.AvroUtils;
-import gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.EmptyIterable;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.ForkOperatorUtils;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.dataset;
+package org.apache.gobblin.data.management.dataset;
 
 /**
  * {@inheritDoc}

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.converter;
+package org.apache.gobblin.data.management.conversion.hive.converter;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -53,23 +53,23 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
-import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
-import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
-import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
-import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.data.management.copy.hive.HiveUtils;
-import gobblin.data.management.copy.hive.WhitelistBlacklist;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.metrics.event.sla.SlaEventKeys;
-import gobblin.util.AutoReturnableObject;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
+import org.apache.gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
+import org.apache.gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.data.management.copy.hive.HiveUtils;
+import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**

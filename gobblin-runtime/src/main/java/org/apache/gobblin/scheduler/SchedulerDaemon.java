@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.scheduler;
+package org.apache.gobblin.scheduler;
 
 import java.util.Properties;
 import java.util.UUID;
@@ -25,8 +25,8 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.runtime.app.ServiceBasedAppLauncher;
-import gobblin.util.PropertiesUtils;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**

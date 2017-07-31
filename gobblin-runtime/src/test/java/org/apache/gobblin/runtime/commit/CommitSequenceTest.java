@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.commit;
+package org.apache.gobblin.runtime.commit;
 
 import java.io.IOException;
 
@@ -27,11 +27,11 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.commit.CommitSequence;
-import gobblin.commit.FsRenameCommitStep;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.runtime.JobState.DatasetState;
+import org.apache.gobblin.commit.CommitSequence;
+import org.apache.gobblin.commit.FsRenameCommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.runtime.JobState.DatasetState;
 
 
 /**

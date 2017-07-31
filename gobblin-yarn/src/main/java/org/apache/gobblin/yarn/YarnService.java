@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.yarn;
+package org.apache.gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
@@ -79,21 +79,21 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
-import gobblin.cluster.GobblinClusterConfigurationKeys;
-import gobblin.cluster.GobblinClusterMetricTagNames;
-import gobblin.cluster.GobblinClusterUtils;
-import gobblin.cluster.HelixUtils;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.Tag;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.ConfigUtils;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.JvmUtils;
-import gobblin.cluster.event.ClusterManagerShutdownRequest;
-import gobblin.yarn.event.ContainerShutdownRequest;
-import gobblin.yarn.event.NewContainerRequest;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterMetricTagNames;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.cluster.HelixUtils;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
+import org.apache.gobblin.yarn.event.ContainerShutdownRequest;
+import org.apache.gobblin.yarn.event.NewContainerRequest;
 
 
 /**

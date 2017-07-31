@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.filebased;
+package org.apache.gobblin.source.extractor.filebased;
 
 /**
  * A File helper that extends {@link SizeAwareFileBasedHelper} and has functionality to get file modified time.

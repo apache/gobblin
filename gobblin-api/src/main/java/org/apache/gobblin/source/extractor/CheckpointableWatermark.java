@@ -17,9 +17,9 @@
  * under the License.
  */
 
-package gobblin.source.extractor;
+package org.apache.gobblin.source.extractor;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

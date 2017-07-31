@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.net.URI;
@@ -46,20 +46,20 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
 
-import gobblin.config.client.ConfigClient;
-import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.config.store.api.VersionDoesNotExistException;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.util.PathUtils;
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopySource;
-import gobblin.dataset.Dataset;
-import gobblin.util.Either;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.executors.IteratorExecutor;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.util.Either;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.executors.IteratorExecutor;
 import lombok.extern.slf4j.Slf4j;
 
 

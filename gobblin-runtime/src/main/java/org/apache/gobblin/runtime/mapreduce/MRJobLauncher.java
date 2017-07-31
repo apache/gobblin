@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.mapreduce;
+package org.apache.gobblin.runtime.mapreduce;
 
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
@@ -56,36 +56,36 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.gobblin_scopes.JobScopeInstance;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.commit.CommitStep;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.FsStateStore;
-import gobblin.metastore.StateStore;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.Tag;
-import gobblin.metrics.event.TimingEvent;
-import gobblin.password.PasswordManager;
-import gobblin.runtime.AbstractJobLauncher;
-import gobblin.runtime.GobblinMultiTaskAttempt;
-import gobblin.runtime.JobLauncher;
-import gobblin.runtime.JobState;
-import gobblin.runtime.Task;
-import gobblin.runtime.TaskExecutor;
-import gobblin.runtime.TaskState;
-import gobblin.runtime.TaskStateCollectorService;
-import gobblin.runtime.TaskStateTracker;
-import gobblin.runtime.util.JobMetrics;
-import gobblin.runtime.util.MetricGroup;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.HadoopUtils;
-import gobblin.util.JobConfigurationUtils;
-import gobblin.util.JobLauncherUtils;
-import gobblin.util.ParallelRunner;
-import gobblin.util.SerializationUtils;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.Task;
+import org.apache.gobblin.runtime.TaskExecutor;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.TaskStateCollectorService;
+import org.apache.gobblin.runtime.TaskStateTracker;
+import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.runtime.util.MetricGroup;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.JobConfigurationUtils;
+import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.util.SerializationUtils;
 
 
 /**

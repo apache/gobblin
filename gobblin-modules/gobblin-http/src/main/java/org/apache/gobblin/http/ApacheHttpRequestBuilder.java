@@ -1,4 +1,4 @@
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import java.net.URI;
 import java.util.Map;
@@ -15,9 +15,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import gobblin.utils.HttpUtils;
-import gobblin.async.AsyncRequestBuilder;
-import gobblin.async.BufferedRecord;
+import org.apache.gobblin.utils.HttpUtils;
+import org.apache.gobblin.async.AsyncRequestBuilder;
+import org.apache.gobblin.async.BufferedRecord;
 
 
 /**

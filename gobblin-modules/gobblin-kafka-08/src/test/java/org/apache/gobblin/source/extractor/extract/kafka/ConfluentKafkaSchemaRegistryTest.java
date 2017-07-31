@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.util.Properties;
 
@@ -28,8 +28,8 @@ import org.testng.annotations.Test;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 
-import gobblin.metrics.kafka.KafkaSchemaRegistry;
-import gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 
 
 @Test(groups = { "gobblin.source.extractor.extract.kafka" })

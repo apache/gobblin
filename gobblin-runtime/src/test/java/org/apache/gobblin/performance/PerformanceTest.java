@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.performance;
+package org.apache.gobblin.performance;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -26,10 +26,10 @@ import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
-import gobblin.runtime.embedded.EmbeddedGobblin;
-import gobblin.util.test.FastSequentialSource;
-import gobblin.writer.test.GobblinTestEventBusWriter;
-import gobblin.writer.test.TestingEventBuses;
+import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
+import org.apache.gobblin.util.test.FastSequentialSource;
+import org.apache.gobblin.writer.test.GobblinTestEventBusWriter;
+import org.apache.gobblin.writer.test.TestingEventBuses;
 
 
 /**

@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.source;
+package org.apache.gobblin.source;
 
-import gobblin.configuration.SourceState;
-import gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
 
 
 /**

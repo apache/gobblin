@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.context;
+package org.apache.gobblin.metrics.context;
 
 import lombok.Getter;
 
 import java.lang.ref.WeakReference;
 
-import gobblin.metrics.InnerMetricContext;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.InnerMetricContext;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.RootMetricContext;
 
 
 /**

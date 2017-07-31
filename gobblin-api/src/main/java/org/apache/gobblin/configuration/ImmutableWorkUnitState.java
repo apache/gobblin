@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.configuration;
+package org.apache.gobblin.configuration;
 
 import java.io.DataInput;
 import java.io.IOException;
 import java.util.Properties;
 
-import gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.Watermark;
 
 
 /**

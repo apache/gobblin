@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.util;
+package org.apache.gobblin.runtime.util;
 
 /**
  * Enumeration of metric groups used internally.

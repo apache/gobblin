@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.graphite;
+package org.apache.gobblin.metrics.graphite;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.JobEvent;
-import gobblin.metrics.event.MultiPartEvent;
-import gobblin.metrics.event.TaskEvent;
-import gobblin.metrics.test.TimestampedValue;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.JobEvent;
+import org.apache.gobblin.metrics.event.MultiPartEvent;
+import org.apache.gobblin.metrics.event.TaskEvent;
+import org.apache.gobblin.metrics.test.TimestampedValue;
 
 import java.io.IOException;
 import java.util.Map;

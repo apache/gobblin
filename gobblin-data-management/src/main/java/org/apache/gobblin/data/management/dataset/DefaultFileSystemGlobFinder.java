@@ -1,7 +1,7 @@
-package gobblin.data.management.dataset;
+package org.apache.gobblin.data.management.dataset;
 
-import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
+import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import java.io.IOException;

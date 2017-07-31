@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import com.google.common.base.Preconditions;
 import com.linkedin.restli.client.FindRequest;

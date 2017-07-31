@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.tunnel;
+package org.apache.gobblin.tunnel;
 
 /**
  * Represents the different states a given handler can be in.

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -23,11 +23,11 @@ import java.util.Iterator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.metrics.MetricReport;
-import gobblin.metrics.reporter.util.MetricReportUtils;
-import gobblin.metrics.kafka.KafkaAvroReporter;
-import gobblin.metrics.kafka.KafkaPusher;
-import gobblin.metrics.kafka.KafkaReporter;
+import org.apache.gobblin.metrics.MetricReport;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
+import org.apache.gobblin.metrics.kafka.KafkaAvroReporter;
+import org.apache.gobblin.metrics.kafka.KafkaPusher;
+import org.apache.gobblin.metrics.kafka.KafkaReporter;
 
 
 /**

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -27,15 +27,15 @@ import com.github.rholder.retry.RetryerBuilder;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.stream.RecordEnvelope;
-import gobblin.util.Decorator;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.RateBasedLimiter;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.util.FinalState;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.RateBasedLimiter;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.util.FinalState;
 
 /**
  * Throttle writer follows decorator pattern that throttles inner writer by either QPS or by bytes.

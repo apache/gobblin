@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.test;
+package org.apache.gobblin.test;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -28,13 +28,13 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.fork.CopyNotSupportedException;
-import gobblin.fork.CopyableGenericRecord;
-import gobblin.fork.CopyableSchema;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.fork.CopyNotSupportedException;
+import org.apache.gobblin.fork.CopyableGenericRecord;
+import org.apache.gobblin.fork.CopyableSchema;
 
 
 /**

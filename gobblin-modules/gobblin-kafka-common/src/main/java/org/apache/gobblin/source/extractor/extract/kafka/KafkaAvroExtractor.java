@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 
@@ -31,13 +31,13 @@ import org.apache.avro.io.Decoder;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
-import gobblin.metrics.kafka.KafkaSchemaRegistry;
-import gobblin.metrics.kafka.SchemaRegistryException;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.kafka.client.ByteArrayBasedKafkaRecord;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.util.AvroUtils;
 
 
 /**

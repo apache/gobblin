@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.audit.values.policy.column;
+package org.apache.gobblin.audit.values.policy.column;
 
 import java.util.List;
 
@@ -22,8 +22,8 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alias;
-import gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
 
 /**
  * An {@link AbstractColumnProjectionPolicy} that projects all columns/fields of the <code>inputRecord</code>

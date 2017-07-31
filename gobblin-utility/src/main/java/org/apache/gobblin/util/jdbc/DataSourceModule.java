@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.jdbc;
+package org.apache.gobblin.util.jdbc;
 
 import java.util.Properties;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import java.util.Arrays;
 import lombok.AllArgsConstructor;
@@ -31,8 +31,8 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import gobblin.commit.CommitStep;
-import gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.hive.spec.HiveSpec;
 
 
 /**

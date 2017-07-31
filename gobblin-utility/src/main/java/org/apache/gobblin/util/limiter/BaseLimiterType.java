@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 /**
  * An enumeration of types of {@link Limiter}s supported out-of-the-box.

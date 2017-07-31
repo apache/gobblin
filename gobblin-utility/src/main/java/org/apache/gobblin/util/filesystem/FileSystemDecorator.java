@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import java.io.IOException;
 import java.net.URI;
@@ -42,9 +42,9 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
 
-import gobblin.util.Decorator;
+import org.apache.gobblin.util.Decorator;
 
-import static gobblin.util.filesystem.InstrumentedFileSystemUtils.*;
+import static org.apache.gobblin.util.filesystem.InstrumentedFileSystemUtils.*;
 
 
 /**

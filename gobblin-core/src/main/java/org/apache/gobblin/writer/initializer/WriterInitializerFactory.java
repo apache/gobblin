@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.writer.initializer;
+package org.apache.gobblin.writer.initializer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.source.workunit.WorkUnitStream;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.writer.DataWriterBuilder;
 
 import java.util.List;
 

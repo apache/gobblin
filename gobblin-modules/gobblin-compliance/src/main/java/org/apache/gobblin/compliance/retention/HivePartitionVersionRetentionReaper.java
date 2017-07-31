@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.retention;
+package org.apache.gobblin.compliance.retention;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -33,19 +33,19 @@ import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
-import gobblin.compliance.HivePartitionVersion;
-import gobblin.compliance.HiveProxyQueryExecutor;
-import gobblin.compliance.purger.HivePurgerQueryTemplate;
-import gobblin.compliance.utils.PartitionUtils;
-import gobblin.compliance.utils.ProxyUtils;
-import gobblin.configuration.State;
-import gobblin.data.management.retention.dataset.CleanableDataset;
-import gobblin.data.management.version.DatasetVersion;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.HivePartitionVersion;
+import org.apache.gobblin.compliance.HiveProxyQueryExecutor;
+import org.apache.gobblin.compliance.purger.HivePurgerQueryTemplate;
+import org.apache.gobblin.compliance.utils.PartitionUtils;
+import org.apache.gobblin.compliance.utils.ProxyUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.util.HadoopUtils;
 
-import static gobblin.compliance.purger.HivePurgerQueryTemplate.getDropPartitionQuery;
-import static gobblin.compliance.purger.HivePurgerQueryTemplate.getUseDbQuery;
+import static org.apache.gobblin.compliance.purger.HivePurgerQueryTemplate.getDropPartitionQuery;
+import static org.apache.gobblin.compliance.purger.HivePurgerQueryTemplate.getUseDbQuery;
 
 
 /**

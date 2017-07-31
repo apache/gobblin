@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.version;
+package org.apache.gobblin.data.management.retention.version;
 
 import java.io.IOException;
 
@@ -22,8 +22,8 @@ import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.data.management.retention.dataset.CleanableDataset;
-import gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.version.DatasetVersion;
 
 
 /**

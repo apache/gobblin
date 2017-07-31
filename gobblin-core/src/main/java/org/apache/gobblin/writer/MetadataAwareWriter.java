@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
-import gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
 
 
 /**

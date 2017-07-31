@@ -14,20 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.instance.plugin.hadoop;
+package org.apache.gobblin.runtime.instance.plugin.hadoop;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alias;
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.GobblinInstancePlugin;
-import gobblin.runtime.api.GobblinInstancePluginFactory;
-import gobblin.runtime.instance.hadoop.HadoopConfigLoader;
-import gobblin.runtime.instance.plugin.BaseIdlePluginImpl;
-import gobblin.runtime.plugins.PluginStaticKeys;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.GobblinInstancePlugin;
+import org.apache.gobblin.runtime.api.GobblinInstancePluginFactory;
+import org.apache.gobblin.runtime.instance.hadoop.HadoopConfigLoader;
+import org.apache.gobblin.runtime.instance.plugin.BaseIdlePluginImpl;
+import org.apache.gobblin.runtime.plugins.PluginStaticKeys;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

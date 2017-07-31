@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.Iterator;
 
 import org.apache.hadoop.fs.FileSystem;
 
-import gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.data.management.partition.FileSet;
 
 
 /**

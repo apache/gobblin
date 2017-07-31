@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.filebased;
+package org.apache.gobblin.source.extractor.filebased;
 
 /**
  * A File helper that extends {@link FileBasedHelper} and has functionality to get file size.

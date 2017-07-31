@@ -1,11 +1,11 @@
-package gobblin.metadata;
+package org.apache.gobblin.metadata;
 
 import java.util.Set;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
 
 
 public class GlobalMetadataCollectorTest {

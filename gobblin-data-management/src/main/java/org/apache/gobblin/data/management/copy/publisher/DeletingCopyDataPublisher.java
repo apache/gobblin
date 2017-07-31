@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.publisher;
+package org.apache.gobblin.data.management.copy.publisher;
 
 import java.io.IOException;
 import java.net.URI;
@@ -25,16 +25,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.configuration.WorkUnitState.WorkingState;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.ReadyCopyableFileFilter;
-import gobblin.util.HadoopUtils;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.ReadyCopyableFileFilter;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**

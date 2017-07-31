@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.util.io;
+package org.apache.gobblin.util.io;
 
 import java.io.Closeable;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.Limiter;
 
 import javax.annotation.concurrent.NotThreadSafe;
 

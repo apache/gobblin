@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.records;
+package org.apache.gobblin.records;
 
-import gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.ControlMessage;
 
 
 /**

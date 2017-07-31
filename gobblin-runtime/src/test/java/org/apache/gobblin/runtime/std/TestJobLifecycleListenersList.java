@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -25,11 +25,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
-import gobblin.runtime.api.JobCatalogListenersContainer;
-import gobblin.runtime.api.JobExecutionDriver;
-import gobblin.runtime.api.JobExecutionState;
-import gobblin.runtime.api.JobLifecycleListener;
-import gobblin.runtime.api.JobSpecSchedulerListenersContainer;
+import org.apache.gobblin.runtime.api.JobCatalogListenersContainer;
+import org.apache.gobblin.runtime.api.JobExecutionDriver;
+import org.apache.gobblin.runtime.api.JobExecutionState;
+import org.apache.gobblin.runtime.api.JobLifecycleListener;
+import org.apache.gobblin.runtime.api.JobSpecSchedulerListenersContainer;
 
 /**
  * Unit tests for {@link JobLifecycleListenersList}

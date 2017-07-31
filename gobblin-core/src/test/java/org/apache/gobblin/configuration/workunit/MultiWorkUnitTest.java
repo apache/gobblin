@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.configuration.workunit;
+package org.apache.gobblin.configuration.workunit;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -30,8 +30,8 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
 
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

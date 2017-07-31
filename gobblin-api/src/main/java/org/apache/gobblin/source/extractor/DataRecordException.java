@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor;
+package org.apache.gobblin.source.extractor;
 
 public class DataRecordException extends Exception {
 

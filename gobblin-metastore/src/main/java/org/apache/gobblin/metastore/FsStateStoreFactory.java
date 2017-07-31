@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
-import gobblin.annotation.Alias;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ConfigUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;

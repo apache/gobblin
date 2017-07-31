@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.policy;
+package org.apache.gobblin.data.management.retention.policy;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -30,9 +30,9 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 
-import gobblin.annotation.Alpha;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.util.FileListUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.util.FileListUtils;
 
 
 /**

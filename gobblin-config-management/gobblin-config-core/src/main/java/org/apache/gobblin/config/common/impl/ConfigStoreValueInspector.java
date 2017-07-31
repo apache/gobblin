@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.common.impl;
+package org.apache.gobblin.config.common.impl;
 
 import java.util.Collection;
 import java.util.Map;
@@ -23,7 +23,7 @@ import java.util.Map;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
-import gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
 
 
 /**

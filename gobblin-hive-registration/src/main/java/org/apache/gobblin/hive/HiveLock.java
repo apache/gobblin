@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import java.util.concurrent.locks.Lock;
 
@@ -24,7 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.util.concurrent.Striped;
 
-import gobblin.util.AutoCloseableLock;
+import org.apache.gobblin.util.AutoCloseableLock;
 
 
 /**

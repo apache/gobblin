@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.writer;
+package org.apache.gobblin.data.management.conversion.hive.writer;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -27,14 +27,14 @@ import com.google.common.base.Optional;
 
 import lombok.AllArgsConstructor;
 
-import gobblin.configuration.State;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
-import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
-import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
-import gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher;
-import gobblin.util.HiveJdbcConnector;
-import gobblin.writer.DataWriter;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import org.apache.gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
+import org.apache.gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
+import org.apache.gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher;
+import org.apache.gobblin.util.HiveJdbcConnector;
+import org.apache.gobblin.writer.DataWriter;
 import lombok.extern.slf4j.Slf4j;
 
 

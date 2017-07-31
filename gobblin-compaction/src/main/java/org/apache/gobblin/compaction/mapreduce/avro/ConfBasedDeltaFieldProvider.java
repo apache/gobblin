@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce.avro;
 
 import java.util.ArrayList;
 import java.util.List;

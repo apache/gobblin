@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.util.List;
 import java.util.Map;
@@ -30,10 +30,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.stream.RecordEnvelope;
-import gobblin.util.ExponentialBackoff;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.util.ExponentialBackoff;
 
 import io.reactivex.Flowable;
 import io.reactivex.schedulers.Schedulers;

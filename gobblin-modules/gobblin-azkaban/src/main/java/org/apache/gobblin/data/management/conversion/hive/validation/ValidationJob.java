@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.validation;
+package org.apache.gobblin.data.management.conversion.hive.validation;
 
-import gobblin.config.client.ConfigClient;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.PathUtils;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -76,27 +76,27 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder;
-import gobblin.data.management.conversion.hive.events.EventConstants;
-import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
-import gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
-import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
-import gobblin.data.management.conversion.hive.query.HiveValidationQueryGenerator;
-import gobblin.data.management.conversion.hive.source.HiveSource;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.data.management.copy.hive.HiveUtils;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.hive.HiveSerDeWrapper;
-import gobblin.util.HiveJdbcConnector;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.AutoReturnableObject;
-import gobblin.util.ConfigUtils;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder;
+import org.apache.gobblin.data.management.conversion.hive.events.EventConstants;
+import org.apache.gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
+import org.apache.gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
+import org.apache.gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
+import org.apache.gobblin.data.management.conversion.hive.query.HiveValidationQueryGenerator;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.data.management.copy.hive.HiveUtils;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.hive.HiveSerDeWrapper;
+import org.apache.gobblin.util.HiveJdbcConnector;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**

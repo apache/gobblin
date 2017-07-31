@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.scheduler;
+package org.apache.gobblin.service.modules.scheduler;
 
 import java.net.URI;
 import java.util.Collection;
@@ -40,22 +40,22 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.JobException;
-import gobblin.runtime.api.FlowSpec;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecCatalogListener;
-import gobblin.runtime.listeners.JobListener;
-import gobblin.runtime.spec_catalog.FlowCatalog;
-import gobblin.runtime.spec_catalog.TopologyCatalog;
-import gobblin.scheduler.BaseGobblinJob;
-import gobblin.scheduler.JobScheduler;
-import gobblin.scheduler.SchedulerService;
-import gobblin.service.HelixUtils;
-import gobblin.service.ServiceConfigKeys;
-import gobblin.service.modules.orchestration.Orchestrator;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.scheduler.BaseGobblinJob;
+import org.apache.gobblin.scheduler.JobScheduler;
+import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.service.HelixUtils;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

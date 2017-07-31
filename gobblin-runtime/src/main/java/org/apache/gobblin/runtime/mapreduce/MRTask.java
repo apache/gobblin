@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.mapreduce;
+package org.apache.gobblin.runtime.mapreduce;
 
 import com.google.common.collect.Maps;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.runtime.TaskContext;
-import gobblin.runtime.task.BaseAbstractTask;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.task.BaseAbstractTask;
 import java.io.IOException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;

@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.task;
+package org.apache.gobblin.runtime.task;
 
 import com.google.common.base.Optional;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

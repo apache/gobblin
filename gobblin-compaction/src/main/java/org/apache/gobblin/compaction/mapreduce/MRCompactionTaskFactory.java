@@ -1,11 +1,11 @@
-package gobblin.compaction.mapreduce;
+package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 
 
-import gobblin.runtime.TaskContext;
-import gobblin.runtime.mapreduce.MRTaskFactory;
-import gobblin.runtime.task.TaskIFace;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.mapreduce.MRTaskFactory;
+import org.apache.gobblin.runtime.task.TaskIFace;
 
 /**
  * A subclass of {@link MRTaskFactory} which provides a customized {@link MRCompactionTask} instance

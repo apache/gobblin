@@ -1,7 +1,7 @@
 {
   "type" : "record",
   "name" : "JobStatistics",
-  "namespace": "gobblin.service",
+  "namesapce" : "org.apache.gobblin.service",
   "doc" : "Statistics from a job execution",
   "fields" : [
     {

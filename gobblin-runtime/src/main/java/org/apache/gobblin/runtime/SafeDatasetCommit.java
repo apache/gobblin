@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -28,18 +28,18 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.io.Closer;
 
-import gobblin.commit.CommitSequence;
-import gobblin.commit.CommitStep;
-import gobblin.commit.DeliverySemantics;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.publisher.CommitSequencePublisher;
-import gobblin.publisher.DataPublisher;
-import gobblin.publisher.UnpublishedHandling;
-import gobblin.runtime.commit.DatasetStateCommitStep;
-import gobblin.runtime.task.TaskFactory;
-import gobblin.runtime.task.TaskUtils;
-import gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.commit.CommitSequence;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.commit.DeliverySemantics;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.publisher.CommitSequencePublisher;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.publisher.UnpublishedHandling;
+import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
+import org.apache.gobblin.runtime.task.TaskFactory;
+import org.apache.gobblin.runtime.task.TaskUtils;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.cli;
+package org.apache.gobblin.runtime.cli;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -28,7 +28,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.configuration.ConfigurationException;
 
-import gobblin.util.JobConfigurationUtils;
+import org.apache.gobblin.util.JobConfigurationUtils;
 
 
 /**

@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import java.net.URI;
 
-import gobblin.util.ClustersNames;
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.util.ClustersNames;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 
 /**

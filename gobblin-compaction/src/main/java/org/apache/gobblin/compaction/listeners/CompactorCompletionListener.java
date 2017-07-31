@@ -16,9 +16,9 @@
  */
 
 
-package gobblin.compaction.listeners;
+package org.apache.gobblin.compaction.listeners;
 
-import gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 
 
 public interface CompactorCompletionListener {

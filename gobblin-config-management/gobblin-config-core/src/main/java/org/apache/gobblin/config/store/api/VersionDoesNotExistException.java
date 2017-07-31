@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.config.store.api;
+package org.apache.gobblin.config.store.api;
 
 import java.net.URI;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 @Alpha

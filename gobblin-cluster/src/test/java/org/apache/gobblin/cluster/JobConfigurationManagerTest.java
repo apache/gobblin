@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,8 +39,8 @@ import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
-import gobblin.cluster.event.NewJobConfigArrivalEvent;
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**

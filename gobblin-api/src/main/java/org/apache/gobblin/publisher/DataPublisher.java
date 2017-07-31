@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.publisher;
+package org.apache.gobblin.publisher;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.Collection;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

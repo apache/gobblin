@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.watermarker;
+package org.apache.gobblin.data.management.conversion.hive.watermarker;
 
 import java.util.Collections;
 import java.util.List;
@@ -31,12 +31,12 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Watermark;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

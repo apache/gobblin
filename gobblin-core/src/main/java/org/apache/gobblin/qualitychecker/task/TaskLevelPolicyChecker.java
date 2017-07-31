@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker.task;
+package org.apache.gobblin.qualitychecker.task;
 
 import java.util.List;
 

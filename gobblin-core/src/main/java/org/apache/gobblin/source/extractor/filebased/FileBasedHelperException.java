@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.filebased;
+package org.apache.gobblin.source.extractor.filebased;
 
 public class FileBasedHelperException extends Exception {
   private static final long serialVersionUID = 1L;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented;
+package org.apache.gobblin.instrumented;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,12 +23,12 @@ import java.util.Map;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.Constructs;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.configuration.State;
-import gobblin.metrics.MetricContext;
-import gobblin.instrumented.extractor.InstrumentedExtractor;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.instrumented.extractor.InstrumentedExtractor;
 
 
 @Test(groups = { "gobblin.core" })

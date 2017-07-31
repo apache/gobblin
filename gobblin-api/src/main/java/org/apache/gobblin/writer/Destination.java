@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

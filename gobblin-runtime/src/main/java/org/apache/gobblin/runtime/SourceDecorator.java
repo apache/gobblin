@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -26,15 +26,15 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.Source;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.workunit.BasicWorkUnitStream;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.Decorator;
-import gobblin.source.WorkUnitStreamSource;
-import gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.source.WorkUnitStreamSource;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.restli.throttling;
+package org.apache.gobblin.restli.throttling;
 
 import java.util.LinkedList;
 import java.util.Map;
@@ -38,15 +38,15 @@ import com.google.inject.Key;
 import com.google.inject.name.Names;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.BrokerConfigurationKeyGenerator;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.MockRequester;
-import gobblin.util.limiter.RestliServiceBasedLimiter;
-import gobblin.util.limiter.broker.SharedLimiterKey;
-import gobblin.util.limiter.stressTest.RateComputingLimiterContainer;
-import gobblin.util.limiter.stressTest.StressTestUtils;
-import gobblin.util.limiter.stressTest.Stressor;
+import org.apache.gobblin.broker.BrokerConfigurationKeyGenerator;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.MockRequester;
+import org.apache.gobblin.util.limiter.RestliServiceBasedLimiter;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.util.limiter.stressTest.RateComputingLimiterContainer;
+import org.apache.gobblin.util.limiter.stressTest.StressTestUtils;
+import org.apache.gobblin.util.limiter.stressTest.Stressor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

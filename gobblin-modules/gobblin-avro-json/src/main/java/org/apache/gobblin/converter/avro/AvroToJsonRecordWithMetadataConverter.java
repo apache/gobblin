@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.converter.avro;
+package org.apache.gobblin.converter.avro;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -24,12 +24,12 @@ import org.apache.avro.generic.GenericRecord;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.metadata.types.Metadata;
-import gobblin.type.RecordWithMetadata;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.metadata.types.Metadata;
+import org.apache.gobblin.type.RecordWithMetadata;
 
 
 public class AvroToJsonRecordWithMetadataConverter extends Converter<Schema, String, GenericRecord, RecordWithMetadata<JsonNode>> {

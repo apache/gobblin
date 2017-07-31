@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.cli;
+package org.apache.gobblin.cli;
 
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 import com.linkedin.r2.RemoteInvocationException;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.rest.*;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.rest.*;
 
 import java.io.IOException;
 import java.net.URI;

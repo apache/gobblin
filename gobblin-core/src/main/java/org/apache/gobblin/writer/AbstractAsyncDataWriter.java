@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.concurrent.Future;
@@ -23,12 +23,12 @@ import java.util.concurrent.Future;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
-import gobblin.async.AsyncDataDispatcher;
-import gobblin.async.BufferedRecord;
-import gobblin.writer.AsyncDataWriter;
-import gobblin.writer.FutureWrappedWriteCallback;
-import gobblin.writer.WriteCallback;
-import gobblin.writer.WriteResponse;
+import org.apache.gobblin.async.AsyncDataDispatcher;
+import org.apache.gobblin.async.BufferedRecord;
+import org.apache.gobblin.writer.AsyncDataWriter;
+import org.apache.gobblin.writer.FutureWrappedWriteCallback;
+import org.apache.gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteResponse;
 
 
 /**

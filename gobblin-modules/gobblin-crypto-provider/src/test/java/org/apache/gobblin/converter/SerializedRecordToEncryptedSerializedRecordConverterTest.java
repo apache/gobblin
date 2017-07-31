@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.util.Iterator;
 
@@ -22,12 +22,12 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.crypto.EncryptionConfigParser;
-import gobblin.metadata.types.Metadata;
-import gobblin.test.crypto.InsecureShiftCodec;
-import gobblin.type.RecordWithMetadata;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.crypto.EncryptionConfigParser;
+import org.apache.gobblin.metadata.types.Metadata;
+import org.apache.gobblin.test.crypto.InsecureShiftCodec;
+import org.apache.gobblin.type.RecordWithMetadata;
 
 
 public class SerializedRecordToEncryptedSerializedRecordConverterTest {

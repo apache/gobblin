@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker.row;
+package org.apache.gobblin.qualitychecker.row;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -28,17 +28,17 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.stream.ControlMessage;
-import gobblin.records.ControlMessageHandler;
-import gobblin.records.RecordStreamProcessor;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.stream.RecordEnvelope;
-import gobblin.stream.StreamEntity;
-import gobblin.util.FinalState;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.RecordStreamProcessor;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.stream.StreamEntity;
+import org.apache.gobblin.util.FinalState;
+import org.apache.gobblin.util.HadoopUtils;
 
 import io.reactivex.Flowable;
 import javax.annotation.concurrent.ThreadSafe;

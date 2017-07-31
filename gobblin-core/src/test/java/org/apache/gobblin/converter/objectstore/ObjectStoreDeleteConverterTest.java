@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.converter.objectstore;
+package org.apache.gobblin.converter.objectstore;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -26,7 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 public class ObjectStoreDeleteConverterTest {

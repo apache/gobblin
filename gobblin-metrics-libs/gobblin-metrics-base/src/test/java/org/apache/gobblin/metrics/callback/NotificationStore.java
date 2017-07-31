@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.callback;
+package org.apache.gobblin.metrics.callback;
 
 import lombok.Getter;
 
@@ -27,7 +27,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 
-import gobblin.metrics.notification.Notification;
+import org.apache.gobblin.metrics.notification.Notification;
 
 
 /**

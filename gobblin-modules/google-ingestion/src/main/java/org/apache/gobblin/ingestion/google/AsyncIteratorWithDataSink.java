@@ -1,4 +1,4 @@
-package gobblin.ingestion.google;
+package org.apache.gobblin.ingestion.google;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;

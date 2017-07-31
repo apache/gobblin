@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ingestion.google.webmaster;
+package org.apache.gobblin.ingestion.google.webmaster;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,7 +32,7 @@ import com.google.api.services.webmasters.model.ApiDimensionFilterGroup;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryRequest;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 
-import gobblin.source.extractor.extract.google.GoogleCommon;
+import org.apache.gobblin.source.extractor.extract.google.GoogleCommon;
 
 
 public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {

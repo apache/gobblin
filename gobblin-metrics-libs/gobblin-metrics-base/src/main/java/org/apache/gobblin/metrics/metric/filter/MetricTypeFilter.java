@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.metric.filter;
+package org.apache.gobblin.metrics.metric.filter;
 
 import java.util.List;
 
@@ -31,7 +31,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import gobblin.metrics.metric.Metrics;
+import org.apache.gobblin.metrics.metric.Metrics;
 
 
 /**

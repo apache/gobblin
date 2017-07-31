@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.scheduler;
+package org.apache.gobblin.scheduler;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -61,16 +61,16 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.JobException;
-import gobblin.runtime.JobLauncher;
-import gobblin.runtime.JobLauncherFactory;
-import gobblin.runtime.listeners.EmailNotificationJobListener;
-import gobblin.runtime.listeners.JobListener;
-import gobblin.runtime.listeners.RunOnceJobListener;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.SchedulerUtils;
-import gobblin.util.filesystem.PathAlterationObserverScheduler;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobLauncherFactory;
+import org.apache.gobblin.runtime.listeners.EmailNotificationJobListener;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.listeners.RunOnceJobListener;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.SchedulerUtils;
+import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
 
 
 /**

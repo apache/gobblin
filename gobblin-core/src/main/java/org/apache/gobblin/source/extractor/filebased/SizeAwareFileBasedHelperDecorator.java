@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.filebased;
+package org.apache.gobblin.source.extractor.filebased;
 
-import gobblin.util.Decorator;
+import org.apache.gobblin.util.Decorator;
 
 import java.io.IOException;
 import java.io.InputStream;

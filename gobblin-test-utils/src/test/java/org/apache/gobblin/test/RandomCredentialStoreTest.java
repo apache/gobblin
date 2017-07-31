@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.test;
+package org.apache.gobblin.test;
 
 import java.util.Map;
 
@@ -23,9 +23,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
 
-import gobblin.crypto.CredentialStore;
-import gobblin.test.crypto.TestEncryptionProvider;
-import gobblin.test.crypto.TestRandomCredentialStore;
+import org.apache.gobblin.crypto.CredentialStore;
+import org.apache.gobblin.test.crypto.TestEncryptionProvider;
+import org.apache.gobblin.test.crypto.TestRandomCredentialStore;
 
 
 public class RandomCredentialStoreTest {

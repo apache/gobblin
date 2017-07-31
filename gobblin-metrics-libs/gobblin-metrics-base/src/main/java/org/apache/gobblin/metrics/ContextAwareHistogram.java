@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import lombok.experimental.Delegate;
 
 import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import com.codahale.metrics.Histogram;
 
-import gobblin.metrics.metric.InnerMetric;
+import org.apache.gobblin.metrics.metric.InnerMetric;
 
 
 /**

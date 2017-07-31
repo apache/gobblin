@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.trash;
+package org.apache.gobblin.data.management.trash;
 
-import gobblin.util.Decorator;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 
 import java.io.Closeable;
 import java.io.IOException;

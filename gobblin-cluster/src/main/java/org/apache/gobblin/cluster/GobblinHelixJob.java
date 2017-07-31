@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.util.List;
 import java.util.Properties;
@@ -30,14 +30,14 @@ import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.Tag;
-import gobblin.runtime.JobException;
-import gobblin.runtime.JobLauncher;
-import gobblin.runtime.listeners.JobListener;
-import gobblin.scheduler.BaseGobblinJob;
-import gobblin.scheduler.JobScheduler;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.scheduler.BaseGobblinJob;
+import org.apache.gobblin.scheduler.JobScheduler;
 
 
 /**

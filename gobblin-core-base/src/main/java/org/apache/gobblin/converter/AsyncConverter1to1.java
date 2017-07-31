@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.util.concurrent.CompletableFuture;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.stream.ControlMessage;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.stream.RecordEnvelope;
-import gobblin.stream.StreamEntity;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.stream.StreamEntity;
 
 import io.reactivex.Flowable;
 import io.reactivex.Single;

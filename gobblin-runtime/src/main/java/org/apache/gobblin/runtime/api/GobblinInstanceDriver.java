@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.util.concurrent.Executor;
 
 import com.codahale.metrics.Gauge;
 import com.google.common.util.concurrent.Service;
 
-import gobblin.annotation.Alpha;
-import gobblin.metrics.ContextAwareCounter;
-import gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.metrics.ContextAwareCounter;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 
 import lombok.Getter;
 

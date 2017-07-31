@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.converter.http;
+package org.apache.gobblin.converter.http;
 
 import com.google.common.base.Optional;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 /**
  * A type of {@link java.lang.Exception}s thrown when the number of schemas or

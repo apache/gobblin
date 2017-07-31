@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.utils;
+package org.apache.gobblin.compliance.utils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,12 +34,12 @@ import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
-import gobblin.compliance.HiveProxyQueryExecutor;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.HostUtils;
-import gobblin.util.WriterUtils;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.HiveProxyQueryExecutor;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.HostUtils;
+import org.apache.gobblin.util.WriterUtils;
 
 
 /**

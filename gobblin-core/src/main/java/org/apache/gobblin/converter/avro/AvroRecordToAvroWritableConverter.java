@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.avro;
+package org.apache.gobblin.converter.avro;
 
 import java.rmi.server.UID;
 
@@ -26,10 +26,10 @@ import org.apache.hadoop.hive.serde2.avro.AvroGenericRecordWritable;
 
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
 
 
 /**

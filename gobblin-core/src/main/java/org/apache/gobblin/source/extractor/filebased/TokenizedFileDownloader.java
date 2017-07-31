@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.filebased;
+package org.apache.gobblin.source.extractor.filebased;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,7 +25,7 @@ import java.util.Scanner;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;

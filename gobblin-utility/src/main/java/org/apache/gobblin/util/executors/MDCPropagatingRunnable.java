@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.util.executors;
+package org.apache.gobblin.util.executors;
 
 import org.slf4j.MDC;
 

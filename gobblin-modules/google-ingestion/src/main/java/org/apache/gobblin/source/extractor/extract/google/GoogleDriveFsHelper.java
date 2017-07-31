@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source.extractor.extract.google;
+package org.apache.gobblin.source.extractor.extract.google;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -35,9 +35,9 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.State;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
 
 /**
  * File system helper for Google drive.

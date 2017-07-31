@@ -1,8 +1,8 @@
-package gobblin.ingestion.google.util;
+package org.apache.gobblin.ingestion.google.util;
 
 import com.google.gson.JsonObject;
 
-import gobblin.converter.avro.JsonElementConversionFactory;
+import org.apache.gobblin.converter.avro.JsonElementConversionFactory;
 
 
 public class SchemaUtil {

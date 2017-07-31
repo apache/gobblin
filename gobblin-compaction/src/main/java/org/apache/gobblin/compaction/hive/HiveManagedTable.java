@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hive;
+package org.apache.gobblin.compaction.hive;
 
 import java.sql.SQLException;
 
-import gobblin.util.HiveJdbcConnector;
+import org.apache.gobblin.util.HiveJdbcConnector;
 
 /**
  * A class for managing Hive managed tables.

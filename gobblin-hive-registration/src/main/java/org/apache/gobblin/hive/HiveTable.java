@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import java.util.List;
 
@@ -24,8 +24,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;

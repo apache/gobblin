@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.util;
+package org.apache.gobblin.runtime.util;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.testng.Assert;

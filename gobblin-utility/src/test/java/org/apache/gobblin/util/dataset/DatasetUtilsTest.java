@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.dataset;
+package org.apache.gobblin.util.dataset;
 
 import java.util.Map;
 
@@ -24,8 +24,8 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
 
 
 /**

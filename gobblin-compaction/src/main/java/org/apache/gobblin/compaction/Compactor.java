@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction;
+package org.apache.gobblin.compaction;
 
 import java.io.IOException;
 

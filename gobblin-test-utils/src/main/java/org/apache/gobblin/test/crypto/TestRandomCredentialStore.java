@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.test.crypto;
+package org.apache.gobblin.test.crypto;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import gobblin.crypto.CredentialStore;
+import org.apache.gobblin.crypto.CredentialStore;
 
 
 public class TestRandomCredentialStore implements CredentialStore {

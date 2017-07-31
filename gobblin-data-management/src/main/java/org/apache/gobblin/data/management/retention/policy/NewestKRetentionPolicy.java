@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.policy;
+package org.apache.gobblin.data.management.retention.policy;
 
 import java.util.Collection;
 import java.util.List;
@@ -27,8 +27,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.DatasetCleaner;
+import org.apache.gobblin.data.management.version.DatasetVersion;
 
 
 /**

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.net.URI;
@@ -29,8 +29,8 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Charsets;
 import com.google.common.base.Objects;
 
-import gobblin.commit.CommitStep;
-import gobblin.source.extractor.Watermark;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.source.extractor.Watermark;
 
 /**
  * A {@link CommitStep} to write watermark metadata to Hdfs

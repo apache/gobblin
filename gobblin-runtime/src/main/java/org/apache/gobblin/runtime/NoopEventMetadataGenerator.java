@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 
-import gobblin.annotation.Alias;
-import gobblin.metrics.event.EventName;
-import gobblin.runtime.api.EventMetadataGenerator;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.metrics.event.EventName;
+import org.apache.gobblin.runtime.api.EventMetadataGenerator;
 
 @Alias("noop")
 public class NoopEventMetadataGenerator implements EventMetadataGenerator{

@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
 import com.typesafe.config.Config;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 /**
  * An adapter from Gobblin configuration to {@link HttpClientBuilder}. It can also be used to

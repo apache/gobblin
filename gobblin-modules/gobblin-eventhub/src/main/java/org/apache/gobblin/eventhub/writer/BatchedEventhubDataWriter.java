@@ -1,6 +1,6 @@
-package gobblin.eventhub.writer;
+package org.apache.gobblin.eventhub.writer;
 
-import gobblin.writer.BufferedAsyncDataWriter;
+import org.apache.gobblin.writer.BufferedAsyncDataWriter;
 
 /**
  * A batch writer for eventhub, composed by {@link EventhubBatchAccumulator} and {@link EventhubDataWriter}

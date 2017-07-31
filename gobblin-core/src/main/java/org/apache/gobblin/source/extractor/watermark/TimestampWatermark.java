@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.watermark;
+package org.apache.gobblin.source.extractor.watermark;
 
 import java.math.RoundingMode;
 import java.text.ParseException;
@@ -31,8 +31,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.math.DoubleMath;
 import com.google.common.primitives.Ints;
 
-import gobblin.source.extractor.extract.QueryBasedExtractor;
-import gobblin.source.extractor.utils.Utils;
+import org.apache.gobblin.source.extractor.extract.QueryBasedExtractor;
+import org.apache.gobblin.source.extractor.utils.Utils;
 
 
 public class TimestampWatermark implements Watermark {

@@ -1,4 +1,4 @@
-package gobblin.ingestion.google;
+package org.apache.gobblin.ingestion.google;
 
 public class GoggleIngestionConfigurationKeys {
   public static final String DAY_PARTITIONER_KEY_PREFIX = "writer.partitioner.google_ingestion";

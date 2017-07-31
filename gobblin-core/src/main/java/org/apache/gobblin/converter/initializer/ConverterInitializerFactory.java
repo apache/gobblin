@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.initializer;
+package org.apache.gobblin.converter.initializer;
 
 import java.util.List;
 
@@ -23,11 +23,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.converter.Converter;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
 
 
 public class ConverterInitializerFactory {

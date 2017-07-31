@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.influxdb;
+package org.apache.gobblin.metrics.influxdb;
 
-import gobblin.metrics.test.TimestampedValue;
+import org.apache.gobblin.metrics.test.TimestampedValue;
 
 import java.util.List;
 import java.util.Map;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import java.util.Properties;
 
@@ -26,7 +26,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.runtime.std.DefaultConfigurableImpl;
+import org.apache.gobblin.runtime.std.DefaultConfigurableImpl;
 
 /**
  * Unit tests for {@link DefaultConfigurableImpl}

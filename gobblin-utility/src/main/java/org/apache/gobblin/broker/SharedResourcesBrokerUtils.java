@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -27,7 +27,7 @@ import org.slf4j.Logger;
 
 import com.google.common.util.concurrent.Service;
 
-import gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.ScopeType;
 
 
 /**

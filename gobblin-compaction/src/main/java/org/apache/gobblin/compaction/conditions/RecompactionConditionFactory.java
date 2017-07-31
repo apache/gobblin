@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.conditions;
-import gobblin.compaction.dataset.Dataset;
+package org.apache.gobblin.compaction.conditions;
+import org.apache.gobblin.compaction.dataset.Dataset;
 
 
 public interface RecompactionConditionFactory {

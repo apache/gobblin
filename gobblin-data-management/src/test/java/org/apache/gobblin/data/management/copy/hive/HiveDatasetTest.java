@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import java.io.IOException;
 
@@ -25,7 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.data.management.retention.version.HiveDatasetVersionCleaner;
+import org.apache.gobblin.data.management.retention.version.HiveDatasetVersionCleaner;
 
 
 public class HiveDatasetTest {

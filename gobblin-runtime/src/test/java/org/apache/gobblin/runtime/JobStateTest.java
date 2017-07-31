@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -36,11 +36,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
-import gobblin.rest.JobExecutionInfo;
-import gobblin.rest.TaskExecutionInfo;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.rest.JobExecutionInfo;
+import org.apache.gobblin.rest.TaskExecutionInfo;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.aws;
+package org.apache.gobblin.aws;
 
 import java.io.IOException;
 import java.net.URL;
@@ -56,14 +56,14 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.cluster.GobblinClusterConfigurationKeys;
-import gobblin.cluster.GobblinHelixConstants;
-import gobblin.cluster.HelixMessageSubTypes;
-import gobblin.cluster.HelixMessageTestBase;
-import gobblin.cluster.HelixUtils;
-import gobblin.cluster.TestHelper;
-import gobblin.cluster.TestShutdownMessageHandlerFactory;
-import gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinHelixConstants;
+import org.apache.gobblin.cluster.HelixMessageSubTypes;
+import org.apache.gobblin.cluster.HelixMessageTestBase;
+import org.apache.gobblin.cluster.HelixUtils;
+import org.apache.gobblin.cluster.TestHelper;
+import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 /**

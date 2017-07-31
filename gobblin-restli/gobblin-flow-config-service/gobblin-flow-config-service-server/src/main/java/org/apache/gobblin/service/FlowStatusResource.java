@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.annotations.Context;
@@ -35,8 +35,8 @@ import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 
-import gobblin.metrics.event.TimingEvent;
-import gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 
 
 /**

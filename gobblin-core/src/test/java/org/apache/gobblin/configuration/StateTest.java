@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.configuration;
+package org.apache.gobblin.configuration;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

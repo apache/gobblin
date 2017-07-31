@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
-import gobblin.async.Callback;
+import org.apache.gobblin.async.Callback;
 
 
 public interface WriteCallback<T> extends Callback<WriteResponse<T>> {

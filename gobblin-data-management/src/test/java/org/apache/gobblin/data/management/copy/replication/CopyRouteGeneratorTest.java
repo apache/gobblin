@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 
 import org.mockito.Mockito;
@@ -25,8 +25,8 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
-import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.extractor.ComparableWatermark;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 
 
 @Test(groups = { "gobblin.data.management.copy.replication" })

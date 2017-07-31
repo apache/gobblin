@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -28,8 +28,8 @@ import org.testng.annotations.Test;
 import com.codahale.metrics.Meter;
 import com.google.common.math.DoubleMath;
 
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.RateBasedLimiter;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.RateBasedLimiter;
 
 
 /**

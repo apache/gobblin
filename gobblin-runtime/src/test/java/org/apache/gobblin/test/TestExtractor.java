@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.test;
+package org.apache.gobblin.test;
 
 import java.io.IOException;
 import java.net.URI;
@@ -32,9 +32,9 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
 
 
 /**

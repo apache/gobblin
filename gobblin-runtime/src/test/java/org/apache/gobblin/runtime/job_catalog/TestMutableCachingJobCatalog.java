@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
@@ -27,9 +27,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 
-import gobblin.runtime.api.JobCatalogListener;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecNotFoundException;
+import org.apache.gobblin.runtime.api.JobCatalogListener;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
 
 /** Unit tests for {@link CachingJobCatalog} and {@link MutableCachingJobCatalog} */
 public class TestMutableCachingJobCatalog {

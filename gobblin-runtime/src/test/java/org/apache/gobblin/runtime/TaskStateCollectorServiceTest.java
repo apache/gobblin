@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.Map;
@@ -33,8 +33,8 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
-import gobblin.metastore.FsStateStore;
-import gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.util.JobLauncherUtils;
 
 
 /**

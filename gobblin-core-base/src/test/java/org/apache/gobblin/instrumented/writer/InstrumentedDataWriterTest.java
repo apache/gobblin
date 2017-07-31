@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.writer;
+package org.apache.gobblin.instrumented.writer;
 
 import java.io.IOException;
 import java.util.Map;
@@ -23,14 +23,14 @@ import java.util.Map;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.MetricsHelper;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.Constructs;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.MetricNames;
-import gobblin.stream.RecordEnvelope;
-import gobblin.writer.DataWriter;
+import org.apache.gobblin.MetricsHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.MetricNames;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.writer.DataWriter;
 
 
 public class InstrumentedDataWriterTest {

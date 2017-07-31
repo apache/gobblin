@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.partition;
+package org.apache.gobblin.data.management.partition;
 
 import org.apache.hadoop.fs.FileStatus;
 

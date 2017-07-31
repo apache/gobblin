@@ -1,4 +1,4 @@
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -14,23 +14,23 @@ import com.typesafe.config.ConfigFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.async.AsyncRequest;
-import gobblin.async.AsyncRequestBuilder;
-import gobblin.async.BufferedRecord;
-import gobblin.async.Callback;
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.http.HttpClient;
-import gobblin.http.HttpOperation;
-import gobblin.http.ResponseHandler;
-import gobblin.http.ResponseStatus;
-import gobblin.net.Request;
-import gobblin.utils.HttpConstants;
-import gobblin.writer.WriteCallback;
+import org.apache.gobblin.async.AsyncRequest;
+import org.apache.gobblin.async.AsyncRequestBuilder;
+import org.apache.gobblin.async.BufferedRecord;
+import org.apache.gobblin.async.Callback;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.http.HttpClient;
+import org.apache.gobblin.http.HttpOperation;
+import org.apache.gobblin.http.ResponseHandler;
+import org.apache.gobblin.http.ResponseStatus;
+import org.apache.gobblin.net.Request;
+import org.apache.gobblin.utils.HttpConstants;
+import org.apache.gobblin.writer.WriteCallback;
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
 /**

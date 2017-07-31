@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.eventhub.writer;
+package org.apache.gobblin.eventhub.writer;
 
 
 import org.codehaus.jackson.annotate.JsonProperty;

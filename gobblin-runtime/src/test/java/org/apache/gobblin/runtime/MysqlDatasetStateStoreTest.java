@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.metastore.MysqlStateStore;
-import gobblin.metastore.StateStore;
-import gobblin.metastore.testing.ITestMetastoreDatabase;
-import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metastore.MysqlStateStore;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.util.Map;
 import org.apache.commons.dbcp.BasicDataSource;

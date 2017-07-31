@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.restapi;
+package org.apache.gobblin.source.extractor.extract.restapi;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import gobblin.source.extractor.extract.CommandOutput;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
 
 
 public class RestApiCommandOutput implements CommandOutput<RestApiCommand, String> {

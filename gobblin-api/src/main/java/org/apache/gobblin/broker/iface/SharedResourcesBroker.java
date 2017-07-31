@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker.iface;
+package org.apache.gobblin.broker.iface;
 
 import java.io.Closeable;
 import java.io.IOException;

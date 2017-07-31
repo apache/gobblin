@@ -1,7 +1,7 @@
 {
   "type" : "record",
   "name" : "FlowConfig",
-  "namespace": "gobblin.service",
+  "namesapce" : "org.apache.gobblin.service",
   "doc" : "Defines a flow configuration that can be compiled into Gobblin jobs",
   "fields" : [
     {

@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.commit;
+package org.apache.gobblin.commit;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

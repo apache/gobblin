@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.cli;
+package org.apache.gobblin.runtime.cli;
 
 /**
  * An application that can be called by {@link GobblinCli}.

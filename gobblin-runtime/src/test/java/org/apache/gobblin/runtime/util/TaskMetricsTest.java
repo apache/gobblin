@@ -15,20 +15,20 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.util;
+package org.apache.gobblin.runtime.util;
 
 import java.util.ArrayList;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.runtime.JobState;
-import gobblin.runtime.TaskState;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 @Test(groups = {"gobblin.runtime"})

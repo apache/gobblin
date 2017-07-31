@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.example;
+package org.apache.gobblin.metrics.example;
 
 import java.io.IOException;
 import java.util.Random;
@@ -32,10 +32,10 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
-import gobblin.metrics.event.JobEvent;
-import gobblin.metrics.reporter.ContextAwareScheduledReporter;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.JobEvent;
+import org.apache.gobblin.metrics.reporter.ContextAwareScheduledReporter;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 
 
 /**

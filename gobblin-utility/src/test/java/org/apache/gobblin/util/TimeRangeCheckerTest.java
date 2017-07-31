@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;

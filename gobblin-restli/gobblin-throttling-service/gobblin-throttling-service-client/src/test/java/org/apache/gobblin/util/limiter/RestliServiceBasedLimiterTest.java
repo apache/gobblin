@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -25,16 +25,16 @@ import com.google.inject.Injector;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import gobblin.broker.BrokerConfigurationKeyGenerator;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SimpleScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.restli.EmbeddedRestliServer;
-import gobblin.restli.throttling.CountBasedPolicy;
-import gobblin.restli.throttling.LimiterServerResource;
-import gobblin.restli.throttling.ThrottlingGuiceServletConfig;
-import gobblin.restli.throttling.ThrottlingPolicyFactory;
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.broker.BrokerConfigurationKeyGenerator;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.SimpleScopeType;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.restli.EmbeddedRestliServer;
+import org.apache.gobblin.restli.throttling.CountBasedPolicy;
+import org.apache.gobblin.restli.throttling.LimiterServerResource;
+import org.apache.gobblin.restli.throttling.ThrottlingGuiceServletConfig;
+import org.apache.gobblin.restli.throttling.ThrottlingPolicyFactory;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 import java.net.URI;
 import java.net.URISyntaxException;

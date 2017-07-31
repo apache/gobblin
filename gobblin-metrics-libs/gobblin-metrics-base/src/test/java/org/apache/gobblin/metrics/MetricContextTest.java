@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.io.IOException;
 import java.util.Map;
@@ -37,9 +37,9 @@ import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.Timer;
 
-import static gobblin.metrics.test.TestConstants.*;
+import static org.apache.gobblin.metrics.test.TestConstants.*;
 
-import gobblin.metrics.reporter.ContextAwareScheduledReporter;
+import org.apache.gobblin.metrics.reporter.ContextAwareScheduledReporter;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.predicates;
+package org.apache.gobblin.data.management.copy.predicates;
 
 import java.util.Map;
 
@@ -31,11 +31,11 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyContext;
-import gobblin.data.management.copy.hive.HiveCopyEntityHelper;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HivePartitionFileSet;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyContext;
+import org.apache.gobblin.data.management.copy.hive.HiveCopyEntityHelper;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HivePartitionFileSet;
 
 
 public class RegistrationTimeSkipPredicateTest {

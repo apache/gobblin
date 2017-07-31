@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.watermark;
+package org.apache.gobblin.source.extractor.watermark;
 
-import gobblin.source.extractor.extract.QueryBasedExtractor;
-import gobblin.source.extractor.utils.Utils;
+import org.apache.gobblin.source.extractor.extract.QueryBasedExtractor;
+import org.apache.gobblin.source.extractor.utils.Utils;
 
 import java.math.RoundingMode;
 import java.util.HashMap;

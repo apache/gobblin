@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.conversion.hive.extractor;
+package org.apache.gobblin.data.management.conversion.hive.extractor;
 
 import java.io.IOException;
 import com.google.common.base.Optional;
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
-import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.source.extractor.Extractor;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveWorkUnit;
+import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.source.extractor.Extractor;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -35,17 +35,17 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import gobblin.codec.StreamCodec;
-import gobblin.commit.SpeculativeAttemptAwareConstruct;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.metadata.types.GlobalMetadata;
-import gobblin.util.FinalState;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.util.HadoopUtils;
-import gobblin.util.JobConfigurationUtils;
-import gobblin.util.WriterUtils;
-import gobblin.util.recordcount.IngestionRecordCountProvider;
+import org.apache.gobblin.codec.StreamCodec;
+import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.util.FinalState;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.JobConfigurationUtils;
+import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.util.recordcount.IngestionRecordCountProvider;
 
 
 /**

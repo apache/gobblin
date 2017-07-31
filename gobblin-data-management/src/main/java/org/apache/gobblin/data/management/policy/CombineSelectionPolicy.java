@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.policy;
+package org.apache.gobblin.data.management.policy;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -39,9 +39,9 @@ import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.data.management.retention.policy.CombineRetentionPolicy;
-import gobblin.data.management.version.DatasetVersion;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.data.management.retention.policy.CombineRetentionPolicy;
+import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

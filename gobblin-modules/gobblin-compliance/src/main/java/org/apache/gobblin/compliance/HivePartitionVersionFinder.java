@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package org.apache.gobblin.compliance;
 
 import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
@@ -38,12 +38,12 @@ import com.google.common.base.Splitter;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compliance.retention.ComplianceRetentionJob;
-import gobblin.compliance.retention.HivePartitionRetentionVersion;
-import gobblin.configuration.State;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.dataset.Dataset;
-import gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.compliance.retention.ComplianceRetentionJob;
+import org.apache.gobblin.compliance.retention.HivePartitionRetentionVersion;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.util.AutoReturnableObject;
 
 
 /**

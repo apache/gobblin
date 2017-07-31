@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.net;
+package org.apache.gobblin.net;
 
 
 /**

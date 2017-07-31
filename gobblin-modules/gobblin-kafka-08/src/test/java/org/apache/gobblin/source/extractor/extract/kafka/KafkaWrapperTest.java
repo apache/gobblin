@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.util.Properties;
 
@@ -24,8 +24,8 @@ import org.testng.annotations.Test;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 
 @Slf4j
 public class KafkaWrapperTest {

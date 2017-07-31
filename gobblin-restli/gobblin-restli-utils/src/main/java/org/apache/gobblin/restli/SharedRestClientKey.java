@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.restli;
+package org.apache.gobblin.restli;
 
-import gobblin.broker.iface.SharedResourceKey;
+import org.apache.gobblin.broker.iface.SharedResourceKey;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;

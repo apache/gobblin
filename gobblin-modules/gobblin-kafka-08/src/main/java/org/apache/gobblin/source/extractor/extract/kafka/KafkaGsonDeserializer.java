@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;

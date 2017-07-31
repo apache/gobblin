@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,8 +40,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 
 
 public class ConfigUtilsTest {

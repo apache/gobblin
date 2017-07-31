@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,28 +32,28 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
-import gobblin.ack.BasicAckableForTesting;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.fork.IdentityForkOperator;
-import gobblin.publisher.TaskPublisher;
-import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
-import gobblin.qualitychecker.task.TaskLevelPolicyChecker;
-import gobblin.records.ControlMessageHandler;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.stream.ControlMessage;
-import gobblin.stream.FlushControlMessage;
-import gobblin.stream.RecordEnvelope;
-import gobblin.stream.StreamEntity;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.ack.BasicAckableForTesting;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.fork.IdentityForkOperator;
+import org.apache.gobblin.publisher.TaskPublisher;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.FlushControlMessage;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.stream.StreamEntity;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
 
 import io.reactivex.Flowable;
 import lombok.AllArgsConstructor;

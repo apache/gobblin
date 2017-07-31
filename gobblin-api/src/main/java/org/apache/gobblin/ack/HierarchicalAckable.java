@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ack;
+package org.apache.gobblin.ack;
 
 import java.io.Closeable;
 import java.util.List;

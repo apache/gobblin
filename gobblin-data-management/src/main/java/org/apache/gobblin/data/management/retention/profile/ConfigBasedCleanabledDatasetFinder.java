@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.profile;
+package org.apache.gobblin.data.management.retention.profile;
 
 import com.google.common.base.Optional;
 import java.io.IOException;
@@ -29,11 +29,11 @@ import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
 
-import gobblin.dataset.Dataset;
-import gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
-import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
-import gobblin.config.client.ConfigClient;
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
+import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.audit.values;
+package org.apache.gobblin.audit.values;
 
 import static org.mockito.Mockito.mock;
-import gobblin.audit.values.auditor.ValueAuditGenerator;
-import gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
-import gobblin.audit.values.policy.column.ProjectAllColumnProjectionPolicy;
-import gobblin.audit.values.policy.row.SelectAllRowSelectionPolicy;
+import org.apache.gobblin.audit.values.auditor.ValueAuditGenerator;
+import org.apache.gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
+import org.apache.gobblin.audit.values.policy.column.ProjectAllColumnProjectionPolicy;
+import org.apache.gobblin.audit.values.policy.row.SelectAllRowSelectionPolicy;
 
 import org.apache.avro.generic.GenericRecord;
 import org.mockito.Mockito;

@@ -1,17 +1,17 @@
-package gobblin.r2;
+package org.apache.gobblin.r2;
 
 import com.google.common.collect.Maps;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
-import gobblin.configuration.State;
-import gobblin.http.ResponseHandler;
-import gobblin.http.StatusType;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.net.Request;
-import gobblin.utils.HttpConstants;
-import gobblin.utils.HttpUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.http.ResponseHandler;
+import org.apache.gobblin.http.StatusType;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.net.Request;
+import org.apache.gobblin.utils.HttpConstants;
+import org.apache.gobblin.utils.HttpUtils;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;

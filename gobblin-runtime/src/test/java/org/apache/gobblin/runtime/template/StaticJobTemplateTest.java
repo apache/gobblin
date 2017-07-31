@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.template;
+package org.apache.gobblin.runtime.template;
 
 import java.net.URI;
 import java.util.Collection;
@@ -31,8 +31,8 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.JobCatalogWithTemplates;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
 
 
 public class StaticJobTemplateTest {

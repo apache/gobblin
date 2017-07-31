@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.testing;
+package org.apache.gobblin.metastore.testing;
 
 import org.apache.commons.lang.StringUtils;
 

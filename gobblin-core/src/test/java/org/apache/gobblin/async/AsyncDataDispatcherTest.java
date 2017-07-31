@@ -1,4 +1,4 @@
-package gobblin.async;
+package org.apache.gobblin.async;
 
 import java.util.Queue;
 import java.util.concurrent.Callable;
@@ -10,7 +10,7 @@ import java.util.concurrent.Future;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.util.ExponentialBackoff;
+import org.apache.gobblin.util.ExponentialBackoff;
 
 
 @Test

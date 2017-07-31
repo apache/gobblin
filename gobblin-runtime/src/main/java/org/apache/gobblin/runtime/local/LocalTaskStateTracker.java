@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.local;
+package org.apache.gobblin.runtime.local;
 
 import java.util.Map;
 import java.util.Properties;
@@ -29,14 +29,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.runtime.AbstractTaskStateTracker;
-import gobblin.runtime.JobState;
-import gobblin.runtime.NewTaskCompletionEvent;
-import gobblin.runtime.Task;
-import gobblin.runtime.TaskExecutor;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.runtime.AbstractTaskStateTracker;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.NewTaskCompletionEvent;
+import org.apache.gobblin.runtime.Task;
+import org.apache.gobblin.runtime.TaskExecutor;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.locks;
+package org.apache.gobblin.runtime.locks;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -35,7 +35,7 @@ import org.apache.curator.retry.ExponentialBackoffRetry;
 
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 import lombok.extern.slf4j.Slf4j;
 

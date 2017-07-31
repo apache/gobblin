@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.watermarker;
+package org.apache.gobblin.data.management.conversion.hive.watermarker;
 
 import java.math.RoundingMode;
 import java.util.Map;
@@ -29,7 +29,7 @@ import com.google.common.math.LongMath;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
-import gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.Watermark;
 
 
 /**

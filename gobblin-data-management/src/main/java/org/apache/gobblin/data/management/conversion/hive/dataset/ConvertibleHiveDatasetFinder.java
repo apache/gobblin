@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.dataset;
+package org.apache.gobblin.data.management.conversion.hive.dataset;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -24,8 +24,8 @@ import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.typesafe.config.Config;
 
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 
 
 /**

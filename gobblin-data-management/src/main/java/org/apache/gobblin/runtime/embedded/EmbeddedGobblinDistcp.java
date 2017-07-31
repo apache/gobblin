@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.embedded;
+package org.apache.gobblin.runtime.embedded;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -25,16 +25,16 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.ClassUtil;
 
-import gobblin.annotation.Alias;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.RecursiveCopyableDataset;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.cli.CliObjectOption;
-import gobblin.runtime.cli.NotOnCli;
-import gobblin.runtime.cli.PublicMethodsGobblinCliFactory;
-import gobblin.runtime.template.ResourceBasedJobTemplate;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.data.management.copy.RecursiveCopyableDataset;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.cli.CliObjectOption;
+import org.apache.gobblin.runtime.cli.NotOnCli;
+import org.apache.gobblin.runtime.cli.PublicMethodsGobblinCliFactory;
+import org.apache.gobblin.runtime.template.ResourceBasedJobTemplate;
 
 
 /**

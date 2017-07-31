@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_monitor;
+package org.apache.gobblin.runtime.job_monitor;
 
 import java.io.IOException;
 import java.net.URI;
@@ -38,10 +38,10 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.testing.AssertWithBackoff;
-import gobblin.util.Either;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.util.Either;
 
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;

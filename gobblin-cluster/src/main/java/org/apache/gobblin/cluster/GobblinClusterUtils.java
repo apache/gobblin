@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -23,7 +23,7 @@ import java.net.UnknownHostException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 @Alpha
 public class GobblinClusterUtils {

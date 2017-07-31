@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 @SuppressWarnings("serial")
 public class PreviousOffsetNotFoundException extends Exception {

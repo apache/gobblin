@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.tool;
+package org.apache.gobblin.kafka.tool;
 
 import java.io.File;
 import java.io.IOException;

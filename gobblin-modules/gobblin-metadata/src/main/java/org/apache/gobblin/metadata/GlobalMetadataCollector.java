@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.metadata;
+package org.apache.gobblin.metadata;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -23,7 +23,7 @@ import java.util.Set;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
 
 
 /**

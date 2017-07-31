@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker.task;
+package org.apache.gobblin.qualitychecker.task;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 public abstract class TaskLevelPolicy {

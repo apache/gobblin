@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.async;
+package org.apache.gobblin.async;
 
 /**
  * Exception for dispatching failures. By default, it is a fatal exception

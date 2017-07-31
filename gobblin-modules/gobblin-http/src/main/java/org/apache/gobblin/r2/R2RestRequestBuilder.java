@@ -1,4 +1,4 @@
-package gobblin.r2;
+package org.apache.gobblin.r2;
 
 import java.io.IOException;
 import java.net.URI;
@@ -17,10 +17,10 @@ import com.linkedin.r2.message.rest.RestRequestBuilder;
 import com.linkedin.restli.common.ResourceMethod;
 import com.linkedin.restli.common.RestConstants;
 
-import gobblin.http.HttpOperation;
-import gobblin.utils.HttpUtils;
-import gobblin.async.AsyncRequestBuilder;
-import gobblin.async.BufferedRecord;
+import org.apache.gobblin.http.HttpOperation;
+import org.apache.gobblin.utils.HttpUtils;
+import org.apache.gobblin.async.AsyncRequestBuilder;
+import org.apache.gobblin.async.BufferedRecord;
 
 
 /**

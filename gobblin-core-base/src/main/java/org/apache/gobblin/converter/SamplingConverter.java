@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 
 import java.util.Collections;
@@ -28,8 +28,8 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -26,14 +26,14 @@ import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.stream.RecordEnvelope;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.writer.test.TestPartitionAwareWriterBuilder;
-import gobblin.writer.test.TestPartitioner;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.writer.test.TestPartitionAwareWriterBuilder;
+import org.apache.gobblin.writer.test.TestPartitioner;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;

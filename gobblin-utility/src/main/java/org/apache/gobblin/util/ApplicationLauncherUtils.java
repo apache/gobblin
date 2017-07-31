@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 /**
  * A utility class for the application launcher.

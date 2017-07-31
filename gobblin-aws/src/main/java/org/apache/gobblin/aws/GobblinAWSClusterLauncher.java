@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.aws;
+package org.apache.gobblin.aws;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,18 +56,18 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.annotation.Alpha;
-import gobblin.cluster.GobblinClusterConfigurationKeys;
-import gobblin.cluster.GobblinClusterUtils;
-import gobblin.cluster.GobblinHelixConstants;
-import gobblin.cluster.HelixMessageSubTypes;
-import gobblin.cluster.HelixUtils;
-import gobblin.util.ConfigUtils;
-import gobblin.util.EmailUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.cluster.GobblinHelixConstants;
+import org.apache.gobblin.cluster.HelixMessageSubTypes;
+import org.apache.gobblin.cluster.HelixUtils;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.EmailUtils;
 
-import static gobblin.aws.GobblinAWSUtils.*;
-import static gobblin.aws.GobblinAWSConfigurationKeys.*;
-import static gobblin.cluster.GobblinClusterConfigurationKeys.*;
+import static org.apache.gobblin.aws.GobblinAWSUtils.*;
+import static org.apache.gobblin.aws.GobblinAWSConfigurationKeys.*;
+import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.*;
 
 
 /**
@@ -296,7 +296,7 @@ public class GobblinAWSClusterLauncher {
         this.closer.close();
       }
     }
-    
+
     this.countDownLatch.countDown();
     this.stopped = true;
   }

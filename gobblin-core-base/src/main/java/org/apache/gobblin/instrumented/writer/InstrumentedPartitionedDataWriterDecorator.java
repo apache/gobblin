@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.writer;
+package org.apache.gobblin.instrumented.writer;
 
 import java.util.List;
 
@@ -24,9 +24,9 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.collect.ImmutableList;
 
-import gobblin.configuration.State;
-import gobblin.metrics.Tag;
-import gobblin.writer.DataWriter;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.writer.DataWriter;
 
 
 /**

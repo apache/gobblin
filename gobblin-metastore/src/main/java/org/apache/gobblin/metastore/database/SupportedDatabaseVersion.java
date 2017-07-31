@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.database;
+package org.apache.gobblin.metastore.database;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

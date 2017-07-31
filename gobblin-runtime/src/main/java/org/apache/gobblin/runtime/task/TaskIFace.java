@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.task;
+package org.apache.gobblin.runtime.task;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

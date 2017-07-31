@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.extractor;
+package org.apache.gobblin.instrumented.extractor;
 
 import java.io.IOException;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.stream.RecordEnvelope;
 
 
 /**

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,8 +31,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.annotation.Alias;
-import gobblin.configuration.State;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.State;
 
 /**
  * Default implementation that uses the following properties to configure an {@link HttpClient}.

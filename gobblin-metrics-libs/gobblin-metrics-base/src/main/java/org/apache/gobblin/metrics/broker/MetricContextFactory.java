@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.broker;
+package org.apache.gobblin.metrics.broker;
 
 import com.typesafe.config.ConfigValue;
-import gobblin.broker.ResourceInstance;
-import gobblin.broker.iface.ConfigView;
-import gobblin.broker.iface.NoSuchScopeException;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.ScopedConfigView;
-import gobblin.broker.iface.SharedResourceFactory;
-import gobblin.broker.iface.SharedResourceFactoryResponse;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.RootMetricContext;
-import gobblin.metrics.Tag;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.broker.ResourceInstance;
+import org.apache.gobblin.broker.iface.ConfigView;
+import org.apache.gobblin.broker.iface.NoSuchScopeException;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.ScopedConfigView;
+import org.apache.gobblin.broker.iface.SharedResourceFactory;
+import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.util.ConfigUtils;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;

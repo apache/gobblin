@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.io.Closeable;
 import java.io.File;
@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.password.PasswordManager;
+import org.apache.gobblin.password.PasswordManager;
 
 
 /**

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.eventhub.writer;
+package org.apache.gobblin.eventhub.writer;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
-import gobblin.writer.*;
+import org.apache.gobblin.writer.*;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;

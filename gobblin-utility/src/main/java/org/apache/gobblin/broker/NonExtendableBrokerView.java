@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 import java.util.List;
 import java.util.Map;
 
-import gobblin.broker.iface.ScopeInstance;
-import gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.ScopeInstance;
+import org.apache.gobblin.broker.iface.ScopeType;
 
 
 /**

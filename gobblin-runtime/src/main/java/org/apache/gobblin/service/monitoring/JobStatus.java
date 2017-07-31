@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.service.monitoring;
+package org.apache.gobblin.service.monitoring;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 import lombok.Builder;
 import lombok.Getter;

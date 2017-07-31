@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.source.jdbc;
+package org.apache.gobblin.source.jdbc;
 
-import gobblin.tunnel.Tunnel;
+import org.apache.gobblin.tunnel.Tunnel;
 import org.apache.commons.dbcp.BasicDataSource;
 
 import java.io.IOException;

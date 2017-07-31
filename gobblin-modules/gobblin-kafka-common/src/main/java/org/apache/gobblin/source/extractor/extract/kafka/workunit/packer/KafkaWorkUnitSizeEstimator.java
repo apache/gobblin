@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka.workunit.packer;
+package org.apache.gobblin.source.extractor.extract.kafka.workunit.packer;
 
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

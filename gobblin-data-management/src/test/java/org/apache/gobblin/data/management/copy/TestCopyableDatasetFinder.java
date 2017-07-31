@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.List;
@@ -26,7 +26,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
 
-import gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.dataset.DatasetsFinder;
 
 
 public class TestCopyableDatasetFinder implements DatasetsFinder<CopyableDataset> {

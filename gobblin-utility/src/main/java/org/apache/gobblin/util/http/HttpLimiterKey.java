@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.util.http;
+package org.apache.gobblin.util.http;
 
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 
 /**

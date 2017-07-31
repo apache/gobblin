@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce.avro;
 
 import java.io.IOException;
 
@@ -31,7 +31,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.util.AvroUtils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 

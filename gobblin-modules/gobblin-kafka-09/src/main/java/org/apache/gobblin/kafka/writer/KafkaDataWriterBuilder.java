@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.writer;
+package org.apache.gobblin.kafka.writer;
 
 import java.util.Properties;
 
 import org.apache.avro.generic.GenericRecord;
 
-import gobblin.writer.AsyncDataWriter;
+import org.apache.gobblin.writer.AsyncDataWriter;
 
 
 /**

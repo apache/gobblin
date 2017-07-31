@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.yarn;
+package org.apache.gobblin.yarn;
 
 /**
  * A central place for configuration related constants of Gobblin on Yarn.

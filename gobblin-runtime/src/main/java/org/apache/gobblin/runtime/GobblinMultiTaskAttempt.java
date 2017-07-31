@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,25 +34,25 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
-import gobblin.annotation.Alpha;
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.gobblin_scopes.TaskScopeInstance;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.broker.iface.SubscopedBrokerBuilder;
-import gobblin.commit.CommitStep;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metastore.StateStore;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.JobEvent;
-import gobblin.runtime.task.TaskFactory;
-import gobblin.runtime.task.TaskIFaceWrapper;
-import gobblin.runtime.task.TaskUtils;
-import gobblin.runtime.util.JobMetrics;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.Either;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.executors.IteratorExecutor;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.TaskScopeInstance;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.broker.iface.SubscopedBrokerBuilder;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.JobEvent;
+import org.apache.gobblin.runtime.task.TaskFactory;
+import org.apache.gobblin.runtime.task.TaskIFaceWrapper;
+import org.apache.gobblin.runtime.task.TaskUtils;
+import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.Either;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.executors.IteratorExecutor;
 
 import javax.annotation.Nullable;
 

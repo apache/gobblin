@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.metastore.StateStore;
-import gobblin.metastore.ZkStateStore;
-import gobblin.metastore.ZkStateStoreConfigurationKeys;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metastore.ZkStateStore;
+import org.apache.gobblin.metastore.ZkStateStoreConfigurationKeys;
+import org.apache.gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;

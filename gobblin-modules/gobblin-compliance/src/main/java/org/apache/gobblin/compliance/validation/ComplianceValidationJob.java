@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.validation;
+package org.apache.gobblin.compliance.validation;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,16 +36,16 @@ import com.google.common.util.concurrent.ListenableFuture;
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compliance.ComplianceEvents;
-import gobblin.compliance.ComplianceJob;
-import gobblin.compliance.utils.ProxyUtils;
-import gobblin.configuration.State;
-import gobblin.dataset.Dataset;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.compliance.ComplianceEvents;
+import org.apache.gobblin.compliance.ComplianceJob;
+import org.apache.gobblin.compliance.utils.ProxyUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import static gobblin.compliance.ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_DATASET_FINDER_CLASS;
+import static org.apache.gobblin.compliance.ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_DATASET_FINDER_CLASS;
 
 
 /**

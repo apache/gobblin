@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker;
+package org.apache.gobblin.qualitychecker;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
-import gobblin.qualitychecker.task.TaskLevelPolicyChecker;
-import gobblin.qualitychecker.task.TaskLevelPolicyCheckerBuilderFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckerBuilderFactory;
 import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.State;
-import gobblin.qualitychecker.task.TaskLevelPolicy;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicy;
 
 
 @Test(groups = {"gobblin.qualitychecker"})

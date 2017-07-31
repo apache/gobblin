@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.aws;
+package org.apache.gobblin.aws;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;

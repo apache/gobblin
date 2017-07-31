@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -30,14 +30,14 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
-import gobblin.broker.iface.ConfigView;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.util.HadoopUtils;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.NotEnoughPermitsException;
-import gobblin.util.limiter.broker.SharedLimiterFactory;
+import org.apache.gobblin.broker.iface.ConfigView;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.NotEnoughPermitsException;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterFactory;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

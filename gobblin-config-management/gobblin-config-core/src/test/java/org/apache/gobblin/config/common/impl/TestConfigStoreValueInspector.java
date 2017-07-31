@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.config.common.impl;
+package org.apache.gobblin.config.common.impl;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import gobblin.config.TestEnvironment;
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.TestEnvironment;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStore;
 
 import org.mockito.Mockito;
 import org.testng.Assert;

@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.partition;
+package org.apache.gobblin.data.management.partition;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.dataset.Dataset;
 
 
 /**

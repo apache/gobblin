@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.extractor;
+package org.apache.gobblin.data.management.conversion.hive.extractor;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,16 +33,16 @@ import org.apache.thrift.TException;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
-import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
-import gobblin.data.management.conversion.hive.entities.SchemaAwareHiveTable;
-import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import org.apache.gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
+import org.apache.gobblin.data.management.conversion.hive.entities.SchemaAwareHiveTable;
+import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.util.AutoReturnableObject;
 
 
 /**

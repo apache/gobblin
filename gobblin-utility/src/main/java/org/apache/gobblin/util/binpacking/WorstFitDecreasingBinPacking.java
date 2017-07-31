@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.binpacking;
+package org.apache.gobblin.util.binpacking;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -31,10 +31,10 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
 
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.source.workunit.WorkUnitBinPacker;
-import gobblin.source.workunit.WorkUnitWeighter;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnitBinPacker;
+import org.apache.gobblin.source.workunit.WorkUnitWeighter;
 
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;

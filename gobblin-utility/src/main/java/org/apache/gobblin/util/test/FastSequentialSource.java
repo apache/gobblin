@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package gobblin.util.test;
+package org.apache.gobblin.util.test;
 
 import java.io.IOException;
 import java.util.List;
 
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.Source;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 import lombok.RequiredArgsConstructor;
 

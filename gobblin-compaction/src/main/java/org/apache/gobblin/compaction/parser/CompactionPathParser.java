@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.parser;
+package org.apache.gobblin.compaction.parser;
 
 import com.google.common.base.Joiner;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.dataset.FileSystemDataset;
 import lombok.AllArgsConstructor;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
@@ -31,8 +31,8 @@ import com.google.common.base.Preconditions;
 import lombok.Getter;
 import lombok.Setter;
 
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.State;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.configuration.State;
 
 
 /**

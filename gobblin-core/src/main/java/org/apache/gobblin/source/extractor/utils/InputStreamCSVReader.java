@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.utils;
+package org.apache.gobblin.source.extractor.utils;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -26,7 +26,7 @@ import java.io.Reader;
 import java.io.StreamTokenizer;
 import java.util.ArrayList;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**

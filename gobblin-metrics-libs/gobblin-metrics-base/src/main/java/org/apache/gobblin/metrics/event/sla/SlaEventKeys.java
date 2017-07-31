@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.event.sla;
+package org.apache.gobblin.metrics.event.sla;
 
 public class SlaEventKeys {
 

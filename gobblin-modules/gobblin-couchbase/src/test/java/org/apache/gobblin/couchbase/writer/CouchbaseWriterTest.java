@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.couchbase.writer;
+package org.apache.gobblin.couchbase.writer;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -64,18 +64,18 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.couchbase.CouchbaseTestServer;
-import gobblin.couchbase.common.TupleDocument;
-import gobblin.couchbase.converter.AnyToCouchbaseJsonConverter;
-import gobblin.couchbase.converter.AvroToCouchbaseTupleConverter;
-import gobblin.metrics.RootMetricContext;
-import gobblin.metrics.reporter.OutputStreamReporter;
-import gobblin.test.TestUtils;
-import gobblin.writer.AsyncWriterManager;
-import gobblin.writer.WriteCallback;
-import gobblin.writer.WriteResponse;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.couchbase.CouchbaseTestServer;
+import org.apache.gobblin.couchbase.common.TupleDocument;
+import org.apache.gobblin.couchbase.converter.AnyToCouchbaseJsonConverter;
+import org.apache.gobblin.couchbase.converter.AvroToCouchbaseTupleConverter;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.reporter.OutputStreamReporter;
+import org.apache.gobblin.test.TestUtils;
+import org.apache.gobblin.writer.AsyncWriterManager;
+import org.apache.gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteResponse;
 
 @Slf4j
 public class CouchbaseWriterTest {

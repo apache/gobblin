@@ -1,6 +1,6 @@
-package gobblin.compaction.verify;
+package org.apache.gobblin.compaction.verify;
 
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.Dataset;
 
 /**
  * An interface which represents a generic verifier for compaction

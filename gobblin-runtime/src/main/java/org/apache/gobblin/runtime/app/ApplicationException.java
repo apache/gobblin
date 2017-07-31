@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.app;
+package org.apache.gobblin.runtime.app;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

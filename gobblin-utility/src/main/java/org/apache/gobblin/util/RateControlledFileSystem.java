@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -27,9 +27,9 @@ import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-import gobblin.util.filesystem.ThrottledFileSystem;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.RateBasedLimiter;
+import org.apache.gobblin.util.filesystem.ThrottledFileSystem;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.RateBasedLimiter;
 
 
 /**

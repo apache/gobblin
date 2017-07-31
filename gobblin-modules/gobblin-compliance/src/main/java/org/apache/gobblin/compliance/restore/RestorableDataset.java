@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.restore;
+package org.apache.gobblin.compliance.restore;
 
 import java.io.IOException;
 
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.Dataset;
 
 
 /**

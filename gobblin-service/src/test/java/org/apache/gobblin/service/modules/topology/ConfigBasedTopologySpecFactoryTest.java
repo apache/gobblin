@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.topology;
+package org.apache.gobblin.service.modules.topology;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -28,10 +28,10 @@ import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.TopologySpec;
-import gobblin.service.ServiceConfigKeys;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 public class ConfigBasedTopologySpecFactoryTest {

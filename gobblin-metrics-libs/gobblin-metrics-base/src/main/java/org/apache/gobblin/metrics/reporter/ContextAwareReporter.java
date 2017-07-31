@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -34,15 +34,15 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.metrics.InnerMetricContext;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.RootMetricContext;
-import gobblin.metrics.context.ReportableContext;
-import gobblin.metrics.context.filter.ContextFilter;
-import gobblin.metrics.context.filter.ContextFilterFactory;
-import gobblin.metrics.notification.MetricContextCleanupNotification;
-import gobblin.metrics.notification.NewMetricContextNotification;
-import gobblin.metrics.notification.Notification;
+import org.apache.gobblin.metrics.InnerMetricContext;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.context.ReportableContext;
+import org.apache.gobblin.metrics.context.filter.ContextFilter;
+import org.apache.gobblin.metrics.context.filter.ContextFilterFactory;
+import org.apache.gobblin.metrics.notification.MetricContextCleanupNotification;
+import org.apache.gobblin.metrics.notification.NewMetricContextNotification;
+import org.apache.gobblin.metrics.notification.Notification;
 
 
 /**

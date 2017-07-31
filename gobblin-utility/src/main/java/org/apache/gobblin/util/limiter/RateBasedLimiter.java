@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.io.Closeable;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +24,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.RateLimiter;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alias;
+import org.apache.gobblin.annotation.Alias;
 
 import lombok.Getter;
 

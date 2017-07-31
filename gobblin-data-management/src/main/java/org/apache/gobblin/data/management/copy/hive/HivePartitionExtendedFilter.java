@@ -16,7 +16,7 @@
  */
 
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
 

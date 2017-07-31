@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import lombok.Getter;
 
@@ -59,11 +59,11 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
 
-import gobblin.metrics.context.NameConflictException;
-import gobblin.metrics.context.ReportableContext;
-import gobblin.metrics.notification.EventNotification;
-import gobblin.metrics.notification.Notification;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.metrics.context.NameConflictException;
+import org.apache.gobblin.metrics.context.ReportableContext;
+import org.apache.gobblin.metrics.notification.EventNotification;
+import org.apache.gobblin.metrics.notification.Notification;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

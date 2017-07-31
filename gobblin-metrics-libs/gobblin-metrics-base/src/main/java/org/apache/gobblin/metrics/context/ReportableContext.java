@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.context;
+package org.apache.gobblin.metrics.context;
 
 import java.util.List;
 import java.util.Map;
@@ -30,8 +30,8 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 
 /**
  * Interface for a context that can be reported (e.g. {@link gobblin.metrics.InnerMetricContext},

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.event.sla;
+package org.apache.gobblin.metrics.event.sla;
 
 import java.util.Map;
 import java.util.Map.Entry;
@@ -35,8 +35,8 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 
 /**
  * A wrapper around the {@link EventSubmitter} which can submit SLA Events.

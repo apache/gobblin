@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.net.URI;
@@ -51,17 +51,17 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.metastore.FsStateStore;
-import gobblin.metastore.nameParser.DatasetUrnStateStoreNameParser;
-import gobblin.metastore.nameParser.SimpleDatasetUrnStateStoreNameParser;
-import gobblin.util.ConfigUtils;
-import gobblin.util.Either;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.WritableShimSerialization;
-import gobblin.util.executors.IteratorExecutor;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.metastore.nameParser.DatasetUrnStateStoreNameParser;
+import org.apache.gobblin.metastore.nameParser.SimpleDatasetUrnStateStoreNameParser;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.Either;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.WritableShimSerialization;
+import org.apache.gobblin.util.executors.IteratorExecutor;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

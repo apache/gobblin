@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ingestion.google.webmaster;
+package org.apache.gobblin.ingestion.google.webmaster;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -45,13 +45,13 @@ import com.google.common.base.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.State;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.limiter.RateBasedLimiter;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.limiter.RateBasedLimiter;
 
-import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.Dimension;
-import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.FilterOperator;
-import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.countryFilterToString;
+import static org.apache.gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.Dimension;
+import static org.apache.gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.FilterOperator;
+import static org.apache.gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.countryFilterToString;
 
 
 @Slf4j

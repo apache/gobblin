@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.policies.avro;
+package org.apache.gobblin.policies.avro;
 
 import org.apache.avro.generic.GenericRecord;
 
-import gobblin.configuration.State;
-import gobblin.qualitychecker.row.RowLevelPolicy;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicy;
 
 
 /**

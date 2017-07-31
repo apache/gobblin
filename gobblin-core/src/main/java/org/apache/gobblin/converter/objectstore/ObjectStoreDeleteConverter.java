@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.converter.objectstore;
+package org.apache.gobblin.converter.objectstore;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -27,13 +27,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.util.AvroUtils;
-import gobblin.writer.objectstore.ObjectStoreDeleteOperation;
-import gobblin.writer.objectstore.ObjectStoreOperationBuilder;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.writer.objectstore.ObjectStoreDeleteOperation;
+import org.apache.gobblin.writer.objectstore.ObjectStoreOperationBuilder;
 
 
 /**

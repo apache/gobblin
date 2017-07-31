@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.verify;
+package org.apache.gobblin.compaction.verify;
 
 import com.google.common.base.Splitter;
-import gobblin.compaction.audit.AuditCountClient;
-import gobblin.compaction.audit.AuditCountClientFactory;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.compaction.parser.CompactionPathParser;
-import gobblin.configuration.State;
-import gobblin.dataset.FileSystemDataset;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.compaction.audit.AuditCountClient;
+import org.apache.gobblin.compaction.audit.AuditCountClientFactory;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.parser.CompactionPathParser;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.ClassAliasResolver;
 import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
 import java.io.IOException;

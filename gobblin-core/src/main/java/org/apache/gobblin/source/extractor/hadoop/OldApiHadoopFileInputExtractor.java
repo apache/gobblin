@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.hadoop;
+package org.apache.gobblin.source.extractor.hadoop;
 
 import java.io.IOException;
 
 import org.apache.hadoop.mapred.RecordReader;
 
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
 
 
 /**

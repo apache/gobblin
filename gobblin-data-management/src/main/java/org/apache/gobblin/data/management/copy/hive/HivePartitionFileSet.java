@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -31,17 +31,17 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.entities.PostPublishStep;
-import gobblin.data.management.copy.entities.PrePublishStep;
-import gobblin.hive.HiveRegisterStep;
-import gobblin.hive.metastore.HiveMetaStoreUtils;
-import gobblin.hive.spec.HiveSpec;
-import gobblin.hive.spec.SimpleHiveSpec;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.MultiTimingEvent;
-import gobblin.util.commit.DeleteFileCommitStep;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.hive.HiveRegisterStep;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
+import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.hive.spec.SimpleHiveSpec;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.MultiTimingEvent;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.ExecutionException;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 /**
  * A future object generated after a record was inserted into a batch

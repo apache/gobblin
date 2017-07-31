@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer.partitioner;
+package org.apache.gobblin.writer.partitioner;
 
 import java.util.List;
 
@@ -23,10 +23,10 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Optional;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.AvroUtils;
-import gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.ForkOperatorUtils;
 
 
 /**

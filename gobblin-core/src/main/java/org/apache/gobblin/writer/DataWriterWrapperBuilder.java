@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 /**
  * The purpose of this class is to add more feature to DataWriter such as retry or throttle.

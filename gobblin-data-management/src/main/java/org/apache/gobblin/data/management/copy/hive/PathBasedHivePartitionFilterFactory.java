@@ -16,23 +16,23 @@
  */
 
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import java.util.Properties;
 
 import com.typesafe.config.Config;
 
-import gobblin.util.ConfigUtils;
-import gobblin.annotation.Alias;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alias;
 
 /**
  * A path based specific filter factory for generation of {@link PathBasedPartitionFilter}
  */
 @Alias("PathPartition")
 public class PathBasedHivePartitionFilterFactory implements HivePartitionExtendedFilterFactory {
-  /* Regular expression components required for filtering partitions by their path */	
+  /* Regular expression components required for filtering partitions by their path */
   public static final String HIVE_PARTITION_PATH_FILTER_REGEX = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".pathFilterRegex";
-  
+
   @Override
   public HivePartitionExtendedFilter createFilter(Config config){
     Properties props = ConfigUtils.configToProperties(config);

@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.writer.commands;
+package org.apache.gobblin.writer.commands;
 
-import gobblin.configuration.State;
-import gobblin.converter.jdbc.JdbcType;
-import gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcType;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

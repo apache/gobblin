@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.event;
+package org.apache.gobblin.metrics.event;
 
-import gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 /**
  * Task-related event types and their metadata, stored in {@link GobblinTrackingEvent#metadata}

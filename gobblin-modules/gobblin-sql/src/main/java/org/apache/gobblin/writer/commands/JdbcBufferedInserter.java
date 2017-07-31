@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.writer.commands;
+package org.apache.gobblin.writer.commands;
 
-import static gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
-import gobblin.converter.jdbc.JdbcEntryData;
+import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
 
 import java.sql.SQLException;
 

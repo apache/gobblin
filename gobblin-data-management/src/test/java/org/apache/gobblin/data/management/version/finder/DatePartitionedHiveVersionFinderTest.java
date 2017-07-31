@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.version.finder;
+package org.apache.gobblin.data.management.version.finder;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
@@ -39,9 +39,9 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.conversion.hive.LocalHiveMetastoreTestUtils;
-import gobblin.data.management.version.TimestampedHiveDatasetVersion;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.conversion.hive.LocalHiveMetastoreTestUtils;
+import org.apache.gobblin.data.management.version.TimestampedHiveDatasetVersion;
 
 
 @Test(groups = { "gobblin.data.management.version" })

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.provider;
+package org.apache.gobblin.data.management.conversion.hive.provider;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
@@ -30,8 +30,8 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-import gobblin.hive.HivePartition;
-import gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.HivePartition;
+import org.apache.gobblin.hive.HiveTable;
 
 
 /**

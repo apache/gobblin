@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -25,11 +25,11 @@ import com.google.common.base.Optional;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.JobState.RunningState;
-import gobblin.runtime.api.JobExecutionState;
-import gobblin.runtime.api.JobExecutionStateListener;
-import gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobState.RunningState;
+import org.apache.gobblin.runtime.api.JobExecutionState;
+import org.apache.gobblin.runtime.api.JobExecutionStateListener;
+import org.apache.gobblin.runtime.api.JobSpec;
 
 /**
  * Unit tests for {@link JobExecutionStateListeners}.

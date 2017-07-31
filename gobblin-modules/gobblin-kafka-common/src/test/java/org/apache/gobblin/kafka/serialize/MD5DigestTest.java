@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.serialize;
+package org.apache.gobblin.kafka.serialize;
 
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;

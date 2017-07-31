@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.filebased;
+package org.apache.gobblin.source.extractor.filebased;
 
 import java.io.IOException;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.hadoop.HadoopFsHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.hadoop.HadoopFsHelper;
 
-import static gobblin.configuration.ConfigurationKeys.*;
+import static org.apache.gobblin.configuration.ConfigurationKeys.*;
 
 
 /**

@@ -15,25 +15,25 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.restli.client.RestClient;
 
-import gobblin.broker.ResourceCoordinate;
-import gobblin.broker.ResourceInstance;
-import gobblin.broker.iface.ConfigView;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.ScopedConfigView;
-import gobblin.broker.iface.SharedResourceFactory;
-import gobblin.broker.iface.SharedResourceFactoryResponse;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.metrics.broker.MetricContextFactory;
-import gobblin.metrics.broker.MetricContextKey;
-import gobblin.metrics.broker.SubTaggedMetricContextKey;
-import gobblin.restli.SharedRestClientKey;
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.broker.ResourceCoordinate;
+import org.apache.gobblin.broker.ResourceInstance;
+import org.apache.gobblin.broker.iface.ConfigView;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.ScopedConfigView;
+import org.apache.gobblin.broker.iface.SharedResourceFactory;
+import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.metrics.broker.MetricContextFactory;
+import org.apache.gobblin.metrics.broker.MetricContextKey;
+import org.apache.gobblin.metrics.broker.SubTaggedMetricContextKey;
+import org.apache.gobblin.restli.SharedRestClientKey;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -25,9 +25,9 @@ import java.util.Collections;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.codec.StreamCodec;
-import gobblin.configuration.WorkUnitState;
-import gobblin.type.RecordWithMetadata;
+import org.apache.gobblin.codec.StreamCodec;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.type.RecordWithMetadata;
 
 
 /**

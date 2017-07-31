@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.profile;
+package org.apache.gobblin.data.management.retention.profile;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,11 +36,11 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.dataset.Dataset;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.util.ConfigUtils;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.data.management.retention.DatasetCleaner;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**

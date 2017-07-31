@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.copy.extractor.CloseableFsFileAwareInputStreamExtractor;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.copy.extractor.CloseableFsFileAwareInputStreamExtractor;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem;
+import org.apache.gobblin.util.HadoopUtils;
 
 import java.io.IOException;
 

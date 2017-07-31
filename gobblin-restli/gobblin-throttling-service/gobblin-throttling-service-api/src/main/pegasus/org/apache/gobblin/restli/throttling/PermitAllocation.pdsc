@@ -1,7 +1,7 @@
 {
   "name": "PermitAllocation",
   "type": "record",
-  "namespace": "gobblin.restli.throttling",
+  "namesapce" : "org.apache.gobblin.restli.throttling",
   "doc": "Used by gobblin-throttling-service to allocate permits to a client.",
   "fields": [
     {"name": "permits", "type": "long", "doc": "Number of permits allocated. This may be 0 if no permits are allocated, or the number of requested permits."},

@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
-import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
+import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
 
 import java.io.IOException;
 import java.util.Properties;

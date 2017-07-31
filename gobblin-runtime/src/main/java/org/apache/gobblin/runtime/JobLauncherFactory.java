@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.util.Properties;
 
@@ -25,12 +25,12 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.local.LocalJobLauncher;
-import gobblin.runtime.mapreduce.MRJobLauncher;
-import gobblin.util.JobConfigurationUtils;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.local.LocalJobLauncher;
+import org.apache.gobblin.runtime.mapreduce.MRJobLauncher;
+import org.apache.gobblin.util.JobConfigurationUtils;
 
 
 /**

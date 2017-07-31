@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.converter;
+package org.apache.gobblin.data.management.copy.converter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,10 +36,10 @@ import com.google.common.collect.Iterables;
 
 import joptsimple.internal.Strings;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
-import gobblin.data.management.copy.CopyableFileUtils;
-import gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.data.management.copy.CopyableFileUtils;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 
 
 public class UnGzipConverterTest {

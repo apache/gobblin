@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.predicates;
+package org.apache.gobblin.data.management.copy.predicates;
 
 import java.io.IOException;
 
@@ -24,10 +24,10 @@ import org.apache.hadoop.fs.FileStatus;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 
-import gobblin.data.management.copy.hive.HiveCopyEntityHelper;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HivePartitionFileSet;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.data.management.copy.hive.HiveCopyEntityHelper;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HivePartitionFileSet;
+import org.apache.gobblin.util.PathUtils;
 
 import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;

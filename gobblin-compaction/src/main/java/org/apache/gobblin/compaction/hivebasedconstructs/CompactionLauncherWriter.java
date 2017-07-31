@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hivebasedconstructs;
+package org.apache.gobblin.compaction.hivebasedconstructs;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,11 +25,11 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Joiner;
-import gobblin.compaction.listeners.CompactorListener;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.metrics.Tag;
-import gobblin.writer.DataWriter;
-import gobblin.compaction.mapreduce.avro.ConfBasedDeltaFieldProvider;
+import org.apache.gobblin.compaction.listeners.CompactorListener;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.compaction.mapreduce.avro.ConfBasedDeltaFieldProvider;
 
 
 /**

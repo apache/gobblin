@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
-import static gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_INSERT_BATCH_SIZE;
+import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_INSERT_BATCH_SIZE;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
@@ -36,10 +36,10 @@ import org.testng.annotations.Test;
 
 import com.mockrunner.mock.jdbc.MockParameterMetaData;
 
-import gobblin.configuration.State;
-import gobblin.converter.jdbc.JdbcEntryData;
-import gobblin.writer.commands.JdbcBufferedInserter;
-import gobblin.writer.commands.TeradataBufferedInserter;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.writer.commands.JdbcBufferedInserter;
+import org.apache.gobblin.writer.commands.TeradataBufferedInserter;
 
 
 @Test(groups = { "gobblin.writer" }, singleThreaded = true)

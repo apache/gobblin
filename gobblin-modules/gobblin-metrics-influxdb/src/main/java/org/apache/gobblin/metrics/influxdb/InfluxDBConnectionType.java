@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.influxdb;
+package org.apache.gobblin.metrics.influxdb;
 
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;

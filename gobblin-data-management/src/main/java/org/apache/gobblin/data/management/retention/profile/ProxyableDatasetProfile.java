@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.profile;
+package org.apache.gobblin.data.management.retention.profile;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -26,13 +26,13 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.dataset.Dataset;
-import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.util.ProxiedFileSystemCache;
-import gobblin.util.RateControlledFileSystem;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.retention.DatasetCleaner;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.util.ProxiedFileSystemCache;
+import org.apache.gobblin.util.RateControlledFileSystem;
 
 
 /**

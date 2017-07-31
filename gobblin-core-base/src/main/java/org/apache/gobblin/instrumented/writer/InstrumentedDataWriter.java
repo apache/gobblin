@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.writer;
+package org.apache.gobblin.instrumented.writer;
 
 import java.io.IOException;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

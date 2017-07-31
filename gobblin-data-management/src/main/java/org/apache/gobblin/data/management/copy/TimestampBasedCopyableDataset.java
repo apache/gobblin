@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -37,19 +37,19 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.joda.time.DateTime;
 
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.policy.SelectAfterTimeBasedPolicy;
-import gobblin.data.management.policy.VersionSelectionPolicy;
-import gobblin.data.management.version.TimestampedDatasetVersion;
-import gobblin.data.management.version.finder.DateTimeDatasetVersionFinder;
-import gobblin.data.management.version.finder.VersionFinder;
-import gobblin.dataset.FileSystemDataset;
-import gobblin.util.filters.HiddenFilter;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.PathUtils;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyableDataset;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.policy.SelectAfterTimeBasedPolicy;
+import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder;
+import org.apache.gobblin.data.management.version.finder.VersionFinder;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.filters.HiddenFilter;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;

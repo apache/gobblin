@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.salesforce;
+package org.apache.gobblin.salesforce;
 
 import java.io.IOException;
 import java.math.RoundingMode;
@@ -43,25 +43,25 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.exception.ExtractPrepareException;
-import gobblin.source.extractor.exception.RestApiClientException;
-import gobblin.source.extractor.exception.RestApiConnectionException;
-import gobblin.source.extractor.exception.RestApiProcessingException;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.extractor.extract.QueryBasedSource;
-import gobblin.source.extractor.extract.restapi.RestApiConnector;
-import gobblin.source.extractor.partition.Partition;
-import gobblin.source.extractor.partition.Partitioner;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.WatermarkType;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
+import org.apache.gobblin.source.extractor.exception.RestApiClientException;
+import org.apache.gobblin.source.extractor.exception.RestApiConnectionException;
+import org.apache.gobblin.source.extractor.exception.RestApiProcessingException;
+import org.apache.gobblin.source.extractor.extract.Command;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
+import org.apache.gobblin.source.extractor.extract.QueryBasedSource;
+import org.apache.gobblin.source.extractor.extract.restapi.RestApiConnector;
+import org.apache.gobblin.source.extractor.partition.Partition;
+import org.apache.gobblin.source.extractor.partition.Partitioner;
+import org.apache.gobblin.source.extractor.utils.Utils;
+import org.apache.gobblin.source.extractor.watermark.WatermarkType;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

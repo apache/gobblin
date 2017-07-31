@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import com.google.common.base.Optional;
 import java.io.IOException;

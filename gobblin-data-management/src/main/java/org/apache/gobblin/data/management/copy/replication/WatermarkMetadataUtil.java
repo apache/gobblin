@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.util.List;
 
 import com.google.common.base.Splitter;
 import com.google.gson.JsonParser;
 
-import gobblin.source.extractor.Watermark;
-import gobblin.source.extractor.WatermarkSerializerHelper;
+import org.apache.gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.WatermarkSerializerHelper;
 
 /**
  * Utility class to serialize and deserialize the {@link Watermark}

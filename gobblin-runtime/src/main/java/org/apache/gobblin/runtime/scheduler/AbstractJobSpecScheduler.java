@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.scheduler;
+package org.apache.gobblin.runtime.scheduler;
 
 import java.io.IOException;
 import java.net.URI;
@@ -31,10 +31,10 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecSchedule;
-import gobblin.runtime.api.JobSpecScheduler;
-import gobblin.runtime.api.JobSpecSchedulerListener;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecSchedule;
+import org.apache.gobblin.runtime.api.JobSpecScheduler;
+import org.apache.gobblin.runtime.api.JobSpecSchedulerListener;
 
 /**
  * A base implementation of {@link JobSpecScheduler} that keeps track of {@link JobSpecSchedule}s

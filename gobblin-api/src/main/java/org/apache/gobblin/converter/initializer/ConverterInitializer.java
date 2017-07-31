@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.converter.initializer;
+package org.apache.gobblin.converter.initializer;
 
-import gobblin.initializer.Initializer;
+import org.apache.gobblin.initializer.Initializer;
 
 /**
  * ConverterInitializer is being invoked at driver which means it will only invoked once per converter.

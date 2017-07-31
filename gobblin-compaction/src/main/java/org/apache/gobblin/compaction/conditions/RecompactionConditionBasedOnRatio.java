@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.conditions;
+package org.apache.gobblin.compaction.conditions;
 
 
 import java.util.List;
 import java.util.Map;
 
-import gobblin.annotation.Alias;
-import gobblin.compaction.dataset.DatasetHelper;
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.util.DatasetFilterUtils;
 
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;

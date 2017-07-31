@@ -15,20 +15,20 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.filter.AvroProjectionConverter;
-import gobblin.converter.filter.AvroSchemaFieldRemover;
-import gobblin.metrics.kafka.KafkaSchemaRegistry;
-import gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
-import gobblin.metrics.kafka.SchemaRegistryException;
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.filter.AvroProjectionConverter;
+import org.apache.gobblin.converter.filter.AvroSchemaFieldRemover;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.util.AvroUtils;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

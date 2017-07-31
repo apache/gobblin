@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.purger;
+package org.apache.gobblin.compliance.purger;
 
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 @Test

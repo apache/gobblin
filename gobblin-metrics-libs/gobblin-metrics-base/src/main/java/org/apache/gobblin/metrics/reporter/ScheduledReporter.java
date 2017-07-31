@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
 import java.util.Map;
@@ -45,13 +45,13 @@ import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.InnerMetricContext;
-import gobblin.metrics.context.ReportableContext;
-import gobblin.metrics.metric.filter.MetricFilters;
-import gobblin.metrics.metric.filter.MetricNameRegexFilter;
-import gobblin.metrics.metric.filter.MetricTypeFilter;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.InnerMetricContext;
+import org.apache.gobblin.metrics.context.ReportableContext;
+import org.apache.gobblin.metrics.metric.filter.MetricFilters;
+import org.apache.gobblin.metrics.metric.filter.MetricNameRegexFilter;
+import org.apache.gobblin.metrics.metric.filter.MetricTypeFilter;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

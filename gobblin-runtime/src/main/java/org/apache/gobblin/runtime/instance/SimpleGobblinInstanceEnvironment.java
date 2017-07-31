@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.instance;
+package org.apache.gobblin.runtime.instance;
 
 import java.util.List;
 
 import org.slf4j.Logger;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.configuration.State;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.runtime.api.Configurable;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.api.Configurable;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 
 import javax.annotation.Nonnull;
 import lombok.Data;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka.workunit.packer;
+package org.apache.gobblin.source.extractor.extract.kafka.workunit.packer;
 
 import java.util.List;
 import java.util.Map;
@@ -23,10 +23,10 @@ import java.util.Map;
 import com.google.common.collect.Lists;
 import com.google.common.math.DoubleMath;
 
-import gobblin.configuration.SourceState;
-import gobblin.source.extractor.extract.AbstractSource;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.source.extractor.extract.AbstractSource;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

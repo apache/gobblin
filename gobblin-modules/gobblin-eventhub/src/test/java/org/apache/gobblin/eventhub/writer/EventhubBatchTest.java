@@ -1,12 +1,12 @@
-package gobblin.eventhub.writer;
+package org.apache.gobblin.eventhub.writer;
 
 import java.io.IOException;
 
-import gobblin.writer.BytesBoundedBatch;
+import org.apache.gobblin.writer.BytesBoundedBatch;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteCallback;
 
 
 public class EventhubBatchTest {

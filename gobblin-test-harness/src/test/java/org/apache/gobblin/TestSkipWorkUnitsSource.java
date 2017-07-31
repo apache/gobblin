@@ -22,12 +22,12 @@ import java.util.List;
 
 import org.testng.Assert;
 
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.Source;
-import gobblin.source.extractor.DummyExtractor;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.DummyExtractor;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

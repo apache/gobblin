@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.listeners;
+package org.apache.gobblin.runtime.listeners;
 
 /**
  * Extension of {@link AbstractJobListener} that also extends {@link CloseableJobListener}.

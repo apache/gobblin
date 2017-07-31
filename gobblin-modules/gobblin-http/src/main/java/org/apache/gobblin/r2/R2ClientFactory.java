@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.r2;
+package org.apache.gobblin.r2;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +32,7 @@ import com.typesafe.config.ConfigValue;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 
-import gobblin.security.ssl.SSLContextFactory;
+import org.apache.gobblin.security.ssl.SSLContextFactory;
 
 
 /**

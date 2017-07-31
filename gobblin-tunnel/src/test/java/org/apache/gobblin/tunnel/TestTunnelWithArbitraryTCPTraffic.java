@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.tunnel;
+package org.apache.gobblin.tunnel;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;

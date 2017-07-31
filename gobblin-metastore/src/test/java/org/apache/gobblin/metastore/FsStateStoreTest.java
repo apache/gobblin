@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

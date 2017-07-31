@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.UUID;
@@ -28,7 +28,7 @@ import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.model.Message;
 import org.apache.helix.tools.ClusterSetup;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 import org.slf4j.Logger;
 
 

@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.source;
+package org.apache.gobblin.source;
 
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.watermark.TimestampWatermark;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.watermark.TimestampWatermark;
 
-import gobblin.source.jdbc.MysqlExtractor;
-import gobblin.source.jdbc.SqlServerExtractor;
+import org.apache.gobblin.source.jdbc.MysqlExtractor;
+import org.apache.gobblin.source.jdbc.SqlServerExtractor;
 
 
 /**

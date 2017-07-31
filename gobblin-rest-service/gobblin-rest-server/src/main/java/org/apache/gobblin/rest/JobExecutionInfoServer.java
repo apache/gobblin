@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.rest;
+package org.apache.gobblin.rest;
 
 import java.net.URI;
 import java.util.Properties;
@@ -43,9 +43,9 @@ import com.linkedin.restli.server.mock.InjectMockResourceFactory;
 import com.linkedin.restli.server.mock.SimpleBeanProvider;
 import com.linkedin.restli.server.resources.ResourceFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.JobHistoryStore;
-import gobblin.metastore.MetaStoreModule;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.JobHistoryStore;
+import org.apache.gobblin.metastore.MetaStoreModule;
 
 
 /**

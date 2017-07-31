@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
-import static gobblin.configuration.ConfigurationKeys.JOB_NAME_KEY;
+import static org.apache.gobblin.configuration.ConfigurationKeys.JOB_NAME_KEY;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -36,11 +36,11 @@ import com.google.common.base.Predicate;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.JobState.RunningState;
-import gobblin.runtime.std.JobExecutionUpdatable;
-import gobblin.testing.AssertWithBackoff;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobState.RunningState;
+import org.apache.gobblin.runtime.std.JobExecutionUpdatable;
+import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 /**
  * Unit tests for {@link JobExecutionState}

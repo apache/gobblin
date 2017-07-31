@@ -1,4 +1,4 @@
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,10 +11,10 @@ import com.typesafe.config.ConfigFactory;
 
 import junit.framework.Assert;
 
-import gobblin.http.ResponseStatus;
-import gobblin.http.StatusType;
-import gobblin.utils.HttpConstants;
-import gobblin.utils.HttpUtils;
+import org.apache.gobblin.http.ResponseStatus;
+import org.apache.gobblin.http.StatusType;
+import org.apache.gobblin.utils.HttpConstants;
+import org.apache.gobblin.utils.HttpUtils;
 
 
 @Test

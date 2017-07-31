@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.yarn;
+package org.apache.gobblin.yarn;
 
 import java.io.IOException;
 
@@ -28,7 +28,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 
 import com.google.common.collect.ImmutableSet;
 
-import gobblin.util.logs.LogCopier;
+import org.apache.gobblin.util.logs.LogCopier;
 
 
 /**

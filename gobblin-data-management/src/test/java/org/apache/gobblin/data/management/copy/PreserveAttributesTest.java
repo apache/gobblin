@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
-import gobblin.data.management.copy.PreserveAttributes.Option;
+import org.apache.gobblin.data.management.copy.PreserveAttributes.Option;
 
 import java.util.Map;
 import java.util.Set;

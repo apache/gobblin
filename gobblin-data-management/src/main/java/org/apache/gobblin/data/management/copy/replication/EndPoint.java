@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -24,8 +24,8 @@ import org.apache.hadoop.fs.FileStatus;
 
 import com.google.common.base.Optional;
 
-import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.ComparableWatermark;
+import org.apache.gobblin.source.extractor.Watermark;
 
 
 /**

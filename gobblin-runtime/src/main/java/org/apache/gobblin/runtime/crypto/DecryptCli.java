@@ -1,4 +1,4 @@
-package gobblin.runtime.crypto;
+package org.apache.gobblin.runtime.crypto;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -22,10 +22,10 @@ import org.apache.commons.io.IOUtils;
 
 import com.google.common.collect.ImmutableMap;
 
-import gobblin.annotation.Alias;
-import gobblin.crypto.EncryptionConfigParser;
-import gobblin.crypto.EncryptionFactory;
-import gobblin.runtime.cli.CliApplication;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.crypto.EncryptionConfigParser;
+import org.apache.gobblin.crypto.EncryptionFactory;
+import org.apache.gobblin.runtime.cli.CliApplication;
 
 
 @Alias(value = "decrypt", description = "Decryption utilities")

@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.core;
+package org.apache.gobblin.service.modules.core;
 
-import gobblin.service.FlowId;
-import gobblin.service.Schedule;
+import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.Schedule;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -68,28 +68,28 @@ import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.restli.EmbeddedRestliServer;
-import gobblin.runtime.api.TopologySpec;
-import gobblin.runtime.app.ApplicationException;
-import gobblin.runtime.app.ApplicationLauncher;
-import gobblin.runtime.app.ServiceBasedAppLauncher;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.spec_catalog.FlowCatalog;
-import gobblin.scheduler.SchedulerService;
-import gobblin.service.FlowConfig;
-import gobblin.service.FlowConfigClient;
-import gobblin.service.FlowConfigsResource;
-import gobblin.service.HelixUtils;
-import gobblin.service.ServiceConfigKeys;
-import gobblin.service.modules.orchestration.Orchestrator;
-import gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
-import gobblin.service.modules.topology.TopologySpecFactory;
-import gobblin.runtime.spec_catalog.TopologyCatalog;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.restli.EmbeddedRestliServer;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.app.ApplicationException;
+import org.apache.gobblin.runtime.app.ApplicationLauncher;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.service.FlowConfig;
+import org.apache.gobblin.service.FlowConfigClient;
+import org.apache.gobblin.service.FlowConfigsResource;
+import org.apache.gobblin.service.HelixUtils;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
+import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
+import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 @Alpha

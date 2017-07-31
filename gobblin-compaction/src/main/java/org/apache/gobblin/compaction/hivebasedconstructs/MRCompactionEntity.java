@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hivebasedconstructs;
+package org.apache.gobblin.compaction.hivebasedconstructs;
 
 import java.util.List;
 import java.util.Properties;

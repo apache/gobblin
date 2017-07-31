@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.retention;
+package org.apache.gobblin.compliance.retention;
 
 import java.util.List;
 
-import gobblin.configuration.State;
-import gobblin.data.management.retention.dataset.CleanableDataset;
-import gobblin.data.management.retention.version.VersionCleaner;
-import gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.retention.version.VersionCleaner;
+import org.apache.gobblin.data.management.version.DatasetVersion;
 
 
 /**

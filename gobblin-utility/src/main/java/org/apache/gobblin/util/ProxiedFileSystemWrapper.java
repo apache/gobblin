@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
@@ -37,8 +37,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 
 
 /**

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.action;
+package org.apache.gobblin.data.management.retention.action;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -27,16 +27,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.typesafe.config.Config;
 
-import gobblin.data.management.dataset.Dataset;
-import gobblin.data.management.policy.VersionSelectionPolicy;
-import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
-import gobblin.data.management.retention.dataset.FsCleanableHelper;
-import gobblin.data.management.version.DatasetVersion;
-import gobblin.data.management.version.finder.VersionFinder;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.data.management.dataset.Dataset;
+import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
+import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import org.apache.gobblin.data.management.retention.dataset.FsCleanableHelper;
+import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.version.finder.VersionFinder;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

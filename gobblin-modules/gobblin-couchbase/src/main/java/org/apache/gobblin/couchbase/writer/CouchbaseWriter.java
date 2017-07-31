@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.couchbase.writer;
+package org.apache.gobblin.couchbase.writer;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -51,16 +51,16 @@ import lombok.extern.slf4j.Slf4j;
 import rx.Observable;
 import rx.Subscriber;
 
-import gobblin.couchbase.common.TupleDocument;
-import gobblin.util.ConfigUtils;
-import gobblin.writer.AsyncDataWriter;
-import gobblin.writer.GenericWriteResponse;
-import gobblin.writer.GenericWriteResponseWrapper;
-import gobblin.writer.SyncDataWriter;
-import gobblin.writer.WriteCallback;
-import gobblin.writer.WriteResponse;
-import gobblin.writer.WriteResponseFuture;
-import gobblin.writer.WriteResponseMapper;
+import org.apache.gobblin.couchbase.common.TupleDocument;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.AsyncDataWriter;
+import org.apache.gobblin.writer.GenericWriteResponse;
+import org.apache.gobblin.writer.GenericWriteResponseWrapper;
+import org.apache.gobblin.writer.SyncDataWriter;
+import org.apache.gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteResponse;
+import org.apache.gobblin.writer.WriteResponseFuture;
+import org.apache.gobblin.writer.WriteResponseMapper;
 
 
 /**

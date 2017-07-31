@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce.conditions;
+package org.apache.gobblin.compaction.mapreduce.conditions;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -38,15 +38,15 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.base.Optional;
-import gobblin.compaction.conditions.RecompactionCondition;
-import gobblin.compaction.conditions.RecompactionCombineCondition;
-import gobblin.compaction.conditions.RecompactionConditionBasedOnDuration;
-import gobblin.compaction.conditions.RecompactionConditionBasedOnFileCount;
-import gobblin.compaction.conditions.RecompactionConditionBasedOnRatio;
-import gobblin.compaction.conditions.RecompactionConditionFactory;
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.dataset.DatasetHelper;
-import gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.conditions.RecompactionCondition;
+import org.apache.gobblin.compaction.conditions.RecompactionCombineCondition;
+import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnDuration;
+import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnFileCount;
+import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnRatio;
+import org.apache.gobblin.compaction.conditions.RecompactionConditionFactory;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;

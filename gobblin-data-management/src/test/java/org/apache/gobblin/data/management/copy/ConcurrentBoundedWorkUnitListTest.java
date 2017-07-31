@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 
 import java.io.IOException;
@@ -31,9 +31,9 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.dataset.DummyDataset;
-import gobblin.data.management.partition.FileSet;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.data.management.dataset.DummyDataset;
+import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 public class ConcurrentBoundedWorkUnitListTest {

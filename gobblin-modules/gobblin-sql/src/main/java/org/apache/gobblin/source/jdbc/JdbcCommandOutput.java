@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.source.jdbc;
+package org.apache.gobblin.source.jdbc;
 
 import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.Map;
 
-import gobblin.source.extractor.extract.CommandOutput;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
 
 
 /**

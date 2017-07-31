@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.audit.values.auditor;
+package org.apache.gobblin.audit.values.auditor;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -26,12 +26,12 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.typesafe.config.Config;
 
-import gobblin.audit.values.policy.column.ColumnProjectionPolicy;
-import gobblin.audit.values.policy.column.DefaultColumnProjectionPolicyFactory;
-import gobblin.audit.values.policy.row.DefaultRowSelectionPolicyFactory;
-import gobblin.audit.values.policy.row.RowSelectionPolicy;
-import gobblin.audit.values.sink.AuditSink;
-import gobblin.audit.values.sink.DefaultAuditSinkFactory;
+import org.apache.gobblin.audit.values.policy.column.ColumnProjectionPolicy;
+import org.apache.gobblin.audit.values.policy.column.DefaultColumnProjectionPolicyFactory;
+import org.apache.gobblin.audit.values.policy.row.DefaultRowSelectionPolicyFactory;
+import org.apache.gobblin.audit.values.policy.row.RowSelectionPolicy;
+import org.apache.gobblin.audit.values.sink.AuditSink;
+import org.apache.gobblin.audit.values.sink.DefaultAuditSinkFactory;
 
 
 /**

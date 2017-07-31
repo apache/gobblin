@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.locks;
+package org.apache.gobblin.runtime.locks;
 
 import java.io.Closeable;
 import java.util.concurrent.TimeoutException;
 
-import gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpec;
 
 /**
  * A factory for locks keyed on {@link JobSpec} . Typical usecase is to prevent the same job being

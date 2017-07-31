@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.stream;
+package org.apache.gobblin.stream;
 
 /**
  * A {@link StreamEntity} used to send control messages through the ingestion pipeline. Most constructs will just

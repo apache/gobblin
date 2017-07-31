@@ -1,7 +1,7 @@
 {
   "type" : "record",
   "name" : "JobStatus",
-  "namespace": "gobblin.service",
+  "namesapce" : "org.apache.gobblin.service",
   "doc" : "Execution status for a job",
   "fields" : [
     {

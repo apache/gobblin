@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.writer;
+package org.apache.gobblin.kafka.writer;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -33,11 +33,11 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.writer.AsyncDataWriter;
-import gobblin.writer.WriteCallback;
-import gobblin.writer.WriteResponse;
-import gobblin.writer.WriteResponseFuture;
-import gobblin.writer.WriteResponseMapper;
+import org.apache.gobblin.writer.AsyncDataWriter;
+import org.apache.gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteResponse;
+import org.apache.gobblin.writer.WriteResponseFuture;
+import org.apache.gobblin.writer.WriteResponseMapper;
 
 
 /**
@@ -106,8 +106,8 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
     log.debug("Close called");
     this.producer.close();
   }
-  
-  
+
+
 
   @Override
   public Future<WriteResponse> write(final D record, final WriteCallback callback) {

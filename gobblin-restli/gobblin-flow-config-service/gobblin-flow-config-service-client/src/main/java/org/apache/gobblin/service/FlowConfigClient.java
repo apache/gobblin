@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import java.io.Closeable;
 import java.io.IOException;

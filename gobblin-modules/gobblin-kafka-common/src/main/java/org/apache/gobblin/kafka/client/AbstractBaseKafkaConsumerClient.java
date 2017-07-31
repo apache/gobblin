@@ -14,22 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.kafka.client;
+package org.apache.gobblin.kafka.client;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import gobblin.source.extractor.extract.kafka.KafkaTopic;
-import gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
+import org.apache.gobblin.util.DatasetFilterUtils;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
 import java.util.Map;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;

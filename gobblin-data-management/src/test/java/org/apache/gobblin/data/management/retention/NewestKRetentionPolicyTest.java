@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
 import java.util.List;
 import java.util.Properties;
@@ -26,9 +26,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.retention.policy.NewestKRetentionPolicy;
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.StringDatasetVersion;
+import org.apache.gobblin.data.management.retention.policy.NewestKRetentionPolicy;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.version.StringDatasetVersion;
 
 
 public class NewestKRetentionPolicyTest {

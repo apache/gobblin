@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.publisher;
+package org.apache.gobblin.data.management.copy.publisher;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.configuration.WorkUnitState.WorkingState;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.CopyableDatasetMetadata;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableFileUtils;
-import gobblin.data.management.copy.TestCopyableDataset;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.data.management.copy.CopyableDataset;
+import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableFileUtils;
+import org.apache.gobblin.data.management.copy.TestCopyableDataset;
 
 import java.io.File;
 import java.io.IOException;

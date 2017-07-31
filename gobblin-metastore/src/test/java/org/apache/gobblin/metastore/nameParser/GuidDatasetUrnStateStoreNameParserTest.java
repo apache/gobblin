@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.nameParser;
+package org.apache.gobblin.metastore.nameParser;
 
 import java.io.IOException;
 
@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import gobblin.util.guid.Guid;
+import org.apache.gobblin.util.guid.Guid;
 
 
 /**

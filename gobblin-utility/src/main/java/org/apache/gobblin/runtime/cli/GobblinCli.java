@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.cli;
+package org.apache.gobblin.runtime.cli;
 
 import com.google.common.collect.Sets;
 
-import gobblin.annotation.Alias;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.util.ClassAliasResolver;
 
 
 /**

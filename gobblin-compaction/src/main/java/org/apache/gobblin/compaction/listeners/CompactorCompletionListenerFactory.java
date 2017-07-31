@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.listeners;
-import gobblin.configuration.State;
+package org.apache.gobblin.compaction.listeners;
+import org.apache.gobblin.configuration.State;
 
 public interface CompactorCompletionListenerFactory {
   CompactorCompletionListener createCompactorCompactionListener (State state);

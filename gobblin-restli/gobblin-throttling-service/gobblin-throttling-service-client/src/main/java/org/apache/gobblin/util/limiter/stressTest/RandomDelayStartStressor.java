@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter.stressTest;
+package org.apache.gobblin.util.limiter.stressTest;
 
 import java.util.Random;
 
 import org.apache.hadoop.conf.Configuration;
 
-import gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.Limiter;
 
 
 /**

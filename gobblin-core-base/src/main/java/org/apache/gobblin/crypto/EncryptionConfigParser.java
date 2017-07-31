@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.crypto;
+package org.apache.gobblin.crypto;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -23,11 +23,11 @@ import java.util.Properties;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.password.PasswordManager;
-import gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.util.ForkOperatorUtils;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.crypto;
+package org.apache.gobblin.crypto;
 
 import java.io.File;
 import java.io.IOException;

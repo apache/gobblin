@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.test;
+package org.apache.gobblin.data.management.retention.test;
 
-import gobblin.data.management.retention.policy.RetentionPolicy;
-import gobblin.data.management.version.DatasetVersion;
-import gobblin.data.management.version.StringDatasetVersion;
+import org.apache.gobblin.data.management.retention.policy.RetentionPolicy;
+import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.version.StringDatasetVersion;
 
 import java.util.Collection;
 import java.util.List;

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.version;
+package org.apache.gobblin.data.management.retention.version;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -32,12 +32,12 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
-import gobblin.data.management.retention.dataset.CleanableDataset;
-import gobblin.data.management.retention.dataset.CleanableHiveDataset;
-import gobblin.data.management.version.DatasetVersion;
-import gobblin.data.management.version.HiveDatasetVersion;
-import gobblin.util.AutoReturnableObject;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.retention.dataset.CleanableHiveDataset;
+import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.version.HiveDatasetVersion;
+import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

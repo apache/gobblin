@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package org.apache.gobblin.compliance;
 
 import org.apache.hadoop.hive.ql.metadata.Partition;
 
-import gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.version.DatasetVersion;
 
 
 /**

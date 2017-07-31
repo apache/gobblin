@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import java.io.IOException;
 import java.util.List;
@@ -34,22 +34,22 @@ import com.google.inject.Injector;
 import com.linkedin.data.template.StringMap;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.testing.ITestMetastoreDatabase;
-import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import gobblin.rest.JobExecutionInfo;
-import gobblin.rest.JobExecutionQuery;
-import gobblin.rest.JobStateEnum;
-import gobblin.rest.LauncherTypeEnum;
-import gobblin.rest.Metric;
-import gobblin.rest.MetricArray;
-import gobblin.rest.MetricTypeEnum;
-import gobblin.rest.QueryIdTypeEnum;
-import gobblin.rest.Table;
-import gobblin.rest.TableTypeEnum;
-import gobblin.rest.TaskExecutionInfo;
-import gobblin.rest.TaskExecutionInfoArray;
-import gobblin.rest.TaskStateEnum;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.rest.JobExecutionInfo;
+import org.apache.gobblin.rest.JobExecutionQuery;
+import org.apache.gobblin.rest.JobStateEnum;
+import org.apache.gobblin.rest.LauncherTypeEnum;
+import org.apache.gobblin.rest.Metric;
+import org.apache.gobblin.rest.MetricArray;
+import org.apache.gobblin.rest.MetricTypeEnum;
+import org.apache.gobblin.rest.QueryIdTypeEnum;
+import org.apache.gobblin.rest.Table;
+import org.apache.gobblin.rest.TableTypeEnum;
+import org.apache.gobblin.rest.TaskExecutionInfo;
+import org.apache.gobblin.rest.TaskExecutionInfoArray;
+import org.apache.gobblin.rest.TaskStateEnum;
 
 
 /**

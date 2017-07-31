@@ -3,7 +3,7 @@
  *
  * DO NOT EDIT DIRECTLY
  */
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import org.apache.avro.specific.SpecificData;
 

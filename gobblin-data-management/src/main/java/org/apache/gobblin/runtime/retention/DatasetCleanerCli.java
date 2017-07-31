@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.retention;
+package org.apache.gobblin.runtime.retention;
 
-import gobblin.annotation.Alias;
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.runtime.cli.CliApplication;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.data.management.retention.DatasetCleaner;
+import org.apache.gobblin.runtime.cli.CliApplication;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;

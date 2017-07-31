@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker.task;
+package org.apache.gobblin.qualitychecker.task;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,8 +28,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.State;
-import gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ForkOperatorUtils;
 
 
 /**

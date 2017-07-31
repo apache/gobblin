@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.mapreduce;
+package org.apache.gobblin.runtime.mapreduce;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -35,10 +35,10 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ForkOperatorUtils;
 
 
 /**

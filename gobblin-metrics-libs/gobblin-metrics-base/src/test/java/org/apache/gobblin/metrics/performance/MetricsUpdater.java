@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.performance;
+package org.apache.gobblin.metrics.performance;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -31,8 +31,8 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.collect.Lists;
 
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.RootMetricContext;
 
 
 /**

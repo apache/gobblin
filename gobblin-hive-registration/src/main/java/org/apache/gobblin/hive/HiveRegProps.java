@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
-import gobblin.hive.metastore.HiveMetaStoreUtils;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import java.util.List;
 
 import com.google.common.base.Optional;
@@ -27,9 +27,9 @@ import com.google.common.base.Splitter;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.hive.metastore.HiveMetaStoreBasedRegister;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 
 
 /**

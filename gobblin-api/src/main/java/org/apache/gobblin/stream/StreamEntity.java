@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.stream;
+package org.apache.gobblin.stream;
 
 import java.io.Closeable;
 import java.util.List;
@@ -23,8 +23,8 @@ import java.util.List;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import gobblin.ack.Ackable;
-import gobblin.ack.HierarchicalAckable;
+import org.apache.gobblin.ack.Ackable;
+import org.apache.gobblin.ack.HierarchicalAckable;
 
 
 /**

@@ -1,4 +1,4 @@
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -12,15 +12,15 @@ import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.http.ApacheHttpAsyncClient;
-import gobblin.http.ApacheHttpResponseHandler;
-import gobblin.http.ApacheHttpResponseStatus;
-import gobblin.http.ApacheHttpRequestBuilder;
-import gobblin.http.HttpRequestResponseRecord;
-import gobblin.http.ResponseStatus;
-import gobblin.utils.HttpConstants;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.http.ApacheHttpAsyncClient;
+import org.apache.gobblin.http.ApacheHttpResponseHandler;
+import org.apache.gobblin.http.ApacheHttpResponseStatus;
+import org.apache.gobblin.http.ApacheHttpRequestBuilder;
+import org.apache.gobblin.http.HttpRequestResponseRecord;
+import org.apache.gobblin.http.ResponseStatus;
+import org.apache.gobblin.utils.HttpConstants;
 
 /**
  * Apache version of http join converter

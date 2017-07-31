@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.converter;
+package org.apache.gobblin.data.management.copy.converter;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,13 +36,13 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
-import gobblin.crypto.EncryptionConfigParser;
-import gobblin.data.management.copy.CopyableFileUtils;
-import gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.crypto.EncryptionConfigParser;
+import org.apache.gobblin.data.management.copy.CopyableFileUtils;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 
 
 /**

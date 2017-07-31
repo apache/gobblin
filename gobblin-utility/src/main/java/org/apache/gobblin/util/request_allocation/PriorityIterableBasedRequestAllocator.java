@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.request_allocation;
+package org.apache.gobblin.util.request_allocation;
 
 import java.util.Iterator;
 import java.util.List;
@@ -28,9 +28,9 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 
-import gobblin.util.Either;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.executors.IteratorExecutor;
+import org.apache.gobblin.util.Either;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.executors.IteratorExecutor;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;

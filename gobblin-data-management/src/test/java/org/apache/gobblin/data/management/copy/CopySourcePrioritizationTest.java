@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -34,16 +34,16 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.data.management.copy.prioritization.FileSetComparator;
-import gobblin.data.management.dataset.DatasetUtils;
-import gobblin.data.management.partition.FileSet;
-import gobblin.data.management.partition.FileSetResourceEstimator;
-import gobblin.dataset.Dataset;
-import gobblin.dataset.IterableDatasetFinder;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.data.management.copy.prioritization.FileSetComparator;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.data.management.partition.FileSetResourceEstimator;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.IterableDatasetFinder;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.JobLauncherUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

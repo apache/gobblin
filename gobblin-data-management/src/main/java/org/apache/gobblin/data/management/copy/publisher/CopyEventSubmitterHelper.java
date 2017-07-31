@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.publisher;
+package org.apache.gobblin.data.management.copy.publisher;
 
 import com.google.common.collect.ImmutableMap;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.sla.SlaEventKeys;
-import gobblin.metrics.event.sla.SlaEventSubmitter;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter;
 
 import java.util.Map;
 

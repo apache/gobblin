@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.purger;
+package org.apache.gobblin.compliance.purger;
 
 import com.google.common.base.Preconditions;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
-import gobblin.compliance.HivePartitionDataset;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.HivePartitionDataset;
 
 
 /**

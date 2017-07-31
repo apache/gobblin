@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.recordaccess;
+package org.apache.gobblin.recordaccess;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -30,7 +30,7 @@ import org.apache.avro.util.Utf8;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.util.AvroUtils;
 
 
 /**

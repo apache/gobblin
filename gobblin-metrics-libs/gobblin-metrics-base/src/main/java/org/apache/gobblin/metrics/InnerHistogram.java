@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.lang.ref.WeakReference;
 
@@ -23,7 +23,7 @@ import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import com.codahale.metrics.Histogram;
 import com.google.common.base.Optional;
 
-import gobblin.metrics.metric.InnerMetric;
+import org.apache.gobblin.metrics.metric.InnerMetric;
 
 
 /**

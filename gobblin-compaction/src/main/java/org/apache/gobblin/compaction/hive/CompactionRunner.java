@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hive;
+package org.apache.gobblin.compaction.hive;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -35,8 +35,8 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.compaction.CliOptions;
-import gobblin.compaction.mapreduce.MRCompactionRunner;
+import org.apache.gobblin.compaction.CliOptions;
+import org.apache.gobblin.compaction.mapreduce.MRCompactionRunner;
 
 /**
  * Run Hive compaction based on config files.

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.spec_catalog;
+package org.apache.gobblin.runtime.spec_catalog;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -36,22 +36,22 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.MutableSpecCatalog;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecCatalog;
-import gobblin.runtime.api.SpecCatalogListener;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.api.SpecSerDe;
-import gobblin.runtime.api.SpecStore;
-import gobblin.runtime.api.TopologySpec;
-import gobblin.runtime.spec_store.FSSpecStore;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.MutableSpecCatalog;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecCatalog;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.SpecSerDe;
+import org.apache.gobblin.runtime.api.SpecStore;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.spec_store.FSSpecStore;
+import org.apache.gobblin.util.ClassAliasResolver;
 
 
 @Alpha

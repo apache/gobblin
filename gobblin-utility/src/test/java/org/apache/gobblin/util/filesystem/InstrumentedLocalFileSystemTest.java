@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import java.io.File;
 import java.net.URI;
@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
-import gobblin.util.DecoratorUtils;
+import org.apache.gobblin.util.DecoratorUtils;
 
 
 public class InstrumentedLocalFileSystemTest {

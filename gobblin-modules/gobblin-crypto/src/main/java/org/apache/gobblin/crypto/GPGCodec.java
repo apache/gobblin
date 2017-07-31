@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.crypto;
+package org.apache.gobblin.crypto;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import gobblin.codec.StreamCodec;
+import org.apache.gobblin.codec.StreamCodec;
 
 
 /**

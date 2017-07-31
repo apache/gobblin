@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.extractor;
+package org.apache.gobblin.instrumented.extractor;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -30,20 +30,20 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.Instrumentable;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.MetricNames;
-import gobblin.metrics.Tag;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.stream.RecordEnvelope;
-import gobblin.stream.StreamEntity;
-import gobblin.util.FinalState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.MetricNames;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.stream.StreamEntity;
+import org.apache.gobblin.util.FinalState;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import io.reactivex.Emitter;

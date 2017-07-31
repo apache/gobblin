@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.converter;
+package org.apache.gobblin.instrumented.converter;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
 
 
 /**

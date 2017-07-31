@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.policies.avro;
+package org.apache.gobblin.policies.avro;
 
-import gobblin.configuration.State;
-import gobblin.policies.time.RecordTimestampLowerBoundPolicy;
-import gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
-import gobblin.writer.partitioner.TimeBasedWriterPartitioner;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.policies.time.RecordTimestampLowerBoundPolicy;
+import org.apache.gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
+import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 
 /**
  * An implementation of {@link RecordTimestampLowerBoundPolicy} for Avro records.

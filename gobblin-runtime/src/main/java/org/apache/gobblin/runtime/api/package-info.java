@@ -72,4 +72,4 @@
  * levels in the hierarchy, there is a Driver which is responsible of running the children
  * components and a Launcher which is responsible for instantiating and invoking the Driver.
  */
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;

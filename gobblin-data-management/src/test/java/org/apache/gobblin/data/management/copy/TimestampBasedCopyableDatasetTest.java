@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -41,14 +41,14 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.policy.VersionSelectionPolicy;
-import gobblin.data.management.version.DatasetVersion;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.TimestampedDatasetVersion;
-import gobblin.data.management.version.finder.VersionFinder;
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
+import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.data.management.version.finder.VersionFinder;
+import org.apache.gobblin.dataset.Dataset;
 
 
 /**

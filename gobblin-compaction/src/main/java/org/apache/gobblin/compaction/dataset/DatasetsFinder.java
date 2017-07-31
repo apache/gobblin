@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.dataset;
+package org.apache.gobblin.compaction.dataset;
 
-import gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
+import org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -37,10 +37,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.State;
-import gobblin.util.DatasetFilterUtils;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**

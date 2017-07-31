@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import org.apache.helix.model.Message;
 

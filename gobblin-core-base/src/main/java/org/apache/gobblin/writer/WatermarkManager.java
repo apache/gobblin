@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.Closeable;
 import java.util.Collections;
@@ -26,7 +26,7 @@ import java.util.Map;
 import lombok.Getter;
 import lombok.ToString;
 
-import gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 
 
 /**

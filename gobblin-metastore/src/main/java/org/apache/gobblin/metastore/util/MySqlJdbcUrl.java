@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.util;
+package org.apache.gobblin.metastore.util;
 
 import org.apache.http.client.utils.URIBuilder;
 

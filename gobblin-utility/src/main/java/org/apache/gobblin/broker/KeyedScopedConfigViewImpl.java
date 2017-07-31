@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 import com.google.common.base.Joiner;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.ScopedConfigView;
-import gobblin.broker.iface.SharedResourceKey;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.ScopedConfigView;
+import org.apache.gobblin.broker.iface.SharedResourceKey;
+import org.apache.gobblin.util.ConfigUtils;
 
 import javax.annotation.Nullable;
 import lombok.Data;

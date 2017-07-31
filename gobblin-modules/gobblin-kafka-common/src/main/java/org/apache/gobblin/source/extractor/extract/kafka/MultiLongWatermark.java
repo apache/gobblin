@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.math.RoundingMode;
 import java.util.List;
@@ -26,7 +26,7 @@ import com.google.common.math.LongMath;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
-import gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.Watermark;
 
 
 /**

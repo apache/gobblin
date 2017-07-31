@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 
-import gobblin.runtime.JobState.RunningState;
-import gobblin.runtime.api.JobExecutionState;
-import gobblin.runtime.api.JobExecutionStateListener;
+import org.apache.gobblin.runtime.JobState.RunningState;
+import org.apache.gobblin.runtime.api.JobExecutionState;
+import org.apache.gobblin.runtime.api.JobExecutionStateListener;
 
 /**
  * Default NOOP implementation for a {@link JobExecutionStateListener}. The implementation can

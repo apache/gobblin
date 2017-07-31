@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.sftp;
+package org.apache.gobblin.source.extractor.extract.sftp;
 
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
 import java.io.IOException;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.filebased.FileBasedSource;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.filebased.FileBasedSource;
 
 
 public class SftpSource<S, D> extends FileBasedSource<S, D> {

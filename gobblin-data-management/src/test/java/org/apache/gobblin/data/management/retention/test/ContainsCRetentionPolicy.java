@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.test;
+package org.apache.gobblin.data.management.retention.test;
 
 import java.util.Properties;
 

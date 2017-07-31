@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.serialize;
+package org.apache.gobblin.kafka.serialize;
 
 import java.io.IOException;
 import java.util.Map;
@@ -34,9 +34,9 @@ import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.kafka.schemareg.KafkaSchemaRegistry;
-import gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
-import gobblin.kafka.schemareg.SchemaRegistryException;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
+import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.net.URI;
@@ -70,16 +70,16 @@ import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.runtime.TaskExecutor;
-import gobblin.runtime.TaskStateTracker;
-import gobblin.runtime.services.JMXReportingService;
-import gobblin.util.ConfigUtils;
-import gobblin.util.HadoopUtils;
-import gobblin.util.JvmUtils;
-import gobblin.util.logs.Log4jConfigurationHelper;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.runtime.TaskExecutor;
+import org.apache.gobblin.runtime.TaskStateTracker;
+import org.apache.gobblin.runtime.services.JMXReportingService;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 
 
 /**

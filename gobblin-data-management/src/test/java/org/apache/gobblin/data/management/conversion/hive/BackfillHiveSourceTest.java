@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive;
+package org.apache.gobblin.data.management.conversion.hive;
 
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.SourceState;
-import gobblin.data.management.conversion.hive.source.BackfillHiveSource;
-import gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.data.management.conversion.hive.source.BackfillHiveSource;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 
 
 @Test(groups = {"gobblin.data.management.conversion"})

@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract;
+package org.apache.gobblin.source.extractor.extract;
 
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.watermark.Predicate;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.exception.HighWatermarkException;
+import org.apache.gobblin.source.extractor.watermark.Predicate;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import gobblin.source.extractor.exception.RecordCountException;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.extractor.exception.RecordCountException;
+import org.apache.gobblin.source.extractor.exception.SchemaException;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

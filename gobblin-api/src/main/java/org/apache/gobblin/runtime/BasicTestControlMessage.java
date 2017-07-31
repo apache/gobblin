@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
-import gobblin.stream.ControlMessage;
-import gobblin.stream.StreamEntity;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.StreamEntity;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;

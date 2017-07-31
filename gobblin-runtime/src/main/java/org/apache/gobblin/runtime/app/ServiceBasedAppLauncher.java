@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.app;
+package org.apache.gobblin.runtime.app;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -34,16 +34,16 @@ import org.slf4j.LoggerFactory;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.rest.JobExecutionInfoServer;
-import gobblin.runtime.api.AdminWebServerFactory;
-import gobblin.runtime.services.JMXReportingService;
-import gobblin.runtime.services.MetricsReportingService;
-import gobblin.util.ApplicationLauncherUtils;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.rest.JobExecutionInfoServer;
+import org.apache.gobblin.runtime.api.AdminWebServerFactory;
+import org.apache.gobblin.runtime.services.JMXReportingService;
+import org.apache.gobblin.runtime.services.MetricsReportingService;
+import org.apache.gobblin.util.ApplicationLauncherUtils;
+import org.apache.gobblin.util.ClassAliasResolver;
 
 
 /**

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -31,7 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 /**
  * An async data writer which can achieve the buffering and batching capability.

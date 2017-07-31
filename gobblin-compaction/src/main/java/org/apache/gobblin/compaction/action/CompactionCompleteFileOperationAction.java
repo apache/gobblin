@@ -15,24 +15,24 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.action;
+package org.apache.gobblin.compaction.action;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import gobblin.compaction.dataset.DatasetHelper;
-import gobblin.compaction.event.CompactionSlaEventHelper;
-import gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.compaction.mapreduce.MRCompactorJobRunner;
-import gobblin.compaction.mapreduce.avro.AvroKeyMapper;
-import gobblin.compaction.parser.CompactionPathParser;
-import gobblin.compaction.verify.InputRecordCountHelper;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.dataset.FileSystemDataset;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.HadoopUtils;
-import gobblin.util.WriterUtils;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner;
+import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
+import org.apache.gobblin.compaction.parser.CompactionPathParser;
+import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.WriterUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileSystem;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -24,7 +24,7 @@ import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.util.EntityUtils;
 
-import gobblin.async.AsyncRequest;
+import org.apache.gobblin.async.AsyncRequest;
 
 
 /**

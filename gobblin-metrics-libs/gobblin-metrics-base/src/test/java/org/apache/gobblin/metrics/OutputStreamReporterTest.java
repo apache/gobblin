@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,7 +34,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import gobblin.metrics.reporter.OutputStreamReporter;
+import org.apache.gobblin.metrics.reporter.OutputStreamReporter;
 
 
 @Test(groups = { "gobblin.metrics" })

@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import org.slf4j.Logger;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.instrumented.Instrumentable;
 
 /**
  * Defines Gobblin a set of standard configuration features for a gobblin instance. Passing an

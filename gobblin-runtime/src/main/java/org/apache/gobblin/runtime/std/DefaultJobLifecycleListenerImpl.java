@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import java.net.URI;
 
@@ -22,12 +22,12 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 
-import gobblin.runtime.JobState.RunningState;
-import gobblin.runtime.api.JobExecutionDriver;
-import gobblin.runtime.api.JobExecutionState;
-import gobblin.runtime.api.JobLifecycleListener;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecSchedule;
+import org.apache.gobblin.runtime.JobState.RunningState;
+import org.apache.gobblin.runtime.api.JobExecutionDriver;
+import org.apache.gobblin.runtime.api.JobExecutionState;
+import org.apache.gobblin.runtime.api.JobLifecycleListener;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecSchedule;
 
 /**
  * Default NOOP implementation for {@link JobLifecycleListener}. It can log the callbacks. Other

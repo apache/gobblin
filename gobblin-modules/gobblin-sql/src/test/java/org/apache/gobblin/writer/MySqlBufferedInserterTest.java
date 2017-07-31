@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
-import static gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_INSERT_BATCH_SIZE;
-import static gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_MAX_PARAM_SIZE;
+import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_INSERT_BATCH_SIZE;
+import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_MAX_PARAM_SIZE;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
@@ -35,10 +35,10 @@ import java.util.List;
 
 import org.testng.annotations.Test;
 
-import gobblin.configuration.State;
-import gobblin.converter.jdbc.JdbcEntryData;
-import gobblin.writer.commands.JdbcBufferedInserter;
-import gobblin.writer.commands.MySqlBufferedInserter;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.writer.commands.JdbcBufferedInserter;
+import org.apache.gobblin.writer.commands.MySqlBufferedInserter;
 
 @Test(groups = {"gobblin.writer"}, singleThreaded=true)
 public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {

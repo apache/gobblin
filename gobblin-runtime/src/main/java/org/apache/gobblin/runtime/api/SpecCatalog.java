@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Collection;
@@ -23,11 +23,11 @@ import java.util.Collection;
 import com.codahale.metrics.Gauge;
 import com.google.common.collect.ImmutableMap;
 
-import gobblin.instrumented.GobblinMetricsKeys;
-import gobblin.instrumented.Instrumentable;
-import gobblin.metrics.ContextAwareCounter;
-import gobblin.metrics.ContextAwareGauge;
-import gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.instrumented.GobblinMetricsKeys;
+import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.metrics.ContextAwareCounter;
+import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 import lombok.Getter;
 

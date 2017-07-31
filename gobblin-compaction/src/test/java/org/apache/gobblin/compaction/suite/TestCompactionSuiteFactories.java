@@ -1,7 +1,7 @@
-package gobblin.compaction.suite;
+package org.apache.gobblin.compaction.suite;
 
-import gobblin.annotation.Alias;
-import gobblin.configuration.State;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.State;
 
 
 public class TestCompactionSuiteFactories {

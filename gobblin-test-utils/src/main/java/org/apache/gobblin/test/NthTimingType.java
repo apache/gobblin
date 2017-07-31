@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.test;
+package org.apache.gobblin.test;
 
 /**
  * Every nth call has a different latency than the default latency

@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

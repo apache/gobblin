@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.source;
+package org.apache.gobblin.data.management.conversion.hive.source;
 
 import java.lang.reflect.Type;
 import java.util.List;
@@ -26,9 +26,9 @@ import com.google.common.base.Optional;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

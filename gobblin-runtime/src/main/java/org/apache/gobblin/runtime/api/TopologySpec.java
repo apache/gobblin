@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -36,11 +36,11 @@ import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

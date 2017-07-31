@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 /**
  * Identifies a specific execution of a {@link JobSpec}

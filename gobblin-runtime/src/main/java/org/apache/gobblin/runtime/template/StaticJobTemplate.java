@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.template;
+package org.apache.gobblin.runtime.template;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -31,12 +31,12 @@ import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.JobCatalog;
-import gobblin.runtime.api.JobCatalogWithTemplates;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.JobCatalog;
+import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 
 import lombok.Getter;
 

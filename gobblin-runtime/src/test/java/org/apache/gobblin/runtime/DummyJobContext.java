@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import com.typesafe.config.Config;
 
@@ -31,12 +31,12 @@ import org.slf4j.Logger;
 import com.google.common.base.Optional;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.commit.CommitSequenceStore;
-import gobblin.commit.DeliverySemantics;
-import gobblin.metastore.JobHistoryStore;
-import gobblin.source.Source;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.commit.CommitSequenceStore;
+import org.apache.gobblin.commit.DeliverySemantics;
+import org.apache.gobblin.metastore.JobHistoryStore;
+import org.apache.gobblin.source.Source;
 
 
 public class DummyJobContext extends JobContext {

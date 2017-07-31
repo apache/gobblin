@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.metric.filter;
+package org.apache.gobblin.metrics.metric.filter;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

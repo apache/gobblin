@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metadata.provider;
+package org.apache.gobblin.metadata.provider;
 
 import java.io.IOException;
 
@@ -27,15 +27,15 @@ import org.apache.hadoop.util.Progressable;
 
 import com.typesafe.config.Config;
 
-import gobblin.broker.iface.ConfigView;
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
-import gobblin.util.filesystem.FileSystemInstrumentation;
-import gobblin.util.filesystem.FileSystemInstrumentationFactory;
-import gobblin.util.filesystem.FileSystemKey;
+import org.apache.gobblin.broker.iface.ConfigView;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.filesystem.FileSystemInstrumentation;
+import org.apache.gobblin.util.filesystem.FileSystemInstrumentationFactory;
+import org.apache.gobblin.util.filesystem.FileSystemKey;
 
 import lombok.extern.slf4j.Slf4j;
 

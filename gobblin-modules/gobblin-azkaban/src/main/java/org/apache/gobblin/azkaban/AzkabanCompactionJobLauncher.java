@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.azkaban;
+package org.apache.gobblin.azkaban;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -26,15 +26,15 @@ import com.google.common.base.Optional;
 
 import org.apache.log4j.Logger;
 
-import gobblin.compaction.Compactor;
-import gobblin.compaction.CompactorFactory;
-import gobblin.compaction.CompactorCreationException;
-import gobblin.compaction.listeners.CompactorListener;
-import gobblin.compaction.listeners.CompactorListenerCreationException;
-import gobblin.compaction.listeners.CompactorListenerFactory;
-import gobblin.compaction.ReflectionCompactorFactory;
-import gobblin.compaction.listeners.ReflectionCompactorListenerFactory;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.compaction.Compactor;
+import org.apache.gobblin.compaction.CompactorFactory;
+import org.apache.gobblin.compaction.CompactorCreationException;
+import org.apache.gobblin.compaction.listeners.CompactorListener;
+import org.apache.gobblin.compaction.listeners.CompactorListenerCreationException;
+import org.apache.gobblin.compaction.listeners.CompactorListenerFactory;
+import org.apache.gobblin.compaction.ReflectionCompactorFactory;
+import org.apache.gobblin.compaction.listeners.ReflectionCompactorListenerFactory;
+import org.apache.gobblin.metrics.Tag;
 
 
 /**

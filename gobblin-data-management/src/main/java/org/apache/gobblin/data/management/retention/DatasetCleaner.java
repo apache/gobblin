@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -41,21 +41,21 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
-import gobblin.util.AzkabanTags;
-import gobblin.configuration.State;
-import gobblin.data.management.retention.dataset.CleanableDataset;
-import gobblin.data.management.retention.profile.MultiCleanableDatasetFinder;
-import gobblin.dataset.Dataset;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.instrumented.Instrumentable;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.RateControlledFileSystem;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
+import org.apache.gobblin.util.AzkabanTags;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.retention.profile.MultiCleanableDatasetFinder;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.RateControlledFileSystem;
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 
 
 /**

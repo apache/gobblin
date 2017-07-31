@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.partition;
+package org.apache.gobblin.data.management.partition;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -24,8 +24,8 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.dataset.DummyDataset;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.dataset.DummyDataset;
 
 
 public class FileSetTest {

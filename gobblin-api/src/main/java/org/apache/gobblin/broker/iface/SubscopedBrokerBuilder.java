@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.broker.iface;
+package org.apache.gobblin.broker.iface;
 
 import com.typesafe.config.Config;
 
-import gobblin.broker.BrokerConstants;
+import org.apache.gobblin.broker.BrokerConstants;
 
 
 /**

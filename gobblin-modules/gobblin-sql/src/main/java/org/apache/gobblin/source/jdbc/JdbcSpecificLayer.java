@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.jdbc;
+package org.apache.gobblin.source.jdbc;
 
 /**
  * Interface for JDBC sources

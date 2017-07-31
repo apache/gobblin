@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.service.modules.core;
+package org.apache.gobblin.service.modules.core;
 
 import java.io.File;
 import java.net.URI;
@@ -35,17 +35,17 @@ import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.FlowSpec;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
-import gobblin.runtime.api.TopologySpec;
-import gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
-import gobblin.service.ServiceConfigKeys;
-import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
-import gobblin.util.ConfigUtils;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PathUtils;
 
 
 public class IdentityFlowToJobSpecCompilerTest {

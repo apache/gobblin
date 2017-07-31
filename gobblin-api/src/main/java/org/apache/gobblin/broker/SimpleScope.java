@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
-import gobblin.broker.iface.ScopeInstance;
-import gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.ScopeInstance;
+import org.apache.gobblin.broker.iface.ScopeType;
 
 import lombok.Data;
 

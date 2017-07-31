@@ -1,4 +1,4 @@
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -20,10 +20,10 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.async.Callback;
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.utils.HttpUtils;
+import org.apache.gobblin.async.Callback;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.utils.HttpUtils;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.serialize;
+package org.apache.gobblin.kafka.serialize;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,8 +28,8 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 
-import gobblin.kafka.schemareg.KafkaSchemaRegistry;
-import gobblin.kafka.schemareg.SchemaRegistryException;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
+import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
 
 
 /**

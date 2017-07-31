@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Map;
 
-import gobblin.annotation.Alpha;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.stream.RecordEnvelope;
 
 
 /**

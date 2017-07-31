@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.data.management.dataset.DatasetUtils;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.JobLauncherUtils;
 
 
 public class CopySourceTest {

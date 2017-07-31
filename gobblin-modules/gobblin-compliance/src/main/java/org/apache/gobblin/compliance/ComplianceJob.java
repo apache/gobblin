@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package org.apache.gobblin.compliance;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -31,17 +31,17 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
-import gobblin.configuration.State;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.instrumented.Instrumentable;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.AzkabanTags;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.AzkabanTags;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 
 
 /**

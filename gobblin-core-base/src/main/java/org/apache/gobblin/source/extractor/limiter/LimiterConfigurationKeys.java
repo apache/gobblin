@@ -1,4 +1,4 @@
-package gobblin.source.extractor.limiter;
+package org.apache.gobblin.source.extractor.limiter;
 
 
 public class LimiterConfigurationKeys {

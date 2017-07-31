@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import org.apache.hadoop.fs.Path;
 
-import gobblin.util.Decorator;
+import org.apache.gobblin.util.Decorator;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

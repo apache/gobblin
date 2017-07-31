@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive.metastore;
+package org.apache.gobblin.hive.metastore;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -44,23 +44,23 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.hive.HiveMetaStoreClientFactory;
-import gobblin.hive.HiveLock;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.hive.HivePartition;
-import gobblin.hive.HiveRegProps;
-import gobblin.hive.HiveRegister;
-import gobblin.hive.HiveRegistrationUnit.Column;
-import gobblin.hive.HiveTable;
-import gobblin.hive.spec.HiveSpec;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.GobblinMetricsRegistry;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.AutoCloseableLock;
-import gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveMetaStoreClientFactory;
+import org.apache.gobblin.hive.HiveLock;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.hive.HivePartition;
+import org.apache.gobblin.hive.HiveRegProps;
+import org.apache.gobblin.hive.HiveRegister;
+import org.apache.gobblin.hive.HiveRegistrationUnit.Column;
+import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.GobblinMetricsRegistry;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.AutoCloseableLock;
+import org.apache.gobblin.util.AutoReturnableObject;
 
 
 /**

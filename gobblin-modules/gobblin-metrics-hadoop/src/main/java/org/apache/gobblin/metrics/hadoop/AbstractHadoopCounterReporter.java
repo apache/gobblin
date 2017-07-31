@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.hadoop;
+package org.apache.gobblin.metrics.hadoop;
 
 import java.util.Map;
 import java.util.SortedMap;
@@ -31,9 +31,9 @@ import com.codahale.metrics.Timer;
 
 import com.google.common.collect.Maps;
 
-import gobblin.metrics.reporter.ContextAwareScheduledReporter;
-import gobblin.metrics.Measurements;
-import gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.reporter.ContextAwareScheduledReporter;
+import org.apache.gobblin.metrics.Measurements;
+import org.apache.gobblin.metrics.MetricContext;
 
 
 /**

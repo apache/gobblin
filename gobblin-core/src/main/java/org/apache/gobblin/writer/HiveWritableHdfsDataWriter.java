@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -27,7 +27,7 @@ import org.apache.hadoop.mapred.JobConf;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

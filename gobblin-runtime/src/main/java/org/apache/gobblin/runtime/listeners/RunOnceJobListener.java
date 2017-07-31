@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.listeners;
+package org.apache.gobblin.runtime.listeners;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,9 +25,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.io.Files;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.JobContext;
-import gobblin.runtime.JobState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobContext;
+import org.apache.gobblin.runtime.JobState;
 
 
 /**

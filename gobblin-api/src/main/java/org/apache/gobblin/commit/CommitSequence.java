@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.commit;
+package org.apache.gobblin.commit;
 
 import java.util.List;
 
@@ -25,7 +25,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract;
+package org.apache.gobblin.source.extractor.extract;
 
 import java.math.RoundingMode;
 
@@ -25,8 +25,8 @@ import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
-import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.ComparableWatermark;
+import org.apache.gobblin.source.extractor.Watermark;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

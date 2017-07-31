@@ -15,21 +15,21 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.converter;
+package org.apache.gobblin.instrumented.converter;
 
 import java.io.IOException;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.records.ControlMessageHandler;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.util.Decorator;
-import gobblin.util.DecoratorUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.util.DecoratorUtils;
 
 
 /**

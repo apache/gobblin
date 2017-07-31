@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.nameParser;
+package org.apache.gobblin.metastore.nameParser;
 
 import java.io.IOException;
 import java.util.Collection;

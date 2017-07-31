@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ingestion.google.webmaster;
+package org.apache.gobblin.ingestion.google.webmaster;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,12 +34,12 @@ import com.google.gson.JsonArray;
 import avro.shaded.com.google.common.collect.Iterables;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 
 
 @Slf4j

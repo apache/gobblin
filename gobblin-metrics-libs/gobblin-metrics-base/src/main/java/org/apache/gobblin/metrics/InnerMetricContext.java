@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -50,10 +50,10 @@ import com.google.common.io.Closer;
 
 import lombok.Getter;
 
-import gobblin.metrics.context.ContextWeakReference;
-import gobblin.metrics.context.NameConflictException;
-import gobblin.metrics.context.ReportableContext;
-import gobblin.metrics.metric.InnerMetric;
+import org.apache.gobblin.metrics.context.ContextWeakReference;
+import org.apache.gobblin.metrics.context.NameConflictException;
+import org.apache.gobblin.metrics.context.ReportableContext;
+import org.apache.gobblin.metrics.metric.InnerMetric;
 
 
 /**

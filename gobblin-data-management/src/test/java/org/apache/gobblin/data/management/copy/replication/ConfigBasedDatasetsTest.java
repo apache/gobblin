@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.net.URI;
 import java.util.Collection;
@@ -32,18 +32,18 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.PreserveAttributes;
-import gobblin.data.management.copy.entities.PostPublishStep;
-import gobblin.data.management.copy.entities.PrePublishStep;
-import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.util.FileListUtils;
-import gobblin.util.PathUtils;
-import gobblin.util.commit.DeleteFileCommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.source.extractor.ComparableWatermark;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
 
 /**

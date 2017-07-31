@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.source.workunit;
+package org.apache.gobblin.source.workunit;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -29,9 +29,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.Watermark;
-import gobblin.source.extractor.WatermarkInterval;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.WatermarkInterval;
 import lombok.ToString;
 
 

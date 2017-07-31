@@ -1,4 +1,4 @@
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.util.Set;
 
@@ -13,11 +13,11 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.http.ApacheHttpClient;
-import gobblin.http.ApacheHttpResponseHandler;
-import gobblin.http.ApacheHttpRequestBuilder;
-import gobblin.utils.HttpConstants;
-import gobblin.utils.HttpUtils;
+import org.apache.gobblin.http.ApacheHttpClient;
+import org.apache.gobblin.http.ApacheHttpResponseHandler;
+import org.apache.gobblin.http.ApacheHttpRequestBuilder;
+import org.apache.gobblin.utils.HttpConstants;
+import org.apache.gobblin.utils.HttpUtils;
 
 
 @Slf4j

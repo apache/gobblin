@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 
 import com.google.common.base.Objects;
 
-import gobblin.annotation.Alpha;
-import gobblin.util.callbacks.Callback;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.util.callbacks.Callback;
 
 /**
  *  A listener for changes to the {@link JobSpec}s of a {@link JobCatalog}.

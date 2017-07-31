@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.avro;
+package org.apache.gobblin.converter.avro;
 
 public class UnsupportedDateTypeException extends Exception {
 

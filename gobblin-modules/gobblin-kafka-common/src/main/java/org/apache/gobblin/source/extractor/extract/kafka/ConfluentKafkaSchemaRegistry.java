@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -31,8 +31,8 @@ import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientExcept
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.metrics.kafka.KafkaSchemaRegistry;
-import gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 
 
 /**

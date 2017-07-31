@@ -17,12 +17,12 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import gobblin.ack.Ackable;
-import gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.ack.Ackable;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 
 
 /**

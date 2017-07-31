@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.action;
-import gobblin.dataset.Dataset;
-import gobblin.metrics.event.EventSubmitter;
+package org.apache.gobblin.compaction.action;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 
 import java.io.IOException;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.configuration;
+package org.apache.gobblin.configuration;
 
 import java.util.Arrays;
 import java.util.List;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

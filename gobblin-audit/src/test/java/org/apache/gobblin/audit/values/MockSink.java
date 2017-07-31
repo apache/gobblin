@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.audit.values;
+package org.apache.gobblin.audit.values;
 
-import gobblin.annotation.Alias;
-import gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
-import gobblin.audit.values.sink.AuditSink;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
+import org.apache.gobblin.audit.values.sink.AuditSink;
 
 import java.io.IOException;
 

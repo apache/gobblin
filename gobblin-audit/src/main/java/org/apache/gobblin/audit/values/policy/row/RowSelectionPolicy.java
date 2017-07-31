@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.audit.values.policy.row;
+package org.apache.gobblin.audit.values.policy.row;
 
 import org.apache.avro.generic.GenericRecord;
 

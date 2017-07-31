@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import org.apache.avro.Schema;
 import org.apache.hadoop.fs.Path;
-import gobblin.configuration.State;
-import gobblin.writer.partitioner.SchemaBasedWriterPartitioner;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.writer.partitioner.SchemaBasedWriterPartitioner;
 
 
 /**

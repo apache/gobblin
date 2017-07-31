@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.commit;
+package org.apache.gobblin.commit;
 
 import java.io.IOException;
 
@@ -27,7 +27,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

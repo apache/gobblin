@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.stream;
+package org.apache.gobblin.stream;
 
 import java.util.Random;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.ack.BasicAckableForTesting;
+import org.apache.gobblin.ack.BasicAckableForTesting;
 
 
 public class StreamEntityTest {

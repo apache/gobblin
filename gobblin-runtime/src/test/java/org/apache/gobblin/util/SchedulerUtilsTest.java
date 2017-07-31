@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
-import gobblin.util.filesystem.PathAlterationListener;
-import gobblin.util.filesystem.PathAlterationListenerAdaptor;
-import gobblin.util.filesystem.PathAlterationObserverScheduler;
+import org.apache.gobblin.util.filesystem.PathAlterationListener;
+import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
+import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -38,7 +38,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**

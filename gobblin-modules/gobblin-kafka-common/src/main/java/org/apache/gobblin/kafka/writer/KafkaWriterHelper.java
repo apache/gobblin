@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.writer;
+package org.apache.gobblin.kafka.writer;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
@@ -28,10 +28,10 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ConfigUtils;
 
-import static gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
-import static gobblin.kafka.writer.KafkaWriterConfigurationKeys.CLIENT_ID_DEFAULT;
+import static org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
+import static org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys.CLIENT_ID_DEFAULT;
 
 
 /**

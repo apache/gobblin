@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.events;
+package org.apache.gobblin.data.management.conversion.hive.events;
 
-import gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 
 /**
  * Event names and metadata names used by hive conversion.

@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.verify;
+package org.apache.gobblin.compaction.verify;
 
 
 import com.google.common.collect.Lists;
-import gobblin.compaction.conditions.RecompactionConditionBasedOnRatio;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.compaction.parser.CompactionPathParser;
-import gobblin.configuration.State;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnRatio;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.parser.CompactionPathParser;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.FileSystemDataset;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;

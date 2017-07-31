@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.JobCatalogWithTemplates;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.template.HOCONInputStreamJobTemplate;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.template.HOCONInputStreamJobTemplate;
+import org.apache.gobblin.util.PathUtils;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,12 +46,12 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
 
-import gobblin.metrics.MetricContext;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecNotFoundException;
-import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.util.filesystem.PathAlterationObserver;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
 /**
  * The job Catalog for file system to persist the job configuration information.

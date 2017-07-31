@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.template;
+package org.apache.gobblin.runtime.template;
 
 import java.util.Collection;
 

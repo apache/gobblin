@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 /**
  * A type of {@link Exception} thrown when there's anything wrong

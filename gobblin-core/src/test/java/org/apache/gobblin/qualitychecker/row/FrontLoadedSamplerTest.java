@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker.row;
+package org.apache.gobblin.qualitychecker.row;
 
 import java.util.List;
 import java.util.stream.Collectors;

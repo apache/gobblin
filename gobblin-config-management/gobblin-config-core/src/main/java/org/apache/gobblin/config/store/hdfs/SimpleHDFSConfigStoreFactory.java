@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.config.store.hdfs;
+package org.apache.gobblin.config.store.hdfs;
 
 import java.io.IOException;
 import java.net.URI;
@@ -31,9 +31,9 @@ import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.config.store.api.ConfigStoreFactory;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.config.store.api.ConfigStoreFactory;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

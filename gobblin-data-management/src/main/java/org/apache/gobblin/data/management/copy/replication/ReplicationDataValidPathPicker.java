@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -31,10 +31,10 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.collect.Ordering;
 import com.typesafe.config.Config;
 
-import gobblin.data.management.policy.VersionSelectionPolicy;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.finder.VersionFinder;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.finder.VersionFinder;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 /**
  * Used to pick the valid Paths for data replication based on {@link Config}

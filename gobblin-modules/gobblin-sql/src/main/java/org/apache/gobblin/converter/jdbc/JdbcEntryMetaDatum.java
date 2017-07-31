@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.jdbc;
+package org.apache.gobblin.converter.jdbc;
 
 import lombok.EqualsAndHashCode;
 import lombok.ToString;

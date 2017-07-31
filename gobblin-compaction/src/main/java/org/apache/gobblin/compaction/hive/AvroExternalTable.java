@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hive;
+package org.apache.gobblin.compaction.hive;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,7 +33,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.util.HiveJdbcConnector;
+import org.apache.gobblin.util.HiveJdbcConnector;
 
 
 /**

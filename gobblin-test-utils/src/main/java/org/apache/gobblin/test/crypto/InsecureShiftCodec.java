@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.test.crypto;
+package org.apache.gobblin.test.crypto;
 
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
@@ -23,7 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Map;
 
-import gobblin.codec.StreamCodec;
+import org.apache.gobblin.codec.StreamCodec;
 
 
 /**

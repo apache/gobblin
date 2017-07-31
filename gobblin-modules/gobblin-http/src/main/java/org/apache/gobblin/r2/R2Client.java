@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.r2;
+package org.apache.gobblin.r2;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -30,10 +30,10 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.async.Callback;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.http.ThrottledHttpClient;
-import gobblin.utils.HttpUtils;
+import org.apache.gobblin.async.Callback;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.http.ThrottledHttpClient;
+import org.apache.gobblin.utils.HttpUtils;
 
 
 @Slf4j

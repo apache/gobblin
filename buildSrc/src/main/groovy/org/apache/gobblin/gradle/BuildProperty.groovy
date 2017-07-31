@@ -1,4 +1,4 @@
-package gobblin.gradle;
+package org.apache.gobblin.gradle;
 
 /**
  * Encapsulates various aspects of a project property that can be used to customize the build through

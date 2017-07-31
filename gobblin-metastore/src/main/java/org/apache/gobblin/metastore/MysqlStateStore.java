@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.password.PasswordManager;
-import gobblin.util.ConfigUtils;
-import gobblin.util.io.StreamUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.config;
+package org.apache.gobblin.config;
 
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
-import gobblin.config.common.impl.TestConfigStoreValueInspector;
-import gobblin.config.store.hdfs.SimpleHdfsConfigStoreTest;
+import org.apache.gobblin.config.common.impl.TestConfigStoreValueInspector;
+import org.apache.gobblin.config.store.hdfs.SimpleHdfsConfigStoreTest;
 
 
 @Test

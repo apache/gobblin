@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.example.wikipedia;
+package org.apache.gobblin.example.wikipedia;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -28,9 +28,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.converter.ToAvroConverterBase;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.converter.ToAvroConverterBase;
 
 
 /**

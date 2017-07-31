@@ -1,4 +1,4 @@
-package gobblin.converter.avro;
+package org.apache.gobblin.converter.avro;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,10 +13,10 @@ import org.testng.annotations.Test;
 
 import junit.framework.Assert;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.util.AvroUtils;
 
 
 @Test

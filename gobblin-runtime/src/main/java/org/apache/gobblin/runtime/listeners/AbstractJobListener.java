@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.listeners;
+package org.apache.gobblin.runtime.listeners;
 
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 
-import gobblin.runtime.JobContext;
+import org.apache.gobblin.runtime.JobContext;
 
 
 /**

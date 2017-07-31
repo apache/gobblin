@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.jdbc;
+package org.apache.gobblin.source.extractor.extract.jdbc;
 
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.exception.ExtractPrepareException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
 import java.io.IOException;
 
 import org.slf4j.Logger;
@@ -26,9 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.QueryBasedSource;
-import gobblin.source.jdbc.OracleExtractor;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.extract.QueryBasedSource;
+import org.apache.gobblin.source.jdbc.OracleExtractor;
 
 
 /**

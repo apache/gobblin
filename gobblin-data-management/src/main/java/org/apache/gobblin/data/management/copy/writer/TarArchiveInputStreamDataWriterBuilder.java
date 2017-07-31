@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.writer;
+package org.apache.gobblin.data.management.copy.writer;
 
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
 
 import java.io.IOException;
 

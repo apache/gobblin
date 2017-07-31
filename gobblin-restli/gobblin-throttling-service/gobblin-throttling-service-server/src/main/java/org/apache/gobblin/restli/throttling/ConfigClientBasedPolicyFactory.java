@@ -15,21 +15,21 @@
  * limitations under the License.
  */
 
-package gobblin.restli.throttling;
+package org.apache.gobblin.restli.throttling;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 
 import com.typesafe.config.Config;
 
-import gobblin.broker.TTLResourceEntry;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.config.client.ConfigClient;
-import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.util.ConfigUtils;
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.broker.TTLResourceEntry;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 
 /**

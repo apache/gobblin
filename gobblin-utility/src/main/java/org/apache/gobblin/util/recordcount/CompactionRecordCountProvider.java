@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.recordcount;
+package org.apache.gobblin.util.recordcount;
 
 import java.util.Random;
 import java.util.regex.Pattern;
@@ -24,7 +24,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.util.RecordCountProvider;
+import org.apache.gobblin.util.RecordCountProvider;
 
 
 /**

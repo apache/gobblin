@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.client;
+package org.apache.gobblin.config.client;
 
 import java.lang.annotation.Annotation;
 import java.net.URI;
@@ -35,20 +35,20 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.typesafe.config.Config;
 
-import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.config.common.impl.ConfigStoreBackedTopology;
-import gobblin.config.common.impl.ConfigStoreBackedValueInspector;
-import gobblin.config.common.impl.ConfigStoreTopologyInspector;
-import gobblin.config.common.impl.ConfigStoreValueInspector;
-import gobblin.config.common.impl.InMemoryTopology;
-import gobblin.config.common.impl.InMemoryValueInspector;
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
-import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.config.store.api.ConfigStoreFactory;
-import gobblin.config.store.api.ConfigStoreWithStableVersioning;
-import gobblin.config.store.api.VersionDoesNotExistException;
+import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.config.common.impl.ConfigStoreBackedTopology;
+import org.apache.gobblin.config.common.impl.ConfigStoreBackedValueInspector;
+import org.apache.gobblin.config.common.impl.ConfigStoreTopologyInspector;
+import org.apache.gobblin.config.common.impl.ConfigStoreValueInspector;
+import org.apache.gobblin.config.common.impl.InMemoryTopology;
+import org.apache.gobblin.config.common.impl.InMemoryValueInspector;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.config.store.api.ConfigStoreFactory;
+import org.apache.gobblin.config.store.api.ConfigStoreWithStableVersioning;
+import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
 
 
 /**

@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
-import gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
 
 /**
  * Holds event names and constants used in events submitted by a retention job.

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -25,7 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Strings;
 
-import gobblin.broker.iface.SharedResourceKey;
+import org.apache.gobblin.broker.iface.SharedResourceKey;
 
 import lombok.Getter;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.filebased;
+package org.apache.gobblin.source.extractor.filebased;
 
 import static org.mockito.Mockito.*;
 
@@ -28,12 +28,12 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.google.GoogleDriveExtractor;
-import gobblin.source.extractor.extract.google.GoogleDriveFsHelper;
-import gobblin.source.extractor.extract.google.GoogleDriveSource;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.extract.google.GoogleDriveExtractor;
+import org.apache.gobblin.source.extractor.extract.google.GoogleDriveFsHelper;
+import org.apache.gobblin.source.extractor.extract.google.GoogleDriveSource;
 
 
 @Test(groups = { "gobblin.source.extractor.google" })

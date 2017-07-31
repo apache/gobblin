@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import org.apache.avro.Schema;
 import org.apache.avro.io.Decoder;
@@ -23,8 +23,8 @@ import org.apache.avro.io.DecoderFactory;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.annotation.Alias;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

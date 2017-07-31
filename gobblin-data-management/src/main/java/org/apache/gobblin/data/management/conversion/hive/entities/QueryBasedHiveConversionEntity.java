@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.entities;
+package org.apache.gobblin.data.management.conversion.hive.entities;
 
 import java.util.List;
 
@@ -25,15 +25,15 @@ import lombok.ToString;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
-import gobblin.converter.Converter;
-import gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
-import gobblin.data.management.conversion.hive.writer.HiveQueryExecutionWriter;
-import gobblin.hive.HivePartition;
-import gobblin.hive.HiveRegistrationUnit;
-import gobblin.hive.HiveTable;
-import gobblin.source.extractor.Extractor;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
+import org.apache.gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
+import org.apache.gobblin.data.management.conversion.hive.writer.HiveQueryExecutionWriter;
+import org.apache.gobblin.hive.HivePartition;
+import org.apache.gobblin.hive.HiveRegistrationUnit;
+import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.source.extractor.Extractor;
 
 
 /**

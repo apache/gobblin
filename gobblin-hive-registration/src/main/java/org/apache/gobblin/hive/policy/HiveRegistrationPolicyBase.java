@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package gobblin.hive.policy;
+package org.apache.gobblin.hive.policy;
 
 import com.codahale.metrics.Timer;
 import com.google.common.base.Splitter;
 import com.typesafe.config.Config;
-import gobblin.config.client.ConfigClient;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.hive.HiveRegister;
-import gobblin.hive.metastore.HiveMetaStoreUtils;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
-import gobblin.source.extractor.extract.kafka.KafkaSource;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.hive.HiveRegister;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -46,15 +46,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.hive.HivePartition;
-import gobblin.hive.HiveRegProps;
-import gobblin.hive.HiveSerDeManager;
-import gobblin.hive.HiveTable;
-import gobblin.hive.spec.HiveSpec;
-import gobblin.hive.spec.SimpleHiveSpec;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HivePartition;
+import org.apache.gobblin.hive.HiveRegProps;
+import org.apache.gobblin.hive.HiveSerDeManager;
+import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.hive.spec.SimpleHiveSpec;
 
 
 /**

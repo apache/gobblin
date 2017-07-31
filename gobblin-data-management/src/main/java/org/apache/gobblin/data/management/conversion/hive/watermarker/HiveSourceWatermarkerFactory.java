@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.watermarker;
+package org.apache.gobblin.data.management.conversion.hive.watermarker;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 /**
  * An interface for creating new {@link HiveSourceWatermarker}s

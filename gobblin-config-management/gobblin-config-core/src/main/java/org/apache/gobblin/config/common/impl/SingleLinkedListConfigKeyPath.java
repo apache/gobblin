@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.config.common.impl;
+package org.apache.gobblin.config.common.impl;
 
-import gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
 
 
 public class SingleLinkedListConfigKeyPath implements ConfigKeyPath {

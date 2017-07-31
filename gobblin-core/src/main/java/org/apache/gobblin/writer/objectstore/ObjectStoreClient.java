@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.objectstore;
+package org.apache.gobblin.writer.objectstore;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,8 +23,8 @@ import javax.annotation.Nonnull;
 
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
-import gobblin.writer.objectstore.response.GetObjectResponse;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.writer.objectstore.response.GetObjectResponse;
 
 /**
  * A client interface to interact with an object store. Supports basic operations like put,delete and get.

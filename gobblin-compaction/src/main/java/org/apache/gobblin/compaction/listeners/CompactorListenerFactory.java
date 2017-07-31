@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.listeners;
+package org.apache.gobblin.compaction.listeners;
 
 import java.util.Properties;
 
 import com.google.common.base.Optional;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

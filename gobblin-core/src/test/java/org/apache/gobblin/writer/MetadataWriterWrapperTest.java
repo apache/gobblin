@@ -1,4 +1,4 @@
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -7,11 +7,11 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metadata.types.GlobalMetadata;
-import gobblin.metadata.types.Metadata;
-import gobblin.type.RecordWithMetadata;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.metadata.types.Metadata;
+import org.apache.gobblin.type.RecordWithMetadata;
 
 
 public class MetadataWriterWrapperTest {

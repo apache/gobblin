@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.StringReader;
 import java.util.Properties;
@@ -24,13 +24,13 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.test.TestSource;
-import gobblin.writer.Destination;
-import gobblin.writer.WriterOutputFormat;
-import gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.test.TestSource;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.WriterOutputFormat;
+import org.apache.gobblin.util.JobLauncherUtils;
 
 
 /**

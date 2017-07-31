@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.source.workunit;
+package org.apache.gobblin.source.workunit;
 
 import java.io.DataInput;
 import java.io.IOException;
 import java.util.Properties;
 
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
 
 
 /**

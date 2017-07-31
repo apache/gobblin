@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
 import java.util.Properties;
 
@@ -31,10 +31,10 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
-import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import org.apache.gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
+import org.apache.gobblin.util.PathUtils;
 
 
 public class TimestampedDatasetVersionFinderTest {

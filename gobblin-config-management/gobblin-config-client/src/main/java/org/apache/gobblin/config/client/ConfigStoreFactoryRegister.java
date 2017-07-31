@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.config.client;
+package org.apache.gobblin.config.client;
 
-import gobblin.config.store.api.ConfigStoreFactory;
+import org.apache.gobblin.config.store.api.ConfigStoreFactory;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
@@ -24,8 +24,8 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.task.TaskFactory;
 import org.apache.helix.task.TaskStateModel;
 
-import gobblin.annotation.Alpha;
-import gobblin.runtime.TaskExecutor;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.TaskExecutor;
 
 
 /**

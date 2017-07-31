@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.records;
+package org.apache.gobblin.records;
 
 import java.io.IOException;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

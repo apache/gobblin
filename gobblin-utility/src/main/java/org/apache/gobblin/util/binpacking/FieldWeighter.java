@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.util.binpacking;
+package org.apache.gobblin.util.binpacking;
 
-import gobblin.source.workunit.WorkUnit;
-import gobblin.source.workunit.WorkUnitWeighter;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnitWeighter;
 
 import lombok.AllArgsConstructor;
 

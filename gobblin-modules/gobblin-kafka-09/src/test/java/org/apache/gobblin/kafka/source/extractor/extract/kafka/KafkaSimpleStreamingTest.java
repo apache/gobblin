@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.kafka.source.extractor.extract.kafka;
+package org.apache.gobblin.kafka.source.extractor.extract.kafka;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -36,19 +36,19 @@ import org.testng.annotations.Test;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.kafka.KafkaTestBase;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.stream.RecordEnvelope;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingExtractor;
-import gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.writer.WatermarkStorage;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.kafka.KafkaTestBase;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingExtractor;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.writer.WatermarkStorage;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;

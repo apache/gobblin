@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.string;
+package org.apache.gobblin.converter.string;
 
 import java.util.Iterator;
 
@@ -23,8 +23,8 @@ import org.apache.hadoop.io.Text;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
 
 
 /**

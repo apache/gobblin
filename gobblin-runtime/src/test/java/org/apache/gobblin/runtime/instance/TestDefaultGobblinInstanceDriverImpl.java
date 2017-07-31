@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.instance;
+package org.apache.gobblin.runtime.instance;
 
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -30,18 +30,18 @@ import com.google.common.base.Predicate;
 import com.google.common.util.concurrent.Service.State;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.metrics.MetricContext;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.runtime.api.Configurable;
-import gobblin.runtime.api.GobblinInstancePluginFactory;
-import gobblin.runtime.api.JobExecutionLauncher;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecScheduler;
-import gobblin.runtime.job_catalog.InMemoryJobCatalog;
-import gobblin.runtime.std.DefaultConfigurableImpl;
-import gobblin.runtime.std.DefaultJobSpecScheduleImpl;
-import gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.runtime.api.Configurable;
+import org.apache.gobblin.runtime.api.GobblinInstancePluginFactory;
+import org.apache.gobblin.runtime.api.JobExecutionLauncher;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecScheduler;
+import org.apache.gobblin.runtime.job_catalog.InMemoryJobCatalog;
+import org.apache.gobblin.runtime.std.DefaultConfigurableImpl;
+import org.apache.gobblin.runtime.std.DefaultJobSpecScheduleImpl;
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 /**
  * Unit tests for {@link DefaultGobblinInstanceDriverImpl}

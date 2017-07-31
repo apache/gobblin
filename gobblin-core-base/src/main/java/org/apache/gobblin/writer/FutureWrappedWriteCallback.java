@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;

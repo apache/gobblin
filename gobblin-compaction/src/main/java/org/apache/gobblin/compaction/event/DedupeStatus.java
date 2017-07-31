@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.event;
+package org.apache.gobblin.compaction.event;
 
 public enum DedupeStatus {
   DEDUPED,

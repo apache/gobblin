@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source.extractor.filebased;
+package org.apache.gobblin.source.extractor.filebased;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.IOUtils;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce;
+package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -55,19 +55,19 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.dataset.DatasetHelper;
-import gobblin.compaction.event.CompactionSlaEventHelper;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.FileListUtils;
-import gobblin.util.HadoopUtils;
-import gobblin.util.RecordCountProvider;
-import gobblin.util.WriterUtils;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
-import gobblin.util.recordcount.LateFileRecordCountProvider;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.RecordCountProvider;
+import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
+import org.apache.gobblin.util.recordcount.LateFileRecordCountProvider;
 
 
 

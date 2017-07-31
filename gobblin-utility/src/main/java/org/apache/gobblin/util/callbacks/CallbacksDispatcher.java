@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.util.callbacks;
+package org.apache.gobblin.util.callbacks;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -36,7 +36,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

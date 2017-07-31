@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hive;
+package org.apache.gobblin.compaction.hive;
 
 import java.io.IOException;
 
@@ -24,7 +24,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**

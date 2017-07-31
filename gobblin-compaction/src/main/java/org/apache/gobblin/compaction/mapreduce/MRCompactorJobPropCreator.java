@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce;
+package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -25,7 +25,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Lists;
-import gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -40,10 +40,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.event.CompactionSlaEventHelper;
-import gobblin.configuration.State;
-import gobblin.util.FileListUtils;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.FileListUtils;
 
 
 /**

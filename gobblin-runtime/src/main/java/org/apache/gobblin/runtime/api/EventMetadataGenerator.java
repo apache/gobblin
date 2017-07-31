@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.util.Map;
 
-import gobblin.metrics.event.EventName;
-import gobblin.runtime.JobContext;
+import org.apache.gobblin.metrics.event.EventName;
+import org.apache.gobblin.runtime.JobContext;
 
 /**
  * For generating additional event metadata to associate with an event.

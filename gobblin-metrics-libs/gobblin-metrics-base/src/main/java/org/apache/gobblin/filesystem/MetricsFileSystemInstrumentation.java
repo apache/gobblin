@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.filesystem;
+package org.apache.gobblin.filesystem;
 
 import java.io.Closeable;
 import java.io.FileNotFoundException;
@@ -31,14 +31,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
-import gobblin.broker.iface.ConfigView;
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.metrics.ContextAwareTimer;
-import gobblin.metrics.MetricContext;
-import gobblin.util.filesystem.FileSystemInstrumentation;
-import gobblin.util.filesystem.FileSystemInstrumentationFactory;
-import gobblin.util.filesystem.FileSystemKey;
+import org.apache.gobblin.broker.iface.ConfigView;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.metrics.ContextAwareTimer;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.util.filesystem.FileSystemInstrumentation;
+import org.apache.gobblin.util.filesystem.FileSystemInstrumentationFactory;
+import org.apache.gobblin.util.filesystem.FileSystemKey;
 
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.FsPermission;

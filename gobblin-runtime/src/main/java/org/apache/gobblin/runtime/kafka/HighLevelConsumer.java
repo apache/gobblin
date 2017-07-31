@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.kafka;
+package org.apache.gobblin.runtime.kafka;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,12 +33,12 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.runtime.metrics.RuntimeMetrics;
-import gobblin.util.ConfigUtils;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;

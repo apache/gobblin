@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import java.util.Iterator;
 import java.util.List;
@@ -34,11 +34,11 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.linkedin.restli.server.resources.BaseResource;
 
-import gobblin.config.ConfigBuilder;
-import gobblin.metrics.event.TimingEvent;
-import gobblin.restli.EmbeddedRestliServer;
-import gobblin.service.monitoring.FlowStatusGenerator;
-import gobblin.service.monitoring.JobStatusRetriever;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.restli.EmbeddedRestliServer;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 @Test(groups = { "gobblin.service" }, singleThreaded=true)
 public class FlowStatusTest {

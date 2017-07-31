@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.filter;
+package org.apache.gobblin.converter.filter;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -24,8 +24,8 @@ import org.apache.avro.Schema;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.SchemaConversionException;
 
 
 /**

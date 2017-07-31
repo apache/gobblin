@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction;
+package org.apache.gobblin.compaction;
 
 /**
  * Throw by {@link CompactorFactory} if there is a problem creating a {@link Compactor}.

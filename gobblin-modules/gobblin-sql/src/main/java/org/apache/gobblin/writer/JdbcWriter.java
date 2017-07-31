@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
-import gobblin.publisher.JdbcPublisher;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.util.jdbc.DataSourceBuilder;
-import gobblin.writer.commands.JdbcWriterCommands;
-import gobblin.writer.commands.JdbcWriterCommandsFactory;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.publisher.JdbcPublisher;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.util.jdbc.DataSourceBuilder;
+import org.apache.gobblin.writer.commands.JdbcWriterCommands;
+import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
 
 import java.io.IOException;
 import java.sql.Connection;

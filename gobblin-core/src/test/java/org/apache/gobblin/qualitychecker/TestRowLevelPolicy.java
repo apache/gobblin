@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker;
+package org.apache.gobblin.qualitychecker;
 
-import gobblin.configuration.State;
-import gobblin.qualitychecker.row.RowLevelPolicy;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicy;
 
 
 public class TestRowLevelPolicy extends RowLevelPolicy {

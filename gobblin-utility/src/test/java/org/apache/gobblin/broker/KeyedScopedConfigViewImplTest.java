@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -25,7 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 
 
 public class KeyedScopedConfigViewImplTest {

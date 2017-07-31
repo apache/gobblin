@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter.stressTest;
+package org.apache.gobblin.util.limiter.stressTest;
 
 import java.util.List;
 

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.test.execution.operator;
+package org.apache.gobblin.test.execution.operator;
 
 /**
  * An interface for defining the operator , the operator could be a copy of file or converting a file from one format to another. These operators are used for the setup phase of the test

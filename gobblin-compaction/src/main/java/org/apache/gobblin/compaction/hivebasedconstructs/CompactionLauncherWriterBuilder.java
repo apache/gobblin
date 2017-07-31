@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hivebasedconstructs;
+package org.apache.gobblin.compaction.hivebasedconstructs;
 
 import java.io.IOException;
 import org.apache.avro.Schema;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
 
 
 /**

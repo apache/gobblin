@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.tunnel;
+package org.apache.gobblin.tunnel;
 
 import org.apache.commons.io.IOUtils;
 

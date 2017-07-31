@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 /**
  * Constants used for {@link gobblin.broker.iface.SharedResourcesBroker}.

@@ -7,11 +7,11 @@ import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.Source;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 public class TestAvroSource implements Source<Schema, GenericRecord> {

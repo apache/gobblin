@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -26,7 +26,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import gobblin.runtime.fork.Fork;
+import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,9 +35,9 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 import lombok.Getter;
 

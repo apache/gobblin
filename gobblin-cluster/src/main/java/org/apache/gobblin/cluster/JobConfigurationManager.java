@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.io.File;
 import java.util.List;
@@ -30,13 +30,13 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
-import gobblin.cluster.event.DeleteJobConfigArrivalEvent;
-import gobblin.cluster.event.NewJobConfigArrivalEvent;
-import gobblin.cluster.event.UpdateJobConfigArrivalEvent;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ConfigUtils;
-import gobblin.util.SchedulerUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
+import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
+import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.SchedulerUtils;
 
 
 /**

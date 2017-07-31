@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.request_allocation;
+package org.apache.gobblin.util.request_allocation;
 
 
 import java.util.Properties;
@@ -25,8 +25,8 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.partition.CopyableDatasetRequestor;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.partition.CopyableDatasetRequestor;
 
 
 public class SimpleHiveDatasetTieringPrioritizerTest {

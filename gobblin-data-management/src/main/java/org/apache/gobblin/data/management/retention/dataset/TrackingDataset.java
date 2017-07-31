@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.dataset;
+package org.apache.gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -25,11 +25,11 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.data.management.retention.policy.RetentionPolicy;
-import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
-import gobblin.data.management.version.TimestampedDatasetVersion;
-import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
-import gobblin.data.management.version.finder.VersionFinder;
+import org.apache.gobblin.data.management.retention.policy.RetentionPolicy;
+import org.apache.gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
+import org.apache.gobblin.data.management.version.finder.VersionFinder;
 
 
 /**

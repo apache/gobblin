@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.cli;
+package org.apache.gobblin.runtime.cli;
 
 import java.io.IOException;
 import java.util.List;
@@ -26,9 +26,9 @@ import org.apache.commons.cli.CommandLine;
 
 import com.google.common.base.Strings;
 
-import gobblin.annotation.Alias;
-import gobblin.runtime.embedded.EmbeddedGobblin;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
+import org.apache.gobblin.util.ClassAliasResolver;
 
 import lombok.extern.slf4j.Slf4j;
 

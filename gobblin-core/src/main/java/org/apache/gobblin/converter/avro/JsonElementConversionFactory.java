@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.avro;
+package org.apache.gobblin.converter.avro;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -39,8 +39,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker;
+package org.apache.gobblin.qualitychecker;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
-import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.qualitychecker.row.RowLevelPolicyCheckerBuilderFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckerBuilderFactory;
 import java.io.File;
 import java.net.URI;
 

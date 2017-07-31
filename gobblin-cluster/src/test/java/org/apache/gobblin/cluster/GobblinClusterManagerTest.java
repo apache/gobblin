@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.net.URL;
 
@@ -41,8 +41,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.cluster.event.ClusterManagerShutdownRequest;
-import gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 /**

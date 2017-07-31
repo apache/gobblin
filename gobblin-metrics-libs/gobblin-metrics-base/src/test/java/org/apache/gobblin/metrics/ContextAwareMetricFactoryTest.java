@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.io.IOException;
 
@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 import com.codahale.metrics.MetricRegistry;
 
-import static gobblin.metrics.test.TestConstants.*;
+import static org.apache.gobblin.metrics.test.TestConstants.*;
 
 
 /**

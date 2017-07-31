@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.hive.policy;
+package org.apache.gobblin.hive.policy;
 
 import java.io.IOException;
 import java.util.Collection;
 
 import org.apache.hadoop.fs.Path;
 
-import gobblin.annotation.Alpha;
-import gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.hive.spec.HiveSpec;
 
 
 /**

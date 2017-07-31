@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce;
+package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 import java.util.regex.Pattern;
@@ -28,9 +28,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
-import gobblin.util.RecordCountProvider;
-import gobblin.util.recordcount.IngestionRecordCountProvider;
-import gobblin.util.recordcount.LateFileRecordCountProvider;
+import org.apache.gobblin.util.RecordCountProvider;
+import org.apache.gobblin.util.recordcount.IngestionRecordCountProvider;
+import org.apache.gobblin.util.recordcount.LateFileRecordCountProvider;
 
 
 /**

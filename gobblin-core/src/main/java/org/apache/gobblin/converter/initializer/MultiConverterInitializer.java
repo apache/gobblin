@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.converter.initializer;
+package org.apache.gobblin.converter.initializer;
 
 import java.util.List;
 
 import lombok.ToString;
-import gobblin.initializer.Initializer;
-import gobblin.initializer.MultiInitializer;
+import org.apache.gobblin.initializer.Initializer;
+import org.apache.gobblin.initializer.MultiInitializer;
 
 
 @ToString

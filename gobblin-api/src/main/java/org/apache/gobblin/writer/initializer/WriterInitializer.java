@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.writer.initializer;
+package org.apache.gobblin.writer.initializer;
 
-import gobblin.initializer.Initializer;
+import org.apache.gobblin.initializer.Initializer;
 
 public interface WriterInitializer extends Initializer {
 

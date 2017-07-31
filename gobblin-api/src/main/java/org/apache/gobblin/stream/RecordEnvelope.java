@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.stream;
+package org.apache.gobblin.stream;
 
-import gobblin.annotation.Alpha;
-import gobblin.fork.CopyHelper;
-import gobblin.fork.CopyNotSupportedException;
-import gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.fork.CopyHelper;
+import org.apache.gobblin.fork.CopyNotSupportedException;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 
 import javax.annotation.Nullable;
 

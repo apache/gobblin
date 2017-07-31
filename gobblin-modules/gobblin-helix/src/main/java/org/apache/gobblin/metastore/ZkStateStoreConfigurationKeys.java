@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 public class ZkStateStoreConfigurationKeys {
   public static final String STATE_STORE_ZK_CONNECT_STRING_KEY = "state.store.zk.connectString";

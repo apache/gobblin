@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce;
+package org.apache.gobblin.compaction.mapreduce;
 
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
-import gobblin.compaction.mapreduce.avro.*;
-import gobblin.compaction.parser.CompactionPathParser;
-import gobblin.compaction.verify.InputRecordCountHelper;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.dataset.Dataset;
-import gobblin.dataset.FileSystemDataset;
-import gobblin.util.AvroUtils;
-import gobblin.util.FileListUtils;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.compaction.mapreduce.avro.*;
+import org.apache.gobblin.compaction.parser.CompactionPathParser;
+import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.HadoopUtils;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;

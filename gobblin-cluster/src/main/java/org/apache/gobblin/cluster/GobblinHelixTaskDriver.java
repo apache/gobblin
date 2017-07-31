@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import com.google.common.base.Joiner;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.partition;
+package org.apache.gobblin.source.extractor.partition;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,16 +32,16 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.source.extractor.extract.ExtractType;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.DateWatermark;
-import gobblin.source.extractor.watermark.HourWatermark;
-import gobblin.source.extractor.watermark.SimpleWatermark;
-import gobblin.source.extractor.watermark.TimestampWatermark;
-import gobblin.source.extractor.watermark.WatermarkPredicate;
-import gobblin.source.extractor.watermark.WatermarkType;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.source.extractor.extract.ExtractType;
+import org.apache.gobblin.source.extractor.utils.Utils;
+import org.apache.gobblin.source.extractor.watermark.DateWatermark;
+import org.apache.gobblin.source.extractor.watermark.HourWatermark;
+import org.apache.gobblin.source.extractor.watermark.SimpleWatermark;
+import org.apache.gobblin.source.extractor.watermark.TimestampWatermark;
+import org.apache.gobblin.source.extractor.watermark.WatermarkPredicate;
+import org.apache.gobblin.source.extractor.watermark.WatermarkType;
 
 
 /**

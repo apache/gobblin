@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.purger;
+package org.apache.gobblin.compliance.purger;
 
 import java.io.IOException;
 
-import gobblin.data.management.dataset.Dataset;
+import org.apache.gobblin.data.management.dataset.Dataset;
 
 
 public interface PurgeableDataset extends Dataset {

@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.source;
+package org.apache.gobblin.data.management.conversion.hive.source;
 
 import java.util.List;
 
-import gobblin.configuration.SourceState;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 /**
  * An extension to {@link HiveSource} that is used for Avro to ORC conversion jobs.

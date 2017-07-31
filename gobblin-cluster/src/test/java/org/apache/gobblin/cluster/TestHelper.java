@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,8 +37,8 @@ import org.testng.Assert;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.JobLauncherUtils;
 
 
 /**

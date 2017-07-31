@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.hadoop;
+package org.apache.gobblin.metrics.hadoop;
 
 import java.util.SortedMap;
 import java.util.UUID;
@@ -39,9 +39,9 @@ import com.codahale.metrics.Timer;
 
 import com.google.common.collect.ImmutableSortedMap;
 
-import gobblin.metrics.Measurements;
-import gobblin.metrics.MetricContext;
-import static gobblin.metrics.test.TestConstants.*;
+import org.apache.gobblin.metrics.Measurements;
+import org.apache.gobblin.metrics.MetricContext;
+import static org.apache.gobblin.metrics.test.TestConstants.*;
 
 
 /**

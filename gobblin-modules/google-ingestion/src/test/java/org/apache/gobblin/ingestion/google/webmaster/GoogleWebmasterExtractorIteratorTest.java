@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ingestion.google.webmaster;
+package org.apache.gobblin.ingestion.google.webmaster;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;

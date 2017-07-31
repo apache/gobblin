@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.util.List;
 import java.util.Map;
@@ -30,15 +30,15 @@ import com.linkedin.common.callback.Callback;
 import com.linkedin.restli.client.Response;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.BrokerConfigurationKeyGenerator;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SimpleScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.restli.SharedRestClientKey;
-import gobblin.restli.throttling.PermitAllocation;
-import gobblin.restli.throttling.PermitRequest;
-import gobblin.util.limiter.broker.SharedLimiterFactory;
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.broker.BrokerConfigurationKeyGenerator;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.SimpleScopeType;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.restli.SharedRestClientKey;
+import org.apache.gobblin.restli.throttling.PermitAllocation;
+import org.apache.gobblin.restli.throttling.PermitRequest;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterFactory;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 
 public class RestliLimiterFactoryTest {

@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
 
-import gobblin.records.ControlMessageHandler;
-import gobblin.records.FlushControlMessageHandler;
-import gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.FlushControlMessageHandler;
+import org.apache.gobblin.stream.RecordEnvelope;
 
 
 /**

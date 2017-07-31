@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.graphite;
+package org.apache.gobblin.metrics.graphite;
 
 import java.io.IOException;
 import java.util.Map;
@@ -27,16 +27,16 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.MultiPartEvent;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.JobEvent;
-import gobblin.metrics.event.TaskEvent;
-import gobblin.metrics.reporter.EventReporter;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.MultiPartEvent;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.JobEvent;
+import org.apache.gobblin.metrics.event.TaskEvent;
+import org.apache.gobblin.metrics.reporter.EventReporter;
 
-import static gobblin.metrics.event.TimingEvent.METADATA_DURATION;
+import static org.apache.gobblin.metrics.event.TimingEvent.METADATA_DURATION;
 
 
 /**

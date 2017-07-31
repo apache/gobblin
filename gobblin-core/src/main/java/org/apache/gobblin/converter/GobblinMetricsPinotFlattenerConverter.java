@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,7 +31,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 import lombok.extern.slf4j.Slf4j;
 

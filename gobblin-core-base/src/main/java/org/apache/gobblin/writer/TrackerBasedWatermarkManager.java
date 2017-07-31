@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Map;
@@ -32,8 +32,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

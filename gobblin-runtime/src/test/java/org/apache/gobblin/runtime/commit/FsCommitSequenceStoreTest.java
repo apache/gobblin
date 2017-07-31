@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.commit;
+package org.apache.gobblin.runtime.commit;
 
 import java.io.IOException;
 
@@ -31,14 +31,14 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.gson.Gson;
 
-import gobblin.commit.CommitSequence;
-import gobblin.commit.CommitStep;
-import gobblin.commit.FsRenameCommitStep;
-import gobblin.configuration.State;
-import gobblin.runtime.JobState.DatasetState;
-import gobblin.runtime.commit.DatasetStateCommitStep;
-import gobblin.runtime.commit.FsCommitSequenceStore;
-import gobblin.util.io.GsonInterfaceAdapter;
+import org.apache.gobblin.commit.CommitSequence;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.commit.FsRenameCommitStep;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.runtime.JobState.DatasetState;
+import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
+import org.apache.gobblin.runtime.commit.FsCommitSequenceStore;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 
 
 /**

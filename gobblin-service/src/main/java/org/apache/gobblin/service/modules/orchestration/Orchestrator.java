@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.orchestration;
+package org.apache.gobblin.service.modules.orchestration;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -35,24 +35,24 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
-import gobblin.instrumented.Instrumented;
-import gobblin.instrumented.Instrumentable;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 
-import gobblin.runtime.api.FlowSpec;
-import gobblin.runtime.api.SpecCompiler;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
-import gobblin.runtime.api.TopologySpec;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecCatalogListener;
-import gobblin.runtime.spec_catalog.TopologyCatalog;
-import gobblin.service.ServiceConfigKeys;
-import gobblin.service.ServiceMetricNames;
-import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.SpecCompiler;
+import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
+import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.ServiceMetricNames;
+import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 import org.slf4j.LoggerFactory;
 
 

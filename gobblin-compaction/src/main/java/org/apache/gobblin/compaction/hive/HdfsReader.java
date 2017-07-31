@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hive;
+package org.apache.gobblin.compaction.hive;
 
 import java.io.IOException;
 import java.io.InputStream;

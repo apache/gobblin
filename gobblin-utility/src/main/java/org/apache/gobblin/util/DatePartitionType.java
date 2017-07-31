@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

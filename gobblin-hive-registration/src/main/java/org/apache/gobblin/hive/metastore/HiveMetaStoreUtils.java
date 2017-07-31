@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive.metastore;
+package org.apache.gobblin.hive.metastore;
 
 import com.google.common.base.Splitter;
 import java.lang.reflect.InvocationTargetException;
@@ -53,13 +53,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.hive.HiveConstants;
-import gobblin.hive.HivePartition;
-import gobblin.hive.HiveRegistrationUnit;
-import gobblin.hive.HiveRegistrationUnit.Column;
-import gobblin.hive.HiveTable;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveConstants;
+import org.apache.gobblin.hive.HivePartition;
+import org.apache.gobblin.hive.HiveRegistrationUnit;
+import org.apache.gobblin.hive.HiveRegistrationUnit.Column;
+import org.apache.gobblin.hive.HiveTable;
 
 
 /**

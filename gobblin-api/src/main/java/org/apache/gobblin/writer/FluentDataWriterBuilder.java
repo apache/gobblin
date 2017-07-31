@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 /**
  * A helper class to help create fluent {@link DataWriterBuilder}s. To make the Java generics magic

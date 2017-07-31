@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.gobblin_scopes.JobScopeInstance;
-import gobblin.broker.gobblin_scopes.TaskScopeInstance;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
+import org.apache.gobblin.broker.gobblin_scopes.TaskScopeInstance;
 
 
 public class AutoscopedFactoryTest {

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.version.finder;
+package org.apache.gobblin.data.management.retention.version.finder;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -27,10 +27,10 @@ import com.google.common.collect.Lists;
 
 import lombok.Getter;
 
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.FileStatusDatasetVersion;
-import gobblin.dataset.Dataset;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.version.FileStatusDatasetVersion;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 
 /**

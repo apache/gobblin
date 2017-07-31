@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker.iface;
+package org.apache.gobblin.broker.iface;
 
 /**
  * Exception thrown by a factory if there is not enough provided configuration to create the

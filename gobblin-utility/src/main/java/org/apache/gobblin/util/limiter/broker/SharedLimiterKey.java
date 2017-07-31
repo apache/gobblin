@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter.broker;
+package org.apache.gobblin.util.limiter.broker;
 
-import gobblin.broker.iface.SharedResourceKey;
+import org.apache.gobblin.broker.iface.SharedResourceKey;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

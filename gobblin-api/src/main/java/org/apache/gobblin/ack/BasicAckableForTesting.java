@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ack;
+package org.apache.gobblin.ack;
 
 /**
  * An ackable used for testing that just counts the times it is acked and nacked.

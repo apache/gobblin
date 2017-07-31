@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.crypto;
+package org.apache.gobblin.crypto;
 
 import java.util.Map;
 import java.util.Properties;
@@ -23,8 +23,8 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 public class EncryptionConfigParserTest {

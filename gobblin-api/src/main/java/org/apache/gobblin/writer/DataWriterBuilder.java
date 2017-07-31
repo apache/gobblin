@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.State;
-import gobblin.source.workunit.WorkUnitStream;
-import gobblin.writer.initializer.NoopWriterInitializer;
-import gobblin.writer.initializer.WriterInitializer;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.writer.initializer.NoopWriterInitializer;
+import org.apache.gobblin.writer.initializer.WriterInitializer;
 
 
 /**

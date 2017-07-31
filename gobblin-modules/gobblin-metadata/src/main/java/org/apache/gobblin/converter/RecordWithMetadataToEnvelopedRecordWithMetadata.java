@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,10 +28,10 @@ import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.map.ObjectMapper;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.metadata.types.GlobalMetadata;
-import gobblin.type.ContentTypeUtils;
-import gobblin.type.RecordWithMetadata;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.type.ContentTypeUtils;
+import org.apache.gobblin.type.RecordWithMetadata;
 
 
 /**

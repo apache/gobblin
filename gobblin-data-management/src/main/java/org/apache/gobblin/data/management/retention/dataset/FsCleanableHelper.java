@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.dataset;
+package org.apache.gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -31,11 +31,11 @@ import org.slf4j.Logger;
 
 import com.typesafe.config.Config;
 
-import gobblin.data.management.trash.ProxiedTrash;
-import gobblin.data.management.trash.TrashFactory;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.dataset.FileSystemDataset;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.data.management.trash.ProxiedTrash;
+import org.apache.gobblin.data.management.trash.TrashFactory;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.PathUtils;
 
 /**
  * A helper class to delete {@link Path}s of a FileSystemDatasetVersion.

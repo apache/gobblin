@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import com.google.common.base.Throwables;
 import java.io.IOException;
@@ -48,20 +48,20 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.config.client.ConfigClient;
-import gobblin.config.client.ConfigClientCache;
-import gobblin.config.client.ConfigClientUtils;
-import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.hive.HiveConfigClientUtils;
-import gobblin.dataset.IterableDatasetFinder;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.sla.SlaEventSubmitter;
-import gobblin.util.AutoReturnableObject;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.ConfigClientCache;
+import org.apache.gobblin.config.client.ConfigClientUtils;
+import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.hive.HiveConfigClientUtils;
+import org.apache.gobblin.dataset.IterableDatasetFinder;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter;
+import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

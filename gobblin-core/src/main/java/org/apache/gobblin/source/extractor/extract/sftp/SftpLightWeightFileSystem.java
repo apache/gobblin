@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.sftp;
+package org.apache.gobblin.source.extractor.extract.sftp;
 
-import gobblin.configuration.State;
-import gobblin.source.extractor.extract.sftp.SftpFsHelper.SftpGetMonitor;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.util.HadoopUtils;
-import gobblin.util.io.SeekableFSInputStream;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.extractor.extract.sftp.SftpFsHelper.SftpGetMonitor;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.io.SeekableFSInputStream;
 
 import java.io.IOException;
 import java.io.InputStream;

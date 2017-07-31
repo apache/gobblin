@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.io;
+package org.apache.gobblin.util.io;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -28,7 +28,7 @@ import java.nio.channels.WritableByteChannel;
 
 import com.codahale.metrics.Meter;
 
-import gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.Limiter;
 
 import javax.annotation.concurrent.NotThreadSafe;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.influxdb;
+package org.apache.gobblin.metrics.influxdb;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;

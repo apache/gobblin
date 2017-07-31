@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.metrics;
+package org.apache.gobblin.runtime.metrics;
 
 /**
  * Constants used for naming {@link gobblin.metrics.Metric}s and metric metadata in gobblin-runtime.

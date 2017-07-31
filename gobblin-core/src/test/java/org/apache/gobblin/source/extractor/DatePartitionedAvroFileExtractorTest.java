@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor;
+package org.apache.gobblin.source.extractor;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,23 +29,23 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.DatePartitionedAvroFileSource;
-import gobblin.source.workunit.Extract.TableType;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.stream.RecordEnvelope;
-import gobblin.writer.AvroDataWriterBuilder;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
-import gobblin.writer.Destination;
-import gobblin.writer.PartitionedDataWriter;
-import gobblin.writer.WriterOutputFormat;
-import gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
-import gobblin.writer.partitioner.TimeBasedWriterPartitioner;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.DatePartitionedAvroFileSource;
+import org.apache.gobblin.source.workunit.Extract.TableType;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.writer.AvroDataWriterBuilder;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.PartitionedDataWriter;
+import org.apache.gobblin.writer.WriterOutputFormat;
+import org.apache.gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
+import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 
 
 /**

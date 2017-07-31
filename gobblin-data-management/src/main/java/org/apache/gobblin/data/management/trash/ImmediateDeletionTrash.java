@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.trash;
+package org.apache.gobblin.data.management.trash;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -23,7 +23,7 @@ import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.util.ProxiedFileSystemCache;
+import org.apache.gobblin.util.ProxiedFileSystemCache;
 
 
 /**

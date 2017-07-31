@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -45,32 +45,32 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.typesafe.config.Config;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.gobblin_scopes.JobScopeInstance;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.commit.CommitSequenceStore;
-import gobblin.commit.DeliverySemantics;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.instrumented.Instrumented;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.metastore.JobHistoryStore;
-import gobblin.metastore.MetaStoreModule;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.publisher.DataPublisher;
-import gobblin.runtime.JobState.DatasetState;
-import gobblin.runtime.commit.FsCommitSequenceStore;
-import gobblin.runtime.util.JobMetrics;
-import gobblin.source.Source;
-import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
-import gobblin.util.Either;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.HadoopUtils;
-import gobblin.util.Id;
-import gobblin.util.JobLauncherUtils;
-import gobblin.util.executors.IteratorExecutor;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.commit.CommitSequenceStore;
+import org.apache.gobblin.commit.DeliverySemantics;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metastore.JobHistoryStore;
+import org.apache.gobblin.metastore.MetaStoreModule;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.runtime.JobState.DatasetState;
+import org.apache.gobblin.runtime.commit.FsCommitSequenceStore;
+import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.Either;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.Id;
+import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.util.executors.IteratorExecutor;
 
 import javax.annotation.Nullable;
 import lombok.AccessLevel;

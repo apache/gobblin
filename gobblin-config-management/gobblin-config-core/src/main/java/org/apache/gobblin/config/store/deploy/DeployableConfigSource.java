@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.config.store.deploy;
+package org.apache.gobblin.config.store.deploy;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Set;
 
-import gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.store.api.ConfigStore;
 
 
 /**

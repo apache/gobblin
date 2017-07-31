@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.request_allocation;
+package org.apache.gobblin.util.request_allocation;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -28,15 +28,15 @@ import java.util.regex.Pattern;
 
 import com.google.common.collect.Maps;
 
-import gobblin.annotation.Alias;
-import gobblin.data.management.copy.AllEqualComparator;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.WhitelistBlacklist;
-import gobblin.data.management.copy.prioritization.FileSetComparator;
-import gobblin.data.management.partition.CopyableDatasetRequestor;
-import gobblin.data.management.partition.FileSet;
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.data.management.copy.AllEqualComparator;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
+import org.apache.gobblin.data.management.copy.prioritization.FileSetComparator;
+import org.apache.gobblin.data.management.partition.CopyableDatasetRequestor;
+import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.dataset.Dataset;
 
 import lombok.AllArgsConstructor;
 

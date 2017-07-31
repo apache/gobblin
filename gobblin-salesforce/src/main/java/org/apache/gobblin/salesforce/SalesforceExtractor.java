@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.salesforce;
+package org.apache.gobblin.salesforce;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -57,30 +57,30 @@ import com.sforce.async.QueryResultList;
 import com.sforce.soap.partner.PartnerConnection;
 import com.sforce.ws.ConnectorConfig;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.password.PasswordManager;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.exception.RecordCountException;
-import gobblin.source.extractor.exception.RestApiClientException;
-import gobblin.source.extractor.exception.RestApiConnectionException;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.jdbc.SqlQueryUtils;
-import gobblin.source.extractor.extract.restapi.RestApiCommand;
-import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
-import gobblin.source.extractor.extract.restapi.RestApiConnector;
-import gobblin.source.extractor.extract.restapi.RestApiExtractor;
-import gobblin.source.extractor.resultset.RecordSet;
-import gobblin.source.extractor.resultset.RecordSetList;
-import gobblin.source.extractor.schema.Schema;
-import gobblin.source.extractor.utils.InputStreamCSVReader;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkType;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.exception.HighWatermarkException;
+import org.apache.gobblin.source.extractor.exception.RecordCountException;
+import org.apache.gobblin.source.extractor.exception.RestApiClientException;
+import org.apache.gobblin.source.extractor.exception.RestApiConnectionException;
+import org.apache.gobblin.source.extractor.exception.SchemaException;
+import org.apache.gobblin.source.extractor.extract.Command;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
+import org.apache.gobblin.source.jdbc.SqlQueryUtils;
+import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommand;
+import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
+import org.apache.gobblin.source.extractor.extract.restapi.RestApiConnector;
+import org.apache.gobblin.source.extractor.extract.restapi.RestApiExtractor;
+import org.apache.gobblin.source.extractor.resultset.RecordSet;
+import org.apache.gobblin.source.extractor.resultset.RecordSetList;
+import org.apache.gobblin.source.extractor.schema.Schema;
+import org.apache.gobblin.source.extractor.utils.InputStreamCSVReader;
+import org.apache.gobblin.source.extractor.utils.Utils;
+import org.apache.gobblin.source.extractor.watermark.Predicate;
+import org.apache.gobblin.source.extractor.watermark.WatermarkType;
+import org.apache.gobblin.source.workunit.WorkUnit;
 import lombok.extern.slf4j.Slf4j;
 
 

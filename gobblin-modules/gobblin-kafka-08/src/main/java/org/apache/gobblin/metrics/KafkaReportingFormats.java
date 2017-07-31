@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.util.Properties;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.kafka.KafkaAvroEventReporter;
-import gobblin.metrics.kafka.KafkaAvroReporter;
-import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
-import gobblin.metrics.kafka.KafkaEventReporter;
-import gobblin.metrics.kafka.KafkaReporter;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter;
+import org.apache.gobblin.metrics.kafka.KafkaAvroReporter;
+import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
+import org.apache.gobblin.metrics.kafka.KafkaReporter;
 
 
 /**

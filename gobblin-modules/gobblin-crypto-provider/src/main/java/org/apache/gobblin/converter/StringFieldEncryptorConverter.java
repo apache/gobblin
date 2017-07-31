@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,11 +28,11 @@ import java.util.Map;
 
 import com.google.common.base.Splitter;
 
-import gobblin.codec.StreamCodec;
-import gobblin.configuration.WorkUnitState;
-import gobblin.crypto.EncryptionConfigParser;
-import gobblin.crypto.EncryptionFactory;
-import gobblin.recordaccess.RecordAccessor;
+import org.apache.gobblin.codec.StreamCodec;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.crypto.EncryptionConfigParser;
+import org.apache.gobblin.crypto.EncryptionFactory;
+import org.apache.gobblin.recordaccess.RecordAccessor;
 
 
 /**

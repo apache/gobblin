@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import java.util.List;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 import lombok.Getter;
 
 

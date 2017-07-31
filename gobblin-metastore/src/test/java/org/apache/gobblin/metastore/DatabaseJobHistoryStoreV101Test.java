@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import org.testng.annotations.Test;
 

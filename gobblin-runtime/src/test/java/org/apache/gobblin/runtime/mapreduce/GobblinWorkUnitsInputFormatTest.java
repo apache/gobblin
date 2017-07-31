@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.mapreduce;
+package org.apache.gobblin.runtime.mapreduce;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;

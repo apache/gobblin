@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.aws;
+package org.apache.gobblin.aws;
 
 import java.util.Collections;
 import java.util.List;
@@ -40,14 +40,14 @@ import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.annotation.Alpha;
-import gobblin.cluster.GobblinClusterConfigurationKeys;
-import gobblin.cluster.GobblinClusterManager;
-import gobblin.cluster.GobblinHelixTask;
-import gobblin.cluster.GobblinHelixTaskFactory;
-import gobblin.cluster.GobblinTaskRunner;
-import gobblin.cluster.HelixMessageSubTypes;
-import gobblin.util.JvmUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterManager;
+import org.apache.gobblin.cluster.GobblinHelixTask;
+import org.apache.gobblin.cluster.GobblinHelixTaskFactory;
+import org.apache.gobblin.cluster.GobblinTaskRunner;
+import org.apache.gobblin.cluster.HelixMessageSubTypes;
+import org.apache.gobblin.util.JvmUtils;
 
 
 /**

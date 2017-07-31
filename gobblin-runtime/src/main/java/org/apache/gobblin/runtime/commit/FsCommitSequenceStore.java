@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.commit;
+package org.apache.gobblin.runtime.commit;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -32,14 +32,14 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 
-import gobblin.annotation.Alpha;
-import gobblin.commit.CommitSequence;
-import gobblin.commit.CommitSequenceStore;
-import gobblin.commit.CommitStep;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.HadoopUtils;
-import gobblin.util.filters.HiddenFilter;
-import gobblin.util.io.GsonInterfaceAdapter;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.commit.CommitSequence;
+import org.apache.gobblin.commit.CommitSequenceStore;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.filters.HiddenFilter;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 
 
 /**

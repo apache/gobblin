@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
-package gobblin.source;
+package org.apache.gobblin.source;
 
 import java.io.IOException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DatePartitionedAvroFileExtractor;
-import gobblin.source.extractor.Extractor;
-import gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.DatePartitionedAvroFileExtractor;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
 
 
 /**

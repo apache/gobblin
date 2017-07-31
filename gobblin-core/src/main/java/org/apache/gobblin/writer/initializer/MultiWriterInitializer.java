@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.writer.initializer;
+package org.apache.gobblin.writer.initializer;
 
-import gobblin.initializer.Initializer;
-import gobblin.initializer.MultiInitializer;
+import org.apache.gobblin.initializer.Initializer;
+import org.apache.gobblin.initializer.MultiInitializer;
 
 import java.util.List;
 

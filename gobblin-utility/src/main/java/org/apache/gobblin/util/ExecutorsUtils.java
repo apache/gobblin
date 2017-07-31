@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -29,9 +29,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
-import gobblin.util.executors.MDCPropagatingCallable;
-import gobblin.util.executors.MDCPropagatingRunnable;
-import gobblin.util.executors.MDCPropagatingScheduledExecutorService;
+import org.apache.gobblin.util.executors.MDCPropagatingCallable;
+import org.apache.gobblin.util.executors.MDCPropagatingRunnable;
+import org.apache.gobblin.util.executors.MDCPropagatingScheduledExecutorService;
 import org.slf4j.Logger;
 
 import com.google.common.base.Function;
@@ -41,7 +41,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import gobblin.util.executors.MDCPropagatingExecutorService;
+import org.apache.gobblin.util.executors.MDCPropagatingExecutorService;
 
 
 /**

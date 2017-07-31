@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.Closeable;
 import java.io.IOException;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.couchbase.writer;
+package org.apache.gobblin.couchbase.writer;
 
 import java.util.Collections;
 import java.util.List;

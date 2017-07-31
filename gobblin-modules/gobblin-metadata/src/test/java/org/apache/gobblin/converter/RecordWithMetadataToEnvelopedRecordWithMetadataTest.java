@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -29,8 +29,8 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.metadata.types.Metadata;
-import gobblin.type.RecordWithMetadata;
+import org.apache.gobblin.metadata.types.Metadata;
+import org.apache.gobblin.type.RecordWithMetadata;
 
 
 @Test

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.test.setup.config;
+package org.apache.gobblin.test.setup.config;
 
 /**
  * An interface for parsing the config data for test harness.

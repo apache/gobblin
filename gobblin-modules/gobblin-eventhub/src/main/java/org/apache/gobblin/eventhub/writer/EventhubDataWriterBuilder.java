@@ -17,20 +17,20 @@
  * under the License.
  */
 
-package gobblin.eventhub.writer;
+package org.apache.gobblin.eventhub.writer;
 
 import java.io.IOException;
 import java.util.Properties;
 
 import com.typesafe.config.Config;
 
-import gobblin.configuration.State;
-import gobblin.util.ConfigUtils;
-import gobblin.writer.AsyncDataWriter;
-import gobblin.writer.AsyncWriterManager;
-import gobblin.writer.BufferedAsyncDataWriter;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.AsyncDataWriter;
+import org.apache.gobblin.writer.AsyncWriterManager;
+import org.apache.gobblin.writer.BufferedAsyncDataWriter;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
 
 
 /**

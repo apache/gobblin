@@ -9,8 +9,8 @@ import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.hive.HiveSerDeWrapper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.hive.HiveSerDeWrapper;
 
 
 public class WriterOutputFormatIntegrationTest {

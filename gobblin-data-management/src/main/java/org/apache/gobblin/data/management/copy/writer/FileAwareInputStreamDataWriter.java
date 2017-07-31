@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.writer;
+package org.apache.gobblin.data.management.copy.writer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,37 +44,37 @@ import com.google.common.io.Closer;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.broker.EmptyKey;
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.commit.SpeculativeAttemptAwareConstruct;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.crypto.EncryptionConfigParser;
-import gobblin.crypto.EncryptionFactory;
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyableDatasetMetadata;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.data.management.copy.OwnerAndPermission;
-import gobblin.data.management.copy.PreserveAttributes;
-import gobblin.data.management.copy.recovery.RecoveryHelper;
-import gobblin.instrumented.writer.InstrumentedDataWriter;
-import gobblin.metrics.event.sla.SlaEventKeys;
-import gobblin.state.ConstructState;
-import gobblin.util.FileListUtils;
-import gobblin.util.FinalState;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.util.PathUtils;
-import gobblin.util.WriterUtils;
-import gobblin.util.io.StreamCopier;
-import gobblin.util.io.StreamThrottler;
-import gobblin.util.io.ThrottledInputStream;
-import gobblin.writer.DataWriter;
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.crypto.EncryptionConfigParser;
+import org.apache.gobblin.crypto.EncryptionFactory;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.data.management.copy.OwnerAndPermission;
+import org.apache.gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.data.management.copy.recovery.RecoveryHelper;
+import org.apache.gobblin.instrumented.writer.InstrumentedDataWriter;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.state.ConstructState;
+import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.FinalState;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.util.io.StreamCopier;
+import org.apache.gobblin.util.io.StreamThrottler;
+import org.apache.gobblin.util.io.ThrottledInputStream;
+import org.apache.gobblin.writer.DataWriter;
 
 
 /**

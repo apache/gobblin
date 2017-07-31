@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.trash;
+package org.apache.gobblin.data.management.trash;
 
 import java.io.IOException;
 import java.util.Arrays;

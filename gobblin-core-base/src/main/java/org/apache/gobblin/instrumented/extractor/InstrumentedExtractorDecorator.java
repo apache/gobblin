@@ -15,24 +15,24 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.extractor;
+package org.apache.gobblin.instrumented.extractor;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.base.Optional;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.stream.RecordEnvelope;
-import gobblin.util.Decorator;
-import gobblin.util.DecoratorUtils;
-import gobblin.util.FinalState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.util.DecoratorUtils;
+import org.apache.gobblin.util.FinalState;
 
 
 /**

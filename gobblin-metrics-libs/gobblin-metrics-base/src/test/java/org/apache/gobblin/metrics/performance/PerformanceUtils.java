@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.performance;
+package org.apache.gobblin.metrics.performance;
 
 import lombok.Builder;
 import lombok.Singular;
@@ -37,7 +37,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

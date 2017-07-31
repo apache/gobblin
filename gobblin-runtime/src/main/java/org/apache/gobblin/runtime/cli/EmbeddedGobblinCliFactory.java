@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.cli;
+package org.apache.gobblin.runtime.cli;
 
-import gobblin.runtime.embedded.EmbeddedGobblin;
+import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 
 
 /**

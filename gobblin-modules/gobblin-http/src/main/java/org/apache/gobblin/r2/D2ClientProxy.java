@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.r2;
+package org.apache.gobblin.r2;
 
 import java.net.URI;
 import java.util.ArrayList;

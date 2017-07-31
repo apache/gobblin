@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -46,19 +46,19 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.metrics.graphite.GraphiteConnectionType;
-import gobblin.metrics.graphite.GraphiteEventReporter;
-import gobblin.metrics.graphite.GraphiteReporter;
-import gobblin.metrics.influxdb.InfluxDBConnectionType;
-import gobblin.metrics.influxdb.InfluxDBEventReporter;
-import gobblin.metrics.influxdb.InfluxDBReporter;
-import gobblin.metrics.reporter.OutputStreamEventReporter;
-import gobblin.metrics.reporter.OutputStreamReporter;
-import gobblin.metrics.reporter.ScheduledReporter;
-import gobblin.password.PasswordManager;
-import gobblin.util.PropertiesUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.graphite.GraphiteConnectionType;
+import org.apache.gobblin.metrics.graphite.GraphiteEventReporter;
+import org.apache.gobblin.metrics.graphite.GraphiteReporter;
+import org.apache.gobblin.metrics.influxdb.InfluxDBConnectionType;
+import org.apache.gobblin.metrics.influxdb.InfluxDBEventReporter;
+import org.apache.gobblin.metrics.influxdb.InfluxDBReporter;
+import org.apache.gobblin.metrics.reporter.OutputStreamEventReporter;
+import org.apache.gobblin.metrics.reporter.OutputStreamReporter;
+import org.apache.gobblin.metrics.reporter.ScheduledReporter;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**

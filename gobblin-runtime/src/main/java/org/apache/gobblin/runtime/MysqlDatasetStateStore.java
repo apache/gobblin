@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.metastore.MysqlStateStore;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metastore.MysqlStateStore;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;

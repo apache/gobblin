@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.policy;
+package org.apache.gobblin.data.management.retention.policy;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
@@ -27,7 +27,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
 
 
 /**

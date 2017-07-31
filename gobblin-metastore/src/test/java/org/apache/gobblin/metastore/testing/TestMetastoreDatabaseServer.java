@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.testing;
+package org.apache.gobblin.metastore.testing;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -41,10 +41,10 @@ import com.wix.mysql.EmbeddedMysql;
 import com.wix.mysql.config.MysqldConfig;
 import com.wix.mysql.distribution.Version;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.MetaStoreModule;
-import gobblin.metastore.util.DatabaseJobHistoryStoreSchemaManager;
-import gobblin.metastore.util.MySqlJdbcUrl;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.MetaStoreModule;
+import org.apache.gobblin.metastore.util.DatabaseJobHistoryStoreSchemaManager;
+import org.apache.gobblin.metastore.util.MySqlJdbcUrl;
 
 
 class TestMetastoreDatabaseServer implements Closeable {

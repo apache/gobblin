@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker;
+package org.apache.gobblin.qualitychecker;
 
 public class TestConstants {
   public static final String TEST_FS_URI = "file://localhost/";

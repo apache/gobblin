@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.net.ConnectException;
 import java.net.URI;
@@ -33,20 +33,20 @@ import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.RestLiResponseException;
 import com.linkedin.restli.common.HttpStatus;
 
-import gobblin.broker.ResourceInstance;
-import gobblin.broker.iface.ConfigView;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.ScopedConfigView;
-import gobblin.broker.iface.SharedResourceFactory;
-import gobblin.broker.iface.SharedResourceFactoryResponse;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.restli.SharedRestClientFactory;
-import gobblin.restli.SharedRestClientKey;
-import gobblin.restli.UriRestClientKey;
-import gobblin.restli.throttling.PermitAllocation;
-import gobblin.restli.throttling.PermitRequest;
-import gobblin.util.ExponentialBackoff;
+import org.apache.gobblin.broker.ResourceInstance;
+import org.apache.gobblin.broker.iface.ConfigView;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.ScopedConfigView;
+import org.apache.gobblin.broker.iface.SharedResourceFactory;
+import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.restli.SharedRestClientFactory;
+import org.apache.gobblin.restli.SharedRestClientKey;
+import org.apache.gobblin.restli.UriRestClientKey;
+import org.apache.gobblin.restli.throttling.PermitAllocation;
+import org.apache.gobblin.restli.throttling.PermitRequest;
+import org.apache.gobblin.util.ExponentialBackoff;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

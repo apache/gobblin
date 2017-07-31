@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.exception;
+package org.apache.gobblin.source.extractor.exception;
 
 public class RecordCountException extends Exception {
 

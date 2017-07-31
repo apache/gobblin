@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.spec_store;
+package org.apache.gobblin.runtime.spec_store;
 
 import java.io.IOException;
 import java.net.URI;
@@ -37,13 +37,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.api.SpecSerDe;
-import gobblin.runtime.api.SpecStore;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.SpecSerDe;
+import org.apache.gobblin.runtime.api.SpecStore;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**

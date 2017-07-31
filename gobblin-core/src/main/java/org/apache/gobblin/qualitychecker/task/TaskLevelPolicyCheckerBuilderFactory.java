@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker.task;
+package org.apache.gobblin.qualitychecker.task;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 public class TaskLevelPolicyCheckerBuilderFactory {

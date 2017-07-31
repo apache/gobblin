@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.util.Collection;
 

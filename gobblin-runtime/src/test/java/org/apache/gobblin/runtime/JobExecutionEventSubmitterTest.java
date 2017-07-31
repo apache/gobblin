@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
@@ -33,9 +33,9 @@ import org.mockito.Mockito;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.rest.LauncherTypeEnum;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.rest.LauncherTypeEnum;
 
 
 @Test(groups = {"gobblin.runtime"})

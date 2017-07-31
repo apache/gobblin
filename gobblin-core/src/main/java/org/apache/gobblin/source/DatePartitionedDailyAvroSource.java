@@ -10,11 +10,11 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source;
+package org.apache.gobblin.source;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.util.DatePartitionType;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.util.DatePartitionType;
 
 
 /**

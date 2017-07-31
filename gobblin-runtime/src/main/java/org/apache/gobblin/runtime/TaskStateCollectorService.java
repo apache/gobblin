@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import com.google.common.base.Predicate;
-import gobblin.metastore.FsStateStore;
-import gobblin.metastore.StateStore;
+import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.metastore.StateStore;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -36,8 +36,8 @@ import com.google.common.collect.Queues;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractScheduledService;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ParallelRunner;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ParallelRunner;
 
 
 /**

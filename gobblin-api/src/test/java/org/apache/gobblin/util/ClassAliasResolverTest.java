@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -22,7 +22,7 @@ import org.testng.annotations.Test;
 import com.linkedin.gobblin.TestAlias.DummyAliasCom;
 import com.linkedin.gobblin.TestAlias.IDummyAliasCom;
 
-import gobblin.annotation.Alias;
+import org.apache.gobblin.annotation.Alias;
 
 @Test(groups = { "gobblin.api.util"})
 public class ClassAliasResolverTest {

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,7 +30,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ClassAliasResolver;
 import lombok.Getter;
 
 

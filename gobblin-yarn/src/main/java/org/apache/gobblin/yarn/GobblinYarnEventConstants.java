@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.yarn;
+package org.apache.gobblin.yarn;
 
 /**
  * YARN specific event constants to be used with an {@link gobblin.metrics.event.EventSubmitter}.

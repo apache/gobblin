@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_monitor;
+package org.apache.gobblin.runtime.job_monitor;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -37,12 +37,12 @@ import com.codahale.metrics.Meter;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.metrics.Tag;
-import gobblin.metrics.reporter.util.SchemaVersionWriter;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.metrics.RuntimeMetrics;
-import gobblin.util.Either;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
+import org.apache.gobblin.util.Either;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;

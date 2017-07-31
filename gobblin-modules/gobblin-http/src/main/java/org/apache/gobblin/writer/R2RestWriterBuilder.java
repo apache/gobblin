@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.r2.message.rest.RestRequest;
@@ -23,12 +23,12 @@ import com.linkedin.r2.message.rest.RestResponse;
 import com.linkedin.r2.transport.common.Client;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import gobblin.r2.R2Client;
-import gobblin.r2.R2ClientFactory;
-import gobblin.r2.R2RestRequestBuilder;
-import gobblin.r2.R2RestResponseHandler;
-import gobblin.utils.HttpConstants;
-import gobblin.utils.HttpUtils;
+import org.apache.gobblin.r2.R2Client;
+import org.apache.gobblin.r2.R2ClientFactory;
+import org.apache.gobblin.r2.R2RestRequestBuilder;
+import org.apache.gobblin.r2.R2RestResponseHandler;
+import org.apache.gobblin.utils.HttpConstants;
+import org.apache.gobblin.utils.HttpUtils;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericRecord;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.util.Iterator;
 import java.util.Set;
@@ -31,17 +31,17 @@ import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.runtime.api.JobExecutionDriver;
-import gobblin.runtime.api.JobExecutionResult;
-import gobblin.runtime.embedded.EmbeddedGobblin;
-import gobblin.source.WorkUnitStreamSource;
-import gobblin.source.workunit.BasicWorkUnitStream;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.source.workunit.WorkUnitStream;
-import gobblin.task.EventBusPublishingTaskFactory;
-import gobblin.writer.test.TestingEventBuses;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.runtime.api.JobExecutionDriver;
+import org.apache.gobblin.runtime.api.JobExecutionResult;
+import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
+import org.apache.gobblin.source.WorkUnitStreamSource;
+import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.task.EventBusPublishingTaskFactory;
+import org.apache.gobblin.writer.test.TestingEventBuses;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.dataset;
+package org.apache.gobblin.compaction.dataset;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -35,14 +35,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.base.Optional;
 
-import gobblin.compaction.conditions.RecompactionCondition;
-import gobblin.compaction.conditions.RecompactionConditionFactory;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.FileListUtils;
-import gobblin.util.RecordCountProvider;
-import gobblin.util.recordcount.LateFileRecordCountProvider;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.compaction.conditions.RecompactionCondition;
+import org.apache.gobblin.compaction.conditions.RecompactionConditionFactory;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.RecordCountProvider;
+import org.apache.gobblin.util.recordcount.LateFileRecordCountProvider;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

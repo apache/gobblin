@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka.workunit.packer;
+package org.apache.gobblin.source.extractor.extract.kafka.workunit.packer;
 
 import java.util.List;
 import java.util.Map;
@@ -25,12 +25,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.kafka.KafkaPartition;
-import gobblin.source.extractor.extract.kafka.KafkaUtils;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaUtils;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

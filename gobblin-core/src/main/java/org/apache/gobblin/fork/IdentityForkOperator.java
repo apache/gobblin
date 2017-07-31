@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.fork;
+package org.apache.gobblin.fork;
 
 import java.io.IOException;
 import java.util.List;
 
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

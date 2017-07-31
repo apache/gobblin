@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.qualitychecker;
+package org.apache.gobblin.instrumented.qualitychecker;
 
 import java.io.IOException;
 
 import com.google.common.base.Optional;
 
-import gobblin.configuration.State;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.qualitychecker.row.RowLevelPolicy;
-import gobblin.util.Decorator;
-import gobblin.util.DecoratorUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicy;
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.util.DecoratorUtils;
 
 
 /**

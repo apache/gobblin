@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.restli.throttling;
+package org.apache.gobblin.restli.throttling;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -38,15 +38,15 @@ import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.annotations.RestMethod;
 import com.linkedin.restli.server.resources.ComplexKeyResourceAsyncTemplate;
 
-import gobblin.annotation.Alpha;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.broker.MetricContextFactory;
-import gobblin.metrics.broker.SubTaggedMetricContextKey;
-import gobblin.util.NoopCloseable;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.broker.MetricContextFactory;
+import org.apache.gobblin.metrics.broker.SubTaggedMetricContextKey;
+import org.apache.gobblin.util.NoopCloseable;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 import javax.inject.Inject;
 import javax.inject.Named;

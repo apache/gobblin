@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.mapreduce;
+package org.apache.gobblin.runtime.mapreduce;
 
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.OutputCommitter;

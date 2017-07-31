@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.publisher;
+package org.apache.gobblin.publisher;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 
 
 public class TaskPublisherBuilderFactory {

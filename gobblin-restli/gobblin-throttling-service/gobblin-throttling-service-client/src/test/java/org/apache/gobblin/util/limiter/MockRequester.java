@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -32,9 +32,9 @@ import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.server.RestLiServiceException;
 
-import gobblin.restli.throttling.LimiterServerResource;
-import gobblin.restli.throttling.PermitAllocation;
-import gobblin.restli.throttling.PermitRequest;
+import org.apache.gobblin.restli.throttling.LimiterServerResource;
+import org.apache.gobblin.restli.throttling.PermitAllocation;
+import org.apache.gobblin.restli.throttling.PermitRequest;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.restli.throttling;
+package org.apache.gobblin.restli.throttling;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -38,7 +38,7 @@ import org.apache.zookeeper.data.Stat;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 
-import gobblin.util.SerializationUtils;
+import org.apache.gobblin.util.SerializationUtils;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -24,7 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
-import gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpec;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

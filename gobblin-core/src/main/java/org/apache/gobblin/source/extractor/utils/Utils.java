@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.utils;
+package org.apache.gobblin.source.extractor.utils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -44,8 +44,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.source.extractor.watermark.WatermarkType;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.source.extractor.watermark.WatermarkType;
 
 
 public class Utils {

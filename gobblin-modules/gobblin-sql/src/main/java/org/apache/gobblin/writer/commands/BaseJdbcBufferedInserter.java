@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer.commands;
+package org.apache.gobblin.writer.commands;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -34,9 +34,9 @@ import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.State;
-import gobblin.converter.jdbc.JdbcEntryData;
-import gobblin.converter.jdbc.JdbcEntryDatum;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.converter.jdbc.JdbcEntryDatum;
 import lombok.ToString;
 
 

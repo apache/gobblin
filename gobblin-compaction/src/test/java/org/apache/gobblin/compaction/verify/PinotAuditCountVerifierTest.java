@@ -1,12 +1,12 @@
-package gobblin.compaction.verify;
+package org.apache.gobblin.compaction.verify;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import gobblin.compaction.audit.AuditCountClient;
-import gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.State;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.compaction.audit.AuditCountClient;
+import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.FileSystemDataset;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.hadoop.fs.Path;

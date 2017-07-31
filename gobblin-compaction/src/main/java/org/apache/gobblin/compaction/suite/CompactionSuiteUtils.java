@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.suite;
+package org.apache.gobblin.compaction.suite;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ClassAliasResolver;
 
 /**
  * A utility class for {@link CompactionSuite}

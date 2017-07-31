@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.schemareg;
+package org.apache.gobblin.kafka.schemareg;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -29,9 +29,9 @@ import org.apache.avro.Schema;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.kafka.schemareg.KafkaSchemaRegistry;
-import gobblin.kafka.schemareg.SchemaRegistryException;
-import gobblin.kafka.serialize.MD5Digest;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
+import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
+import org.apache.gobblin.kafka.serialize.MD5Digest;
 
 
 /**

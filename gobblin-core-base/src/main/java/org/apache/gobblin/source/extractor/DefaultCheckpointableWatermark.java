@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.source.extractor;
+package org.apache.gobblin.source.extractor;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -25,7 +25,7 @@ import com.google.gson.JsonElement;
 
 import lombok.EqualsAndHashCode;
 
-import gobblin.util.io.GsonInterfaceAdapter;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 
 
 /**

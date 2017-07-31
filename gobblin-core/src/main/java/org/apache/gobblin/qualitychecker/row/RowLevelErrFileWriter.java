@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker.row;
+package org.apache.gobblin.qualitychecker.row;
 
 import java.io.BufferedWriter;
 import java.io.Closeable;
@@ -28,7 +28,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.restli;
+package org.apache.gobblin.restli;
 
 import java.net.URI;
 import java.net.URISyntaxException;

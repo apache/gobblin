@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive.policy;
+package org.apache.gobblin.hive.policy;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -33,11 +33,11 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.hive.HiveTable;
-import gobblin.hive.spec.HiveSpec;
-import gobblin.hive.spec.SimpleHiveSpec;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.hive.spec.SimpleHiveSpec;
 
 
 /**

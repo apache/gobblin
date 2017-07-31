@@ -14,20 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.writer;
+package org.apache.gobblin.data.management.copy.writer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyableDatasetMetadata;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.CopyableFileUtils;
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.data.management.copy.OwnerAndPermission;
-import gobblin.data.management.copy.TestCopyableDataset;
-import gobblin.data.management.copy.converter.UnGzipConverter;
-import gobblin.util.PathUtils;
-import gobblin.util.TestUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.CopyableFileUtils;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.data.management.copy.OwnerAndPermission;
+import org.apache.gobblin.data.management.copy.TestCopyableDataset;
+import org.apache.gobblin.data.management.copy.converter.UnGzipConverter;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.TestUtils;
 
 import java.io.FileInputStream;
 import java.io.IOException;

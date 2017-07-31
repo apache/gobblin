@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source;
+package org.apache.gobblin.source;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -33,20 +33,20 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.filebased.FileBasedSource;
-import gobblin.source.extractor.hadoop.AvroFsHelper;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.Extract.TableType;
-import gobblin.source.workunit.MultiWorkUnitWeightedQueue;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.DatePartitionType;
-import gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.source.extractor.filebased.FileBasedSource;
+import org.apache.gobblin.source.extractor.hadoop.AvroFsHelper;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.Extract.TableType;
+import org.apache.gobblin.source.workunit.MultiWorkUnitWeightedQueue;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.DatePartitionType;
+import org.apache.gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
 
 
 /**

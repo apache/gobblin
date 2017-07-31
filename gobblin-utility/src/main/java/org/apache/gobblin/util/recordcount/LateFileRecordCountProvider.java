@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.recordcount;
+package org.apache.gobblin.util.recordcount;
 
 import java.io.IOException;
 import java.util.Random;
@@ -25,7 +25,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.util.RecordCountProvider;
+import org.apache.gobblin.util.RecordCountProvider;
 import lombok.AllArgsConstructor;
 
 

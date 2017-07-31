@@ -15,26 +15,26 @@
  * limitations under the License.
  */
 
-package gobblin.example.wikipedia;
+package org.apache.gobblin.example.wikipedia;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
 
 import org.apache.commons.cli.CommandLine;
 
-import gobblin.annotation.Alias;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.publisher.BaseDataPublisher;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.cli.CliObjectOption;
-import gobblin.runtime.cli.CliObjectSupport;
-import gobblin.runtime.cli.PublicMethodsGobblinCliFactory;
-import gobblin.runtime.embedded.EmbeddedGobblin;
-import gobblin.runtime.template.ResourceBasedJobTemplate;
-import gobblin.writer.AvroDataWriterBuilder;
-import gobblin.writer.Destination;
-import gobblin.writer.WriterOutputFormat;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.publisher.BaseDataPublisher;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.cli.CliObjectOption;
+import org.apache.gobblin.runtime.cli.CliObjectSupport;
+import org.apache.gobblin.runtime.cli.PublicMethodsGobblinCliFactory;
+import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
+import org.apache.gobblin.runtime.template.ResourceBasedJobTemplate;
+import org.apache.gobblin.writer.AvroDataWriterBuilder;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.WriterOutputFormat;
 
 import avro.shaded.com.google.common.base.Joiner;
 

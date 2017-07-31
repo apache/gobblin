@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -36,20 +36,20 @@ import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.data.template.StringMap;
 
-import gobblin.rest.Metric;
-import gobblin.rest.MetricArray;
-import gobblin.rest.MetricTypeEnum;
-import gobblin.rest.Table;
-import gobblin.rest.TableTypeEnum;
-import gobblin.rest.TaskExecutionInfo;
-import gobblin.rest.TaskStateEnum;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.runtime.util.MetricGroup;
-import gobblin.runtime.util.TaskMetrics;
-import gobblin.source.workunit.Extract;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.rest.Metric;
+import org.apache.gobblin.rest.MetricArray;
+import org.apache.gobblin.rest.MetricTypeEnum;
+import org.apache.gobblin.rest.Table;
+import org.apache.gobblin.rest.TableTypeEnum;
+import org.apache.gobblin.rest.TaskExecutionInfo;
+import org.apache.gobblin.rest.TaskStateEnum;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.runtime.util.MetricGroup;
+import org.apache.gobblin.runtime.util.TaskMetrics;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.metrics.GobblinMetrics;
 
 import lombok.Getter;
 

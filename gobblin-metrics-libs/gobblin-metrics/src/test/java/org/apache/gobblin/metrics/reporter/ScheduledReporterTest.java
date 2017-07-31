@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.util.Properties;
 import java.util.Set;
@@ -31,11 +31,11 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.context.ReportableContext;
-import gobblin.metrics.context.filter.ContextFilterFactory;
-import gobblin.metrics.test.ContextStoreReporter;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.context.ReportableContext;
+import org.apache.gobblin.metrics.context.filter.ContextFilterFactory;
+import org.apache.gobblin.metrics.test.ContextStoreReporter;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

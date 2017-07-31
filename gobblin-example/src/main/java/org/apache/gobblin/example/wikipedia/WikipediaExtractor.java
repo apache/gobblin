@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.example.wikipedia;
+package org.apache.gobblin.example.wikipedia;
 
 import java.io.BufferedReader;
 import java.io.Closeable;
@@ -59,13 +59,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.http.HttpClientConfigurator;
-import gobblin.http.HttpClientConfiguratorLoader;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.http.HttpClientConfigurator;
+import org.apache.gobblin.http.HttpClientConfiguratorLoader;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 
 
 /**

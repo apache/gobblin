@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented;
+package org.apache.gobblin.instrumented;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -41,19 +41,19 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import gobblin.Constructs;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.converter.Converter;
-import gobblin.fork.ForkOperator;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.GobblinMetricsRegistry;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.qualitychecker.row.RowLevelPolicy;
-import gobblin.source.extractor.Extractor;
-import gobblin.util.DecoratorUtils;
-import gobblin.writer.DataWriter;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.fork.ForkOperator;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.GobblinMetricsRegistry;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicy;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.util.DecoratorUtils;
+import org.apache.gobblin.writer.DataWriter;
 
 
 /**

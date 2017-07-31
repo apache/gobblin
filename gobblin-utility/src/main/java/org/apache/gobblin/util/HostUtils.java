@@ -1,4 +1,4 @@
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;

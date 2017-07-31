@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -33,9 +33,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.Data;
 

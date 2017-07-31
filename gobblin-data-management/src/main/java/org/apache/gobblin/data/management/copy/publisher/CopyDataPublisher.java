@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.publisher;
+package org.apache.gobblin.data.management.copy.publisher;
 
 
-import gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -38,30 +38,30 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 
-import gobblin.commit.CommitStep;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.configuration.WorkUnitState.WorkingState;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.CopyableDatasetMetadata;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.entities.CommitStepCopyEntity;
-import gobblin.data.management.copy.entities.PostPublishStep;
-import gobblin.data.management.copy.entities.PrePublishStep;
-import gobblin.data.management.copy.recovery.RecoveryHelper;
-import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
-import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.publisher.DataPublisher;
-import gobblin.publisher.UnpublishedHandling;
-import gobblin.util.HadoopUtils;
-import gobblin.util.WriterUtils;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.data.management.copy.CopyableDataset;
+import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.entities.CommitStepCopyEntity;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.data.management.copy.recovery.RecoveryHelper;
+import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
+import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.publisher.UnpublishedHandling;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.WriterUtils;
 
 import lombok.extern.slf4j.Slf4j;
 

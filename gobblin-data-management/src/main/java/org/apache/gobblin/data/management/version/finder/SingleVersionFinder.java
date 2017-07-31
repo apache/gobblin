@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.version.finder;
+package org.apache.gobblin.data.management.version.finder;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -28,11 +28,11 @@ import org.apache.hadoop.fs.FileSystem;
 
 import lombok.Getter;
 
-import gobblin.dataset.Dataset;
-import gobblin.dataset.FileSystemDataset;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.FileStatusDatasetVersion;
-import gobblin.data.management.version.StringDatasetVersion;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.FileStatusDatasetVersion;
+import org.apache.gobblin.data.management.version.StringDatasetVersion;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import java.io.IOException;
 import java.util.Map;
@@ -32,8 +32,8 @@ import org.apache.hadoop.mapred.InputFormat;
 
 import com.google.common.collect.Maps;
 
-import gobblin.data.management.copy.RecursivePathFinder;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.data.management.copy.RecursivePathFinder;
+import org.apache.gobblin.util.PathUtils;
 
 /**
  * Contains data for a Hive location as well as additional data if {@link #HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED} set to true.

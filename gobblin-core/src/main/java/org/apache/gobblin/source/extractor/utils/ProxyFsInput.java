@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.utils;
+package org.apache.gobblin.source.extractor.utils;
 
 import java.io.Closeable;
 import java.io.IOException;

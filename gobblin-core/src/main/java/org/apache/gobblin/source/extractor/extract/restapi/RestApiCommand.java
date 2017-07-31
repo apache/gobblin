@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.restapi;
+package org.apache.gobblin.source.extractor.extract.restapi;
 
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandType;
+import org.apache.gobblin.source.extractor.extract.Command;
+import org.apache.gobblin.source.extractor.extract.CommandType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;

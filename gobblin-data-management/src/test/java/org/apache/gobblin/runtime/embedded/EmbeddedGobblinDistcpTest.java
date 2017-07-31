@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.embedded;
+package org.apache.gobblin.runtime.embedded;
 
 import java.io.File;
 import java.io.FileOutputStream;

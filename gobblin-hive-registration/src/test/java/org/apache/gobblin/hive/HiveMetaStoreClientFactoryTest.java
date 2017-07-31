@@ -1,4 +1,4 @@
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;

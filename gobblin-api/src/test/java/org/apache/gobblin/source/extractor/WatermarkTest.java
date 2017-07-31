@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor;
+package org.apache.gobblin.source.extractor;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;

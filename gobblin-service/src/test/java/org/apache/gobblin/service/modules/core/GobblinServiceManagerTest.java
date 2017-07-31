@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.core;
+package org.apache.gobblin.service.modules.core;
 
-import gobblin.service.FlowId;
-import gobblin.service.Schedule;
+import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.Schedule;
 import java.io.File;
 import java.util.Map;
 import java.util.Properties;
@@ -40,18 +40,18 @@ import com.google.gson.GsonBuilder;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.client.RestLiResponseException;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.FlowSpec;
-import gobblin.runtime.api.TopologySpec;
-import gobblin.runtime.app.ServiceBasedAppLauncher;
-import gobblin.runtime.spec_catalog.FlowCatalog;
-import gobblin.runtime.spec_catalog.TopologyCatalog;
-import gobblin.service.FlowConfig;
-import gobblin.service.FlowConfigClient;
-import gobblin.service.FlowId;
-import gobblin.service.ServiceConfigKeys;
-import gobblin.service.modules.orchestration.Orchestrator;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.service.FlowConfig;
+import org.apache.gobblin.service.FlowConfigClient;
+import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 public class GobblinServiceManagerTest {

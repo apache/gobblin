@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.util.List;
 import java.util.Map;
@@ -41,9 +41,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import gobblin.metrics.Measurements;
-import gobblin.metrics.Metric;
-import gobblin.metrics.MetricReport;
+import org.apache.gobblin.metrics.Measurements;
+import org.apache.gobblin.metrics.Metric;
+import org.apache.gobblin.metrics.MetricReport;
 
 
 /**

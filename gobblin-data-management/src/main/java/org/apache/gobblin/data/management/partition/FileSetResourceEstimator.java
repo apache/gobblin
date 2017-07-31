@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.partition;
+package org.apache.gobblin.data.management.partition;
 
 import com.typesafe.config.Config;
 
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyResourcePool;
-import gobblin.util.request_allocation.ResourceEstimator;
-import gobblin.util.request_allocation.ResourcePool;
-import gobblin.util.request_allocation.ResourceRequirement;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyResourcePool;
+import org.apache.gobblin.util.request_allocation.ResourceEstimator;
+import org.apache.gobblin.util.request_allocation.ResourcePool;
+import org.apache.gobblin.util.request_allocation.ResourceRequirement;
 
 
 /**

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package org.apache.gobblin.compliance;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,14 +36,14 @@ import com.google.common.base.Splitter;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.State;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.util.AutoReturnableObject;
-import gobblin.util.WriterUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.cli;
+package org.apache.gobblin.cli;
 
 import java.util.List;
 import java.util.Map;
@@ -31,8 +31,8 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.r2.RemoteInvocationException;
 
-import gobblin.rest.JobExecutionInfo;
-import gobblin.rest.QueryListType;
+import org.apache.gobblin.rest.JobExecutionInfo;
+import org.apache.gobblin.rest.QueryListType;
 
 /**
  * Logic to print out job state

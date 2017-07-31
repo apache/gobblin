@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,44 +44,44 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.NoArgsConstructor;
 
-import gobblin.Constructs;
-import gobblin.commit.SpeculativeAttemptAwareConstruct;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.fork.CopyHelper;
-import gobblin.fork.CopyNotSupportedException;
-import gobblin.fork.Copyable;
-import gobblin.fork.ForkOperator;
-import gobblin.instrumented.extractor.InstrumentedExtractorBase;
-import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.TaskEvent;
-import gobblin.publisher.DataPublisher;
-import gobblin.publisher.SingleTaskDataPublisher;
-import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
-import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.runtime.fork.AsynchronousFork;
-import gobblin.runtime.fork.Fork;
-import gobblin.runtime.fork.SynchronousFork;
-import gobblin.runtime.task.TaskIFace;
-import gobblin.runtime.util.TaskMetrics;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.stream.RecordEnvelope;
-import gobblin.source.extractor.StreamingExtractor;
-import gobblin.state.ConstructState;
-import gobblin.util.ConfigUtils;
-import gobblin.writer.AcknowledgableWatermark;
-import gobblin.writer.DataWriter;
-import gobblin.writer.FineGrainedWatermarkTracker;
-import gobblin.writer.MultiWriterWatermarkManager;
-import gobblin.writer.TrackerBasedWatermarkManager;
-import gobblin.writer.WatermarkAwareWriter;
-import gobblin.writer.WatermarkManager;
-import gobblin.writer.WatermarkStorage;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.fork.CopyHelper;
+import org.apache.gobblin.fork.CopyNotSupportedException;
+import org.apache.gobblin.fork.Copyable;
+import org.apache.gobblin.fork.ForkOperator;
+import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorBase;
+import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TaskEvent;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.publisher.SingleTaskDataPublisher;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import org.apache.gobblin.runtime.fork.AsynchronousFork;
+import org.apache.gobblin.runtime.fork.Fork;
+import org.apache.gobblin.runtime.fork.SynchronousFork;
+import org.apache.gobblin.runtime.task.TaskIFace;
+import org.apache.gobblin.runtime.util.TaskMetrics;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.source.extractor.StreamingExtractor;
+import org.apache.gobblin.state.ConstructState;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.AcknowledgableWatermark;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
+import org.apache.gobblin.writer.MultiWriterWatermarkManager;
+import org.apache.gobblin.writer.TrackerBasedWatermarkManager;
+import org.apache.gobblin.writer.WatermarkAwareWriter;
+import org.apache.gobblin.writer.WatermarkManager;
+import org.apache.gobblin.writer.WatermarkStorage;
 
 
 /**

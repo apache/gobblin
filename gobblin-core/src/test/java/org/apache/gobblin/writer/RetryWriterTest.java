@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 
-import gobblin.configuration.State;
-import gobblin.stream.RecordEnvelope;
-import gobblin.writer.exception.NonTransientException;
-import gobblin.util.FinalState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.writer.exception.NonTransientException;
+import org.apache.gobblin.util.FinalState;
 
 import org.junit.Assert;
 import org.testng.annotations.Test;

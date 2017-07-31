@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
 import java.util.List;
@@ -24,7 +24,7 @@ import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Strings;
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import lombok.Getter;
 
 import org.slf4j.Logger;
@@ -41,8 +41,8 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 
 
 /**

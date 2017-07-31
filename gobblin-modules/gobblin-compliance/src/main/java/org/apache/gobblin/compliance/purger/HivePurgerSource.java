@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.purger;
+package org.apache.gobblin.compliance.purger;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,23 +34,23 @@ import com.google.common.collect.Iterables;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
-import gobblin.compliance.ComplianceEvents;
-import gobblin.compliance.utils.DatasetUtils;
-import gobblin.compliance.HivePartitionDataset;
-import gobblin.compliance.HivePartitionFinder;
-import gobblin.compliance.utils.ProxyUtils;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.source.Source;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.ComplianceEvents;
+import org.apache.gobblin.compliance.utils.DatasetUtils;
+import org.apache.gobblin.compliance.HivePartitionDataset;
+import org.apache.gobblin.compliance.HivePartitionFinder;
+import org.apache.gobblin.compliance.utils.ProxyUtils;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

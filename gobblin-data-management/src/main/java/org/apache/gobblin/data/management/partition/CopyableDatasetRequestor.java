@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.partition;
+package org.apache.gobblin.data.management.partition;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -31,14 +31,14 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.base.Optional;
 
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.CopyableDatasetBase;
-import gobblin.data.management.copy.IterableCopyableDataset;
-import gobblin.data.management.copy.IterableCopyableDatasetImpl;
-import gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
-import gobblin.util.request_allocation.PushDownRequestor;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableDataset;
+import org.apache.gobblin.data.management.copy.CopyableDatasetBase;
+import org.apache.gobblin.data.management.copy.IterableCopyableDataset;
+import org.apache.gobblin.data.management.copy.IterableCopyableDatasetImpl;
+import org.apache.gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
+import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 
 import javax.annotation.Nullable;
 

@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.objectstore;
+package org.apache.gobblin.writer.objectstore;
 
 import java.io.IOException;
 
-import gobblin.annotation.Alpha;
-import gobblin.converter.objectstore.ObjectStoreConverter;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.converter.objectstore.ObjectStoreConverter;
 
 
 /**

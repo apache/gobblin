@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction;
+package org.apache.gobblin.compaction;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -30,7 +30,7 @@ import org.apache.commons.configuration.ConfigurationException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.util.GenericOptionsParser;
 
-import gobblin.util.JobConfigurationUtils;
+import org.apache.gobblin.util.JobConfigurationUtils;
 
 
 /**

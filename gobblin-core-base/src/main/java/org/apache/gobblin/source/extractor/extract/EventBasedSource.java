@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract;
+package org.apache.gobblin.source.extractor.extract;
 
-import gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.SourceState;
 
 
 /**

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.fork;
+package org.apache.gobblin.fork;
 
 import java.io.ByteArrayInputStream;
 import java.util.Random;

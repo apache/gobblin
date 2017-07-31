@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.suite;
+package org.apache.gobblin.compaction.suite;
 
-import gobblin.compaction.action.CompactionCompleteAction;
-import gobblin.compaction.mapreduce.MRCompactionTask;
-import gobblin.configuration.SourceState;
-import gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.compaction.action.CompactionCompleteAction;
+import org.apache.gobblin.compaction.mapreduce.MRCompactionTask;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
+import org.apache.gobblin.dataset.Dataset;
 
-import gobblin.compaction.verify.CompactionVerifier;
-import gobblin.configuration.State;
+import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.configuration.State;
 import org.apache.hadoop.mapreduce.Job;
 
 import java.io.IOException;

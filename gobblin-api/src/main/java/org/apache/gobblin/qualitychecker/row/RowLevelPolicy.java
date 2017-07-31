@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker.row;
+package org.apache.gobblin.qualitychecker.row;
 
 import java.io.Closeable;
 import java.io.IOException;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.FinalState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.FinalState;
 
 
 /**

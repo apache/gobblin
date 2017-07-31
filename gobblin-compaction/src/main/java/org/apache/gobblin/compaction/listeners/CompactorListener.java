@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.listeners;
+package org.apache.gobblin.compaction.listeners;
 
-import gobblin.annotation.Alpha;
-import gobblin.compaction.Compactor;
-import gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.compaction.Compactor;
+import org.apache.gobblin.compaction.dataset.Dataset;
 
 
 /**

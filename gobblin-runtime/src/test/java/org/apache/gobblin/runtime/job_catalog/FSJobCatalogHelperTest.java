@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -44,16 +44,16 @@ import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.job_catalog.FSJobCatalog;
-import gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
-import gobblin.util.ConfigUtils;
-import gobblin.util.PullFileLoader;
-import gobblin.util.filesystem.PathAlterationObserverScheduler;
-import gobblin.util.filesystem.PathAlterationListener;
-import gobblin.util.filesystem.PathAlterationListenerAdaptor;
-import gobblin.util.filesystem.PathAlterationObserver;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
+import org.apache.gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PullFileLoader;
+import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
+import org.apache.gobblin.util.filesystem.PathAlterationListener;
+import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
+import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
 
 /**

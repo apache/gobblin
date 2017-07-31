@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.hadoop;
+package org.apache.gobblin.source.extractor.hadoop;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,13 +33,13 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory;
 
 import com.google.common.base.Strings;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.source.extractor.filebased.FileBasedHelper;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
-import gobblin.util.HadoopUtils;
-import gobblin.util.ProxiedFileSystemWrapper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelper;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.ProxiedFileSystemWrapper;
 
 
 /**

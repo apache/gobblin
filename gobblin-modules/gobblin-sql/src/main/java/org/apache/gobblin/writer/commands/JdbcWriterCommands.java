@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.commands;
+package org.apache.gobblin.writer.commands;
 
-import gobblin.converter.jdbc.JdbcType;
+import org.apache.gobblin.converter.jdbc.JdbcType;
 
 import java.sql.Connection;
 import java.sql.SQLException;

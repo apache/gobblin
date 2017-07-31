@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 public class GenericWriteResponseWrapper<T> implements WriteResponseMapper<T> {
 

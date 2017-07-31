@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import java.io.IOException;
 import java.net.URI;
@@ -23,9 +23,9 @@ import java.net.URI;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
-import gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 
-import static gobblin.util.filesystem.InstrumentedFileSystemUtils.*;
+import static org.apache.gobblin.util.filesystem.InstrumentedFileSystemUtils.*;
 
 
 /**

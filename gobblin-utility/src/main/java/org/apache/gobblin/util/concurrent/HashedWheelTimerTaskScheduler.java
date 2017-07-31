@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.concurrent;
+package org.apache.gobblin.util.concurrent;
 
 import java.io.IOException;
 import java.util.Map;
@@ -31,7 +31,7 @@ import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
 
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 import lombok.Synchronized;
 

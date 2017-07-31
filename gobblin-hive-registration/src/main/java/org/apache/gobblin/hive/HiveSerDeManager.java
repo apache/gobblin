@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import java.io.IOException;
 
@@ -25,9 +25,9 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.hive.avro.HiveAvroSerDeManager;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.avro.HiveAvroSerDeManager;
 
 
 /**

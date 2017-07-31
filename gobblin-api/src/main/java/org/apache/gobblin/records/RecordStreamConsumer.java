@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.records;
+package org.apache.gobblin.records;
 
 /**
  * An object that a {@link RecordStreamWithMetadata}.

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.aws;
+package org.apache.gobblin.aws;
 
 import java.util.concurrent.TimeUnit;
 
@@ -33,9 +33,9 @@ import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.util.StringUtils;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
-import gobblin.password.PasswordManager;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

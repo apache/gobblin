@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.concurrent;
+package org.apache.gobblin.util.concurrent;
 
 import java.io.Closeable;
 import java.io.IOException;

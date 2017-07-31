@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.rest;
+package org.apache.gobblin.rest;
 
 import com.linkedin.restli.server.ResourceContext;
 import java.util.Map;
@@ -33,7 +33,7 @@ import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 
-import gobblin.metastore.JobHistoryStore;
+import org.apache.gobblin.metastore.JobHistoryStore;
 
 
 /**

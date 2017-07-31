@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.locks;
+package org.apache.gobblin.runtime.locks;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -24,7 +24,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**

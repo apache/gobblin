@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.listeners;
+package org.apache.gobblin.runtime.listeners;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -34,8 +34,8 @@ import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.runtime.JobContext;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.runtime.JobContext;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

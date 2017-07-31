@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive.metastore;
+package org.apache.gobblin.hive.metastore;
 
 import java.util.List;
 import java.util.Properties;
@@ -30,8 +30,8 @@ import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.State;
-import gobblin.hive.HiveTable;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveTable;
 
 
 public class HiveMetaStoreUtilsTest {

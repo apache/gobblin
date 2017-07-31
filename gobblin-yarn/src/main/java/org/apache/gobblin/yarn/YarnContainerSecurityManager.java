@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.yarn;
+package org.apache.gobblin.yarn;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -36,7 +36,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.AbstractIdleService;
 
-import gobblin.yarn.event.DelegationTokenUpdatedEvent;
+import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
 /**

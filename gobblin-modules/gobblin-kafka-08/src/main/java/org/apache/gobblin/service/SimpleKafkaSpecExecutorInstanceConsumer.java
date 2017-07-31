@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
@@ -43,21 +43,21 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
-import gobblin.kafka.client.DecodeableKafkaRecord;
-import gobblin.kafka.client.GobblinKafkaConsumerClient;
-import gobblin.kafka.client.Kafka08ConsumerClient;
-import gobblin.kafka.client.KafkaConsumerRecord;
-import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
-import gobblin.metrics.reporter.util.SchemaVersionWriter;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstanceConsumer;
-import gobblin.runtime.job_spec.AvroJobSpec;
-import gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
-import gobblin.source.extractor.extract.kafka.KafkaPartition;
-import gobblin.source.extractor.extract.kafka.KafkaTopic;
-import gobblin.util.CompletedFuture;
+import org.apache.gobblin.kafka.client.ByteArrayBasedKafkaRecord;
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
+import org.apache.gobblin.kafka.client.Kafka08ConsumerClient;
+import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
+import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
+import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutorInstanceConsumer;
+import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
+import org.apache.gobblin.util.CompletedFuture;
 
 public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExecutorInstance
     implements SpecExecutorInstanceConsumer<Spec>, Closeable {

@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alias;
+import org.apache.gobblin.annotation.Alias;
 
 @Alias(value="DataFlowTopologyPickerByHadoopFsSource")
 public class DataFlowTopologyPickerByHadoopFsSource implements DataFlowTopologyPickerBySource {

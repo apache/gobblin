@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.recovery;
+package org.apache.gobblin.data.management.copy.recovery;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,11 +32,11 @@ import org.apache.hadoop.security.UserGroupInformation;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 
-import gobblin.configuration.State;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.util.guid.Guid;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.util.guid.Guid;
 
 
 /**

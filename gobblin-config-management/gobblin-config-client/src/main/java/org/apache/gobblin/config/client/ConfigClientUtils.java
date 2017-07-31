@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.client;
+package org.apache.gobblin.config.client;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -31,11 +31,11 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
-import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

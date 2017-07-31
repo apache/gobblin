@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.watermark;
+package org.apache.gobblin.source.extractor.watermark;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +24,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.source.extractor.extract.QueryBasedExtractor;
+import org.apache.gobblin.source.extractor.extract.QueryBasedExtractor;
 
 
 /**

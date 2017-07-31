@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.util.request_allocation;
+package org.apache.gobblin.util.request_allocation;
 
 import com.typesafe.config.Config;
 
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ClassAliasResolver;
 
 import lombok.extern.slf4j.Slf4j;
 

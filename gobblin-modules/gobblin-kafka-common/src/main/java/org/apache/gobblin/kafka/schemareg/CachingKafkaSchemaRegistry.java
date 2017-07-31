@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.schemareg;
+package org.apache.gobblin.kafka.schemareg;
 
 import java.io.IOException;
 import java.util.HashMap;

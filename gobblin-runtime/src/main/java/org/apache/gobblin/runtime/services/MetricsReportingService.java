@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.services;
+package org.apache.gobblin.runtime.services;
 
 import java.util.Properties;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 
-import gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.GobblinMetrics;
 
 
 /**

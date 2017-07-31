@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
 
@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import gobblin.metrics.kafka.KafkaPusher;
+import org.apache.gobblin.metrics.kafka.KafkaPusher;
 
 
 /**

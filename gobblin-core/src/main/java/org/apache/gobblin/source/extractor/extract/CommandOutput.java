@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract;
+package org.apache.gobblin.source.extractor.extract;
 
 import java.util.Map;
 

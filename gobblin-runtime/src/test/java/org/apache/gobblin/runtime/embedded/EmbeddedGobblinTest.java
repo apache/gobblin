@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.embedded;
+package org.apache.gobblin.runtime.embedded;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,12 +23,12 @@ import java.util.List;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.JobExecutionResult;
-import gobblin.runtime.template.ResourceBasedJobTemplate;
-import gobblin.util.test.HelloWorldSource;
-import gobblin.writer.test.GobblinTestEventBusWriter;
-import gobblin.writer.test.TestingEventBusAsserter;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobExecutionResult;
+import org.apache.gobblin.runtime.template.ResourceBasedJobTemplate;
+import org.apache.gobblin.util.test.HelloWorldSource;
+import org.apache.gobblin.writer.test.GobblinTestEventBusWriter;
+import org.apache.gobblin.writer.test.TestingEventBusAsserter;
 
 
 public class EmbeddedGobblinTest {

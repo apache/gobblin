@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.metadata.types;
+package org.apache.gobblin.metadata.types;
 
-import gobblin.metadata.MetadataMerger;
-import gobblin.writer.FsWriterMetrics;
+import org.apache.gobblin.metadata.MetadataMerger;
+import org.apache.gobblin.writer.FsWriterMetrics;
 
 
 /**

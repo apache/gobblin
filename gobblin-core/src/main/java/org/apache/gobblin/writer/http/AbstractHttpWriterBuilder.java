@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.http;
+package org.apache.gobblin.writer.http;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -34,11 +34,11 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.State;
-import gobblin.http.HttpClientConfiguratorLoader;
-import gobblin.writer.Destination;
-import gobblin.writer.FluentDataWriterBuilder;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.http.HttpClientConfiguratorLoader;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.FluentDataWriterBuilder;
 
 import lombok.Getter;
 

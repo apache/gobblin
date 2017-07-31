@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.iterators;
+package org.apache.gobblin.util.iterators;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;

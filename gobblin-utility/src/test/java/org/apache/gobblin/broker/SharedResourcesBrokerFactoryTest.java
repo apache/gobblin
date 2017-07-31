@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -29,8 +29,8 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.iface.ConfigView;
-import gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.broker.iface.ConfigView;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 
 import lombok.RequiredArgsConstructor;
 

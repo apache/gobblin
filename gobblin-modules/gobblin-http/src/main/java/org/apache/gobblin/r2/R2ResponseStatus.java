@@ -1,12 +1,12 @@
-package gobblin.r2;
+package org.apache.gobblin.r2;
 
 import com.linkedin.data.ByteString;
 
 import lombok.Getter;
 import lombok.Setter;
 
-import gobblin.http.ResponseStatus;
-import gobblin.http.StatusType;
+import org.apache.gobblin.http.ResponseStatus;
+import org.apache.gobblin.http.StatusType;
 
 @Getter @Setter
 public class R2ResponseStatus extends ResponseStatus {

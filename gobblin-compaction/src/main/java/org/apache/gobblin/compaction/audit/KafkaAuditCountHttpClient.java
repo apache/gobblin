@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.audit;
+package org.apache.gobblin.compaction.audit;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 import javax.annotation.concurrent.ThreadSafe;
 import lombok.extern.slf4j.Slf4j;

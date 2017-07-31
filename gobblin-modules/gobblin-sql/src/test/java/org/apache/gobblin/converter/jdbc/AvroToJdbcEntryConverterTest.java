@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.converter.jdbc;
+package org.apache.gobblin.converter.jdbc;
 
 import static org.mockito.Mockito.*;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.SchemaConversionException;
-import gobblin.publisher.JdbcPublisher;
-import gobblin.writer.Destination.DestinationType;
-import gobblin.writer.commands.JdbcWriterCommands;
-import gobblin.writer.commands.JdbcWriterCommandsFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.publisher.JdbcPublisher;
+import org.apache.gobblin.writer.Destination.DestinationType;
+import org.apache.gobblin.writer.commands.JdbcWriterCommands;
+import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
 
 import java.io.IOException;
 import java.sql.Connection;

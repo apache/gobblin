@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.test;
+package org.apache.gobblin.test;
 
 /**
  * A class to manage timing based testing. Supports both sync and async latency decisions.

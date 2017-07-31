@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.workunit;
+package org.apache.gobblin.source.workunit;
 
 import java.util.List;
 import java.util.Locale;
@@ -28,10 +28,10 @@ import org.joda.time.format.DateTimeFormatter;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

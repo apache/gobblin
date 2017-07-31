@@ -1,4 +1,4 @@
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -22,18 +22,18 @@ import com.typesafe.config.ConfigFactory;
 
 import azkaban.jobExecutor.AbstractJob;
 
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder;
-import gobblin.data.management.conversion.hive.events.EventConstants;
-import gobblin.data.management.conversion.hive.validation.ValidationJob;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.data.management.copy.hive.HiveUtils;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.AutoReturnableObject;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder;
+import org.apache.gobblin.data.management.conversion.hive.events.EventConstants;
+import org.apache.gobblin.data.management.conversion.hive.validation.ValidationJob;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.data.management.copy.hive.HiveUtils;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 public class Avro2OrcStaleDatasetCleaner extends AbstractJob {

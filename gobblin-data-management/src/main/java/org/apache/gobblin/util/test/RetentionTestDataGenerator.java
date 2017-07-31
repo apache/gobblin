@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.util.test;
+package org.apache.gobblin.util.test;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,8 +35,8 @@ import org.testng.Assert;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**

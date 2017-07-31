@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -39,11 +39,11 @@ import com.google.common.net.HostAndPort;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.kafka.client.GobblinKafkaConsumerClient;
-import gobblin.util.ConfigUtils;
-import gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.DatasetFilterUtils;
 
 import kafka.api.PartitionFetchInfo;
 import kafka.api.PartitionOffsetRequestInfo;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import java.io.IOException;
 import java.util.List;
@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

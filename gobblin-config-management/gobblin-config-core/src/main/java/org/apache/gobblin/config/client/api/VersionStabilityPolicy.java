@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.config.client.api;
+package org.apache.gobblin.config.client.api;
 
-import gobblin.annotation.Alpha;
-import gobblin.config.store.api.ConfigStoreWithStableVersioning;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.config.store.api.ConfigStoreWithStableVersioning;
 
 /**
  * This policy specifies the behavior expected by the client application when making repeated

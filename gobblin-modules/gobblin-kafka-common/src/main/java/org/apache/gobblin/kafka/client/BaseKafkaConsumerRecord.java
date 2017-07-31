@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.kafka.client;
+package org.apache.gobblin.kafka.client;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;

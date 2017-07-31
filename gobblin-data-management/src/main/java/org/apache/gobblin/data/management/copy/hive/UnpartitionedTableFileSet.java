@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -28,11 +28,11 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.entities.PrePublishStep;
-import gobblin.metrics.event.MultiTimingEvent;
-import gobblin.util.commit.DeleteFileCommitStep;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.metrics.event.MultiTimingEvent;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -27,7 +27,7 @@ import org.apache.hadoop.io.serializer.Deserializer;
 import org.apache.hadoop.io.serializer.Serialization;
 import org.apache.hadoop.io.serializer.Serializer;
 
-import gobblin.compat.hadoop.WritableShim;
+import org.apache.gobblin.compat.hadoop.WritableShim;
 
 
 /**

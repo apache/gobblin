@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.io;
+package org.apache.gobblin.util.io;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -26,8 +26,8 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
 
-import gobblin.util.limiter.CountBasedLimiter;
-import gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.CountBasedLimiter;
+import org.apache.gobblin.util.limiter.Limiter;
 
 
 public class ThrottledInputStreamTest {

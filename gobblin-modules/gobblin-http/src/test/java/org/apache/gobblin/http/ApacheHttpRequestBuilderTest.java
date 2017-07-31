@@ -1,4 +1,4 @@
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -13,9 +13,9 @@ import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.HttpTestUtils;
-import gobblin.async.AsyncRequest;
-import gobblin.async.BufferedRecord;
+import org.apache.gobblin.HttpTestUtils;
+import org.apache.gobblin.async.AsyncRequest;
+import org.apache.gobblin.async.BufferedRecord;
 
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;

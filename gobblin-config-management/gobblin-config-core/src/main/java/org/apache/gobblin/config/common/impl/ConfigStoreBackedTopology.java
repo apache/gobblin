@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.common.impl;
+package org.apache.gobblin.config.common.impl;
 
 import java.util.Collection;
 import java.util.List;
@@ -23,11 +23,11 @@ import java.util.List;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
-import gobblin.config.store.api.ConfigStoreWithImportedBy;
-import gobblin.config.store.api.ConfigStoreWithImportedByRecursively;
-import gobblin.config.store.api.ConfigStoreWithResolution;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.store.api.ConfigStoreWithImportedBy;
+import org.apache.gobblin.config.store.api.ConfigStoreWithImportedByRecursively;
+import org.apache.gobblin.config.store.api.ConfigStoreWithResolution;
 
 public class ConfigStoreBackedTopology implements ConfigStoreTopologyInspector {
 

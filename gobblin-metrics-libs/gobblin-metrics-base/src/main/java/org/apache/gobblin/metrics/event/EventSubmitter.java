@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.event;
+package org.apache.gobblin.metrics.event;
 
 import java.util.Map;
 
@@ -23,8 +23,8 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
 
 import lombok.Getter;
 

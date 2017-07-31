@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 import java.util.Collection;
 import java.util.List;
@@ -24,8 +24,8 @@ import java.util.Set;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import gobblin.broker.iface.ScopeInstance;
-import gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.ScopeInstance;
+import org.apache.gobblin.broker.iface.ScopeType;
 
 import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;

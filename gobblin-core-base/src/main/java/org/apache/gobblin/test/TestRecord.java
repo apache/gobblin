@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.test;
+package org.apache.gobblin.test;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

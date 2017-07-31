@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.metadata.provider;
+package org.apache.gobblin.metadata.provider;
 
-import gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
 
 
 /**

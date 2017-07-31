@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.retention;
+package org.apache.gobblin.compliance.retention;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -44,23 +44,23 @@ import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
-import gobblin.compliance.ComplianceEvents;
-import gobblin.compliance.ComplianceJob;
-import gobblin.compliance.HiveProxyQueryExecutor;
-import gobblin.compliance.purger.HivePurgerQueryTemplate;
-import gobblin.compliance.utils.ProxyUtils;
-import gobblin.configuration.State;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.data.management.retention.dataset.CleanableDataset;
-import gobblin.dataset.Dataset;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.ComplianceEvents;
+import org.apache.gobblin.compliance.ComplianceJob;
+import org.apache.gobblin.compliance.HiveProxyQueryExecutor;
+import org.apache.gobblin.compliance.purger.HivePurgerQueryTemplate;
+import org.apache.gobblin.compliance.utils.ProxyUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import static gobblin.compliance.ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_DATASET_FINDER_CLASS;
+import static org.apache.gobblin.compliance.ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_DATASET_FINDER_CLASS;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.restapi;
+package org.apache.gobblin.source.extractor.extract.restapi;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -36,14 +36,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.http.HttpClientConfiguratorLoader;
-import gobblin.source.extractor.exception.RestApiConnectionException;
-import gobblin.source.extractor.exception.RestApiProcessingException;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.http.HttpClientConfiguratorLoader;
+import org.apache.gobblin.source.extractor.exception.RestApiConnectionException;
+import org.apache.gobblin.source.extractor.exception.RestApiProcessingException;
+import org.apache.gobblin.source.extractor.extract.Command;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
+import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
 
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;

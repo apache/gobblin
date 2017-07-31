@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -39,9 +39,9 @@ import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.RestLiResponseException;
 import com.linkedin.restli.common.HttpStatus;
 
-import gobblin.restli.throttling.PermitAllocation;
-import gobblin.restli.throttling.PermitRequest;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.restli.throttling.PermitAllocation;
+import org.apache.gobblin.restli.throttling.PermitRequest;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

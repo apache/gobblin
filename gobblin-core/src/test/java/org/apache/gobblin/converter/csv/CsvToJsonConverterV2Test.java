@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.converter.csv;
+package org.apache.gobblin.converter.csv;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
 
 import java.io.IOException;
 import java.io.InputStreamReader;

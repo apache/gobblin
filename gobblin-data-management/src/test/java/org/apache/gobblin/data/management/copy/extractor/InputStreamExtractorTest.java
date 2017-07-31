@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.extractor;
+package org.apache.gobblin.data.management.copy.extractor;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyContext;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyContext;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.data.management.copy.PreserveAttributes;
 
 import java.io.IOException;
 import java.util.Properties;

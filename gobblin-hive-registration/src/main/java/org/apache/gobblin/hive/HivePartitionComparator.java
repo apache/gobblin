@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import com.google.common.base.Optional;
 

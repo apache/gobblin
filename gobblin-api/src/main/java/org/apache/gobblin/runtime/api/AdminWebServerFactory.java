@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Properties;
 
 import com.google.common.util.concurrent.Service;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 /**
  * A factory interface for AdminWebServer.

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -24,7 +24,7 @@ import com.google.common.base.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.writer.partitioner.WriterPartitioner;
+import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 
 
 /**

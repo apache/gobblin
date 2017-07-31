@@ -1,4 +1,4 @@
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -13,12 +13,12 @@ import org.apache.avro.generic.GenericRecord;
 import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.http.HttpOperation;
-import gobblin.http.HttpRequestResponseRecord;
-import gobblin.http.ResponseStatus;
-import gobblin.utils.HttpUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.http.HttpOperation;
+import org.apache.gobblin.http.HttpRequestResponseRecord;
+import org.apache.gobblin.http.ResponseStatus;
+import org.apache.gobblin.utils.HttpUtils;
 
 
 /**

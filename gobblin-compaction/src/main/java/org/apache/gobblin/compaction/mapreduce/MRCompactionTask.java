@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce;
+package org.apache.gobblin.compaction.mapreduce;
 
-import gobblin.compaction.action.CompactionCompleteAction;
-import gobblin.compaction.event.CompactionSlaEventHelper;
-import gobblin.compaction.suite.CompactionSuite;
-import gobblin.compaction.suite.CompactionSuiteUtils;
-import gobblin.compaction.verify.CompactionVerifier;
-import gobblin.dataset.Dataset;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.runtime.TaskContext;
-import gobblin.runtime.mapreduce.MRTask;
+import org.apache.gobblin.compaction.action.CompactionCompleteAction;
+import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.compaction.suite.CompactionSuite;
+import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
+import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.mapreduce.MRTask;
 
 import java.util.List;
 import java.io.IOException;

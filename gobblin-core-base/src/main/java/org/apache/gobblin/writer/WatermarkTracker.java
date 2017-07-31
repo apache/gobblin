@@ -17,11 +17,11 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.util.Map;
 
-import gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 
 
 /**

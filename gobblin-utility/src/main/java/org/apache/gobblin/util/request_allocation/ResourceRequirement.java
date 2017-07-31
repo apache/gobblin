@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.request_allocation;
+package org.apache.gobblin.util.request_allocation;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;

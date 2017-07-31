@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.partition;
+package org.apache.gobblin.source.extractor.partition;
 
 public enum AppendMaxLimitType {
   CURRENTDATE, CURRENTHOUR, CURRENTMINUTE, CURRENTSECOND;

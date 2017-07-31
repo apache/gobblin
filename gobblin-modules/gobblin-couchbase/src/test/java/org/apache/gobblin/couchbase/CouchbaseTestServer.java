@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.couchbase;
+package org.apache.gobblin.couchbase;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,7 +41,7 @@ import com.google.common.base.Throwables;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.test.TestUtils;
+import org.apache.gobblin.test.TestUtils;
 
 
 @Slf4j

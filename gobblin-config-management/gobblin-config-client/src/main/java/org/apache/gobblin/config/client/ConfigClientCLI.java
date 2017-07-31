@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.client;
+package org.apache.gobblin.config.client;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -23,12 +23,12 @@ import java.net.URISyntaxException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigRenderOptions;
 
-import gobblin.annotation.Alias;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.runtime.cli.CliApplication;
-import gobblin.runtime.cli.CliObjectFactory;
-import gobblin.runtime.cli.CliObjectSupport;
-import gobblin.runtime.cli.ConstructorAndPublicMethodsCliObjectFactory;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.runtime.cli.CliApplication;
+import org.apache.gobblin.runtime.cli.CliObjectFactory;
+import org.apache.gobblin.runtime.cli.CliObjectSupport;
+import org.apache.gobblin.runtime.cli.ConstructorAndPublicMethodsCliObjectFactory;
 
 
 /**

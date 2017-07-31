@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.cli;
+package org.apache.gobblin.runtime.cli;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

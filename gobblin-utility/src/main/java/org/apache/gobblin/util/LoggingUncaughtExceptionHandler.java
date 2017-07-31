@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

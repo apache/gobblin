@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ingestion.google.webmaster;
+package org.apache.gobblin.ingestion.google.webmaster;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 public class HiveRegistrationUnitComparatorTest {
 

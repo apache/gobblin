@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract;
+package org.apache.gobblin.source.extractor.extract;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.extractor.InstrumentedExtractor;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.instrumented.extractor.InstrumentedExtractor;
 
 
 /**

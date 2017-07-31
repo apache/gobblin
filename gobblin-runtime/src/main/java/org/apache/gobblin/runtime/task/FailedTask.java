@@ -1,11 +1,11 @@
-package gobblin.runtime.task;
+package org.apache.gobblin.runtime.task;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.publisher.DataPublisher;
-import gobblin.publisher.NoopPublisher;
-import gobblin.runtime.JobState;
-import gobblin.runtime.TaskContext;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.publisher.NoopPublisher;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 /**
  * A task which raise an exception when run

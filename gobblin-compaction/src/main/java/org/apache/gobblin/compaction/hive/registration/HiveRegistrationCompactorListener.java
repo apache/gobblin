@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hive.registration;
+package org.apache.gobblin.compaction.hive.registration;
 
 import java.util.Properties;
 
-import gobblin.compaction.listeners.CompactorListener;
-import gobblin.compaction.dataset.Dataset;
-import gobblin.configuration.State;
-import gobblin.hive.HiveRegister;
-import gobblin.hive.policy.HiveRegistrationPolicy;
-import gobblin.hive.policy.HiveRegistrationPolicyBase;
-import gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.compaction.listeners.CompactorListener;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveRegister;
+import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
+import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
+import org.apache.gobblin.hive.spec.HiveSpec;
 
 
 public class HiveRegistrationCompactorListener implements CompactorListener {

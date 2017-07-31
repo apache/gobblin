@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.config.store.api;
+package org.apache.gobblin.config.store.api;
 
 import java.util.Collection;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 /**
  * This is an extension of the {@link ConfigStoreWithImportedBy} interface which marks that

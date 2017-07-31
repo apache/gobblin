@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.audit.values.policy.column;
+package org.apache.gobblin.audit.values.policy.column;
 
 import java.lang.reflect.InvocationTargetException;
 
@@ -25,8 +25,8 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
-import gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
+import org.apache.gobblin.util.ClassAliasResolver;
 
 /**
  * Default factory class to create new {@link ColumnProjectionPolicy}s

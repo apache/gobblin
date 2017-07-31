@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.client.api;
+package org.apache.gobblin.config.client.api;
 
 /**
  * ConfigStoreFactoryDoesNotExistsException indicate the requested {@link ConfigStoreFactory} can not

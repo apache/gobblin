@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
 import java.io.IOException;
 import java.net.URI;
@@ -28,12 +28,12 @@ import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.MetricContext;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecNotFoundException;
-import gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 
 /**
  * The job Catalog for file system to persist the job configuration information.

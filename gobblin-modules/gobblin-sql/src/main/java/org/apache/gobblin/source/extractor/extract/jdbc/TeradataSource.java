@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.jdbc;
+package org.apache.gobblin.source.extractor.extract.jdbc;
 
 import java.io.IOException;
 
 import lombok.extern.slf4j.Slf4j;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.QueryBasedSource;
-import gobblin.source.extractor.exception.ExtractPrepareException;
-import gobblin.source.jdbc.TeradataExtractor;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.extract.QueryBasedSource;
+import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
+import org.apache.gobblin.source.jdbc.TeradataExtractor;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;

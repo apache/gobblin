@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.util.List;
 
@@ -24,12 +24,12 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import gobblin.ack.BasicAckableForTesting;
-import gobblin.configuration.WorkUnitState;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.stream.ControlMessage;
-import gobblin.stream.RecordEnvelope;
-import gobblin.stream.StreamEntity;
+import org.apache.gobblin.ack.BasicAckableForTesting;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.stream.StreamEntity;
 
 import io.reactivex.Flowable;
 

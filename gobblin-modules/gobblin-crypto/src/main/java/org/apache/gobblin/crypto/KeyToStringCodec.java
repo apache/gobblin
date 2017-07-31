@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.crypto;
+package org.apache.gobblin.crypto;
 
 /**
  * A package that can convert a key to and from a string representation

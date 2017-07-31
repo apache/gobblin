@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -29,7 +29,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 /**
  * Unit tests for {@link JobSpec}

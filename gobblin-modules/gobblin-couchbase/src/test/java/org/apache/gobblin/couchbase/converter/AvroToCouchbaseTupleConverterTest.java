@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.couchbase.converter;
+package org.apache.gobblin.couchbase.converter;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -27,8 +27,8 @@ import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.converter.Converter;
-import gobblin.couchbase.common.TupleDocument;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.couchbase.common.TupleDocument;
 
 
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.restli.throttling;
+package org.apache.gobblin.restli.throttling;
 
 import java.util.Map;
 
@@ -25,8 +25,8 @@ import org.testng.annotations.Test;
 import com.google.inject.Injector;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.BrokerConfigurationKeyGenerator;
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.broker.BrokerConfigurationKeyGenerator;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 
 public class PoliciesResourceTest {

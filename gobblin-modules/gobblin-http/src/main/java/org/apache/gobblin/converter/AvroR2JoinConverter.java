@@ -1,4 +1,4 @@
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.IOException;
 
@@ -12,19 +12,19 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.async.AsyncRequestBuilder;
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.http.HttpClient;
-import gobblin.http.HttpRequestResponseRecord;
-import gobblin.http.ResponseHandler;
-import gobblin.http.ResponseStatus;
-import gobblin.r2.R2ClientFactory;
-import gobblin.r2.R2Client;
-import gobblin.r2.R2ResponseStatus;
-import gobblin.r2.R2RestRequestBuilder;
-import gobblin.r2.R2RestResponseHandler;
-import gobblin.utils.HttpConstants;
+import org.apache.gobblin.async.AsyncRequestBuilder;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.http.HttpClient;
+import org.apache.gobblin.http.HttpRequestResponseRecord;
+import org.apache.gobblin.http.ResponseHandler;
+import org.apache.gobblin.http.ResponseStatus;
+import org.apache.gobblin.r2.R2ClientFactory;
+import org.apache.gobblin.r2.R2Client;
+import org.apache.gobblin.r2.R2ResponseStatus;
+import org.apache.gobblin.r2.R2RestRequestBuilder;
+import org.apache.gobblin.r2.R2RestResponseHandler;
+import org.apache.gobblin.utils.HttpConstants;
 
 
 @Slf4j

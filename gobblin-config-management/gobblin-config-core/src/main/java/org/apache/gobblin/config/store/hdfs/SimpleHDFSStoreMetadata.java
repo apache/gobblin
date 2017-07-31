@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.config.store.hdfs;
+package org.apache.gobblin.config.store.hdfs;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,9 +30,9 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.config.store.api.ConfigStore;
-import gobblin.config.store.deploy.FsDeploymentConfig;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.store.deploy.FsDeploymentConfig;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**

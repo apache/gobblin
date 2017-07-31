@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 /**
  * A class that contains configuration keys for a {@link Task}

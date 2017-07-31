@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.watermark;
+package org.apache.gobblin.source.extractor.watermark;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -28,7 +28,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

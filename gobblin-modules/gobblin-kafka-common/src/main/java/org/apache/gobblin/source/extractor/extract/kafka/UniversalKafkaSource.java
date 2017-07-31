@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

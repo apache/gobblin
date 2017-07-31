@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -27,16 +27,16 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import gobblin.Constructs;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.EmptyIterable;
-import gobblin.converter.IdentityConverter;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.state.ConstructState;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.EmptyIterable;
+import org.apache.gobblin.converter.IdentityConverter;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.state.ConstructState;
 
 import lombok.Getter;
 

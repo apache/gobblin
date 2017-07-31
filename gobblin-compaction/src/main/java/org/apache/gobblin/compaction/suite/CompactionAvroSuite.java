@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.suite;
+package org.apache.gobblin.compaction.suite;
 
-import gobblin.compaction.action.CompactionCompleteAction;
-import gobblin.compaction.action.CompactionCompleteFileOperationAction;
-import gobblin.compaction.action.CompactionMarkDirectoryAction;
-import gobblin.compaction.action.CompactionHiveRegistrationAction;
-import gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
-import gobblin.compaction.verify.CompactionAuditCountVerifier;
-import gobblin.compaction.verify.CompactionThresholdVerifier;
-import gobblin.compaction.verify.CompactionTimeRangeVerifier;
-import gobblin.compaction.verify.CompactionVerifier;
-import gobblin.configuration.State;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.compaction.action.CompactionCompleteAction;
+import org.apache.gobblin.compaction.action.CompactionCompleteFileOperationAction;
+import org.apache.gobblin.compaction.action.CompactionMarkDirectoryAction;
+import org.apache.gobblin.compaction.action.CompactionHiveRegistrationAction;
+import org.apache.gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
+import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
+import org.apache.gobblin.compaction.verify.CompactionThresholdVerifier;
+import org.apache.gobblin.compaction.verify.CompactionTimeRangeVerifier;
+import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.FileSystemDataset;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;

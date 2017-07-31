@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.version.finder;
+package org.apache.gobblin.data.management.version.finder;
 
 import java.util.Properties;
 
@@ -23,8 +23,8 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 
 /**

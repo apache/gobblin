@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
@@ -35,14 +35,14 @@ import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 
-import gobblin.commit.SpeculativeAttemptAwareConstruct;
-import gobblin.configuration.State;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.records.ControlMessageHandler;
-import gobblin.stream.RecordEnvelope;
-import gobblin.util.FinalState;
-import gobblin.writer.exception.NonTransientException;
+import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.util.FinalState;
+import org.apache.gobblin.writer.exception.NonTransientException;
 
 /**
  * Retry writer follows decorator pattern that retries on inner writer's failure.

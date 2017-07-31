@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import com.typesafe.config.Config;
 

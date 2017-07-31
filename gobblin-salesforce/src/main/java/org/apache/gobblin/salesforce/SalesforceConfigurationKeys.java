@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.salesforce;
+package org.apache.gobblin.salesforce;
 
 public class SalesforceConfigurationKeys {
   public static final String SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED =

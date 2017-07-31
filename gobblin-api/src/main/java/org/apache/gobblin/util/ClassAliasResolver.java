@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.util.List;
 import java.util.Map;
@@ -29,7 +29,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import gobblin.annotation.Alias;
+import org.apache.gobblin.annotation.Alias;
 
 
 /**

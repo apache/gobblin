@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.filesystem;
+package org.apache.gobblin.filesystem;
 
 import java.io.IOException;
 import java.net.URI;

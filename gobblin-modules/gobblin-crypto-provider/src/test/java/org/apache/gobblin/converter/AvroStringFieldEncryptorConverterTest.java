@@ -1,4 +1,4 @@
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -18,9 +18,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.test.TestUtils;
-import gobblin.test.crypto.InsecureShiftCodec;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.test.TestUtils;
+import org.apache.gobblin.test.crypto.InsecureShiftCodec;
 
 
 public class AvroStringFieldEncryptorConverterTest {

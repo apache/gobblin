@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.database;
+package org.apache.gobblin.metastore.database;
 
 import javax.sql.DataSource;
 import java.io.IOException;
@@ -51,21 +51,21 @@ import com.google.common.collect.Sets;
 import com.linkedin.data.template.GetMode;
 import com.linkedin.data.template.StringMap;
 
-import gobblin.metastore.JobHistoryStore;
-import gobblin.rest.JobExecutionInfo;
-import gobblin.rest.JobExecutionQuery;
-import gobblin.rest.JobStateEnum;
-import gobblin.rest.LauncherTypeEnum;
-import gobblin.rest.Metric;
-import gobblin.rest.MetricArray;
-import gobblin.rest.MetricTypeEnum;
-import gobblin.rest.QueryListType;
-import gobblin.rest.Table;
-import gobblin.rest.TableTypeEnum;
-import gobblin.rest.TaskExecutionInfo;
-import gobblin.rest.TaskExecutionInfoArray;
-import gobblin.rest.TaskStateEnum;
-import gobblin.rest.TimeRange;
+import org.apache.gobblin.metastore.JobHistoryStore;
+import org.apache.gobblin.rest.JobExecutionInfo;
+import org.apache.gobblin.rest.JobExecutionQuery;
+import org.apache.gobblin.rest.JobStateEnum;
+import org.apache.gobblin.rest.LauncherTypeEnum;
+import org.apache.gobblin.rest.Metric;
+import org.apache.gobblin.rest.MetricArray;
+import org.apache.gobblin.rest.MetricTypeEnum;
+import org.apache.gobblin.rest.QueryListType;
+import org.apache.gobblin.rest.Table;
+import org.apache.gobblin.rest.TableTypeEnum;
+import org.apache.gobblin.rest.TaskExecutionInfo;
+import org.apache.gobblin.rest.TaskExecutionInfoArray;
+import org.apache.gobblin.rest.TaskStateEnum;
+import org.apache.gobblin.rest.TimeRange;
 
 
 /**

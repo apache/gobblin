@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.converter;
+package org.apache.gobblin.data.management.conversion.hive.converter;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -37,9 +37,9 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import gobblin.data.management.ConversionHiveTestUtils;
-import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
-import gobblin.util.AvroFlattener;
+import org.apache.gobblin.data.management.ConversionHiveTestUtils;
+import org.apache.gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
+import org.apache.gobblin.util.AvroFlattener;
 
 
 /**

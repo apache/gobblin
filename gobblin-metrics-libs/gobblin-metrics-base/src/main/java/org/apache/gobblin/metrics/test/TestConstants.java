@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.test;
+package org.apache.gobblin.metrics.test;
 
 /**
  * A central place for constants used in tests for gobblin-metrics.

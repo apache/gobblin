@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.hive.spec.activity;
+package org.apache.gobblin.hive.spec.activity;
 
 import java.io.IOException;
 
-import gobblin.annotation.Alpha;
-import gobblin.hive.HiveRegister;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.hive.HiveRegister;
 
 
 /**

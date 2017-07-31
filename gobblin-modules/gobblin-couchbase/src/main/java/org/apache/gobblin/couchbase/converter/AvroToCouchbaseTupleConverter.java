@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.couchbase.converter;
+package org.apache.gobblin.couchbase.converter;
 
 import java.nio.ByteBuffer;
 
@@ -26,12 +26,12 @@ import com.couchbase.client.core.lang.Tuple;
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.deps.io.netty.buffer.Unpooled;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.couchbase.common.TupleDocument;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.couchbase.common.TupleDocument;
 
 
 public class AvroToCouchbaseTupleConverter extends Converter<Schema, String, GenericRecord, TupleDocument> {

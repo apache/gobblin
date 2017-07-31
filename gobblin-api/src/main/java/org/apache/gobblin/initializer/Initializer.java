@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.initializer;
+package org.apache.gobblin.initializer;
 
 import java.io.Closeable;
 

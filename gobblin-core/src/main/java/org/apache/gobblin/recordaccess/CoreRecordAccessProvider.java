@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.recordaccess;
+package org.apache.gobblin.recordaccess;
 
 import org.apache.avro.generic.GenericRecord;
 

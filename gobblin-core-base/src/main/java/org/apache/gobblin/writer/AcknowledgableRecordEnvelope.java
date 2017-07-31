@@ -17,11 +17,11 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
-import gobblin.ack.Ackable;
-import gobblin.annotation.Alpha;
-import gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.ack.Ackable;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 
 
 /**

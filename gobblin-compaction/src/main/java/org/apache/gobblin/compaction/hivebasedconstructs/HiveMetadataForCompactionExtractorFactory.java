@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hivebasedconstructs;
+package org.apache.gobblin.compaction.hivebasedconstructs;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.extractor.HiveBaseExtractor;
-import gobblin.data.management.conversion.hive.extractor.HiveBaseExtractorFactory;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.conversion.hive.extractor.HiveBaseExtractor;
+import org.apache.gobblin.data.management.conversion.hive.extractor.HiveBaseExtractorFactory;
 import java.io.IOException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.ql.metadata.HiveException;

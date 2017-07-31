@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.aws;
+package org.apache.gobblin.aws;
 
 import java.io.File;
 import java.util.List;
@@ -31,7 +31,7 @@ import org.slf4j.Logger;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

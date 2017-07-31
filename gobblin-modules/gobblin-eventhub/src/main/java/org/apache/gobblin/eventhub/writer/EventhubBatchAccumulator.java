@@ -1,6 +1,6 @@
-package gobblin.eventhub.writer;
+package org.apache.gobblin.eventhub.writer;
 
-import gobblin.writer.SequentialBasedBatchAccumulator;
+import org.apache.gobblin.writer.SequentialBasedBatchAccumulator;
 
 import java.util.Properties;
 

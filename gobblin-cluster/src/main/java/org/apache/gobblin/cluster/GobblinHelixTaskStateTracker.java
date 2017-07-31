@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.util.Map;
 import java.util.Properties;
@@ -29,10 +29,10 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
-import gobblin.annotation.Alpha;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.runtime.AbstractTaskStateTracker;
-import gobblin.runtime.Task;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.runtime.AbstractTaskStateTracker;
+import org.apache.gobblin.runtime.Task;
 
 
 /**

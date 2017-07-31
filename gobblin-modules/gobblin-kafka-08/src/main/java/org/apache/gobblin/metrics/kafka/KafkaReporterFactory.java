@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.kafka;
+package org.apache.gobblin.metrics.kafka;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -27,11 +27,11 @@ import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.CustomCodahaleReporterFactory;
-import gobblin.metrics.KafkaReportingFormats;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.CustomCodahaleReporterFactory;
+import org.apache.gobblin.metrics.KafkaReportingFormats;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.RootMetricContext;
 
 
 @Slf4j

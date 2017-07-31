@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.publisher;
+package org.apache.gobblin.publisher;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -36,18 +36,18 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.hive.HiveRegProps;
-import gobblin.hive.HiveRegister;
-import gobblin.hive.policy.HiveRegistrationPolicy;
-import gobblin.hive.policy.HiveRegistrationPolicyBase;
-import gobblin.hive.metastore.HiveMetaStoreUtils;
-import gobblin.hive.spec.HiveSpec;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.hive.HiveRegProps;
+import org.apache.gobblin.hive.HiveRegister;
+import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
+import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
+import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -37,14 +37,14 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
-import gobblin.runtime.template.ResourceBasedJobTemplate;
-import gobblin.util.filesystem.PathAlterationObserverScheduler;
-import gobblin.util.filesystem.PathAlterationListener;
-import gobblin.util.filesystem.PathAlterationObserver;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
+import org.apache.gobblin.runtime.template.ResourceBasedJobTemplate;
+import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
+import org.apache.gobblin.util.filesystem.PathAlterationListener;
+import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
 
 /**

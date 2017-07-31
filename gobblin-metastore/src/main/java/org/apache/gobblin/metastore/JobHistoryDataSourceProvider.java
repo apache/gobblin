@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import java.util.Properties;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.password.PasswordManager;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.password.PasswordManager;
 
 
 /**

@@ -2,7 +2,7 @@
   "models" : [ {
     "type" : "record",
     "name" : "FlowStatusId",
-    "namespace" : "gobblin.service",
+    "namespace" : "org.apache.gobblin.service",
     "doc" : "Identifier for a specific execution of a flow",
     "fields" : [ {
       "name" : "flowName",
@@ -20,7 +20,7 @@
   }, {
     "type" : "record",
     "name" : "FlowStatistics",
-    "namespace" : "gobblin.service",
+    "namespace" : "org.apache.gobblin.service",
     "doc" : "Statistics from a flow execution",
     "fields" : [ {
       "name" : "executionStartTime",
@@ -34,7 +34,7 @@
   }, {
     "type" : "enum",
     "name" : "ExecutionStatus",
-    "namespace" : "gobblin.service",
+    "namespace" : "org.apache.gobblin.service",
     "doc" : "Execution status for a flow or job",
     "symbols" : [ "RUNNING", "FAILED", "COMPLETE" ],
     "symbolDocs" : {
@@ -45,7 +45,7 @@
   }, {
     "type" : "record",
     "name" : "FlowId",
-    "namespace" : "gobblin.service",
+    "namespace" : "org.apache.gobblin.service",
     "doc" : "Identifier for a Gobblin as a Service flow",
     "fields" : [ {
       "name" : "flowName",
@@ -71,7 +71,7 @@
   }, {
     "type" : "record",
     "name" : "JobId",
-    "namespace" : "gobblin.service",
+    "namespace" : "org.apache.gobblin.service",
     "doc" : "Identifier for a Gobblin job",
     "fields" : [ {
       "name" : "jobName",
@@ -97,7 +97,7 @@
   }, {
     "type" : "record",
     "name" : "JobStatistics",
-    "namespace" : "gobblin.service",
+    "namespace" : "org.apache.gobblin.service",
     "doc" : "Statistics from a job execution",
     "fields" : [ {
       "name" : "executionStartTime",
@@ -115,7 +115,7 @@
   }, {
     "type" : "record",
     "name" : "JobState",
-    "namespace" : "gobblin.service",
+    "namespace" : "org.apache.gobblin.service",
     "doc" : "Job state that is updated at the end of an execution",
     "fields" : [ {
       "name" : "lowWatermark",
@@ -129,7 +129,7 @@
   }, {
     "type" : "record",
     "name" : "JobStatus",
-    "namespace" : "gobblin.service",
+    "namespace" : "org.apache.gobblin.service",
     "doc" : "Execution status for a job",
     "fields" : [ {
       "name" : "flowId",
@@ -159,7 +159,7 @@
   }, {
     "type" : "record",
     "name" : "FlowStatus",
-    "namespace" : "gobblin.service",
+    "namespace" : "org.apache.gobblin.service",
     "doc" : "Status of a flow",
     "fields" : [ {
       "name" : "id",
@@ -197,9 +197,9 @@
   } ],
   "schema" : {
     "name" : "flowstatuses",
-    "namespace" : "gobblin.service",
+    "namespace" : "org.apache.gobblin.service",
     "path" : "/flowstatuses",
-    "schema" : "gobblin.service.FlowStatus",
+    "schema" : "org.apache.gobblin.service.FlowStatus",
     "doc" : "Resource for handling flow status requests\n\ngenerated from: gobblin.service.FlowStatusResource",
     "collection" : {
       "identifier" : {

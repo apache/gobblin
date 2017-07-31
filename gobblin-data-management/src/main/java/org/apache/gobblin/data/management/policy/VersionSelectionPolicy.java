@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.policy;
+package org.apache.gobblin.data.management.policy;
 
 import java.util.Collection;
 import java.util.List;
 
-import gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.version.DatasetVersion;
 
 
 /**

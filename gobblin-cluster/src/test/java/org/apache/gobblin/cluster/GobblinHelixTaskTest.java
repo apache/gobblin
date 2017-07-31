@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import com.typesafe.config.ConfigFactory;
-import gobblin.metastore.FsStateStore;
+import org.apache.gobblin.metastore.FsStateStore;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -45,18 +45,18 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.example.simplejson.SimpleJsonConverter;
-import gobblin.example.simplejson.SimpleJsonSource;
-import gobblin.runtime.AbstractJobLauncher;
-import gobblin.runtime.JobState;
-import gobblin.runtime.TaskExecutor;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.Id;
-import gobblin.util.SerializationUtils;
-import gobblin.writer.AvroDataWriterBuilder;
-import gobblin.writer.Destination;
-import gobblin.writer.WriterOutputFormat;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.example.simplejson.SimpleJsonConverter;
+import org.apache.gobblin.example.simplejson.SimpleJsonSource;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.TaskExecutor;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.Id;
+import org.apache.gobblin.util.SerializationUtils;
+import org.apache.gobblin.writer.AvroDataWriterBuilder;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.WriterOutputFormat;
 
 
 /**

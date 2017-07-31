@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.instance.plugin.hadoop;
+package org.apache.gobblin.runtime.instance.plugin.hadoop;
 
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -24,8 +24,8 @@ import org.testng.annotations.Test;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.std.DefaultConfigurableImpl;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.std.DefaultConfigurableImpl;
 
 import avro.shaded.com.google.common.collect.ImmutableMap;
 

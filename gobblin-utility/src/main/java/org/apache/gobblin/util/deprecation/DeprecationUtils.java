@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.util.deprecation;
+package org.apache.gobblin.util.deprecation;
 
 import java.util.List;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 import lombok.extern.slf4j.Slf4j;
 

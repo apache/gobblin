@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.test;
+package org.apache.gobblin.metrics.test;
 
 import java.util.List;
 import java.util.Map;
@@ -31,8 +31,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
-import gobblin.metrics.context.ReportableContext;
-import gobblin.metrics.reporter.ScheduledReporter;
+import org.apache.gobblin.metrics.context.ReportableContext;
+import org.apache.gobblin.metrics.reporter.ScheduledReporter;
 
 import lombok.Getter;
 

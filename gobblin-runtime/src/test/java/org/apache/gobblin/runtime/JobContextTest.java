@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.Map;
@@ -38,9 +38,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 
-import gobblin.commit.DeliverySemantics;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.Either;
+import org.apache.gobblin.commit.DeliverySemantics;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.Either;
 
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;

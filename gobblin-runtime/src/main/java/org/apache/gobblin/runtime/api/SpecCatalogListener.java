@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 
 import com.google.common.base.Objects;
 
-import gobblin.util.callbacks.Callback;
+import org.apache.gobblin.util.callbacks.Callback;
 
 public interface SpecCatalogListener {
   /** Invoked when a new {@link Spec} is added to the catalog and for all pre-existing specs on registration

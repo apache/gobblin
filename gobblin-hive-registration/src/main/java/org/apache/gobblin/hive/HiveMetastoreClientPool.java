@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import java.io.IOException;
 import java.util.Map;
@@ -37,8 +37,8 @@ import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.State;
-import gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.AutoReturnableObject;
 
 import lombok.Getter;
 

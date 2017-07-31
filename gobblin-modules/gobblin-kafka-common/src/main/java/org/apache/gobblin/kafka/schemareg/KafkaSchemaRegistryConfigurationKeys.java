@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.schemareg;
+package org.apache.gobblin.kafka.schemareg;
 
 /**
  * Configuration keys for a kafka schema registry

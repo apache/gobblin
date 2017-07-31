@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.version;
+package org.apache.gobblin.data.management.retention.version;
 
 import java.io.IOException;
 
@@ -26,7 +26,7 @@ import com.typesafe.config.ConfigFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.data.management.retention.version.HiveDatasetVersionCleaner;
+import org.apache.gobblin.data.management.retention.version.HiveDatasetVersionCleaner;
 
 
 public class HiveDatasetVersionCleanerTest {

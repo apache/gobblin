@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import com.linkedin.common.callback.Callback;
 import com.linkedin.restli.client.Request;
@@ -24,10 +24,10 @@ import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 
-import gobblin.restli.throttling.PermitAllocation;
-import gobblin.restli.throttling.PermitRequest;
-import gobblin.restli.throttling.PermitsGetRequestBuilder;
-import gobblin.restli.throttling.PermitsRequestBuilders;
+import org.apache.gobblin.restli.throttling.PermitAllocation;
+import org.apache.gobblin.restli.throttling.PermitRequest;
+import org.apache.gobblin.restli.throttling.PermitsGetRequestBuilder;
+import org.apache.gobblin.restli.throttling.PermitsRequestBuilders;
 
 import lombok.AllArgsConstructor;
 

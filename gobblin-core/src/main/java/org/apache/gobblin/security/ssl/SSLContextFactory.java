@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.security.ssl;
+package org.apache.gobblin.security.ssl;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -31,8 +31,8 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 
-import gobblin.password.PasswordManager;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

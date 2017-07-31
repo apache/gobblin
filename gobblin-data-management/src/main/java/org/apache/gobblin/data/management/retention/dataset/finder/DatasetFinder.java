@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.dataset.finder;
+package org.apache.gobblin.data.management.retention.dataset.finder;
 
-import gobblin.dataset.Dataset;
-import gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.DatasetsFinder;
 
 
 /**

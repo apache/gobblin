@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.common.impl;
+package org.apache.gobblin.config.common.impl;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,8 +40,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStore;
 
 @Test(groups = { "gobblin.config.common.impl" })
 

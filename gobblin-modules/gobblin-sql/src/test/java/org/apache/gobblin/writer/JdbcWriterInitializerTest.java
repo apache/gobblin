@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import static org.mockito.Mockito.*;
 
@@ -25,15 +25,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.publisher.JdbcPublisher;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.writer.Destination;
-import gobblin.writer.Destination.DestinationType;
-import gobblin.writer.commands.JdbcWriterCommands;
-import gobblin.writer.commands.JdbcWriterCommandsFactory;
-import gobblin.writer.initializer.JdbcWriterInitializer;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.publisher.JdbcPublisher;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.Destination.DestinationType;
+import org.apache.gobblin.writer.commands.JdbcWriterCommands;
+import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
+import org.apache.gobblin.writer.initializer.JdbcWriterInitializer;
 
 import org.apache.commons.lang.StringUtils;
 import org.mockito.InOrder;

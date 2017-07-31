@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.converter.avro;
+package org.apache.gobblin.converter.avro;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.MetadataConverterWrapper;
-import gobblin.converter.SchemaConversionException;
-import gobblin.metadata.types.Metadata;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.MetadataConverterWrapper;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.metadata.types.Metadata;
 
 
 /**

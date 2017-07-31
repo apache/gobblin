@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.fork;
+package org.apache.gobblin.fork;
 
 import java.io.Closeable;
 import java.util.List;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

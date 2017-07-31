@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source.extractor.extract.google;
+package org.apache.gobblin.source.extractor.extract.google;
 
 import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
@@ -46,11 +46,11 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
-import static gobblin.configuration.ConfigurationKeys.*;
-import static gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
-import gobblin.configuration.State;
-import gobblin.util.HadoopUtils;
-import gobblin.util.io.SeekableFSInputStream;
+import static org.apache.gobblin.configuration.ConfigurationKeys.*;
+import static org.apache.gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.io.SeekableFSInputStream;
 
 /**
  * A {@link FileSystem} implementation that provides the {@link FileSystem} interface for an Google Drive server.

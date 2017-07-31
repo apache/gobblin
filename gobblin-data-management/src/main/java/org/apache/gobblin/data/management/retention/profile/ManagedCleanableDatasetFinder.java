@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.profile;
+package org.apache.gobblin.data.management.retention.profile;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -27,15 +27,15 @@ import org.slf4j.LoggerFactory;
 
 import com.typesafe.config.Config;
 
-import gobblin.config.client.ConfigClient;
-import gobblin.config.client.ConfigClientCache;
-import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.config.store.api.VersionDoesNotExistException;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
-import gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.ConfigClientCache;
+import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 
 
 /**

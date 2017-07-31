@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.eventhub.writer;
+package org.apache.gobblin.eventhub.writer;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -34,9 +34,9 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
-import gobblin.writer.Batch;
-import gobblin.writer.WriteCallback;
-import gobblin.writer.WriteResponse;
+import org.apache.gobblin.writer.Batch;
+import org.apache.gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteResponse;
 
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.*;

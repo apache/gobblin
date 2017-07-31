@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce;
+package org.apache.gobblin.compaction.mapreduce;
 
 import com.google.common.io.Files;
-import gobblin.compaction.audit.AuditCountClientFactory;
-import gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
-import gobblin.compaction.source.CompactionSource;
-import gobblin.data.management.dataset.SimpleDatasetHierarchicalPrioritizer;
-import gobblin.compaction.suite.TestCompactionSuiteFactories;
-import gobblin.compaction.verify.CompactionAuditCountVerifier;
-import gobblin.compaction.verify.CompactionVerifier;
-import gobblin.compaction.verify.InputRecordCountHelper;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
-import gobblin.runtime.api.JobExecutionResult;
-import gobblin.runtime.embedded.EmbeddedGobblin;
+import org.apache.gobblin.compaction.audit.AuditCountClientFactory;
+import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
+import org.apache.gobblin.compaction.source.CompactionSource;
+import org.apache.gobblin.data.management.dataset.SimpleDatasetHierarchicalPrioritizer;
+import org.apache.gobblin.compaction.suite.TestCompactionSuiteFactories;
+import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
+import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
+import org.apache.gobblin.runtime.api.JobExecutionResult;
+import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;

@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce;
+package org.apache.gobblin.compaction.mapreduce;
 
-import static gobblin.compaction.dataset.Dataset.DatasetState.COMPACTION_COMPLETE;
-import static gobblin.compaction.dataset.Dataset.DatasetState.GIVEN_UP;
-import static gobblin.compaction.dataset.Dataset.DatasetState.UNVERIFIED;
-import static gobblin.compaction.dataset.Dataset.DatasetState.VERIFIED;
-import static gobblin.compaction.mapreduce.MRCompactorJobRunner.Status.ABORTED;
-import static gobblin.compaction.mapreduce.MRCompactorJobRunner.Status.COMMITTED;
+import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.COMPACTION_COMPLETE;
+import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.GIVEN_UP;
+import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.UNVERIFIED;
+import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.VERIFIED;
+import static org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner.Status.ABORTED;
+import static org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner.Status.COMMITTED;
 
 import java.io.IOException;
 import java.net.URI;
@@ -63,30 +63,30 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import gobblin.compaction.Compactor;
-import gobblin.compaction.listeners.CompactorCompletionListener;
-import gobblin.compaction.listeners.CompactorCompletionListenerFactory;
-import gobblin.compaction.listeners.CompactorListener;
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.dataset.DatasetsFinder;
-import gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
-import gobblin.compaction.event.CompactionSlaEventHelper;
-import gobblin.compaction.verify.DataCompletenessVerifier;
-import gobblin.compaction.verify.DataCompletenessVerifier.Results;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.Tag;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.DatasetFilterUtils;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.HadoopUtils;
-import gobblin.util.ClusterNameTags;
-import gobblin.util.FileListUtils;
-import gobblin.util.recordcount.CompactionRecordCountProvider;
-import gobblin.util.recordcount.IngestionRecordCountProvider;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.compaction.Compactor;
+import org.apache.gobblin.compaction.listeners.CompactorCompletionListener;
+import org.apache.gobblin.compaction.listeners.CompactorCompletionListenerFactory;
+import org.apache.gobblin.compaction.listeners.CompactorListener;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.dataset.DatasetsFinder;
+import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
+import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.compaction.verify.DataCompletenessVerifier;
+import org.apache.gobblin.compaction.verify.DataCompletenessVerifier.Results;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.ClusterNameTags;
+import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
+import org.apache.gobblin.util.recordcount.IngestionRecordCountProvider;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 /**
  * MapReduce-based {@link gobblin.compaction.Compactor}. Compaction will run on each qualified {@link Dataset}

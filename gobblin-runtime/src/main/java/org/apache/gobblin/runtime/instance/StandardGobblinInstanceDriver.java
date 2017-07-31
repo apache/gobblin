@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.instance;
+package org.apache.gobblin.runtime.instance;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,33 +34,33 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SharedResourcesBrokerImpl;
-import gobblin.broker.SimpleScope;
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.runtime.api.Configurable;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.GobblinInstanceLauncher;
-import gobblin.runtime.api.GobblinInstancePlugin;
-import gobblin.runtime.api.GobblinInstancePluginFactory;
-import gobblin.runtime.api.JobCatalog;
-import gobblin.runtime.api.JobExecutionLauncher;
-import gobblin.runtime.api.JobSpecScheduler;
-import gobblin.runtime.job_catalog.FSJobCatalog;
-import gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
-import gobblin.runtime.job_catalog.InMemoryJobCatalog;
-import gobblin.runtime.job_exec.JobLauncherExecutionDriver;
-import gobblin.runtime.plugins.email.EmailNotificationPlugin;
-import gobblin.runtime.scheduler.ImmediateJobSpecScheduler;
-import gobblin.runtime.scheduler.QuartzJobSpecScheduler;
-import gobblin.runtime.std.DefaultConfigurableImpl;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.SharedResourcesBrokerImpl;
+import org.apache.gobblin.broker.SimpleScope;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.api.Configurable;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.GobblinInstanceLauncher;
+import org.apache.gobblin.runtime.api.GobblinInstancePlugin;
+import org.apache.gobblin.runtime.api.GobblinInstancePluginFactory;
+import org.apache.gobblin.runtime.api.JobCatalog;
+import org.apache.gobblin.runtime.api.JobExecutionLauncher;
+import org.apache.gobblin.runtime.api.JobSpecScheduler;
+import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
+import org.apache.gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
+import org.apache.gobblin.runtime.job_catalog.InMemoryJobCatalog;
+import org.apache.gobblin.runtime.job_exec.JobLauncherExecutionDriver;
+import org.apache.gobblin.runtime.plugins.email.EmailNotificationPlugin;
+import org.apache.gobblin.runtime.scheduler.ImmediateJobSpecScheduler;
+import org.apache.gobblin.runtime.scheduler.QuartzJobSpecScheduler;
+import org.apache.gobblin.runtime.std.DefaultConfigurableImpl;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 
 /** A simple wrapper {@link DefaultGobblinInstanceDriverImpl} that will instantiate necessary
  * sub-components (e.g. {@link JobCatalog}, {@link JobSpecScheduler}, {@link JobExecutionLauncher}

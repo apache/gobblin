@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.topology;
+package org.apache.gobblin.service.modules.topology;
 
 import java.util.Collection;
 
-import gobblin.annotation.Alpha;
-import gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.TopologySpec;
 
 
 /***

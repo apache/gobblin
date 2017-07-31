@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.graphite;
+package org.apache.gobblin.metrics.graphite;
 
 import java.io.IOException;
 import java.util.Map;
@@ -37,11 +37,11 @@ import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.Measurements;
-import gobblin.metrics.reporter.ConfiguredScheduledReporter;
-import gobblin.util.ConfigUtils;
-import static gobblin.metrics.Measurements.*;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.Measurements;
+import org.apache.gobblin.metrics.reporter.ConfiguredScheduledReporter;
+import org.apache.gobblin.util.ConfigUtils;
+import static org.apache.gobblin.metrics.Measurements.*;
 
 /**
  * Graphite reporter for metrics

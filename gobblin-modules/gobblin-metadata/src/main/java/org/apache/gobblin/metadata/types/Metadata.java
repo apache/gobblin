@@ -1,4 +1,4 @@
-package gobblin.metadata.types;
+package org.apache.gobblin.metadata.types;
 
 import java.util.HashMap;
 import java.util.Map;

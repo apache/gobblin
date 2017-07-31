@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -47,27 +47,27 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.kafka.client.GobblinKafkaConsumerClient;
-import gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory;
-import gobblin.source.extractor.extract.EventBasedSource;
-import gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
-import gobblin.source.extractor.limiter.LimiterConfigurationKeys;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
-import gobblin.util.DatasetFilterUtils;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.dataset.DatasetUtils;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.source.extractor.limiter.LimiterConfigurationKeys;
-import gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory;
+import org.apache.gobblin.source.extractor.extract.EventBasedSource;
+import org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
+import org.apache.gobblin.source.extractor.limiter.LimiterConfigurationKeys;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.dataset.DatasetUtils;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.source.extractor.limiter.LimiterConfigurationKeys;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
 
 import lombok.Getter;
 import lombok.Setter;

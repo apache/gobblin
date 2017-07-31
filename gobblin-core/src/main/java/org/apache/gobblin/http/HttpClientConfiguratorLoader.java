@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import org.apache.http.client.HttpClient;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.State;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ClassAliasResolver;
 
 /**
  * Creates an instance of HttpClientConfigurator using dependency injection from configuration.

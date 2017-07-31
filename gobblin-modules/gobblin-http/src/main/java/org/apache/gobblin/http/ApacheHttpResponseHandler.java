@@ -1,4 +1,4 @@
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -10,8 +10,8 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.util.EntityUtils;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.net.Request;
-import gobblin.utils.HttpUtils;
+import org.apache.gobblin.net.Request;
+import org.apache.gobblin.utils.HttpUtils;
 
 
 /**

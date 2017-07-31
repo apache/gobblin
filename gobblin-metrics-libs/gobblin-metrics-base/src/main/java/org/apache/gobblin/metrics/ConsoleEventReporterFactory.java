@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -22,7 +22,7 @@ import java.util.Properties;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 
-import gobblin.metrics.reporter.OutputStreamEventReporter;
+import org.apache.gobblin.metrics.reporter.OutputStreamEventReporter;
 
 
 /**

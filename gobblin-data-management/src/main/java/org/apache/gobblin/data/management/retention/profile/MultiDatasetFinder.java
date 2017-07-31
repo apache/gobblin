@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.profile;
+package org.apache.gobblin.data.management.retention.profile;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -36,15 +36,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.config.client.ConfigClient;
-import gobblin.config.client.ConfigClientCache;
-import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.config.store.api.VersionDoesNotExistException;
-import gobblin.dataset.Dataset;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.ConfigClientCache;
+import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

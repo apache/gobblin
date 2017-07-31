@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.kafka;
+package org.apache.gobblin.metrics.kafka;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -35,9 +35,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.kafka.schemareg.HttpClientFactory;
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.schemareg.HttpClientFactory;
+import org.apache.gobblin.util.AvroUtils;
 
 
 /**

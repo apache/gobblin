@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.schemareg;
+package org.apache.gobblin.kafka.schemareg;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -34,9 +34,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.kafka.serialize.MD5Digest;
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.serialize.MD5Digest;
+import org.apache.gobblin.util.AvroUtils;
 
 
 /**

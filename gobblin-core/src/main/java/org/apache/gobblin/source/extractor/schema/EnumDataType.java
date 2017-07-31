@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.schema;
+package org.apache.gobblin.source.extractor.schema;
 
 import java.util.List;
 

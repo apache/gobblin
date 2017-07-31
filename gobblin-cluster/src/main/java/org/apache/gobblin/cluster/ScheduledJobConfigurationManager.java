@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -37,14 +37,14 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstance;
-import gobblin.runtime.api.SpecExecutorInstanceConsumer;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutorInstance;
+import org.apache.gobblin.runtime.api.SpecExecutorInstanceConsumer;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 @Alpha

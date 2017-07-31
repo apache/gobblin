@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.hadoop;
+package org.apache.gobblin.source.extractor.hadoop;
 
 import java.io.IOException;
 import java.util.List;
@@ -31,9 +31,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

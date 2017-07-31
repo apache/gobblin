@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.suite;
+package org.apache.gobblin.compaction.suite;
 
-import gobblin.annotation.Alias;
-import gobblin.configuration.State;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.State;
 
 /**
  * A {@link CompactionSuiteFactory} that handles {@link CompactionAvroSuite} creation logic.

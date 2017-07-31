@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter.stressTest;
+package org.apache.gobblin.util.limiter.stressTest;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -57,20 +57,20 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.BrokerConfigurationKeyGenerator;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SimpleScopeType;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.restli.SharedRestClientFactory;
-import gobblin.restli.SharedRestClientKey;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.MultiLimiter;
-import gobblin.util.limiter.NoopLimiter;
-import gobblin.util.limiter.RateBasedLimiter;
-import gobblin.util.limiter.RestliLimiterFactory;
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.broker.BrokerConfigurationKeyGenerator;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.SimpleScopeType;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.restli.SharedRestClientFactory;
+import org.apache.gobblin.restli.SharedRestClientKey;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.MultiLimiter;
+import org.apache.gobblin.util.limiter.NoopLimiter;
+import org.apache.gobblin.util.limiter.RateBasedLimiter;
+import org.apache.gobblin.util.limiter.RestliLimiterFactory;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ingestion.google.webmaster;
+package org.apache.gobblin.ingestion.google.webmaster;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -44,11 +44,11 @@ import com.google.common.base.Optional;
 import avro.shaded.com.google.common.base.Joiner;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.ingestion.google.AsyncIteratorWithDataSink;
-import gobblin.ingestion.google.GoggleIngestionConfigurationKeys;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.limiter.RateBasedLimiter;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.ingestion.google.AsyncIteratorWithDataSink;
+import org.apache.gobblin.ingestion.google.GoggleIngestionConfigurationKeys;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.limiter.RateBasedLimiter;
 
 
 /**

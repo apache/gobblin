@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_monitor;
+package org.apache.gobblin.runtime.job_monitor;
 
 import java.io.IOException;
 import java.net.URI;
@@ -38,23 +38,23 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.event.sla.SlaEventKeys;
-import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
-import gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
-import gobblin.metrics.reporter.util.SchemaVersionWriter;
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecMonitor;
-import gobblin.runtime.api.JobSpecMonitorFactory;
-import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.api.SpecExecutorInstance;
-import gobblin.runtime.api.SpecExecutorInstance.Verb;
-import gobblin.runtime.job_spec.AvroJobSpec;
-import gobblin.runtime.metrics.RuntimeMetrics;
-import gobblin.util.Either;
-import gobblin.util.PathUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
+import org.apache.gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
+import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecMonitor;
+import org.apache.gobblin.runtime.api.JobSpecMonitorFactory;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.api.SpecExecutorInstance;
+import org.apache.gobblin.runtime.api.SpecExecutorInstance.Verb;
+import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
+import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
+import org.apache.gobblin.util.Either;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import kafka.message.MessageAndMetadata;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;

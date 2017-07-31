@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Map;
 
-import gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.Instrumentable;
 
 /***
  * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s

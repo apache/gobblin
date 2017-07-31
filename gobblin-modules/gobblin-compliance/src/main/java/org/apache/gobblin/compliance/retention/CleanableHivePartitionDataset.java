@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.retention;
+package org.apache.gobblin.compliance.retention;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,15 +30,15 @@ import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
-import gobblin.compliance.HivePartitionDataset;
-import gobblin.compliance.HivePartitionVersion;
-import gobblin.compliance.HivePartitionVersionFinder;
-import gobblin.compliance.HivePartitionVersionPolicy;
-import gobblin.configuration.State;
-import gobblin.data.management.retention.dataset.CleanableDataset;
-import gobblin.data.management.retention.version.VersionCleaner;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.HivePartitionDataset;
+import org.apache.gobblin.compliance.HivePartitionVersion;
+import org.apache.gobblin.compliance.HivePartitionVersionFinder;
+import org.apache.gobblin.compliance.HivePartitionVersionPolicy;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.retention.version.VersionCleaner;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

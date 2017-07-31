@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.kafka;
+package org.apache.gobblin.runtime.kafka;
 
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
@@ -27,7 +27,7 @@ import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.runtime.job_monitor.MockKafkaStream;
+import org.apache.gobblin.runtime.job_monitor.MockKafkaStream;
 
 
 public class HighLevelConsumerTest {

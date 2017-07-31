@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -37,9 +37,9 @@ import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 @Warmup(iterations = 3)

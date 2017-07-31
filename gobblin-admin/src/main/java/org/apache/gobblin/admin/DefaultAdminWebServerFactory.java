@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.admin;
+package org.apache.gobblin.admin;
 
 import java.net.URI;
 import java.util.Properties;
 
 import com.google.common.util.concurrent.Service;
 
-import gobblin.annotation.Alias;
-import gobblin.runtime.api.AdminWebServerFactory;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.runtime.api.AdminWebServerFactory;
 
 /**
  * A factory for the default implementation of the admin web server

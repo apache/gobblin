@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.util.Iterator;
 import java.util.Properties;
@@ -26,7 +26,7 @@ import java.util.Random;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 @Test

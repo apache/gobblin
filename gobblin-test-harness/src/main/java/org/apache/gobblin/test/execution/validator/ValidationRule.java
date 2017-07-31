@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.test.execution.validator;
+package org.apache.gobblin.test.execution.validator;
 
 /**
  *  An interface is for defining the validator for the test. The input can be the set of input files and the output will be be output of

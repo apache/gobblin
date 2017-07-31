@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.restli;
+package org.apache.gobblin.restli;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -39,16 +39,16 @@ import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.RestClient;
 import com.typesafe.config.Config;
 
-import gobblin.broker.ResourceCoordinate;
-import gobblin.broker.ResourceInstance;
-import gobblin.broker.iface.ConfigView;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.ScopedConfigView;
-import gobblin.broker.iface.SharedResourceFactory;
-import gobblin.broker.iface.SharedResourceFactoryResponse;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.broker.ResourceCoordinate;
+import org.apache.gobblin.broker.ResourceInstance;
+import org.apache.gobblin.broker.iface.ConfigView;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.ScopedConfigView;
+import org.apache.gobblin.broker.iface.SharedResourceFactory;
+import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 import io.netty.channel.nio.NioEventLoopGroup;
 

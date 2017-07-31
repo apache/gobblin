@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import static org.mockito.Mockito.*;
 
@@ -26,10 +26,10 @@ import java.sql.SQLException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.State;
-import gobblin.converter.jdbc.JdbcEntryData;
-import gobblin.writer.JdbcWriter;
-import gobblin.writer.commands.JdbcWriterCommands;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.writer.JdbcWriter;
+import org.apache.gobblin.writer.commands.JdbcWriterCommands;
 
 @Test(groups = {"gobblin.writer"})
 public class JdbcWriterTest {

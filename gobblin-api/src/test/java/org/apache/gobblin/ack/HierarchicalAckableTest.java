@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ack;
+package org.apache.gobblin.ack;
 
 import org.testng.Assert;
 import org.testng.TestException;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.serde;
+package org.apache.gobblin.serde;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -34,22 +34,22 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.serde.HiveSerDeConverter;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.hadoop.OldApiWritableFileExtractor;
-import gobblin.source.extractor.hadoop.OldApiWritableFileSource;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.HadoopUtils;
-import gobblin.writer.Destination;
-import gobblin.writer.Destination.DestinationType;
-import gobblin.writer.HiveWritableHdfsDataWriter;
-import gobblin.writer.HiveWritableHdfsDataWriterBuilder;
-import gobblin.writer.WriterOutputFormat;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.serde.HiveSerDeConverter;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.hadoop.OldApiWritableFileExtractor;
+import org.apache.gobblin.source.extractor.hadoop.OldApiWritableFileSource;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.Destination.DestinationType;
+import org.apache.gobblin.writer.HiveWritableHdfsDataWriter;
+import org.apache.gobblin.writer.HiveWritableHdfsDataWriterBuilder;
+import org.apache.gobblin.writer.WriterOutputFormat;
 
 
 /**

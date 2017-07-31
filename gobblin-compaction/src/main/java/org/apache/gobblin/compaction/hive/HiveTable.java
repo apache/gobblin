@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hive;
+package org.apache.gobblin.compaction.hive;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -27,7 +27,7 @@ import org.apache.commons.lang.StringUtils;
 
 import com.google.common.base.Splitter;
 
-import gobblin.util.HiveJdbcConnector;
+import org.apache.gobblin.util.HiveJdbcConnector;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.password;
+package org.apache.gobblin.password;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,8 +47,8 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.io.Closer;
 import com.google.common.io.LineReader;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 
 
 /**

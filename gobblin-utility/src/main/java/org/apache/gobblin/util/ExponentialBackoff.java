@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;

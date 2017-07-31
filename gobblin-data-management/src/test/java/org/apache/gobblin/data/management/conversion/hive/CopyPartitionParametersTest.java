@@ -1,4 +1,4 @@
-package gobblin.data.management.conversion.hive;
+package org.apache.gobblin.data.management.conversion.hive;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -12,8 +12,8 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher;
 
 
 /**

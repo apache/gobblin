@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.util.Collection;
 import java.util.Map;
@@ -28,10 +28,10 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.configuration.WorkUnitState.WorkingState;
-import gobblin.publisher.DataPublisher;
-import gobblin.source.workunit.Extract;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.source.workunit.Extract;
 
 /**
  * Utility class for {@link DataPublisher}.

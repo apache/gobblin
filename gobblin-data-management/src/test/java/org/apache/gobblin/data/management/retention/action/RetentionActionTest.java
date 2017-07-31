@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.action;
+package org.apache.gobblin.data.management.retention.action;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -22,7 +22,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.data.management.policy.SelectAfterTimeBasedPolicy;
+import org.apache.gobblin.data.management.policy.SelectAfterTimeBasedPolicy;
 
 
 @Test(groups = { "gobblin.data.management.retention" })

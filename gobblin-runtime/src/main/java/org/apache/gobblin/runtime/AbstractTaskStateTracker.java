@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.util.Properties;
 import java.util.concurrent.ScheduledFuture;
@@ -31,10 +31,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.runtime.fork.Fork;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.runtime.fork.Fork;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

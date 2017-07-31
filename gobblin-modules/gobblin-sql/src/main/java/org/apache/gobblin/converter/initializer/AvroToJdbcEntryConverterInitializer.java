@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.initializer;
+package org.apache.gobblin.converter.initializer;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -31,15 +31,15 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 
-import gobblin.configuration.State;
-import gobblin.converter.jdbc.AvroToJdbcEntryConverter;
-import gobblin.converter.jdbc.JdbcType;
-import gobblin.publisher.JdbcPublisher;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.util.jdbc.DataSourceBuilder;
-import gobblin.writer.commands.JdbcWriterCommands;
-import gobblin.writer.commands.JdbcWriterCommandsFactory;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.AvroToJdbcEntryConverter;
+import org.apache.gobblin.converter.jdbc.JdbcType;
+import org.apache.gobblin.publisher.JdbcPublisher;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.util.jdbc.DataSourceBuilder;
+import org.apache.gobblin.writer.commands.JdbcWriterCommands;
+import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
 
 
 /**

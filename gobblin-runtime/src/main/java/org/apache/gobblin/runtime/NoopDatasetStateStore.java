@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-import gobblin.annotation.Alias;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.DatasetStateStore;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;

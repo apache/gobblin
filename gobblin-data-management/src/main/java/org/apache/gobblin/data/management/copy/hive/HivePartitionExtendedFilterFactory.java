@@ -16,7 +16,7 @@
  */
 
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 
 import com.typesafe.config.Config;

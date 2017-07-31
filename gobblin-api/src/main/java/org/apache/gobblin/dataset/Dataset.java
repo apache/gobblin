@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.dataset;
+package org.apache.gobblin.dataset;
 
 /**
  * Interface representing a dataset.

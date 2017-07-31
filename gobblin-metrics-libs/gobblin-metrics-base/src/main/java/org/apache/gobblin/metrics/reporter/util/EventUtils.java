@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter.util;
+package org.apache.gobblin.metrics.reporter.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -28,7 +28,7 @@ import org.apache.avro.specific.SpecificDatumReader;
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
-import gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 
 /**

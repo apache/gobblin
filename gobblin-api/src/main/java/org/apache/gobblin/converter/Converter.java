@@ -15,24 +15,24 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.initializer.ConverterInitializer;
-import gobblin.converter.initializer.NoopConverterInitializer;
-import gobblin.stream.ControlMessage;
-import gobblin.records.ControlMessageHandler;
-import gobblin.records.RecordStreamProcessor;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.stream.RecordEnvelope;
-import gobblin.source.workunit.WorkUnitStream;
-import gobblin.stream.StreamEntity;
-import gobblin.util.FinalState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.initializer.ConverterInitializer;
+import org.apache.gobblin.converter.initializer.NoopConverterInitializer;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.RecordStreamProcessor;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.stream.StreamEntity;
+import org.apache.gobblin.util.FinalState;
 
 import io.reactivex.Flowable;
 

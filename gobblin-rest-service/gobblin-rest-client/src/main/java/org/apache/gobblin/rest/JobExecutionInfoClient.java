@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.rest;
+package org.apache.gobblin.rest;
 
 import java.io.Closeable;
 import java.io.IOException;

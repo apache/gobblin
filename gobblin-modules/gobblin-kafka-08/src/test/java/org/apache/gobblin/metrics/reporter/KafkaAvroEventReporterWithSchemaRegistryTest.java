@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -32,12 +32,12 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.kafka.KafkaAvroEventReporter;
-import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
-import gobblin.metrics.kafka.KafkaEventReporter;
-import gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter;
+import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 
 
 public class KafkaAvroEventReporterWithSchemaRegistryTest {

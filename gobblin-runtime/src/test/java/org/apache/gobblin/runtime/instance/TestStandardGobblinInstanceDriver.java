@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.instance;
+package org.apache.gobblin.runtime.instance;
 
 import java.util.HashSet;
 import java.util.List;
@@ -28,13 +28,13 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.annotation.Alias;
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.GobblinInstancePlugin;
-import gobblin.runtime.api.GobblinInstancePluginFactory;
-import gobblin.runtime.plugins.email.EmailNotificationPlugin;
-import gobblin.runtime.std.DefaultConfigurableImpl;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.GobblinInstancePlugin;
+import org.apache.gobblin.runtime.api.GobblinInstancePluginFactory;
+import org.apache.gobblin.runtime.plugins.email.EmailNotificationPlugin;
+import org.apache.gobblin.runtime.std.DefaultConfigurableImpl;
 
 import avro.shaded.com.google.common.collect.ImmutableMap;
 import lombok.AllArgsConstructor;

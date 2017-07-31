@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source;
+package org.apache.gobblin.source;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,14 +38,14 @@ import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.hadoop.HadoopFsHelper;
-import gobblin.util.DatePartitionType;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.source.extractor.hadoop.HadoopFsHelper;
+import org.apache.gobblin.util.DatePartitionType;
 
-import static gobblin.source.PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_PATTERN;
+import static org.apache.gobblin.source.PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_PATTERN;
 
 
 /**

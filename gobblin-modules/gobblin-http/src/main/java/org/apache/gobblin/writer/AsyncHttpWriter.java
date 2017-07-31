@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -25,13 +25,13 @@ import org.slf4j.LoggerFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.async.AsyncRequest;
-import gobblin.async.AsyncRequestBuilder;
-import gobblin.async.BufferedRecord;
-import gobblin.async.DispatchException;
-import gobblin.http.HttpClient;
-import gobblin.http.ResponseHandler;
-import gobblin.http.ResponseStatus;
+import org.apache.gobblin.async.AsyncRequest;
+import org.apache.gobblin.async.AsyncRequestBuilder;
+import org.apache.gobblin.async.BufferedRecord;
+import org.apache.gobblin.async.DispatchException;
+import org.apache.gobblin.http.HttpClient;
+import org.apache.gobblin.http.ResponseHandler;
+import org.apache.gobblin.http.ResponseStatus;
 
 
 /**

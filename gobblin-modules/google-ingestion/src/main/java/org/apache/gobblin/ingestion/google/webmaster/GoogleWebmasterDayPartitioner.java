@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.ingestion.google.webmaster;
+package org.apache.gobblin.ingestion.google.webmaster;
 
-import gobblin.configuration.State;
-import gobblin.ingestion.google.DayPartitioner;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.ingestion.google.DayPartitioner;
 
 
 public class GoogleWebmasterDayPartitioner extends DayPartitioner {

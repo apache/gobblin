@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
-import gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.JobState;
 
 public interface JobExecutionStatus {
   public static final String UKNOWN_STAGE = "unkown";

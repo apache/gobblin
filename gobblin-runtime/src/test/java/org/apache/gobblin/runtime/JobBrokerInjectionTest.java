@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.util.Queue;
 import java.util.Random;
@@ -31,33 +31,33 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Sets;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.ConfigView;
-import gobblin.broker.iface.NoSuchScopeException;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.ScopedConfigView;
-import gobblin.broker.iface.SharedResourceFactory;
-import gobblin.broker.iface.SharedResourceKey;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.JobExecutionDriver;
-import gobblin.runtime.api.JobExecutionResult;
-import gobblin.runtime.api.JobLifecycleListener;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.instance.StandardGobblinInstanceDriver;
-import gobblin.runtime.instance.StandardGobblinInstanceLauncher;
-import gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
-import gobblin.runtime.std.FilteredJobLifecycleListener;
-import gobblin.runtime.std.JobSpecFilter;
-import gobblin.writer.test.GobblinTestEventBusWriter;
-import gobblin.writer.test.TestingEventBusAsserter;
-import gobblin.writer.test.TestingEventBuses;
-import gobblin.broker.ResourceInstance;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.ConfigView;
+import org.apache.gobblin.broker.iface.NoSuchScopeException;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.ScopedConfigView;
+import org.apache.gobblin.broker.iface.SharedResourceFactory;
+import org.apache.gobblin.broker.iface.SharedResourceKey;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.JobExecutionDriver;
+import org.apache.gobblin.runtime.api.JobExecutionResult;
+import org.apache.gobblin.runtime.api.JobLifecycleListener;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.instance.StandardGobblinInstanceDriver;
+import org.apache.gobblin.runtime.instance.StandardGobblinInstanceLauncher;
+import org.apache.gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
+import org.apache.gobblin.runtime.std.FilteredJobLifecycleListener;
+import org.apache.gobblin.runtime.std.JobSpecFilter;
+import org.apache.gobblin.writer.test.GobblinTestEventBusWriter;
+import org.apache.gobblin.writer.test.TestingEventBusAsserter;
+import org.apache.gobblin.writer.test.TestingEventBuses;
+import org.apache.gobblin.broker.ResourceInstance;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

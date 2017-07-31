@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.records;
+package org.apache.gobblin.records;
 
 import java.util.function.Function;
 
-import gobblin.stream.RecordEnvelope;
-import gobblin.stream.StreamEntity;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.stream.StreamEntity;
 
 import io.reactivex.Flowable;
 import lombok.Data;

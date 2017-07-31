@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;

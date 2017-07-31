@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.graphite;
+package org.apache.gobblin.metrics.graphite;
 
 import java.io.Closeable;
 import java.io.IOException;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.tunnel;
+package org.apache.gobblin.tunnel;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -31,7 +31,7 @@ import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**

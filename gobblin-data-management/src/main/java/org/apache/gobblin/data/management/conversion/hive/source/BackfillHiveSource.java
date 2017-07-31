@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.source;
+package org.apache.gobblin.data.management.conversion.hive.source;
 
 import java.util.List;
 import java.util.Set;
@@ -26,9 +26,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
 
-import gobblin.configuration.SourceState;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

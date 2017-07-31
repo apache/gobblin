@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
-import gobblin.metastore.DatasetStateStore;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.util.ClassAliasResolver;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -48,13 +48,13 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.Tag;
-import gobblin.runtime.FsDatasetStateStore;
-import gobblin.runtime.JobException;
-import gobblin.runtime.JobState;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.FsDatasetStateStore;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

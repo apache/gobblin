@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.schemareg;
+package org.apache.gobblin.kafka.schemareg;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;

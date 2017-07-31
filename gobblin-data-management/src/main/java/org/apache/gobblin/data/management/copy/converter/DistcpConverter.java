@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.converter;
+package org.apache.gobblin.data.management.copy.converter;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -23,14 +23,14 @@ import java.util.List;
 
 import com.google.common.base.Function;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**

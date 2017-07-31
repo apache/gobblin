@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.writer;
+package org.apache.gobblin.kafka.writer;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -30,15 +30,15 @@ import org.testng.annotations.Test;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.kafka.KafkaTestBase;
-import gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
-import gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
-import gobblin.kafka.schemareg.SchemaRegistryException;
-import gobblin.kafka.serialize.LiAvroDeserializer;
-import gobblin.kafka.serialize.LiAvroDeserializerBase;
-import gobblin.test.TestUtils;
-import gobblin.writer.WriteCallback;
-import gobblin.writer.WriteResponse;
+import org.apache.gobblin.kafka.KafkaTestBase;
+import org.apache.gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
+import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
+import org.apache.gobblin.kafka.serialize.LiAvroDeserializer;
+import org.apache.gobblin.kafka.serialize.LiAvroDeserializerBase;
+import org.apache.gobblin.test.TestUtils;
+import org.apache.gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteResponse;
 
 import static org.mockito.Mockito.*;
 

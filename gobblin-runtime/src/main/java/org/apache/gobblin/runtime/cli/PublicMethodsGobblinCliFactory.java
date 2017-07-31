@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.cli;
+package org.apache.gobblin.runtime.cli;
 
 import java.io.IOException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.embedded.EmbeddedGobblin;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 
 
 /**

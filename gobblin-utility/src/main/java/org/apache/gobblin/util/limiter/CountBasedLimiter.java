@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.io.Closeable;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alias;
+import org.apache.gobblin.annotation.Alias;
 
 import lombok.AccessLevel;
 import lombok.Getter;

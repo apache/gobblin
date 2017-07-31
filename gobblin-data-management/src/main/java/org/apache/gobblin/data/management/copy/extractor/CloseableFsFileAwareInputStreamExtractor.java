@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.extractor;
+package org.apache.gobblin.data.management.copy.extractor;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem;
 
 import java.io.IOException;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.jdbc;
+package org.apache.gobblin.converter.jdbc;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -45,17 +45,17 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.converter.initializer.AvroToJdbcEntryConverterInitializer;
-import gobblin.converter.initializer.ConverterInitializer;
-import gobblin.source.workunit.WorkUnitStream;
-import gobblin.writer.commands.JdbcWriterCommandsFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.converter.initializer.AvroToJdbcEntryConverterInitializer;
+import org.apache.gobblin.converter.initializer.ConverterInitializer;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
 
 
 /**

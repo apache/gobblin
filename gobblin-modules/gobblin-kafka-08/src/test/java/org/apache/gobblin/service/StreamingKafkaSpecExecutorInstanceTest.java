@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,15 +35,15 @@ import org.testng.annotations.Test;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.kafka.writer.KafkaWriterConfigurationKeys;
-import gobblin.metrics.reporter.KafkaTestBase;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstance;
-import gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
-import gobblin.util.ConfigUtils;
-import gobblin.writer.WriteResponse;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
+import org.apache.gobblin.metrics.reporter.KafkaTestBase;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutorInstance;
+import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.WriteResponse;
 import lombok.extern.slf4j.Slf4j;
 
 

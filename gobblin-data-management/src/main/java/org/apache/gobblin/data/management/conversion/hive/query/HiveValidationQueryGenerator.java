@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.conversion.hive.query;
+package org.apache.gobblin.data.management.conversion.hive.query;
 
 import java.util.List;
 
@@ -30,8 +30,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
 
 
 /***

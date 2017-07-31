@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.dataset;
+package org.apache.gobblin.compaction.dataset;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -33,9 +33,9 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.State;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 
 /**

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.config.store.hdfs;
+package org.apache.gobblin.config.store.hdfs;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,19 +52,19 @@ import com.typesafe.config.ConfigFactory;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
-import gobblin.config.store.api.ConfigStoreWithStableVersioning;
-import gobblin.config.store.api.VersionDoesNotExistException;
-import gobblin.config.store.deploy.ConfigStream;
-import gobblin.config.store.deploy.Deployable;
-import gobblin.config.store.deploy.DeployableConfigSource;
-import gobblin.config.store.deploy.FsDeploymentConfig;
-import gobblin.util.FileListUtils;
-import gobblin.util.PathUtils;
-import gobblin.util.io.SeekableFSInputStream;
-import gobblin.util.io.StreamUtils;
+import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.store.api.ConfigStoreWithStableVersioning;
+import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
+import org.apache.gobblin.config.store.deploy.ConfigStream;
+import org.apache.gobblin.config.store.deploy.Deployable;
+import org.apache.gobblin.config.store.deploy.DeployableConfigSource;
+import org.apache.gobblin.config.store.deploy.FsDeploymentConfig;
+import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.io.SeekableFSInputStream;
+import org.apache.gobblin.util.io.StreamUtils;
 
 
 /**

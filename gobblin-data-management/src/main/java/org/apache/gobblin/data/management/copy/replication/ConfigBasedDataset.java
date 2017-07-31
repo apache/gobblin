@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -36,16 +36,16 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.entities.PostPublishStep;
-import gobblin.data.management.copy.entities.PrePublishStep;
-import gobblin.data.management.dataset.DatasetUtils;
-import gobblin.util.HadoopUtils;
-import gobblin.util.PathUtils;
-import gobblin.util.commit.DeleteFileCommitStep;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableDataset;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import lombok.extern.slf4j.Slf4j;
 
 

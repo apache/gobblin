@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.cli;
+package org.apache.gobblin.cli;
 
 /**
  * Represents a single command for the CLI

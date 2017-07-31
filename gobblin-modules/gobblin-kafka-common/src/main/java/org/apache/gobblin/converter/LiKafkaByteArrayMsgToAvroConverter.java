@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.IOException;
 
@@ -24,14 +24,14 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.kafka.schemareg.KafkaSchemaRegistry;
-import gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
-import gobblin.kafka.schemareg.SchemaRegistryException;
-import gobblin.kafka.serialize.LiAvroDeserializerBase;
-import gobblin.kafka.serialize.SerializationException;
-import gobblin.source.extractor.extract.kafka.KafkaSource;
-import gobblin.util.EmptyIterable;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
+import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
+import org.apache.gobblin.kafka.serialize.LiAvroDeserializerBase;
+import org.apache.gobblin.kafka.serialize.SerializationException;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
+import org.apache.gobblin.util.EmptyIterable;
 
 import lombok.extern.slf4j.Slf4j;
 

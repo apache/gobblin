@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -24,9 +24,9 @@ import static org.mockito.Mockito.verify;
 import com.google.common.collect.Lists;
 import org.testng.annotations.Test;
 
-import gobblin.runtime.listeners.CloseableJobListener;
-import gobblin.runtime.listeners.JobListener;
-import gobblin.runtime.listeners.JobListeners;
+import org.apache.gobblin.runtime.listeners.CloseableJobListener;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.listeners.JobListeners;
 
 
 @Test(groups = {"gobblin.runtime"})

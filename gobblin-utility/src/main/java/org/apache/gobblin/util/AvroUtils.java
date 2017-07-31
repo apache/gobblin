@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;

@@ -20,7 +20,7 @@
  *
  * In Pull mode, query multiple data sources and pick the data source with the highest watermark
  */
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -29,8 +29,8 @@ import java.util.List;
 
 import com.google.common.base.Optional;
 
-import gobblin.annotation.Alias;
-import gobblin.source.extractor.ComparableWatermark;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.source.extractor.ComparableWatermark;
 
 
 /**

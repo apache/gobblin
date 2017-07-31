@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.objectstore;
+package org.apache.gobblin.writer.objectstore;
 
 import java.io.IOException;
 
@@ -28,8 +28,8 @@ import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.annotation.Alpha;
-import gobblin.writer.objectstore.response.DeleteResponse;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.writer.objectstore.response.DeleteResponse;
 
 /**
  * An {@link ObjectStoreOperation} that deletes an object with <code>objectId</code> in the object store.

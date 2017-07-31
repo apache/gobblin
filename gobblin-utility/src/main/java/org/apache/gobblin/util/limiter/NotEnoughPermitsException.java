@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.io.IOException;
 
-import gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.Limiter;
 
 
 /**

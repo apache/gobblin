@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.common.impl;
+package org.apache.gobblin.config.common.impl;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -30,10 +30,10 @@ import com.typesafe.config.ConfigFactory;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
-import gobblin.config.store.api.ConfigStoreWithBatchFetches;
-import gobblin.config.store.api.ConfigStoreWithResolution;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.store.api.ConfigStoreWithBatchFetches;
+import org.apache.gobblin.config.store.api.ConfigStoreWithResolution;
 
 
 /**

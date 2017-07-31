@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.kafka;
+package org.apache.gobblin.runtime.kafka;
 
 import java.util.List;
 
@@ -26,8 +26,8 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.runtime.job_monitor.MockKafkaStream;
-import gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.runtime.job_monitor.MockKafkaStream;
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 import javax.annotation.Nullable;
 import kafka.consumer.ConsumerConfig;

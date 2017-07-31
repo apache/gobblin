@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.conditions;
+package org.apache.gobblin.compaction.conditions;
 
 
 import java.lang.reflect.InvocationTargetException;
@@ -25,12 +25,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableList;
 
-import gobblin.annotation.Alias;
-import gobblin.compaction.dataset.DatasetHelper;
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.azkaban;
+package org.apache.gobblin.azkaban;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,22 +43,22 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.RootMetricContext;
-import gobblin.metrics.Tag;
-import gobblin.runtime.JobException;
-import gobblin.runtime.JobLauncher;
-import gobblin.runtime.JobLauncherFactory;
-import gobblin.runtime.app.ApplicationException;
-import gobblin.runtime.app.ApplicationLauncher;
-import gobblin.runtime.app.ServiceBasedAppLauncher;
-import gobblin.runtime.listeners.EmailNotificationJobListener;
-import gobblin.runtime.listeners.JobListener;
-import gobblin.util.HadoopUtils;
-import gobblin.util.TimeRangeChecker;
-import gobblin.util.hadoop.TokenUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobLauncherFactory;
+import org.apache.gobblin.runtime.app.ApplicationException;
+import org.apache.gobblin.runtime.app.ApplicationLauncher;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.runtime.listeners.EmailNotificationJobListener;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.TimeRangeChecker;
+import org.apache.gobblin.util.hadoop.TokenUtils;
 
 import azkaban.jobExecutor.AbstractJob;
 import javax.annotation.Nullable;

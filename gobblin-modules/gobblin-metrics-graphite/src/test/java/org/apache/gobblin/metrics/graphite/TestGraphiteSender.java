@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.graphite;
+package org.apache.gobblin.metrics.graphite;
 
-import gobblin.metrics.test.TimestampedValue;
+import org.apache.gobblin.metrics.test.TimestampedValue;
 
 import java.io.IOException;
 import java.util.Map;

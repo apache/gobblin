@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -23,12 +23,12 @@ import java.util.Iterator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.reporter.util.EventUtils;
-import gobblin.metrics.kafka.KafkaAvroEventReporter;
-import gobblin.metrics.kafka.KafkaEventReporter;
-import gobblin.metrics.kafka.KafkaPusher;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.reporter.util.EventUtils;
+import org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter;
+import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
+import org.apache.gobblin.metrics.kafka.KafkaPusher;
 
 
 @Test(groups = {"gobblin.metrics"})

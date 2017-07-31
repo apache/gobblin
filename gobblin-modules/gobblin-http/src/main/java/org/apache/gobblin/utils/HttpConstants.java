@@ -1,4 +1,4 @@
-package gobblin.utils;
+package org.apache.gobblin.utils;
 
 public class HttpConstants {
   /** Configuration keys */

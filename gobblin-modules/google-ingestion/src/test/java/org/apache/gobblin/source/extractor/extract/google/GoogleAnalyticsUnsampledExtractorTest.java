@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.google;
+package org.apache.gobblin.source.extractor.extract.google;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -34,11 +34,11 @@ import com.google.api.services.analytics.Analytics.Management.UnsampledReports.G
 import com.google.api.services.analytics.model.UnsampledReport;
 import com.google.api.services.analytics.model.UnsampledReport.DriveDownloadDetails;
 
-import static gobblin.retry.RetryerFactory.*;
-import static gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledExtractor.*;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
-import gobblin.writer.exception.NonTransientException;
+import static org.apache.gobblin.retry.RetryerFactory.*;
+import static org.apache.gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledExtractor.*;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.writer.exception.NonTransientException;
 
 @Test(groups = { "gobblin.source.extractor.google" })
 public class GoogleAnalyticsUnsampledExtractorTest {

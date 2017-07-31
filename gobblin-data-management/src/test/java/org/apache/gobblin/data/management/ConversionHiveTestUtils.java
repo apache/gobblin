@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management;
+package org.apache.gobblin.data.management;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,9 +25,9 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 
 
 public class ConversionHiveTestUtils {

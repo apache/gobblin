@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.event;
+package org.apache.gobblin.metrics.event;
 
 import java.util.Map;
 

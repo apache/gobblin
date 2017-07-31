@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.async;
+package org.apache.gobblin.async;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import gobblin.async.Callback;
+import org.apache.gobblin.async.Callback;
 
 
 /**

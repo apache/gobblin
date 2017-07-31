@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.metadata;
+package org.apache.gobblin.metadata;
 
-import gobblin.writer.FsWriterMetrics;
+import org.apache.gobblin.writer.FsWriterMetrics;
 
 
 /**

@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.suite;
+package org.apache.gobblin.compaction.suite;
 
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 /**
  * Build {@link CompactionSuite} for a job execution

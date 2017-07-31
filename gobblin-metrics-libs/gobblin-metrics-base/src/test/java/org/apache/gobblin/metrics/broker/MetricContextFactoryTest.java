@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.broker;
+package org.apache.gobblin.metrics.broker;
 
 import java.util.Map;
 
@@ -26,12 +26,12 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.BrokerConfigurationKeyGenerator;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SimpleScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.broker.BrokerConfigurationKeyGenerator;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.SimpleScopeType;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 
 
 public class MetricContextFactoryTest {

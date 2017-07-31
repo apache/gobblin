@@ -1,10 +1,10 @@
-package gobblin.source.extractor.partition;
+package org.apache.gobblin.source.extractor.partition;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.source.Source;
-import gobblin.source.extractor.WatermarkInterval;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.WatermarkInterval;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

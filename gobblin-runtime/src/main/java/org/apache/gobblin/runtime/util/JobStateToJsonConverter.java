@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.util;
+package org.apache.gobblin.runtime.util;
 
 import java.io.BufferedWriter;
 import java.io.FileOutputStream;
@@ -42,11 +42,11 @@ import org.slf4j.LoggerFactory;
 import com.google.common.io.Closer;
 import com.google.gson.stream.JsonWriter;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.StateStore;
-import gobblin.runtime.FsDatasetStateStore;
-import gobblin.runtime.JobState;
-import gobblin.util.JobConfigurationUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.runtime.FsDatasetStateStore;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.util.JobConfigurationUtils;
 
 
 /**

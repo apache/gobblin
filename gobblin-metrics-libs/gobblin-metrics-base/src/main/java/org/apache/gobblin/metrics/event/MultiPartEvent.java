@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.event;
+package org.apache.gobblin.metrics.event;
 
-import static gobblin.metrics.event.JobEvent.JOB_STATE;
-import static gobblin.metrics.event.JobEvent.METADATA_JOB_COMPLETED_TASKS;
-import static gobblin.metrics.event.JobEvent.METADATA_JOB_END_TIME;
-import static gobblin.metrics.event.JobEvent.METADATA_JOB_LAUNCHED_TASKS;
-import static gobblin.metrics.event.JobEvent.METADATA_JOB_START_TIME;
-import static gobblin.metrics.event.JobEvent.METADATA_JOB_STATE;
-import static gobblin.metrics.event.TaskEvent.METADATA_TASK_END_TIME;
-import static gobblin.metrics.event.TaskEvent.METADATA_TASK_START_TIME;
-import static gobblin.metrics.event.TaskEvent.METADATA_TASK_WORKING_STATE;
-import static gobblin.metrics.event.TaskEvent.TASK_STATE;
-import static gobblin.metrics.event.TimingEvent.METADATA_DURATION;
-import static gobblin.metrics.event.TimingEvent.METADATA_END_TIME;
-import static gobblin.metrics.event.TimingEvent.METADATA_START_TIME;
-import static gobblin.metrics.event.TimingEvent.METADATA_TIMING_EVENT;
+import static org.apache.gobblin.metrics.event.JobEvent.JOB_STATE;
+import static org.apache.gobblin.metrics.event.JobEvent.METADATA_JOB_COMPLETED_TASKS;
+import static org.apache.gobblin.metrics.event.JobEvent.METADATA_JOB_END_TIME;
+import static org.apache.gobblin.metrics.event.JobEvent.METADATA_JOB_LAUNCHED_TASKS;
+import static org.apache.gobblin.metrics.event.JobEvent.METADATA_JOB_START_TIME;
+import static org.apache.gobblin.metrics.event.JobEvent.METADATA_JOB_STATE;
+import static org.apache.gobblin.metrics.event.TaskEvent.METADATA_TASK_END_TIME;
+import static org.apache.gobblin.metrics.event.TaskEvent.METADATA_TASK_START_TIME;
+import static org.apache.gobblin.metrics.event.TaskEvent.METADATA_TASK_WORKING_STATE;
+import static org.apache.gobblin.metrics.event.TaskEvent.TASK_STATE;
+import static org.apache.gobblin.metrics.event.TimingEvent.METADATA_DURATION;
+import static org.apache.gobblin.metrics.event.TimingEvent.METADATA_END_TIME;
+import static org.apache.gobblin.metrics.event.TimingEvent.METADATA_START_TIME;
+import static org.apache.gobblin.metrics.event.TimingEvent.METADATA_TIMING_EVENT;
 
 import java.util.Map;
 

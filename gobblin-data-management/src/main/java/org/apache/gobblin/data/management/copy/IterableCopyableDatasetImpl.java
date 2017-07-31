@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
-import gobblin.data.management.partition.FileSet;
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.dataset.Dataset;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;

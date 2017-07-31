@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction;
+package org.apache.gobblin.compaction;
 
 import java.util.List;
 import java.util.Properties;
@@ -25,8 +25,8 @@ import com.google.common.base.Optional;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
-import gobblin.compaction.listeners.CompactorListener;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.compaction.listeners.CompactorListener;
+import org.apache.gobblin.metrics.Tag;
 
 
 /**

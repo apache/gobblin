@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.configuration;
+package org.apache.gobblin.configuration;
 
-import gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.Extract;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -28,7 +28,7 @@ import java.io.IOException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 public class WorkUnitStateTest {

@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.source.jdbc;
+package org.apache.gobblin.source.jdbc;
 
-import gobblin.source.extractor.extract.CommandType;
+import org.apache.gobblin.source.extractor.extract.CommandType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 import com.google.common.base.Joiner;
-import gobblin.source.extractor.extract.Command;
+import org.apache.gobblin.source.extractor.extract.Command;
 
 
 /**

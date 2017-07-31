@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.context.filter;
+package org.apache.gobblin.metrics.context.filter;
 
 import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
 
-import gobblin.metrics.InnerMetricContext;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.InnerMetricContext;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.RootMetricContext;
 
 
 /**

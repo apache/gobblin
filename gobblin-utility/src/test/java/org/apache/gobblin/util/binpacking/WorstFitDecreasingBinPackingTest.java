@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.binpacking;
+package org.apache.gobblin.util.binpacking;
 
 import java.util.List;
 
@@ -24,10 +24,10 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.source.workunit.WorkUnitWeighter;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnitWeighter;
 
 
 public class WorstFitDecreasingBinPackingTest {

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.crypto;
+package org.apache.gobblin.crypto;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -46,9 +46,9 @@ import com.google.gson.GsonBuilder;
 import javax.xml.bind.DatatypeConverter;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.annotation.Alias;
-import gobblin.crypto.JCEKSKeystoreCredentialStore;
-import gobblin.runtime.cli.CliApplication;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.crypto.JCEKSKeystoreCredentialStore;
+import org.apache.gobblin.runtime.cli.CliApplication;
 
 
 @Alias(value = "keystore", description = "Examine JCE Keystore files")

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.spec_executorInstance;
+package org.apache.gobblin.runtime.spec_executorInstance;
 
 import java.io.Serializable;
 import java.net.URI;
@@ -36,11 +36,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
-import gobblin.util.CompletedFuture;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
+import org.apache.gobblin.util.CompletedFuture;
 
 
 public class InMemorySpecExecutorInstanceProducer implements SpecExecutorInstanceProducer<Spec>, Serializable {

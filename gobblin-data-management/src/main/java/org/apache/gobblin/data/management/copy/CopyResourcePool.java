@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 
-import gobblin.util.StringParsingUtils;
-import gobblin.util.request_allocation.ResourcePool;
-import gobblin.util.request_allocation.ResourceRequirement;
+import org.apache.gobblin.util.StringParsingUtils;
+import org.apache.gobblin.util.request_allocation.ResourcePool;
+import org.apache.gobblin.util.request_allocation.ResourceRequirement;
 
 import lombok.Singular;
 

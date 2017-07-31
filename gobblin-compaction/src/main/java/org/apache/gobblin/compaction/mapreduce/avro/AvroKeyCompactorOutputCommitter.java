@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce.avro;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -31,7 +31,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.util.recordcount.CompactionRecordCountProvider;
+import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
 
 
 /**

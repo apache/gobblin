@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.util.List;
 
 import com.google.common.base.Optional;
-import gobblin.annotation.Alias;
+import org.apache.gobblin.annotation.Alias;
 
 /**
  * In Pull mode, Optimized for network bandwidth : pick the first available data source

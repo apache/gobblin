@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.net.URL;
@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

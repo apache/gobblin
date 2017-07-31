@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.util.Collections;
 import java.util.List;
@@ -24,12 +24,12 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.codec.StreamCodec;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.AvroUtils;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.util.WriterUtils;
+import org.apache.gobblin.codec.StreamCodec;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.util.WriterUtils;
 
 
 /**

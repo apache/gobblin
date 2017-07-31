@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.dataset;
+package org.apache.gobblin.data.management.retention.dataset;
 
-import gobblin.dataset.Dataset;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 import java.io.IOException;
 

@@ -15,20 +15,20 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.dataset;
+package org.apache.gobblin.data.management.dataset;
 
 import com.typesafe.config.Config;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import gobblin.annotation.Alias;
-import gobblin.dataset.Dataset;
-import gobblin.util.request_allocation.Request;
-import gobblin.util.request_allocation.Requestor;
-import gobblin.util.request_allocation.ResourceEstimator;
-import gobblin.util.request_allocation.ResourcePool;
-import gobblin.util.request_allocation.ResourceRequirement;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.util.request_allocation.Request;
+import org.apache.gobblin.util.request_allocation.Requestor;
+import org.apache.gobblin.util.request_allocation.ResourceEstimator;
+import org.apache.gobblin.util.request_allocation.ResourcePool;
+import org.apache.gobblin.util.request_allocation.ResourceRequirement;
 
 /**
  * A simple {@link Request} which represents a {@link Dataset}

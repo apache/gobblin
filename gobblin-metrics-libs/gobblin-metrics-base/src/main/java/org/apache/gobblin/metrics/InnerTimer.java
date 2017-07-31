@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.lang.ref.WeakReference;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 
-import gobblin.metrics.metric.InnerMetric;
+import org.apache.gobblin.metrics.metric.InnerMetric;
 
 
 /**

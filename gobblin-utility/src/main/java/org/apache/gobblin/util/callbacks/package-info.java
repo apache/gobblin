@@ -60,4 +60,4 @@
  *
  * </dl>
  */
-package gobblin.util.callbacks;
+package org.apache.gobblin.util.callbacks;

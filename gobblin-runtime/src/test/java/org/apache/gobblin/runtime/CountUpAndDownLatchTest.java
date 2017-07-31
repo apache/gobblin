@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;

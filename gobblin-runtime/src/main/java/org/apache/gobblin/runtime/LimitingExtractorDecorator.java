@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.List;
@@ -27,15 +27,15 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.runtime.util.TaskMetrics;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.limiter.LimiterConfigurationKeys;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.Decorator;
-import gobblin.util.limiter.Limiter;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.runtime.util.TaskMetrics;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.limiter.LimiterConfigurationKeys;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.util.limiter.Limiter;
 
 
 /**

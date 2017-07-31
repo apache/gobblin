@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.crypto;
+package org.apache.gobblin.crypto;
 
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -42,8 +42,8 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 
-import gobblin.codec.Base64Codec;
-import gobblin.codec.StreamCodec;
+import org.apache.gobblin.codec.Base64Codec;
+import org.apache.gobblin.codec.StreamCodec;
 
 
 /**

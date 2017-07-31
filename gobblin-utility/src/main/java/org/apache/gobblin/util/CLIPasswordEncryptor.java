@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,7 +34,7 @@ import org.jasypt.util.text.TextEncryptor;
 
 import com.google.common.base.Optional;
 
-import gobblin.password.PasswordManager;
+import org.apache.gobblin.password.PasswordManager;
 
 
 /**

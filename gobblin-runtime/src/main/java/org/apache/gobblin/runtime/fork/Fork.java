@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime.fork;
+package org.apache.gobblin.runtime.fork;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -26,41 +26,41 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
-import gobblin.Constructs;
-import gobblin.commit.SpeculativeAttemptAwareConstruct;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.Tag;
-import gobblin.publisher.TaskPublisher;
-import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
-import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
-import gobblin.records.RecordStreamConsumer;
-import gobblin.records.RecordStreamProcessor;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.runtime.BoundedBlockingRecordQueue;
-import gobblin.runtime.ExecutionModel;
-import gobblin.runtime.MultiConverter;
-import gobblin.runtime.Task;
-import gobblin.runtime.TaskContext;
-import gobblin.runtime.TaskExecutor;
-import gobblin.runtime.TaskState;
-import gobblin.runtime.util.TaskMetrics;
-import gobblin.stream.ControlMessage;
-import gobblin.stream.RecordEnvelope;
-import gobblin.state.ConstructState;
-import gobblin.util.FinalState;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
-import gobblin.writer.DataWriterWrapperBuilder;
-import gobblin.writer.Destination;
-import gobblin.writer.PartitionedDataWriter;
-import gobblin.writer.WatermarkAwareWriter;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.publisher.TaskPublisher;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
+import org.apache.gobblin.records.RecordStreamConsumer;
+import org.apache.gobblin.records.RecordStreamProcessor;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.runtime.BoundedBlockingRecordQueue;
+import org.apache.gobblin.runtime.ExecutionModel;
+import org.apache.gobblin.runtime.MultiConverter;
+import org.apache.gobblin.runtime.Task;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.TaskExecutor;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.util.TaskMetrics;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.state.ConstructState;
+import org.apache.gobblin.util.FinalState;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.writer.DataWriterWrapperBuilder;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.PartitionedDataWriter;
+import org.apache.gobblin.writer.WatermarkAwareWriter;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 

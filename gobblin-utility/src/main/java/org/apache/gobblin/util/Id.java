@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.lang.ref.WeakReference;
 
 import com.codahale.metrics.Gauge;
 
-import gobblin.metrics.metric.InnerMetric;
+import org.apache.gobblin.metrics.metric.InnerMetric;
 
 
 /**

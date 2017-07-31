@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
-import gobblin.data.management.retention.version.finder.UnixTimestampVersionFinder;
-import gobblin.data.management.retention.version.finder.WatermarkDatasetVersionFinder;
+import org.apache.gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import org.apache.gobblin.data.management.retention.version.finder.UnixTimestampVersionFinder;
+import org.apache.gobblin.data.management.retention.version.finder.WatermarkDatasetVersionFinder;
 
 import java.util.Properties;
 

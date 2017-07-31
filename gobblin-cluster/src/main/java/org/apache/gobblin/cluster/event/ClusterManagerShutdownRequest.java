@@ -16,9 +16,9 @@
  */
 
 
-package gobblin.cluster.event;
+package org.apache.gobblin.cluster.event;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

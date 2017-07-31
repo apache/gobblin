@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
 import java.util.Properties;
 
@@ -23,8 +23,8 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.data.management.retention.version.StringDatasetVersion;
-import gobblin.data.management.retention.version.finder.WatermarkDatasetVersionFinder;
+import org.apache.gobblin.data.management.retention.version.StringDatasetVersion;
+import org.apache.gobblin.data.management.retention.version.finder.WatermarkDatasetVersionFinder;
 
 
 public class WatermarkDatasetVersionFinderTest {

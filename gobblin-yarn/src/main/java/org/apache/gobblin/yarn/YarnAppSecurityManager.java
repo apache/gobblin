@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.yarn;
+package org.apache.gobblin.yarn;
 
-import gobblin.cluster.GobblinHelixMessagingService;
+import org.apache.gobblin.cluster.GobblinHelixMessagingService;
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
@@ -51,7 +51,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.typesafe.config.Config;
 
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

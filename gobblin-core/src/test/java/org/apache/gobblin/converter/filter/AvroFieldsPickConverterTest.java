@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.converter.filter;
+package org.apache.gobblin.converter.filter;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.SchemaConversionException;
 
 import org.apache.avro.Schema;
 import org.skyscreamer.jsonassert.JSONAssert;

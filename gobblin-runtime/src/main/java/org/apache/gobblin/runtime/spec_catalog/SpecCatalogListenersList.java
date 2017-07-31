@@ -49,7 +49,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.spec_catalog;
+package org.apache.gobblin.runtime.spec_catalog;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -63,10 +63,10 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.runtime.api.SpecCatalogListener;
-import gobblin.runtime.api.SpecCatalogListenersContainer;
-import gobblin.runtime.api.Spec;
-import gobblin.util.callbacks.CallbacksDispatcher;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
+import org.apache.gobblin.runtime.api.SpecCatalogListenersContainer;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 
 public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalogListenersContainer, Closeable {

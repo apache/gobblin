@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.codec;
+package org.apache.gobblin.codec;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

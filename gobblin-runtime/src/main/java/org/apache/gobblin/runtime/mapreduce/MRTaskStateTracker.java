@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.mapreduce;
+package org.apache.gobblin.runtime.mapreduce;
 
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
@@ -31,13 +31,13 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.runtime.AbstractTaskStateTracker;
-import gobblin.runtime.Task;
-import gobblin.runtime.util.JobMetrics;
-import gobblin.runtime.util.MetricGroup;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.runtime.AbstractTaskStateTracker;
+import org.apache.gobblin.runtime.Task;
+import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.runtime.util.MetricGroup;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

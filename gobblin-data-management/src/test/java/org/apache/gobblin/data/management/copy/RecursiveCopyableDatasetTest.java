@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -37,10 +37,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import gobblin.commit.CommitStep;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.copy.entities.CommitStepCopyEntity;
-import gobblin.util.commit.DeleteFileCommitStep;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.copy.entities.CommitStepCopyEntity;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
 import avro.shaded.com.google.common.base.Predicate;
 import avro.shaded.com.google.common.collect.Iterables;

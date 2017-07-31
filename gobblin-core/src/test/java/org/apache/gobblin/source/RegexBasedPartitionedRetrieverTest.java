@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source;
+package org.apache.gobblin.source;
 
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -30,8 +30,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
 
 
 public class RegexBasedPartitionedRetrieverTest {

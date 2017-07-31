@@ -15,28 +15,28 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter.broker;
+package org.apache.gobblin.util.limiter.broker;
 
 import java.util.Collection;
 
 import com.typesafe.config.Config;
 
-import gobblin.broker.ResourceInstance;
-import gobblin.broker.iface.ConfigView;
-import gobblin.broker.iface.NoSuchScopeException;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.ScopedConfigView;
-import gobblin.broker.iface.SharedResourceFactory;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.broker.iface.SharedResourceFactoryResponse;
-import gobblin.broker.ResourceCoordinate;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.LimiterFactory;
-import gobblin.util.limiter.MultiLimiter;
-import gobblin.util.limiter.NoopLimiter;
+import org.apache.gobblin.broker.ResourceInstance;
+import org.apache.gobblin.broker.iface.ConfigView;
+import org.apache.gobblin.broker.iface.NoSuchScopeException;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.ScopedConfigView;
+import org.apache.gobblin.broker.iface.SharedResourceFactory;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
+import org.apache.gobblin.broker.ResourceCoordinate;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.LimiterFactory;
+import org.apache.gobblin.util.limiter.MultiLimiter;
+import org.apache.gobblin.util.limiter.NoopLimiter;
 
 import lombok.extern.slf4j.Slf4j;
 

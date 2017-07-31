@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package gobblin.type;
+package org.apache.gobblin.type;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.metadata.types.Metadata;
+import org.apache.gobblin.metadata.types.Metadata;
 
 
 /**

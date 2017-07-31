@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.cli;
+package org.apache.gobblin.cli;
 
 import com.google.common.base.Optional;
 import com.linkedin.data.template.StringMap;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.MetricNames;
-import gobblin.rest.*;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.MetricNames;
+import org.apache.gobblin.rest.*;
 import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;

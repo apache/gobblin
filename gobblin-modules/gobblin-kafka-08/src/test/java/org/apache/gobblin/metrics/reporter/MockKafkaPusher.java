@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -26,8 +26,8 @@ import com.google.common.collect.Queues;
 
 import kafka.producer.ProducerConfig;
 
-import gobblin.metrics.kafka.KafkaPusher;
-import gobblin.metrics.kafka.ProducerCloseable;
+import org.apache.gobblin.metrics.kafka.KafkaPusher;
+import org.apache.gobblin.metrics.kafka.ProducerCloseable;
 
 
 /**

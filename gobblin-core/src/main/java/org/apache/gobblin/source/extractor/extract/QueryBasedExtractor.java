@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract;
+package org.apache.gobblin.source.extractor.extract;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,24 +33,24 @@ import com.google.gson.JsonObject;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.exception.ExtractPrepareException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.exception.RecordCountException;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.extractor.partition.Partition;
-import gobblin.source.extractor.schema.ArrayDataType;
-import gobblin.source.extractor.schema.DataType;
-import gobblin.source.extractor.schema.EnumDataType;
-import gobblin.source.extractor.schema.MapDataType;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkPredicate;
-import gobblin.source.extractor.watermark.WatermarkType;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
+import org.apache.gobblin.source.extractor.exception.HighWatermarkException;
+import org.apache.gobblin.source.extractor.exception.RecordCountException;
+import org.apache.gobblin.source.extractor.exception.SchemaException;
+import org.apache.gobblin.source.extractor.partition.Partition;
+import org.apache.gobblin.source.extractor.schema.ArrayDataType;
+import org.apache.gobblin.source.extractor.schema.DataType;
+import org.apache.gobblin.source.extractor.schema.EnumDataType;
+import org.apache.gobblin.source.extractor.schema.MapDataType;
+import org.apache.gobblin.source.extractor.utils.Utils;
+import org.apache.gobblin.source.extractor.watermark.Predicate;
+import org.apache.gobblin.source.extractor.watermark.WatermarkPredicate;
+import org.apache.gobblin.source.extractor.watermark.WatermarkType;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

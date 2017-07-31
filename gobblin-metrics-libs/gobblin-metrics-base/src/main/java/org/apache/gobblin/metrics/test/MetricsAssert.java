@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.metrics.test;
+package org.apache.gobblin.metrics.test;
 
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -25,10 +25,10 @@ import javax.annotation.Nonnull;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.notification.EventNotification;
-import gobblin.metrics.notification.Notification;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.notification.EventNotification;
+import org.apache.gobblin.metrics.notification.Notification;
 
 /**
  * A class to help with testing metrics. It provides asserts on a {@link MetricContext}

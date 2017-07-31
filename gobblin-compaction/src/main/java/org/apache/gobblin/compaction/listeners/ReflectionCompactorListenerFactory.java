@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.listeners;
+package org.apache.gobblin.compaction.listeners;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +27,7 @@ import com.google.common.base.Strings;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

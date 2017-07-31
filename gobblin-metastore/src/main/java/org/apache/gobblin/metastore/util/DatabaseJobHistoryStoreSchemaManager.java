@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.util;
+package org.apache.gobblin.metastore.util;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -36,7 +36,7 @@ import org.flywaydb.core.api.MigrationInfoService;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.internal.info.MigrationInfoDumper;
 
-import gobblin.metastore.DatabaseJobHistoryStore;
+import org.apache.gobblin.metastore.DatabaseJobHistoryStore;
 
 
 /**

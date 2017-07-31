@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.http;
+package org.apache.gobblin.writer.http;
 
 import java.io.IOException;
 import java.net.URI;
@@ -41,8 +41,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
-import gobblin.instrumented.writer.InstrumentedDataWriter;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.instrumented.writer.InstrumentedDataWriter;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 /**
  * Base class for HTTP writers. Defines the main extension points for different implementations.
@@ -103,7 +103,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
     this.client.close();
     ExecutorsUtils.shutdownExecutorService(this.singleThreadPool, Optional.of(log));
   }
- 
+
   /**
    * {@inheritDoc}
    */
@@ -112,7 +112,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
     cleanup();
     super.close();
   }
-  
+
   /**
    * {@inheritDoc}
    */

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.dataset;
+package org.apache.gobblin.data.management.conversion.hive.dataset;
 
 import java.io.InputStream;
 import java.util.Properties;
@@ -32,9 +32,9 @@ import com.google.common.collect.ImmutableSet;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.util.ConfigUtils;
 
 @Test(groups = { "gobblin.data.management.conversion" })
 public class ConvertibleHiveDatasetTest {

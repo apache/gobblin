@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compat;
+package org.apache.gobblin.compat;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Strings;
 
-import gobblin.compat.hadoop.TextSerializer;
+import org.apache.gobblin.compat.hadoop.TextSerializer;
 
 
 public class TextSerializerTest {

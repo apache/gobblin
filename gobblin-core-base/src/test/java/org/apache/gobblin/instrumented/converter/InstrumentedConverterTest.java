@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.converter;
+package org.apache.gobblin.instrumented.converter;
 
 import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.MetricsHelper;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.Constructs;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.IdentityConverter;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.metrics.MetricNames;
+import org.apache.gobblin.MetricsHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.IdentityConverter;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.metrics.MetricNames;
 
 
 public class InstrumentedConverterTest {

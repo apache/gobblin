@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.dataset;
+package org.apache.gobblin.data.management.dataset;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -29,12 +29,12 @@ import com.google.common.collect.Maps;
 
 import lombok.AllArgsConstructor;
 
-import gobblin.annotation.Alias;
-import gobblin.configuration.State;
-import gobblin.data.management.copy.AllEqualComparator;
-import gobblin.dataset.Dataset;
-import gobblin.util.request_allocation.Requestor;
-import gobblin.util.request_allocation.SimpleHierarchicalPrioritizer;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.AllEqualComparator;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.util.request_allocation.Requestor;
+import org.apache.gobblin.util.request_allocation.SimpleHierarchicalPrioritizer;
 
 
 /**

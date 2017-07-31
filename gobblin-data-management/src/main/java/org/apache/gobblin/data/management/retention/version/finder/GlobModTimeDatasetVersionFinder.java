@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.version.finder;
+package org.apache.gobblin.data.management.retention.version.finder;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
 
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
 
 /**

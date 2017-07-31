@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.commit;
+package org.apache.gobblin.commit;
 
 import java.io.IOException;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

@@ -17,8 +17,8 @@
  * under the License.
  */
 
-package gobblin.writer;
-import gobblin.annotation.Alpha;
+package org.apache.gobblin.writer;
+import org.apache.gobblin.annotation.Alpha;
 
 import java.util.LinkedList;
 import java.util.List;

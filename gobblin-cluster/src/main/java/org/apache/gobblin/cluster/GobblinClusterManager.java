@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -72,19 +72,19 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.annotation.Alpha;
-import gobblin.cluster.event.ClusterManagerShutdownRequest;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.Tag;
-import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.app.ApplicationException;
-import gobblin.runtime.app.ApplicationLauncher;
-import gobblin.runtime.app.ServiceBasedAppLauncher;
-import gobblin.scheduler.SchedulerService;
-import gobblin.util.ConfigUtils;
-import gobblin.util.JvmUtils;
-import gobblin.util.logs.Log4jConfigurationHelper;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.app.ApplicationException;
+import org.apache.gobblin.runtime.app.ApplicationLauncher;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

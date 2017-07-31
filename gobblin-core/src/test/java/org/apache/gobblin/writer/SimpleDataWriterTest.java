@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -41,11 +41,11 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.crypto.EncryptionConfigParser;
-import gobblin.crypto.EncryptionFactory;
-import gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.crypto.EncryptionConfigParser;
+import org.apache.gobblin.crypto.EncryptionFactory;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
 
 
 /**

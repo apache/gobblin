@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import java.net.URI;
 import java.util.List;
@@ -31,14 +31,14 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.kafka.writer.KafkaWriterConfigurationKeys;
-import gobblin.metrics.reporter.KafkaTestBase;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstance;
-import gobblin.util.ConfigUtils;
-import gobblin.writer.WriteResponse;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
+import org.apache.gobblin.metrics.reporter.KafkaTestBase;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutorInstance;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.WriteResponse;
 
 
 @Slf4j

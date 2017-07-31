@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,12 +39,12 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.State;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.entities.PostPublishStep;
-import gobblin.data.management.copy.hive.HiveCopyEntityHelper.DeregisterFileDeleteMethod;
-import gobblin.hive.HiveRegProps;
-import gobblin.metrics.event.MultiTimingEvent;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.hive.HiveCopyEntityHelper.DeregisterFileDeleteMethod;
+import org.apache.gobblin.hive.HiveRegProps;
+import org.apache.gobblin.metrics.event.MultiTimingEvent;
 
 
 public class HiveCopyEntityHelperTest {

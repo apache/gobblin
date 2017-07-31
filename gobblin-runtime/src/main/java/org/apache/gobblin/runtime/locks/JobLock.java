@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.locks;
+package org.apache.gobblin.runtime.locks;
 
 import java.io.Closeable;
 import java.util.Properties;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
@@ -29,12 +29,12 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicates;
 
-import gobblin.instrumented.GobblinMetricsKeys;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.test.MetricsAssert;
-import gobblin.runtime.api.JobCatalog;
-import gobblin.runtime.api.JobCatalogListener;
-import gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.instrumented.GobblinMetricsKeys;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.test.MetricsAssert;
+import org.apache.gobblin.runtime.api.JobCatalog;
+import org.apache.gobblin.runtime.api.JobCatalogListener;
+import org.apache.gobblin.runtime.api.JobSpec;
 
 
 /** Unit tests for {@link InMemoryJobCatalog} */

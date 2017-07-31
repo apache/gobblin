@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.fork;
+package org.apache.gobblin.fork;
 
 import org.apache.avro.Schema;
 import org.testng.Assert;

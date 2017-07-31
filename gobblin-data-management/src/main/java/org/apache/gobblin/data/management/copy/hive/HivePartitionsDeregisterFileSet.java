@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -25,7 +25,7 @@ import org.apache.hadoop.hive.ql.metadata.Partition;
 
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyEntity;
 
 import lombok.extern.slf4j.Slf4j;
 

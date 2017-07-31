@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.test;
+package org.apache.gobblin.writer.test;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -22,12 +22,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.util.WriterUtils;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
 
 import lombok.Data;
 

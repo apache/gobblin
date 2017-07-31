@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.writer;
+package org.apache.gobblin.data.management.conversion.hive.writer;
 
-import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import java.io.IOException;
 import java.sql.SQLException;
 
 import org.apache.avro.Schema;
 
-import gobblin.util.HiveJdbcConnector;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.util.HiveJdbcConnector;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
 
 /**
  *  A {@link DataWriterBuilder} for {@link HiveQueryWriterBuilder}

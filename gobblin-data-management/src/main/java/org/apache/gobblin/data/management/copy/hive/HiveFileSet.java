@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import org.apache.hadoop.hive.ql.metadata.Table;
 
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.partition.FileSet;
 
 import lombok.Getter;
 

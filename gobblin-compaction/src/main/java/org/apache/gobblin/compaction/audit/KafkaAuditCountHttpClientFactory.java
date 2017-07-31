@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.audit;
+package org.apache.gobblin.compaction.audit;
 
-import gobblin.annotation.Alias;
-import gobblin.configuration.State;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.State;
 
 /**
  * Factory to create an instance of type {@link KafkaAuditCountHttpClient}

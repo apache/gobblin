@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive.filter;
+package org.apache.gobblin.data.management.copy.hive.filter;
 
 import java.util.Properties;
 

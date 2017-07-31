@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -32,8 +32,8 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
-import gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 
 @Test(groups = { "SystemTimeTests"})
 public class TimeBasedRetentionPolicyTest {

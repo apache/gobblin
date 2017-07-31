@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service.monitoring;
+package org.apache.gobblin.service.monitoring;
 
 /**
  * Tracks the latest flow execution Id.

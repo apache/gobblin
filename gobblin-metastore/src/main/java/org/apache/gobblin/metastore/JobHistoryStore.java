@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 
-import gobblin.rest.JobExecutionInfo;
-import gobblin.rest.JobExecutionQuery;
+import org.apache.gobblin.rest.JobExecutionInfo;
+import org.apache.gobblin.rest.JobExecutionQuery;
 
 
 /**

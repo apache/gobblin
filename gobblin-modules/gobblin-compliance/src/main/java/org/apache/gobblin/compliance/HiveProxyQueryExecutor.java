@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package org.apache.gobblin.compliance;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -40,9 +40,9 @@ import com.google.common.base.Splitter;
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.HostUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.HostUtils;
 
 
 /**

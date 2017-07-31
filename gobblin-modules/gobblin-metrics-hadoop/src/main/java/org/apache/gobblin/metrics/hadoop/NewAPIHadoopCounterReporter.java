@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.hadoop;
+package org.apache.gobblin.metrics.hadoop;
 
 import java.util.concurrent.TimeUnit;
 
@@ -23,8 +23,8 @@ import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 
 import com.codahale.metrics.MetricFilter;
 
-import gobblin.metrics.reporter.ContextAwareScheduledReporter;
-import gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.reporter.ContextAwareScheduledReporter;
+import org.apache.gobblin.metrics.MetricContext;
 
 
 /**

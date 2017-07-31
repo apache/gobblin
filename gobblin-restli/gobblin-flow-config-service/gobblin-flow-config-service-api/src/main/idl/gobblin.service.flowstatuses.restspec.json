@@ -1,8 +1,8 @@
 {
   "name" : "flowstatuses",
-  "namespace" : "gobblin.service",
+  "namespace" : "org.apache.gobblin.service",
   "path" : "/flowstatuses",
-  "schema" : "gobblin.service.FlowStatus",
+  "schema" : "org.apache.gobblin.service.FlowStatus",
   "doc" : "Resource for handling flow status requests\n\ngenerated from: gobblin.service.FlowStatusResource",
   "collection" : {
     "identifier" : {

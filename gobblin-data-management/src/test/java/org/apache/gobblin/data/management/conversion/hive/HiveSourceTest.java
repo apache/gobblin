@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive;
+package org.apache.gobblin.data.management.conversion.hive;
 
 import java.util.List;
 import java.util.Map;
@@ -32,15 +32,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.ConversionHiveTestUtils;
-import gobblin.data.management.conversion.hive.source.HiveSource;
-import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
-import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
-import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.ConversionHiveTestUtils;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveWorkUnit;
+import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
+import org.apache.gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 @Test(groups = { "gobblin.data.management.conversion" })

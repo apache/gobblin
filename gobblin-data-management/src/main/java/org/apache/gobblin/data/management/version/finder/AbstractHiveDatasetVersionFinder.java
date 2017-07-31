@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.version.finder;
+package org.apache.gobblin.data.management.version.finder;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -31,12 +31,12 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HiveUtils;
-import gobblin.data.management.version.DatasetVersion;
-import gobblin.data.management.version.HiveDatasetVersion;
-import gobblin.dataset.Dataset;
-import gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveUtils;
+import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.version.HiveDatasetVersion;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.util.AutoReturnableObject;
 
 
 /**

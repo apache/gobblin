@@ -1,7 +1,7 @@
 {
   "type" : "record",
   "name" : "GobblinCompactionTestEvent",
-  "namespace" : "gobblin.compaction.test.events",
+  "namespace" : "org.apache.gobblin.compaction.test.events",
   "fields" : [ {
     "name" : "header",
     "type" : {

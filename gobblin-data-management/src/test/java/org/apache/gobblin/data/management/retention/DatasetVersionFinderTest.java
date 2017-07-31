@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
 import java.io.IOException;
 import java.util.List;
@@ -32,11 +32,11 @@ import com.google.common.collect.Lists;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import gobblin.data.management.retention.dataset.CleanableDataset;
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.StringDatasetVersion;
-import gobblin.data.management.retention.version.finder.DatasetVersionFinder;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.version.StringDatasetVersion;
+import org.apache.gobblin.data.management.retention.version.finder.DatasetVersionFinder;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 
 public class DatasetVersionFinderTest {

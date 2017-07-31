@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.broker.gobblin_scopes;
+package org.apache.gobblin.broker.gobblin_scopes;
 
-import gobblin.broker.SimpleScope;
+import org.apache.gobblin.broker.SimpleScope;
 
 
 /**

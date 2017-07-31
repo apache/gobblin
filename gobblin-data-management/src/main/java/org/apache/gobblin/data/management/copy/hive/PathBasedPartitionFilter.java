@@ -16,7 +16,7 @@
  */
 
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,7 +30,7 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 public class PathBasedPartitionFilter implements HivePartitionExtendedFilter {
 
   private String filterRegex;
-  private Pattern pattern; 
+  private Pattern pattern;
 
   public PathBasedPartitionFilter(String filterRegex) {
     this.filterRegex = filterRegex;

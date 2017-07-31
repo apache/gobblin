@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.r2;
+package org.apache.gobblin.r2;
 
 import java.nio.charset.Charset;
 
 import com.linkedin.data.ByteString;
 import com.linkedin.r2.message.rest.RestRequest;
 
-import gobblin.async.AsyncRequest;
+import org.apache.gobblin.async.AsyncRequest;
 
 
 /**

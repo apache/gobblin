@@ -1,4 +1,4 @@
-package gobblin.compliance.purger;
+package org.apache.gobblin.compliance.purger;
 
 import java.io.IOException;
 

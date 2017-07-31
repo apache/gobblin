@@ -16,7 +16,7 @@
  */
 
 
-package gobblin.data.management.dataset;
+package org.apache.gobblin.data.management.dataset;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -27,8 +27,8 @@ import com.google.common.collect.Iterators;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import gobblin.dataset.Dataset;
-import gobblin.util.request_allocation.PushDownRequestor;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 
 /**
  * A simple {@link gobblin.util.request_allocation.Requestor} used to generate a single {@link SimpleDatasetRequest}

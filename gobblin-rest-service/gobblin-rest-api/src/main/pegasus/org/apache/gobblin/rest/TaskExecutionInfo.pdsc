@@ -1,7 +1,7 @@
 {
   "type": "record",
   "name": "TaskExecutionInfo",
-  "namespace": "gobblin.rest",
+  "namesapce" : "org.apache.gobblin.rest",
   "doc": "Gobblin task execution information",
   "fields": [
     {

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.version;
+package org.apache.gobblin.data.management.retention.version;
 
 import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 
-import gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 
 
 /**

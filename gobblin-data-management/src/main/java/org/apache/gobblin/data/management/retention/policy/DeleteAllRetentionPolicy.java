@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.policy;
+package org.apache.gobblin.data.management.retention.policy;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
-import gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.plugins;
+package org.apache.gobblin.runtime.plugins;
 
 /**
  * Static keys for {@link gobblin.runtime.api.GobblinInstancePlugin}s.

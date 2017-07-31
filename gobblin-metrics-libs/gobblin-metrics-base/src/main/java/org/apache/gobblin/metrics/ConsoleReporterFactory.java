@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.io.IOException;
 import java.util.Properties;
 
-import gobblin.metrics.reporter.OutputStreamReporter;
-import gobblin.metrics.reporter.ScheduledReporter;
+import org.apache.gobblin.metrics.reporter.OutputStreamReporter;
+import org.apache.gobblin.metrics.reporter.ScheduledReporter;
 
 
 /**

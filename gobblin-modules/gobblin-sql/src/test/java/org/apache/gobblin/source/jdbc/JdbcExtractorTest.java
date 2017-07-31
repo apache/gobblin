@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.jdbc;
+package org.apache.gobblin.source.jdbc;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -35,12 +35,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mockrunner.mock.jdbc.MockResultSet;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandOutput;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.exception.SchemaException;
+import org.apache.gobblin.source.extractor.extract.Command;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
 
 
 @Test(groups = { "gobblin.source.jdbc" })

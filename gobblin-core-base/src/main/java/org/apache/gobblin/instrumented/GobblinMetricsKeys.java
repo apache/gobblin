@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.instrumented;
+package org.apache.gobblin.instrumented;
 
-import gobblin.Constructs;
+import org.apache.gobblin.Constructs;
 
 /**
  * Shared constants related to gobblin metrics

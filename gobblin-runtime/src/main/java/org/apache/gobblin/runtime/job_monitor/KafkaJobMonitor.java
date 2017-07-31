@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_monitor;
+package org.apache.gobblin.runtime.job_monitor;
 
 import java.io.IOException;
 import java.net.URI;
@@ -26,13 +26,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecMonitor;
-import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.kafka.HighLevelConsumer;
-import gobblin.runtime.metrics.RuntimeMetrics;
-import gobblin.util.ConfigUtils;
-import gobblin.util.Either;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecMonitor;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
+import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.Either;
 
 import kafka.message.MessageAndMetadata;
 import lombok.extern.slf4j.Slf4j;

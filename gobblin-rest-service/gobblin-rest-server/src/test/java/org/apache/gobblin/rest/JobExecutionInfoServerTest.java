@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.rest;
+package org.apache.gobblin.rest;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -35,11 +35,11 @@ import com.google.inject.Injector;
 
 import com.linkedin.data.template.StringMap;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.JobHistoryStore;
-import gobblin.metastore.MetaStoreModule;
-import gobblin.metastore.testing.ITestMetastoreDatabase;
-import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.JobHistoryStore;
+import org.apache.gobblin.metastore.MetaStoreModule;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 
 
 /**

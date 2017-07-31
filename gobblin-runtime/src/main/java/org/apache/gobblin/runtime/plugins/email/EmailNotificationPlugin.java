@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.plugins.email;
+package org.apache.gobblin.runtime.plugins.email;
 
 import java.net.URI;
 
@@ -22,20 +22,20 @@ import org.apache.commons.mail.EmailException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.JobState.RunningState;
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.GobblinInstancePlugin;
-import gobblin.runtime.api.GobblinInstancePluginFactory;
-import gobblin.runtime.api.JobExecutionDriver;
-import gobblin.runtime.api.JobExecutionState;
-import gobblin.runtime.api.JobLifecycleListener;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecSchedule;
-import gobblin.runtime.instance.StandardGobblinInstanceDriver;
-import gobblin.runtime.instance.plugin.BaseIdlePluginImpl;
-import gobblin.util.ConfigUtils;
-import gobblin.util.EmailUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobState.RunningState;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.GobblinInstancePlugin;
+import org.apache.gobblin.runtime.api.GobblinInstancePluginFactory;
+import org.apache.gobblin.runtime.api.JobExecutionDriver;
+import org.apache.gobblin.runtime.api.JobExecutionState;
+import org.apache.gobblin.runtime.api.JobLifecycleListener;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecSchedule;
+import org.apache.gobblin.runtime.instance.StandardGobblinInstanceDriver;
+import org.apache.gobblin.runtime.instance.plugin.BaseIdlePluginImpl;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.EmailUtils;
 
 /**
  * A plugin that attaches an email notification listener to a {@link GobblinInstanceDriver}. The listener sends emails

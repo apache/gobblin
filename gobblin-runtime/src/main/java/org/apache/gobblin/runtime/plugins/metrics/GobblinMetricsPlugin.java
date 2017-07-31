@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.plugins.metrics;
+package org.apache.gobblin.runtime.plugins.metrics;
 
-import gobblin.annotation.Alias;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.GobblinInstancePlugin;
-import gobblin.runtime.api.GobblinInstancePluginFactory;
-import gobblin.runtime.instance.plugin.BaseIdlePluginImpl;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.GobblinInstancePlugin;
+import org.apache.gobblin.runtime.api.GobblinInstancePluginFactory;
+import org.apache.gobblin.runtime.instance.plugin.BaseIdlePluginImpl;
 
 
 /**

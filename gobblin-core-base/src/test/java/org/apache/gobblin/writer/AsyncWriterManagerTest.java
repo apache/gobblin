@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -34,15 +34,15 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.metrics.RootMetricContext;
-import gobblin.metrics.reporter.OutputStreamReporter;
-import gobblin.test.ConstantTimingType;
-import gobblin.test.ErrorManager;
-import gobblin.test.NthTimingType;
-import gobblin.test.TestUtils;
-import gobblin.test.TimingManager;
-import gobblin.test.TimingResult;
-import gobblin.test.TimingType;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.reporter.OutputStreamReporter;
+import org.apache.gobblin.test.ConstantTimingType;
+import org.apache.gobblin.test.ErrorManager;
+import org.apache.gobblin.test.NthTimingType;
+import org.apache.gobblin.test.TestUtils;
+import org.apache.gobblin.test.TimingManager;
+import org.apache.gobblin.test.TimingResult;
+import org.apache.gobblin.test.TimingType;
 
 
 @Slf4j

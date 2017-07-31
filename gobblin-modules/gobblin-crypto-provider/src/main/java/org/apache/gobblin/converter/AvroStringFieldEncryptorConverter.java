@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
-import gobblin.recordaccess.AvroGenericRecordAccessor;
-import gobblin.recordaccess.RecordAccessor;
+import org.apache.gobblin.recordaccess.AvroGenericRecordAccessor;
+import org.apache.gobblin.recordaccess.RecordAccessor;
 
 
 /**

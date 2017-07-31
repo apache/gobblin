@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker.gobblin_scopes;
+package org.apache.gobblin.broker.gobblin_scopes;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;

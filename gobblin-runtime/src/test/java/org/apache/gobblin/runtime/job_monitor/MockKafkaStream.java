@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_monitor;
+package org.apache.gobblin.runtime.job_monitor;
 
 import java.util.List;
 import java.util.concurrent.BlockingQueue;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service.validator;
+package org.apache.gobblin.service.validator;
 
 import org.quartz.CronExpression;
 

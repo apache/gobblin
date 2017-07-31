@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.azkaban;
+package org.apache.gobblin.azkaban;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -24,7 +24,7 @@ import org.apache.log4j.Logger;
 
 import azkaban.jobExecutor.AbstractJob;
 
-import gobblin.metastore.util.StateStoreCleaner;
+import org.apache.gobblin.metastore.util.StateStoreCleaner;
 
 
 /**

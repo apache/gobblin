@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.publisher;
+package org.apache.gobblin.publisher;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -38,15 +38,15 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metadata.MetadataMerger;
-import gobblin.metadata.types.GlobalMetadata;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.FsDataWriter;
-import gobblin.writer.FsWriterMetrics;
-import gobblin.writer.PartitionIdentifier;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.MetadataMerger;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.writer.FsDataWriter;
+import org.apache.gobblin.writer.FsWriterMetrics;
+import org.apache.gobblin.writer.PartitionIdentifier;
 
 
 /**

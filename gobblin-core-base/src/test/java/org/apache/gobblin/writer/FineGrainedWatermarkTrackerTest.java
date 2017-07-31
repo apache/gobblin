@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Map;
@@ -38,10 +38,10 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 @Slf4j

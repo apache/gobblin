@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.util.reflection;
+package org.apache.gobblin.util.reflection;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;

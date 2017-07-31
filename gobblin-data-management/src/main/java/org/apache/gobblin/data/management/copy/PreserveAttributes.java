@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -33,16 +33,16 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import gobblin.kafka.writer.Kafka08DataWriter;
-import gobblin.metrics.reporter.util.AvroBinarySerializer;
-import gobblin.metrics.reporter.util.AvroSerializer;
-import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
-import gobblin.runtime.job_spec.AvroJobSpec;
-import gobblin.util.ConfigUtils;
-import gobblin.writer.WriteCallback;
+import org.apache.gobblin.kafka.writer.Kafka08DataWriter;
+import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
+import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
+import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
+import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.WriteCallback;
 
 
 @NotThreadSafe

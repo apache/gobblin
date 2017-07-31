@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.performance;
+package org.apache.gobblin.metrics.performance;
 
 
 import org.testng.annotations.Test;

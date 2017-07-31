@@ -21,4 +21,4 @@
  * Configuration stores provide a low-level API for reading {@link com.typesafe.config.Config} objects. These
  * are generally accessed through the config client API.
  */
-package gobblin.config.store.api;
+package org.apache.gobblin.config.store.api;

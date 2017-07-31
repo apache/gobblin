@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.example.simplejson;
+package org.apache.gobblin.example.simplejson;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -33,11 +33,11 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.password.PasswordManager;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
 
 
 /**

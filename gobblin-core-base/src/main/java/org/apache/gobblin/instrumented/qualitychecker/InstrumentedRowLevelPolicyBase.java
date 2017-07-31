@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.qualitychecker;
+package org.apache.gobblin.instrumented.qualitychecker;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -29,14 +29,14 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.State;
-import gobblin.instrumented.Instrumentable;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.MetricNames;
-import gobblin.metrics.Tag;
-import gobblin.qualitychecker.row.RowLevelPolicy;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.MetricNames;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicy;
 
 
 /**

@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package gobblin.type;
+package org.apache.gobblin.type;
 
 import java.util.Map;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import gobblin.metadata.types.Metadata;
+import org.apache.gobblin.metadata.types.Metadata;
 
 
 /**

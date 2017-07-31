@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive;
+package org.apache.gobblin.data.management.conversion.hive;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,8 +42,8 @@ import org.apache.thrift.TException;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.hive.avro.HiveAvroSerDeManager;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.hive.avro.HiveAvroSerDeManager;
 
 
 /**

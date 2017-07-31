@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive.spec;
+package org.apache.gobblin.hive.spec;
 
 import org.apache.hadoop.fs.Path;
 
@@ -25,11 +25,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 
-import gobblin.annotation.Alpha;
-import gobblin.hive.HivePartition;
-import gobblin.hive.HiveTable;
-import gobblin.hive.HiveRegister;
-import gobblin.hive.spec.activity.Activity;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.hive.HivePartition;
+import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.HiveRegister;
+import org.apache.gobblin.hive.spec.activity.Activity;
 
 import lombok.Builder;
 import lombok.Getter;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.tunnel;
+package org.apache.gobblin.tunnel;
 
 import java.io.File;
 import java.io.FileOutputStream;

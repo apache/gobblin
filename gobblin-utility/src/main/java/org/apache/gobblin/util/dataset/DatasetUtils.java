@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.dataset;
+package org.apache.gobblin.util.dataset;
 
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -31,9 +31,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import gobblin.configuration.State;
-import gobblin.configuration.StateUtils;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.StateUtils;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 public class DatasetUtils {

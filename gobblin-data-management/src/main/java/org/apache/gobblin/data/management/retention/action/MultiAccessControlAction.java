@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.action;
+package org.apache.gobblin.data.management.retention.action;
 
 import java.io.IOException;
 import java.util.List;
@@ -26,10 +26,10 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigRenderOptions;
 
-import gobblin.data.management.policy.VersionSelectionPolicy;
-import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
-import gobblin.data.management.version.DatasetVersion;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
+import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

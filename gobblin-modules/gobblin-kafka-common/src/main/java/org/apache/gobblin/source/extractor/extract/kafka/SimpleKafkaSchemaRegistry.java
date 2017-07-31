@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.util.Properties;
 
-import gobblin.metrics.kafka.KafkaSchemaRegistry;
-import gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.task;
+package org.apache.gobblin.runtime.task;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -23,13 +23,13 @@ import java.util.concurrent.CountDownLatch;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.runtime.Task;
-import gobblin.runtime.TaskContext;
-import gobblin.runtime.TaskState;
-import gobblin.runtime.TaskStateTracker;
-import gobblin.runtime.fork.Fork;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.runtime.Task;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.TaskStateTracker;
+import org.apache.gobblin.runtime.fork.Fork;
 
 
 /**

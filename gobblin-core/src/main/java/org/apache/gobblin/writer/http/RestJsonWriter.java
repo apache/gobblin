@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.http;
+package org.apache.gobblin.writer.http;
 
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -25,7 +25,7 @@ import org.apache.http.entity.StringEntity;
 import com.google.common.base.Optional;
 import com.google.gson.JsonObject;
 
-import gobblin.converter.http.RestEntry;
+import org.apache.gobblin.converter.http.RestEntry;
 
 /**
  * Writes via Restful API that accepts JSON as a body

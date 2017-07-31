@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config;
+package org.apache.gobblin.config;
 
 import java.util.HashMap;
 import java.util.Map;

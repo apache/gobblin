@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package gobblin.eventhub.writer;
+package org.apache.gobblin.eventhub.writer;
 
 import java.io.IOException;
 
-import gobblin.configuration.State;
-import gobblin.eventhub.EventhubMetricNames;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.eventhub.EventhubMetricNames;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -45,14 +45,14 @@ import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.password.PasswordManager;
-import gobblin.writer.Batch;
-import gobblin.writer.BatchAsyncDataWriter;
-import gobblin.writer.SyncDataWriter;
-import gobblin.writer.WriteCallback;
-import gobblin.writer.WriteResponse;
-import gobblin.writer.WriteResponseFuture;
-import gobblin.writer.WriteResponseMapper;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.writer.Batch;
+import org.apache.gobblin.writer.BatchAsyncDataWriter;
+import org.apache.gobblin.writer.SyncDataWriter;
+import org.apache.gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteResponse;
+import org.apache.gobblin.writer.WriteResponseFuture;
+import org.apache.gobblin.writer.WriteResponseMapper;
 
 import java.time.Duration;
 import java.util.ArrayList;

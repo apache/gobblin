@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.Dataset;
 
 import java.io.IOException;
 import java.util.Collection;

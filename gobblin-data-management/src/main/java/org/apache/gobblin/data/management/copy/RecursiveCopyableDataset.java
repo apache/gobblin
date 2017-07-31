@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
-import gobblin.commit.CommitStep;
-import gobblin.data.management.copy.entities.PrePublishStep;
-import gobblin.data.management.dataset.DatasetUtils;
-import gobblin.dataset.FileSystemDataset;
-import gobblin.util.PathUtils;
-import gobblin.util.FileListUtils;
-import gobblin.util.commit.DeleteFileCommitStep;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;

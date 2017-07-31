@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.verify;
+package org.apache.gobblin.compaction.verify;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -34,11 +34,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
-import gobblin.compaction.dataset.Dataset;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 
 
 /**

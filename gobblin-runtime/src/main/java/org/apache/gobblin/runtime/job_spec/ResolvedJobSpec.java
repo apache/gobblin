@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_spec;
+package org.apache.gobblin.runtime.job_spec;
 
 import java.net.URI;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.JobCatalog;
-import gobblin.runtime.api.JobCatalogWithTemplates;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.job_catalog.InMemoryJobCatalog;
-import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.JobCatalog;
+import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.job_catalog.InMemoryJobCatalog;
+import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
+import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

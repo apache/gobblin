@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.util.LinkedList;
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.util.concurrent.Futures;
 import com.typesafe.config.Config;
 
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.io;
+package org.apache.gobblin.util.io;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -23,8 +23,8 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.gson.Gson;
 
-import gobblin.util.test.BaseClass;
-import gobblin.util.test.TestClass;
+import org.apache.gobblin.util.test.BaseClass;
+import org.apache.gobblin.util.test.TestClass;
 
 
 public class GsonInterfaceAdapterTest {

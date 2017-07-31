@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.aws;
+package org.apache.gobblin.aws;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,7 +26,7 @@ import org.apache.log4j.PropertyConfigurator;
 
 import com.google.common.io.Closer;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

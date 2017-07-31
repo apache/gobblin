@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker.iface;
+package org.apache.gobblin.broker.iface;
 
 /**
  * A specific scope for a {@link ScopeType}. For example, each task in a process could be a different scope.

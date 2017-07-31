@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.writer.initializer;
+package org.apache.gobblin.writer.initializer;
 
 import lombok.ToString;
-import gobblin.initializer.Initializer;
-import gobblin.initializer.NoopInitializer;
+import org.apache.gobblin.initializer.Initializer;
+import org.apache.gobblin.initializer.NoopInitializer;
 
 @ToString
 public class NoopWriterInitializer implements WriterInitializer {

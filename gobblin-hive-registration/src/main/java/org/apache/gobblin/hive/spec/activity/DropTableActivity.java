@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.hive.spec.activity;
+package org.apache.gobblin.hive.spec.activity;
 
 import java.io.IOException;
 
-import gobblin.hive.HiveRegister;
+import org.apache.gobblin.hive.HiveRegister;
 import lombok.AllArgsConstructor;
 
 

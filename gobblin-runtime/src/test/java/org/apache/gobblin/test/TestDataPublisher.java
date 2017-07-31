@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.test;
+package org.apache.gobblin.test;
 
 import java.io.IOException;
 import java.util.Collection;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.publisher.DataPublisher;
-import gobblin.publisher.SingleTaskDataPublisher;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.publisher.SingleTaskDataPublisher;
 
 
 /**

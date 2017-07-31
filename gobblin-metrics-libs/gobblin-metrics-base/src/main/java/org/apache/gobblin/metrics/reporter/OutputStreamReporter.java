@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -47,8 +47,8 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 public class OutputStreamReporter extends ConfiguredScheduledReporter {

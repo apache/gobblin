@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.scheduler;
+package org.apache.gobblin.runtime.scheduler;
 
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecSchedule;
-import gobblin.runtime.api.JobSpecSchedulerListener;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecSchedule;
+import org.apache.gobblin.runtime.api.JobSpecSchedulerListener;
 
 /**
  * Default no-op implementation for {@link JobSpecSchedulerListener}. It may optionally log

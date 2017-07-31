@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.locks;
+package org.apache.gobblin.runtime.locks;
 
 import java.io.IOException;
 import java.net.URI;
@@ -36,9 +36,9 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.JobSpec;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.util.HadoopUtils;
 
 /**
  * A factory for file-based job locks. All locks are presented as files under a common directory.

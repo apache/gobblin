@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.resultset;
+package org.apache.gobblin.source.extractor.resultset;
 
 import java.util.ArrayList;
 import java.util.Iterator;

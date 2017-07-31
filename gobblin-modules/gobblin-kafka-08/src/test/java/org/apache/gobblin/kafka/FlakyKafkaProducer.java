@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka;
+package org.apache.gobblin.kafka;
 
 import java.util.Properties;
 import java.util.concurrent.Callable;
@@ -34,7 +34,7 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.test.ErrorManager;
+import org.apache.gobblin.test.ErrorManager;
 
 
 /**

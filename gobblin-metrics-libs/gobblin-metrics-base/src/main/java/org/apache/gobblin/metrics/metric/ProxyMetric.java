@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.metric;
+package org.apache.gobblin.metrics.metric;
 
 import com.codahale.metrics.Metric;
 

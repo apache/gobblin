@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -45,16 +45,16 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.State;
-import gobblin.instrumented.Instrumentable;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.MetricNames;
-import gobblin.metrics.Tag;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.util.ConfigUtils;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.MetricNames;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

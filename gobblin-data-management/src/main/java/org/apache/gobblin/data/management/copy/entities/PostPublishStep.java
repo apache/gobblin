@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.entities;
+package org.apache.gobblin.data.management.copy.entities;
 
 import java.util.Map;
 
-import gobblin.commit.CommitStep;
+import org.apache.gobblin.commit.CommitStep;
 
 
 /**

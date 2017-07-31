@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.concurrent;
+package org.apache.gobblin.util.concurrent;
 
 /**
  * A task which can be scheduled to run recurrently by an instance of {@link TaskScheduler}.

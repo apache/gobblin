@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 /**
  * @deprecated This class has been moved to {@link gobblin.util.limiter.BaseLimiterType}.

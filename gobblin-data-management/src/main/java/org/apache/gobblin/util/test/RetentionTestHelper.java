@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.util.test;
+package org.apache.gobblin.util.test;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -35,16 +35,16 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.config.client.ConfigClient;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.dataset.CleanableDataset;
-import gobblin.data.management.retention.dataset.CleanableDatasetBase;
-import gobblin.data.management.retention.profile.MultiCleanableDatasetFinder;
-import gobblin.dataset.Dataset;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.util.PathUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.retention.DatasetCleaner;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDatasetBase;
+import org.apache.gobblin.data.management.retention.profile.MultiCleanableDatasetFinder;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 /**
  * Helper methods for Retention integration tests

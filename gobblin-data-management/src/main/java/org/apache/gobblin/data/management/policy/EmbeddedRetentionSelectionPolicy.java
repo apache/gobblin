@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.policy;
+package org.apache.gobblin.data.management.policy;
 
 import java.util.Collection;
 import java.util.List;
@@ -22,8 +22,8 @@ import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.ToString;
 
-import gobblin.data.management.retention.policy.RetentionPolicy;
-import gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.retention.policy.RetentionPolicy;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 
 /**
  * A wrapper {@link VersionSelectionPolicy} that delegates calls to deprecated {@link RetentionPolicy}

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.notification;
+package org.apache.gobblin.metrics.notification;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import gobblin.metrics.InnerMetricContext;
-import gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.InnerMetricContext;
+import org.apache.gobblin.metrics.MetricContext;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.jdbc;
+package org.apache.gobblin.source.jdbc;
 
 import java.io.IOException;
 import java.sql.ResultSet;
@@ -35,19 +35,19 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.exception.RecordCountException;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.extractor.schema.Schema;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkType;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.exception.HighWatermarkException;
+import org.apache.gobblin.source.extractor.exception.RecordCountException;
+import org.apache.gobblin.source.extractor.exception.SchemaException;
+import org.apache.gobblin.source.extractor.extract.Command;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
+import org.apache.gobblin.source.extractor.schema.Schema;
+import org.apache.gobblin.source.extractor.utils.Utils;
+import org.apache.gobblin.source.extractor.watermark.Predicate;
+import org.apache.gobblin.source.extractor.watermark.WatermarkType;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 /**
  * Teradata extractor using JDBC protocol

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -23,7 +23,7 @@ import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

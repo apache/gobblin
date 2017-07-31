@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.client;
+package org.apache.gobblin.config.client;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -29,9 +29,9 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStore;
 
 @Test(groups = { "gobblin.config.client.api" })
 public class TestConfigClientUtils {

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter.util;
+package org.apache.gobblin.metrics.reporter.util;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -23,7 +23,7 @@ import java.io.IOException;
 
 import org.apache.avro.Schema;
 
-import gobblin.annotation.Alias;
+import org.apache.gobblin.annotation.Alias;
 
 
 /**

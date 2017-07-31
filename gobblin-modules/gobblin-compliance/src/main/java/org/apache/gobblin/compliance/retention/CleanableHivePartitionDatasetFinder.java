@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.retention;
+package org.apache.gobblin.compliance.retention;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,10 +22,10 @@ import java.util.List;
 
 import org.apache.hadoop.fs.FileSystem;
 
-import gobblin.compliance.HivePartitionDataset;
-import gobblin.compliance.HivePartitionFinder;
-import gobblin.configuration.State;
-import gobblin.util.WriterUtils;
+import org.apache.gobblin.compliance.HivePartitionDataset;
+import org.apache.gobblin.compliance.HivePartitionFinder;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.WriterUtils;
 
 
 /**

@@ -17,9 +17,9 @@
  *
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

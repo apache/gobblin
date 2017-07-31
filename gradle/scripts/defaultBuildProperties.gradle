@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-import gobblin.gradle.BuildProperties
-import gobblin.gradle.BuildProperty
+import org.apache.gobblin.gradle.BuildProperties
+import org.apache.gobblin.gradle.BuildProperty
 
 def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     .register(new BuildProperty("artifactRepository", "https://oss.sonatype.org/service/local/staging/deploy/maven2/", "Maven repository to publish artifacts"))

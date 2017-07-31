@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.publisher;
+package org.apache.gobblin.publisher;
 
 import java.io.IOException;
 import java.util.Set;
 import org.apache.hadoop.fs.Path;
 import com.google.common.base.Preconditions;
-import gobblin.util.ParallelRunner;
-import gobblin.util.WriterUtils;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

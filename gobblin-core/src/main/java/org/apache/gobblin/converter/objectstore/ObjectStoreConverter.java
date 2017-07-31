@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.converter.objectstore;
+package org.apache.gobblin.converter.objectstore;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.SchemaConversionException;
-import gobblin.writer.objectstore.ObjectStoreOperation;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.writer.objectstore.ObjectStoreOperation;
 
 /**
  * A converter of {@link ObjectStoreOperation}s. The output record of any subclasses is of type {@link ObjectStoreOperation}

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -24,11 +24,11 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 
-import gobblin.runtime.JobState.RunningState;
-import gobblin.runtime.api.JobExecutionState;
-import gobblin.runtime.api.JobExecutionStateListener;
-import gobblin.runtime.api.JobExecutionStateListenerContainer;
-import gobblin.util.callbacks.CallbacksDispatcher;
+import org.apache.gobblin.runtime.JobState.RunningState;
+import org.apache.gobblin.runtime.api.JobExecutionState;
+import org.apache.gobblin.runtime.api.JobExecutionStateListener;
+import org.apache.gobblin.runtime.api.JobExecutionStateListenerContainer;
+import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 /**
  * A helper class to maintain a list of {@link JobExecutionStateListener} instances. It itself

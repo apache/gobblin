@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.watermark;
+package org.apache.gobblin.data.management.copy.watermark;
 
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonElement;
 
-import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.Watermark;
-import gobblin.source.extractor.WatermarkSerializerHelper;
+import org.apache.gobblin.source.extractor.ComparableWatermark;
+import org.apache.gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.WatermarkSerializerHelper;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;

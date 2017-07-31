@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "TimeRange",
-    "namespace": "gobblin.rest",
+    "namesapce" : "org.apache.gobblin.rest",
     "doc": "Query time range",
     "fields": [
       {

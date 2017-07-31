@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer.http;
+package org.apache.gobblin.writer.http;
 
 import java.io.IOException;
 

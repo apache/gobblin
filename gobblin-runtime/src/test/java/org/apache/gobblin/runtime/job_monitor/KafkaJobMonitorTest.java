@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_monitor;
+package org.apache.gobblin.runtime.job_monitor;
 
 import java.net.URI;
 
@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 
-import gobblin.runtime.kafka.HighLevelConsumerTest;
+import org.apache.gobblin.runtime.kafka.HighLevelConsumerTest;
 
 
 public class KafkaJobMonitorTest {

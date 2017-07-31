@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -63,11 +63,11 @@ import com.typesafe.config.ConfigValue;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.deprecation.DeprecationUtils;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
-import gobblin.writer.DataWriter;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.deprecation.DeprecationUtils;
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
+import org.apache.gobblin.writer.DataWriter;
 
 
 /**

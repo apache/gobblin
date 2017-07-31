@@ -14,22 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
-import gobblin.config.client.ConfigClient;
-import gobblin.config.client.ConfigClientUtils;
-import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.kafka.client.GobblinKafkaConsumerClient;
-import gobblin.util.ConfigUtils;
-import gobblin.util.DatasetFilterUtils;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.ConfigClientUtils;
+import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.util.PathUtils;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;

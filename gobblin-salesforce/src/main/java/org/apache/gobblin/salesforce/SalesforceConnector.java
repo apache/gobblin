@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.salesforce;
+package org.apache.gobblin.salesforce;
 
 import java.util.List;
 
@@ -29,11 +29,11 @@ import org.apache.http.message.BasicNameValuePair;
 
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.password.PasswordManager;
-import gobblin.source.extractor.exception.RestApiConnectionException;
-import gobblin.source.extractor.extract.restapi.RestApiConnector;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.source.extractor.exception.RestApiConnectionException;
+import org.apache.gobblin.source.extractor.extract.restapi.RestApiConnector;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

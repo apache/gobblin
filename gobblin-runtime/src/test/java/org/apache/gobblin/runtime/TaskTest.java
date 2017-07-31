@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -47,22 +47,22 @@ import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.fork.ForkOperator;
-import gobblin.fork.IdentityForkOperator;
-import gobblin.publisher.TaskPublisher;
-import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
-import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
-import gobblin.qualitychecker.task.TaskLevelPolicyChecker;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.fork.ForkOperator;
+import org.apache.gobblin.fork.IdentityForkOperator;
+import org.apache.gobblin.publisher.TaskPublisher;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
 
 
 /**

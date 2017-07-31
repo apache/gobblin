@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -41,23 +41,23 @@ import com.google.common.collect.Maps;
 import com.google.gson.stream.JsonWriter;
 import com.linkedin.data.template.StringMap;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.rest.JobExecutionInfo;
-import gobblin.rest.JobStateEnum;
-import gobblin.rest.LauncherTypeEnum;
-import gobblin.rest.Metric;
-import gobblin.rest.MetricArray;
-import gobblin.rest.MetricTypeEnum;
-import gobblin.rest.TaskExecutionInfoArray;
-import gobblin.runtime.util.JobMetrics;
-import gobblin.runtime.util.MetricGroup;
-import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ImmutableProperties;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.rest.JobExecutionInfo;
+import org.apache.gobblin.rest.JobStateEnum;
+import org.apache.gobblin.rest.LauncherTypeEnum;
+import org.apache.gobblin.rest.Metric;
+import org.apache.gobblin.rest.MetricArray;
+import org.apache.gobblin.rest.MetricTypeEnum;
+import org.apache.gobblin.rest.TaskExecutionInfoArray;
+import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.runtime.util.MetricGroup;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ImmutableProperties;
 
 
 /**

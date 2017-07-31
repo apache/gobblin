@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.http;
+package org.apache.gobblin.http;
 
-import gobblin.net.Request;
+import org.apache.gobblin.net.Request;
 
 
 /**

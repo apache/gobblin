@@ -1,12 +1,12 @@
-package gobblin.eventhub.writer;
+package org.apache.gobblin.eventhub.writer;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
-import gobblin.writer.SequentialBasedBatchAccumulator;
+import org.apache.gobblin.writer.SequentialBasedBatchAccumulator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteCallback;
 
 
 public class EventhubAccumulatorTest {

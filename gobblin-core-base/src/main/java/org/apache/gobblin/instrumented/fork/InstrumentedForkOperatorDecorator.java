@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.fork;
+package org.apache.gobblin.instrumented.fork;
 
 import java.util.List;
 
 import com.google.common.base.Optional;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.fork.ForkOperator;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.util.Decorator;
-import gobblin.util.DecoratorUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.fork.ForkOperator;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.util.DecoratorUtils;
 
 
 /**

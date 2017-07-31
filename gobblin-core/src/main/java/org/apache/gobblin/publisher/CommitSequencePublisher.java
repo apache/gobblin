@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.publisher;
+package org.apache.gobblin.publisher;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -25,13 +25,13 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 
-import gobblin.annotation.Alpha;
-import gobblin.commit.CommitSequence;
-import gobblin.commit.FsRenameCommitStep;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.util.ParallelRunner;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.commit.CommitSequence;
+import org.apache.gobblin.commit.FsRenameCommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.util.ParallelRunner;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

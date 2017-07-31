@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.sql;
+package org.apache.gobblin.data.management.retention.sql;
 
 import java.sql.Timestamp;
 import java.util.concurrent.TimeUnit;

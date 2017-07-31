@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.azkaban;
+package org.apache.gobblin.azkaban;
 
 import java.util.Properties;
 
@@ -23,8 +23,8 @@ import org.apache.log4j.Logger;
 
 import azkaban.jobExecutor.AbstractJob;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.test.setup.config.TestHarnessLauncher;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.test.setup.config.TestHarnessLauncher;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.context.filter;
+package org.apache.gobblin.metrics.context.filter;
 
 import lombok.extern.slf4j.Slf4j;
 

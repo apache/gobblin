@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.plugins;
+package org.apache.gobblin.runtime.plugins;
 
 import java.util.Collection;
 import java.util.List;
@@ -24,8 +24,8 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.runtime.api.GobblinInstancePluginFactory;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.runtime.api.GobblinInstancePluginFactory;
+import org.apache.gobblin.util.ClassAliasResolver;
 
 
 /**

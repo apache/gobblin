@@ -14,19 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.http;
+package org.apache.gobblin.writer.http;
 
 import static org.mockito.Mockito.*;
-import static gobblin.writer.http.SalesForceRestWriterBuilder.*;
+import static org.apache.gobblin.writer.http.SalesForceRestWriterBuilder.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import gobblin.configuration.State;
-import gobblin.converter.http.RestEntry;
-import gobblin.writer.http.SalesforceRestWriter.Operation;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.http.RestEntry;
+import org.apache.gobblin.writer.http.SalesforceRestWriter.Operation;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.StatusLine;

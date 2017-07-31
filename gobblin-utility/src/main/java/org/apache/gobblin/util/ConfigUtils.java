@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -45,8 +45,8 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigList;
 import com.typesafe.config.ConfigValue;
 
-import gobblin.configuration.State;
-import gobblin.password.PasswordManager;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.password.PasswordManager;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.event;
+package org.apache.gobblin.compaction.event;
 
 import java.io.IOException;
 
@@ -29,14 +29,14 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
-import gobblin.compaction.mapreduce.avro.AvroKeyMapper;
-import gobblin.configuration.State;
-import gobblin.metrics.event.sla.SlaEventKeys;
-import gobblin.metrics.event.sla.SlaEventSubmitter;
-import gobblin.metrics.event.sla.SlaEventSubmitter.SlaEventSubmitterBuilder;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
+import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter;
+import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter.SlaEventSubmitterBuilder;
 
 
 /**

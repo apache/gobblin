@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.converter;
+package org.apache.gobblin.data.management.conversion.hive.converter;
 
 import org.apache.avro.Schema;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
-import gobblin.util.AvroFlattener;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
+import org.apache.gobblin.util.AvroFlattener;
 
 /**
  * An Avro to ORC converter for avro to flattened ORC. {@link OrcFormats#FLATTENED_ORC}

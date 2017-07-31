@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.extractor;
+package org.apache.gobblin.instrumented.extractor;
 
 import java.io.IOException;
 import java.util.Map;
@@ -24,15 +24,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.MetricsHelper;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.Constructs;
-import gobblin.metrics.MetricNames;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.MetricsHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.metrics.MetricNames;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.stream.RecordEnvelope;
 
 
 public class InstrumentedExtractorTest {

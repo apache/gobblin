@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.http;
+package org.apache.gobblin.writer.http;
 
 import java.io.IOException;
 
 import com.google.gson.JsonObject;
 
-import gobblin.converter.http.RestEntry;
-import gobblin.writer.DataWriter;
+import org.apache.gobblin.converter.http.RestEntry;
+import org.apache.gobblin.writer.DataWriter;
 
 /**
  * Builder that builds RestJsonWriter

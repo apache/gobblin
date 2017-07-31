@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.scheduler;
+package org.apache.gobblin.runtime.scheduler;
 
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
@@ -42,13 +42,13 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecSchedule;
-import gobblin.runtime.api.JobSpecScheduler;
-import gobblin.scheduler.SchedulerService;
-import gobblin.util.service.StandardServiceConfig;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecSchedule;
+import org.apache.gobblin.runtime.api.JobSpecScheduler;
+import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.util.service.StandardServiceConfig;
 
 import lombok.Data;
 

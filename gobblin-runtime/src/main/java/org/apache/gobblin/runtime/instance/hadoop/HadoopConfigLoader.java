@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.instance.hadoop;
+package org.apache.gobblin.runtime.instance.hadoop;
 
 import java.util.Map;
 

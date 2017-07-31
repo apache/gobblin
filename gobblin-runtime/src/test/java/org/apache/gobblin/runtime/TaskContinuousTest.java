@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,26 +45,26 @@ import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.fork.IdentityForkOperator;
-import gobblin.publisher.TaskPublisher;
-import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
-import gobblin.qualitychecker.task.TaskLevelPolicyChecker;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.source.extractor.Extractor;
-import gobblin.stream.RecordEnvelope;
-import gobblin.source.extractor.StreamingExtractor;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ExecutorsUtils;
-import gobblin.writer.DataWriter;
-import gobblin.writer.WatermarkAwareWriter;
-import gobblin.writer.WatermarkStorage;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.fork.IdentityForkOperator;
+import org.apache.gobblin.publisher.TaskPublisher;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.source.extractor.StreamingExtractor;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.WatermarkAwareWriter;
+import org.apache.gobblin.writer.WatermarkStorage;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;

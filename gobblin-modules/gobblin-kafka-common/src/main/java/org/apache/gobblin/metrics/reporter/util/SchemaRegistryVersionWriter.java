@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter.util;
+package org.apache.gobblin.metrics.reporter.util;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -31,9 +31,9 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
-import gobblin.metrics.kafka.SchemaRegistryException;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

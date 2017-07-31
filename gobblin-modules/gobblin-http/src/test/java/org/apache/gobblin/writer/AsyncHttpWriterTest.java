@@ -1,4 +1,4 @@
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,24 +17,24 @@ import com.typesafe.config.ConfigFactory;
 import junit.framework.Assert;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.async.AsyncRequest;
-import gobblin.async.AsyncRequestBuilder;
-import gobblin.async.BufferedRecord;
-import gobblin.async.Callback;
-import gobblin.broker.BrokerConstants;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SharedResourcesBrokerImpl;
-import gobblin.broker.SimpleScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.configuration.WorkUnitState;
-import gobblin.http.HttpClient;
-import gobblin.http.ResponseHandler;
-import gobblin.http.ResponseStatus;
-import gobblin.http.StatusType;
-import gobblin.http.ThrottledHttpClient;
-import gobblin.net.Request;
-import gobblin.util.limiter.RateBasedLimiter;
-import gobblin.util.limiter.broker.SharedLimiterFactory;
+import org.apache.gobblin.async.AsyncRequest;
+import org.apache.gobblin.async.AsyncRequestBuilder;
+import org.apache.gobblin.async.BufferedRecord;
+import org.apache.gobblin.async.Callback;
+import org.apache.gobblin.broker.BrokerConstants;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.SharedResourcesBrokerImpl;
+import org.apache.gobblin.broker.SimpleScopeType;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.http.HttpClient;
+import org.apache.gobblin.http.ResponseHandler;
+import org.apache.gobblin.http.ResponseStatus;
+import org.apache.gobblin.http.StatusType;
+import org.apache.gobblin.http.ThrottledHttpClient;
+import org.apache.gobblin.net.Request;
+import org.apache.gobblin.util.limiter.RateBasedLimiter;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterFactory;
 
 
 @Test

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.fork;
+package org.apache.gobblin.fork;
 
 /**
  * An interface for classes that supports making copies of their instances.

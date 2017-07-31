@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ingestion.google.webmaster;
+package org.apache.gobblin.ingestion.google.webmaster;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -30,19 +30,19 @@ import com.google.gson.JsonArray;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.google.GoogleCommon;
-import gobblin.source.extractor.extract.google.GoogleCommonKeys;
-import gobblin.source.extractor.partition.Partition;
-import gobblin.source.extractor.watermark.DateWatermark;
-import gobblin.source.extractor.watermark.TimestampWatermark;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.extract.google.GoogleCommon;
+import org.apache.gobblin.source.extractor.extract.google.GoogleCommonKeys;
+import org.apache.gobblin.source.extractor.partition.Partition;
+import org.apache.gobblin.source.extractor.watermark.DateWatermark;
+import org.apache.gobblin.source.extractor.watermark.TimestampWatermark;
 
-import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY;
-import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USERNAME;
-import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT;
-import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL;
+import static org.apache.gobblin.configuration.ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY;
+import static org.apache.gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USERNAME;
+import static org.apache.gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT;
+import static org.apache.gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL;
 
 
 /**

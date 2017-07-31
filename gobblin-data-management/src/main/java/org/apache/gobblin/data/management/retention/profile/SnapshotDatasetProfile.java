@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.profile;
+package org.apache.gobblin.data.management.retention.profile;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -23,8 +23,8 @@ import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.data.management.retention.dataset.SnapshotDataset;
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.data.management.retention.dataset.SnapshotDataset;
+import org.apache.gobblin.dataset.Dataset;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -35,10 +35,10 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.Striped;
 
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.SharedResourceFactory;
-import gobblin.broker.iface.SharedResourceKey;
-import gobblin.broker.iface.NoSuchScopeException;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.SharedResourceFactory;
+import org.apache.gobblin.broker.iface.SharedResourceKey;
+import org.apache.gobblin.broker.iface.NoSuchScopeException;
 
 import javax.annotation.Nonnull;
 import lombok.AllArgsConstructor;

@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.conditions;
+package org.apache.gobblin.compaction.conditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.annotation.Alias;
-import gobblin.compaction.dataset.DatasetHelper;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.dataset.Dataset;
 
 /**
  * An implementation {@link RecompactionCondition} which examines the number of files in the late outputDir

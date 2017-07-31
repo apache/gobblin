@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.recordcount;
+package org.apache.gobblin.util.recordcount;
 
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;

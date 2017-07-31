@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.dataset;
+package org.apache.gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
 import java.util.List;
@@ -27,10 +27,10 @@ import org.slf4j.Logger;
 import com.google.common.collect.ImmutableList;
 import com.typesafe.config.Config;
 
-import gobblin.data.management.retention.policy.RetentionPolicy;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.finder.VersionFinder;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.data.management.retention.policy.RetentionPolicy;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.finder.VersionFinder;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 
 /**

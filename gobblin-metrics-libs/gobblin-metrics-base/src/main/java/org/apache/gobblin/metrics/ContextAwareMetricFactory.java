@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Histogram;

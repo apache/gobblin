@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.filters;
+package org.apache.gobblin.util.filters;
 
 import java.util.regex.Pattern;
 

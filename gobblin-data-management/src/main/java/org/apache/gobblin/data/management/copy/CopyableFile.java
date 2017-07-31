@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
-import gobblin.data.management.partition.File;
-import gobblin.data.management.copy.PreserveAttributes.Option;
-import gobblin.util.PathUtils;
-import gobblin.util.guid.Guid;
+import org.apache.gobblin.data.management.partition.File;
+import org.apache.gobblin.data.management.copy.PreserveAttributes.Option;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.guid.Guid;
 
 import java.io.IOException;
 import java.util.List;

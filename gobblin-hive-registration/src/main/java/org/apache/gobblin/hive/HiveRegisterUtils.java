@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import java.io.IOException;
 
 import org.apache.hadoop.fs.Path;
 
-import gobblin.configuration.State;
-import gobblin.hive.policy.HiveRegistrationPolicy;
-import gobblin.hive.policy.HiveRegistrationPolicyBase;
-import gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
+import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
+import org.apache.gobblin.hive.spec.HiveSpec;
 
 
 /**

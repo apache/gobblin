@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.listeners;
+package org.apache.gobblin.compaction.listeners;
 
 import java.util.List;
 
 import lombok.AllArgsConstructor;
 
-import gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.dataset.Dataset;
 
 
 @AllArgsConstructor

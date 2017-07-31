@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import java.io.IOException;
 import java.util.Properties;
 
-import gobblin.metrics.reporter.ScheduledReporter;
+import org.apache.gobblin.metrics.reporter.ScheduledReporter;
 
 
 /**

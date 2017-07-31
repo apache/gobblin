@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 import java.io.Serializable;
@@ -34,11 +34,11 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstance;
-import gobblin.util.CompletedFuture;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutorInstance;
+import org.apache.gobblin.util.CompletedFuture;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 public class SimpleKafkaSpecExecutorInstance extends AbstractIdleService implements SpecExecutorInstance {

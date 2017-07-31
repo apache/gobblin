@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
 import java.net.URI;
 import java.util.List;
@@ -34,12 +34,12 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.policy.EmbeddedRetentionSelectionPolicy;
-import gobblin.data.management.policy.NewestKSelectionPolicy;
-import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.finder.WatermarkDatasetVersionFinder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.policy.EmbeddedRetentionSelectionPolicy;
+import org.apache.gobblin.data.management.policy.NewestKSelectionPolicy;
+import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder;
 
 public class ConfigurableCleanableDatasetTest {
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -35,14 +35,14 @@ import com.codahale.metrics.Meter;
 
 import com.google.common.collect.Lists;
 
-import gobblin.metrics.Measurements;
-import gobblin.metrics.Metric;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.MetricReport;
-import gobblin.metrics.Tag;
-import gobblin.metrics.kafka.KafkaPusher;
-import gobblin.metrics.kafka.KafkaReporter;
-import gobblin.metrics.reporter.util.MetricReportUtils;
+import org.apache.gobblin.metrics.Measurements;
+import org.apache.gobblin.metrics.Metric;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.MetricReport;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.kafka.KafkaPusher;
+import org.apache.gobblin.metrics.kafka.KafkaReporter;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 
 
 @Test(groups = { "gobblin.metrics" })

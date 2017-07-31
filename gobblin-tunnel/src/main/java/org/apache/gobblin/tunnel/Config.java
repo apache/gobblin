@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.tunnel;
+package org.apache.gobblin.tunnel;
 
 class Config {
   public static final int PROXY_CONNECT_TIMEOUT_MS = 5000;

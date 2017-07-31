@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import java.io.Closeable;
 import java.io.IOException;
 
-import gobblin.async.Callback;
+import org.apache.gobblin.async.Callback;
 
 /**
  * An interface to send a request

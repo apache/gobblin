@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.util;
+package org.apache.gobblin.runtime.util;
 
 /**
  * Allows conversion of URLs identifying a Hadoop cluster (e.g. resource manager url or

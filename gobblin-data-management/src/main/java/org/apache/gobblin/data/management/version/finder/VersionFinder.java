@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.version.finder;
+package org.apache.gobblin.data.management.version.finder;
 
 import java.io.IOException;
 import java.util.Collection;
 
-import gobblin.dataset.Dataset;
-import gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.data.management.version.DatasetVersion;
 
 
 /**

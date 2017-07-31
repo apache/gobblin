@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract;
+package org.apache.gobblin.source.extractor.extract;
 
 import java.util.List;
 
@@ -23,16 +23,16 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.Source;
-import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.source.extractor.WorkUnitRetryPolicy;
-import gobblin.source.workunit.ExtractFactory;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.Extract.TableType;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.source.extractor.WorkUnitRetryPolicy;
+import org.apache.gobblin.source.workunit.ExtractFactory;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.Extract.TableType;
 
 
 /**

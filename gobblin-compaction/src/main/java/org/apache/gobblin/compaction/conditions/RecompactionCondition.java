@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.conditions;
-import gobblin.compaction.dataset.DatasetHelper;
+package org.apache.gobblin.compaction.conditions;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
 
 /**
  * There are different recompaction conditions and their combinations in Gobblin recompaction flow . For example,

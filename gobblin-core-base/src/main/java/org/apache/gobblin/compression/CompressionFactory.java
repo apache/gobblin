@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compression;
+package org.apache.gobblin.compression;
 
 import java.util.Map;
 
-import gobblin.annotation.Alpha;
-import gobblin.codec.GzipCodec;
-import gobblin.codec.StreamCodec;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.codec.GzipCodec;
+import org.apache.gobblin.codec.StreamCodec;
 
 
 /**

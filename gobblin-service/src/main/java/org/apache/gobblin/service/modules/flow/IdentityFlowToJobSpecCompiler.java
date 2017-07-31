@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.flow;
+package org.apache.gobblin.service.modules.flow;
 
 import java.io.IOException;
 import java.net.URI;
@@ -39,25 +39,25 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.runtime.api.FlowSpec;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecCompiler;
-import gobblin.runtime.api.SpecExecutorInstance;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.api.TopologySpec;
-import gobblin.runtime.job_catalog.FSJobCatalog;
-import gobblin.runtime.job_spec.ResolvedJobSpec;
-import gobblin.service.ServiceConfigKeys;
-import gobblin.service.ServiceMetricNames;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecCompiler;
+import org.apache.gobblin.runtime.api.SpecExecutorInstance;
+import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
+import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.ServiceMetricNames;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /***

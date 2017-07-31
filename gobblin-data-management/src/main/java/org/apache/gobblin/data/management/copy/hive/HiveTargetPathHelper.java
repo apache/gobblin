@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -24,7 +24,7 @@ import org.apache.hadoop.hive.ql.metadata.Partition;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.util.PathUtils;
+import org.apache.gobblin.util.PathUtils;
 
 
 public class HiveTargetPathHelper {

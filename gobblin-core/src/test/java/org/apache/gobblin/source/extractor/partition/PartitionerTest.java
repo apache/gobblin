@@ -1,4 +1,4 @@
-package gobblin.source.extractor.partition;
+package org.apache.gobblin.source.extractor.partition;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -8,11 +8,11 @@ import org.joda.time.DateTime;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.source.extractor.extract.ExtractType;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.WatermarkType;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.source.extractor.extract.ExtractType;
+import org.apache.gobblin.source.extractor.utils.Utils;
+import org.apache.gobblin.source.extractor.watermark.WatermarkType;
 
 /**
  * Unit tests for {@link PartitionerTest}

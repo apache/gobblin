@@ -1,4 +1,4 @@
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import java.io.IOException;
 
@@ -8,16 +8,16 @@ import com.codahale.metrics.Timer;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.async.Callback;
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.broker.MetricContextFactory;
-import gobblin.metrics.broker.MetricContextKey;
-import gobblin.util.http.HttpLimiterKey;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.broker.SharedLimiterFactory;
+import org.apache.gobblin.async.Callback;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.broker.MetricContextFactory;
+import org.apache.gobblin.metrics.broker.MetricContextKey;
+import org.apache.gobblin.util.http.HttpLimiterKey;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterFactory;
 
 
 /**

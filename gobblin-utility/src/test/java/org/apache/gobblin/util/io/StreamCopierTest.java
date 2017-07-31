@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.io;
+package org.apache.gobblin.util.io;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -27,7 +27,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Charsets;
 
-import gobblin.util.limiter.CountBasedLimiter;
+import org.apache.gobblin.util.limiter.CountBasedLimiter;
 
 
 public class StreamCopierTest {

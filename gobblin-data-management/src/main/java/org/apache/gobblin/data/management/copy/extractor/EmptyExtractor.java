@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.extractor;
+package org.apache.gobblin.data.management.copy.extractor;
 
 import lombok.AllArgsConstructor;
 
 import java.io.IOException;
 
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
 
 
 /**

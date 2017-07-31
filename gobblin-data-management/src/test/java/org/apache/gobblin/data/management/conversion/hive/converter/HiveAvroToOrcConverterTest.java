@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.conversion.hive.converter;
+package org.apache.gobblin.data.management.conversion.hive.converter;
 
 import java.io.IOException;
 import java.util.List;
@@ -35,15 +35,15 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.ConversionHiveTestUtils;
-import gobblin.data.management.conversion.hive.LocalHiveMetastoreTestUtils;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetTest;
-import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
-import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
-import gobblin.data.management.conversion.hive.entities.SchemaAwareHiveTable;
-import gobblin.data.management.copy.hive.WhitelistBlacklist;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.ConversionHiveTestUtils;
+import org.apache.gobblin.data.management.conversion.hive.LocalHiveMetastoreTestUtils;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetTest;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import org.apache.gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
+import org.apache.gobblin.data.management.conversion.hive.entities.SchemaAwareHiveTable;
+import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
 
 
 @Test(groups = { "gobblin.data.management.conversion" })

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.azkaban;
+package org.apache.gobblin.azkaban;
 
 
 

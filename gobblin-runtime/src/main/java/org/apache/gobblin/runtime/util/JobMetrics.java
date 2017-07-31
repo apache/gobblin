@@ -15,20 +15,20 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.util;
+package org.apache.gobblin.runtime.util;
 
 import java.util.List;
 import java.util.concurrent.Callable;
 
 import com.google.common.collect.Lists;
 
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.metrics.event.JobEvent;
-import gobblin.runtime.JobState;
-import gobblin.runtime.TaskState;
-import gobblin.util.ClustersNames;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.JobEvent;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.util.ClustersNames;
 
 
 /**

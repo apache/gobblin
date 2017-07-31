@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.services;
+package org.apache.gobblin.runtime.services;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;

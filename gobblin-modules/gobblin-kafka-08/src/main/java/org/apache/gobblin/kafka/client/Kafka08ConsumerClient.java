@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.kafka.client;
+package org.apache.gobblin.kafka.client;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -49,11 +49,11 @@ import com.google.common.collect.Maps;
 import com.google.common.net.HostAndPort;
 import com.typesafe.config.Config;
 
-import gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
-import gobblin.source.extractor.extract.kafka.KafkaPartition;
-import gobblin.source.extractor.extract.kafka.KafkaTopic;
-import gobblin.util.ConfigUtils;
-import gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.DatasetFilterUtils;
 
 /**
  * A {@link GobblinKafkaConsumerClient} that uses kafka 08 scala consumer client. All the code has been moved from the

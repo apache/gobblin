@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.source;
+package org.apache.gobblin.compaction.source;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compaction.suite.CompactionSuite;
-import gobblin.compaction.suite.CompactionSuiteUtils;
-import gobblin.configuration.WorkUnitState;
-import gobblin.dataset.Dataset;
-import gobblin.runtime.TaskContext;
-import gobblin.runtime.task.FailedTask;
-import gobblin.runtime.task.TaskIFace;
+import org.apache.gobblin.compaction.suite.CompactionSuite;
+import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.task.FailedTask;
+import org.apache.gobblin.runtime.task.TaskIFace;
 
 /**
  * A task which throws an exception when executed

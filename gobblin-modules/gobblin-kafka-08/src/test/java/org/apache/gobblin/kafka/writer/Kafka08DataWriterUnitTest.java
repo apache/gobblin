@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.writer;
+package org.apache.gobblin.kafka.writer;
 
 import java.util.Properties;
 

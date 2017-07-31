@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import java.net.URI;
 
@@ -22,8 +22,8 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 
-import gobblin.runtime.api.JobCatalogListener;
-import gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobCatalogListener;
+import org.apache.gobblin.runtime.api.JobSpec;
 
 /**
  * Default NOOP implementation for {@link JobCatalogListener}. It can log the callbacks. Other

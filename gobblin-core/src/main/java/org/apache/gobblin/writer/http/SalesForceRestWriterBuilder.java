@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.http;
+package org.apache.gobblin.writer.http;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -26,11 +26,11 @@ import com.google.gson.JsonObject;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.converter.http.RestEntry;
-import gobblin.password.PasswordManager;
-import gobblin.writer.DataWriter;
-import gobblin.writer.http.SalesforceRestWriter.Operation;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.converter.http.RestEntry;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.http.SalesforceRestWriter.Operation;
 
 import lombok.AccessLevel;
 import lombok.Getter;

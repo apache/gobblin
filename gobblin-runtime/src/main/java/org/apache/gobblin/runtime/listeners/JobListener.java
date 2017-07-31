@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.listeners;
+package org.apache.gobblin.runtime.listeners;
 
-import gobblin.runtime.JobContext;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.runtime.JobContext;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 /**
  * An interface for classes used for callback on job state changes.

@@ -1,5 +1,5 @@
-package gobblin.compaction.mapreduce;
-import gobblin.compaction.dataset.Dataset;
+package org.apache.gobblin.compaction.mapreduce;
+import org.apache.gobblin.compaction.dataset.Dataset;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;

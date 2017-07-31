@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.yarn;
+package org.apache.gobblin.yarn;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,11 +47,11 @@ import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.cluster.GobblinTaskRunner;
-import gobblin.cluster.GobblinClusterConfigurationKeys;
-import gobblin.util.JvmUtils;
-import gobblin.util.logs.Log4jConfigurationHelper;
-import gobblin.yarn.event.DelegationTokenUpdatedEvent;
+import org.apache.gobblin.cluster.GobblinTaskRunner;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
+import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
 public class GobblinYarnTaskRunner extends GobblinTaskRunner {

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.filter;
+package org.apache.gobblin.converter.filter;
 
 import java.io.IOException;
 import java.io.InputStream;

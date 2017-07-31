@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import java.util.Arrays;
 import lombok.AllArgsConstructor;
@@ -27,8 +27,8 @@ import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.google.common.base.Optional;
 
-import gobblin.commit.CommitStep;
-import gobblin.hive.metastore.HiveMetaStoreUtils;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 
 
 /**

@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.util.concurrent.TimeUnit;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

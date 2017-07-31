@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.dataset.finder;
+package org.apache.gobblin.data.management.retention.dataset.finder;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -24,10 +24,10 @@ import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.typesafe.config.Config;
 
-import gobblin.config.client.ConfigClient;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.data.management.retention.dataset.CleanableHiveDataset;
-import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.data.management.retention.dataset.CleanableHiveDataset;
+import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
 
 
 public class CleanableHiveDatasetFinder extends HiveDatasetFinder {

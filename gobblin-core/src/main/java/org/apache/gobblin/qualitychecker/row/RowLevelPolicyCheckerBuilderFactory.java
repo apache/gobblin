@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.qualitychecker.row;
+package org.apache.gobblin.qualitychecker.row;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 public class RowLevelPolicyCheckerBuilderFactory {

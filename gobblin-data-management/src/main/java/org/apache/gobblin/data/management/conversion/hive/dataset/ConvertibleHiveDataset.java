@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.dataset;
+package org.apache.gobblin.data.management.conversion.hive.dataset;
 
 import java.util.List;
 import java.util.Map;
@@ -34,10 +34,10 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

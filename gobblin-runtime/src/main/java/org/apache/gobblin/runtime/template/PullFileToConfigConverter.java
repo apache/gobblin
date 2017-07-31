@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.template;
+package org.apache.gobblin.runtime.template;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,13 +38,13 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
 import com.typesafe.config.ConfigResolveOptions;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
-import gobblin.util.ConfigUtils;
-import gobblin.util.PathUtils;
-import gobblin.util.PullFileLoader;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.PullFileLoader;
 
 import lombok.Data;
 

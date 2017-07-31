@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.util.Collection;
 import java.util.List;
@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import gobblin.util.PathUtils;
+import org.apache.gobblin.util.PathUtils;
 
 @Test(groups = {"gobblin.data.management.copy"})
 public class ReadyCopyableFileFilterTest {

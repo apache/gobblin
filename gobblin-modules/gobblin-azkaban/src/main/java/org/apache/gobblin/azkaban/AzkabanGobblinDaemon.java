@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.azkaban;
+package org.apache.gobblin.azkaban;
 
 import java.util.List;
 import java.util.Properties;
@@ -23,9 +23,9 @@ import org.apache.log4j.Logger;
 
 import com.google.common.collect.Lists;
 
-import gobblin.metrics.RootMetricContext;
-import gobblin.metrics.Tag;
-import gobblin.scheduler.SchedulerDaemon;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.scheduler.SchedulerDaemon;
 import azkaban.jobExecutor.AbstractJob;
 
 

@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.listeners;
+package org.apache.gobblin.compaction.listeners;
 
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.annotation.Alias;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.compaction.dataset.Dataset;
-import gobblin.configuration.State;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.configuration.State;
 
 
 public class SimpleCompactorCompletionListener implements CompactorCompletionListener {

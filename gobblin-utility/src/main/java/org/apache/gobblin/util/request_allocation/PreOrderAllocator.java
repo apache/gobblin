@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.request_allocation;
+package org.apache.gobblin.util.request_allocation;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -24,7 +24,7 @@ import java.util.concurrent.Callable;
 
 import com.google.common.collect.Lists;
 
-import gobblin.util.iterators.InterruptibleIterator;
+import org.apache.gobblin.util.iterators.InterruptibleIterator;
 
 import lombok.extern.slf4j.Slf4j;
 

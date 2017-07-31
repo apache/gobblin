@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import com.codahale.metrics.Meter;
 
-import gobblin.metrics.metric.InnerMetric;
+import org.apache.gobblin.metrics.metric.InnerMetric;
 
 import lombok.experimental.Delegate;
 

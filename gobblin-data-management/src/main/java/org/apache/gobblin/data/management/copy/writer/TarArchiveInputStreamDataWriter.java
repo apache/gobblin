@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.writer;
+package org.apache.gobblin.data.management.copy.writer;
 
-import gobblin.configuration.State;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.util.io.StreamCopier;
-import gobblin.util.io.StreamUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.util.io.StreamCopier;
+import org.apache.gobblin.util.io.StreamUtils;
 
 import java.io.IOException;
 import java.io.InputStream;

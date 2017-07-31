@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 
-import gobblin.runtime.api.JobCatalog;
-import gobblin.runtime.api.JobCatalogWithTemplates;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.template.ResourceBasedJobTemplate;
-import gobblin.util.Decorator;
+import org.apache.gobblin.runtime.api.JobCatalog;
+import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.template.ResourceBasedJobTemplate;
+import org.apache.gobblin.util.Decorator;
 
 import lombok.experimental.Delegate;
 

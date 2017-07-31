@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter.stressTest;
+package org.apache.gobblin.util.limiter.stressTest;
 
 import java.io.Closeable;
 import java.util.ArrayList;
@@ -32,9 +32,9 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import gobblin.util.Decorator;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.RestliServiceBasedLimiter;
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.RestliServiceBasedLimiter;
 
 import javax.annotation.Nullable;
 import lombok.AccessLevel;

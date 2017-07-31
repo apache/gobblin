@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor;
+package org.apache.gobblin.source.extractor;
 
 import java.io.IOException;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.extractor.InstrumentedExtractor;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.instrumented.extractor.InstrumentedExtractor;
 
 
 /**

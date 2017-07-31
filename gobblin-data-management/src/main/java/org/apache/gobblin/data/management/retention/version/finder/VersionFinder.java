@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.version.finder;
+package org.apache.gobblin.data.management.retention.version.finder;
 
-import gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
 
 
 /**

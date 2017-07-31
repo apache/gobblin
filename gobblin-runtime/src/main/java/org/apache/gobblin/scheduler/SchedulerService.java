@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.scheduler;
+package org.apache.gobblin.scheduler;
 
 import java.util.Properties;
 
@@ -27,9 +27,9 @@ import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ConfigUtils;
-import gobblin.util.PropertiesUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 import lombok.Getter;
 

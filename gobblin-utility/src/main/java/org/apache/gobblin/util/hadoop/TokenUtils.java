@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.hadoop;
+package org.apache.gobblin.util.hadoop;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -52,7 +52,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.test;
+package org.apache.gobblin.test;
 
 import java.io.IOException;
 import java.net.ServerSocket;

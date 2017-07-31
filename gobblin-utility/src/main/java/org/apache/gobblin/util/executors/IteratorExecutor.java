@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.executors;
+package org.apache.gobblin.util.executors;
 
 import java.util.Iterator;
 import java.util.List;
@@ -37,8 +37,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 
-import gobblin.util.Either;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.Either;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;

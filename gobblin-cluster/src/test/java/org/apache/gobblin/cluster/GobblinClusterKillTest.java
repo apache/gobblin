@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
-import gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;

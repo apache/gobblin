@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package gobblin.recordaccess;
+package org.apache.gobblin.recordaccess;
 
 import java.io.IOException;
 import java.util.Map;

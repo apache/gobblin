@@ -1,4 +1,4 @@
-package gobblin.async;
+package org.apache.gobblin.async;
 
 public interface Callback<T> {
 

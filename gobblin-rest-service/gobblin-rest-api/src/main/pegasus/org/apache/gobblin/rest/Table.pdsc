@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "Table",
-    "namespace": "gobblin.rest",
+    "namesapce" : "org.apache.gobblin.rest",
     "doc": "Gobblin table definition",
     "fields": [
       {

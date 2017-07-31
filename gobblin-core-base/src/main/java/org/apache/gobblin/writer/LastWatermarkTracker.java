@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 
 
 /**

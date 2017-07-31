@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.restli.throttling;
+package org.apache.gobblin.restli.throttling;
 
 import java.util.Collection;
 import java.util.List;
@@ -24,9 +24,9 @@ import java.util.Set;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import gobblin.broker.SimpleScope;
-import gobblin.broker.iface.ScopeInstance;
-import gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.SimpleScope;
+import org.apache.gobblin.broker.iface.ScopeInstance;
+import org.apache.gobblin.broker.iface.ScopeType;
 
 import javax.annotation.Nullable;
 

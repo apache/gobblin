@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.util.Map;
 
@@ -25,12 +25,12 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.event.EventName;
-import gobblin.runtime.EventMetadataUtils;
-import gobblin.runtime.JobContext;
-import gobblin.runtime.JobState;
-import gobblin.runtime.TaskState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.event.EventName;
+import org.apache.gobblin.runtime.EventMetadataUtils;
+import org.apache.gobblin.runtime.JobContext;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.TaskState;
 
 /**
  * Unit tests for {@link ClusterEventMetadataGenerator}.

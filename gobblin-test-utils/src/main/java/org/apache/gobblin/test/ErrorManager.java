@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.test;
+package org.apache.gobblin.test;
 
 import java.util.Random;
 import java.util.regex.Pattern;
@@ -24,7 +24,7 @@ import com.typesafe.config.Config;
 
 import lombok.Builder;
 
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

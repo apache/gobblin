@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.service;
+package org.apache.gobblin.service;
 
 public class ServiceMetricNames {
   private static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";

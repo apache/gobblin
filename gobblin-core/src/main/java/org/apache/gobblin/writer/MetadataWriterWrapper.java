@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Set;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.metadata.GlobalMetadataCollector;
-import gobblin.metadata.types.GlobalMetadata;
-import gobblin.type.RecordWithMetadata;
-import gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metadata.GlobalMetadataCollector;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.type.RecordWithMetadata;
+import org.apache.gobblin.util.ForkOperatorUtils;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.locks;
+package org.apache.gobblin.runtime.locks;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;

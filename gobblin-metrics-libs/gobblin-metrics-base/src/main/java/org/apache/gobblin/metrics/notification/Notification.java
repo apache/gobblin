@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.notification;
+package org.apache.gobblin.metrics.notification;
 
 /**
  * Generic interface for notifications.

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.io;
+package org.apache.gobblin.util.io;
 
 import java.net.URI;
 
@@ -23,8 +23,8 @@ import org.apache.hadoop.fs.LocalFileSystem;
 
 import com.google.common.base.Joiner;
 
-import gobblin.util.ClustersNames;
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.util.ClustersNames;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 import lombok.Getter;
 

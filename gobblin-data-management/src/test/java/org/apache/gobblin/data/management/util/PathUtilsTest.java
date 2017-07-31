@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.util;
+package org.apache.gobblin.data.management.util;
 
-import gobblin.util.PathUtils;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;

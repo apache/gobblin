@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.dataset;
+package org.apache.gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -38,17 +38,17 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
 
-import gobblin.data.management.policy.SelectNothingPolicy;
-import gobblin.data.management.policy.VersionSelectionPolicy;
-import gobblin.data.management.retention.action.MultiAccessControlAction.MultiAccessControlActionFactory;
-import gobblin.data.management.retention.action.RetentionAction;
-import gobblin.data.management.retention.action.RetentionAction.RetentionActionFactory;
-import gobblin.data.management.retention.dataset.MultiVersionCleanableDatasetBase.VersionFinderAndPolicy.VersionFinderAndPolicyBuilder;
-import gobblin.data.management.retention.policy.RetentionPolicy;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.finder.VersionFinder;
-import gobblin.util.ConfigUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.data.management.policy.SelectNothingPolicy;
+import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
+import org.apache.gobblin.data.management.retention.action.MultiAccessControlAction.MultiAccessControlActionFactory;
+import org.apache.gobblin.data.management.retention.action.RetentionAction;
+import org.apache.gobblin.data.management.retention.action.RetentionAction.RetentionActionFactory;
+import org.apache.gobblin.data.management.retention.dataset.MultiVersionCleanableDatasetBase.VersionFinderAndPolicy.VersionFinderAndPolicyBuilder;
+import org.apache.gobblin.data.management.retention.policy.RetentionPolicy;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.finder.VersionFinder;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

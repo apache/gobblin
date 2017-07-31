@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.instance;
+package org.apache.gobblin.runtime.instance;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -30,21 +30,21 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.JobExecutionDriver;
-import gobblin.runtime.api.JobExecutionLauncher;
-import gobblin.runtime.api.JobExecutionResult;
-import gobblin.runtime.api.JobLifecycleListener;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.instance.DefaultGobblinInstanceDriverImpl.JobSpecRunnable;
-import gobblin.runtime.job_spec.ResolvedJobSpec;
-import gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
-import gobblin.runtime.std.FilteredJobLifecycleListener;
-import gobblin.runtime.std.JobSpecFilter;
-import gobblin.testing.AssertWithBackoff;
-import gobblin.util.test.HelloWorldSource;
-import gobblin.writer.test.GobblinTestEventBusWriter;
-import gobblin.writer.test.TestingEventBusAsserter;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.JobExecutionDriver;
+import org.apache.gobblin.runtime.api.JobExecutionLauncher;
+import org.apache.gobblin.runtime.api.JobExecutionResult;
+import org.apache.gobblin.runtime.api.JobLifecycleListener;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.instance.DefaultGobblinInstanceDriverImpl.JobSpecRunnable;
+import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
+import org.apache.gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
+import org.apache.gobblin.runtime.std.FilteredJobLifecycleListener;
+import org.apache.gobblin.runtime.std.JobSpecFilter;
+import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.util.test.HelloWorldSource;
+import org.apache.gobblin.writer.test.GobblinTestEventBusWriter;
+import org.apache.gobblin.writer.test.TestingEventBusAsserter;
 
 /**
  * Unit tests for {@link StandardGobblinInstanceLauncher}

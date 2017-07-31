@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.util.List;
 
@@ -29,13 +29,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.Metric;
-import gobblin.metrics.MetricReport;
-import gobblin.metrics.reporter.util.AvroBinarySerializer;
-import gobblin.metrics.reporter.util.AvroSerializer;
-import gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.Metric;
+import org.apache.gobblin.metrics.MetricReport;
+import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
+import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
+import org.apache.gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
+import org.apache.gobblin.util.AvroUtils;
 
 public class GobblinMetricsPinotFlattenerConverterTest {
 

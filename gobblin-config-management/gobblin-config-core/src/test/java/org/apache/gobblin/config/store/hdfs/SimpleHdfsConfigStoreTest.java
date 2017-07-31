@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.store.hdfs;
+package org.apache.gobblin.config.store.hdfs;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -40,13 +40,13 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.typesafe.config.Config;
 
-import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.config.store.deploy.ClasspathConfigSource;
-import gobblin.config.store.deploy.FsDeploymentConfig;
-import gobblin.util.ConfigUtils;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.config.store.deploy.ClasspathConfigSource;
+import org.apache.gobblin.config.store.deploy.FsDeploymentConfig;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**

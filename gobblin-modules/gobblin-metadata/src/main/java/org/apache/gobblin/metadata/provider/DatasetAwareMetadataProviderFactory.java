@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metadata.provider;
+package org.apache.gobblin.metadata.provider;
 
 import com.typesafe.config.Config;
 

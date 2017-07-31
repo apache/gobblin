@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -37,10 +37,10 @@ import com.google.common.base.Throwables;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.annotation.Alias;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.cli.CliApplication;
-import gobblin.runtime.cli.EmbeddedGobblinCliFactory;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.cli.CliApplication;
+import org.apache.gobblin.runtime.cli.EmbeddedGobblinCliFactory;
 
 
 /**

@@ -17,7 +17,7 @@
 
 
 
-package gobblin.metrics.graphite;
+package org.apache.gobblin.metrics.graphite;
 
 
 import java.net.InetSocketAddress;

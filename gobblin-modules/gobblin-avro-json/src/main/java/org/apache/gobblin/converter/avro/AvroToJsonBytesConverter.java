@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.converter.avro;
+package org.apache.gobblin.converter.avro;
 
 public class AvroToJsonBytesConverter extends AvroToJsonStringConverterBase<byte[]> {
   @Override

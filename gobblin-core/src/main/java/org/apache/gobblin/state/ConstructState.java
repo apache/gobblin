@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.state;
+package org.apache.gobblin.state;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -26,9 +26,9 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import gobblin.Constructs;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.writer.ThrottleWriter.ThrottleType;
-import gobblin.util.FinalState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.writer.ThrottleWriter.ThrottleType;
+import org.apache.gobblin.util.FinalState;
 
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.mockito.invocation.InvocationOnMock;

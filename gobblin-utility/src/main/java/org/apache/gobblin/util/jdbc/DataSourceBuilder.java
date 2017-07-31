@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.util.jdbc;
+package org.apache.gobblin.util.jdbc;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 
 import java.util.Properties;
 

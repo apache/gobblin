@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.watermark;
+package org.apache.gobblin.source.extractor.watermark;
 
 /**
  * An implementation for predicate conditions

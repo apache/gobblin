@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 /**
  * An interface to implement a transformer from a system-native response type into a {@link WriteResponse}.

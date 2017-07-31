@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.app;
+package org.apache.gobblin.runtime.app;
 
 import java.io.Closeable;
 
-import gobblin.annotation.Alpha;
-import gobblin.runtime.JobLauncher;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.JobLauncher;
 
 
 /**

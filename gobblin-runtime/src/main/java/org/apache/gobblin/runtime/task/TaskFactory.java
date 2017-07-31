@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.task;
+package org.apache.gobblin.runtime.task;
 
-import gobblin.publisher.DataPublisher;
-import gobblin.runtime.JobState;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.runtime.JobState;
 
-import gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.TaskContext;
 
 
 /**

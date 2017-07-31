@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.yarn;
+package org.apache.gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
@@ -86,21 +86,21 @@ import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.cluster.GobblinClusterConfigurationKeys;
-import gobblin.cluster.GobblinClusterUtils;
-import gobblin.cluster.GobblinHelixConstants;
-import gobblin.cluster.HelixUtils;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.rest.JobExecutionInfoServer;
-import gobblin.runtime.app.ServiceBasedAppLauncher;
-import gobblin.util.ConfigUtils;
-import gobblin.util.EmailUtils;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.io.StreamUtils;
-import gobblin.util.JvmUtils;
-import gobblin.util.logs.LogCopier;
-import gobblin.yarn.event.ApplicationReportArrivalEvent;
-import gobblin.yarn.event.GetApplicationReportFailureEvent;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.cluster.GobblinHelixConstants;
+import org.apache.gobblin.cluster.HelixUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.rest.JobExecutionInfoServer;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.EmailUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.io.StreamUtils;
+import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.logs.LogCopier;
+import org.apache.gobblin.yarn.event.ApplicationReportArrivalEvent;
+import org.apache.gobblin.yarn.event.GetApplicationReportFailureEvent;
 
 
 /**

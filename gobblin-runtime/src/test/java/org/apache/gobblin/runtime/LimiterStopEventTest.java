@@ -1,13 +1,13 @@
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.source.extractor.limiter.LimiterConfigurationKeys;
-import gobblin.util.limiter.Limiter;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.source.extractor.limiter.LimiterConfigurationKeys;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.workunit.WorkUnit;
 import junit.framework.Assert;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.kafka;
+package org.apache.gobblin.metrics.kafka;
 
 import java.io.IOException;
 
@@ -23,12 +23,12 @@ import org.apache.avro.Schema;
 
 import com.google.common.base.Optional;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.reporter.util.AvroBinarySerializer;
-import gobblin.metrics.reporter.util.AvroSerializer;
-import gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
-import gobblin.metrics.reporter.util.SchemaVersionWriter;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
+import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
+import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
+import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 
 
 /**

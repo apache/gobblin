@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.test;
+package org.apache.gobblin.writer.test;
 
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
@@ -22,9 +22,9 @@ import java.util.concurrent.TimeoutException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.source.workunit.WorkUnit;
-import gobblin.writer.Destination;
-import gobblin.writer.Destination.DestinationType;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.Destination.DestinationType;
 
 
 /**

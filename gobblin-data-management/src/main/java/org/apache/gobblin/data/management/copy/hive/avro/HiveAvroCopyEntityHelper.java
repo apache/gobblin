@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive.avro;
+package org.apache.gobblin.data.management.copy.hive.avro;
 
 import java.io.IOException;
 import java.net.URI;
@@ -31,8 +31,8 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 
-import gobblin.data.management.copy.hive.HiveCopyEntityHelper;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.data.management.copy.hive.HiveCopyEntityHelper;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**

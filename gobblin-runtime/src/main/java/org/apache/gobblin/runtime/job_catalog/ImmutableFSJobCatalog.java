@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -40,17 +40,17 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.JobCatalog;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecNotFoundException;
-import gobblin.util.PathUtils;
-import gobblin.util.PullFileLoader;
-import gobblin.util.filesystem.PathAlterationObserverScheduler;
-import gobblin.util.filesystem.PathAlterationObserver;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.JobCatalog;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.PullFileLoader;
+import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
+import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.database;
+package org.apache.gobblin.metastore.database;
 
-import gobblin.metastore.JobHistoryStore;
+import org.apache.gobblin.metastore.JobHistoryStore;
 
 import java.io.IOException;
 
-import gobblin.rest.JobExecutionInfo;
+import org.apache.gobblin.rest.JobExecutionInfo;
 
 
 /**

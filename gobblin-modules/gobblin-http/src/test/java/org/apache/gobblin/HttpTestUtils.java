@@ -19,8 +19,8 @@ import com.linkedin.data.ByteString;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestRequestBuilder;
 
-import gobblin.http.HttpOperation;
-import gobblin.async.BufferedRecord;
+import org.apache.gobblin.http.HttpOperation;
+import org.apache.gobblin.async.BufferedRecord;
 
 
 public class HttpTestUtils {

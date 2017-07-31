@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.workunit;
+package org.apache.gobblin.source.workunit;
 
 /**
  * Provides weights for {@link WorkUnit}s to use by a {@link WorkUnitBinPacker}.

@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.config.store.api;
+package org.apache.gobblin.config.store.api;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 /**
  * The ConfigKeyPath is used to describe the relative path for a given configuration key URI to

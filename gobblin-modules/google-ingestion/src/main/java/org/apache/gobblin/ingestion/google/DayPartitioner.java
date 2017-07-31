@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ingestion.google;
+package org.apache.gobblin.ingestion.google;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -26,8 +26,8 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import gobblin.configuration.State;
-import gobblin.writer.partitioner.WriterPartitioner;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 
 
 /**
@@ -76,7 +76,7 @@ public class DayPartitioner implements WriterPartitioner<GenericRecord> {
     _dateColumn = state.getProp(GoggleIngestionConfigurationKeys.KEY_DATE_COLUMN_NAME, DEFAULT_DATE_COLUMN);
     _dateFormatter =
         DateTimeFormat.forPattern(state.getProp(GoggleIngestionConfigurationKeys.KEY_DATE_FORMAT, DEFAULT_DATE_FORMAT));
-    
+
     SchemaBuilder.FieldAssembler<Schema> assembler = SchemaBuilder.record(NAME).namespace(NAME_SPACE).fields();
     Schema stringType = Schema.create(Schema.Type.STRING);
 

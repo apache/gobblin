@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.kafka.client;
+package org.apache.gobblin.kafka.client;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,9 +33,9 @@ import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.source.extractor.extract.kafka.KafkaPartition;
-import gobblin.kafka.client.Kafka09ConsumerClient.Kafka09ConsumerRecord;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.kafka.client.Kafka09ConsumerClient.Kafka09ConsumerRecord;
 
 
 public class Kafka09ConsumerClientTest {

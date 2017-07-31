@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.Map;
@@ -29,14 +29,14 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.metastore.StateStore;
-import gobblin.metastore.ZkStateStoreConfigurationKeys;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metastore.ZkStateStoreConfigurationKeys;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 
 
 /**

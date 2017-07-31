@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-import gobblin.runtime.api.JobCatalogListener;
-import gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobCatalogListener;
+import org.apache.gobblin.runtime.api.JobSpec;
 
 /** Unit tests for {@link JobCatalogListenersList} */
 public class TestJobCatalogListenersList {

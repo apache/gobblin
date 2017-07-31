@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -33,18 +33,18 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.Tag;
-import gobblin.runtime.JobException;
-import gobblin.runtime.JobLauncher;
-import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.listeners.JobListener;
-import gobblin.scheduler.JobScheduler;
-import gobblin.cluster.event.DeleteJobConfigArrivalEvent;
-import gobblin.cluster.event.NewJobConfigArrivalEvent;
-import gobblin.cluster.event.UpdateJobConfigArrivalEvent;
-import gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.scheduler.JobScheduler;
+import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
+import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
+import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
+import org.apache.gobblin.scheduler.SchedulerService;
 
 
 /**

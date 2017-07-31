@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import lombok.extern.slf4j.Slf4j;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import static org.mockito.Mockito.mock;
 
@@ -30,10 +30,10 @@ import org.apache.commons.lang.RandomStringUtils;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.State;
-import gobblin.converter.jdbc.JdbcEntryData;
-import gobblin.converter.jdbc.JdbcEntryDatum;
-import gobblin.writer.commands.JdbcBufferedInserter;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.converter.jdbc.JdbcEntryDatum;
+import org.apache.gobblin.writer.commands.JdbcBufferedInserter;
 
 @Test(groups = {"gobblin.writer"}, singleThreaded=true)
 public abstract class JdbcBufferedInserterTestBase {

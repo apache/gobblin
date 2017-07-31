@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.objectstore;
+package org.apache.gobblin.writer.objectstore;
 
 import java.io.IOException;
 
@@ -22,9 +22,9 @@ import lombok.Getter;
 
 import com.codahale.metrics.Counter;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.instrumented.writer.InstrumentedDataWriter;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.writer.InstrumentedDataWriter;
 
 /**
  * A writer to execute operations on a object in any object store. The record type of this writer is an {@link ObjectStoreOperation}.

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.locks;
+package org.apache.gobblin.runtime.locks;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
@@ -24,7 +24,7 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**

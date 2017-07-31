@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.writer;
+package org.apache.gobblin.instrumented.writer;
 
 import java.io.IOException;
 import java.util.Map;
@@ -23,17 +23,17 @@ import java.util.Map;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.State;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.records.ControlMessageHandler;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.stream.RecordEnvelope;
-import gobblin.util.Decorator;
-import gobblin.util.DecoratorUtils;
-import gobblin.util.FinalState;
-import gobblin.writer.DataWriter;
-import gobblin.writer.WatermarkAwareWriter;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.util.DecoratorUtils;
+import org.apache.gobblin.util.FinalState;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.WatermarkAwareWriter;
 
 
 /**

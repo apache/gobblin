@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.purger;
+package org.apache.gobblin.compliance.purger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +24,7 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 
 import com.google.common.base.Optional;
 
-import gobblin.compliance.utils.PartitionUtils;
+import org.apache.gobblin.compliance.utils.PartitionUtils;
 
 
 /**

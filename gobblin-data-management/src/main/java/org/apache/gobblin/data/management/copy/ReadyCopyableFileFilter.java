@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -27,7 +27,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.ImmutableList;
 
-import gobblin.util.PathUtils;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**

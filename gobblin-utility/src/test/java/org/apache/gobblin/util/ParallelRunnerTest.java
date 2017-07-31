@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -50,11 +50,11 @@ import com.google.common.io.Closer;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Watermark;
-import gobblin.source.extractor.WatermarkSerializerHelper;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.io.SeekableFSInputStream;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.WatermarkSerializerHelper;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.io.SeekableFSInputStream;
 
 
 /**

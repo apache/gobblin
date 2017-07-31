@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.dataset;
+package org.apache.gobblin.data.management.dataset;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -28,10 +28,10 @@ import org.apache.hadoop.fs.PathFilter;
 
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.CopyableFileFilter;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.CopyableFileFilter;
+import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.jdbc;
+package org.apache.gobblin.converter.jdbc;
 
 /**
  * Alternative to JAVA 8 JDBCType as Gobblin needs to be Java 7 compatible.

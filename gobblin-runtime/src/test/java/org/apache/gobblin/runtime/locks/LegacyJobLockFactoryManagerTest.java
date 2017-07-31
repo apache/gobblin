@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.locks;
+package org.apache.gobblin.runtime.locks;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 @Test(groups = {"gobblin.runtime"})

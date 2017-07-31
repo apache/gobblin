@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.commit;
+package org.apache.gobblin.commit;
 
 import java.io.IOException;
 import java.net.URI;
@@ -25,10 +25,10 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.HadoopUtils;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.prioritization;
+package org.apache.gobblin.data.management.copy.prioritization;
 
 import java.util.Comparator;
 
 import com.typesafe.config.Config;
 
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.partition.FileSet;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.context;
+package org.apache.gobblin.metrics.context;
 
 import java.io.IOException;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.guid;
+package org.apache.gobblin.util.guid;
 
 import lombok.EqualsAndHashCode;
 

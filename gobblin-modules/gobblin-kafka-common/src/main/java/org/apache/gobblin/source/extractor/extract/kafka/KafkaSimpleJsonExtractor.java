@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -23,9 +23,9 @@ import java.nio.charset.StandardCharsets;
 
 import com.google.gson.Gson;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
-import gobblin.source.extractor.Extractor;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.kafka.client.ByteArrayBasedKafkaRecord;
+import org.apache.gobblin.source.extractor.Extractor;
 
 public class KafkaSimpleJsonExtractor extends KafkaSimpleExtractor implements Extractor<String, byte[]> {
 

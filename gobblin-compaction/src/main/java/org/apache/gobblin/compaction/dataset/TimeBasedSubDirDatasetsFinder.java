@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.dataset;
+package org.apache.gobblin.compaction.dataset;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.State;
-import gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.DatasetFilterUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileStatus;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.hadoop;
+package org.apache.gobblin.source.extractor.hadoop;
 
 import java.util.List;
 
@@ -24,10 +24,10 @@ import org.apache.hadoop.mapred.FileSplit;
 
 import org.apache.hadoop.mapred.RecordReader;
 
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.hive.HiveSerDeWrapper;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.hive.HiveSerDeWrapper;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.publisher;
+package org.apache.gobblin.publisher;
 
 import java.io.IOException;
 import java.net.URI;
@@ -47,19 +47,19 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metadata.MetadataMerger;
-import gobblin.metadata.types.StaticStringMetadataMerger;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.util.HadoopUtils;
-import gobblin.util.ParallelRunner;
-import gobblin.util.WriterUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
-import gobblin.writer.FsDataWriter;
-import gobblin.writer.FsWriterMetrics;
-import gobblin.writer.PartitionIdentifier;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.MetadataMerger;
+import org.apache.gobblin.metadata.types.StaticStringMetadataMerger;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.writer.FsDataWriter;
+import org.apache.gobblin.writer.FsWriterMetrics;
+import org.apache.gobblin.writer.PartitionIdentifier;
 
 
 /**

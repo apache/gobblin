@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented;
+package org.apache.gobblin.instrumented;
 
 import java.util.List;
 
 import javax.annotation.Nonnull;
 
-import gobblin.configuration.State;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 
 
 /**

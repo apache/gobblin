@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import java.io.IOException;
 
@@ -37,8 +37,8 @@ import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
 
 
 /**

@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.converter;
+package org.apache.gobblin.data.management.copy.converter;
 
 import javax.annotation.Nullable;
 
-import gobblin.converter.Converter;
-import gobblin.util.io.StreamUtils;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.util.io.StreamUtils;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import java.net.URI;
 
-import gobblin.annotation.Alpha;
-import gobblin.runtime.JobState;
-import gobblin.runtime.api.JobExecution;
-import gobblin.runtime.api.JobSpec;
-import gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.api.JobExecution;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.util.JobLauncherUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

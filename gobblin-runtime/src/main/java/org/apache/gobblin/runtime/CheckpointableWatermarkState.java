@@ -17,12 +17,12 @@
  * under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import com.google.gson.Gson;
 
-import gobblin.configuration.State;
-import gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 
 
 /**

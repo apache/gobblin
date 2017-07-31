@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.version.finder;
+package org.apache.gobblin.data.management.version.finder;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -27,8 +27,8 @@ import org.joda.time.DateTime;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -26,9 +26,9 @@ import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.util.limiter.CountBasedLimiter;
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.NotEnoughPermitsException;
+import org.apache.gobblin.util.limiter.CountBasedLimiter;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.NotEnoughPermitsException;
 
 
 public class ThrottledFileSystemTest {

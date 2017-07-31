@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.converter.csv;
+package org.apache.gobblin.converter.csv;
 
-import gobblin.converter.Converter;
-import gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.SingleRecordIterable;
 import java.io.IOException;
 import java.util.List;
 
@@ -30,11 +30,11 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.source.extractor.utils.InputStreamCSVReader;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.source.extractor.utils.InputStreamCSVReader;
 
 
 public class CsvToJsonConverter extends Converter<String, JsonArray, String, JsonObject> {

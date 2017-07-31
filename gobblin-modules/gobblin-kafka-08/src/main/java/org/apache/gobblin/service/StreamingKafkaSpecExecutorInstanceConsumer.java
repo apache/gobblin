@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ConfigUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -37,14 +37,14 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstanceConsumer;
-import gobblin.runtime.job_monitor.AvroJobSpecKafkaJobMonitor;
-import gobblin.runtime.job_monitor.KafkaJobMonitor;
-import gobblin.runtime.std.DefaultJobCatalogListenerImpl;
-import gobblin.util.CompletedFuture;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutorInstanceConsumer;
+import org.apache.gobblin.runtime.job_monitor.AvroJobSpecKafkaJobMonitor;
+import org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor;
+import org.apache.gobblin.runtime.std.DefaultJobCatalogListenerImpl;
+import org.apache.gobblin.util.CompletedFuture;
 
 
 /**

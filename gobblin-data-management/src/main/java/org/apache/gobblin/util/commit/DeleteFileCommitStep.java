@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.commit;
+package org.apache.gobblin.util.commit;
 
 import java.io.IOException;
 import java.net.URI;
@@ -38,10 +38,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
-import gobblin.commit.CommitStep;
-import gobblin.data.management.trash.Trash;
-import gobblin.data.management.trash.TrashFactory;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.data.management.trash.Trash;
+import org.apache.gobblin.data.management.trash.TrashFactory;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**

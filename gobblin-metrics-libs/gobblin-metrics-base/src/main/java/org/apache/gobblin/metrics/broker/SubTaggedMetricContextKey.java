@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.broker;
+package org.apache.gobblin.metrics.broker;
 
 import com.google.common.collect.ImmutableMap;
 

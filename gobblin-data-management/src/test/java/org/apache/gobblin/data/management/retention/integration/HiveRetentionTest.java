@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.integration;
+package org.apache.gobblin.data.management.retention.integration;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -42,11 +42,11 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.conversion.hive.LocalHiveMetastoreTestUtils;
-import gobblin.util.PathUtils;
-import gobblin.util.test.RetentionTestDataGenerator.FixedThreadLocalMillisProvider;
-import gobblin.util.test.RetentionTestHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.conversion.hive.LocalHiveMetastoreTestUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.test.RetentionTestDataGenerator.FixedThreadLocalMillisProvider;
+import org.apache.gobblin.util.test.RetentionTestHelper;
 
 @Test(groups = { "SystemTimeTests"})
 public class HiveRetentionTest {

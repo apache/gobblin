@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -32,14 +32,14 @@ import com.google.common.collect.Lists;
 
 import static org.mockito.Mockito.*;
 
-import gobblin.data.management.retention.dataset.CleanableDatasetBase;
-import gobblin.data.management.retention.policy.RetentionPolicy;
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.StringDatasetVersion;
-import gobblin.data.management.retention.version.finder.DatasetVersionFinder;
-import gobblin.data.management.retention.version.finder.VersionFinder;
-import gobblin.data.management.trash.TestTrash;
-import gobblin.data.management.trash.Trash;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDatasetBase;
+import org.apache.gobblin.data.management.retention.policy.RetentionPolicy;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.version.StringDatasetVersion;
+import org.apache.gobblin.data.management.retention.version.finder.DatasetVersionFinder;
+import org.apache.gobblin.data.management.retention.version.finder.VersionFinder;
+import org.apache.gobblin.data.management.trash.TestTrash;
+import org.apache.gobblin.data.management.trash.Trash;
 
 
 public class CleanableDatasetBaseTest {

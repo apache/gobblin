@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.objectstore;
+package org.apache.gobblin.writer.objectstore;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 /**
  * Builder to build all types of {@link ObjectStoreOperation}s

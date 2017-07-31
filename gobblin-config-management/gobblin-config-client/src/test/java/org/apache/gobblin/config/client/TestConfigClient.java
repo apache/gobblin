@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.client;
+package org.apache.gobblin.config.client;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -38,11 +38,11 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
-import gobblin.config.store.api.ConfigStoreFactory;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.store.api.ConfigStoreFactory;
 
 @Test(groups = { "gobblin.config.common.impl" })
 

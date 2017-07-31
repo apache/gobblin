@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.objectstore.response;
+package org.apache.gobblin.writer.objectstore.response;
 
 import java.io.InputStream;
 
@@ -23,7 +23,7 @@ import lombok.Getter;
 
 import com.typesafe.config.Config;
 
-import gobblin.writer.objectstore.ObjectStoreClient;
+import org.apache.gobblin.writer.objectstore.ObjectStoreClient;
 
 /**
  * The response of {@link ObjectStoreClient#getObject(String)} that holds an {@link InputStream} to the object and object

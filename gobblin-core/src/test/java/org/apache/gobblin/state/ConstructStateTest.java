@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.state;
+package org.apache.gobblin.state;
 
 import java.util.Properties;
 
@@ -24,8 +24,8 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
 
-import gobblin.Constructs;
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 public class ConstructStateTest {

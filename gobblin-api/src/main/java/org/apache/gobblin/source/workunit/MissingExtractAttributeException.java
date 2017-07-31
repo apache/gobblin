@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.workunit;
+package org.apache.gobblin.source.workunit;
 
 public class MissingExtractAttributeException extends Exception {
 

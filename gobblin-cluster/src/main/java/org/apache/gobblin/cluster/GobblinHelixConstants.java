@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 /**
  * Class for defining constants used while interacting with Helix

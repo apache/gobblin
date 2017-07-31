@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.logs;
+package org.apache.gobblin.util.logs;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -51,13 +51,13 @@ import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractScheduledService;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.concurrent.ScheduledTask;
-import gobblin.util.concurrent.TaskScheduler;
-import gobblin.util.concurrent.TaskSchedulerFactory;
-import gobblin.util.DatasetFilterUtils;
-import gobblin.util.FileListUtils;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.concurrent.ScheduledTask;
+import org.apache.gobblin.util.concurrent.TaskScheduler;
+import org.apache.gobblin.util.concurrent.TaskSchedulerFactory;
+import org.apache.gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**

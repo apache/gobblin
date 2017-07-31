@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import com.typesafe.config.Config;
-import gobblin.annotation.Alias;
-import gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.metastore.DatasetStateStore;
 import java.util.Properties;
 
 @Alias("fs")

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,11 +24,11 @@ import java.util.Map;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.codec.StreamCodec;
-import gobblin.compression.CompressionConfigParser;
-import gobblin.compression.CompressionFactory;
-import gobblin.crypto.EncryptionConfigParser;
-import gobblin.crypto.EncryptionFactory;
+import org.apache.gobblin.codec.StreamCodec;
+import org.apache.gobblin.compression.CompressionConfigParser;
+import org.apache.gobblin.compression.CompressionFactory;
+import org.apache.gobblin.crypto.EncryptionConfigParser;
+import org.apache.gobblin.crypto.EncryptionFactory;
 
 
 /**

@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.hive;
+package org.apache.gobblin.data.management.hive;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.Table;
 
-import gobblin.config.client.ConfigClient;
-import gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
 
 /**
  * Utility methods for a {@link HiveDataset} to communicate with {@link ConfigClient}

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.database;
+package org.apache.gobblin.metastore.database;
 
 import com.google.common.base.Preconditions;
 

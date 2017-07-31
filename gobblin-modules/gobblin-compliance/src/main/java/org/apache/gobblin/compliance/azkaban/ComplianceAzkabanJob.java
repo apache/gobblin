@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.azkaban;
+package org.apache.gobblin.compliance.azkaban;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -29,10 +29,10 @@ import com.google.common.base.Preconditions;
 import azkaban.jobExecutor.AbstractJob;
 import azkaban.utils.Props;
 
-import gobblin.compliance.ComplianceJob;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.compliance.ComplianceJob;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import static gobblin.compliance.ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_JOB_CLASS;
+import static org.apache.gobblin.compliance.ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_JOB_CLASS;
 
 
 /**

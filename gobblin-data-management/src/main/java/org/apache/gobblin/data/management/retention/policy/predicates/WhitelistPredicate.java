@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.policy.predicates;
+package org.apache.gobblin.data.management.retention.policy.predicates;
 
 import java.util.Properties;
 import java.util.regex.Pattern;
@@ -23,8 +23,8 @@ import java.util.regex.Pattern;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.version.StringDatasetVersion;
+import org.apache.gobblin.data.management.retention.DatasetCleaner;
+import org.apache.gobblin.data.management.retention.version.StringDatasetVersion;
 
 
 /**

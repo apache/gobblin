@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.watermark;
+package org.apache.gobblin.data.management.copy.watermark;
 
 import java.io.IOException;
 
 import com.google.common.base.Optional;
 
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.WatermarkInterval;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.source.extractor.ComparableWatermark;
+import org.apache.gobblin.source.extractor.WatermarkInterval;
 
 
 /**

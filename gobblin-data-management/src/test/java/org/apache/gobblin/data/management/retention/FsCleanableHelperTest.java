@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention;
+package org.apache.gobblin.data.management.retention;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
@@ -42,10 +42,10 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.data.management.retention.dataset.FsCleanableHelper;
-import gobblin.data.management.trash.MockTrash;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.data.management.retention.dataset.FsCleanableHelper;
+import org.apache.gobblin.data.management.trash.MockTrash;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 
 @Slf4j

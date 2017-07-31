@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.action;
+package org.apache.gobblin.compaction.action;
 
-import gobblin.compaction.event.CompactionSlaEventHelper;
-import gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.dataset.FileSystemDataset;
-import gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.schemareg;
+package org.apache.gobblin.kafka.schemareg;
 
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.pool2.BasePooledObjectFactory;

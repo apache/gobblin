@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.partition;
+package org.apache.gobblin.data.management.partition;
 
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -37,11 +37,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.dataset.Dataset;
-import gobblin.util.request_allocation.Request;
-import gobblin.util.request_allocation.Requestor;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.util.request_allocation.Request;
+import org.apache.gobblin.util.request_allocation.Requestor;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.stream;
+package org.apache.gobblin.stream;
 
 import java.util.Random;
 
@@ -24,12 +24,12 @@ import org.testng.annotations.Test;
 
 import com.google.gson.JsonElement;
 
-import gobblin.ack.BasicAckableForTesting;
-import gobblin.fork.CopyNotSupportedException;
-import gobblin.fork.Copyable;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.Watermark;
+import org.apache.gobblin.ack.BasicAckableForTesting;
+import org.apache.gobblin.fork.CopyNotSupportedException;
+import org.apache.gobblin.fork.Copyable;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.ComparableWatermark;
+import org.apache.gobblin.source.extractor.Watermark;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

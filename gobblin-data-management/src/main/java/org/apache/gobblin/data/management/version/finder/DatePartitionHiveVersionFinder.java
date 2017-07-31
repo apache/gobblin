@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.version.finder;
+package org.apache.gobblin.data.management.version.finder;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -28,9 +28,9 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.version.TimestampedHiveDatasetVersion;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.version.TimestampedHiveDatasetVersion;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

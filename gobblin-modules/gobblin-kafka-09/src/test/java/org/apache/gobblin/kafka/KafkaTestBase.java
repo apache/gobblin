@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka;
+package org.apache.gobblin.kafka;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -45,7 +45,7 @@ import kafka.utils.ZkUtils;
 import kafka.zk.EmbeddedZookeeper;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.test.TestUtils;
+import org.apache.gobblin.test.TestUtils;
 
 
 /**

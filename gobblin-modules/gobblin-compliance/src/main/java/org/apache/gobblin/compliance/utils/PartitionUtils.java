@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.utils;
+package org.apache.gobblin.compliance.utils;
 
 import java.util.Map;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
 
 
 /**

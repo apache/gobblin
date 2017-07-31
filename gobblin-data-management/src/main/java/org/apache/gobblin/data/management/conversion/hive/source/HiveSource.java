@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.source;
+package org.apache.gobblin.data.management.conversion.hive.source;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
 
@@ -43,40 +43,40 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
-import gobblin.data.management.conversion.hive.avro.SchemaNotFoundException;
-import gobblin.data.management.conversion.hive.events.EventConstants;
-import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
-import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
-import gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
-import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
-import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
-import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarkerFactory;
-import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.data.management.copy.hive.HiveUtils;
-import gobblin.data.management.copy.hive.filter.LookbackPartitionFilterGenerator;
-import gobblin.dataset.IterableDatasetFinder;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.source.Source;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.WatermarkInterval;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.AutoReturnableObject;
-import gobblin.util.HadoopUtils;
-import gobblin.util.io.GsonInterfaceAdapter;
-import gobblin.util.reflection.GobblinConstructorUtils;
-import gobblin.util.ClassAliasResolver;
-import gobblin.data.management.conversion.hive.extractor.HiveBaseExtractorFactory;
-import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractorFactory;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
+import org.apache.gobblin.data.management.conversion.hive.avro.SchemaNotFoundException;
+import org.apache.gobblin.data.management.conversion.hive.events.EventConstants;
+import org.apache.gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
+import org.apache.gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
+import org.apache.gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
+import org.apache.gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
+import org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
+import org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarkerFactory;
+import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.data.management.copy.hive.HiveUtils;
+import org.apache.gobblin.data.management.copy.hive.filter.LookbackPartitionFilterGenerator;
+import org.apache.gobblin.dataset.IterableDatasetFinder;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.WatermarkInterval;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.data.management.conversion.hive.extractor.HiveBaseExtractorFactory;
+import org.apache.gobblin.data.management.conversion.hive.extractor.HiveConvertExtractorFactory;
 
 
 /**

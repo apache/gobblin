@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.local;
+package org.apache.gobblin.runtime.local;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -28,13 +28,13 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.io.Closer;
 
-import gobblin.runtime.JobException;
-import gobblin.runtime.JobLauncher;
-import gobblin.runtime.app.ApplicationException;
-import gobblin.runtime.app.ApplicationLauncher;
-import gobblin.runtime.app.ServiceBasedAppLauncher;
-import gobblin.runtime.cli.CliOptions;
-import gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.app.ApplicationException;
+import org.apache.gobblin.runtime.app.ApplicationLauncher;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.runtime.cli.CliOptions;
+import org.apache.gobblin.runtime.listeners.JobListener;
 
 
 /**

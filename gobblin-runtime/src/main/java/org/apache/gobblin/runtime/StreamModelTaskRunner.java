@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -27,20 +27,20 @@ import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.converter.Converter;
-import gobblin.fork.ForkOperator;
-import gobblin.fork.Forker;
-import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.runtime.fork.Fork;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.StreamingExtractor;
-import gobblin.util.ExponentialBackoff;
-import gobblin.writer.AcknowledgableWatermark;
-import gobblin.writer.FineGrainedWatermarkTracker;
-import gobblin.writer.WatermarkManager;
-import gobblin.writer.WatermarkStorage;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.fork.ForkOperator;
+import org.apache.gobblin.fork.Forker;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.runtime.fork.Fork;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.StreamingExtractor;
+import org.apache.gobblin.util.ExponentialBackoff;
+import org.apache.gobblin.writer.AcknowledgableWatermark;
+import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
+import org.apache.gobblin.writer.WatermarkManager;
+import org.apache.gobblin.writer.WatermarkStorage;
 
 import io.reactivex.flowables.ConnectableFlowable;
 import io.reactivex.schedulers.Schedulers;

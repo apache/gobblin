@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.converter.http;
+package org.apache.gobblin.converter.http;
 
 import java.io.File;
 import java.io.IOException;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaJsonDeserializer;
@@ -39,13 +39,13 @@ import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.annotation.Alias;
-import gobblin.configuration.WorkUnitState;
-import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
-import gobblin.metrics.kafka.KafkaSchemaRegistry;
-import gobblin.metrics.kafka.SchemaRegistryException;
-import gobblin.util.AvroUtils;
-import gobblin.util.PropertiesUtils;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.kafka.client.ByteArrayBasedKafkaRecord;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -80,18 +80,18 @@ public class KafkaDeserializerExtractor extends KafkaExtractor<Object, Object> {
   private final Deserializer<?> kafkaDeserializer;
   private final KafkaSchemaRegistry<?, ?> kafkaSchemaRegistry;
   private final Schema latestSchema;
-  
+
   public KafkaDeserializerExtractor(WorkUnitState state) throws ReflectiveOperationException {
     this(state, getDeserializerType(state.getProperties()));
   }
 
   private KafkaDeserializerExtractor(WorkUnitState state, Optional<Deserializers> deserializerType)
       throws ReflectiveOperationException {
-    this(state, deserializerType, 
+    this(state, deserializerType,
         getDeserializer(getProps(state), deserializerType),
         getKafkaSchemaRegistry(getProps(state)));
   }
-  
+
   @VisibleForTesting
   KafkaDeserializerExtractor(WorkUnitState state, Optional<Deserializers> deserializerType,
       Deserializer<?> kafkaDeserializer, KafkaSchemaRegistry<?, ?> kafkaSchemaRegistry) {
@@ -105,7 +105,7 @@ public class KafkaDeserializerExtractor extends KafkaExtractor<Object, Object> {
   @Override
   protected Object decodeRecord(ByteArrayBasedKafkaRecord messageAndOffset) throws IOException {
     Object deserialized = kafkaDeserializer.deserialize(this.topicName, messageAndOffset.getMessageBytes());
-    
+
     // For Confluent's Schema Registry the read schema is the latest registered schema to support schema evolution
     return (this.latestSchema == null) ? deserialized
         : AvroUtils.convertRecordSchema((GenericRecord) deserialized, this.latestSchema);
@@ -119,13 +119,13 @@ public class KafkaDeserializerExtractor extends KafkaExtractor<Object, Object> {
       throw new RuntimeException(e);
     }
   }
-  
+
   private static Optional<Deserializers> getDeserializerType(Properties props) {
     Preconditions.checkArgument(props.containsKey(KAFKA_DESERIALIZER_TYPE),
         "Missing required property " + KAFKA_DESERIALIZER_TYPE);
     return Enums.getIfPresent(Deserializers.class, props.getProperty(KAFKA_DESERIALIZER_TYPE).toUpperCase());
   }
-  
+
   /**
    * Constructs a {@link Deserializer}, using the value of {@link #KAFKA_DESERIALIZER_TYPE}.
    */

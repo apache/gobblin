@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.conditions;
+package org.apache.gobblin.compaction.conditions;
 
 
-import gobblin.annotation.Alias;
-import gobblin.compaction.dataset.DatasetHelper;
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 
 import org.joda.time.DateTime;
 import org.joda.time.Period;

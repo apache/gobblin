@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,10 +42,10 @@ import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.restli.EmbeddedRestliServer;
-import gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.restli.EmbeddedRestliServer;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 
 
 @Test(groups = { "gobblin.service" })

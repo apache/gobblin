@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.filebased;
+package org.apache.gobblin.source.extractor.filebased;
 
 import java.io.File;
 import java.util.Set;
@@ -29,11 +29,11 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.embedded.EmbeddedGobblin;
-import gobblin.writer.test.GobblinTestEventBusWriter;
-import gobblin.writer.test.TestingEventBusAsserter;
-import gobblin.writer.test.TestingEventBuses;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
+import org.apache.gobblin.writer.test.GobblinTestEventBusWriter;
+import org.apache.gobblin.writer.test.TestingEventBusAsserter;
+import org.apache.gobblin.writer.test.TestingEventBuses;
 
 public class TextFileBasedSourceTest {
 

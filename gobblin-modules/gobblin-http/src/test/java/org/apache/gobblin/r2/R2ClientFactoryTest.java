@@ -1,4 +1,4 @@
-package gobblin.r2;
+package org.apache.gobblin.r2;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +16,7 @@ import com.typesafe.config.ConfigFactory;
 
 import junit.framework.Assert;
 
-import gobblin.security.ssl.SSLContextFactory;
+import org.apache.gobblin.security.ssl.SSLContextFactory;
 
 
 @Test

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.testing;
+package org.apache.gobblin.testing;
 
 import java.util.concurrent.TimeoutException;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -23,7 +23,7 @@ import java.util.Map;
 
 import com.typesafe.config.Config;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 public interface DatasetStateStore<T extends State> extends StateStore<T> {
   String DATASET_STATE_STORE_TABLE_SUFFIX = ".jst";

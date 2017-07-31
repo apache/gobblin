@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive.metastore;
+package org.apache.gobblin.hive.metastore;
 
 import java.util.List;
 import java.util.Map;
@@ -23,10 +23,10 @@ import java.util.Map;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 
-import gobblin.hive.HivePartition;
-import gobblin.hive.HiveTable;
-import gobblin.hive.spec.HiveSpec;
-import gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.hive.HivePartition;
+import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 
 
 /**

@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.version.finder;
+package org.apache.gobblin.data.management.version.finder;
 
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.StringDatasetVersion;
-import gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.StringDatasetVersion;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 
 import java.util.Properties;
 

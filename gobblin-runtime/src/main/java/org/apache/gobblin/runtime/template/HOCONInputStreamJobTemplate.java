@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.template;
+package org.apache.gobblin.runtime.template;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -26,10 +26,10 @@ import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.JobCatalogWithTemplates;
-import gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 
 import lombok.extern.slf4j.Slf4j;
 

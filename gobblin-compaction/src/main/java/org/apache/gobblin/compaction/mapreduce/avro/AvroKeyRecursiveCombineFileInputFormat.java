@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce.avro;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -47,8 +47,8 @@ import org.apache.hadoop.util.VersionInfo;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import gobblin.util.AvroUtils;
-import gobblin.util.FileListUtils;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.FileListUtils;
 
 
 /**

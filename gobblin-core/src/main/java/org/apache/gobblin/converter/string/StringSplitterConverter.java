@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.converter.string;
+package org.apache.gobblin.converter.string;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.util.ForkOperatorUtils;
 
 /**
  * Implementation of {@link Converter} that splits a string based on a delimiter specified by

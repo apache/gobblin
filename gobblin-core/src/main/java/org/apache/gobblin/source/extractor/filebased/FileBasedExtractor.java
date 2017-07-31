@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.filebased;
+package org.apache.gobblin.source.extractor.filebased;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -31,12 +31,12 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.extractor.InstrumentedExtractor;
-import gobblin.metrics.Counters;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.instrumented.extractor.InstrumentedExtractor;
+import org.apache.gobblin.metrics.Counters;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

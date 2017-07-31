@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
-import static gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
+import static org.apache.gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
 
 import com.google.common.base.Predicate;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.HadoopUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -39,8 +39,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.State;
-import gobblin.util.WritableShimSerialization;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.WritableShimSerialization;
 
 
 /**

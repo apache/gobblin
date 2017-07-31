@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.task;
+package org.apache.gobblin.runtime.task;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.MetricContext;
-import gobblin.runtime.TaskContext;
-import gobblin.runtime.util.TaskMetrics;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.util.TaskMetrics;
 
 
 /**

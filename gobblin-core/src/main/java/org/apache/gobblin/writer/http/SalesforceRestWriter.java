@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.http;
+package org.apache.gobblin.writer.http;
 
 import java.io.IOException;
 import java.net.URI;
@@ -47,8 +47,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import gobblin.converter.http.RestEntry;
-import gobblin.writer.exception.NonTransientException;
+import org.apache.gobblin.converter.http.RestEntry;
+import org.apache.gobblin.writer.exception.NonTransientException;
 
 /**
  * Writes to Salesforce via RESTful API, supporting INSERT_ONLY_NOT_EXIST, and UPSERT.

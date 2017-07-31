@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -28,9 +28,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.password.PasswordManager;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.password.PasswordManager;
 
 
 /**

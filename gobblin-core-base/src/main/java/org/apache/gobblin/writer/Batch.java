@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**
@@ -56,7 +56,7 @@ public abstract class Batch<D>{
   private static final Logger LOG = LoggerFactory.getLogger(Batch.class);
 
   public Batch () {
-    recordCount = 0; 
+    recordCount = 0;
     thunks = new ArrayList<>();
     id = identifier.incrementAndGet();
   }

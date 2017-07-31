@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.kafka.client;
+package org.apache.gobblin.kafka.client;
 
 import java.io.Closeable;
 import java.util.Iterator;
@@ -23,10 +23,10 @@ import java.util.regex.Pattern;
 
 import com.typesafe.config.Config;
 
-import gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
-import gobblin.source.extractor.extract.kafka.KafkaPartition;
-import gobblin.source.extractor.extract.kafka.KafkaTopic;
-import gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
+import org.apache.gobblin.util.DatasetFilterUtils;
 
 /**
  * A simplified, generic wrapper client to communicate with Kafka. This class is (AND MUST never) depend on classes

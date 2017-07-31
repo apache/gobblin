@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
 import java.io.IOException;
 import java.net.URI;
@@ -24,10 +24,10 @@ import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
 
-import gobblin.runtime.api.JobSpec;
-import gobblin.util.PathUtils;
-import gobblin.util.PullFileLoader;
-import gobblin.util.filesystem.PathAlterationListenerAdaptor;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.PullFileLoader;
+import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
 
 
 public class FSPathAlterationListenerAdaptor extends PathAlterationListenerAdaptor {

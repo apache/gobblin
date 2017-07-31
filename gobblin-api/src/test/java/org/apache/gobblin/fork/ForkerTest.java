@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.fork;
+package org.apache.gobblin.fork;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -30,12 +30,12 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.runtime.BasicTestControlMessage;
-import gobblin.stream.RecordEnvelope;
-import gobblin.stream.StreamEntity;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.runtime.BasicTestControlMessage;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.stream.StreamEntity;
 
 import io.reactivex.Flowable;
 import lombok.Getter;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.conversion.hive.query;
+package org.apache.gobblin.data.management.conversion.hive.query;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -54,8 +54,8 @@ import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import gobblin.configuration.State;
-import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 
 
 /***

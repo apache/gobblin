@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
 import java.util.Map;
 
@@ -27,10 +27,10 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.iface.ScopeInstance;
-import gobblin.broker.iface.ScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.broker.iface.ScopeInstance;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

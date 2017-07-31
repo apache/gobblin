@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.http;
+package org.apache.gobblin.writer.http;
 
-import gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriter;
 
 import java.io.IOException;
 

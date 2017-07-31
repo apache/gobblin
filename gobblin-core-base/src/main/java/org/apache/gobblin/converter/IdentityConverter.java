@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 /**
  * Implementation of {@link Converter} that returns the inputSchema unmodified and each inputRecord unmodified

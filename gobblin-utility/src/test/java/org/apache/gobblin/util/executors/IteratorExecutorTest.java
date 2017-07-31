@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.executors;
+package org.apache.gobblin.util.executors;
 
 import java.util.Iterator;
 import java.util.concurrent.Callable;
@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 import com.google.common.base.Predicate;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 public class IteratorExecutorTest {

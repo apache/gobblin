@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.util.limiter.CountBasedLimiter;
-import gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.CountBasedLimiter;
+import org.apache.gobblin.util.limiter.Limiter;
 
 
 /**

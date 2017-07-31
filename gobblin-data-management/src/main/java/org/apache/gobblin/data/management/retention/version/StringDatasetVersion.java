@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.version;
+package org.apache.gobblin.data.management.retention.version;
 
 import java.util.Set;
 

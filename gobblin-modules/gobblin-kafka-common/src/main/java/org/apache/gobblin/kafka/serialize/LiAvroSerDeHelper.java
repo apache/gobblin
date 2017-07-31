@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.serialize;
+package org.apache.gobblin.kafka.serialize;
 
 import java.util.Map;
 import java.util.Properties;
 
-import gobblin.kafka.schemareg.KafkaSchemaRegistry;
-import gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
 
 
 /**

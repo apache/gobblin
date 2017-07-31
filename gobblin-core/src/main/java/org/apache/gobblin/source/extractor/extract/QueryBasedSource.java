@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract;
+package org.apache.gobblin.source.extractor.extract;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -36,29 +36,29 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import gobblin.config.client.ConfigClient;
-import gobblin.config.client.ConfigClientCache;
-import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
-import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.config.store.api.VersionDoesNotExistException;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.configuration.WorkUnitState.WorkingState;
-import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.source.extractor.partition.Partition;
-import gobblin.source.extractor.partition.Partitioner;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.Extract.TableType;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ConfigUtils;
-import gobblin.util.DatasetFilterUtils;
-import gobblin.util.PathUtils;
-import gobblin.util.dataset.DatasetUtils;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.ConfigClientCache;
+import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.source.extractor.partition.Partition;
+import org.apache.gobblin.source.extractor.partition.Partitioner;
+import org.apache.gobblin.source.extractor.utils.Utils;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.Extract.TableType;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.DatasetFilterUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.dataset.DatasetUtils;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;

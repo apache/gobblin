@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
-import gobblin.util.guid.Guid;
-import gobblin.util.guid.HasGuid;
-import gobblin.util.io.GsonInterfaceAdapter;
+import org.apache.gobblin.util.guid.Guid;
+import org.apache.gobblin.util.guid.HasGuid;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 
 import java.io.IOException;
 import java.util.List;

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.service.monitoring;
+package org.apache.gobblin.service.monitoring;
 
 import java.util.Iterator;
 
 import com.google.common.collect.Iterators;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

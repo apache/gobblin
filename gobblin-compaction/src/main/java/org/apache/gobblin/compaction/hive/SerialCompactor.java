@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.hive;
+package org.apache.gobblin.compaction.hive;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -28,8 +28,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
-import gobblin.compaction.Compactor;
-import gobblin.util.HiveJdbcConnector;
+import org.apache.gobblin.compaction.Compactor;
+import org.apache.gobblin.util.HiveJdbcConnector;
 
 
 /**

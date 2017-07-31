@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.writer.commands;
+package org.apache.gobblin.writer.commands;
 
 import java.sql.Connection;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.writer.Destination;
-import gobblin.writer.Destination.DestinationType;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.Destination.DestinationType;
 
 
 /**

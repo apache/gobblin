@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.broker;
+package org.apache.gobblin.metrics.broker;
 
-import gobblin.broker.iface.SharedResourceKey;
+import org.apache.gobblin.broker.iface.SharedResourceKey;
 import lombok.Data;
 
 

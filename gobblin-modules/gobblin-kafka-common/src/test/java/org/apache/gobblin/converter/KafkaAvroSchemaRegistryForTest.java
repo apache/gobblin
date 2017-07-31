@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
-import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
-import gobblin.metrics.kafka.KafkaSchemaRegistry;
-import gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
+import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
 import java.util.Properties;
 import org.apache.avro.Schema;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -49,22 +49,22 @@ import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueType;
 import com.google.common.collect.ImmutableSet;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.hive.HiveDatasetFinder.DbAndTable;
-import gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
-import gobblin.data.management.partition.FileSet;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.util.AutoReturnableObject;
-import gobblin.util.ConfigUtils;
-import gobblin.util.PathUtils;
-import gobblin.util.request_allocation.PushDownRequestor;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder.DbAndTable;
+import org.apache.gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
+import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 
 
 /**

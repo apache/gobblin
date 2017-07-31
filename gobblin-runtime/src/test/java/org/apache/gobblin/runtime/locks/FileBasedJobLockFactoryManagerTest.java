@@ -1,7 +1,7 @@
 /**
  *
  */
-package gobblin.runtime.locks;
+package org.apache.gobblin.runtime.locks;
 
 import java.io.File;
 
@@ -17,7 +17,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpec;
 
 /**
  *  Unit tests for {@link FileBasedJobLockFactoryManager}

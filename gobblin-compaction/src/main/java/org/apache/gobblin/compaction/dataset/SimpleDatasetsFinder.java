@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.dataset;
+package org.apache.gobblin.compaction.dataset;
 
 import java.io.IOException;
 import java.util.Set;
@@ -24,8 +24,8 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Sets;
 
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.State;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.configuration.State;
 
 
 /**

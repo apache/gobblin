@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.influxdb;
+package org.apache.gobblin.metrics.influxdb;
 
-import static gobblin.metrics.test.TestConstants.CONTEXT_NAME;
-import static gobblin.metrics.test.TestConstants.COUNTER;
-import static gobblin.metrics.test.TestConstants.GAUGE;
-import static gobblin.metrics.test.TestConstants.HISTOGRAM;
-import static gobblin.metrics.test.TestConstants.METER;
-import static gobblin.metrics.test.TestConstants.METRIC_PREFIX;
-import static gobblin.metrics.test.TestConstants.TIMER;
-import gobblin.metrics.ContextAwareGauge;
-import gobblin.metrics.Measurements;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
+import static org.apache.gobblin.metrics.test.TestConstants.CONTEXT_NAME;
+import static org.apache.gobblin.metrics.test.TestConstants.COUNTER;
+import static org.apache.gobblin.metrics.test.TestConstants.GAUGE;
+import static org.apache.gobblin.metrics.test.TestConstants.HISTOGRAM;
+import static org.apache.gobblin.metrics.test.TestConstants.METER;
+import static org.apache.gobblin.metrics.test.TestConstants.METRIC_PREFIX;
+import static org.apache.gobblin.metrics.test.TestConstants.TIMER;
+import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.Measurements;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 
 import java.io.IOException;
 import java.util.Properties;

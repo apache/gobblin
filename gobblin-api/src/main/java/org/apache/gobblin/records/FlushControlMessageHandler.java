@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.records;
+package org.apache.gobblin.records;
 
 import java.io.Flushable;
 import java.io.IOException;
 
-import gobblin.stream.ControlMessage;
-import gobblin.stream.FlushControlMessage;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.FlushControlMessage;
 
 
 /**

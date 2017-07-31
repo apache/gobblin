@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.test;
+package org.apache.gobblin.writer.test;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -34,7 +34,7 @@ import com.google.common.base.Predicates;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
-import gobblin.writer.test.TestingEventBuses.Event;
+import org.apache.gobblin.writer.test.TestingEventBuses.Event;
 
 import lombok.AllArgsConstructor;
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import java.net.URI;
 import java.util.List;
@@ -28,11 +28,11 @@ import org.testng.annotations.Test;
 
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SharedResourcesBrokerImpl;
-import gobblin.broker.SimpleScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.util.DecoratorUtils;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.SharedResourcesBrokerImpl;
+import org.apache.gobblin.broker.SimpleScopeType;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.util.DecoratorUtils;
 
 
 public class FileSystemFactoryTest {

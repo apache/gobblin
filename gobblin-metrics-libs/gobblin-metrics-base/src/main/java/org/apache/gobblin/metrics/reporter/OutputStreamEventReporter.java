@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -32,11 +32,11 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Charsets;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.reporter.util.AvroJsonSerializer;
-import gobblin.metrics.reporter.util.AvroSerializer;
-import gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.reporter.util.AvroJsonSerializer;
+import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
+import org.apache.gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
 
 
 /**

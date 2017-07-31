@@ -17,14 +17,14 @@
 
 package gobblin;
 
-import gobblin.converter.Converter;
-import gobblin.fork.ForkOperator;
-import gobblin.publisher.DataPublisher;
-import gobblin.qualitychecker.row.RowLevelPolicy;
-import gobblin.qualitychecker.task.TaskLevelPolicy;
-import gobblin.source.Source;
-import gobblin.source.extractor.Extractor;
-import gobblin.writer.DataWriter;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.fork.ForkOperator;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicy;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicy;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.writer.DataWriter;
 
 
 /**

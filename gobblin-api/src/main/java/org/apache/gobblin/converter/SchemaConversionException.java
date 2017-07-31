@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
-import gobblin.records.RecordStreamProcessor;
+import org.apache.gobblin.records.RecordStreamProcessor;
 
 
 /**

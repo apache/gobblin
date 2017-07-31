@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.dataset;
+package org.apache.gobblin.dataset;
 
 import org.apache.hadoop.fs.Path;
 

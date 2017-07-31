@@ -43,4 +43,4 @@
  * and keys (for example, the location of the log file could be settable through configuration, and user can specify
  * a different location for global and task scope logs).
  */
-package gobblin.broker;
+package org.apache.gobblin.broker;

@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.extractor;
+package org.apache.gobblin.data.management.copy.extractor;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.util.HadoopUtils;
-import gobblin.util.io.MeteredInputStream;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.io.MeteredInputStream;
 
 import java.io.IOException;
 import java.io.InputStream;

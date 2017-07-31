@@ -118,7 +118,7 @@ if [ "$TYPE" == "hive" ]; then
 
   $HADOOP_BIN_DIR/hadoop jar \
         $FWDIR_LIB/gobblin-compaction-$GOBBLIN_VERSION.jar \
-        "gobblin.compaction.hive.CompactionRunner" \
+        "org.apache.gobblin.compaction.hive.CompactionRunner" \
         --jobconfig $COMP_CONFIG_FILE
 
 else
@@ -137,7 +137,7 @@ else
 
   $HADOOP_BIN_DIR/hadoop jar \
         $FWDIR_LIB/gobblin-compaction-$GOBBLIN_VERSION.jar \
-        "gobblin.compaction.mapreduce.MRCompactionRunner" \
+        "org.apache.gobblin.compaction.mapreduce.MRCompactionRunner" \
         -D mapreduce.user.classpath.first=true \
         -D mapreduce.job.user.classpath.first=true \
         -libjars $LIBJARS \

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.sftp;
+package org.apache.gobblin.source.extractor.extract.sftp;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,12 +47,12 @@ import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.SftpProgressMonitor;
 import com.jcraft.jsch.UserInfo;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.password.PasswordManager;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
-import gobblin.util.io.SeekableFSInputStream;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
+import org.apache.gobblin.util.io.SeekableFSInputStream;
 
 
 /**

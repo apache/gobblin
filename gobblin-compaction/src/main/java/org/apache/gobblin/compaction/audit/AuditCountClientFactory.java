@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.audit;
+package org.apache.gobblin.compaction.audit;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 /**
  * A factory class responsible for creating {@link AuditCountClient}

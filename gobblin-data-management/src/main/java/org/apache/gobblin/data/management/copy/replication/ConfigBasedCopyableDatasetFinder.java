@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 
 
@@ -30,8 +30,8 @@ import org.apache.hadoop.fs.FileSystem;
 import com.typesafe.config.Config;
 import com.google.common.base.Optional;
 
-import gobblin.config.client.ConfigClient;
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.dataset.Dataset;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.fork;
+package org.apache.gobblin.fork;
 
 /**
  * A helper class to copy things that may or may not be {@link Copyable}.

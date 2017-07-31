@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -33,13 +33,13 @@ import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.metastore.StateStore;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.io.GsonInterfaceAdapter;
-import gobblin.writer.WatermarkStorage;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
+import org.apache.gobblin.writer.WatermarkStorage;
 
 
 /**

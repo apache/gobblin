@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.Closeable;
 import javax.annotation.Nullable;
 
-import gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.listeners.JobListener;
 
 
 /**

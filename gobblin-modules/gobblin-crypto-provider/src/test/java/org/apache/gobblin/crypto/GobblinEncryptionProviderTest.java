@@ -1,4 +1,4 @@
-package gobblin.crypto;
+package org.apache.gobblin.crypto;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -10,7 +10,7 @@ import java.util.Map;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.codec.StreamCodec;
+import org.apache.gobblin.codec.StreamCodec;
 
 
 public class GobblinEncryptionProviderTest {

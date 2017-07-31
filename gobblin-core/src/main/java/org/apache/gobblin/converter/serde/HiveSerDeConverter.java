@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.serde;
+package org.apache.gobblin.converter.serde;
 
 import java.io.IOException;
 
@@ -38,13 +38,13 @@ import com.google.common.base.Throwables;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.hive.HiveSerDeWrapper;
-import gobblin.instrumented.converter.InstrumentedConverter;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.hive.HiveSerDeWrapper;
+import org.apache.gobblin.instrumented.converter.InstrumentedConverter;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**

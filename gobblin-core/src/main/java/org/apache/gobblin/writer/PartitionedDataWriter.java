@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Map;
@@ -36,18 +36,18 @@ import com.google.common.io.Closer;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.commit.SpeculativeAttemptAwareConstruct;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
-import gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
-import gobblin.records.ControlMessageHandler;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.stream.ControlMessage;
-import gobblin.stream.RecordEnvelope;
-import gobblin.util.AvroUtils;
-import gobblin.util.FinalState;
-import gobblin.writer.partitioner.WriterPartitioner;
+import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
+import org.apache.gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.FinalState;
+import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 
 
 /**

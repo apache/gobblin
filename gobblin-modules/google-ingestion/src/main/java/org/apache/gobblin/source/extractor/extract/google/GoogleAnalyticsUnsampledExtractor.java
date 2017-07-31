@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source.extractor.extract.google;
+package org.apache.gobblin.source.extractor.extract.google;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -47,22 +47,22 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import static gobblin.retry.RetryerFactory.*;
-import static gobblin.configuration.ConfigurationKeys.*;
-import static gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
-import static gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledSource.*;
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.retry.RetryerFactory;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.source.extractor.filebased.CsvFileDownloader;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.writer.exception.NonTransientException;
+import static org.apache.gobblin.retry.RetryerFactory.*;
+import static org.apache.gobblin.configuration.ConfigurationKeys.*;
+import static org.apache.gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
+import static org.apache.gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledSource.*;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.retry.RetryerFactory;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.extractor.filebased.CsvFileDownloader;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.writer.exception.NonTransientException;
 
 /**
  * Extracts Google Analytics(GA) unsampled report data.

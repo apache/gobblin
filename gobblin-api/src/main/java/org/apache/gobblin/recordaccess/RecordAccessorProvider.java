@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.recordaccess;
+package org.apache.gobblin.recordaccess;
 
 /**
  * A ServiceProvider that can construct a RecordAccessor based on an object's type.

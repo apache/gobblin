@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.kafka;
+package org.apache.gobblin.metrics.kafka;
 
 import java.util.Properties;
 

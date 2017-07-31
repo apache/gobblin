@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.ingestion.google.webmaster;
+package org.apache.gobblin.ingestion.google.webmaster;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,7 +25,7 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.FilterOperator;
+import org.apache.gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.FilterOperator;
 
 
 @Test(groups = {"gobblin.source.extractor.extract.google.webmaster"})

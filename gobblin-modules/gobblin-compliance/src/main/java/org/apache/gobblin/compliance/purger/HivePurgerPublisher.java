@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.purger;
+package org.apache.gobblin.compliance.purger;
 
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
@@ -33,19 +33,19 @@ import com.google.common.base.Splitter;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
-import gobblin.compliance.ComplianceEvents;
-import gobblin.compliance.HivePartitionDataset;
-import gobblin.compliance.utils.DatasetUtils;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.publisher.DataPublisher;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.HostUtils;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.ComplianceEvents;
+import org.apache.gobblin.compliance.HivePartitionDataset;
+import org.apache.gobblin.compliance.utils.DatasetUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.HostUtils;
 
 
 /**

@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.instance.plugin;
+package org.apache.gobblin.runtime.instance.plugin;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 
-import gobblin.annotation.Alias;
-import gobblin.runtime.api.GobblinInstanceDriver;
-import gobblin.runtime.api.GobblinInstancePlugin;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.GobblinInstancePlugin;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.reflection;
+package org.apache.gobblin.util.reflection;
 
 import java.util.Properties;
 

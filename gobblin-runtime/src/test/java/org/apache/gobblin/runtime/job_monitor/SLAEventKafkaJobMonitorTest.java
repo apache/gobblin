@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_monitor;
+package org.apache.gobblin.runtime.job_monitor;
 
 import java.net.URI;
 import java.util.Collection;
@@ -32,13 +32,13 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.event.sla.SlaEventKeys;
-import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
-import gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.kafka.HighLevelConsumerTest;
-import gobblin.util.Either;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
+import org.apache.gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.kafka.HighLevelConsumerTest;
+import org.apache.gobblin.util.Either;
 
 
 public class SLAEventKafkaJobMonitorTest {

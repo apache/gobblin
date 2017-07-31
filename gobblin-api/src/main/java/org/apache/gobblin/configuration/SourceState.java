@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.configuration;
+package org.apache.gobblin.configuration;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -37,8 +37,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import gobblin.source.workunit.WorkUnit;
-import gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.Extract;
 
 import lombok.Getter;
 

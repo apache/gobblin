@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer.commands;
+package org.apache.gobblin.writer.commands;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -24,9 +24,9 @@ import java.sql.SQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.State;
-import gobblin.converter.jdbc.JdbcEntryData;
-import gobblin.converter.jdbc.JdbcEntryDatum;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.converter.jdbc.JdbcEntryDatum;
 import lombok.ToString;
 
 

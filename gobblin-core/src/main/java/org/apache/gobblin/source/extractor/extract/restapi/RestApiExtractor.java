@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.restapi;
+package org.apache.gobblin.source.extractor.extract.restapi;
 
 import com.google.common.collect.ImmutableList;
 
-import gobblin.source.extractor.exception.RestApiConnectionException;
-import gobblin.source.extractor.exception.RestApiProcessingException;
-import gobblin.source.extractor.utils.Utils;
+import org.apache.gobblin.source.extractor.exception.RestApiConnectionException;
+import org.apache.gobblin.source.extractor.exception.RestApiProcessingException;
+import org.apache.gobblin.source.extractor.utils.Utils;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -35,19 +35,19 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.common.base.Splitter;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.exception.RecordCountException;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.extractor.extract.QueryBasedExtractor;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.extractor.extract.SourceSpecificLayer;
-import gobblin.source.extractor.schema.Schema;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.watermark.Predicate;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.source.extractor.exception.HighWatermarkException;
+import org.apache.gobblin.source.extractor.exception.RecordCountException;
+import org.apache.gobblin.source.extractor.exception.SchemaException;
+import org.apache.gobblin.source.extractor.extract.QueryBasedExtractor;
+import org.apache.gobblin.source.extractor.extract.Command;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
+import org.apache.gobblin.source.extractor.extract.SourceSpecificLayer;
+import org.apache.gobblin.source.extractor.schema.Schema;
+import org.apache.gobblin.source.workunit.WorkUnit;
 import lombok.extern.slf4j.Slf4j;
 
 

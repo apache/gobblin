@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import lombok.AllArgsConstructor;
 
@@ -25,7 +25,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.google.common.base.Optional;
 
-import gobblin.commit.CommitStep;
+import org.apache.gobblin.commit.CommitStep;
 
 /**
  * {@link CommitStep} to deregister a Hive table.

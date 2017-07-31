@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce.avro;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,11 +29,11 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.AvroUtils;
 
 
 @Test(groups = { "gobblin.compaction" })

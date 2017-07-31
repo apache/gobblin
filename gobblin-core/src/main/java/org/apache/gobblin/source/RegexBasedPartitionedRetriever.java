@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source;
+package org.apache.gobblin.source;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,10 +34,10 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.hadoop.HadoopFsHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.source.extractor.hadoop.HadoopFsHelper;
 
 
 public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriever {

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce.avro;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -49,9 +49,9 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.mapreduce.MRCompactorJobRunner;
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner;
+import org.apache.gobblin.util.AvroUtils;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.cli;
+package org.apache.gobblin.cli;
 
 import java.util.Arrays;
 import java.util.Collection;

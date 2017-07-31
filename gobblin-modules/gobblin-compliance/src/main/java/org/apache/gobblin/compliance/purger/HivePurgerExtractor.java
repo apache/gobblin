@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.purger;
+package org.apache.gobblin.compliance.purger;
 
 import java.io.IOException;
 import java.util.Map;
@@ -23,14 +23,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
-import gobblin.compliance.DatasetDescriptor;
-import gobblin.compliance.HivePartitionDataset;
-import gobblin.compliance.HivePartitionFinder;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.DatasetDescriptor;
+import org.apache.gobblin.compliance.HivePartitionDataset;
+import org.apache.gobblin.compliance.HivePartitionFinder;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

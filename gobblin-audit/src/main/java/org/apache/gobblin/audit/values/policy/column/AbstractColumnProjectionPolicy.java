@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.audit.values.policy.column;
+package org.apache.gobblin.audit.values.policy.column;
 
 import java.util.List;
 
@@ -23,7 +23,7 @@ import org.apache.avro.Schema;
 import com.google.common.collect.ImmutableList;
 import com.typesafe.config.Config;
 
-import gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
+import org.apache.gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
 
 
 /**

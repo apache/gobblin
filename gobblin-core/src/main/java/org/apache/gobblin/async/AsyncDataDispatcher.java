@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.async;
+package org.apache.gobblin.async;
 
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;

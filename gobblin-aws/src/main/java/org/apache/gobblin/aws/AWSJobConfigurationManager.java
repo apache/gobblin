@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.aws;
+package org.apache.gobblin.aws;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -44,16 +44,16 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
-import gobblin.cluster.GobblinClusterConfigurationKeys;
-import gobblin.cluster.GobblinHelixJobScheduler;
-import gobblin.cluster.JobConfigurationManager;
-import gobblin.cluster.event.NewJobConfigArrivalEvent;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.SchedulerUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinHelixJobScheduler;
+import org.apache.gobblin.cluster.JobConfigurationManager;
+import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.SchedulerUtils;
 
-import static gobblin.aws.GobblinAWSUtils.appendSlash;
+import static org.apache.gobblin.aws.GobblinAWSUtils.appendSlash;
 
 
 /**

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package gobblin.writer.partitioner;
+package org.apache.gobblin.writer.partitioner;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.broker.iface;
+package org.apache.gobblin.broker.iface;
 
 /**
  * Exception thrown when trying to access a {@link ScopeInstance} that is not defined in a {@link SharedResourcesBroker}.

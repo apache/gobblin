@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.trash;
+package org.apache.gobblin.data.management.trash;
 
 import java.io.IOException;
 import java.util.List;
@@ -34,7 +34,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 
-import gobblin.util.ProxiedFileSystemCache;
+import org.apache.gobblin.util.ProxiedFileSystemCache;
 
 
 /**

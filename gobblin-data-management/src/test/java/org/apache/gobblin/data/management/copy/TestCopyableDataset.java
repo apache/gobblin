@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -29,7 +29,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.collect.Lists;
 
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 
 /**

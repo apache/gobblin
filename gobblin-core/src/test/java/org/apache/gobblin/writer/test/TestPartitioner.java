@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.writer.test;
+package org.apache.gobblin.writer.test;
 
-import gobblin.configuration.State;
-import gobblin.writer.partitioner.WriterPartitioner;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;

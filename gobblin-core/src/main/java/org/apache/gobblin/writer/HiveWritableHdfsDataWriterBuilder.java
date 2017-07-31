@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 
@@ -25,8 +25,8 @@ import org.apache.hadoop.io.Writable;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
-import gobblin.configuration.State;
-import gobblin.hive.HiveSerDeWrapper;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveSerDeWrapper;
 
 
 /**

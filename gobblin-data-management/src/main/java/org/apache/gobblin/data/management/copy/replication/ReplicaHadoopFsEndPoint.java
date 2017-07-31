@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -37,9 +37,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.CharStreams;
 import com.typesafe.config.Config;
 
-import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.Watermark;
-import gobblin.util.FileListUtils;
+import org.apache.gobblin.source.extractor.ComparableWatermark;
+import org.apache.gobblin.source.extractor.Watermark;
+import org.apache.gobblin.util.FileListUtils;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

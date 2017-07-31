@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.suite;
+package org.apache.gobblin.compaction.suite;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.compaction.action.CompactionCompleteAction;
-import gobblin.configuration.State;
-import gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.compaction.action.CompactionCompleteAction;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 @Slf4j
 public class TestCompactionSuites {

@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.listeners;
+package org.apache.gobblin.runtime.listeners;
 
 import lombok.AllArgsConstructor;
 
-import gobblin.runtime.JobContext;
-import gobblin.runtime.JobExecutionEventSubmitter;
+import org.apache.gobblin.runtime.JobContext;
+import org.apache.gobblin.runtime.JobExecutionEventSubmitter;
 
 
 @AllArgsConstructor

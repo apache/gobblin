@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.avro;
+package org.apache.gobblin.converter.avro;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,15 +31,15 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.util.AvroUtils;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.ConfigUtils;
 
-import static gobblin.util.AvroUtils.FIELD_LOCATION_DELIMITER;
+import static org.apache.gobblin.util.AvroUtils.FIELD_LOCATION_DELIMITER;
 
 
 /**

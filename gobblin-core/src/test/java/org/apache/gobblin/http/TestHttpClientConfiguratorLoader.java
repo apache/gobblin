@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.http;
+package org.apache.gobblin.http;
 
 import org.testng.Assert;
 import org.testng.Assert.ThrowingRunnable;
@@ -24,7 +24,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 /**
  * Unit tests for {@link HttpClientConfiguratorLoader}

@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.test.integration.data.management;
+package org.apache.gobblin.test.integration.data.management;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.JobLauncher;
-import gobblin.runtime.JobLauncherFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobLauncherFactory;
 
 import java.io.FileReader;
 import java.util.Properties;

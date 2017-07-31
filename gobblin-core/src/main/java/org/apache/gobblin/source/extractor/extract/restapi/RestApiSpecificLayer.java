@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.restapi;
+package org.apache.gobblin.source.extractor.extract.restapi;
 
-import gobblin.source.extractor.exception.RestApiConnectionException;
+import org.apache.gobblin.source.extractor.exception.RestApiConnectionException;
 
 import org.apache.http.HttpEntity;
 

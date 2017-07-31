@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package gobblin.type;
+package org.apache.gobblin.type;
 
 import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableList;
 
-import gobblin.metadata.types.Metadata;
+import org.apache.gobblin.metadata.types.Metadata;
 
 
 /**

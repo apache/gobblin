@@ -1,7 +1,7 @@
 {
   "name": "PermitRequest",
   "type": "record",
-  "namespace": "gobblin.restli.throttling",
+  "namesapce" : "org.apache.gobblin.restli.throttling",
   "doc": "Used to request permits from a gobblin-throttling-service.",
   "fields": [
     {"name": "resource", "type": "string", "doc": "Resource for which permits are needed."},

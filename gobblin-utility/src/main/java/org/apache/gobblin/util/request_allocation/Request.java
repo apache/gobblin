@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.request_allocation;
+package org.apache.gobblin.util.request_allocation;
 
 /**
  * Represents an expensive request in the request allocation problem. See {@link RequestAllocator}.

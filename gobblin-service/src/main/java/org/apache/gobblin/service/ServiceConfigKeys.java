@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package org.apache.gobblin.service;
 
-import gobblin.annotation.Alpha;
-import gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
-import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
-import gobblin.service.modules.topology.ConfigBasedTopologySpecFactory;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
+import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import org.apache.gobblin.service.modules.topology.ConfigBasedTopologySpecFactory;
 
 @Alpha
 public class ServiceConfigKeys {

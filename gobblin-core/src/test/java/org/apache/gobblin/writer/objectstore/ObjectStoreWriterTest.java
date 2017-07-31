@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.writer.objectstore;
+package org.apache.gobblin.writer.objectstore;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,10 +34,10 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.objectstore.ObjectStoreDeleteConverter;
-import gobblin.writer.objectstore.response.GetObjectResponse;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.objectstore.ObjectStoreDeleteConverter;
+import org.apache.gobblin.writer.objectstore.response.GetObjectResponse;
 
 
 public class ObjectStoreWriterTest {

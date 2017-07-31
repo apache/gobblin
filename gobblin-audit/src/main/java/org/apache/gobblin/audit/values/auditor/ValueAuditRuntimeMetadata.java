@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.audit.values.auditor;
+package org.apache.gobblin.audit.values.auditor;
 
 import java.util.List;
 

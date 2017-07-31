@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package gobblin.util;
+package org.apache.gobblin.util;
 
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.gobblin_scopes.JobScopeInstance;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

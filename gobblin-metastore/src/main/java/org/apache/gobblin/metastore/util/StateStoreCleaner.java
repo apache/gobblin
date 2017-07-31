@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.util;
+package org.apache.gobblin.metastore.util;
 
 import java.io.Closeable;
 import java.io.FileInputStream;
@@ -44,9 +44,9 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.nameParser.GuidDatasetUrnStateStoreNameParser;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.nameParser.GuidDatasetUrnStateStoreNameParser;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

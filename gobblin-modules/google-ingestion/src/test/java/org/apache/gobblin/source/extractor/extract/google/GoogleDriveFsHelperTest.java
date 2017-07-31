@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.google;
+package org.apache.gobblin.source.extractor.extract.google;
 
 import static org.mockito.Mockito.*;
 
@@ -38,9 +38,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import static gobblin.source.extractor.extract.google.GoogleDriveFileSystem.*;
-import gobblin.configuration.State;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
+import static org.apache.gobblin.source.extractor.extract.google.GoogleDriveFileSystem.*;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
 
 @Test(groups = { "gobblin.source.extractor.google" })
 public class GoogleDriveFsHelperTest {

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.async;
+package org.apache.gobblin.async;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +23,7 @@ import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
-import gobblin.net.Request;
+import org.apache.gobblin.net.Request;
 
 
 /**

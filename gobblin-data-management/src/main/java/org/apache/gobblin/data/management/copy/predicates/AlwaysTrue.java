@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.predicates;
+package org.apache.gobblin.data.management.copy.predicates;
 
 import com.google.common.base.Predicate;
 

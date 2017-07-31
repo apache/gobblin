@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.policies.time;
+package org.apache.gobblin.policies.time;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -25,10 +25,10 @@ import org.joda.time.format.PeriodFormatterBuilder;
 
 import com.google.common.base.Optional;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.qualitychecker.row.RowLevelPolicy;
-import gobblin.writer.partitioner.TimeBasedWriterPartitioner;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.qualitychecker.row.RowLevelPolicy;
+import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 
 
 /**

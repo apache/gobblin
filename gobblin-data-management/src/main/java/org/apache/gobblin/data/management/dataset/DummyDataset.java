@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.dataset;
+package org.apache.gobblin.data.management.dataset;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,10 +27,10 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.ImmutableList;
 
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyableDataset;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
 
 
 /**

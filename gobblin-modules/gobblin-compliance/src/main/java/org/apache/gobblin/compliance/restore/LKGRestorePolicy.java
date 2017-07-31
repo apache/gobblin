@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.restore;
+package org.apache.gobblin.compliance.restore;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,14 +25,14 @@ import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
-import gobblin.compliance.HivePartitionDataset;
-import gobblin.compliance.HivePartitionVersion;
-import gobblin.compliance.HivePartitionVersionFinder;
-import gobblin.compliance.utils.ProxyUtils;
-import gobblin.configuration.State;
-import gobblin.util.HadoopUtils;
-import gobblin.util.WriterUtils;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.HivePartitionDataset;
+import org.apache.gobblin.compliance.HivePartitionVersion;
+import org.apache.gobblin.compliance.HivePartitionVersionFinder;
+import org.apache.gobblin.compliance.utils.ProxyUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.WriterUtils;
 
 
 /**

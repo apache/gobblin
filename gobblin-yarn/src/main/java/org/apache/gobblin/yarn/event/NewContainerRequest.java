@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.yarn.event;
+package org.apache.gobblin.yarn.event;
 
 import org.apache.hadoop.yarn.api.records.Container;
 

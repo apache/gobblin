@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.List;
@@ -29,17 +29,17 @@ import org.testng.Assert;
 
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metastore.StateStore;
-import gobblin.runtime.JobState.DatasetState;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.test.TestExtractor;
-import gobblin.test.TestSource;
-import gobblin.util.ClusterNameTags;
-import gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.runtime.JobState.DatasetState;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.test.TestExtractor;
+import org.apache.gobblin.test.TestSource;
+import org.apache.gobblin.util.ClusterNameTags;
+import org.apache.gobblin.util.JobLauncherUtils;
 
 
 /**

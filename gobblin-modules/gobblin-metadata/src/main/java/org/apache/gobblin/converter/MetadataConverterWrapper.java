@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.io.IOException;
 
@@ -23,10 +23,10 @@ import com.google.common.collect.Iterables;
 
 import javax.annotation.Nullable;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.metadata.types.Metadata;
-import gobblin.type.RecordWithMetadata;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.types.Metadata;
+import org.apache.gobblin.type.RecordWithMetadata;
 
 
 /**

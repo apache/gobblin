@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.prioritization;
+package org.apache.gobblin.data.management.copy.prioritization;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -23,11 +23,11 @@ import java.util.Iterator;
 
 import org.apache.hadoop.fs.FileSystem;
 
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.IterableCopyableDataset;
-import gobblin.data.management.partition.FileSet;
-import gobblin.util.request_allocation.PushDownRequestor;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.IterableCopyableDataset;
+import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 
 
 /**

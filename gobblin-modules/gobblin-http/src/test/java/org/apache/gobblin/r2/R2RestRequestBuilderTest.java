@@ -1,4 +1,4 @@
-package gobblin.r2;
+package org.apache.gobblin.r2;
 
 import java.io.IOException;
 import java.net.URI;
@@ -16,10 +16,10 @@ import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestRequestBuilder;
 import com.linkedin.restli.common.RestConstants;
 
-import gobblin.HttpTestUtils;
-import gobblin.async.AsyncRequest;
-import gobblin.async.BufferedRecord;
-import gobblin.r2.R2RestRequestBuilder;
+import org.apache.gobblin.HttpTestUtils;
+import org.apache.gobblin.async.AsyncRequest;
+import org.apache.gobblin.async.BufferedRecord;
+import org.apache.gobblin.r2.R2RestRequestBuilder;
 
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;

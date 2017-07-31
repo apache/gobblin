@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.listeners;
+package org.apache.gobblin.compaction.listeners;
 
 /**
  * Throw by {@link CompactorListenerFactory} if there is a problem creating a {@link CompactorListener}.

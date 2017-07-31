@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.executors;
+package org.apache.gobblin.util.executors;
 
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;

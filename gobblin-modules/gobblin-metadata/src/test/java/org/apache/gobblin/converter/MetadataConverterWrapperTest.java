@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -25,9 +25,9 @@ import java.util.List;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.metadata.types.Metadata;
-import gobblin.type.RecordWithMetadata;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.types.Metadata;
+import org.apache.gobblin.type.RecordWithMetadata;
 
 
 public class MetadataConverterWrapperTest {

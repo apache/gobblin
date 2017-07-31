@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.util;
+package org.apache.gobblin.runtime.util;
 
-import gobblin.runtime.fork.Fork;
+import org.apache.gobblin.runtime.fork.Fork;
 
 
 public enum RuntimeConstructs {

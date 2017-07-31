@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.request_allocation;
+package org.apache.gobblin.util.request_allocation;
 
 /**
  * Basic vector operations. These operations are NOT safe (e.g. no bound checks on vectors), so they are package-private.

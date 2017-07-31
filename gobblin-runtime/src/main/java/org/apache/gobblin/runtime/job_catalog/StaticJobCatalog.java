@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
 import java.net.URI;
 import java.util.Collection;
@@ -26,11 +26,11 @@ import org.slf4j.Logger;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 
-import gobblin.metrics.MetricContext;
-import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.JobCatalogListener;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobSpecNotFoundException;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.JobCatalogListener;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.common.impl;
+package org.apache.gobblin.config.common.impl;
 
 /** Denotes that circular chain is detected by follow the imports path in {@link ConfigStore}. */
 

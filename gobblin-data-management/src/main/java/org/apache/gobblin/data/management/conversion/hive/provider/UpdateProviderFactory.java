@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.provider;
+package org.apache.gobblin.data.management.conversion.hive.provider;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -24,10 +24,10 @@ import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.collect.ImmutableList;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.util.HadoopUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 /**
  * A factory class to create {@link HiveUnitUpdateProvider}s

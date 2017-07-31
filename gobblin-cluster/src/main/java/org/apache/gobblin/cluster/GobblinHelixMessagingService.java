@@ -1,4 +1,4 @@
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import com.google.common.base.Strings;
 import java.util.ArrayList;

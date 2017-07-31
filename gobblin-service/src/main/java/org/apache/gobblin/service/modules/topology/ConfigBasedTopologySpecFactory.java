@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.topology;
+package org.apache.gobblin.service.modules.topology;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
@@ -31,12 +31,12 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
-import gobblin.runtime.api.TopologySpec;
-import gobblin.service.ServiceConfigKeys;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 @Alpha

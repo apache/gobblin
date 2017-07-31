@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.hive.avro;
+package org.apache.gobblin.hive.avro;
 
 import com.codahale.metrics.Timer;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
 import java.io.IOException;
 
 import org.apache.avro.Schema;
@@ -28,13 +28,13 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.hive.HiveRegistrationUnit;
-import gobblin.hive.HiveSerDeManager;
-import gobblin.hive.HiveSerDeWrapper;
-import gobblin.util.AvroUtils;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveRegistrationUnit;
+import org.apache.gobblin.hive.HiveSerDeManager;
+import org.apache.gobblin.hive.HiveSerDeWrapper;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.HadoopUtils;
 import lombok.extern.slf4j.Slf4j;
 
 

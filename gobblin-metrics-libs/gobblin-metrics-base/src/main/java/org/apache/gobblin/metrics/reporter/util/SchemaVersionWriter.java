@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter.util;
+package org.apache.gobblin.metrics.reporter.util;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;

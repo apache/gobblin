@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import java.util.Properties;
 import javax.sql.DataSource;

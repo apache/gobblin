@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
 
 
 /**

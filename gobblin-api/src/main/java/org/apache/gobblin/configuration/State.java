@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.configuration;
+package org.apache.gobblin.configuration;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -40,8 +40,8 @@ import com.google.gson.JsonParser;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
-import gobblin.compat.hadoop.TextSerializer;
-import gobblin.compat.hadoop.WritableShim;
+import org.apache.gobblin.compat.hadoop.TextSerializer;
+import org.apache.gobblin.compat.hadoop.WritableShim;
 
 
 /**

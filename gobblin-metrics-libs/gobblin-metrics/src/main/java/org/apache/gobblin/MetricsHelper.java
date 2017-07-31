@@ -23,8 +23,8 @@ import java.util.Map;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 
 
 public class MetricsHelper {

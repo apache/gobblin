@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.dataset;
+package org.apache.gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -38,17 +38,17 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigRenderOptions;
 
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.policy.SelectBeforeTimeBasedPolicy;
-import gobblin.data.management.policy.VersionSelectionPolicy;
-import gobblin.data.management.retention.version.HiveDatasetVersionCleaner;
-import gobblin.data.management.version.HiveDatasetVersion;
-import gobblin.data.management.version.finder.AbstractHiveDatasetVersionFinder;
-import gobblin.data.management.version.finder.DatePartitionHiveVersionFinder;
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.util.AutoReturnableObject;
-import gobblin.util.ConfigUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy;
+import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
+import org.apache.gobblin.data.management.retention.version.HiveDatasetVersionCleaner;
+import org.apache.gobblin.data.management.version.HiveDatasetVersion;
+import org.apache.gobblin.data.management.version.finder.AbstractHiveDatasetVersionFinder;
+import org.apache.gobblin.data.management.version.finder.DatePartitionHiveVersionFinder;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 /**
  * <p>

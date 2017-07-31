@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.logs;
+package org.apache.gobblin.util.logs;
 
 import java.io.FileInputStream;
 import java.io.IOException;

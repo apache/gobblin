@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import java.util.Properties;
 
 import com.typesafe.config.Config;
 
-import gobblin.runtime.api.Configurable;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.runtime.api.Configurable;
+import org.apache.gobblin.util.ConfigUtils;
 
 /**
  * Default immutable implementation for {@link Configurable} interface.

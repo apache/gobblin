@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.kafka.client;
+package org.apache.gobblin.kafka.client;
 
 /**
  * A kafka record that provides getters for raw bytes of key and value . This record type can be used to wrap kafka

@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.restli.throttling;
+package org.apache.gobblin.restli.throttling;
 
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
@@ -36,12 +36,12 @@ import com.linkedin.restli.server.guice.GuiceRestliServlet;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.iface.NotConfiguredException;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.broker.MetricContextFactory;
-import gobblin.metrics.broker.MetricContextKey;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.broker.MetricContextFactory;
+import org.apache.gobblin.metrics.broker.MetricContextKey;
 
 import java.io.Closeable;
 import java.io.IOException;

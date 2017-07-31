@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.workunit;
+package org.apache.gobblin.source.workunit;
 
 import java.util.Locale;
 import java.util.Set;
@@ -28,7 +28,7 @@ import org.joda.time.format.DateTimeFormatter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
-import gobblin.source.workunit.Extract.TableType;
+import org.apache.gobblin.source.workunit.Extract.TableType;
 
 
 public class ExtractFactory {

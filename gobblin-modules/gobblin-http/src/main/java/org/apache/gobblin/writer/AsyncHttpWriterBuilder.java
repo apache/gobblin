@@ -15,24 +15,24 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import gobblin.async.AsyncRequestBuilder;
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.http.HttpClient;
-import gobblin.http.ResponseHandler;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
-import gobblin.util.ConfigUtils;
-import gobblin.utils.HttpConstants;
+import org.apache.gobblin.async.AsyncRequestBuilder;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.http.HttpClient;
+import org.apache.gobblin.http.ResponseHandler;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.utils.HttpConstants;
 import java.io.IOException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;

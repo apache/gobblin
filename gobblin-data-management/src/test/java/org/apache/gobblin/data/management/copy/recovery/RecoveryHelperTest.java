@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.recovery;
+package org.apache.gobblin.data.management.copy.recovery;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -36,13 +36,13 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicates;
 import com.google.common.io.Files;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.PreserveAttributes;
-import gobblin.util.guid.Guid;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.util.guid.Guid;
 
 
 public class RecoveryHelperTest {

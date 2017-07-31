@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.configuration;
+package org.apache.gobblin.configuration;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -29,13 +29,13 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.broker.iface.SubscopedBrokerBuilder;
-import gobblin.source.extractor.Watermark;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.ImmutableWorkUnit;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.broker.iface.SubscopedBrokerBuilder;
+import org.apache.gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.ImmutableWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 import javax.annotation.Nullable;
 import lombok.Getter;

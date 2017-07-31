@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.io.Closeable;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -27,8 +27,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alias;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

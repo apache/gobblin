@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce.avro;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -30,7 +30,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**

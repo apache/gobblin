@@ -9,7 +9,7 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.scheduler;
+package org.apache.gobblin.scheduler;
 
 import org.quartz.*;
 import org.slf4j.MDC;

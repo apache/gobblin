@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.hive.spec;
+package org.apache.gobblin.hive.spec;
 
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 
-import gobblin.annotation.Alpha;
-import gobblin.hive.HivePartition;
-import gobblin.hive.HiveTable;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.hive.HivePartition;
+import org.apache.gobblin.hive.HiveTable;
 
 
 /**

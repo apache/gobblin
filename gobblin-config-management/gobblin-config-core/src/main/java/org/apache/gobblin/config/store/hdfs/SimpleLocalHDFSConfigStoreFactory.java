@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.store.hdfs;
+package org.apache.gobblin.config.store.hdfs;
 
 import java.io.IOException;
 import java.net.URI;

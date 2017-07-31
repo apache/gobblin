@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.version.finder;
+package org.apache.gobblin.data.management.version.finder;
 
 import java.util.Properties;
 
@@ -33,10 +33,10 @@ import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.version.FileStatusTimestampedDatasetVersion;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.version.FileStatusTimestampedDatasetVersion;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 
 
 /**

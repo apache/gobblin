@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package gobblin.metadata.provider;
+package org.apache.gobblin.metadata.provider;
 
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alias;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.extern.slf4j.Slf4j;
 

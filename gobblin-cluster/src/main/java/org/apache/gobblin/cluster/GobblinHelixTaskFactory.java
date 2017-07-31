@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import com.typesafe.config.Config;
-import gobblin.runtime.util.StateStores;
+import org.apache.gobblin.runtime.util.StateStores;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -36,9 +36,9 @@ import com.codahale.metrics.Counter;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 
-import gobblin.annotation.Alpha;
-import gobblin.runtime.TaskExecutor;
-import gobblin.runtime.TaskStateTracker;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.TaskExecutor;
+import org.apache.gobblin.runtime.TaskStateTracker;
 
 
 /**

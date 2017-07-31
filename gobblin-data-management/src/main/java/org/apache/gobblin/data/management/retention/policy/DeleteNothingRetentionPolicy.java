@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.policy;
+package org.apache.gobblin.data.management.retention.policy;
 
 import java.util.Collection;
 import java.util.List;
@@ -23,7 +23,7 @@ import java.util.Properties;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
 
 
 /**

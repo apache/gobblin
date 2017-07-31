@@ -1,4 +1,4 @@
-package gobblin.converter.avro;
+package org.apache.gobblin.converter.avro;
 
 import org.apache.avro.generic.GenericRecord;
 import org.codehaus.jackson.JsonNode;
@@ -6,11 +6,11 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.test.TestUtils;
-import gobblin.type.RecordWithMetadata;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.test.TestUtils;
+import org.apache.gobblin.type.RecordWithMetadata;
 
 
 public class AvroToJsonRecordWithMetadataConverterTest {

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.tool;
+package org.apache.gobblin.kafka.tool;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -41,10 +41,10 @@ import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.kafka.schemareg.KafkaSchemaRegistry;
-import gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
-import gobblin.kafka.serialize.LiAvroDeserializer;
-import gobblin.kafka.serialize.MD5Digest;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
+import org.apache.gobblin.kafka.serialize.LiAvroDeserializer;
+import org.apache.gobblin.kafka.serialize.MD5Digest;
 
 
 /**

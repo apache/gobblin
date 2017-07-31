@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.policy;
+package org.apache.gobblin.data.management.policy;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,7 +29,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.data.management.version.DatasetVersion;
 
 /** Unit tests for {@link NewestKSelectionPolicy} */
 public class NewestKSelectionPolicyTest {

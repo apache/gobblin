@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.cluster;
+package org.apache.gobblin.cluster;
 
 import java.util.List;
 import java.util.concurrent.Callable;
 
 import com.google.common.collect.ImmutableList;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.Tag;
 
 
 /**

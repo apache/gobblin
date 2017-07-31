@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.jdbc;
+package org.apache.gobblin.util.jdbc;
 
 import java.util.Properties;
 
@@ -27,7 +27,7 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.name.Named;
 
-import gobblin.password.PasswordManager;
+import org.apache.gobblin.password.PasswordManager;
 
 
 /**

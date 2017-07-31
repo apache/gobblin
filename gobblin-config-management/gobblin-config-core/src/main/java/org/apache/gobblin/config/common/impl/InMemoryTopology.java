@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.common.impl;
+package org.apache.gobblin.config.common.impl;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,7 +32,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.typesafe.config.Config;
 
-import gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 

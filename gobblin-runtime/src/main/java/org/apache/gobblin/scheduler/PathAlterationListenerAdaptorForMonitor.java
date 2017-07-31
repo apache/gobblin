@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.scheduler;
+package org.apache.gobblin.scheduler;
 
 import java.io.IOException;
 import java.util.Map;
@@ -30,13 +30,13 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.JobException;
-import gobblin.runtime.listeners.EmailNotificationJobListener;
-import gobblin.runtime.listeners.RunOnceJobListener;
-import gobblin.util.PathUtils;
-import gobblin.util.SchedulerUtils;
-import gobblin.util.filesystem.PathAlterationListenerAdaptor;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.listeners.EmailNotificationJobListener;
+import org.apache.gobblin.runtime.listeners.RunOnceJobListener;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.SchedulerUtils;
+import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
 
 
 /**

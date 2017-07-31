@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.hadoop;
+package org.apache.gobblin.source.extractor.hadoop;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;

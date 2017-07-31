@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.locks;
+package org.apache.gobblin.runtime.locks;
 
 import java.io.IOException;
 
@@ -24,8 +24,8 @@ import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.annotation.Alias;
-import gobblin.runtime.instance.hadoop.HadoopConfigLoader;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.runtime.instance.hadoop.HadoopConfigLoader;
 
 /**
  * Manages instances of {@link FileBasedJobLockFactory}.

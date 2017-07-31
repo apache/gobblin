@@ -15,21 +15,21 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.commit;
+package org.apache.gobblin.runtime.commit;
 
 import com.typesafe.config.ConfigFactory;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.annotation.Alpha;
-import gobblin.commit.CommitSequence;
-import gobblin.commit.CommitStep;
-import gobblin.commit.CommitStepBase;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.JobState.DatasetState;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.commit.CommitSequence;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.commit.CommitStepBase;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobState.DatasetState;
 import lombok.extern.slf4j.Slf4j;
 
 

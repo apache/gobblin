@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.version.finder;
+package org.apache.gobblin.data.management.version.finder;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -32,11 +32,11 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.TimestampedDatasetVersion;
-import gobblin.dataset.Dataset;
-import gobblin.dataset.FileSystemDataset;
-import gobblin.util.FileListUtils;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.FileListUtils;
 
 
 /**

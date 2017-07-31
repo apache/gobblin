@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.job_exec;
+package org.apache.gobblin.runtime.job_exec;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,13 +30,13 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.JobLauncherFactory;
-import gobblin.runtime.api.JobExecution;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.local.LocalJobLauncher;
-import gobblin.runtime.mapreduce.MRJobLauncher;
-import gobblin.util.test.TestingSource;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobLauncherFactory;
+import org.apache.gobblin.runtime.api.JobExecution;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.local.LocalJobLauncher;
+import org.apache.gobblin.runtime.mapreduce.MRJobLauncher;
+import org.apache.gobblin.util.test.TestingSource;
 
 /**
  * Unit tests for {@link JobLauncherExecutionDriver}

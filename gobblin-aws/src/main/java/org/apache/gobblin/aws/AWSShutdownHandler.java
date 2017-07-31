@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.aws;
+package org.apache.gobblin.aws;
 
 import java.util.List;
 
@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 
-import gobblin.annotation.Alpha;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**

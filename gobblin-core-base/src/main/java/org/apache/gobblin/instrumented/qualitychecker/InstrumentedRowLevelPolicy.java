@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.qualitychecker;
+package org.apache.gobblin.instrumented.qualitychecker;
 
-import gobblin.configuration.State;
+import org.apache.gobblin.configuration.State;
 
 
 /**

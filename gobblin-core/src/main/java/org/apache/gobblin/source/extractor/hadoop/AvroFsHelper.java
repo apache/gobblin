@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.hadoop;
+package org.apache.gobblin.source.extractor.hadoop;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,12 +32,12 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
-import gobblin.source.extractor.utils.ProxyFsInput;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
+import org.apache.gobblin.source.extractor.utils.ProxyFsInput;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 public class AvroFsHelper extends HadoopFsHelper implements SizeAwareFileBasedHelper {

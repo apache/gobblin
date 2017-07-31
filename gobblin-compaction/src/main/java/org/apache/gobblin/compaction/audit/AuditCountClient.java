@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.audit;
+package org.apache.gobblin.compaction.audit;
 
 import java.io.IOException;
 import java.util.Map;

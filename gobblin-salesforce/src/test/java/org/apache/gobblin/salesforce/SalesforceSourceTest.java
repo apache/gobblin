@@ -1,4 +1,4 @@
-package gobblin.salesforce;
+package org.apache.gobblin.salesforce;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;

@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.hive;
+package org.apache.gobblin.data.management.hive;
 
 import java.io.IOException;
 import java.util.List;
 
-import gobblin.annotation.Alpha;
-import gobblin.dataset.Dataset;
-import gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.hive.spec.HiveSpec;
 
 
 /**

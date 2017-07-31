@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.compaction.mapreduce;
+package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -30,16 +30,16 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 
-import gobblin.compaction.CliOptions;
-import gobblin.compaction.Compactor;
-import gobblin.compaction.CompactorCreationException;
-import gobblin.compaction.CompactorFactory;
-import gobblin.compaction.ReflectionCompactorFactory;
-import gobblin.compaction.listeners.CompactorListener;
-import gobblin.compaction.listeners.CompactorListenerCreationException;
-import gobblin.compaction.listeners.CompactorListenerFactory;
-import gobblin.compaction.listeners.ReflectionCompactorListenerFactory;
-import gobblin.metrics.Tag;
+import org.apache.gobblin.compaction.CliOptions;
+import org.apache.gobblin.compaction.Compactor;
+import org.apache.gobblin.compaction.CompactorCreationException;
+import org.apache.gobblin.compaction.CompactorFactory;
+import org.apache.gobblin.compaction.ReflectionCompactorFactory;
+import org.apache.gobblin.compaction.listeners.CompactorListener;
+import org.apache.gobblin.compaction.listeners.CompactorListenerCreationException;
+import org.apache.gobblin.compaction.listeners.CompactorListenerFactory;
+import org.apache.gobblin.compaction.listeners.ReflectionCompactorListenerFactory;
+import org.apache.gobblin.metrics.Tag;
 
 /**
  * A class for launching a Gobblin MR job for compaction through command line.

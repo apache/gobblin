@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.limiter;
+package org.apache.gobblin.util.limiter;
 
 import java.util.concurrent.TimeUnit;
 
@@ -24,8 +24,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.TimeBasedLimiter;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.TimeBasedLimiter;
 
 
 /**

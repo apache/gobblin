@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
-import gobblin.config.ConfigBuilder;
-import gobblin.runtime.job_spec.ResolvedJobSpec;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import java.io.File;
 import java.io.PrintWriter;
 import java.net.URI;
@@ -33,11 +33,11 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.JobCatalogListener;
-import gobblin.runtime.api.JobSpec;
-import gobblin.util.ConfigUtils;
-import gobblin.util.filesystem.PathAlterationObserver;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobCatalogListener;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
 import org.testng.Assert;
 

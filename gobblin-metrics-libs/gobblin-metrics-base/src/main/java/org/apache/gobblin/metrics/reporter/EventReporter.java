@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.reporter;
+package org.apache.gobblin.metrics.reporter;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -50,14 +50,14 @@ import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.notification.EventNotification;
-import gobblin.metrics.notification.Notification;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.notification.EventNotification;
+import org.apache.gobblin.metrics.notification.Notification;
+import org.apache.gobblin.util.ExecutorsUtils;
 
-import static gobblin.metrics.event.JobEvent.METADATA_JOB_ID;
-import static gobblin.metrics.event.TaskEvent.METADATA_TASK_ID;
+import static org.apache.gobblin.metrics.event.JobEvent.METADATA_JOB_ID;
+import static org.apache.gobblin.metrics.event.TaskEvent.METADATA_TASK_ID;
 
 /**
  * Abstract class for reporting {@link gobblin.metrics.GobblinTrackingEvent}s at a fixed schedule.

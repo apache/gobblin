@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.retention.version.finder;
+package org.apache.gobblin.data.management.retention.version.finder;
 
 import java.util.Properties;
 
@@ -24,8 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.StringDatasetVersion;
+import org.apache.gobblin.data.management.retention.version.DatasetVersion;
+import org.apache.gobblin.data.management.retention.version.StringDatasetVersion;
 
 
 /**

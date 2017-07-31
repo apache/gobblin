@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.writer;
+package org.apache.gobblin.kafka.writer;
 
 import java.io.File;
 import java.io.FileReader;
@@ -35,9 +35,9 @@ import org.testng.Assert;
 import kafka.consumer.ConsumerIterator;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.kafka.KafkaTestBase;
-import gobblin.runtime.JobLauncher;
-import gobblin.runtime.JobLauncherFactory;
+import org.apache.gobblin.kafka.KafkaTestBase;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobLauncherFactory;
 
 
 /**

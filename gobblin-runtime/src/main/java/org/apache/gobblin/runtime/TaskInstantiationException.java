@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.runtime;
+package org.apache.gobblin.runtime;
 
 /**
  * An exception class to capture failures in Task instantiation

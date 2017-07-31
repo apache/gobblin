@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance.retention;
+package org.apache.gobblin.compliance.retention;
 
 import org.apache.hadoop.hive.ql.metadata.Partition;
 
@@ -22,8 +22,8 @@ import com.google.common.base.Preconditions;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
-import gobblin.compliance.ComplianceConfigurationKeys;
-import gobblin.compliance.HivePartitionVersion;
+import org.apache.gobblin.compliance.ComplianceConfigurationKeys;
+import org.apache.gobblin.compliance.HivePartitionVersion;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.scheduler;
+package org.apache.gobblin.scheduler;
 
 import java.io.File;
 import java.io.FileReader;
@@ -42,8 +42,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ServiceManager;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -34,12 +34,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 
-import gobblin.metrics.context.ContextWeakReference;
-import gobblin.metrics.context.NameConflictException;
-import gobblin.metrics.notification.MetricContextCleanupNotification;
-import gobblin.metrics.notification.NewMetricContextNotification;
-import gobblin.metrics.reporter.ContextAwareReporter;
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.metrics.context.ContextWeakReference;
+import org.apache.gobblin.metrics.context.NameConflictException;
+import org.apache.gobblin.metrics.notification.MetricContextCleanupNotification;
+import org.apache.gobblin.metrics.notification.NewMetricContextNotification;
+import org.apache.gobblin.metrics.reporter.ContextAwareReporter;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

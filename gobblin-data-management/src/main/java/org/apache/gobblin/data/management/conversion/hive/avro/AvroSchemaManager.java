@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.avro;
+package org.apache.gobblin.data.management.conversion.hive.avro;
 
 import java.io.IOException;
 import java.net.URI;
@@ -36,12 +36,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
-import gobblin.hive.avro.HiveAvroSerDeManager;
-import gobblin.util.AvroUtils;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
+import org.apache.gobblin.hive.avro.HiveAvroSerDeManager;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**

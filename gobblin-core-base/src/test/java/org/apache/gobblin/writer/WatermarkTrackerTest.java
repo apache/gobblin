@@ -17,13 +17,13 @@
  * under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 
 
 @Test

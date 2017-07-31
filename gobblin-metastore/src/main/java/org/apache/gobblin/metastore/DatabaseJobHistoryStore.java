@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
@@ -40,10 +40,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 
-import gobblin.metastore.database.SupportedDatabaseVersion;
-import gobblin.metastore.database.VersionedDatabaseJobHistoryStore;
-import gobblin.rest.JobExecutionInfo;
-import gobblin.rest.JobExecutionQuery;
+import org.apache.gobblin.metastore.database.SupportedDatabaseVersion;
+import org.apache.gobblin.metastore.database.VersionedDatabaseJobHistoryStore;
+import org.apache.gobblin.rest.JobExecutionInfo;
+import org.apache.gobblin.rest.JobExecutionQuery;
 
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;

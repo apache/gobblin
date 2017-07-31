@@ -1,4 +1,4 @@
-package gobblin.http;
+package org.apache.gobblin.http;
 import lombok.Getter;
 import lombok.Setter;
 

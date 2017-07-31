@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.util.Map;
 
@@ -30,8 +30,8 @@ import java.util.TreeMap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
-import gobblin.data.management.partition.FileSet;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.source.workunit.WorkUnit;
 import lombok.extern.slf4j.Slf4j;
 
 

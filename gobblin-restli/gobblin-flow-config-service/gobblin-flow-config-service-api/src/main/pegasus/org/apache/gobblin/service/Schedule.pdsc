@@ -1,7 +1,7 @@
 {
   "type" : "record",
   "name" : "Schedule",
-  "namespace": "gobblin.service",
+  "namesapce" : "org.apache.gobblin.service",
   "doc" : "Attributes for defining a job schedule",
   "fields" : [
     {

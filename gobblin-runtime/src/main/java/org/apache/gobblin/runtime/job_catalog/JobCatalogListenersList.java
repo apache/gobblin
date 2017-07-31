@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.job_catalog;
+package org.apache.gobblin.runtime.job_catalog;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -29,11 +29,11 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import gobblin.runtime.api.JobCatalog;
-import gobblin.runtime.api.JobCatalogListener;
-import gobblin.runtime.api.JobCatalogListenersContainer;
-import gobblin.runtime.api.JobSpec;
-import gobblin.util.callbacks.CallbacksDispatcher;
+import org.apache.gobblin.runtime.api.JobCatalog;
+import org.apache.gobblin.runtime.api.JobCatalogListener;
+import org.apache.gobblin.runtime.api.JobCatalogListenersContainer;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 
 /** A helper class to manage a list of {@link JobCatalogListener}s for a

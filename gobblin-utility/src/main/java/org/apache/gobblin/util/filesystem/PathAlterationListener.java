@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.filesystem;
+package org.apache.gobblin.util.filesystem;
 
 import org.apache.commons.io.monitor.FileAlterationListener;
 import org.apache.hadoop.fs.Path;

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.policy;
+package org.apache.gobblin.data.management.policy;
 
 import java.util.Properties;
 
@@ -26,9 +26,9 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alias;
-import gobblin.data.management.version.TimestampedDatasetVersion;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

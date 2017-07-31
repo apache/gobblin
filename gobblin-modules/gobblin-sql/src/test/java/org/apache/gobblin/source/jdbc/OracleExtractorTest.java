@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.jdbc;
+package org.apache.gobblin.source.jdbc;
 
 import static org.testng.Assert.assertEquals;
 
@@ -30,9 +30,9 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableList;
 import com.mockrunner.mock.jdbc.MockResultSet;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.CommandOutput;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
 
 
 @Test(groups = { "gobblin.source.jdbc" })

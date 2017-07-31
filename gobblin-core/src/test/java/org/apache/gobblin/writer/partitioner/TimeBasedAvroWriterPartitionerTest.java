@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer.partitioner;
+package org.apache.gobblin.writer.partitioner;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,15 +31,15 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.stream.RecordEnvelope;
-import gobblin.writer.AvroDataWriterBuilder;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
-import gobblin.writer.Destination;
-import gobblin.writer.PartitionedDataWriter;
-import gobblin.writer.WriterOutputFormat;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.writer.AvroDataWriterBuilder;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.PartitionedDataWriter;
+import org.apache.gobblin.writer.WriterOutputFormat;
 
 
 /**

@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.util;
+package org.apache.gobblin.runtime.util;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.StateStore;
-import gobblin.runtime.TaskState;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.Path;
 
 /**

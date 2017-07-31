@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.policies.count;
+package org.apache.gobblin.policies.count;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.qualitychecker.task.TaskLevelPolicy;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicy;
 
 
 public class RowCountRangePolicy extends TaskLevelPolicy {

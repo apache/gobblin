@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.hive;
+package org.apache.gobblin.data.management.copy.hive;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,8 +36,8 @@ import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
-import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.util.AutoReturnableObject;
 
 
 public class HiveDatasetFinderTest {

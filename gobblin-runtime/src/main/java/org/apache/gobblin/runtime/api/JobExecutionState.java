@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.api;
+package org.apache.gobblin.runtime.api;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,9 +33,9 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import gobblin.annotation.Alpha;
-import gobblin.runtime.JobState;
-import gobblin.runtime.JobState.RunningState;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.JobState.RunningState;
 
 import javax.annotation.Nonnull;
 import lombok.Getter;

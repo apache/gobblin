@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.conversion.hive.util;
+package org.apache.gobblin.data.management.conversion.hive.util;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -32,9 +32,9 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.ConversionHiveTestUtils;
-import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
-import gobblin.util.AvroFlattener;
+import org.apache.gobblin.data.management.ConversionHiveTestUtils;
+import org.apache.gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
+import org.apache.gobblin.util.AvroFlattener;
 
 
 @Test(groups = { "gobblin.data.management.conversion" })

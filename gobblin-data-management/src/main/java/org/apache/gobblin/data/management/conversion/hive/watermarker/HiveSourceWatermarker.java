@@ -14,18 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.conversion.hive.watermarker;
+package org.apache.gobblin.data.management.conversion.hive.watermarker;
 
 import java.util.List;
 
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.source.HiveSource;
-import gobblin.publisher.DataPublisher;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

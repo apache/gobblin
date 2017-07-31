@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.audit.values.sink;
+package org.apache.gobblin.audit.values.sink;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -32,11 +32,11 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alias;
-import gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ConfigUtils;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.audit.values.auditor.ValueAuditRuntimeMetadata;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**

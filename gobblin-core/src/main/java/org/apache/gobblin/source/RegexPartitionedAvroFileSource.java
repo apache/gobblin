@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source;
+package org.apache.gobblin.source;
 
 import java.io.IOException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.hadoop.AvroFileExtractor;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.hadoop.AvroFileExtractor;
 
 
 public class RegexPartitionedAvroFileSource extends PartitionedFileSourceBase<Schema, GenericRecord> {

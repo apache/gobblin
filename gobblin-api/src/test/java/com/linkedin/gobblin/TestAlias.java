@@ -11,7 +11,7 @@
  */
 package com.linkedin.gobblin;
 
-import gobblin.annotation.Alias;
+import org.apache.gobblin.annotation.Alias;
 
 /**
  * Dummy test class to test alias resolution for com.linkedin.gobblin package

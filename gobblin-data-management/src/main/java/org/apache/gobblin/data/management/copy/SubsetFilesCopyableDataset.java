@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -28,11 +28,11 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.SourceState;
-import gobblin.data.management.dataset.DatasetUtils;
-import gobblin.dataset.FileSystemDataset;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.PathUtils;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.PathUtils;
 
 import lombok.extern.slf4j.Slf4j;
 

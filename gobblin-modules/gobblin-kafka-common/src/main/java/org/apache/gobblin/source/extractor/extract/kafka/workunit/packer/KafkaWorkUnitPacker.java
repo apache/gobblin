@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka.workunit.packer;
+package org.apache.gobblin.source.extractor.extract.kafka.workunit.packer;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -32,19 +32,19 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.primitives.Doubles;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.Tag;
-import gobblin.source.extractor.WatermarkInterval;
-import gobblin.source.extractor.extract.AbstractSource;
-import gobblin.source.extractor.extract.kafka.KafkaPartition;
-import gobblin.source.extractor.extract.kafka.KafkaSource;
-import gobblin.source.extractor.extract.kafka.KafkaUtils;
-import gobblin.source.extractor.extract.kafka.MultiLongWatermark;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.source.extractor.WatermarkInterval;
+import org.apache.gobblin.source.extractor.extract.AbstractSource;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaUtils;
+import org.apache.gobblin.source.extractor.extract.kafka.MultiLongWatermark;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**

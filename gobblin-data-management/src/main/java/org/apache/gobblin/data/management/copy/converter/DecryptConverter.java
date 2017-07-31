@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.converter;
+package org.apache.gobblin.data.management.copy.converter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,13 +30,13 @@ import com.google.common.collect.Maps;
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.codec.StreamCodec;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.crypto.EncryptionConfigParser;
-import gobblin.crypto.EncryptionFactory;
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.password.PasswordManager;
+import org.apache.gobblin.codec.StreamCodec;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.crypto.EncryptionConfigParser;
+import org.apache.gobblin.crypto.EncryptionFactory;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.password.PasswordManager;
 
 
 /**

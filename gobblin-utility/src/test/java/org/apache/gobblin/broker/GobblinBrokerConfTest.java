@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package org.apache.gobblin.broker;
 
-import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import gobblin.broker.gobblin_scopes.JobScopeInstance;
-import gobblin.broker.iface.ScopedConfigView;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
+import org.apache.gobblin.broker.iface.ScopedConfigView;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

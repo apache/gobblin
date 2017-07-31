@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.couchbase.converter;
+package org.apache.gobblin.couchbase.converter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,9 +30,9 @@ import com.google.gson.Gson;
 
 import lombok.AllArgsConstructor;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
 
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;

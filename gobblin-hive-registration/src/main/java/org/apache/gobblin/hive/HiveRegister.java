@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.hive;
+package org.apache.gobblin.hive;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -37,16 +37,16 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
-import gobblin.hive.HiveRegistrationUnit.Column;
-import gobblin.hive.spec.HiveSpec;
-import gobblin.hive.spec.HiveSpecWithPostActivities;
-import gobblin.hive.spec.HiveSpecWithPreActivities;
-import gobblin.hive.spec.HiveSpecWithPredicates;
-import gobblin.hive.spec.activity.Activity;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveRegistrationUnit.Column;
+import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.hive.spec.HiveSpecWithPostActivities;
+import org.apache.gobblin.hive.spec.HiveSpecWithPreActivities;
+import org.apache.gobblin.hive.spec.HiveSpecWithPredicates;
+import org.apache.gobblin.hive.spec.activity.Activity;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

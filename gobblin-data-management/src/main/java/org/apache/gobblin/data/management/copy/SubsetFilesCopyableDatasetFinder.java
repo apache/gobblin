@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy;
+package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,12 +34,12 @@ import org.apache.hadoop.fs.PathFilter;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.SourceState;
-import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.PathUtils;
-import gobblin.util.filters.RegexPathFilter;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.filters.RegexPathFilter;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 import lombok.Getter;
 import lombok.Setter;

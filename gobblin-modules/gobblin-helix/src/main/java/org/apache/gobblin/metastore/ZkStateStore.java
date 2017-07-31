@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore;
+package org.apache.gobblin.metastore;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -45,8 +45,8 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.State;
-import gobblin.util.io.StreamUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.io.StreamUtils;
 
 
 /**

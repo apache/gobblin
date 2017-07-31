@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.cli;
+package org.apache.gobblin.runtime.cli;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;

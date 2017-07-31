@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package gobblin.hive.spec.predicate;
+package org.apache.gobblin.hive.spec.predicate;
 
 import java.io.IOException;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 
-import gobblin.hive.HiveRegister;
+import org.apache.gobblin.hive.HiveRegister;
 import lombok.AllArgsConstructor;
 
 

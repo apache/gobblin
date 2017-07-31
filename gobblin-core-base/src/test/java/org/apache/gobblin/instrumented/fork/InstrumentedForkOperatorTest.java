@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.fork;
+package org.apache.gobblin.instrumented.fork;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,12 +25,12 @@ import java.util.Map;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.MetricsHelper;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.Constructs;
-import gobblin.fork.ForkOperator;
-import gobblin.metrics.MetricNames;
+import org.apache.gobblin.MetricsHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.Constructs;
+import org.apache.gobblin.fork.ForkOperator;
+import org.apache.gobblin.metrics.MetricNames;
 
 
 public class InstrumentedForkOperatorTest {

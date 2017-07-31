@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter;
+package org.apache.gobblin.converter;
 
 /**
  * @deprecated. Please use {@link gobblin.util.EmptyIterable} instead.

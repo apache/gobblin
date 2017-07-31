@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.restli.throttling;
+package org.apache.gobblin.restli.throttling;
 
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 
-import gobblin.annotation.Alias;
-import gobblin.annotation.Alpha;
-import gobblin.broker.iface.SharedResourcesBroker;
-import gobblin.util.limiter.broker.SharedLimiterKey;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 
 /**

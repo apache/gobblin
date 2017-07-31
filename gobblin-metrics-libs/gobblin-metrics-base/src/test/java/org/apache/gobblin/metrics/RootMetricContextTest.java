@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metrics;
+package org.apache.gobblin.metrics;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -33,11 +33,11 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.AllArgsConstructor;
 
-import gobblin.metrics.callback.NotificationStore;
-import gobblin.metrics.notification.MetricContextCleanupNotification;
-import gobblin.metrics.notification.NewMetricContextNotification;
-import gobblin.metrics.notification.Notification;
-import gobblin.metrics.test.ContextStoreReporter;
+import org.apache.gobblin.metrics.callback.NotificationStore;
+import org.apache.gobblin.metrics.notification.MetricContextCleanupNotification;
+import org.apache.gobblin.metrics.notification.NewMetricContextNotification;
+import org.apache.gobblin.metrics.notification.Notification;
+import org.apache.gobblin.metrics.test.ContextStoreReporter;
 
 
 /**

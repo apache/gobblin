@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package gobblin.couchbase.writer;
+package org.apache.gobblin.couchbase.writer;
 
 import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;

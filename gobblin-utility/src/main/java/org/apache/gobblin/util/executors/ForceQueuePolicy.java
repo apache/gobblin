@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.executors;
+package org.apache.gobblin.util.executors;
 
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;

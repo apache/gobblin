@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import avro.shaded.com.google.common.annotations.VisibleForTesting;
-import gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.Dataset;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -33,8 +33,8 @@ import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigRenderOptions;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import lombok.extern.slf4j.Slf4j;
 
 

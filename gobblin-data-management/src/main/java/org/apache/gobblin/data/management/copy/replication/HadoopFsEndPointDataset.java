@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.data.management.copy.replication;
+package org.apache.gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 
@@ -23,8 +23,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.dataset.FileSystemDataset;
-import gobblin.util.HadoopUtils;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.HadoopUtils;
 
 /**
  * {@link FileSystemDataset} wrapper class for {@link HadoopFsEndPoint}

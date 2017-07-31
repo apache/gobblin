@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source.extractor.extract;
+package org.apache.gobblin.source.extractor.extract;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,16 +27,16 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableSet;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.configuration.WorkUnitState.WorkingState;
-import gobblin.source.extractor.extract.QueryBasedSource.SourceEntity;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.Extract.TableType;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.dataset.DatasetUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
+import org.apache.gobblin.source.extractor.extract.QueryBasedSource.SourceEntity;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.Extract.TableType;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.dataset.DatasetUtils;
 
 /**
  * Unit tests for {@link QueryBasedSource}

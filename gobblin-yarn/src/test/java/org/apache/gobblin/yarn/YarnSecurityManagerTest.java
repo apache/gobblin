@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.yarn;
+package org.apache.gobblin.yarn;
 
 import java.io.IOException;
 import java.net.URL;
@@ -49,10 +49,10 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import gobblin.cluster.GobblinClusterConfigurationKeys;
-import gobblin.cluster.HelixUtils;
-import gobblin.cluster.TestHelper;
-import gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.HelixUtils;
+import org.apache.gobblin.cluster.TestHelper;
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 /**

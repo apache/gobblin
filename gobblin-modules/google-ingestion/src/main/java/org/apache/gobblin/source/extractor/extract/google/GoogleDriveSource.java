@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.source.extractor.extract.google;
+package org.apache.gobblin.source.extractor.extract.google;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,14 +28,14 @@ import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.services.drive.Drive;
 import com.google.common.io.Closer;
 
-import static gobblin.configuration.ConfigurationKeys.*;
-import static gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.filebased.FileBasedSource;
+import static org.apache.gobblin.configuration.ConfigurationKeys.*;
+import static org.apache.gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.source.extractor.filebased.FileBasedSource;
 
 /**
  * Source for Google drive using GoogleDriveFsHelper.

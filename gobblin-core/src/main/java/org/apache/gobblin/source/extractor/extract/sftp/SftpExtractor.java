@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.sftp;
+package org.apache.gobblin.source.extractor.extract.sftp;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.filebased.FileBasedExtractor;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.filebased.FileBasedExtractor;
 
 
 /**

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.metastore.nameParser;
+package org.apache.gobblin.metastore.nameParser;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,7 +34,7 @@ import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.LineReader;
 
-import gobblin.util.guid.Guid;
+import org.apache.gobblin.util.guid.Guid;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

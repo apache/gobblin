@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor;
+package org.apache.gobblin.source.extractor;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import gobblin.records.RecordStreamWithMetadata;
-import gobblin.stream.RecordEnvelope;
-import gobblin.stream.StreamEntity;
+import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.stream.StreamEntity;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import io.reactivex.Emitter;

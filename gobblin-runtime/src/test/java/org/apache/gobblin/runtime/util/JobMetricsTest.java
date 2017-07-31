@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.util;
+package org.apache.gobblin.runtime.util;
 
 import java.util.List;
 import java.util.Map;
@@ -27,13 +27,13 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
-import gobblin.configuration.State;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.GobblinMetricsRegistry;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.metrics.event.JobEvent;
-import gobblin.runtime.JobState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.GobblinMetricsRegistry;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.JobEvent;
+import org.apache.gobblin.runtime.JobState;
 
 
 @Test(groups = { "gobblin.runtime" })

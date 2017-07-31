@@ -1,4 +1,4 @@
-package gobblin.gradle;
+package org.apache.gobblin.gradle;
 
 import java.util.TreeMap
 import org.gradle.api.Project
@@ -28,22 +28,22 @@ public class BuildProperties extends TreeMap<String, BuildProperty> {
 
         // Special treatment for Boolean flags -- just specifying the property
         // is treated as setting to true.
-        if (null != defaultValue && defaultValue instanceof Boolean && 
+        if (null != defaultValue && defaultValue instanceof Boolean &&
                 !((Boolean)defaultValue).booleanValue()) {
             this.project.ext.set(propName, this.project.hasProperty(propName))
-        } 
+        }
         else if (! this.project.hasProperty(propName)) {
             this.project.ext.set(propName, defaultValue)
         }
 
         println String.format("Build property: %s=%s", propName, this.project.ext.get(propName))
-    } 
+    }
 
     public void printHelp() {
         println "\n\n"
         println "BUILD PROPERTIES"
         println ""
-        this.each { propName, propHelp -> 
+        this.each { propName, propHelp ->
             println propHelp.getHelp()
         }
     }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.util.concurrent;
+package org.apache.gobblin.util.concurrent;
 
 import java.io.IOException;
 import java.util.concurrent.Executors;
@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 
-import gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**

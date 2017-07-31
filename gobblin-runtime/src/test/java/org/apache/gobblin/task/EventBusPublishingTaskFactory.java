@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.task;
+package org.apache.gobblin.task;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -32,21 +32,21 @@ import com.google.common.collect.SetMultimap;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.publisher.DataPublisher;
-import gobblin.publisher.NoopPublisher;
-import gobblin.runtime.JobState;
-import gobblin.runtime.TaskContext;
-import gobblin.runtime.TaskState;
-import gobblin.runtime.task.BaseAbstractTask;
-import gobblin.runtime.task.TaskFactory;
-import gobblin.runtime.task.TaskIFace;
-import gobblin.runtime.task.TaskUtils;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.writer.test.TestingEventBuses;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.publisher.NoopPublisher;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.task.BaseAbstractTask;
+import org.apache.gobblin.runtime.task.TaskFactory;
+import org.apache.gobblin.runtime.task.TaskIFace;
+import org.apache.gobblin.runtime.task.TaskUtils;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.writer.test.TestingEventBuses;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

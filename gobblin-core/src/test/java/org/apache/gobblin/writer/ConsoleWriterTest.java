@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package gobblin.writer;
+package org.apache.gobblin.writer;
 
 import java.io.IOException;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.stream.RecordEnvelope;
-import gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 
 import static org.mockito.Mockito.mock;
 

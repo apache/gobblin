@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.instrumented.fork;
+package org.apache.gobblin.instrumented.fork;
 
 import java.util.List;
 
-import gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**

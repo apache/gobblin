@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package gobblin.metrics.notification;
+package org.apache.gobblin.metrics.notification;
 
-import gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 
 /**

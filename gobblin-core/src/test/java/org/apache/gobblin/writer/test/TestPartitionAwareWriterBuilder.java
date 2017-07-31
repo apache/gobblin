@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.writer.test;
+package org.apache.gobblin.writer.test;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -24,9 +24,9 @@ import org.apache.avro.Schema;
 
 import com.google.common.collect.Queues;
 
-import gobblin.commit.SpeculativeAttemptAwareConstruct;
-import gobblin.writer.DataWriter;
-import gobblin.writer.PartitionAwareDataWriterBuilder;
+import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.PartitionAwareDataWriterBuilder;
 
 import lombok.Data;
 

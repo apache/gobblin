@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.data.management.retention.integration;
+package org.apache.gobblin.data.management.retention.integration;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,9 +28,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
-import gobblin.util.PathUtils;
-import gobblin.util.test.RetentionTestDataGenerator;
-import gobblin.util.test.RetentionTestHelper;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.test.RetentionTestDataGenerator;
+import org.apache.gobblin.util.test.RetentionTestHelper;
 
 /**
  *

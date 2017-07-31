@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.util.io;
+package org.apache.gobblin.util.io;
 
 import com.codahale.metrics.Meter;
 
-import gobblin.util.Decorator;
+import org.apache.gobblin.util.Decorator;
 
 import javax.annotation.concurrent.NotThreadSafe;
 

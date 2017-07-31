@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.couchbase.common;
+package org.apache.gobblin.couchbase.common;
 
 import com.couchbase.client.core.lang.Tuple2;
 import com.couchbase.client.core.message.kv.MutationToken;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.config.store.api;
+package org.apache.gobblin.config.store.api;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -23,8 +23,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import gobblin.annotation.Alpha;
-import gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
 
 /**
  * The ConfigStoreWithStableVersioning annotation is used to indicate that the configuration store

@@ -17,12 +17,12 @@
  * under the License.
  */
 
-package gobblin.source.extractor;
+package org.apache.gobblin.source.extractor;
 
 import java.io.IOException;
 
-import gobblin.annotation.Alpha;
-import gobblin.writer.WatermarkStorage;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.writer.WatermarkStorage;
 
 
 /**

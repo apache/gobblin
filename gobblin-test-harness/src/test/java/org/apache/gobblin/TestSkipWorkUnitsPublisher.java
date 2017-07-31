@@ -21,9 +21,9 @@ import java.util.Collection;
 
 import org.testng.Assert;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.publisher.DataPublisher;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.publisher.DataPublisher;
 
 
 /**

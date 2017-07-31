@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.test.crypto;
+package org.apache.gobblin.test.crypto;
 
 import java.util.Map;
 
-import gobblin.codec.StreamCodec;
-import gobblin.crypto.CredentialStore;
-import gobblin.crypto.CredentialStoreProvider;
-import gobblin.crypto.EncryptionProvider;
+import org.apache.gobblin.codec.StreamCodec;
+import org.apache.gobblin.crypto.CredentialStore;
+import org.apache.gobblin.crypto.CredentialStoreProvider;
+import org.apache.gobblin.crypto.EncryptionProvider;
 
 
 public class TestEncryptionProvider implements CredentialStoreProvider, EncryptionProvider {

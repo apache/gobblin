@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
@@ -37,23 +37,23 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonElement;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.kafka.client.AbstractBaseKafkaConsumerClient;
-import gobblin.metrics.Tag;
-import gobblin.metrics.kafka.KafkaSchemaRegistry;
-import gobblin.metrics.kafka.SchemaRegistryException;
-import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.stream.RecordEnvelope;
-import gobblin.source.extractor.StreamingExtractor;
-import gobblin.source.extractor.Watermark;
-import gobblin.source.extractor.WatermarkSerializerHelper;
-import gobblin.source.extractor.extract.EventBasedExtractor;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.util.ConfigUtils;
-import gobblin.writer.WatermarkStorage;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.kafka.client.AbstractBaseKafkaConsumerClient;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.ComparableWatermark;
+import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.source.extractor.StreamingExtractor;
+import org.apache.gobblin.source.extractor.Watermark;
+import org.apache.gobblin.source.extractor.WatermarkSerializerHelper;
+import org.apache.gobblin.source.extractor.extract.EventBasedExtractor;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.WatermarkStorage;
 
 import lombok.ToString;
 

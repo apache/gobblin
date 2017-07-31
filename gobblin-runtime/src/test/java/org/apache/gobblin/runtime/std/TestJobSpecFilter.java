@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.runtime.std;
+package org.apache.gobblin.runtime.std;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobSpec;
 
 /**
  * Unit tests for {@link JobSpecFilter}

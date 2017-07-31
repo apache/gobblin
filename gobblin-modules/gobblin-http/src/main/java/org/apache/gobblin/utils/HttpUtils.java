@@ -1,4 +1,4 @@
-package gobblin.utils;
+package org.apache.gobblin.utils;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -23,10 +23,10 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.http.HttpOperation;
-import gobblin.http.ResponseStatus;
-import gobblin.http.StatusType;
-import gobblin.util.AvroUtils;
+import org.apache.gobblin.http.HttpOperation;
+import org.apache.gobblin.http.ResponseStatus;
+import org.apache.gobblin.http.StatusType;
+import org.apache.gobblin.util.AvroUtils;
 
 
 /**

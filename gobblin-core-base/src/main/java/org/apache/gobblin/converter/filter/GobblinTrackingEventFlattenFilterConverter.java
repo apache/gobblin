@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.converter.filter;
+package org.apache.gobblin.converter.filter;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,14 +35,14 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.typesafe.config.Config;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.AvroToAvroConverterBase;
-import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.util.AvroUtils;
-import gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.AvroToAvroConverterBase;
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

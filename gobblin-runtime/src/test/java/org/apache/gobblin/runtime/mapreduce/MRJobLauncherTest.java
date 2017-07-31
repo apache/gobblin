@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.mapreduce;
+package org.apache.gobblin.runtime.mapreduce;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,18 +32,18 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.FsStateStore;
-import gobblin.metastore.StateStore;
-import gobblin.metastore.testing.ITestMetastoreDatabase;
-import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.runtime.JobLauncherTestHelper;
-import gobblin.runtime.JobState;
-import gobblin.util.limiter.BaseLimiterType;
-import gobblin.util.limiter.DefaultLimiterFactory;
-import gobblin.writer.Destination;
-import gobblin.writer.WriterOutputFormat;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.runtime.JobLauncherTestHelper;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.util.limiter.BaseLimiterType;
+import org.apache.gobblin.util.limiter.DefaultLimiterFactory;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.WriterOutputFormat;
 
 
 /**
