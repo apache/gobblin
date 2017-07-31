@@ -54,7 +54,7 @@ public class ClassAliasResolver<T> {
   // Scan all packages in the classpath with prefix gobblin, com.linkedin.gobblin when class is loaded.
   // Since scan is expensive we do it only once when class is loaded.
   private static final Reflections REFLECTIONS = new Reflections(new ConfigurationBuilder().forPackages("gobblin",
-      "com.linkedin.gobblin"));
+      "com.linkedin.gobblin", "org.apache.gobblin"));
 
   Map<String, Class<? extends T>> aliasToClassCache;
   private final List<Alias> aliasObjects;
