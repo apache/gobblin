@@ -54,7 +54,7 @@ source.querybased.append.max.watermark.limit=CURRENTDATE-0
 extract.table.name=DailyPull
 source.querybased.watermark.type=hour
 source.querybased.partition.interval=23
-source.class=gobblin.ingestion.google.webmaster.GoogleWebMasterSourceDaily
+source.class=org.apache.gobblin.ingestion.google.webmaster.GoogleWebMasterSourceDaily
 
 #Webmaster Specific
 source.google_webmasters.property_url=[Complete This]
@@ -66,18 +66,18 @@ source.google_webmasters.request.query_limit=5000
 source.google_webmasters.request.tuning.get_queries.apply_trie=true
 
 ## Converter properties
-converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.avro.JsonIntermediateToAvroConverter
+converter.classes=org.apache.gobblin.converter.csv.CsvToJsonConverterV2,org.apache.gobblin.converter.avro.JsonIntermediateToAvroConverter
 
 
 ## Writer properties
 writer.output.format=AVRO
 writer.partitioner.google_webmasters.prefix=daily
 writer.partitioner.google_webmasters.column_names.include=false
-writer.partitioner.class=gobblin.ingestion.google.webmaster.GoogleWebmasterDayPartitioner
+writer.partitioner.class=org.apache.gobblin.ingestion.google.webmaster.GoogleWebmasterDayPartitioner
 writer.include.record.count.in.file.names=true
 
 ## Publisher properties
-data.publisher.type=gobblin.publisher.BaseDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 
 
 ## Configurations for saving to HDFS

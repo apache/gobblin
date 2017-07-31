@@ -1,0 +1,116 @@
+{
+  "models" : [ {
+    "type" : "record",
+    "name" : "FlowId",
+    "namespace" : "org.apache.gobblin.service",
+    "doc" : "Identifier for a Gobblin as a Service flow",
+    "fields" : [ {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow",
+      "validate" : {
+        "strlen" : {
+          "min" : 1,
+          "max" : 128
+        }
+      }
+    }, {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow.",
+      "validate" : {
+        "strlen" : {
+          "min" : 1,
+          "max" : 128
+        }
+      }
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "Schedule",
+    "namespace" : "org.apache.gobblin.service",
+    "doc" : "Attributes for defining a job schedule",
+    "fields" : [ {
+      "name" : "cronSchedule",
+      "type" : "string",
+      "doc" : "Schedule for flow in cron format",
+      "validate" : {
+        "org.apache.gobblin.service.validator.CronValidator" : { }
+      }
+    }, {
+      "name" : "runImmediately",
+      "type" : "boolean",
+      "doc" : "Set to true to request that a job with a schedule be run immediately in addition to being scheduled",
+      "default" : false
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "FlowConfig",
+    "namespace" : "org.apache.gobblin.service",
+    "doc" : "Defines a flow configuration that can be compiled into Gobblin jobs",
+    "fields" : [ {
+      "name" : "id",
+      "type" : "FlowId",
+      "doc" : "Identifier for the flow"
+    }, {
+      "name" : "schedule",
+      "type" : "Schedule",
+      "doc" : "Optional schedule for when to execution the flow. If a schedule is not specified then the flow is executed immediately.",
+      "optional" : true
+    }, {
+      "name" : "templateUris",
+      "type" : "string",
+      "doc" : "Comma separated list of URIs for templates used in the flow. The template location is defined by the multiproduct that packages the template.",
+      "validate" : {
+        "org.apache.gobblin.service.validator.TemplateUriValidator" : { }
+      }
+    }, {
+      "name" : "properties",
+      "type" : {
+        "type" : "map",
+        "values" : "string"
+      },
+      "doc" : "Properties for the flow. These properties are passed to the compiled Gobblin jobs."
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "EmptyRecord",
+    "namespace" : "com.linkedin.restli.common",
+    "doc" : "An literally empty record.  Intended as a marker to indicate the absence of content where a record type is required.  If used the underlying DataMap *must* be empty, EmptyRecordValidator is provided to help enforce this.  For example,  CreateRequest extends Request<EmptyRecord> to indicate it has no response body.   Also, a ComplexKeyResource implementation that has no ParamKey should have a signature like XyzResource implements ComplexKeyResource<XyzKey, EmptyRecord, Xyz>.",
+    "fields" : [ ],
+    "validate" : {
+      "com.linkedin.restli.common.EmptyRecordValidator" : { }
+    }
+  } ],
+  "schema" : {
+    "name" : "flowconfigs",
+    "namespace" : "org.apache.gobblin.service",
+    "path" : "/flowconfigs",
+    "schema" : "org.apache.gobblin.service.FlowConfig",
+    "doc" : "Resource for handling flow configuration requests\n\ngenerated from: org.apache.gobblin.service.FlowConfigsResource",
+    "collection" : {
+      "identifier" : {
+        "name" : "id",
+        "type" : "org.apache.gobblin.service.FlowId",
+        "params" : "com.linkedin.restli.common.EmptyRecord"
+      },
+      "supports" : [ "create", "delete", "get", "update" ],
+      "methods" : [ {
+        "method" : "create",
+        "doc" : "Create a flow configuration that the service will forward to execution instances for execution"
+      }, {
+        "method" : "get",
+        "doc" : "Retrieve the flow configuration with the given key"
+      }, {
+        "method" : "update",
+        "doc" : "Update the flow configuration with the specified key. Running flows are not affected.\n An error is raised if the flow configuration does not exist."
+      }, {
+        "method" : "delete",
+        "doc" : "Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows."
+      } ],
+      "entity" : {
+        "path" : "/flowconfigs/{id}"
+      }
+    }
+  }
+}

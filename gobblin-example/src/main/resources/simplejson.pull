@@ -23,9 +23,9 @@ job.name=GobblinDemo
 job.group=demo
 job.description=A Gobblin job for demo purpose
 
-source.class=gobblin.example.simplejson.SimpleJsonSource
-converter.classes=gobblin.example.simplejson.SimpleJsonConverter
-extract.namespace=gobblin.example.simplejson
+source.class=org.apache.gobblin.example.simplejson.SimpleJsonSource
+converter.classes=org.apache.gobblin.example.simplejson.SimpleJsonConverter
+extract.namespace=org.apache.gobblin.example.simplejson
 
 # source configuration properties
 # comma-separated list of file URIs (supporting different schemes, e.g., file://, ftp://, sftp://, http://, etc)
@@ -40,14 +40,14 @@ source.conn.password=
 source.schema={"namespace":"example.avro", "type":"record", "name":"User", "fields":[{"name":"name", "type":"string"}, {"name":"favorite_number",  "type":"int"}, {"name":"favorite_color", "type":"string"}]}
 
 # quality checker configuration properties
-qualitychecker.task.policies=gobblin.policies.count.RowCountPolicy,gobblin.policies.schema.SchemaCompatibilityPolicy
+qualitychecker.task.policies=org.apache.gobblin.policies.count.RowCountPolicy,org.apache.gobblin.policies.schema.SchemaCompatibilityPolicy
 qualitychecker.task.policy.types=OPTIONAL,OPTIONAL
-qualitychecker.row.policies=gobblin.policies.schema.SchemaRowCheckPolicy
+qualitychecker.row.policies=org.apache.gobblin.policies.schema.SchemaRowCheckPolicy
 qualitychecker.row.policy.types=OPTIONAL
 qualitychecker.row.err.file=test/jobOutput
 
 # data publisher class to be used
-data.publisher.type=gobblin.publisher.BaseDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 
 # writer configuration properties
 writer.destination.type=HDFS

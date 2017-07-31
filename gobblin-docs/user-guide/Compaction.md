@@ -37,7 +37,7 @@ Suppose we ingest data from a Kafka broker, and we would like to publish the dat
 In the above example use case, for hourly compaction, each dataset contains an hour's data in the `hourly_staging` folder, e.g., `/data/kafka_topics/PageViewEvent/hourly_staging/2015/10/29/08`; for daily compaction, each dataset contains 24 hourly folder of a day, e.g., `/data/kafka_topics/PageViewEvent/hourly/2015/10/29`. In hourly compaction, you may use the following config properties:
 
 ```
-compaction.datasets.finder=gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder
+compaction.datasets.finder=org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder
 compaction.input.dir=/data/kafka_topics
 compaction.dest.dir=/data/kafka_topics
 compaction.input.subdir=hourly_staging
@@ -45,8 +45,8 @@ compaction.dest.subdir=hourly
 compaction.folder.pattern=YYYY/MM/dd
 compaction.timebased.max.time.ago=3h
 compaction.timebased.min.time.ago=1h
-compaction.jobprops.creator.class=gobblin.compaction.mapreduce.MRCompactorTimeBasedJobPropCreator
-compaction.job.runner.class=gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner (if your data is Avro)
+compaction.jobprops.creator.class=org.apache.gobblin.compaction.mapreduce.MRCompactorTimeBasedJobPropCreator
+compaction.job.runner.class=org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner (if your data is Avro)
 ```
 
 If your data format is not Avro, you can implement a different job runner class for deduplicating your data format. 

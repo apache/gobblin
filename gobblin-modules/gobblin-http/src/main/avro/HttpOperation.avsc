@@ -2,7 +2,7 @@
   "type": "record",
   "name": "HttpOperation",
   "doc": "Represents an operation to be performed over http",
-  "namespace": "gobblin.http",
+  "namespace" : "org.apache.gobblin.http",
   "fields": [
     {
       "name": "keys",

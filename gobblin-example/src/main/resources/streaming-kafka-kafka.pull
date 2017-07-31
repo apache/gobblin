@@ -34,18 +34,18 @@ task.executionMode=STREAMING
 gobblin.streaming.kafka.topic.key.deserializer=org.apache.kafka.common.serialization.StringDeserializer
 gobblin.streaming.kafka.topic.value.deserializer=org.apache.kafka.common.serialization.ByteArrayDeserializer
 
-source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource
+source.class=org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource
 gobblin.streaming.kafka.topic.singleton=test
 kafka.brokers=localhost:9092
 
 # Sample 10% of the records
-converter.classes=gobblin.converter.SamplingConverter
+converter.classes=org.apache.gobblin.converter.SamplingConverter
 converter.sample.ratio=0.10
 
-writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder
+writer.builder.class=org.apache.gobblin.kafka.writer.KafkaDataWriterBuilder
 writer.kafka.topic=test_copied
 writer.kafka.producerConfig.bootstrap.servers=localhost:9092
-writer.kafka.producerConfig.value.serializer=org.apache.kafka.common.serialization.ByteArraySerializer 
+writer.kafka.producerConfig.value.serializer=org.apache.kafka.common.serialization.ByteArraySerializer
 
 
-data.publisher.type=gobblin.publisher.NoopPublisher
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher

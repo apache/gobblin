@@ -46,7 +46,7 @@ function start() {
   fi
 
   LOG4J_PATH=file://${FWDIR_CONF}/log4j-aws.properties
-  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS gobblin.aws.GobblinAWSClusterLauncher -D log4j.configuration=$LOG4J_PATH"
+  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS org.apache.gobblin.aws.GobblinAWSClusterLauncher -D log4j.configuration=$LOG4J_PATH"
 
   echo "Running command:"
   echo "$COMMAND"

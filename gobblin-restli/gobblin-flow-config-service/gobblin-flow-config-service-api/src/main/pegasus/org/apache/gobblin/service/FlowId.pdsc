@@ -1,0 +1,29 @@
+{
+  "type" : "record",
+  "name" : "FlowId",
+  "namespace" : "org.apache.gobblin.service",
+  "doc" : "Identifier for a Gobblin as a Service flow",
+  "fields" : [
+    {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow",
+      "validate": {
+        "strlen": {
+          "min": 1,
+          "max": 128
+        }
+      }
+    },
+    {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow.",
+      "validate": {
+        "strlen": {
+          "min": 1,
+          "max": 128
+        }
+      }
+    } ]
+}

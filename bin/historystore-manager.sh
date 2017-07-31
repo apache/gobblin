@@ -57,4 +57,4 @@ do
   index=$((index+1))
 done
 
-java "${options[@]}" -cp $CLASSPATH gobblin.metastore.util.DatabaseJobHistoryStoreSchemaManager $action "${args[@]}"
+java "${options[@]}" -cp $CLASSPATH org.apache.gobblin.metastore.util.DatabaseJobHistoryStoreSchemaManager $action "${args[@]}"

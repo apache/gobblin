@@ -7,17 +7,17 @@ job.description=Gobblin job for copy to S3
 
 
 
-# target publishing location for copy 
+# target publishing location for copy
 # The folder containing result files that will show up in the s3
 data.publisher.final.dir=<Full local(target) FS Path>
 
-gobblin.dataset.profile.class=gobblin.data.management.copy.CopyableGlobDatasetFinder
+gobblin.dataset.profile.class=org.apache.gobblin.data.management.copy.CopyableGlobDatasetFinder
 
 #e.g. s3a://gobblinoutput/
 source.filebased.fs.uri=<Full Remote FS Path>
 gobblin.dataset.pattern=<Remote Dataset Pattern>
 
-# For s3 to work, Need to also add hadoop-aws.jar as the dependency in the classpath. 
+# For s3 to work, Need to also add hadoop-aws.jar as the dependency in the classpath.
 fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
 source.filebased.encrypted.fs.s3a.access.key=<Encrypted Access Key>
 source.filebased.encrypted.fs.s3a.secret.key=<Encrypted Secret key>
@@ -38,14 +38,14 @@ encrypt.key.loc=<Local master password file location>
 # ====================================================================
 
 type=hadoopJava
-job.class=gobblin.azkaban.AzkabanJobLauncher
+job.class=org.apache.gobblin.azkaban.AzkabanJobLauncher
 
-extract.namespace=gobblin.copy
+extract.namespace=org.apache.gobblin.copy
 
-source.class=gobblin.data.management.copy.CopySource
-converter.classes=gobblin.converter.IdentityConverter
-writer.builder.class=gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder
-data.publisher.type=gobblin.data.management.copy.publisher.CopyDataPublisher
+source.class=org.apache.gobblin.data.management.copy.CopySource
+converter.classes=org.apache.gobblin.converter.IdentityConverter
+writer.builder.class=org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder
+data.publisher.type=org.apache.gobblin.data.management.copy.publisher.CopyDataPublisher
 distcp.persist.dir=/tmp/distcp-persist-dir
 
 task.maxretries=0

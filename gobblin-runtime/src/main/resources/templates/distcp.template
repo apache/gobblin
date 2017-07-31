@@ -28,17 +28,17 @@ job.description="Distributed copy"
 data.publisher.final.dir=${to}
 gobblin.dataset.pattern=${from}
 
-gobblin.dataset.profile.class=gobblin.data.management.copy.CopyableGlobDatasetFinder
+gobblin.dataset.profile.class=org.apache.gobblin.data.management.copy.CopyableGlobDatasetFinder
 
 # ====================================================================
 # Distcp configurations
 # ====================================================================
 
-extract.namespace=gobblin.copy
-data.publisher.type=gobblin.data.management.copy.publisher.CopyDataPublisher
-source.class=gobblin.data.management.copy.CopySource
-writer.builder.class=gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder
-converter.classes=gobblin.converter.IdentityConverter
+extract.namespace=org.apache.gobblin.copy
+data.publisher.type=org.apache.gobblin.data.management.copy.publisher.CopyDataPublisher
+source.class=org.apache.gobblin.data.management.copy.CopySource
+writer.builder.class=org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder
+converter.classes=org.apache.gobblin.converter.IdentityConverter
 
 task.maxretries=0
 workunit.retry.enabled=false

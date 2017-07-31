@@ -1,7 +1,7 @@
 {
   "type": "record",
   "name": "AvroJobSpec",
-  "namespace": "gobblin.runtime.job_spec",
+  "namespace" : "org.apache.gobblin.runtime.job_spec",
   "fields": [
     {
       "name": "uri",
