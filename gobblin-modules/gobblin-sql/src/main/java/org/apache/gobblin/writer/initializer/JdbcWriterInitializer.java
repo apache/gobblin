@@ -95,7 +95,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
    * Drop table if it's created by this instance.
    * Truncate staging tables passed by user.
    * {@inheritDoc}
-   * @see gobblin.Initializer#close()
+   * @see org.apache.gobblin.Initializer#close()
    */
   @Override
   public void close() {

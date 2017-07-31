@@ -125,8 +125,8 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       public HelixTaskResult handleMessage() throws InterruptedException {
         String messageSubType = this._message.getMsgSubType();
 
-        if (messageSubType.equalsIgnoreCase(gobblin.cluster.HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString())) {
-          LOGGER.info("Handling message " + gobblin.cluster.HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
+        if (messageSubType.equalsIgnoreCase(org.apache.gobblin.cluster.HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString())) {
+          LOGGER.info("Handling message " + org.apache.gobblin.cluster.HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
 
           eventBus.post(new DelegationTokenUpdatedEvent());
           HelixTaskResult helixTaskResult = new HelixTaskResult();

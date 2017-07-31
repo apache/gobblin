@@ -58,7 +58,7 @@ public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDa
 
   @Override
   public StringDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
-    gobblin.data.management.version.StringDatasetVersion stringDatasetVersion =
+    org.apache.gobblin.data.management.version.StringDatasetVersion stringDatasetVersion =
         this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath);
     if (stringDatasetVersion != null) {
       return new StringDatasetVersion(stringDatasetVersion);
@@ -69,7 +69,7 @@ public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDa
   public static Properties convertDeprecatedProperties(Properties props) {
     if (props.containsKey(DEPRECATED_WATERMARK_REGEX_KEY)) {
       log.info(String.format("Found deprecated key %s. Replacing it with %s", DEPRECATED_WATERMARK_REGEX_KEY,
-          gobblin.data.management.version.finder.WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY));
+          org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY));
 
       props.setProperty(gobblin.data.management.version.finder.WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY,
           props.getProperty(DEPRECATED_WATERMARK_REGEX_KEY));

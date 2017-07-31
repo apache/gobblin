@@ -206,7 +206,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
   /**
    * Initializes the expected high watermarks for a {@link Table}
    * {@inheritDoc}
-   * @see gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#onTableProcessBegin(org.apache.hadoop.hive.ql.metadata.Table, long)
+   * @see org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#onTableProcessBegin(org.apache.hadoop.hive.ql.metadata.Table, long)
    */
   @Override
   public void onTableProcessBegin(Table table, long tableProcessTime) {
@@ -224,7 +224,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
    * Uses the <code>partitionUpdateTime</code> as the high watermark for this <code>partition</code>
    *
    * {@inheritDoc}
-   * @see gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#onPartitionProcessBegin(org.apache.hadoop.hive.ql.metadata.Partition, long, long)
+   * @see org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#onPartitionProcessBegin(org.apache.hadoop.hive.ql.metadata.Partition, long, long)
    */
   @Override
   public void onPartitionProcessBegin(Partition partition, long partitionProcessTime, long partitionUpdateTime) {
@@ -257,7 +257,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
    * Delegates to {@link TableLevelWatermarker#getPreviousHighWatermark(Table)}
    *
    * {@inheritDoc}
-   * @see gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#getPreviousHighWatermark(org.apache.hadoop.hive.ql.metadata.Table)
+   * @see org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#getPreviousHighWatermark(org.apache.hadoop.hive.ql.metadata.Table)
    */
   @Override
   public LongWatermark getPreviousHighWatermark(Table table) {
@@ -267,7 +267,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
   /**
    * Return the previous high watermark if found in previous state. Else returns 0
    * {@inheritDoc}
-   * @see gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#getPreviousHighWatermark(org.apache.hadoop.hive.ql.metadata.Partition)
+   * @see org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#getPreviousHighWatermark(org.apache.hadoop.hive.ql.metadata.Partition)
    */
   @Override
   public LongWatermark getPreviousHighWatermark(Partition partition) {
@@ -294,7 +294,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
    *
    * </ul>
    * {@inheritDoc}
-   * @see gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#onGetWorkunitsEnd(java.util.List)
+   * @see org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#onGetWorkunitsEnd(java.util.List)
    */
   @Override
   public void onGetWorkunitsEnd(List<WorkUnit> workunits) {
@@ -342,7 +342,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
    * Uses the <code>table</code>'s modified time as watermark. The modified time is read using
    * {@link HiveUnitUpdateProvider#getUpdateTime(Table)}
    * @throws UpdateNotFoundException if there was an error fetching update time using {@link HiveUnitUpdateProvider#getUpdateTime(Table)}
-   * @see gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#getExpectedHighWatermark(org.apache.hadoop.hive.ql.metadata.Table, long)
+   * @see org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#getExpectedHighWatermark(org.apache.hadoop.hive.ql.metadata.Table, long)
    */
   @Override
   public LongWatermark getExpectedHighWatermark(Table table, long tableProcessTime) {
@@ -352,7 +352,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
   /**
    * Get the expected high watermark for this partition
    * {@inheritDoc}
-   * @see gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#getExpectedHighWatermark(org.apache.hadoop.hive.ql.metadata.Partition, long, long)
+   * @see org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#getExpectedHighWatermark(org.apache.hadoop.hive.ql.metadata.Partition, long, long)
    */
   @Override
   public LongWatermark getExpectedHighWatermark(Partition partition, long tableProcessTime, long partitionProcessTime) {
@@ -363,7 +363,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
   /**
    * Sets the actual high watermark by reading the expected high watermark
    * {@inheritDoc}
-   * @see gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#setActualHighWatermark(gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#setActualHighWatermark(gobblin.configuration.WorkUnitState)
    */
   @Override
   public void setActualHighWatermark(WorkUnitState wus) {

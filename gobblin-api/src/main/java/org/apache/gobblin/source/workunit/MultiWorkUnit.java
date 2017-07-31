@@ -83,7 +83,7 @@ public class MultiWorkUnit extends WorkUnit {
    * Set the specified key, value pair in this {@link MultiWorkUnit} as well as in all the inner {@link WorkUnit}s.
    *
    * {@inheritDoc}
-   * @see gobblin.configuration.State#setProp(java.lang.String, java.lang.Object)
+   * @see org.apache.gobblin.configuration.State#setProp(java.lang.String, java.lang.Object)
    */
   @Override
   public void setProp(String key, Object value) {

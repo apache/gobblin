@@ -54,7 +54,7 @@ public class ObjectStoreWriter extends InstrumentedDataWriter<ObjectStoreOperati
    * Calls {@link ObjectStoreOperation#execute(ObjectStoreClient)} on the <code>operation</code> passed
    *
    * {@inheritDoc}
-   * @see gobblin.writer.DataWriter#write(java.lang.Object)
+   * @see org.apache.gobblin.writer.DataWriter#write(java.lang.Object)
    */
   @Override
   public void writeImpl(ObjectStoreOperation operation) throws IOException {

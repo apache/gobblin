@@ -93,7 +93,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
    * Creates a new Metric RecordBuilder.
    * @return A new Metric RecordBuilder
    */
-  public static gobblin.metrics.Metric.Builder newBuilder() {
+  public static org.apache.gobblin.metrics.Metric.Builder newBuilder() {
     return new org.apache.gobblin.metrics.Metric.Builder();
   }
 
@@ -102,7 +102,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
    * @param other The existing builder to copy.
    * @return A new Metric RecordBuilder
    */
-  public static gobblin.metrics.Metric.Builder newBuilder(gobblin.metrics.Metric.Builder other) {
+  public static org.apache.gobblin.metrics.Metric.Builder newBuilder(gobblin.metrics.Metric.Builder other) {
     return new org.apache.gobblin.metrics.Metric.Builder(other);
   }
 
@@ -111,7 +111,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
    * @param other The existing instance to copy.
    * @return A new Metric RecordBuilder
    */
-  public static gobblin.metrics.Metric.Builder newBuilder(gobblin.metrics.Metric other) {
+  public static org.apache.gobblin.metrics.Metric.Builder newBuilder(gobblin.metrics.Metric other) {
     return new org.apache.gobblin.metrics.Metric.Builder(other);
   }
 
@@ -178,7 +178,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
       * @param value The value of 'name'.
       * @return This builder.
       */
-    public gobblin.metrics.Metric.Builder setName(java.lang.String value) {
+    public org.apache.gobblin.metrics.Metric.Builder setName(java.lang.String value) {
       validate(fields()[0], value);
       this.name = value;
       fieldSetFlags()[0] = true;
@@ -200,7 +200,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
       * Metric name.
       * @return This builder.
       */
-    public gobblin.metrics.Metric.Builder clearName() {
+    public org.apache.gobblin.metrics.Metric.Builder clearName() {
       name = null;
       fieldSetFlags()[0] = false;
       return this;
@@ -221,7 +221,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
       * @param value The value of 'value'.
       * @return This builder.
       */
-    public gobblin.metrics.Metric.Builder setValue(double value) {
+    public org.apache.gobblin.metrics.Metric.Builder setValue(double value) {
       validate(fields()[1], value);
       this.value = value;
       fieldSetFlags()[1] = true;
@@ -243,7 +243,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
       * Metric value.
       * @return This builder.
       */
-    public gobblin.metrics.Metric.Builder clearValue() {
+    public org.apache.gobblin.metrics.Metric.Builder clearValue() {
       fieldSetFlags()[1] = false;
       return this;
     }

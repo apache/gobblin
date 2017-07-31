@@ -140,7 +140,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
   /**
    * If the property is set to true then partition dir is overwritten,
    * else a new time-stamped partition dir is created to avoid breaking in-flight queries
-   * Check gobblin.data.management.retention.Avro2OrcStaleDatasetCleaner to clean stale directories
+   * Check org.apache.gobblin.data.management.retention.Avro2OrcStaleDatasetCleaner to clean stale directories
    */
   public static final String HIVE_DATASET_PARTITION_OVERWRITE = "hive.dataset.partition.overwrite";
   public static final boolean DEFAULT_HIVE_DATASET_PARTITION_OVERWRITE = true;
@@ -161,7 +161,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * Subclasses can convert the {@link Schema} if required.
    *
    * {@inheritDoc}
-   * @see gobblin.converter.Converter#convertSchema(java.lang.Object, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#convertSchema(java.lang.Object, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public abstract Schema convertSchema(Schema inputSchema, WorkUnitState workUnit);

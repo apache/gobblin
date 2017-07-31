@@ -30,7 +30,7 @@ public class HiveAvroToNestedOrcConverter extends AbstractAvroToOrcConverter {
   /**
    * No {@link Schema} conversion required. Retain the original {@link Schema}
    * {@inheritDoc}
-   * @see gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter#convertSchema(org.apache.avro.Schema, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter#convertSchema(org.apache.avro.Schema, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) {
@@ -40,7 +40,7 @@ public class HiveAvroToNestedOrcConverter extends AbstractAvroToOrcConverter {
   /**
    * Return true if flattened orc configurations are available. False otherwise
    * {@inheritDoc}
-   * @see gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter#hasConversionConfig()
+   * @see org.apache.gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter#hasConversionConfig()
    */
   @Override
   protected boolean hasConversionConfig() {

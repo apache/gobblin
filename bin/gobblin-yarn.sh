@@ -45,7 +45,7 @@ function start() {
     CLASSPATH=$CLASSPATH:"$EXTRA_JARS"
   fi
 
-  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS gobblin.yarn.GobblinYarnAppLauncher"
+  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS org.apache.gobblin.yarn.GobblinYarnAppLauncher"
 
   echo "Running command:"
   echo "$COMMAND"

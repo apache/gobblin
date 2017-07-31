@@ -66,7 +66,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
 
     LOG.info("Get called with flowGroup " + flowGroup + " flowName " + flowName + " flowExecutionId " + flowExecutionId);
 
-    gobblin.service.monitoring.FlowStatus flowStatus =
+    org.apache.gobblin.service.monitoring.FlowStatus flowStatus =
         _flowStatusGenerator.getFlowStatus(flowName, flowGroup, flowExecutionId);
 
     // this returns null to raise a 404 error if flowStatus is null
@@ -78,7 +78,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
       @QueryParam("flowId") FlowId flowId) {
     LOG.info("getLatestFlowStatus called with flowGroup " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName());
 
-    gobblin.service.monitoring.FlowStatus latestFlowStatus =
+    org.apache.gobblin.service.monitoring.FlowStatus latestFlowStatus =
         _flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup());
 
     if (latestFlowStatus != null) {
@@ -110,7 +110,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
     StringBuffer flowMessagesStringBuffer = new StringBuffer();
 
     while (jobStatusIter.hasNext()) {
-      gobblin.service.monitoring.JobStatus queriedJobStatus = jobStatusIter.next();
+      org.apache.gobblin.service.monitoring.JobStatus queriedJobStatus = jobStatusIter.next();
       JobStatus jobStatus = new JobStatus();
 
       jobStatus.setFlowId(flowId)

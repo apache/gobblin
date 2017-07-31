@@ -30,7 +30,7 @@ import org.apache.gobblin.data.management.retention.version.DatasetVersion;
  */
 @Deprecated
 public abstract class DatasetVersionFinder<T extends DatasetVersion> extends
-    gobblin.data.management.version.finder.DatasetVersionFinder<T> implements VersionFinder<T> {
+    org.apache.gobblin.data.management.version.finder.DatasetVersionFinder<T> implements VersionFinder<T> {
 
   public DatasetVersionFinder(FileSystem fs, Properties props) {
     super(fs, props);

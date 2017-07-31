@@ -434,7 +434,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
         return _gobblinEnv.get().getMetricContext()
             .childBuilder(JobExecutionLauncher.class.getSimpleName()).build();
       }
-      gobblin.configuration.State fakeState =
+      org.apache.gobblin.configuration.State fakeState =
           new org.apache.gobblin.configuration.State(getSysConfig().getConfigAsProperties());
       List<Tag<?>> tags = new ArrayList<>();
       MetricContext res = Instrumented.getMetricContext(fakeState, Launcher.class, tags);

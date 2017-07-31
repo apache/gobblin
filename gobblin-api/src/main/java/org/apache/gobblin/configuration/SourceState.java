@@ -173,7 +173,7 @@ public class SourceState extends State {
    * @return a new unique {@link Extract} instance
    *
    * @Deprecated Use {@link org.apache.gobblin.source.extractor.extract.AbstractSource#createExtract(
-   * gobblin.source.workunit.Extract.TableType, String, String)}
+   * org.apache.gobblin.source.workunit.Extract.TableType, String, String)}
    */
   @Deprecated
   public synchronized Extract createExtract(Extract.TableType type, String namespace, String table) {

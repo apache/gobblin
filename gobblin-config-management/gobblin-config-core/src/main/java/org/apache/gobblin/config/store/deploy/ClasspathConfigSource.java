@@ -69,7 +69,7 @@ public class ClasspathConfigSource implements DeployableConfigSource {
   /**
    * Scan the classpath for {@link #classpathRootName} and return all resources under it.
    * {@inheritDoc}
-   * @see gobblin.config.store.deploy.DeployableConfigSource#getDeployableConfigPaths()
+   * @see org.apache.gobblin.config.store.deploy.DeployableConfigSource#getDeployableConfigPaths()
    */
   private Set<String> getDeployableConfigPaths() {
 
@@ -86,7 +86,7 @@ public class ClasspathConfigSource implements DeployableConfigSource {
   /**
    * Open an {@link InputStream} for <code>resourcePath</code> in classpath
    * {@inheritDoc}
-   * @see gobblin.config.store.deploy.DeployableConfigSource#getConfigStream(java.lang.String)
+   * @see org.apache.gobblin.config.store.deploy.DeployableConfigSource#getConfigStream(java.lang.String)
    */
   private static InputStream getConfigStream(String configPath) {
     return ClasspathConfigSource.class.getClassLoader().getResourceAsStream(configPath);
@@ -95,7 +95,7 @@ public class ClasspathConfigSource implements DeployableConfigSource {
   /**
    * Scan the classpath for {@link #classpathRootName} and opens an {@link InputStream} each resource under it.
    * {@inheritDoc}
-   * @see gobblin.config.store.deploy.DeployableConfigSource#getConfigStreams()
+   * @see org.apache.gobblin.config.store.deploy.DeployableConfigSource#getConfigStreams()
    */
   @Override
   public Set<ConfigStream> getConfigStreams() throws IOException {

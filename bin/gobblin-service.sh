@@ -30,7 +30,7 @@ function start() {
 
   LOG_ARGS="1>${FWDIR_LOGS}/GobblinService.stdout 2>${FWDIR_LOGS}/GobblinService.stderr"
 
-  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS gobblin.service.modules.core.GobblinServiceManager --service_name $SERVICE_NAME $LOG_ARGS"
+  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS org.apache.gobblin.service.modules.core.GobblinServiceManager --service_name $SERVICE_NAME $LOG_ARGS"
 
   echo "Running command:"
   echo "$COMMAND"

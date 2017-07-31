@@ -48,7 +48,7 @@ public class UnixTimestampVersionFinder extends DatasetVersionFinder<Timestamped
 
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
-    gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion =
+    org.apache.gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion =
         this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath);
     if (timestampedDatasetVersion != null) {
       return new TimestampedDatasetVersion(timestampedDatasetVersion);

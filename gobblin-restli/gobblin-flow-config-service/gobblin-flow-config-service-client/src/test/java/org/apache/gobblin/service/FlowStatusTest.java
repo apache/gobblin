@@ -94,11 +94,11 @@ public class FlowStatusTest {
    */
   @Test
   public void testFindLatest() throws Exception {
-    gobblin.service.monitoring.JobStatus js1 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
+    org.apache.gobblin.service.monitoring.JobStatus js1 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
         .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 1")
         .processedCount(100).jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").build();
-    gobblin.service.monitoring.JobStatus js2 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
+    org.apache.gobblin.service.monitoring.JobStatus js2 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(2000L).endTime(6000L)
         .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(1).message("Test message 2")
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
@@ -123,7 +123,7 @@ public class FlowStatusTest {
     Assert.assertEquals(jobStatusList2.size(), jobStatuses.size());
 
     for (int i = 0; i < jobStatuses.size(); i++) {
-      gobblin.service.monitoring.JobStatus mjs = jobStatusList2.get(i);
+      org.apache.gobblin.service.monitoring.JobStatus mjs = jobStatusList2.get(i);
       JobStatus js = jobStatuses.get(i);
 
       compareJobStatus(js, mjs);
@@ -136,11 +136,11 @@ public class FlowStatusTest {
    */
   @Test
   public void testGetCompleted() throws Exception {
-    gobblin.service.monitoring.JobStatus js1 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
+    org.apache.gobblin.service.monitoring.JobStatus js1 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
         .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 1")
         .processedCount(100).jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").build();
-    gobblin.service.monitoring.JobStatus js2 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
+    org.apache.gobblin.service.monitoring.JobStatus js2 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
         .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 2")
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
@@ -163,7 +163,7 @@ public class FlowStatusTest {
     Assert.assertEquals(jobStatusList.size(), jobStatuses.size());
 
     for (int i = 0; i < jobStatuses.size(); i++) {
-      gobblin.service.monitoring.JobStatus mjs = jobStatusList.get(i);
+      org.apache.gobblin.service.monitoring.JobStatus mjs = jobStatusList.get(i);
       JobStatus js = jobStatuses.get(i);
 
       compareJobStatus(js, mjs);
@@ -176,11 +176,11 @@ public class FlowStatusTest {
    */
   @Test
   public void testGetRunning() throws Exception {
-    gobblin.service.monitoring.JobStatus js1 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
+    org.apache.gobblin.service.monitoring.JobStatus js1 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
         .eventName(TimingEvent.LauncherTimings.JOB_RUN).flowExecutionId(0).message("Test message 1").processedCount(100)
         .jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").build();
-    gobblin.service.monitoring.JobStatus js2 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
+    org.apache.gobblin.service.monitoring.JobStatus js2 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
         .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 2")
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
@@ -203,7 +203,7 @@ public class FlowStatusTest {
     Assert.assertEquals(jobStatusList.size(), jobStatuses.size());
 
     for (int i = 0; i < jobStatuses.size(); i++) {
-      gobblin.service.monitoring.JobStatus mjs = jobStatusList.get(i);
+      org.apache.gobblin.service.monitoring.JobStatus mjs = jobStatusList.get(i);
       JobStatus js = jobStatuses.get(i);
 
       compareJobStatus(js, mjs);
@@ -216,11 +216,11 @@ public class FlowStatusTest {
    */
   @Test
   public void testGetFailed() throws Exception {
-    gobblin.service.monitoring.JobStatus js1 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
+    org.apache.gobblin.service.monitoring.JobStatus js1 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
         .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 1")
         .processedCount(100).jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").build();
-    gobblin.service.monitoring.JobStatus js2 = gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
+    org.apache.gobblin.service.monitoring.JobStatus js2 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
         .eventName(TimingEvent.LauncherTimings.JOB_FAILED).flowExecutionId(0).message("Test message 2")
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
@@ -243,7 +243,7 @@ public class FlowStatusTest {
     Assert.assertEquals(jobStatusList.size(), jobStatuses.size());
 
     for (int i = 0; i < jobStatuses.size(); i++) {
-      gobblin.service.monitoring.JobStatus mjs = jobStatusList.get(i);
+      org.apache.gobblin.service.monitoring.JobStatus mjs = jobStatusList.get(i);
       JobStatus js = jobStatuses.get(i);
 
       compareJobStatus(js, mjs);
@@ -266,7 +266,7 @@ public class FlowStatusTest {
    * @param js JobStatus from REST
    * @param mjs JobStatus from monitoring
    */
-  private void compareJobStatus(JobStatus js, gobblin.service.monitoring.JobStatus mjs) {
+  private void compareJobStatus(JobStatus js, org.apache.gobblin.service.monitoring.JobStatus mjs) {
     Assert.assertEquals(mjs.getFlowGroup(), js.getFlowId().getFlowGroup());
     Assert.assertEquals(mjs.getFlowName(), js.getFlowId().getFlowName());
     Assert.assertEquals(mjs.getJobGroup(), js.getJobId().getJobGroup());

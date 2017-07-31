@@ -85,7 +85,7 @@ public class AccessControlAction extends RetentionAction {
    * of {@link DatasetVersion} is passed.
    * </p>
    * {@inheritDoc}
-   * @see gobblin.data.management.retention.action.RetentionAction#execute(java.util.List)
+   * @see org.apache.gobblin.data.management.retention.action.RetentionAction#execute(java.util.List)
    */
   @Override
   public void execute(List<DatasetVersion> allVersions) throws IOException {

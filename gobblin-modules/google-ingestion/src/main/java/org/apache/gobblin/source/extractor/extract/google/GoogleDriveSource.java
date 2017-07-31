@@ -51,7 +51,7 @@ public class GoogleDriveSource<S, D> extends FileBasedSource<S, D> {
   /**
    * As Google Drive extractor needs file system helper, it invokes to initialize file system helper.
    * {@inheritDoc}
-   * @see gobblin.source.Source#getExtractor(gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.source.Source#getExtractor(gobblin.configuration.WorkUnitState)
    */
   @Override
   public Extractor<S, D> getExtractor(WorkUnitState state) throws IOException {
@@ -72,7 +72,7 @@ public class GoogleDriveSource<S, D> extends FileBasedSource<S, D> {
   /**
    * Initialize file system helper at most once for this instance.
    * {@inheritDoc}
-   * @see gobblin.source.extractor.filebased.FileBasedSource#initFileSystemHelper(gobblin.configuration.State)
+   * @see org.apache.gobblin.source.extractor.filebased.FileBasedSource#initFileSystemHelper(gobblin.configuration.State)
    */
   @Override
   public synchronized void initFileSystemHelper(State state) throws FileBasedHelperException {
@@ -99,7 +99,7 @@ public class GoogleDriveSource<S, D> extends FileBasedSource<S, D> {
    * missing file ID represents all files will be included on current and subfolder.
    *
    * {@inheritDoc}
-   * @see gobblin.source.extractor.filebased.FileBasedSource#getcurrentFsSnapshot(gobblin.configuration.State)
+   * @see org.apache.gobblin.source.extractor.filebased.FileBasedSource#getcurrentFsSnapshot(gobblin.configuration.State)
    */
   @Override
   public List<String> getcurrentFsSnapshot(State state) {

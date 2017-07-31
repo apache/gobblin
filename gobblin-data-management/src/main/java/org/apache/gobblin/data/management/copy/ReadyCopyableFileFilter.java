@@ -43,7 +43,7 @@ public class ReadyCopyableFileFilter implements CopyableFileFilter {
    * For every {@link CopyableFile} in <code>copyableFiles</code> checks if a {@link CopyableFile#getOrigin()#getPath()}
    * + .ready files is present on <code>sourceFs</code> {@inheritDoc}
    *
-   * @see gobblin.data.management.copy.CopyableFileFilter#filter(org.apache.hadoop.fs.FileSystem,
+   * @see org.apache.gobblin.data.management.copy.CopyableFileFilter#filter(org.apache.hadoop.fs.FileSystem,
    *      org.apache.hadoop.fs.FileSystem, java.util.Collection)
    */
   @Override

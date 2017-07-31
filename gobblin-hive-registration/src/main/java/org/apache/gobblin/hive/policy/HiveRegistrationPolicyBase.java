@@ -84,7 +84,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   // .. will be replaced by the table name determined via {@link #getTableName(Path)}
   public static final String PRIMARY_TABLE_TOKEN = "$PRIMARY_TABLE";
   protected static final ConfigClient configClient =
-      gobblin.config.client.ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
+      org.apache.gobblin.config.client.ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
 
   /**
    * A valid db or table name should start with an alphanumeric character, and contains only

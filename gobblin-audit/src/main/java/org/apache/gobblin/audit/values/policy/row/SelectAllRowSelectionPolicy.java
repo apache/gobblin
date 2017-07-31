@@ -37,7 +37,7 @@ public class SelectAllRowSelectionPolicy extends AbstractRowSelectionPolicy {
   /**
    * Return <code>true</code> always
    * {@inheritDoc}
-   * @see gobblin.audit.values.policy.row.RowSelectionPolicy#shouldSelectRow(org.apache.avro.generic.GenericRecord)
+   * @see org.apache.gobblin.audit.values.policy.row.RowSelectionPolicy#shouldSelectRow(org.apache.avro.generic.GenericRecord)
    */
   @Override
   public boolean shouldSelectRow(GenericRecord genericRecord) {

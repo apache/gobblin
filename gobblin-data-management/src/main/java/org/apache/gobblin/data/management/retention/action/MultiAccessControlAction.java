@@ -85,7 +85,7 @@ public class MultiAccessControlAction extends RetentionAction {
    * Calls {@link AccessControlAction#execute(List)} on each of the embedded {@link AccessControlAction}s
    *
    * {@inheritDoc}
-   * @see gobblin.data.management.retention.action.RetentionAction#execute(java.util.List)
+   * @see org.apache.gobblin.data.management.retention.action.RetentionAction#execute(java.util.List)
    */
   @Override
   public void execute(List<DatasetVersion> allVersions) throws IOException {

@@ -52,7 +52,7 @@ public class CsvFileDownloader extends FileDownloader<String[]> {
    * It also provides validation on schema by matching header names between property's schema and header name in CSV file.
    *
    * {@inheritDoc}
-   * @see gobblin.source.extractor.filebased.FileDownloader#downloadFile(java.lang.String)
+   * @see org.apache.gobblin.source.extractor.filebased.FileDownloader#downloadFile(java.lang.String)
    */
   @SuppressWarnings("unchecked")
   @Override

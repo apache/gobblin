@@ -44,7 +44,7 @@ public abstract class AbstractColumnProjectionPolicy implements ColumnProjection
   /**
    * Combine both key columns and delta columns to project
    * {@inheritDoc}
-   * @see gobblin.audit.values.policy.column.ColumnProjectionPolicy#getAllColumnsToProject()
+   * @see org.apache.gobblin.audit.values.policy.column.ColumnProjectionPolicy#getAllColumnsToProject()
    */
   public List<String> getAllColumnsToProject() {
     return ImmutableList.<String> builder().addAll(getKeyColumnsToProject()).addAll(getDeltaColumnsToProject()).build();

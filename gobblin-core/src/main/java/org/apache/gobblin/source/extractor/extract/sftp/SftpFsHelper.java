@@ -129,7 +129,7 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
    * Opens up a connection to specified host using the username. Connects to the source using a private key without
    * prompting for a password. This method does not support connecting to a source using a password, only by private
    * key
-   * @throws gobblin.source.extractor.filebased.FileBasedHelperException
+   * @throws org.apache.gobblin.source.extractor.filebased.FileBasedHelperException
    */
   @Override
   public void connect() throws FileBasedHelperException {

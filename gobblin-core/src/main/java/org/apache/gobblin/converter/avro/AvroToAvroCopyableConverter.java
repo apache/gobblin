@@ -39,7 +39,7 @@ public class AvroToAvroCopyableConverter extends
   /**
    * Returns a {@link org.apache.gobblin.fork.CopyableSchema} wrapper around the given {@link Schema}.
    * {@inheritDoc}
-   * @see gobblin.converter.Converter#convertSchema(java.lang.Object, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#convertSchema(java.lang.Object, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public CopyableSchema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
@@ -49,7 +49,7 @@ public class AvroToAvroCopyableConverter extends
   /**
    * Returns a {@link org.apache.gobblin.fork.CopyableGenericRecord} wrapper around the given {@link GenericRecord}.
    * {@inheritDoc}
-   * @see gobblin.converter.Converter#convertRecord(java.lang.Object, java.lang.Object, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#convertRecord(java.lang.Object, java.lang.Object, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public Iterable<CopyableGenericRecord> convertRecord(CopyableSchema outputSchema, GenericRecord inputRecord,

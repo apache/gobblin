@@ -39,7 +39,7 @@ public class ProjectAllColumnProjectionPolicy extends AbstractColumnProjectionPo
    * Return the entire <code>inputRecord</code>. All fields are projected
    *
    * {@inheritDoc}
-   * @see gobblin.audit.values.policy.column.ColumnProjectionPolicy#project(org.apache.avro.generic.GenericRecord)
+   * @see org.apache.gobblin.audit.values.policy.column.ColumnProjectionPolicy#project(org.apache.avro.generic.GenericRecord)
    */
   @Override
   public GenericRecord project(GenericRecord inputRecord) {

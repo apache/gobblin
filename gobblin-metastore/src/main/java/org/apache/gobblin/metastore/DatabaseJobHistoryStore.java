@@ -59,7 +59,7 @@ import org.reflections.util.ConfigurationBuilder;
  * @author Yinan Li
  */
 public class DatabaseJobHistoryStore implements JobHistoryStore {
-  // Scan all packages in the classpath with prefix gobblin.metastore.database when
+  // Scan all packages in the classpath with prefix org.apache.gobblin.metastore.database when
   // class is loaded. Since scan is expensive we do it only once when class is loaded.
   private static final Reflections reflections = new Reflections(getConfigurationBuilder());
   private final VersionedDatabaseJobHistoryStore versionedStore;
@@ -103,7 +103,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   }
 
   private static Configuration getConfigurationBuilder() {
-    ConfigurationBuilder configurationBuilder=  ConfigurationBuilder.build("gobblin.metastore.database",
+    ConfigurationBuilder configurationBuilder=  ConfigurationBuilder.build("org.apache.gobblin.metastore.database",
         effectiveClassPathUrls(DatabaseJobHistoryStore.class.getClassLoader()));
     List<URL> filteredUrls = Lists.newArrayList(Iterables.filter(configurationBuilder.getUrls(), new Predicate<URL>() {
       @Override

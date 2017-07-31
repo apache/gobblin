@@ -34,7 +34,7 @@ public class DatePartitionedAvroFileExtractor extends AvroFileExtractor {
   /**
    * Returns the HWM of the workUnit
    * {@inheritDoc}
-   * @see gobblin.source.extractor.filebased.FileBasedExtractor#getHighWatermark()
+   * @see org.apache.gobblin.source.extractor.filebased.FileBasedExtractor#getHighWatermark()
    */
   @Override
   public long getHighWatermark() {

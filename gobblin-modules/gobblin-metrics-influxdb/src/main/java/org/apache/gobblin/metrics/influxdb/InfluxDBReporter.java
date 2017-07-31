@@ -74,7 +74,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
   /**
    * A static factory class for obtaining new {@link org.apache.gobblin.metrics.influxdb.InfluxDBReporter.Builder}s
    *
-   * @see gobblin.metrics.influxdb.InfluxDBReporter.Builder
+   * @see org.apache.gobblin.metrics.influxdb.InfluxDBReporter.Builder
    */
   public static class Factory {
 

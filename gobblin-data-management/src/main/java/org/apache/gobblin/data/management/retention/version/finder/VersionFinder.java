@@ -26,5 +26,5 @@ import org.apache.gobblin.data.management.retention.version.DatasetVersion;
  */
 @Deprecated
 public interface VersionFinder<T extends DatasetVersion> extends
-    gobblin.data.management.version.finder.VersionFinder<T> {
+    org.apache.gobblin.data.management.version.finder.VersionFinder<T> {
 }

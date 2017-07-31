@@ -194,7 +194,7 @@ public class AsyncWriterManagerTest {
       throws Exception {
 
     FlakyAsyncWriter flakyAsyncWriter = new FlakyAsyncWriter(
-        gobblin.test.ErrorManager.builder().errorType(gobblin.test.ErrorManager.ErrorType.ALL).build());
+        org.apache.gobblin.test.ErrorManager.builder().errorType(gobblin.test.ErrorManager.ErrorType.ALL).build());
 
     AsyncWriterManager asyncWriterManager =
         AsyncWriterManager.builder().asyncDataWriter(flakyAsyncWriter).retriesEnabled(true).numRetries(5).build();
@@ -221,7 +221,7 @@ public class AsyncWriterManagerTest {
       throws Exception {
 
     FlakyAsyncWriter flakyAsyncWriter = new FlakyAsyncWriter(
-        gobblin.test.ErrorManager.builder().errorType(ErrorManager.ErrorType.NTH).errorEvery(4).build());
+        org.apache.gobblin.test.ErrorManager.builder().errorType(ErrorManager.ErrorType.NTH).errorEvery(4).build());
 
     AsyncWriterManager asyncWriterManager =
         AsyncWriterManager.builder().asyncDataWriter(flakyAsyncWriter).retriesEnabled(true).numRetries(5).build();

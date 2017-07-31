@@ -147,7 +147,7 @@ public class CsvToJsonConverterV2 extends Converter<String, JsonArray, String[],
    *   {"street_number" : "2029", "city" : "Mountain view" , "Country" : null, "zip_code" : "94043" }
    *
    * {@inheritDoc}
-   * @see gobblin.converter.Converter#convertRecord(java.lang.Object, java.lang.Object, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#convertRecord(java.lang.Object, java.lang.Object, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public Iterable<JsonObject> convertRecord(JsonArray outputSchema, String[] inputRecord, WorkUnitState workUnit)

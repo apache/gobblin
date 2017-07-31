@@ -37,7 +37,7 @@ public interface RetentionPolicy<T extends DatasetVersion> {
   public Class<? extends DatasetVersion> versionClass();
 
   /**
-   * @deprecated use {link gobblin.data.management.policy.VersionSelectionPolicy#listSelectedVersions} instead.
+   * @deprecated use {link org.apache.gobblin.data.management.policy.VersionSelectionPolicy#listSelectedVersions} instead.
    * Logic to decide which dataset versions should be deleted. Only datasets returned will be deleted from filesystem.
    *
    * @param allVersions List of all dataset versions in the file system,

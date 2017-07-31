@@ -129,7 +129,7 @@ public class JdbcPublisher extends DataPublisher {
    * so that copying table threads wait until transaction lock times out and throwing exception(MySQL). Is there a way to avoid this?
    *
    * {@inheritDoc}
-   * @see gobblin.publisher.DataPublisher#publishData(java.util.Collection)
+   * @see org.apache.gobblin.publisher.DataPublisher#publishData(java.util.Collection)
    */
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {

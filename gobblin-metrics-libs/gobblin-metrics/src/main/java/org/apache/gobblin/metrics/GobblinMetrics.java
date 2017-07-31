@@ -406,7 +406,7 @@ public class GobblinMetrics {
     buildInfluxDBMetricReporter(properties);
     buildCustomMetricReporters(properties);
 
-    // Start reporters that implement gobblin.metrics.report.ScheduledReporter
+    // Start reporters that implement org.apache.gobblin.metrics.report.ScheduledReporter
     RootMetricContext.get().startReporting();
 
     // Start reporters that implement com.codahale.metrics.ScheduledReporter
@@ -431,7 +431,7 @@ public class GobblinMetrics {
       this.jmxReporter.get().stop();
     }
 
-    // Trigger and stop reporters that implement gobblin.metrics.report.ScheduledReporter
+    // Trigger and stop reporters that implement org.apache.gobblin.metrics.report.ScheduledReporter
     RootMetricContext.get().stopReporting();
 
     // Trigger and stop reporters that implement com.codahale.metrics.ScheduledReporter

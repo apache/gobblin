@@ -210,8 +210,8 @@ gobblin.retention : {
       policy.class=org.apache.gobblin.data.management.policy.CombineSelectionPolicy
       combine.operation=INTERSECT
       combine.policy.classes=[
-        gobblin.data.management.policy.SelectBeforeTimeBasedPolicy,
-        gobblin.data.management.policy.NewestKSelectionPolicy
+        org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy,
+        org.apache.gobblin.data.management.policy.NewestKSelectionPolicy
       ]
       timeBased.lookbackTime=3d
       newestK.versionsNotSelected=2

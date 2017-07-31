@@ -93,7 +93,7 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
         }
    * If user wants to only choose name and city, the input parameter should be "name,address.city". Note that it is not user.name as first record is depth zero.
    * {@inheritDoc}
-   * @see gobblin.converter.AvroToAvroConverterBase#convertSchema(org.apache.avro.Schema, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.AvroToAvroConverterBase#convertSchema(org.apache.avro.Schema, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {

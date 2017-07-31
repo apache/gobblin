@@ -41,7 +41,7 @@ public class DataWriterWrapperBuilder<D> extends DataWriterBuilder<Void, D> {
   /**
    * Build the writer with adding throttling (if requested), and retrying feature on top of the writer.
    * {@inheritDoc}
-   * @see gobblin.writer.DataWriterBuilder#build()
+   * @see org.apache.gobblin.writer.DataWriterBuilder#build()
    */
   @Override
   public DataWriter<D> build() throws IOException {

@@ -67,7 +67,7 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
 
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus) {
-    gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion =
+    org.apache.gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion =
         this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, versionFileStatus);
     if (timestampedDatasetVersion != null) {
       return new TimestampedDatasetVersion(timestampedDatasetVersion);
@@ -75,7 +75,7 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
     return null;
   }
 
-  // This Method will never be called. It exists because the deprecated super class gobblin.data.management.retention.version.finder.DatasetVersionFinder
+  // This Method will never be called. It exists because the deprecated super class org.apache.gobblin.data.management.retention.version.finder.DatasetVersionFinder
   // requires it. getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus) will be called instead
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {

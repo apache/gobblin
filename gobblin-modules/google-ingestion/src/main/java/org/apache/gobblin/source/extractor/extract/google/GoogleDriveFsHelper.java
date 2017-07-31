@@ -92,7 +92,7 @@ public class GoogleDriveFsHelper implements TimestampAwareFileBasedHelper {
    * List files under folder ID recursively. Folder won't be included in the result. If there's no files under folder ID, it returns empty list.
    * If folder ID is not defined, it will provide files under root directory.
    * {@inheritDoc}
-   * @see gobblin.source.extractor.filebased.FileBasedHelper#ls(java.lang.String)
+   * @see org.apache.gobblin.source.extractor.filebased.FileBasedHelper#ls(java.lang.String)
    */
   @Override
   public List<String> ls(String folderId) throws FileBasedHelperException {

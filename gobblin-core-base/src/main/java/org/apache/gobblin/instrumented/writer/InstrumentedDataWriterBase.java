@@ -50,7 +50,7 @@ import org.apache.gobblin.writer.DataWriter;
 /**
  * Package-private implementation of instrumentation for {@link org.apache.gobblin.writer.DataWriter}.
  *
- * @see gobblin.instrumented.writer.InstrumentedDataWriter for extensible class.
+ * @see org.apache.gobblin.instrumented.writer.InstrumentedDataWriter for extensible class.
  */
 abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumentable, Closeable, FinalState {
 

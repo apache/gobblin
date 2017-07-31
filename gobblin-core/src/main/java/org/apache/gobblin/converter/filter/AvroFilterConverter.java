@@ -49,7 +49,7 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
    * from the Avro record and {@link ConfigurationKeys#CONVERTER_FILTER_FIELD_VALUE} to indicate the expected value of
    * the field.
    * {@inheritDoc}
-   * @see gobblin.converter.Converter#init(gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#init(gobblin.configuration.WorkUnitState)
    */
   @Override
   public Converter<Schema, Schema, GenericRecord, GenericRecord> init(WorkUnitState workUnit) {
@@ -66,7 +66,7 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
   /**
    * Returns the inputSchema unmodified.
    * {@inheritDoc}
-   * @see gobblin.converter.AvroToAvroConverterBase#convertSchema(org.apache.avro.Schema, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.AvroToAvroConverterBase#convertSchema(org.apache.avro.Schema, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
@@ -78,7 +78,7 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
    * {@link #fieldValue}. If it is then it returns a {@link org.apache.gobblin.converter.SingleRecordIterable} for the input record.
    * Otherwise it returns a {@link EmptyIterable}.
    * {@inheritDoc}
-   * @see gobblin.converter.AvroToAvroConverterBase#convertRecord(org.apache.avro.Schema, org.apache.avro.generic.GenericRecord, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.AvroToAvroConverterBase#convertRecord(org.apache.avro.Schema, org.apache.avro.generic.GenericRecord, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)

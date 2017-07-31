@@ -108,7 +108,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
    * Fetches JdbcWriterCommands.
    * Builds field name mapping between Avro and JDBC.
    * {@inheritDoc}
-   * @see gobblin.converter.Converter#init(gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#init(gobblin.configuration.WorkUnitState)
    */
   @Override
   public Converter<Schema, JdbcEntrySchema, GenericRecord, JdbcEntryData> init(WorkUnitState workUnit) {
@@ -162,7 +162,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
    * 7. Conversion assumes that both schema, Avro and JDBC, uses same column name where name space in Avro is ignored.
    *    For case sensitivity, Avro is case sensitive where it differs in JDBC based on underlying database. As Avro is case sensitive, column name equality also take case sensitive in to account.
    *
-   * @see gobblin.converter.Converter#convertSchema(java.lang.Object, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#convertSchema(java.lang.Object, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public JdbcEntrySchema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {

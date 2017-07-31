@@ -155,7 +155,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
   /**
    * Prior to commit, it will invoke flush method to flush any remaining item if writer uses batch
    * {@inheritDoc}
-   * @see gobblin.instrumented.writer.InstrumentedDataWriterBase#commit()
+   * @see org.apache.gobblin.instrumented.writer.InstrumentedDataWriterBase#commit()
    */
   @Override
   public void commit() throws IOException {
@@ -172,7 +172,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
   /**
    * Sends request using single thread pool so that it can be easily terminated(use case: time out)
    * {@inheritDoc}
-   * @see gobblin.writer.http.HttpWriterDecoration#sendRequest(org.apache.http.client.methods.HttpUriRequest)
+   * @see org.apache.gobblin.writer.http.HttpWriterDecoration#sendRequest(org.apache.http.client.methods.HttpUriRequest)
    */
   @Override
   public ListenableFuture<CloseableHttpResponse> sendRequest(final HttpUriRequest request) throws IOException {
@@ -199,7 +199,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
    * last packet sent from client till receive it from server.
    *
    * {@inheritDoc}
-   * @see gobblin.writer.http.HttpWriterDecoration#waitForResponse(com.google.common.util.concurrent.ListenableFuture)
+   * @see org.apache.gobblin.writer.http.HttpWriterDecoration#waitForResponse(com.google.common.util.concurrent.ListenableFuture)
    */
   @Override
   public CloseableHttpResponse waitForResponse(ListenableFuture<CloseableHttpResponse> responseFuture) {
@@ -213,7 +213,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
   /**
    * Default implementation where any status code equal to or greater than 400 is regarded as a failure.
    * {@inheritDoc}
-   * @see gobblin.writer.http.HttpWriterDecoration#processResponse(org.apache.http.HttpResponse)
+   * @see org.apache.gobblin.writer.http.HttpWriterDecoration#processResponse(org.apache.http.HttpResponse)
    */
   @Override
   public void processResponse(CloseableHttpResponse response) throws IOException, UnexpectedResponseException {

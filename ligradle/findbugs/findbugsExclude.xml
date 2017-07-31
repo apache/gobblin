@@ -35,7 +35,7 @@
   <Match>
      <Bug pattern="NM_SAME_SIMPLE_NAME_AS_INTERFACE" />
 	</Match>
-	<!-- Ignore gobblin.audit.values.auditor as the package is still a WIP -->
+	<!-- Ignore org.apache.gobblin.audit.values.auditor as the package is still a WIP -->
   <Match>
     <Package name="~org\.apache\.gobblin\.audit\.values\.auditor.*" />
 	</Match>

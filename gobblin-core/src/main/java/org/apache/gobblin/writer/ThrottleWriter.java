@@ -119,7 +119,7 @@ public class ThrottleWriter<D> extends WriterWrapper<D> implements Decorator, Fi
    * If the throttle type is byte, it applies throttle after write happens.
    * This is because it can figure out written bytes after it's written. It's not ideal but throttling after write should be sufficient for most cases.
    * {@inheritDoc}
-   * @see gobblin.writer.DataWriter#write(java.lang.Object)
+   * @see org.apache.gobblin.writer.DataWriter#write(java.lang.Object)
    */
   @Override
   public void writeEnvelope(RecordEnvelope<D> record) throws IOException {

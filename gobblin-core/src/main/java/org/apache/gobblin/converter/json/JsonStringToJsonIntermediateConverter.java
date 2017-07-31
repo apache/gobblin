@@ -83,7 +83,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       String expectedColumnName = outputSchema.get(i).getAsJsonObject().get("columnName").getAsString();
 
       if (inputRecord.has(expectedColumnName)) {
-        //As currently gobblin.converter.avro.JsonIntermediateToAvroConverter is not able to handle complex schema's so storing it as string
+        //As currently org.apache.gobblin.converter.avro.JsonIntermediateToAvroConverter is not able to handle complex schema's so storing it as string
 
         if (inputRecord.get(expectedColumnName).isJsonArray()) {
           outputRecord.addProperty(expectedColumnName, inputRecord.get(expectedColumnName).toString());

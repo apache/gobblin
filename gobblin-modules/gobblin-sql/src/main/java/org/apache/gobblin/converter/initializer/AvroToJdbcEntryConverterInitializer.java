@@ -75,7 +75,7 @@ public class AvroToJdbcEntryConverterInitializer implements ConverterInitializer
    * retrieve it and store it into WorkUnit so that AvroToJdbcEntryConverter will use it later.
    *
    * {@inheritDoc}
-   * @see gobblin.initializer.Initializer#initialize()
+   * @see org.apache.gobblin.initializer.Initializer#initialize()
    */
   @Override
   public void initialize() {

@@ -78,7 +78,7 @@ public class AvroToRestJsonEntryConverter extends Converter<Schema, Void, Generi
    *    http://www.server.com:9090/sobject/account/memberId/296458833
    *
    * {@inheritDoc}
-   * @see gobblin.converter.Converter#convertRecord(java.lang.Object, java.lang.Object, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#convertRecord(java.lang.Object, java.lang.Object, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public Iterable<RestEntry<JsonObject>> convertRecord(Void outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)

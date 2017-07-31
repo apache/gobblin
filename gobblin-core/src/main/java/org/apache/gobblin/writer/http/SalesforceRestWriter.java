@@ -120,7 +120,7 @@ public class SalesforceRestWriter extends RestJsonWriter {
   /**
    * Retrieve access token, if needed, retrieve instance url, and set server host URL
    * {@inheritDoc}
-   * @see gobblin.writer.http.HttpWriter#onConnect(org.apache.http.HttpHost)
+   * @see org.apache.gobblin.writer.http.HttpWriter#onConnect(org.apache.http.HttpHost)
    */
   @Override
   public void onConnect(URI serverHost) throws IOException {
@@ -155,7 +155,7 @@ public class SalesforceRestWriter extends RestJsonWriter {
    *
    * For batch request, add the record into JsonArray as a subrequest and only creates HttpUriRequest with POST method if it filled the batch size.
    * {@inheritDoc}
-   * @see gobblin.writer.http.RestJsonWriter#onNewRecord(gobblin.converter.rest.RestEntry)
+   * @see org.apache.gobblin.writer.http.RestJsonWriter#onNewRecord(gobblin.converter.rest.RestEntry)
    */
   @Override
   public Optional<HttpUriRequest> onNewRecord(RestEntry<JsonObject> record) {
@@ -268,7 +268,7 @@ public class SalesforceRestWriter extends RestJsonWriter {
    * If status code is 401 or 403, re-acquire access token before make it fail -- retry will take care of rest.
    *
    * {@inheritDoc}
-   * @see gobblin.writer.http.HttpWriter#processResponse(org.apache.http.HttpResponse)
+   * @see org.apache.gobblin.writer.http.HttpWriter#processResponse(org.apache.http.HttpResponse)
    */
   @Override
   public void processResponse(CloseableHttpResponse response) throws IOException, UnexpectedResponseException {

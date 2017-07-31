@@ -106,7 +106,7 @@ public abstract class BaseJdbcBufferedInserter implements JdbcBufferedInserter {
    * </p>
    *
    * {@inheritDoc}
-   * @see gobblin.writer.commands.JdbcBufferedInserter#insert(java.lang.String, java.lang.String, gobblin.converter.jdbc.JdbcEntryData)
+   * @see org.apache.gobblin.writer.commands.JdbcBufferedInserter#insert(java.lang.String, java.lang.String, org.apache.gobblin.converter.jdbc.JdbcEntryData)
    */
   @Override
   public void insert(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {

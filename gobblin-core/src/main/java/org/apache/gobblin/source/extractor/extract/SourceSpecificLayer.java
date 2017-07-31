@@ -66,7 +66,7 @@ public interface SourceSpecificLayer<S, D> {
    * @param water mark column
    * @param lis of all predicates that needs to be applied
    * @return list of commands to get the high watermark
-   * @throws gobblin.source.extractor.exception.HighWatermarkException if there is anything wrong in building metadata to get high watermark
+   * @throws org.apache.gobblin.source.extractor.exception.HighWatermarkException if there is anything wrong in building metadata to get high watermark
    */
   public List<Command> getHighWatermarkMetadata(String schema, String entity, String watermarkColumn,
       List<Predicate> predicateList)
@@ -115,7 +115,7 @@ public interface SourceSpecificLayer<S, D> {
    * @param work unit: properties
    * @param list of all predicates that needs to be applied
    * @return list of commands to get the data
-   * @throws gobblin.source.extractor.DataRecordException if there is anything wrong in building metadata for data records
+   * @throws org.apache.gobblin.source.extractor.DataRecordException if there is anything wrong in building metadata for data records
    */
   public List<Command> getDataMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws DataRecordException;

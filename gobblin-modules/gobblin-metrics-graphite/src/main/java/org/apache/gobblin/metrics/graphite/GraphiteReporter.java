@@ -67,7 +67,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
   /**
    * A static factory class for obtaining new {@link org.apache.gobblin.metrics.graphite.GraphiteReporter.Builder}s
    *
-   * @see gobblin.metrics.graphite.GraphiteReporter.Builder
+   * @see org.apache.gobblin.metrics.graphite.GraphiteReporter.Builder
    */
   public static class Factory {
 

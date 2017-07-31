@@ -121,7 +121,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   /**
    * Invokes JdbcWriterCommands.insert
    * {@inheritDoc}
-   * @see gobblin.writer.DataWriter#write(java.lang.Object)
+   * @see org.apache.gobblin.writer.DataWriter#write(java.lang.Object)
    */
   @Override
   public void write(JdbcEntryData record) throws IOException {
@@ -140,7 +140,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   /**
    * Flushes JdbcWriterCommands and commit.
    * {@inheritDoc}
-   * @see gobblin.writer.DataWriter#commit()
+   * @see org.apache.gobblin.writer.DataWriter#commit()
    */
   @Override
   public void commit() throws IOException {
@@ -158,7 +158,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   /**
    * Staging table is needed by publisher and won't be cleaned here.
    * {@inheritDoc}
-   * @see gobblin.writer.DataWriter#cleanup()
+   * @see org.apache.gobblin.writer.DataWriter#cleanup()
    */
   @Override
   public void cleanup() throws IOException {}
@@ -193,7 +193,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   /**
    * This is not supported for JDBC writer.
    * {@inheritDoc}
-   * @see gobblin.writer.DataWriter#bytesWritten()
+   * @see org.apache.gobblin.writer.DataWriter#bytesWritten()
    */
   @Override
   public long bytesWritten() throws IOException {

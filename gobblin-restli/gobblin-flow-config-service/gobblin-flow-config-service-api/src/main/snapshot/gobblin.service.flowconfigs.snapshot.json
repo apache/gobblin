@@ -87,7 +87,7 @@
     "namespace" : "org.apache.gobblin.service",
     "path" : "/flowconfigs",
     "schema" : "org.apache.gobblin.service.FlowConfig",
-    "doc" : "Resource for handling flow configuration requests\n\ngenerated from: gobblin.service.FlowConfigsResource",
+    "doc" : "Resource for handling flow configuration requests\n\ngenerated from: org.apache.gobblin.service.FlowConfigsResource",
     "collection" : {
       "identifier" : {
         "name" : "id",

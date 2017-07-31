@@ -60,7 +60,7 @@ public class KafkaAvroReporter extends KafkaReporter {
   /**
    * A static factory class for obtaining new {@link org.apache.gobblin.metrics.kafka.KafkaAvroReporter.Builder}s
    *
-   * @see gobblin.metrics.kafka.KafkaAvroReporter.Builder
+   * @see org.apache.gobblin.metrics.kafka.KafkaAvroReporter.Builder
    */
   public static class BuilderFactory {
 

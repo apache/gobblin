@@ -39,7 +39,7 @@ public abstract class ObjectStoreConverter<SI, DI, DO extends ObjectStoreOperati
   /**
    * Convert schema is not used this converter hence return the {@link Class} of input schema as a place holder
    * {@inheritDoc}
-   * @see gobblin.converter.Converter#convertSchema(java.lang.Object, gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#convertSchema(java.lang.Object, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public Class<?> convertSchema(SI inputSchema, WorkUnitState workUnit) throws SchemaConversionException {

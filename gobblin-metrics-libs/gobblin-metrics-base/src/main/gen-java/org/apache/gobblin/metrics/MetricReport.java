@@ -116,7 +116,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * Creates a new MetricReport RecordBuilder.
    * @return A new MetricReport RecordBuilder
    */
-  public static gobblin.metrics.MetricReport.Builder newBuilder() {
+  public static org.apache.gobblin.metrics.MetricReport.Builder newBuilder() {
     return new org.apache.gobblin.metrics.MetricReport.Builder();
   }
 
@@ -125,7 +125,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * @param other The existing builder to copy.
    * @return A new MetricReport RecordBuilder
    */
-  public static gobblin.metrics.MetricReport.Builder newBuilder(gobblin.metrics.MetricReport.Builder other) {
+  public static org.apache.gobblin.metrics.MetricReport.Builder newBuilder(gobblin.metrics.MetricReport.Builder other) {
     return new org.apache.gobblin.metrics.MetricReport.Builder(other);
   }
 
@@ -134,7 +134,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * @param other The existing instance to copy.
    * @return A new MetricReport RecordBuilder
    */
-  public static gobblin.metrics.MetricReport.Builder newBuilder(gobblin.metrics.MetricReport other) {
+  public static org.apache.gobblin.metrics.MetricReport.Builder newBuilder(gobblin.metrics.MetricReport other) {
     return new org.apache.gobblin.metrics.MetricReport.Builder(other);
   }
 
@@ -211,7 +211,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * @param value The value of 'tags'.
       * @return This builder.
       */
-    public gobblin.metrics.MetricReport.Builder setTags(java.util.Map<java.lang.String,java.lang.String> value) {
+    public org.apache.gobblin.metrics.MetricReport.Builder setTags(java.util.Map<java.lang.String,java.lang.String> value) {
       validate(fields()[0], value);
       this.tags = value;
       fieldSetFlags()[0] = true;
@@ -233,7 +233,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * Tags associated with the metrics.
       * @return This builder.
       */
-    public gobblin.metrics.MetricReport.Builder clearTags() {
+    public org.apache.gobblin.metrics.MetricReport.Builder clearTags() {
       tags = null;
       fieldSetFlags()[0] = false;
       return this;
@@ -254,7 +254,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * @param value The value of 'timestamp'.
       * @return This builder.
       */
-    public gobblin.metrics.MetricReport.Builder setTimestamp(long value) {
+    public org.apache.gobblin.metrics.MetricReport.Builder setTimestamp(long value) {
       validate(fields()[1], value);
       this.timestamp = value;
       fieldSetFlags()[1] = true;
@@ -276,7 +276,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * Time at which metrics were reported.
       * @return This builder.
       */
-    public gobblin.metrics.MetricReport.Builder clearTimestamp() {
+    public org.apache.gobblin.metrics.MetricReport.Builder clearTimestamp() {
       fieldSetFlags()[1] = false;
       return this;
     }
@@ -296,7 +296,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * @param value The value of 'metrics'.
       * @return This builder.
       */
-    public gobblin.metrics.MetricReport.Builder setMetrics(java.util.List<gobblin.metrics.Metric> value) {
+    public org.apache.gobblin.metrics.MetricReport.Builder setMetrics(java.util.List<gobblin.metrics.Metric> value) {
       validate(fields()[2], value);
       this.metrics = value;
       fieldSetFlags()[2] = true;
@@ -318,7 +318,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * Array of metrics in this report.
       * @return This builder.
       */
-    public gobblin.metrics.MetricReport.Builder clearMetrics() {
+    public org.apache.gobblin.metrics.MetricReport.Builder clearMetrics() {
       metrics = null;
       fieldSetFlags()[2] = false;
       return this;

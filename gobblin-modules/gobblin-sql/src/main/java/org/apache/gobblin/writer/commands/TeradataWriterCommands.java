@@ -133,7 +133,7 @@ public class TeradataWriterCommands implements JdbcWriterCommands {
 
   /**
    * {@inheritDoc}
-   * @see gobblin.writer.commands.JdbcWriterCommands#retrieveDateColumns(java.sql.Connection, java.lang.String)
+   * @see org.apache.gobblin.writer.commands.JdbcWriterCommands#retrieveDateColumns(java.sql.Connection, java.lang.String)
    */
   @Override
   public Map<String, JdbcType> retrieveDateColumns(String database, String table) throws SQLException {

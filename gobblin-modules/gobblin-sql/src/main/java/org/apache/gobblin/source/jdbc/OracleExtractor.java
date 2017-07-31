@@ -294,7 +294,7 @@ public class OracleExtractor extends JdbcExtractor {
    * up to second and Oracle extractor will keep the same behavior.
    *
    * {@inheritDoc}
-   * @see gobblin.source.extractor.extract.ProtocolSpecificLayer#getTimestampPredicateCondition(java.lang.String, long, java.lang.String, java.lang.String)
+   * @see org.apache.gobblin.source.extractor.extract.ProtocolSpecificLayer#getTimestampPredicateCondition(java.lang.String, long, java.lang.String, java.lang.String)
    */
   @Override
   public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {

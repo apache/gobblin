@@ -57,7 +57,7 @@ import org.apache.gobblin.util.DatasetFilterUtils;
 
 /**
  * A {@link GobblinKafkaConsumerClient} that uses kafka 08 scala consumer client. All the code has been moved from the
- * legacy gobblin.source.extractor.extract.kafka.KafkaWrapper's KafkaOldApi
+ * legacy org.apache.gobblin.source.extractor.extract.kafka.KafkaWrapper's KafkaOldApi
  */
 @Slf4j
 public class Kafka08ConsumerClient extends AbstractBaseKafkaConsumerClient {

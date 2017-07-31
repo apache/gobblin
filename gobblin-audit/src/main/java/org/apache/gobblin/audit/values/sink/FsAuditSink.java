@@ -110,7 +110,7 @@ public class FsAuditSink implements AuditSink {
    * Append this record to the {@link DataFileWriter}
    *
    * {@inheritDoc}
-   * @see gobblin.audit.values.sink.AuditSink#write(org.apache.avro.generic.GenericRecord)
+   * @see org.apache.gobblin.audit.values.sink.AuditSink#write(org.apache.avro.generic.GenericRecord)
    */
   @Override
   public void write(GenericRecord record) throws IOException {

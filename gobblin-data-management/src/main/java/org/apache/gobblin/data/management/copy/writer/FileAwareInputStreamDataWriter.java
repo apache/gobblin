@@ -351,7 +351,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    *
    * {@inheritDoc}
    *
-   * @see gobblin.writer.DataWriter#commit()
+   * @see org.apache.gobblin.writer.DataWriter#commit()
    */
   @Override
   public void commit()
