@@ -140,7 +140,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
    * @return A new GobblinTrackingEvent RecordBuilder
    */
   public static gobblin.metrics.GobblinTrackingEvent.Builder newBuilder() {
-    return new gobblin.metrics.GobblinTrackingEvent.Builder();
+    return new org.apache.gobblin.metrics.GobblinTrackingEvent.Builder();
   }
 
   /**
@@ -149,7 +149,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
    * @return A new GobblinTrackingEvent RecordBuilder
    */
   public static gobblin.metrics.GobblinTrackingEvent.Builder newBuilder(gobblin.metrics.GobblinTrackingEvent.Builder other) {
-    return new gobblin.metrics.GobblinTrackingEvent.Builder(other);
+    return new org.apache.gobblin.metrics.GobblinTrackingEvent.Builder(other);
   }
 
   /**
@@ -158,7 +158,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
    * @return A new GobblinTrackingEvent RecordBuilder
    */
   public static gobblin.metrics.GobblinTrackingEvent.Builder newBuilder(gobblin.metrics.GobblinTrackingEvent other) {
-    return new gobblin.metrics.GobblinTrackingEvent.Builder(other);
+    return new org.apache.gobblin.metrics.GobblinTrackingEvent.Builder(other);
   }
 
   /**

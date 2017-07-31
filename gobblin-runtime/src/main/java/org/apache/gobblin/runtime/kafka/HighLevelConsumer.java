@@ -98,7 +98,7 @@ public abstract class HighLevelConsumer<K, V> extends AbstractIdleService {
    */
   @VisibleForTesting
   protected void buildMetricsContextAndMetrics() {
-    this.metricContext = Instrumented.getMetricContext(new gobblin.configuration.State(ConfigUtils.configToProperties(config)),
+    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
         this.getClass(), getTagsForMetrics());
     createMetrics();
   }

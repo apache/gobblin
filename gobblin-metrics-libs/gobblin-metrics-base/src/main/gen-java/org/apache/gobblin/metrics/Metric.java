@@ -94,7 +94,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
    * @return A new Metric RecordBuilder
    */
   public static gobblin.metrics.Metric.Builder newBuilder() {
-    return new gobblin.metrics.Metric.Builder();
+    return new org.apache.gobblin.metrics.Metric.Builder();
   }
 
   /**
@@ -103,7 +103,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
    * @return A new Metric RecordBuilder
    */
   public static gobblin.metrics.Metric.Builder newBuilder(gobblin.metrics.Metric.Builder other) {
-    return new gobblin.metrics.Metric.Builder(other);
+    return new org.apache.gobblin.metrics.Metric.Builder(other);
   }
 
   /**
@@ -112,7 +112,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
    * @return A new Metric RecordBuilder
    */
   public static gobblin.metrics.Metric.Builder newBuilder(gobblin.metrics.Metric other) {
-    return new gobblin.metrics.Metric.Builder(other);
+    return new org.apache.gobblin.metrics.Metric.Builder(other);
   }
 
   /**

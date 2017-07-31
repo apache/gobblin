@@ -86,7 +86,7 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
     this.listeners = new SpecCatalogListenersList(log);
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
-          parentMetricContext.or(Instrumented.getMetricContext(new gobblin.configuration.State(), getClass()));
+          parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(TopologyCatalog.class.getSimpleName()).build();
       this.metrics = new SpecCatalog.StandardMetrics(this);
     }

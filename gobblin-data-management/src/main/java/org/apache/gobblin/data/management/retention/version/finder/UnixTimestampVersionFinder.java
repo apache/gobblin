@@ -38,7 +38,7 @@ public class UnixTimestampVersionFinder extends DatasetVersionFinder<Timestamped
   public UnixTimestampVersionFinder(FileSystem fs, Properties props) {
     super(fs, props);
     this.realVersionFinder =
-        new gobblin.data.management.version.finder.UnixTimestampVersionFinder(fs, convertDeprecatedProperties(props));
+        new org.apache.gobblin.data.management.version.finder.UnixTimestampVersionFinder(fs, convertDeprecatedProperties(props));
   }
 
   @Override

@@ -224,7 +224,7 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
 
     private MetricContext getDefaultMetricContext() {
       gobblin.configuration.State fakeState =
-          new gobblin.configuration.State(getSysConfig().getConfigAsProperties());
+          new org.apache.gobblin.configuration.State(getSysConfig().getConfigAsProperties());
       return Instrumented.getMetricContext(fakeState, StandardGobblinInstanceLauncher.class);
     }
 

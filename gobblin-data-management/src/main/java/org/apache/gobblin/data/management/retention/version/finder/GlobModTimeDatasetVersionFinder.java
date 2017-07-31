@@ -42,7 +42,7 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern) {
     super(fs);
     this.realVersionFinder =
-        new gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder(fs, globPattern);
+        new org.apache.gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder(fs, globPattern);
   }
 
   @Override

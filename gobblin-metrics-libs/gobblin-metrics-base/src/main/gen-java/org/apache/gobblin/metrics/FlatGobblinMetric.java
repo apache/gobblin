@@ -140,7 +140,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
    * @return A new FlatGobblinMetric RecordBuilder
    */
   public static gobblin.metrics.FlatGobblinMetric.Builder newBuilder() {
-    return new gobblin.metrics.FlatGobblinMetric.Builder();
+    return new org.apache.gobblin.metrics.FlatGobblinMetric.Builder();
   }
 
   /**
@@ -149,7 +149,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
    * @return A new FlatGobblinMetric RecordBuilder
    */
   public static gobblin.metrics.FlatGobblinMetric.Builder newBuilder(gobblin.metrics.FlatGobblinMetric.Builder other) {
-    return new gobblin.metrics.FlatGobblinMetric.Builder(other);
+    return new org.apache.gobblin.metrics.FlatGobblinMetric.Builder(other);
   }
 
   /**
@@ -158,7 +158,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
    * @return A new FlatGobblinMetric RecordBuilder
    */
   public static gobblin.metrics.FlatGobblinMetric.Builder newBuilder(gobblin.metrics.FlatGobblinMetric other) {
-    return new gobblin.metrics.FlatGobblinMetric.Builder(other);
+    return new org.apache.gobblin.metrics.FlatGobblinMetric.Builder(other);
   }
 
   /**

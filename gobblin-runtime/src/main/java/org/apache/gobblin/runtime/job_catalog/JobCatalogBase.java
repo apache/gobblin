@@ -66,7 +66,7 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
     this.listeners = new JobCatalogListenersList(log);
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
-          parentMetricContext.or(Instrumented.getMetricContext(new gobblin.configuration.State(), getClass()));
+          parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(JobCatalog.class.getSimpleName()).build();
       this.metrics = new StandardMetrics(this);
     }

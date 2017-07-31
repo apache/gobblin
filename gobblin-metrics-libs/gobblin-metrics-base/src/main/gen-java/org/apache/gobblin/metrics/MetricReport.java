@@ -117,7 +117,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * @return A new MetricReport RecordBuilder
    */
   public static gobblin.metrics.MetricReport.Builder newBuilder() {
-    return new gobblin.metrics.MetricReport.Builder();
+    return new org.apache.gobblin.metrics.MetricReport.Builder();
   }
 
   /**
@@ -126,7 +126,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * @return A new MetricReport RecordBuilder
    */
   public static gobblin.metrics.MetricReport.Builder newBuilder(gobblin.metrics.MetricReport.Builder other) {
-    return new gobblin.metrics.MetricReport.Builder(other);
+    return new org.apache.gobblin.metrics.MetricReport.Builder(other);
   }
 
   /**
@@ -135,7 +135,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * @return A new MetricReport RecordBuilder
    */
   public static gobblin.metrics.MetricReport.Builder newBuilder(gobblin.metrics.MetricReport other) {
-    return new gobblin.metrics.MetricReport.Builder(other);
+    return new org.apache.gobblin.metrics.MetricReport.Builder(other);
   }
 
   /**

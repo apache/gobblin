@@ -38,7 +38,7 @@ public class ModDateTimeDatasetVersionFinder implements VersionFinder<Timestampe
   private final gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder realVersionFinder;
 
   public ModDateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
-    this.realVersionFinder = new gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder(fs, props);
+    this.realVersionFinder = new org.apache.gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder(fs, props);
   }
 
   @Override

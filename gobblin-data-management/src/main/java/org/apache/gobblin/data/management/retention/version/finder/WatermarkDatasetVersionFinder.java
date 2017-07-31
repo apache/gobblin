@@ -43,7 +43,7 @@ public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDa
   public WatermarkDatasetVersionFinder(FileSystem fs, Properties props) {
     super(fs, props);
     this.realVersionFinder =
-        new gobblin.data.management.version.finder.WatermarkDatasetVersionFinder(fs, convertDeprecatedProperties(props));
+        new org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder(fs, convertDeprecatedProperties(props));
   }
 
   @Override

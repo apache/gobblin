@@ -52,7 +52,7 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
 
   public DateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
     super(fs, convertDeprecatedProperties(props));
-    this.realVersionFinder = new gobblin.data.management.version.finder.DateTimeDatasetVersionFinder(fs, convertDeprecatedProperties(props));
+    this.realVersionFinder = new org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder(fs, convertDeprecatedProperties(props));
   }
 
   @Override

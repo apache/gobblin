@@ -38,7 +38,7 @@ public class FileLevelTimestampVersionFinder implements VersionFinder<Timestampe
   private final gobblin.data.management.version.finder.FileLevelTimestampVersionFinder realVersionFinder;
   public FileLevelTimestampVersionFinder(FileSystem fs, Properties props) {
     this.realVersionFinder =
-        new gobblin.data.management.version.finder.FileLevelTimestampVersionFinder(fs,props);
+        new org.apache.gobblin.data.management.version.finder.FileLevelTimestampVersionFinder(fs,props);
   }
 
   @Override

@@ -105,7 +105,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   }
 
   private MetricContext constructMetricContext(Configurable sysConfig, Logger log) {
-    gobblin.configuration.State tmpState = new gobblin.configuration.State(sysConfig.getConfigAsProperties());
+    gobblin.configuration.State tmpState = new org.apache.gobblin.configuration.State(sysConfig.getConfigAsProperties());
     return GobblinMetrics.isEnabled(sysConfig.getConfig()) ?
           Instrumented.getMetricContext(tmpState, getClass())
           : null;

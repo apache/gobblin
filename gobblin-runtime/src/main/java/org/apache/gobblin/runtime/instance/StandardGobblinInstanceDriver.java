@@ -349,7 +349,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
 
     public MetricContext getDefaultMetricContext() {
       gobblin.configuration.State fakeState =
-          new gobblin.configuration.State(getSysConfig().getConfigAsProperties());
+          new org.apache.gobblin.configuration.State(getSysConfig().getConfigAsProperties());
       List<Tag<?>> tags = new ArrayList<>();
       tags.add(new Tag<>(StandardMetrics.INSTANCE_NAME_TAG, getInstanceName()));
       MetricContext res = Instrumented.getMetricContext(fakeState,
