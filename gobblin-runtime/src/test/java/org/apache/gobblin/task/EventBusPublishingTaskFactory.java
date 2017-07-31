@@ -99,7 +99,7 @@ public class EventBusPublishingTaskFactory implements TaskFactory {
     }
   }
 
-  public static class Source implements gobblin.source.Source<String, String> {
+  public static class Source implements org.apache.gobblin.source.Source<String, String> {
     public static final String NUM_TASKS_KEY = "num.tasks";
 
     @Override

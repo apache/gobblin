@@ -46,7 +46,7 @@ import org.apache.gobblin.util.HadoopUtils;
 /**
  * {@link Dataset}s finder to identify datasets, using given properties.
  */
-public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<Dataset> {
+public abstract class DatasetsFinder implements org.apache.gobblin.dataset.DatasetsFinder<Dataset> {
   public static final double HIGH_PRIORITY = 3.0;
   public static final double NORMAL_PRIORITY = 2.0;
   public static final double LOW_PRIORITY = 1.0;

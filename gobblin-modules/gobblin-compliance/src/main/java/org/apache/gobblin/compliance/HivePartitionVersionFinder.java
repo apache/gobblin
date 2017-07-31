@@ -52,7 +52,7 @@ import org.apache.gobblin.util.AutoReturnableObject;
  * @author adsharma
  */
 @Slf4j
-public class HivePartitionVersionFinder implements gobblin.data.management.version.finder.VersionFinder<HivePartitionVersion> {
+public class HivePartitionVersionFinder implements org.apache.gobblin.data.management.version.finder.VersionFinder<HivePartitionVersion> {
   protected final FileSystem fs;
   protected final State state;
   protected List<String> patterns;

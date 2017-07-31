@@ -175,7 +175,7 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
    * A builder used to create a descendant {@link SharedResourcesBrokerImpl} with the same backing {@link DefaultBrokerCache}.
    */
   @NotThreadSafe
-  public class SubscopedBrokerBuilder implements gobblin.broker.iface.SubscopedBrokerBuilder<S, SharedResourcesBrokerImpl<S>> {
+  public class SubscopedBrokerBuilder implements org.apache.gobblin.broker.iface.SubscopedBrokerBuilder<S, SharedResourcesBrokerImpl<S>> {
     private final ScopeInstance<S> scope;
     private final Map<S, ScopeWrapper<S>> ancestorScopes = Maps.newHashMap();
     private Config config = ConfigFactory.empty();
