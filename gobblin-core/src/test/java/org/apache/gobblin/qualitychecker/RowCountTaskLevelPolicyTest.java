@@ -40,7 +40,7 @@ public class RowCountTaskLevelPolicyTest {
   public void testRowCountPolicyPassed()
       throws Exception {
     State state = new State();
-    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "gobblin.policies.count.RowCountPolicy");
+    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "org.apache.gobblin.policies.count.RowCountPolicy");
     state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
     state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
     state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);
@@ -55,7 +55,7 @@ public class RowCountTaskLevelPolicyTest {
   public void testRowCountPolicyFailed()
       throws Exception {
     State state = new State();
-    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "gobblin.policies.count.RowCountPolicy");
+    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "org.apache.gobblin.policies.count.RowCountPolicy");
     state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
     state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
     state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, -1);
@@ -70,7 +70,7 @@ public class RowCountTaskLevelPolicyTest {
   public void testRowCountRangePolicyPassedExact()
       throws Exception {
     State state = new State();
-    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "gobblin.policies.count.RowCountRangePolicy");
+    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "org.apache.gobblin.policies.count.RowCountRangePolicy");
     state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
     state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
     state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);
@@ -86,7 +86,7 @@ public class RowCountTaskLevelPolicyTest {
   public void testRowCountRangePolicyPassedRange()
       throws Exception {
     State state = new State();
-    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "gobblin.policies.count.RowCountRangePolicy");
+    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "org.apache.gobblin.policies.count.RowCountRangePolicy");
     state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
     state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
     state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, (long) 0.03 * EXTRACTOR_ROWS_READ + EXTRACTOR_ROWS_READ);
@@ -102,7 +102,7 @@ public class RowCountTaskLevelPolicyTest {
   public void testRowCountRangePolicyFailed()
       throws Exception {
     State state = new State();
-    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "gobblin.policies.count.RowCountRangePolicy");
+    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "org.apache.gobblin.policies.count.RowCountRangePolicy");
     state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
     state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
     state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, -1);
@@ -119,7 +119,7 @@ public class RowCountTaskLevelPolicyTest {
       throws Exception {
     State state = new State();
     state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST,
-        "gobblin.policies.count.RowCountPolicy,gobblin.policies.count.RowCountRangePolicy");
+        "org.apache.gobblin.policies.count.RowCountPolicy,org.apache.gobblin.policies.count.RowCountRangePolicy");
     state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL,FAIL");
     state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
     state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);

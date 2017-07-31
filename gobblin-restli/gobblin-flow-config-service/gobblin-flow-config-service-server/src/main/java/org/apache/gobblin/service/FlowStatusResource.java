@@ -42,7 +42,7 @@ import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 /**
  * Resource for handling flow status requests
  */
-@RestLiCollection(name = "flowstatuses", namespace = "gobblin.service", keyName = "id")
+@RestLiCollection(name = "flowstatuses", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId, EmptyRecord, FlowStatus> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowStatusResource.class);
   public static final String FLOW_STATUS_GENERATOR_INJECT_NAME = "FlowStatusGenerator";

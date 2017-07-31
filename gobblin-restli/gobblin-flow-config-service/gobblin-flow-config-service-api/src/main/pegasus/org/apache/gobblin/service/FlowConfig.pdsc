@@ -20,7 +20,7 @@
       "type" : "string",
       "doc" : "Comma separated list of URIs for templates used in the flow. The template location is defined by the multiproduct that packages the template.",
       "validate": {
-        "gobblin.service.validator.TemplateUriValidator": {}
+        "org.apache.gobblin.service.validator.TemplateUriValidator": {}
       }
     },
     {

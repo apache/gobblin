@@ -33,7 +33,7 @@ import com.google.common.base.Splitter;
 @Test(groups = {"gobblin.compaction"})
 public class ConfBasedDeltaFieldProvider implements AvroDeltaFieldNameProvider {
   public static final String DELTA_FIELDS_KEY =
-      "gobblin.compaction." + ConfBasedDeltaFieldProvider.class.getSimpleName() + ".deltaFields";
+      "org.apache.gobblin.compaction." + ConfBasedDeltaFieldProvider.class.getSimpleName() + ".deltaFields";
   private final List<String> deltaFields;
 
   public ConfBasedDeltaFieldProvider(Configuration conf) {

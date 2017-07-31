@@ -124,7 +124,7 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener im
         try {
 
           RestLiConfig restLiConfig = new RestLiConfig();
-          restLiConfig.setResourcePackageNames("gobblin.restli.throttling");
+          restLiConfig.setResourcePackageNames("org.apache.gobblin.restli.throttling");
           bind(RestLiConfig.class).toInstance(restLiConfig);
 
           bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(topLevelBroker);

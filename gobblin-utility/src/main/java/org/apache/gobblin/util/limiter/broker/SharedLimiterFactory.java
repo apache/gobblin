@@ -99,7 +99,7 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
 
     if (!configView.getScope().isLocal() && !globalLimiterPolicy.equals(SharedLimiterKey.GlobalLimiterPolicy.LOCAL_ONLY)) {
       try {
-        Class<?> klazz = Class.forName("gobblin.util.limiter.RestliLimiterFactory");
+        Class<?> klazz = Class.forName("org.apache.gobblin.util.limiter.RestliLimiterFactory");
         return new ResourceCoordinate<>((SharedResourceFactory<Limiter, SharedLimiterKey, S>) klazz.newInstance(),
             configView.getKey(), (S) configView.getScope());
       } catch (ReflectiveOperationException roe) {

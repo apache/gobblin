@@ -333,7 +333,7 @@
     "collection" : {
       "identifier" : {
         "name" : "jobExecutionsId",
-        "type" : "gobblin.rest.JobExecutionQuery",
+        "type" : "org.apache.gobblin.rest.JobExecutionQuery",
         "params" : "com.linkedin.restli.common.EmptyRecord"
       },
       "supports" : [ "batch_get", "get" ],

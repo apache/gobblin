@@ -43,7 +43,7 @@ import static org.apache.gobblin.restli.throttling.LimiterServerResource.*;
 /**
  * A Rest.li endpoint for getting the {@link ThrottlingPolicy} associated with a resource id.
  */
-@RestLiCollection(name = "policies", namespace = "gobblin.restli.throttling")
+@RestLiCollection(name = "policies", namespace = "org.apache.gobblin.restli.throttling")
 public class PoliciesResource extends CollectionResourceTemplate<String, Policy> {
 
   @Inject

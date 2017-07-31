@@ -142,7 +142,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     this.metricContext =
         GobblinMetricsRegistry.getInstance().getMetricContext(state, HiveMetaStoreBasedRegister.class, GobblinMetrics.getCustomTagsFromState(state));
 
-    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, "gobblin.hive.HiveMetaStoreBasedRegister").build();
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.hive.HiveMetaStoreBasedRegister").build();
   }
 
   @Override

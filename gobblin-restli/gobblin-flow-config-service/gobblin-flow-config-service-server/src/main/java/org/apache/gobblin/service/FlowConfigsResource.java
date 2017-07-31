@@ -49,7 +49,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 /**
  * Resource for handling flow configuration requests
  */
-@RestLiCollection(name = "flowconfigs", namespace = "gobblin.service", keyName = "id")
+@RestLiCollection(name = "flowconfigs", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
 

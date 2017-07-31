@@ -111,7 +111,7 @@ public class HadoopUtils {
     }
 
     // Add a new custom filesystem mapping
-    conf.set("fs.sftp.impl", "gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem");
+    conf.set("fs.sftp.impl", "org.apache.gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem");
     conf.set("fs.sftp.impl.disable.cache", "true");
     return conf;
   }

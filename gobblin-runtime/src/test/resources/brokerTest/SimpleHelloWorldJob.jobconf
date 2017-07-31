@@ -28,7 +28,7 @@ job.description=The "Hello World" Gobblin job
 
 # Source, Converters, Writer, Publisher
 source.class=gobblin.util.test.HelloWorldSource
-converter.classes="gobblin.runtime.JobBrokerInjectionTest$JobBrokerConverter"
+converter.classes="org.apache.gobblin.runtime.JobBrokerInjectionTest$JobBrokerConverter"
 writer.builder.class="org.apache.gobblin.writer.test.GobblinTestEventBusWriter$Builder"
 writer.GobblinTestEventBusWriter.eventBusId=${gobblin.workDir}
 data.publisher.type=gobblin.publisher.NoopPublisher

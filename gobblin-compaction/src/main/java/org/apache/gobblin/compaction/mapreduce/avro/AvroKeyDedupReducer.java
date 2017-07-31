@@ -49,7 +49,7 @@ public class AvroKeyDedupReducer extends Reducer<AvroKey<GenericRecord>, AvroVal
   }
 
   public static final String DELTA_SCHEMA_PROVIDER =
-      "gobblin.compaction." + AvroKeyDedupReducer.class.getSimpleName() + ".deltaFieldsProvider";
+      "org.apache.gobblin.compaction." + AvroKeyDedupReducer.class.getSimpleName() + ".deltaFieldsProvider";
   private AvroKey<GenericRecord> outKey;
   private Optional<AvroValueDeltaSchemaComparator> deltaComparatorOptional;
   private AvroDeltaFieldNameProvider deltaFieldNamesProvider;

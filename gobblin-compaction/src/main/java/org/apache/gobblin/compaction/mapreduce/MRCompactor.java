@@ -131,7 +131,7 @@ public class MRCompactor implements Compactor {
 
   public static final String COMPACTION_JOB_RUNNER_CLASS = COMPACTION_PREFIX + "job.runner.class";
   public static final String DEFAULT_COMPACTION_JOB_RUNNER_CLASS =
-      "gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner";
+      "org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner";
   public static final String COMPACTION_TIMEZONE = COMPACTION_PREFIX + "timezone";
   public static final String DEFAULT_COMPACTION_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
   public static final String COMPACTION_FILE_SYSTEM_URI = COMPACTION_PREFIX + "file.system.uri";

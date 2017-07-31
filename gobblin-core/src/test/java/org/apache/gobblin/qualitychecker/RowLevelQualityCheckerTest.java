@@ -43,7 +43,7 @@ public class RowLevelQualityCheckerTest {
   public void testRowLevelPolicy()
       throws Exception {
     State state = new State();
-    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, "gobblin.qualitychecker.TestRowLevelPolicy");
+    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, "org.apache.gobblin.qualitychecker.TestRowLevelPolicy");
     state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, "FAIL");
 
     RowLevelPolicyChecker checker =
@@ -61,7 +61,7 @@ public class RowLevelQualityCheckerTest {
   public void testWriteToErrFile()
       throws Exception {
     State state = new State();
-    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, "gobblin.qualitychecker.TestRowLevelPolicyFail");
+    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, "org.apache.gobblin.qualitychecker.TestRowLevelPolicyFail");
     state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, "ERR_FILE");
     state.setProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE, TestConstants.TEST_ERR_FILE);
     state.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, TestConstants.TEST_FS_URI);

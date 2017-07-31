@@ -397,7 +397,7 @@ public class ConfigurationKeys {
   /**
    * Metadata configuration properties used internally
    */
-  public static final String DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_DEFAULT = "gobblin.metadata.types.GlobalMetadataJsonMerger";
+  public static final String DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_DEFAULT = "org.apache.gobblin.metadata.types.GlobalMetadataJsonMerger";
   public static final String DATA_PUBLISHER_METADATA_OUTPUT_DIR =  DATA_PUBLISHER_PREFIX + ".metadata.output.dir";
   //Metadata String in the configuration file
   public static final String DATA_PUBLISHER_METADATA_STR = DATA_PUBLISHER_PREFIX + ".metadata.string";
@@ -410,7 +410,7 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".type";
   public static final String JOB_DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".job.type";
   public static final String TASK_DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".task.type";
-  public static final String DEFAULT_DATA_PUBLISHER_TYPE = "gobblin.publisher.BaseDataPublisher";
+  public static final String DEFAULT_DATA_PUBLISHER_TYPE = "org.apache.gobblin.publisher.BaseDataPublisher";
   public static final String DATA_PUBLISHER_FILE_SYSTEM_URI = DATA_PUBLISHER_PREFIX + ".fs.uri";
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
   public static final String DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".appendExtractToFinalDir";

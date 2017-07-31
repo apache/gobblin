@@ -120,18 +120,18 @@ public class LocalJobLauncherTest {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithFork");
-    jobProps.setProperty(ConfigurationKeys.CONVERTER_CLASSES_KEY, "gobblin.test.TestConverter2");
+    jobProps.setProperty(ConfigurationKeys.CONVERTER_CLASSES_KEY, "org.apache.gobblin.test.TestConverter2");
     jobProps.setProperty(ConfigurationKeys.FORK_BRANCHES_KEY, "2");
     jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".0",
-        "gobblin.policies.schema.SchemaRowCheckPolicy");
+        "org.apache.gobblin.policies.schema.SchemaRowCheckPolicy");
     jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".1",
-        "gobblin.policies.schema.SchemaRowCheckPolicy");
+        "org.apache.gobblin.policies.schema.SchemaRowCheckPolicy");
     jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE + ".0", "OPTIONAL");
     jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE + ".1", "OPTIONAL");
     jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST + ".0",
-        "gobblin.policies.count.RowCountPolicy,gobblin.policies.schema.SchemaCompatibilityPolicy");
+        "org.apache.gobblin.policies.count.RowCountPolicy,org.apache.gobblin.policies.schema.SchemaCompatibilityPolicy");
     jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST + ".1",
-        "gobblin.policies.count.RowCountPolicy,gobblin.policies.schema.SchemaCompatibilityPolicy");
+        "org.apache.gobblin.policies.count.RowCountPolicy,org.apache.gobblin.policies.schema.SchemaCompatibilityPolicy");
     jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE + ".0", "OPTIONAL,OPTIONAL");
     jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE + ".1", "OPTIONAL,OPTIONAL");
     jobProps.setProperty(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY + ".0", WriterOutputFormat.AVRO.name());

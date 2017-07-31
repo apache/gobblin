@@ -7,7 +7,7 @@
   "collection" : {
     "identifier" : {
       "name" : "id",
-      "type" : "gobblin.service.FlowId",
+      "type" : "org.apache.gobblin.service.FlowId",
       "params" : "com.linkedin.restli.common.EmptyRecord"
     },
     "supports" : [ "create", "delete", "get", "update" ],

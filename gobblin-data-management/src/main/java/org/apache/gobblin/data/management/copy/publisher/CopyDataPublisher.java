@@ -103,7 +103,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     MetricContext metricContext =
         Instrumented.getMetricContext(state, CopyDataPublisher.class, GobblinMetrics.getCustomTagsFromState(state));
 
-    this.eventSubmitter = new EventSubmitter.Builder(metricContext, "gobblin.copy.CopyDataPublisher").build();
+    this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.copy.CopyDataPublisher").build();
 
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.recoveryHelper.purgeOldPersistedFile();

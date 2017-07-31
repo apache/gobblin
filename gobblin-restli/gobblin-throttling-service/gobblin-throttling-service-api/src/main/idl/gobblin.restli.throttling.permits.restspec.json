@@ -7,7 +7,7 @@
   "collection" : {
     "identifier" : {
       "name" : "permitsId",
-      "type" : "gobblin.restli.throttling.PermitRequest",
+      "type" : "org.apache.gobblin.restli.throttling.PermitRequest",
       "params" : "com.linkedin.restli.common.EmptyRecord"
     },
     "supports" : [ "get" ],

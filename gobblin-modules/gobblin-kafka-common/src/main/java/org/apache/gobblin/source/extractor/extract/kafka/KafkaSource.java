@@ -108,7 +108,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final String GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION =
       "gobblin.kafka.extract.allowTableTypeAndNamspaceCustomization";
   public static final String DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS =
-      "gobblin.kafka.client.Kafka08ConsumerClient$Factory";
+      "org.apache.gobblin.kafka.client.Kafka08ConsumerClient$Factory";
   public static final String GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE =
       "gobblin.kafka.shouldEnableDatasetStateStore";
   public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;

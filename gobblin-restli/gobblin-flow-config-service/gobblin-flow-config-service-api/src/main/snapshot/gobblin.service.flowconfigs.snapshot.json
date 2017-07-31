@@ -35,7 +35,7 @@
       "type" : "string",
       "doc" : "Schedule for flow in cron format",
       "validate" : {
-        "gobblin.service.validator.CronValidator" : { }
+        "org.apache.gobblin.service.validator.CronValidator" : { }
       }
     }, {
       "name" : "runImmediately",
@@ -62,7 +62,7 @@
       "type" : "string",
       "doc" : "Comma separated list of URIs for templates used in the flow. The template location is defined by the multiproduct that packages the template.",
       "validate" : {
-        "gobblin.service.validator.TemplateUriValidator" : { }
+        "org.apache.gobblin.service.validator.TemplateUriValidator" : { }
       }
     }, {
       "name" : "properties",
@@ -91,7 +91,7 @@
     "collection" : {
       "identifier" : {
         "name" : "id",
-        "type" : "gobblin.service.FlowId",
+        "type" : "org.apache.gobblin.service.FlowId",
         "params" : "com.linkedin.restli.common.EmptyRecord"
       },
       "supports" : [ "create", "delete", "get", "update" ],

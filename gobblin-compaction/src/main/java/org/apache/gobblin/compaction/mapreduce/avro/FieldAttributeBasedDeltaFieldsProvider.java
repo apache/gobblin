@@ -46,9 +46,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class FieldAttributeBasedDeltaFieldsProvider implements AvroDeltaFieldNameProvider {
   public static final String ATTRIBUTE_FIELD =
-      "gobblin.compaction." + FieldAttributeBasedDeltaFieldsProvider.class.getSimpleName() + ".deltaAttributeField";
+      "org.apache.gobblin.compaction." + FieldAttributeBasedDeltaFieldsProvider.class.getSimpleName() + ".deltaAttributeField";
   public static final String DELTA_PROP_NAME =
-      "gobblin.compaction." + FieldAttributeBasedDeltaFieldsProvider.class.getSimpleName() + ".deltaPropName";
+      "org.apache.gobblin.compaction." + FieldAttributeBasedDeltaFieldsProvider.class.getSimpleName() + ".deltaPropName";
   public static final String DEFAULT_DELTA_PROP_NAME = "delta";
   private final String attributeField;
   private final String deltaPropName;

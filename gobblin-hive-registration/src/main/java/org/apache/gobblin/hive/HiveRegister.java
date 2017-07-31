@@ -61,7 +61,7 @@ import lombok.extern.slf4j.Slf4j;
 public abstract class HiveRegister implements Closeable {
 
   public static final String HIVE_REGISTER_TYPE = "hive.register.type";
-  public static final String DEFAULT_HIVE_REGISTER_TYPE = "gobblin.hive.metastore.HiveMetaStoreBasedRegister";
+  public static final String DEFAULT_HIVE_REGISTER_TYPE = "org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister";
   public static final String HIVE_TABLE_COMPARATOR_TYPE = "hive.table.comparator.type";
   public static final String DEFAULT_HIVE_TABLE_COMPARATOR_TYPE = HiveTableComparator.class.getName();
   public static final String HIVE_PARTITION_COMPARATOR_TYPE = "hive.partition.comparator.type";

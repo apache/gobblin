@@ -9,7 +9,7 @@
       "type" : "string",
       "doc" : "Schedule for flow in cron format",
       "validate": {
-        "gobblin.service.validator.CronValidator": {}
+        "org.apache.gobblin.service.validator.CronValidator": {}
       }
     },
     {

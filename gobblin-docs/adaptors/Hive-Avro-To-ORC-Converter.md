@@ -257,9 +257,9 @@ SLA event is published every time an Avro partition/table is converted to ORC. E
         "workunitCreateTime": "1470227446703"
 
         ## Gobblin metrics metadata
-        "class": "gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher",
+        "class": "org.apache.gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher",
         "metricContextID": "20bfb2a2-0592-4f53-9259-c8ee125f90a8",
-        "metricContextName": "gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher.781426901",
+        "metricContextName": "org.apache.gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher.781426901",
     }
 }
 ```

@@ -37,7 +37,7 @@ public class TaskLevelQualityCheckerTest {
   public void testPolicyChecker()
       throws Exception {
     State state = new State();
-    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "gobblin.qualitychecker.TestTaskLevelPolicy");
+    state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "org.apache.gobblin.qualitychecker.TestTaskLevelPolicy");
     state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
 
     TaskLevelPolicyCheckResults results = getPolicyResults(state);
@@ -51,7 +51,7 @@ public class TaskLevelQualityCheckerTest {
       throws Exception {
     State state = new State();
     state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST,
-        "gobblin.qualitychecker.TestTaskLevelPolicy,gobblin.qualitychecker.TestTaskLevelPolicy");
+        "org.apache.gobblin.qualitychecker.TestTaskLevelPolicy,org.apache.gobblin.qualitychecker.TestTaskLevelPolicy");
     state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL,FAIL");
 
     TaskLevelPolicyCheckResults results = getPolicyResults(state);

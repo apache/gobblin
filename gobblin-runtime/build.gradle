@@ -172,7 +172,7 @@ ext.classification="library"
 task pullFileConverter(type: JavaExec) {
   dependsOn jar
   doFirst {
-    main = "gobblin.runtime.template.PullFileToConfigConverter"
+    main = "org.apache.gobblin.runtime.template.PullFileToConfigConverter"
 
     def pullFilesRootPath = "pullFilesRootPath"
     def pullFilesToConvertGlob = "pullFilesToConvertGlob"

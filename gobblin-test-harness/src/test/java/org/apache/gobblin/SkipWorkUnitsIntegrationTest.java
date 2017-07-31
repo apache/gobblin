@@ -47,7 +47,7 @@ public class SkipWorkUnitsIntegrationTest {
       throws Exception {
     Properties jobProperties =
         GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/skip_workunits_test.properties");
-    jobProperties.setProperty("data.publisher.type", "gobblin.TestSkipWorkUnitsPublisher");
+    jobProperties.setProperty("data.publisher.type", "org.apache.gobblin.TestSkipWorkUnitsPublisher");
     GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
   }
 

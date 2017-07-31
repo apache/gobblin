@@ -41,7 +41,7 @@ import org.apache.gobblin.metastore.JobHistoryStore;
  *
  * @author Yinan Li
  */
-@RestLiCollection(name = "jobExecutions", namespace = "gobblin.rest")
+@RestLiCollection(name = "jobExecutions", namespace = "org.apache.gobblin.rest")
 public class JobExecutionInfoResource extends ComplexKeyResourceTemplate<JobExecutionQuery, EmptyRecord, JobExecutionQueryResult> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobExecutionInfoResource.class);

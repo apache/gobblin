@@ -48,9 +48,9 @@ public class ConfigurableCleanableDatasetTest {
 
     Config conf =
         ConfigFactory.parseMap(ImmutableMap.<String, String> of("gobblin.retention.version.finder.class",
-            "gobblin.data.management.version.finder.WatermarkDatasetVersionFinder",
+            "org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder",
             "gobblin.retention.retention.policy.class",
-            "gobblin.data.management.retention.policy.NewestKRetentionPolicy",
+            "org.apache.gobblin.data.management.retention.policy.NewestKRetentionPolicy",
             "gobblin.retention.newestK.versions.retained", "2"));
 
     ConfigurableCleanableDataset<FileSystemDatasetVersion> dataset =
@@ -67,9 +67,9 @@ public class ConfigurableCleanableDatasetTest {
 
     Config conf =
         ConfigFactory.parseMap(ImmutableMap.<String, String> of("gobblin.retention.version.finder.class",
-            "gobblin.data.management.version.finder.WatermarkDatasetVersionFinder",
+            "org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder",
             "gobblin.retention.selection.policy.class",
-            "gobblin.data.management.policy.NewestKSelectionPolicy",
+            "org.apache.gobblin.data.management.policy.NewestKSelectionPolicy",
             "gobblin.retention.selection.newestK.versionsSelected", "2"));
 
     ConfigurableCleanableDataset<FileSystemDatasetVersion> dataset =
@@ -86,8 +86,8 @@ public class ConfigurableCleanableDatasetTest {
 
     Map<String, String> partitionConf =
         ImmutableMap.<String, String> of("version.finder.class",
-            "gobblin.data.management.version.finder.WatermarkDatasetVersionFinder", "selection.policy.class",
-            "gobblin.data.management.policy.NewestKSelectionPolicy", "selection.newestK.versionsSelected", "2");
+            "org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder", "selection.policy.class",
+            "org.apache.gobblin.data.management.policy.NewestKSelectionPolicy", "selection.newestK.versionsSelected", "2");
     Config conf = ConfigFactory.parseMap(ImmutableMap.<String, List<Map<String, String>>> of("gobblin.retention.dataset.partitions",
             ImmutableList.of(partitionConf, partitionConf)));
 
@@ -108,9 +108,9 @@ public class ConfigurableCleanableDatasetTest {
 
     Config conf =
         ConfigFactory.parseMap(ImmutableMap.<String, String> of("gobblin.retention.version.finder.class",
-            "gobblin.data.management.version.finder.WatermarkDatasetVersionFinder",
+            "org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder",
             "gobblin.retention.selection.policy.class",
-            "gobblin.data.management.policy.NewestKSelectionPolicy",
+            "org.apache.gobblin.data.management.policy.NewestKSelectionPolicy",
             "gobblin.retention.selection.newestK.versionsSelected", "2",
             "gobblin.retention.dataset.is.blacklisted", "true"));
 

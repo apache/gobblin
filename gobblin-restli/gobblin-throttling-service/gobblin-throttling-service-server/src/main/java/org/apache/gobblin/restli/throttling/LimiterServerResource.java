@@ -58,7 +58,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Alpha
 @Slf4j
-@RestLiCollection(name = "permits", namespace = "gobblin.restli.throttling")
+@RestLiCollection(name = "permits", namespace = "org.apache.gobblin.restli.throttling")
 public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<PermitRequest, EmptyRecord, PermitAllocation> {
 
   public static final long TIMEOUT_MILLIS = 7000; // resli client times out after 10 seconds
