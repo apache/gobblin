@@ -119,26 +119,26 @@ public class FsStateStoreTest {
 
 //  Disable backwards compatibility change, since we are doing a major version upgrade
 //  .. and this is related to previous migration.
-//  @Test
-//  public void testBackwardsCompat() throws IOException {
-//    // Tests with a state store that was saved before the WritableShim changes
-//    Config bwConfig = ConfigFactory.load(config);
-//    URL path = getClass().getResource("/backwardsCompatTestStore");
-//    Assert.assertNotNull(path);
-//
-//    bwConfig = bwConfig.withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
-//        ConfigValueFactory.fromAnyRef(path.toString()));
-//
-//    StateStore<State> bwStateStore = stateStoreFactory.createStateStore(bwConfig, State.class);
-//    Assert.assertTrue(bwStateStore.exists("testStore", "testTable"));
-//
-//    List<State> states = bwStateStore.getAll("testStore", "testTable");
-//    Assert.assertEquals(states.size(), 3);
-//
-//    Assert.assertEquals(states.get(0).getProp("k1"), "v1");
-//    Assert.assertEquals(states.get(1).getProp("k2"), "v2");
-//    Assert.assertEquals(states.get(2).getProp("k3"), "v3");
-//  }
+  @Test
+  public void testBackwardsCompat() throws IOException {
+    // Tests with a state store that was saved before the WritableShim changes
+    Config bwConfig = ConfigFactory.load(config);
+    URL path = getClass().getResource("/backwardsCompatTestStore");
+    Assert.assertNotNull(path);
+
+    bwConfig = bwConfig.withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
+        ConfigValueFactory.fromAnyRef(path.toString()));
+
+    StateStore<State> bwStateStore = stateStoreFactory.createStateStore(bwConfig, State.class);
+    Assert.assertTrue(bwStateStore.exists("testStore", "testTable"));
+
+    List<State> states = bwStateStore.getAll("testStore", "testTable");
+    Assert.assertEquals(states.size(), 3);
+
+    Assert.assertEquals(states.get(0).getProp("k1"), "v1");
+    Assert.assertEquals(states.get(1).getProp("k2"), "v2");
+    Assert.assertEquals(states.get(2).getProp("k3"), "v3");
+  }
 
   @AfterClass
   public void tearDown() throws IOException {

@@ -36,21 +36,21 @@ public class JobStateToJsonConverterTest {
   private final String TEST_STORE = "store/";
 
 //  Disable test for now. It will be re-enabled after we have a current.jst with new class name states
-//  @Test
-//  public void testJsonKeepConfig()
-//      throws IOException {
-//    String stateStorePath = getClass().getClassLoader().getResource(TEST_STORE).getPath();
-//    boolean keepConfig = true;
-//    JobStateToJsonConverter converter = new JobStateToJsonConverter(new Properties(), stateStorePath, keepConfig);
-//
-//    StringWriter stringWriter = new StringWriter();
-//    converter.convert(TEST_JOB, stringWriter);
-//
-//    JsonObject json = new JsonParser().parse(new JsonReader(new StringReader(stringWriter.toString()))).getAsJsonObject();
-//
-//    Assert.assertNotNull(json.get(PROPERTIES));
-//    for (JsonElement taskState: json.get(TASK_STATES).getAsJsonArray()) {
-//      Assert.assertNotNull(taskState.getAsJsonObject().get(PROPERTIES));
-//    }
-//  }
+  @Test
+  public void testJsonKeepConfig()
+      throws IOException {
+    String stateStorePath = getClass().getClassLoader().getResource(TEST_STORE).getPath();
+    boolean keepConfig = true;
+    JobStateToJsonConverter converter = new JobStateToJsonConverter(new Properties(), stateStorePath, keepConfig);
+
+    StringWriter stringWriter = new StringWriter();
+    converter.convert(TEST_JOB, stringWriter);
+
+    JsonObject json = new JsonParser().parse(new JsonReader(new StringReader(stringWriter.toString()))).getAsJsonObject();
+
+    Assert.assertNotNull(json.get(PROPERTIES));
+    for (JsonElement taskState: json.get(TASK_STATES).getAsJsonArray()) {
+      Assert.assertNotNull(taskState.getAsJsonObject().get(PROPERTIES));
+    }
+  }
 }
