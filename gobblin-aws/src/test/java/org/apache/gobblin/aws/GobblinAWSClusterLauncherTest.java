@@ -73,7 +73,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  */
 @Test(groups = { "gobblin.aws" })
 @PrepareForTest({ AWSSdkClient.class, GobblinAWSClusterLauncher.class})
-@PowerMockIgnore({"javax.*", "org.apache.*", "org.w3c.*", "org.xml.*"})
+@PowerMockIgnore({"javax.*", "org.apache.helix.*", "org.apache.curator.*", "org.apache.zookeeper.*", "org.w3c.*", "org.xml.*"})
 public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements HelixMessageTestBase  {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinAWSClusterLauncherTest.class);
 
