@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "Metric",
-    "namesapce" : "org.apache.gobblin.rest",
+    "namespace" : "org.apache.gobblin.rest",
     "doc": "Gobblin metric",
     "fields": [
       {

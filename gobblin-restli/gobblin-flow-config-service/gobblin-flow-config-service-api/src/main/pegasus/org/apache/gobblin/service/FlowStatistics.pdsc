@@ -1,7 +1,7 @@
 {
   "type" : "record",
   "name" : "FlowStatistics",
-  "namesapce" : "org.apache.gobblin.service",
+  "namespace" : "org.apache.gobblin.service",
   "doc" : "Statistics from a flow execution",
   "fields" : [
     {

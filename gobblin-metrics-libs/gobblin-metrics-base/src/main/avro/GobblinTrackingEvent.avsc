@@ -1,7 +1,7 @@
 {
   "type": "record",
   "name": "GobblinTrackingEvent",
-  "namesapce" : "org.apache.gobblin.metrics",
+  "namespace" : "org.apache.gobblin.metrics",
   "fields": [
     {
       "name": "timestamp",

@@ -1,7 +1,7 @@
 {
   "type" : "record",
   "name" : "FlowStatus",
-  "namesapce" : "org.apache.gobblin.service",
+  "namespace" : "org.apache.gobblin.service",
   "doc" : "Status of a flow",
   "fields" : [
     {

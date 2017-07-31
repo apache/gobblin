@@ -1,7 +1,7 @@
 {
   "type" : "record",
   "name" : "JobState",
-  "namesapce" : "org.apache.gobblin.service",
+  "namespace" : "org.apache.gobblin.service",
   "doc" : "Job state that is updated at the end of an execution",
   "fields" : [
     {

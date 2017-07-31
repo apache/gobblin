@@ -1,7 +1,7 @@
 {
   "type" : "record",
   "name" : "FlowId",
-  "namesapce" : "org.apache.gobblin.service",
+  "namespace" : "org.apache.gobblin.service",
   "doc" : "Identifier for a Gobblin as a Service flow",
   "fields" : [
     {

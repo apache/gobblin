@@ -1,7 +1,7 @@
 {
   "name": "Policy",
   "type": "record",
-  "namesapce" : "org.apache.gobblin.restli.throttling",
+  "namespace" : "org.apache.gobblin.restli.throttling",
   "doc": "A throttling policy for Gobblin throttling service.",
   "fields": [
     {"name": "resource", "type": "string", "doc": "Resource for which this policy applied."},

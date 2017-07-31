@@ -1,7 +1,7 @@
 {
     "type": "record",
     "name": "JobExecutionQuery",
-    "namesapce" : "org.apache.gobblin.rest",
+    "namespace" : "org.apache.gobblin.rest",
     "doc": "Gobblin job execution query",
     "fields": [
       {

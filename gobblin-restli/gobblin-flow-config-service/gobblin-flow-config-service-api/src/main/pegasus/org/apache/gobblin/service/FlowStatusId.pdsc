@@ -1,7 +1,7 @@
 {
   "type" : "record",
   "name" : "FlowStatusId",
-  "namesapce" : "org.apache.gobblin.service",
+  "namespace" : "org.apache.gobblin.service",
   "doc" : "Identifier for a specific execution of a flow",
   "fields" : [
     {
