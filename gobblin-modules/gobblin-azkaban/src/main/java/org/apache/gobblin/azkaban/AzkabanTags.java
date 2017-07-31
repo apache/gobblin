@@ -22,6 +22,6 @@ package org.apache.gobblin.azkaban;
 /**
  * Utility class for collecting metadata specific to a Azkaban runtime environment.
  */
-public class AzkabanTags extends gobblin.util.AzkabanTags {
+public class AzkabanTags extends org.apache.gobblin.util.AzkabanTags {
 
 }

@@ -29,7 +29,7 @@ import org.apache.gobblin.password.PasswordManager;
 /**
  * This class extends {@link org.apache.gobblin.util.jdbc.DataSourceProvider} with its own property keys.
  */
-public class JobHistoryDataSourceProvider extends gobblin.util.jdbc.DataSourceProvider {
+public class JobHistoryDataSourceProvider extends org.apache.gobblin.util.jdbc.DataSourceProvider {
 
   @Inject
   public JobHistoryDataSourceProvider(@Named("dataSourceProperties") Properties properties) {

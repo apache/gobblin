@@ -24,7 +24,7 @@ package org.apache.gobblin.runtime;
  * @deprecated This class has been moved to {@link org.apache.gobblin.util.limiter.CountBasedLimiter}.
  */
 @Deprecated
-public class CountBasedLimiter extends gobblin.util.limiter.CountBasedLimiter {
+public class CountBasedLimiter extends org.apache.gobblin.util.limiter.CountBasedLimiter {
 
   public CountBasedLimiter(long countLimit) {
     super(countLimit);

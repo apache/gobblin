@@ -24,5 +24,5 @@ package org.apache.gobblin.runtime;
  * @deprecated This class has been moved to {@link org.apache.gobblin.util.limiter.NonRefillableLimiter}.
  */
 @Deprecated
-public abstract class NonRefillableLimiter extends gobblin.util.limiter.NonRefillableLimiter {
+public abstract class NonRefillableLimiter extends org.apache.gobblin.util.limiter.NonRefillableLimiter {
 }

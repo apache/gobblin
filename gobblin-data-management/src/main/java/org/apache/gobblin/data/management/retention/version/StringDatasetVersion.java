@@ -28,7 +28,7 @@ import org.apache.hadoop.fs.Path;
  * {@link org.apache.gobblin.data.management.retention.version.DatasetVersion}.
  */
 @Deprecated
-public class StringDatasetVersion extends gobblin.data.management.version.StringDatasetVersion implements
+public class StringDatasetVersion extends org.apache.gobblin.data.management.version.StringDatasetVersion implements
     DatasetVersion {
 
   public StringDatasetVersion(String version, Path path) {

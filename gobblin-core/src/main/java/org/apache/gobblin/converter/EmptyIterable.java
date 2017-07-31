@@ -21,6 +21,6 @@ package org.apache.gobblin.converter;
  * @deprecated. Please use {@link org.apache.gobblin.util.EmptyIterable} instead.
  */
 @Deprecated
-public class EmptyIterable<T> extends gobblin.util.EmptyIterable<T> {
+public class EmptyIterable<T> extends org.apache.gobblin.util.EmptyIterable<T> {
 
 }

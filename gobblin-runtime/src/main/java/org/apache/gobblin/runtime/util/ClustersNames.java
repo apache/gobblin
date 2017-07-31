@@ -27,7 +27,7 @@ package org.apache.gobblin.runtime.util;
  * <p><b>IMPORTANT:</b> Don't forget to escape colons ":" in the file as those may be interpreted
  * as name/value separators.
  */
-public class ClustersNames extends gobblin.util.ClustersNames {
+public class ClustersNames extends org.apache.gobblin.util.ClustersNames {
 
   private static ClustersNames THE_INSTANCE;
 

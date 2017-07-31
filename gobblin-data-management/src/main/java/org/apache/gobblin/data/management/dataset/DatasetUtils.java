@@ -71,7 +71,7 @@ public class DatasetUtils {
    * @throws IOException
    */
   @SuppressWarnings("unchecked")
-  public static <T extends gobblin.dataset.Dataset> DatasetsFinder<T> instantiateDatasetFinder(Properties props,
+  public static <T extends org.apache.gobblin.dataset.Dataset> DatasetsFinder<T> instantiateDatasetFinder(Properties props,
       FileSystem fs, String default_class, Object... additionalArgs)
       throws IOException {
     String className = default_class;

@@ -23,5 +23,5 @@ package org.apache.gobblin.runtime;
  * @deprecated This class has been moved to {@link org.apache.gobblin.util.limiter.DefaultLimiterFactory}.
  */
 @Deprecated
-public class DefaultLimiterFactory extends gobblin.util.limiter.DefaultLimiterFactory {
+public class DefaultLimiterFactory extends org.apache.gobblin.util.limiter.DefaultLimiterFactory {
 }

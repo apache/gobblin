@@ -33,7 +33,7 @@ import com.google.common.collect.Lists;
  * {@link org.apache.gobblin.data.management.retention.version.DatasetVersion}.
  */
 @Deprecated
-public class TimestampedDatasetVersion extends gobblin.data.management.version.TimestampedDatasetVersion implements
+public class TimestampedDatasetVersion extends org.apache.gobblin.data.management.version.TimestampedDatasetVersion implements
     DatasetVersion {
 
   public TimestampedDatasetVersion(DateTime version, Path path) {

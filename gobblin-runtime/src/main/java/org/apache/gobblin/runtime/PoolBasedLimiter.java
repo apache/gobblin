@@ -24,7 +24,7 @@ package org.apache.gobblin.runtime;
  * @deprecated This class has been moved to {@link org.apache.gobblin.util.limiter.PoolBasedLimiter}.
  */
 @Deprecated
-public class PoolBasedLimiter extends gobblin.util.limiter.PoolBasedLimiter {
+public class PoolBasedLimiter extends org.apache.gobblin.util.limiter.PoolBasedLimiter {
   public PoolBasedLimiter(int poolSize) {
     super(poolSize);
   }

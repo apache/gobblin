@@ -454,7 +454,7 @@ public class TaskContinuousTest {
 
   }
 
-  private class TestStreamingDataWriterBuilder extends gobblin.writer.DataWriterBuilder {
+  private class TestStreamingDataWriterBuilder extends org.apache.gobblin.writer.DataWriterBuilder {
 
     private final List<Object> _recordCollector;
 

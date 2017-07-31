@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
  * @deprecated This class has been moved to {@link org.apache.gobblin.util.limiter.RateBasedLimiter}.
  */
 @Deprecated
-public class RateBasedLimiter extends gobblin.util.limiter.RateBasedLimiter {
+public class RateBasedLimiter extends org.apache.gobblin.util.limiter.RateBasedLimiter {
 
   public RateBasedLimiter(double rateLimit) {
     super(rateLimit);

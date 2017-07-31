@@ -20,5 +20,5 @@ package org.apache.gobblin.data.management.dataset;
 /**
  * {@inheritDoc}
  */
-public interface Dataset extends gobblin.dataset.Dataset {
+public interface Dataset extends org.apache.gobblin.dataset.Dataset {
 }
