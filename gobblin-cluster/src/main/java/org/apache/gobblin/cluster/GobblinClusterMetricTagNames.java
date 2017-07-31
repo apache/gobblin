@@ -21,7 +21,7 @@ import org.apache.gobblin.annotation.Alpha;
 
 
 /**
- * A central place for constants of {@link gobblin.metrics.MetricContext} tag names for a Gobblin cluster.
+ * A central place for constants of {@link org.apache.gobblin.metrics.MetricContext} tag names for a Gobblin cluster.
  *
  * @author Yinan Li
  */

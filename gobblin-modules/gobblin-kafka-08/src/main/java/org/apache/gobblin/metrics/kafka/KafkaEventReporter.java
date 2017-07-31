@@ -34,7 +34,7 @@ import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 
 
 /**
- * Reports {@link gobblin.metrics.GobblinTrackingEvent} to a Kafka topic serialized as JSON.
+ * Reports {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to a Kafka topic serialized as JSON.
  */
 public class KafkaEventReporter extends EventReporter {
 
@@ -78,7 +78,7 @@ public class KafkaEventReporter extends EventReporter {
    * Returns a new {@link KafkaEventReporter.Builder} for {@link KafkaEventReporter}.
    * Will automatically add all Context tags to the reporter.
    *
-   * @param context the {@link gobblin.metrics.MetricContext} to report
+   * @param context the {@link org.apache.gobblin.metrics.MetricContext} to report
    * @return KafkaReporter builder
    * @deprecated this method is bugged. Use {@link KafkaEventReporter.Factory#forContext} instead.
    */
@@ -103,7 +103,7 @@ public class KafkaEventReporter extends EventReporter {
      * Returns a new {@link KafkaEventReporter.Builder} for {@link KafkaEventReporter}.
      * Will automatically add all Context tags to the reporter.
      *
-     * @param context the {@link gobblin.metrics.MetricContext} to report
+     * @param context the {@link org.apache.gobblin.metrics.MetricContext} to report
      * @return KafkaReporter builder
      */
     public static BuilderImpl forContext(MetricContext context) {
@@ -127,7 +127,7 @@ public class KafkaEventReporter extends EventReporter {
     }
 
     /**
-     * Set {@link gobblin.metrics.kafka.KafkaPusher} to use.
+     * Set {@link org.apache.gobblin.metrics.kafka.KafkaPusher} to use.
      */
     public T withKafkaPusher(KafkaPusher pusher) {
       this.kafkaPusher = Optional.of(pusher);

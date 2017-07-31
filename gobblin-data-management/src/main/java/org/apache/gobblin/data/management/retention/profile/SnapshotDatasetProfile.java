@@ -28,7 +28,7 @@ import org.apache.gobblin.dataset.Dataset;
 
 
 /**
- * {@link gobblin.dataset.DatasetsFinder} for snapshot datasets.
+ * {@link org.apache.gobblin.dataset.DatasetsFinder} for snapshot datasets.
  *
  * <p>
  *   Snapshot datasets are datasets where each version is a snapshot/full-dump of a dataset (e.g. a database).

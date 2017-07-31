@@ -36,8 +36,8 @@ import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 /**
  * {@link CleanableDatasetBase} for snapshot datasets.
  *
- * Uses a {@link gobblin.data.management.retention.version.finder.WatermarkDatasetVersionFinder} and a
- * {@link gobblin.data.management.retention.policy.NewestKRetentionPolicy}.
+ * Uses a {@link org.apache.gobblin.data.management.retention.version.finder.WatermarkDatasetVersionFinder} and a
+ * {@link org.apache.gobblin.data.management.retention.policy.NewestKRetentionPolicy}.
  */
 public class SnapshotDataset extends CleanableDatasetBase<FileSystemDatasetVersion> {
 

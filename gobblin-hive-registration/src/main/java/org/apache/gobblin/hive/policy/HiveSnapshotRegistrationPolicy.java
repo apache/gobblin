@@ -41,7 +41,7 @@ import org.apache.gobblin.hive.spec.SimpleHiveSpec;
 
 
 /**
- * A {@link gobblin.hive.policy.HiveRegistrationPolicy} for registering snapshots.
+ * A {@link org.apache.gobblin.hive.policy.HiveRegistrationPolicy} for registering snapshots.
  *
  * @author Ziyang Liu
  */

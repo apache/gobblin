@@ -37,8 +37,8 @@ import org.apache.gobblin.writer.WatermarkAwareWriter;
 
 
 /**
- * Decorator that automatically instruments {@link gobblin.writer.DataWriter}. Handles already instrumented
- * {@link gobblin.instrumented.writer.InstrumentedDataWriter} appropriately to avoid double metric reporting.
+ * Decorator that automatically instruments {@link org.apache.gobblin.writer.DataWriter}. Handles already instrumented
+ * {@link org.apache.gobblin.instrumented.writer.InstrumentedDataWriter} appropriately to avoid double metric reporting.
  */
 public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBase<D> implements Decorator, WatermarkAwareWriter<D> {
 

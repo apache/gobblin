@@ -18,7 +18,7 @@
 package org.apache.gobblin.runtime.metrics;
 
 /**
- * Constants used for naming {@link gobblin.metrics.Metric}s and metric metadata in gobblin-runtime.
+ * Constants used for naming {@link org.apache.gobblin.metrics.Metric}s and metric metadata in gobblin-runtime.
  */
 public class RuntimeMetrics {
 

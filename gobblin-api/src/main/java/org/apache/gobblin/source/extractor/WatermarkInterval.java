@@ -22,9 +22,9 @@ import com.google.gson.JsonObject;
 
 
 /**
- * Each {@link gobblin.source.workunit.WorkUnit} has a corresponding {@link WatermarkInterval}. The
+ * Each {@link org.apache.gobblin.source.workunit.WorkUnit} has a corresponding {@link WatermarkInterval}. The
  * {@link WatermarkInterval} represents the range of the data that needs to be pulled for the {@link WorkUnit}. So, the
- * {@link gobblin.source.workunit.WorkUnit} should pull data from the {@link #lowWatermark} to the
+ * {@link org.apache.gobblin.source.workunit.WorkUnit} should pull data from the {@link #lowWatermark} to the
  * {@link #expectedHighWatermark}.
  */
 public class WatermarkInterval {

@@ -21,7 +21,7 @@ package org.apache.gobblin.source.workunit;
  * Provides weights for {@link WorkUnit}s to use by a {@link WorkUnitBinPacker}.
  *
  * <p>
- *   The weight is used by a bin packing algorithm to organize {@link WorkUnit}s into {@link gobblin.source.workunit.MultiWorkUnit}s
+ *   The weight is used by a bin packing algorithm to organize {@link WorkUnit}s into {@link org.apache.gobblin.source.workunit.MultiWorkUnit}s
  *   with a bounded total weight. The weighter must have the following properties:
  *   <ul>
  *     <li>If wu1.equals(wu2), then weight(wu1) == weight(wu2).</li>

@@ -247,7 +247,7 @@ public class MRJobLauncherTest extends BMNGRunner {
    * Seems setting mapreduce.map.failures.maxpercent=100 does not prevent Hadoop2's LocalJobRunner from
    * failing and aborting a job if any mapper task fails. Aborting the job causes its working directory
    * to be deleted in {@link GobblinOutputCommitter}, which further fails this test since all the output
-   * {@link gobblin.runtime.TaskState}s are deleted. There may be a bug in Hadoop2's LocalJobRunner.
+   * {@link org.apache.gobblin.runtime.TaskState}s are deleted. There may be a bug in Hadoop2's LocalJobRunner.
    *
    * Also applicable to the two tests below.
    */

@@ -39,7 +39,7 @@ import org.apache.gobblin.fork.CopyableSchema;
 
 /**
  * An implementation of {@link Converter} for tests related to the
- * {@link gobblin.fork.ForkOperator}.
+ * {@link org.apache.gobblin.fork.ForkOperator}.
  *
  * @author Yinan Li
  */

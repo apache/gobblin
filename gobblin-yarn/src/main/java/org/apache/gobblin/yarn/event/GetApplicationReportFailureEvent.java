@@ -21,7 +21,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationReport;
 
 
 /**
- * A type of events posted when the {@link gobblin.yarn.GobblinYarnAppLauncher} fails to get
+ * A type of events posted when the {@link org.apache.gobblin.yarn.GobblinYarnAppLauncher} fails to get
  * the {@link ApplicationReport} of the Gobblin Yarn application.
  *
  * @author Yinan Li

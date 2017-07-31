@@ -29,7 +29,7 @@ import lombok.Getter;
 
 
 /**
- * {@link gobblin.data.management.version.DatasetVersion} based on a timestamp.
+ * {@link org.apache.gobblin.data.management.version.DatasetVersion} based on a timestamp.
  */
 @Getter
 public class TimestampedDatasetVersion implements FileSystemDatasetVersion {

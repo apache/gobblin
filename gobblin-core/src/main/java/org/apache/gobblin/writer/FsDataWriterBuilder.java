@@ -50,7 +50,7 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
   private List<StreamCodec> encoders;
 
   /**
-   * Get the file name to be used by the writer. If a {@link gobblin.writer.partitioner.WriterPartioner} is used,
+   * Get the file name to be used by the writer. If a {@link org.apache.gobblin.writer.partitioner.WriterPartioner} is used,
    * the partition will be added as part of the file name.
    */
   public String getFileName(State properties) {

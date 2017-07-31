@@ -72,7 +72,7 @@ import org.apache.gobblin.writer.PartitionIdentifier;
  * {@link ConfigurationKeys#WRITER_FILE_PATH}. Then the final output data for a writer will be
  * {@link ConfigurationKeys#DATA_PUBLISHER_FINAL_DIR}/{@link ConfigurationKeys#WRITER_FILE_PATH}. If the
  * {@link ConfigurationKeys#WRITER_FILE_PATH} is not specified, a default one is assigned. The default path is
- * constructed in the {@link gobblin.source.workunit.Extract#getOutputFilePath()} method.
+ * constructed in the {@link org.apache.gobblin.source.workunit.Extract#getOutputFilePath()} method.
  * </p>
  *
  * <p>

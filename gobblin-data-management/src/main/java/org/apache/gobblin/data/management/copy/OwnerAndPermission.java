@@ -58,7 +58,7 @@ public class OwnerAndPermission implements Writable {
   }
 
   /**
-   * Read a {@link gobblin.data.management.copy.OwnerAndPermission} from a {@link java.io.DataInput}.
+   * Read a {@link org.apache.gobblin.data.management.copy.OwnerAndPermission} from a {@link java.io.DataInput}.
    * @throws IOException
    */
   public static OwnerAndPermission read(DataInput input) throws IOException {

@@ -46,7 +46,7 @@ import org.apache.gobblin.util.HadoopUtils;
 
 
 /**
- * An implementation of {@link gobblin.source.Source} that uses a Hadoop {@link FileInputFormat} to get a
+ * An implementation of {@link org.apache.gobblin.source.Source} that uses a Hadoop {@link FileInputFormat} to get a
  * {@link FileSplit} per {@link Extractor} return by {@link #getExtractor(WorkUnitState)} and a
  * {@link RecordReader} to read the {@link FileSplit}.
  *

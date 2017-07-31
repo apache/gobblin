@@ -28,7 +28,7 @@ import com.google.common.base.Preconditions;
 /**
  * A holder for an MD5Digest
  * Allows for conversion between the human-readable String version and the serializable byte[] version.
- * Used by the {@link gobblin.kafka.schemareg.LiKafkaSchemaRegistry}
+ * Used by the {@link org.apache.gobblin.kafka.schemareg.LiKafkaSchemaRegistry}
  */
 public class MD5Digest {
 

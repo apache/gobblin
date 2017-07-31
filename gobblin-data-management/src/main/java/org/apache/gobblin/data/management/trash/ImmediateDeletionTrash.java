@@ -27,7 +27,7 @@ import org.apache.gobblin.util.ProxiedFileSystemCache;
 
 
 /**
- * {@link gobblin.data.management.trash.ProxiedTrash} implementation that immediately deletes
+ * {@link org.apache.gobblin.data.management.trash.ProxiedTrash} implementation that immediately deletes
  * {@link org.apache.hadoop.fs.Path}s instead of moving them to trash.
  */
 public class ImmediateDeletionTrash extends ProxiedTrash {

@@ -226,8 +226,8 @@ public class AvroUtilsTest {
   }
 
   /**
-   * This is a test to validate support of maps in {@link gobblin.util.AvroUtils#getFieldValue(GenericRecord, String)}
-   * and {@link gobblin.util.AvroUtils#getFieldSchema(Schema, String)}
+   * This is a test to validate support of maps in {@link org.apache.gobblin.util.AvroUtils#getFieldValue(GenericRecord, String)}
+   * and {@link org.apache.gobblin.util.AvroUtils#getFieldSchema(Schema, String)}
    * @throws IOException
    */
 

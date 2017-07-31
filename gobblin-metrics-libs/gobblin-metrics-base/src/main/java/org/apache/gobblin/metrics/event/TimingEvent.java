@@ -23,7 +23,7 @@ import com.google.common.collect.Maps;
 
 /**
  * Event to time actions in the program. Automatically reports start time, end time, and duration from the time
- * the {@link gobblin.metrics.event.TimingEvent} was created to the time {@link #stop} is called.
+ * the {@link org.apache.gobblin.metrics.event.TimingEvent} was created to the time {@link #stop} is called.
  */
 public class TimingEvent {
 

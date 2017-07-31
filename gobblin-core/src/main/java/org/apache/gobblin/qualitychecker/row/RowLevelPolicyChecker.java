@@ -116,9 +116,9 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
 
   /**
    * Get final state for this object, obtained by merging the final states of the
-   * {@link gobblin.qualitychecker.row.RowLevelPolicy}s used by this object.
-   * @return Merged {@link gobblin.configuration.State} of final states for
-   *                {@link gobblin.qualitychecker.row.RowLevelPolicy} used by this checker.
+   * {@link org.apache.gobblin.qualitychecker.row.RowLevelPolicy}s used by this object.
+   * @return Merged {@link org.apache.gobblin.configuration.State} of final states for
+   *                {@link org.apache.gobblin.qualitychecker.row.RowLevelPolicy} used by this checker.
    */
   @Override
   public State getFinalState() {

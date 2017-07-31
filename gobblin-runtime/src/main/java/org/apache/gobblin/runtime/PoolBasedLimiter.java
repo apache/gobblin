@@ -21,7 +21,7 @@ package org.apache.gobblin.runtime;
 /**
  * {@inheritDoc}
  *
- * @deprecated This class has been moved to {@link gobblin.util.limiter.PoolBasedLimiter}.
+ * @deprecated This class has been moved to {@link org.apache.gobblin.util.limiter.PoolBasedLimiter}.
  */
 @Deprecated
 public class PoolBasedLimiter extends gobblin.util.limiter.PoolBasedLimiter {

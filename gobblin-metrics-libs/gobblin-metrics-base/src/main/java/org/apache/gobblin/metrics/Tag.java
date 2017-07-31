@@ -51,7 +51,7 @@ public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
    * </p>
    *
    * @param tagKeyValue String of the form "key:value".
-   * @return {@link gobblin.metrics.Tag} parsed from input.
+   * @return {@link org.apache.gobblin.metrics.Tag} parsed from input.
    */
   public static Tag<String> fromString(String tagKeyValue) {
     List<String> splitKeyValue = Splitter.on(KEY_VALUE_SEPARATOR).limit(2).omitEmptyStrings().splitToList(tagKeyValue);

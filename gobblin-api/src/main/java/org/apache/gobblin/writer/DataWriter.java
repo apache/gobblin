@@ -85,7 +85,7 @@ public interface DataWriter<D> extends Closeable, Flushable {
   }
 
   /**
-   * Default handler calls flush on this object when a {@link gobblin.stream.FlushControlMessage} is received
+   * Default handler calls flush on this object when a {@link org.apache.gobblin.stream.FlushControlMessage} is received
    * @return A {@link ControlMessageHandler}.
    */
   default ControlMessageHandler getMessageHandler() {

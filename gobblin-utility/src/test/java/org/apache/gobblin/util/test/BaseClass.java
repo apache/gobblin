@@ -23,7 +23,7 @@ import java.util.Random;
 
 
 /**
- * Used for {@link gobblin.util.io.GsonInterfaceAdapterTest}.
+ * Used for {@link org.apache.gobblin.util.io.GsonInterfaceAdapterTest}.
  */
 @EqualsAndHashCode
 public class BaseClass {

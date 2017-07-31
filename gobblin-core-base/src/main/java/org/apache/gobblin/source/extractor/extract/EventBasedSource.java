@@ -21,7 +21,7 @@ import org.apache.gobblin.configuration.SourceState;
 
 
 /**
- * A base implementation of {@link gobblin.source.Source} for
+ * A base implementation of {@link org.apache.gobblin.source.Source} for
  * event-based sources.
  */
 public abstract class EventBasedSource<S, D> extends AbstractSource<S, D> {

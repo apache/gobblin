@@ -24,8 +24,8 @@ import org.apache.gobblin.compaction.dataset.DatasetHelper;
  * different criteria or different combination strategies to decide if a recompaction is mandatory.
  *
  * The interface {@link RecompactionCondition} provides a generic API. This is used when
- * {@link gobblin.compaction.mapreduce.MRCompactorJobRunner} attempts to check if a recompaction is necessary. Real
- * examination is delegated to {@link gobblin.compaction.dataset.Dataset#checkIfNeedToRecompact(DatasetHelper)},
+ * {@link org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner} attempts to check if a recompaction is necessary. Real
+ * examination is delegated to {@link org.apache.gobblin.compaction.dataset.Dataset#checkIfNeedToRecompact(DatasetHelper)},
  * which finally invokes this API.
  */
 

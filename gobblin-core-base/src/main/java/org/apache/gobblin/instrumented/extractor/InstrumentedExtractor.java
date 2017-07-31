@@ -25,7 +25,7 @@ import org.apache.gobblin.stream.RecordEnvelope;
 
 
 /**
- * Instrumented version of {@link gobblin.source.extractor.Extractor} automatically captures certain metrics.
+ * Instrumented version of {@link org.apache.gobblin.source.extractor.Extractor} automatically captures certain metrics.
  * Subclasses should implement readRecordImpl instead of readRecord.
  */
 public abstract class InstrumentedExtractor<S, D> extends InstrumentedExtractorBase<S, D> {

@@ -29,7 +29,7 @@ import com.google.common.collect.Maps;
 
 
 /**
- * Used for {@link gobblin.util.io.GsonInterfaceAdapterTest}.
+ * Used for {@link org.apache.gobblin.util.io.GsonInterfaceAdapterTest}.
  */
 @EqualsAndHashCode(callSuper = true)
 public class TestClass extends BaseClass {

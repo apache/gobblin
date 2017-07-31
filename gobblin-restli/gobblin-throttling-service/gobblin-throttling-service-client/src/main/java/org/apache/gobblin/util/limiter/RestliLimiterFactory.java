@@ -39,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * A {@link gobblin.util.limiter.broker.SharedLimiterFactory} that creates {@link RestliServiceBasedLimiter}s. It
+ * A {@link org.apache.gobblin.util.limiter.broker.SharedLimiterFactory} that creates {@link RestliServiceBasedLimiter}s. It
  * automatically acquires a {@link RestClient} from the broker for restli service name {@link #RESTLI_SERVICE_NAME}.
  */
 @Slf4j

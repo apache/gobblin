@@ -45,7 +45,7 @@ import org.apache.gobblin.util.PathUtils;
 
 /**
  * A configurable {@link DatasetsFinder} that looks for
- * {@link gobblin.data.management.retention.dataset.CleanableDataset}s using a glob pattern.
+ * {@link org.apache.gobblin.data.management.retention.dataset.CleanableDataset}s using a glob pattern.
  */
 public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implements DatasetsFinder<T> {
 
@@ -115,9 +115,9 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
   }
 
   /**
-   * Finds all directories satisfying the input glob pattern, and creates a {@link gobblin.data.management.retention.dataset.CleanableDataset}
+   * Finds all directories satisfying the input glob pattern, and creates a {@link org.apache.gobblin.data.management.retention.dataset.CleanableDataset}
    * for each one using {@link #datasetAtPath}.
-   * @return List of {@link gobblin.data.management.retention.dataset.CleanableDataset}s in the file system.
+   * @return List of {@link org.apache.gobblin.data.management.retention.dataset.CleanableDataset}s in the file system.
    * @throws IOException
    */
   @Override
@@ -155,10 +155,10 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
   }
 
   /**
-   * Creates a {@link gobblin.data.management.retention.dataset.CleanableDataset} from a path. The default implementation
-   * creates a {@link gobblin.data.management.retention.dataset.ConfigurableCleanableDataset}.
+   * Creates a {@link org.apache.gobblin.data.management.retention.dataset.CleanableDataset} from a path. The default implementation
+   * creates a {@link org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset}.
    * @param path {@link org.apache.hadoop.fs.Path} where dataset is located.
-   * @return {@link gobblin.data.management.retention.dataset.CleanableDataset} at that path.
+   * @return {@link org.apache.gobblin.data.management.retention.dataset.CleanableDataset} at that path.
    * @throws IOException
    */
   public abstract T datasetAtPath(Path path) throws IOException;

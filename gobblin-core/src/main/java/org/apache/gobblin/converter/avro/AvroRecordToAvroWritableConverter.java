@@ -34,7 +34,7 @@ import org.apache.gobblin.converter.SchemaConversionException;
 
 /**
  * A {@link Converter} that takes an Avro {@link GenericRecord} and converts it to {@link AvroGenericRecordWritable}.
- * This class is useful for integration with the {@link gobblin.converter.serde.HiveSerDeConverter}, which expects input
+ * This class is useful for integration with the {@link org.apache.gobblin.converter.serde.HiveSerDeConverter}, which expects input
  * records to be of type {@link org.apache.hadoop.io.Writable}.
  */
 public class AvroRecordToAvroWritableConverter

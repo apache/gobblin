@@ -26,7 +26,7 @@ import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 
 /**
  * @deprecated
- * Extends {@link gobblin.data.management.version.FileSystemDatasetVersion}.
+ * Extends {@link org.apache.gobblin.data.management.version.FileSystemDatasetVersion}.
  */
 @Deprecated
 public interface DatasetVersion extends FileSystemDatasetVersion {

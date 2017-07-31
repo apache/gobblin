@@ -30,7 +30,7 @@ import lombok.Getter;
 
 
 /**
- * Wrapper around Avro {@link gobblin.metrics.GobblinTrackingEvent.Builder} simplifying handling {@link gobblin.metrics.GobblinTrackingEvent}s.
+ * Wrapper around Avro {@link org.apache.gobblin.metrics.GobblinTrackingEvent.Builder} simplifying handling {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s.
  *
  * <p>
  *   Instances of this class are immutable. Calling set* methods returns a copy of the calling instance.
@@ -83,7 +83,7 @@ public class EventSubmitter {
   }
 
   /**
-   * Submits the {@link gobblin.metrics.GobblinTrackingEvent} to the {@link gobblin.metrics.MetricContext}.
+   * Submits the {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to the {@link org.apache.gobblin.metrics.MetricContext}.
    * @param name Name of the event.
    */
   public void submit(String name) {
@@ -100,7 +100,7 @@ public class EventSubmitter {
   }
 
   /**
-   * Submits the {@link gobblin.metrics.GobblinTrackingEvent} to the {@link gobblin.metrics.MetricContext}.
+   * Submits the {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to the {@link org.apache.gobblin.metrics.MetricContext}.
    * @param name Name of the event.
    * @param metadataEls List of keys and values for metadata of the form key1, value2, key2, value2, ...
    */
@@ -126,7 +126,7 @@ public class EventSubmitter {
   }
 
   /**
-   * Submits the {@link gobblin.metrics.GobblinTrackingEvent} to the {@link gobblin.metrics.MetricContext}.
+   * Submits the {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to the {@link org.apache.gobblin.metrics.MetricContext}.
    * @param name Name of the event.
    * @param additionalMetadata Additional metadata to be added to the event.
    */
@@ -152,9 +152,9 @@ public class EventSubmitter {
   }
 
   /**
-   * Get a {@link gobblin.metrics.event.TimingEvent} attached to this {@link gobblin.metrics.event.EventSubmitter}.
-   * @param name Name of the {@link gobblin.metrics.GobblinTrackingEvent} that will be generated.
-   * @return a {@link gobblin.metrics.event.TimingEvent}.
+   * Get a {@link org.apache.gobblin.metrics.event.TimingEvent} attached to this {@link org.apache.gobblin.metrics.event.EventSubmitter}.
+   * @param name Name of the {@link org.apache.gobblin.metrics.GobblinTrackingEvent} that will be generated.
+   * @return a {@link org.apache.gobblin.metrics.event.TimingEvent}.
    */
   public TimingEvent getTimingEvent(String name) {
     return new TimingEvent(this, name);

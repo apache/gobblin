@@ -48,7 +48,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
- * Job for restoring {@link gobblin.compliance.HivePartitionDataset} from the backups
+ * Job for restoring {@link org.apache.gobblin.compliance.HivePartitionDataset} from the backups
  *
  * @author adsharma
  */

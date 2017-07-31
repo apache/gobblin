@@ -29,7 +29,7 @@ import org.apache.gobblin.source.extractor.Extractor;
 
 
 /**
- * Base {@link Extractor} for extracting from {@link gobblin.data.management.conversion.hive.source.HiveSource}
+ * Base {@link Extractor} for extracting from {@link org.apache.gobblin.data.management.conversion.hive.source.HiveSource}
  */
 public abstract class HiveBaseExtractor<S, D> implements Extractor<S, D> {
 

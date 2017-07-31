@@ -18,7 +18,7 @@
 package org.apache.gobblin.yarn;
 
 /**
- * YARN specific event constants to be used with an {@link gobblin.metrics.event.EventSubmitter}.
+ * YARN specific event constants to be used with an {@link org.apache.gobblin.metrics.event.EventSubmitter}.
  */
 public class GobblinYarnEventConstants {
 

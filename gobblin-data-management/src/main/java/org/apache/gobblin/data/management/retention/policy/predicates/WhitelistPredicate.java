@@ -28,7 +28,7 @@ import org.apache.gobblin.data.management.retention.version.StringDatasetVersion
 
 
 /**
- * {@link com.google.common.base.Predicate} for {@link gobblin.data.management.retention.policy.PredicateRetentionPolicy}
+ * {@link com.google.common.base.Predicate} for {@link org.apache.gobblin.data.management.retention.policy.PredicateRetentionPolicy}
  * that passes versions matching a user supplied regular expression. (i.e. versions matching the regex will not be
  * deleted).
  */

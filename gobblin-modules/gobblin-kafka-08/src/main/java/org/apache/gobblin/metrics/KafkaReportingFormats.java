@@ -36,10 +36,10 @@ public enum KafkaReportingFormats {
   JSON;
 
   /**
-   * Get a {@link gobblin.metrics.kafka.KafkaReporter.Builder} for this reporting format.
+   * Get a {@link org.apache.gobblin.metrics.kafka.KafkaReporter.Builder} for this reporting format.
    *
    * @param properties {@link java.util.Properties} containing information to build reporters.
-   * @return {@link gobblin.metrics.kafka.KafkaReporter.Builder}.
+   * @return {@link org.apache.gobblin.metrics.kafka.KafkaReporter.Builder}.
    */
   public KafkaReporter.Builder<?> metricReporterBuilder(Properties properties) {
     switch (this) {
@@ -59,10 +59,10 @@ public enum KafkaReportingFormats {
   }
 
   /**
-   * Get a {@link gobblin.metrics.kafka.KafkaEventReporter.Builder} for this reporting format.
-   * @param context {@link gobblin.metrics.MetricContext} that should be reported.
+   * Get a {@link org.apache.gobblin.metrics.kafka.KafkaEventReporter.Builder} for this reporting format.
+   * @param context {@link org.apache.gobblin.metrics.MetricContext} that should be reported.
    * @param properties {@link java.util.Properties} containing information to build reporters.
-   * @return {@link gobblin.metrics.kafka.KafkaEventReporter.Builder}.
+   * @return {@link org.apache.gobblin.metrics.kafka.KafkaEventReporter.Builder}.
    */
   public KafkaEventReporter.Builder<?> eventReporterBuilder(MetricContext context, Properties properties) {
     switch (this) {

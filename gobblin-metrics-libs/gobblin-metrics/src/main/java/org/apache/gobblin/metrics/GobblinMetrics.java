@@ -164,13 +164,13 @@ public class GobblinMetrics {
   }
 
   /**
-   * Add a {@link List} of {@link Tag}s to a {@link gobblin.configuration.State} with key {@link #METRICS_STATE_CUSTOM_TAGS}.
+   * Add a {@link List} of {@link Tag}s to a {@link org.apache.gobblin.configuration.State} with key {@link #METRICS_STATE_CUSTOM_TAGS}.
    *
    * <p>
-   *   {@link gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
+   *   {@link org.apache.gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
    * </p>
    *
-   * @param state {@link gobblin.configuration.State} state to add the tag to.
+   * @param state {@link org.apache.gobblin.configuration.State} state to add the tag to.
    * @param tags list of {@link Tag}s to add.
    */
   public static void addCustomTagToState(State state, List<? extends Tag<?>> tags) {
@@ -180,13 +180,13 @@ public class GobblinMetrics {
   }
 
   /**
-   * Add a {@link Tag} to a {@link gobblin.configuration.State} with key {@link #METRICS_STATE_CUSTOM_TAGS}.
+   * Add a {@link Tag} to a {@link org.apache.gobblin.configuration.State} with key {@link #METRICS_STATE_CUSTOM_TAGS}.
    *
    * <p>
-   *   {@link gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
+   *   {@link org.apache.gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
    * </p>
    *
-   * @param state {@link gobblin.configuration.State} state to add the tag to.
+   * @param state {@link org.apache.gobblin.configuration.State} state to add the tag to.
    * @param tag {@link Tag} to add.
    */
   public static void addCustomTagToState(State state, Tag<?> tag) {
@@ -201,7 +201,7 @@ public class GobblinMetrics {
    *
    * <p>
    *   The {@link Properties} passed can be used to build a {@link State}.
-   *   {@link gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
+   *   {@link org.apache.gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
    * </p>
    *
    * @param properties {@link Properties} to add the tag to.
@@ -219,7 +219,7 @@ public class GobblinMetrics {
    *
    * <p>
    *   The {@link Properties} passed can be used to build a {@link State}.
-   *   {@link gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
+   *   {@link org.apache.gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
    * </p>
    *
    * @param properties {@link Properties} to add the tag to.
@@ -232,10 +232,10 @@ public class GobblinMetrics {
   }
 
   /**
-   * Parse custom {@link gobblin.metrics.Tag}s from property {@link #METRICS_STATE_CUSTOM_TAGS}
-   * in the input {@link gobblin.configuration.State}.
-   * @param state {@link gobblin.configuration.State} possibly containing custom tags.
-   * @return List of {@link gobblin.metrics.Tag} parsed from input.
+   * Parse custom {@link org.apache.gobblin.metrics.Tag}s from property {@link #METRICS_STATE_CUSTOM_TAGS}
+   * in the input {@link org.apache.gobblin.configuration.State}.
+   * @param state {@link org.apache.gobblin.configuration.State} possibly containing custom tags.
+   * @return List of {@link org.apache.gobblin.metrics.Tag} parsed from input.
    */
   public static List<Tag<?>> getCustomTagsFromState(State state) {
     List<Tag<?>> tags = Lists.newArrayList();
@@ -673,7 +673,7 @@ public class GobblinMetrics {
 
   /**
    * Build scheduled metrics reporters by reflection from the property
-   * {@link gobblin.configuration.ConfigurationKeys#METRICS_CUSTOM_BUILDERS}. This allows users to specify custom
+   * {@link org.apache.gobblin.configuration.ConfigurationKeys#METRICS_CUSTOM_BUILDERS}. This allows users to specify custom
    * reporters for Gobblin runtime without having to modify the code.
    */
   private void buildCustomMetricReporters(Properties properties) {

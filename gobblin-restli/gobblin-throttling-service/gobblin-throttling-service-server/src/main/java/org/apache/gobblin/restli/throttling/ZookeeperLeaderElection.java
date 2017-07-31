@@ -65,7 +65,7 @@ public class ZookeeperLeaderElection<T extends LeaderFinder.Metadata> extends Ab
   /**
    * @param zkConnectString Zookeeper connect string.
    * @param clusterName Cluster name. Processes in the same cluster are identified by the cluster name.
-   * @param localMetadata {@link gobblin.restli.throttling.LeaderFinder.Metadata} for the local process.
+   * @param localMetadata {@link org.apache.gobblin.restli.throttling.LeaderFinder.Metadata} for the local process.
    * @throws IOException
    */
   public ZookeeperLeaderElection(String zkConnectString, String clusterName, T localMetadata) throws IOException {

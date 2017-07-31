@@ -24,7 +24,7 @@ import org.apache.gobblin.metrics.MetricContext;
 
 
 /**
- * Filter for selecting {@link MetricContext}s to report by a {@link gobblin.metrics.reporter.ContextAwareReporter}.
+ * Filter for selecting {@link MetricContext}s to report by a {@link org.apache.gobblin.metrics.reporter.ContextAwareReporter}.
  */
 public interface ContextFilter {
 
@@ -42,11 +42,11 @@ public interface ContextFilter {
   public boolean matches(MetricContext metricContext);
 
   /**
-   * This method is called by a {@link gobblin.metrics.reporter.ContextAwareReporter} when a {@link MetricContext}
+   * This method is called by a {@link org.apache.gobblin.metrics.reporter.ContextAwareReporter} when a {@link MetricContext}
    * that it used to report is cleaned. Every cleaned {@link MetricContext} is a leaf of the tree. In some circumstances,
    * after removing the {@link MetricContext} it is necessary to start reporting the parent (for example, if we
    * are reporting leaves, and the parent is a new leaf). This method is called to determine if the
-   * {@link gobblin.metrics.reporter.ContextAwareReporter} should start reporting the parent of the input
+   * {@link org.apache.gobblin.metrics.reporter.ContextAwareReporter} should start reporting the parent of the input
    * {@link InnerMetricContext}.
    *
    * @param removedMetricContext {@link InnerMetricContext} backing up the newly removed {@link MetricContext}.

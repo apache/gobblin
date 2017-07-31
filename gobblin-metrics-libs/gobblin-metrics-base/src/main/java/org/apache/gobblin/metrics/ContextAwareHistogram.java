@@ -26,7 +26,7 @@ import org.apache.gobblin.metrics.metric.InnerMetric;
 
 
 /**
- * A type of {@link com.codahale.metrics.Histogram} that are aware of their {@link gobblin.metrics.MetricContext}
+ * A type of {@link com.codahale.metrics.Histogram} that are aware of their {@link org.apache.gobblin.metrics.MetricContext}
  * and can have associated {@link Tag}s.
  *
  * <p>

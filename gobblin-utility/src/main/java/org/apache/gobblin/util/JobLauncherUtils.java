@@ -78,7 +78,7 @@ public class JobLauncherUtils {
   }
 
   /**
-   * Create an ID for a new multi-task (corresponding to a {@link gobblin.source.workunit.MultiWorkUnit})
+   * Create an ID for a new multi-task (corresponding to a {@link org.apache.gobblin.source.workunit.MultiWorkUnit})
    * for the job with the given job ID.
    *
    * @param jobId job ID

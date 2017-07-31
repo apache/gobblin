@@ -47,7 +47,7 @@ import org.apache.gobblin.metrics.MetricReport;
 
 
 /**
- * Scheduled reporter based on {@link gobblin.metrics.MetricReport}.
+ * Scheduled reporter based on {@link org.apache.gobblin.metrics.MetricReport}.
  *
  * <p>
  *   This class will generate a metric report, and call {@link #emitReport} to actually emit the metrics.
@@ -145,7 +145,7 @@ public abstract class MetricReportReporter extends ConfiguredScheduledReporter {
   }
 
   /**
-   * Emit the {@link gobblin.metrics.MetricReport} to the metrics sink.
+   * Emit the {@link org.apache.gobblin.metrics.MetricReport} to the metrics sink.
    *
    * @param report metric report to emit.
    */
@@ -156,7 +156,7 @@ public abstract class MetricReportReporter extends ConfiguredScheduledReporter {
    *
    * @param name name of the {@link com.codahale.metrics.Gauge}.
    * @param gauge instance of {@link com.codahale.metrics.Gauge} to serialize.
-   * @return a list of {@link gobblin.metrics.Metric}.
+   * @return a list of {@link org.apache.gobblin.metrics.Metric}.
    */
   protected List<Metric> serializeGauge(String name, Gauge gauge) {
     List<Metric> metrics = Lists.newArrayList();
@@ -173,7 +173,7 @@ public abstract class MetricReportReporter extends ConfiguredScheduledReporter {
    *
    * @param name name of the {@link com.codahale.metrics.Counter}.
    * @param counter instance of {@link com.codahale.metrics.Counter} to serialize.
-   * @return a list of {@link gobblin.metrics.Metric}.
+   * @return a list of {@link org.apache.gobblin.metrics.Metric}.
    */
   protected List<Metric> serializeCounter(String name, Counting counter) {
     return Lists.newArrayList(
@@ -186,7 +186,7 @@ public abstract class MetricReportReporter extends ConfiguredScheduledReporter {
    *
    * @param name name of the {@link com.codahale.metrics.Metered}.
    * @param meter instance of {@link com.codahale.metrics.Metered} to serialize.
-   * @return a list of {@link gobblin.metrics.Metric}.
+   * @return a list of {@link org.apache.gobblin.metrics.Metric}.
    */
   protected List<Metric> serializeMetered(String name, Metered meter) {
     return Lists.newArrayList(
@@ -203,7 +203,7 @@ public abstract class MetricReportReporter extends ConfiguredScheduledReporter {
    *
    * @param name name of the {@link com.codahale.metrics.Snapshot}.
    * @param snapshot instance of {@link com.codahale.metrics.Snapshot} to serialize.
-   * @return a list of {@link gobblin.metrics.Metric}.
+   * @return a list of {@link org.apache.gobblin.metrics.Metric}.
    */
   protected List<Metric> serializeSnapshot(String name, Snapshot snapshot) {
     return Lists.newArrayList(
@@ -219,12 +219,12 @@ public abstract class MetricReportReporter extends ConfiguredScheduledReporter {
   }
 
   /**
-   * Convert single value into list of {@link gobblin.metrics.Metric}.
+   * Convert single value into list of {@link org.apache.gobblin.metrics.Metric}.
    *
    * @param name name of the metric.
    * @param value value of the metric.
    * @param path suffixes to more precisely identify the meaning of the reported value
-   * @return a Singleton list of {@link gobblin.metrics.Metric}.
+   * @return a Singleton list of {@link org.apache.gobblin.metrics.Metric}.
    */
   protected List<Metric> serializeSingleValue(String name, Number value, String... path) {
     return Lists.newArrayList(
@@ -238,7 +238,7 @@ public abstract class MetricReportReporter extends ConfiguredScheduledReporter {
    * @param name name of the metric
    * @param value value of the metric to report
    * @param path additional suffixes to further identify the meaning of the reported value
-   * @return a {@link gobblin.metrics.Metric}.
+   * @return a {@link org.apache.gobblin.metrics.Metric}.
    */
   protected Metric serializeValue(String name, Number value, String... path) {
     return new Metric(MetricRegistry.name(name, path), value.doubleValue());

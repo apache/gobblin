@@ -35,8 +35,8 @@ import org.apache.gobblin.data.management.version.finder.VersionFinder;
 /**
  * {@link CleanableDatasetBase} for tracking data.
  *
- * Uses a {@link gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder} and a
- * {@link gobblin.data.management.retention.policy.TimeBasedRetentionPolicy}.
+ * Uses a {@link org.apache.gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder} and a
+ * {@link org.apache.gobblin.data.management.retention.policy.TimeBasedRetentionPolicy}.
  */
 public class TrackingDataset extends CleanableDatasetBase<TimestampedDatasetVersion> {
 

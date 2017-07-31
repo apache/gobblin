@@ -172,7 +172,7 @@ public final class PathAlterationObserverScheduler implements Runnable {
    * root directory and any nested subdirectories under the root directory to the given
    * {@link PathAlterationObserverScheduler}.
    * @param detector  a {@link PathAlterationObserverScheduler}
-   * @param listener a {@link gobblin.util.filesystem.PathAlterationListener}
+   * @param listener a {@link org.apache.gobblin.util.filesystem.PathAlterationListener}
    * @param observerOptional Optional observer object. For testing routine, this has been initialized by user.
    *                         But for general usage, the observer object is created inside this method.
    * @param rootDirPath root directory

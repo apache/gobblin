@@ -64,22 +64,22 @@ public class TaskState extends WorkUnitState {
   // Built-in metric names
 
   /**
-   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   * @deprecated see {@link org.apache.gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
   private static final String RECORDS = "records";
 
   /**
-   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   * @deprecated see {@link org.apache.gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
   private static final String RECORDS_PER_SECOND = "recordsPerSec";
 
   /**
-   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   * @deprecated see {@link org.apache.gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
   private static final String BYTES = "bytes";
 
   /**
-   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   * @deprecated see {@link org.apache.gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
   private static final String BYTES_PER_SECOND = "bytesPerSec";
 
@@ -249,7 +249,7 @@ public class TaskState extends WorkUnitState {
    * @param recordsWritten number of records written by the writer
    * @param branchIndex fork branch index
    *
-   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   * @deprecated see {@link org.apache.gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
   public synchronized void updateRecordMetrics(long recordsWritten, int branchIndex) {
     TaskMetrics metrics = TaskMetrics.get(this);
@@ -271,7 +271,7 @@ public class TaskState extends WorkUnitState {
    * @param bytesWritten number of bytes written by the writer
    * @param branchIndex fork branch index
    *
-   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   * @deprecated see {@link org.apache.gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
   public synchronized void updateByteMetrics(long bytesWritten, int branchIndex) {
     TaskMetrics metrics = TaskMetrics.get(this);

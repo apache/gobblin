@@ -25,7 +25,7 @@ import org.apache.gobblin.converter.DataConversionException;
  * Instrumented converter that automatically captures certain metrics.
  * Subclasses should implement convertRecordImpl instead of convertRecord.
  *
- * See {@link gobblin.converter.Converter}.
+ * See {@link org.apache.gobblin.converter.Converter}.
  *
  * @author ibuenros
  */

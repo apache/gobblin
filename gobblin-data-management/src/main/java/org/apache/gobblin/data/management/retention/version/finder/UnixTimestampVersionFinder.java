@@ -28,7 +28,7 @@ import org.apache.hadoop.fs.Path;
 
 /**
  * @deprecated
- * See javadoc for {@link gobblin.data.management.version.finder.UnixTimestampVersionFinder}.
+ * See javadoc for {@link org.apache.gobblin.data.management.version.finder.UnixTimestampVersionFinder}.
  */
 @Deprecated
 public class UnixTimestampVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {

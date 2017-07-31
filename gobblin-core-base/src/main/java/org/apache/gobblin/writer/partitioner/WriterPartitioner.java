@@ -24,7 +24,7 @@ import org.apache.avro.generic.GenericRecord;
 /**
  * Partitions records in the writer phase.
  *
- * Implementations must have a constructor with signature <init>({@link gobblin.configuration.State}).
+ * Implementations must have a constructor with signature <init>({@link org.apache.gobblin.configuration.State}).
  */
 public interface WriterPartitioner<D> {
 

@@ -36,7 +36,7 @@ import org.apache.gobblin.util.PathUtils;
 
 
 /**
- * Update avro related entries in creating {@link gobblin.data.management.copy.CopyEntity}s for copying a Hive table.
+ * Update avro related entries in creating {@link org.apache.gobblin.data.management.copy.CopyEntity}s for copying a Hive table.
  */
 
 @Slf4j

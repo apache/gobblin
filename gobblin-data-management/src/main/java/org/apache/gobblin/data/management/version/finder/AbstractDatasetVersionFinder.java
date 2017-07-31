@@ -43,7 +43,7 @@ import org.apache.gobblin.util.PathUtils;
  * Provides a callback {@link AbstractDatasetVersionFinder#getDatasetVersion(Path, FileStatus)} which subclasses need to
  * implement.
  *
- * @param <T> Type of {@link gobblin.data.management.version.FileSystemDatasetVersion} expected from this class.
+ * @param <T> Type of {@link org.apache.gobblin.data.management.version.FileSystemDatasetVersion} expected from this class.
  */
 public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVersion> implements VersionFinder<T> {
 
@@ -60,10 +60,10 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
   /**
    * Find dataset versions in the input {@link org.apache.hadoop.fs.Path}. Dataset versions are subdirectories of the
    * input {@link org.apache.hadoop.fs.Path} representing a single manageable unit in the dataset.
-   * See {@link gobblin.data.management.retention.DatasetCleaner} for more information.
+   * See {@link org.apache.gobblin.data.management.retention.DatasetCleaner} for more information.
    *
    * @param dataset {@link org.apache.hadoop.fs.Path} to directory containing all versions of a dataset.
-   * @return Map of {@link gobblin.data.management.version.DatasetVersion} and {@link org.apache.hadoop.fs.FileStatus}
+   * @return Map of {@link org.apache.gobblin.data.management.version.DatasetVersion} and {@link org.apache.hadoop.fs.FileStatus}
    *        for each dataset version found.
    * @throws IOException
    */
@@ -100,11 +100,11 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
   public abstract Path globVersionPattern();
 
   /**
-   * Create a {@link gobblin.data.management.version.DatasetVersion} with <code>versionFileStatus</code> and a path
+   * Create a {@link org.apache.gobblin.data.management.version.DatasetVersion} with <code>versionFileStatus</code> and a path
    * relative to the dataset.
    * @param pathRelativeToDatasetRoot {@link org.apache.hadoop.fs.Path} of dataset version relative to dataset root.
    * @param versionFileStatus {@link FileStatus} of the dataset version.
-   * @return {@link gobblin.data.management.version.DatasetVersion} for that {@link FileStatus}.
+   * @return {@link org.apache.gobblin.data.management.version.DatasetVersion} for that {@link FileStatus}.
    */
   public abstract T getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus);
 

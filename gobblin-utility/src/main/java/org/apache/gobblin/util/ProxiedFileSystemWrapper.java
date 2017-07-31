@@ -51,7 +51,7 @@ public class ProxiedFileSystemWrapper {
 
   /**
    * Two authentication types for Hadoop Security, through TOKEN or KEYTAB.
-   * @deprecated Use {@link gobblin.util.ProxiedFileSystemUtils.AuthType}.
+   * @deprecated Use {@link org.apache.gobblin.util.ProxiedFileSystemUtils.AuthType}.
    */
   @Deprecated
   public enum AuthType {

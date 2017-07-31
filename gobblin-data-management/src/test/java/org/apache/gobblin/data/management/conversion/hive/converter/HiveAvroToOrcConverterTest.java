@@ -189,7 +189,7 @@ public class HiveAvroToOrcConverterTest {
 
   @Test
   /***
-   * More comprehensive tests for WhiteBlackList are in: {@link gobblin.data.management.copy.hive.WhitelistBlacklistTest}
+   * More comprehensive tests for WhiteBlackList are in: {@link org.apache.gobblin.data.management.copy.hive.WhitelistBlacklistTest}
    */
   public void hiveViewRegistrationWhiteBlackListTest() throws Exception {
     WorkUnitState wus = ConversionHiveTestUtils.createWus("dbName", "tableName", 0);

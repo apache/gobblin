@@ -27,7 +27,7 @@ import org.apache.gobblin.codec.StreamCodec;
 
 /**
  * This class knows how to build encryption algorithms based on configuration parameters. To add your own
- * encryption implementation, please add another implementation of {@link gobblin.crypto.EncryptionProvider}
+ * encryption implementation, please add another implementation of {@link org.apache.gobblin.crypto.EncryptionProvider}
  * in Gobblin's classpath as well as referencing the new implementation in META-INF/services/gobblin.crypto.EncryptionProvider
  * of the containing JAR. (See {@link java.util.ServiceLoader} documentation for more details).
  */
@@ -37,7 +37,7 @@ public class EncryptionFactory {
 
   /**
    * Build a StreamCodec with the given config parameters. The type will be extracted from the parameters.
-   * See {@link gobblin.crypto.EncryptionConfigParser} for a set of standard configuration parameters, although
+   * See {@link org.apache.gobblin.crypto.EncryptionConfigParser} for a set of standard configuration parameters, although
    * each encryption provider may have its own arbitrary set.
    * @return A StreamCodec for the given parameters
    * @throws IllegalArgumentException If no provider exists that can build the requested encryption codec

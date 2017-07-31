@@ -67,7 +67,7 @@ public class FlowSpec implements Configurable, Spec {
   // config. We use it as a cache until typesafe config is more widely adopted in Gobblin.
   final Properties configAsProperties;
 
-  /** URI of {@link gobblin.runtime.api.JobTemplate} to use. */
+  /** URI of {@link org.apache.gobblin.runtime.api.JobTemplate} to use. */
   final Optional<Set<URI>> templateURIs;
 
   /** Child {@link Spec}s to this {@link FlowSpec} **/

@@ -48,7 +48,7 @@ import org.apache.gobblin.writer.DataWriter;
 @Slf4j
 
 /**
- * Package-private implementation of instrumentation for {@link gobblin.writer.DataWriter}.
+ * Package-private implementation of instrumentation for {@link org.apache.gobblin.writer.DataWriter}.
  *
  * @see gobblin.instrumented.writer.InstrumentedDataWriter for extensible class.
  */
@@ -195,14 +195,14 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
   }
 
   /**
-   * Subclasses should implement this instead of {@link gobblin.writer.DataWriter#write}
+   * Subclasses should implement this instead of {@link org.apache.gobblin.writer.DataWriter#write}
    */
   public abstract void writeImpl(D record) throws IOException;
 
   /**
-   * Get final state for this object. By default this returns an empty {@link gobblin.configuration.State}, but
+   * Get final state for this object. By default this returns an empty {@link org.apache.gobblin.configuration.State}, but
    * concrete subclasses can add information that will be added to the task state.
-   * @return Empty {@link gobblin.configuration.State}.
+   * @return Empty {@link org.apache.gobblin.configuration.State}.
    */
   @Override
   public State getFinalState() {

@@ -34,7 +34,7 @@ public interface TaskFactory {
   TaskIFace createTask(TaskContext taskContext);
 
   /**
-   * Build a {@link DataPublisher} for the input {@link gobblin.runtime.JobState.DatasetState}.
+   * Build a {@link DataPublisher} for the input {@link org.apache.gobblin.runtime.JobState.DatasetState}.
    */
   DataPublisher createDataPublisher(JobState.DatasetState datasetState);
 

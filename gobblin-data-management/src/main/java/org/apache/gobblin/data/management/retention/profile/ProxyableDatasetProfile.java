@@ -36,9 +36,9 @@ import org.apache.gobblin.util.RateControlledFileSystem;
 
 
 /**
- * A wrapper of {@link gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder} that looks for
- * {@link gobblin.data.management.retention.dataset.Dataset}s with {@link org.apache.hadoop.fs.FileSystem}s
- * {@link gobblin.data.management.retention.dataset.CleanableDataset}s with {@link org.apache.hadoop.fs.FileSystem}s
+ * A wrapper of {@link org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder} that looks for
+ * {@link org.apache.gobblin.data.management.retention.dataset.Dataset}s with {@link org.apache.hadoop.fs.FileSystem}s
+ * {@link org.apache.gobblin.data.management.retention.dataset.CleanableDataset}s with {@link org.apache.hadoop.fs.FileSystem}s
  * proxied as the owner of each dataset.
  */
 public class ProxyableDatasetProfile extends ConfigurableGlobDatasetFinder {

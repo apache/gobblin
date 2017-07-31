@@ -22,7 +22,7 @@ import java.io.Closeable;
 
 /**
  * An interface for classes that implement some logic limiting on the occurrences of some events,
- * e.g., data record extraction using an {@link gobblin.source.extractor.Extractor}.
+ * e.g., data record extraction using an {@link org.apache.gobblin.source.extractor.Extractor}.
  *
  * @author Yinan Li
  */

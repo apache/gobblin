@@ -39,7 +39,7 @@ class MyReporter extends EventReporter {
      * Returns a new {@link MyReporter.Builder} for {@link MyReporter}.
      * Will automatically add all Context tags to the reporter.
      *
-     * @param context the {@link gobblin.metrics.MetricContext} to report
+     * @param context the {@link org.apache.gobblin.metrics.MetricContext} to report
      * @return MyReporter builder
      */
     public static BuilderImpl forContext(MetricContext context) {

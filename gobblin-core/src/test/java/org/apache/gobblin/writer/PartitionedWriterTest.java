@@ -41,7 +41,7 @@ import static org.mockito.Mockito.when;
 
 
 /**
- * Test {@link gobblin.writer.PartitionedDataWriter}
+ * Test {@link org.apache.gobblin.writer.PartitionedDataWriter}
  */
 public class PartitionedWriterTest {
 

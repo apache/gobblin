@@ -30,7 +30,7 @@ import org.apache.gobblin.source.extractor.Watermark;
 
 
 /**
- * A {@link gobblin.source.extractor.Watermark} that holds multiple long values.
+ * A {@link org.apache.gobblin.source.extractor.Watermark} that holds multiple long values.
  *
  * @author Ziyang Liu
  */

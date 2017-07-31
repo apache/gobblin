@@ -39,7 +39,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Test for {@link gobblin.metrics.reporter.ScheduledReporter}
+ * Test for {@link org.apache.gobblin.metrics.reporter.ScheduledReporter}
  */
 public class ScheduledReporterTest {
 

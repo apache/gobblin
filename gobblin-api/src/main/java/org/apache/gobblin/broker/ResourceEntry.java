@@ -31,13 +31,13 @@ public interface ResourceEntry<T> extends SharedResourceFactoryResponse<T> {
 
   /**
    * @return Whether this entry is valid. If the entry is invalid, it will be invalidated from the cache, causing a new
-   * call to the {@link gobblin.broker.iface.SharedResourceFactory}.
+   * call to the {@link org.apache.gobblin.broker.iface.SharedResourceFactory}.
    */
   boolean isValid();
 
   /**
    * This method will be called when the entry is invalidated. It may or may not close the contained resource depending
-   * on the semantics the {@link gobblin.broker.iface.SharedResourceFactory} wishes to provide (e.g. whether already
+   * on the semantics the {@link org.apache.gobblin.broker.iface.SharedResourceFactory} wishes to provide (e.g. whether already
    * acquired objects should be closed).
    *
    * Note that for consistency, the broker runs this method synchronously before a new instance is created for the same

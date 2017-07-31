@@ -137,7 +137,7 @@ public class Trash implements GobblinTrash {
   private final SnapshotCleanupPolicy snapshotCleanupPolicy;
 
   /**
-   * @deprecated Use {@link gobblin.data.management.trash.TrashFactory}.
+   * @deprecated Use {@link org.apache.gobblin.data.management.trash.TrashFactory}.
    */
   @Deprecated
   public Trash(FileSystem fs) throws IOException {
@@ -145,7 +145,7 @@ public class Trash implements GobblinTrash {
   }
 
   /**
-   * @deprecated Use {@link gobblin.data.management.trash.TrashFactory}.
+   * @deprecated Use {@link org.apache.gobblin.data.management.trash.TrashFactory}.
    */
   @Deprecated
   public Trash(FileSystem fs, Properties props) throws IOException {
@@ -237,11 +237,11 @@ public class Trash implements GobblinTrash {
   }
 
   /**
-   * For each existing trash snapshot, uses a {@link gobblin.data.management.trash.SnapshotCleanupPolicy} to determine whether
+   * For each existing trash snapshot, uses a {@link org.apache.gobblin.data.management.trash.SnapshotCleanupPolicy} to determine whether
    * the snapshot should be deleted. If so, delete it permanently.
    *
    * <p>
-   *   Each existing snapshot will be passed to {@link gobblin.data.management.trash.SnapshotCleanupPolicy#shouldDeleteSnapshot}
+   *   Each existing snapshot will be passed to {@link org.apache.gobblin.data.management.trash.SnapshotCleanupPolicy#shouldDeleteSnapshot}
    *   from oldest to newest, and will be deleted if the method returns true.
    * </p>
    *

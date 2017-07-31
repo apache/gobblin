@@ -34,7 +34,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Used to create a default implementation of {@link gobblin.broker.iface.SharedResourcesBroker}.
+ * Used to create a default implementation of {@link org.apache.gobblin.broker.iface.SharedResourcesBroker}.
  *
  * All {@link SharedResourcesBroker}s created by this factory automatically load a set of configurations. In order of
  * preference:

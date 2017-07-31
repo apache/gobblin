@@ -27,8 +27,8 @@ import org.apache.hadoop.fs.Path;
 
 
 /**
- * {@link gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder} that returns datasets of type
- * {@link gobblin.data.management.copy.RecursiveCopyableDataset}.N
+ * {@link org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder} that returns datasets of type
+ * {@link org.apache.gobblin.data.management.copy.RecursiveCopyableDataset}.N
  */
 public class CopyableGlobDatasetFinder extends ConfigurableGlobDatasetFinder<CopyableDataset> {
 

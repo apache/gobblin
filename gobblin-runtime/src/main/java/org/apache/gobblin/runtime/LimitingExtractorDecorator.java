@@ -85,7 +85,7 @@ public class LimitingExtractorDecorator<S, D> implements Extractor<S, D>, Decora
   /**
    * Compose meta data when limiter fails to acquire permit
    * The meta data key list is passed from source layer
-   * A prefix matching is used because some work unit {@link gobblin.source.workunit.MultiWorkUnit} have packing strategy, which
+   * A prefix matching is used because some work unit {@link org.apache.gobblin.source.workunit.MultiWorkUnit} have packing strategy, which
    * can append additional string after the key name
    *
    * @return String map representing all the meta data need to report. Return null if no meta data was found.

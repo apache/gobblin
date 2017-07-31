@@ -21,12 +21,12 @@ import com.google.common.collect.ImmutableMap;
 
 
 /**
- * A {@link gobblin.broker.iface.SharedResourceKey} for {@link MetricContextFactory}. While {@link MetricContextKey}
- * creates a {@link gobblin.metrics.MetricContext} with keys extracted from the broker configuration, this factory creates
- * a {@link gobblin.metrics.MetricContext} which is a child of the former context, and which has tags and names specified
+ * A {@link org.apache.gobblin.broker.iface.SharedResourceKey} for {@link MetricContextFactory}. While {@link MetricContextKey}
+ * creates a {@link org.apache.gobblin.metrics.MetricContext} with keys extracted from the broker configuration, this factory creates
+ * a {@link org.apache.gobblin.metrics.MetricContext} which is a child of the former context, and which has tags and names specified
  * in the key.
  *
- * This key is useful when a construct needs to acquire a variety of tagged {@link gobblin.metrics.MetricContext} with
+ * This key is useful when a construct needs to acquire a variety of tagged {@link org.apache.gobblin.metrics.MetricContext} with
  * different tags.
  */
 public class SubTaggedMetricContextKey extends MetricContextKey {

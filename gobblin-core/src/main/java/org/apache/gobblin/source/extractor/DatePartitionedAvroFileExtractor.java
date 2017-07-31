@@ -23,7 +23,7 @@ import org.apache.gobblin.source.extractor.hadoop.AvroFileExtractor;
 
 /**
  * Extension of {@link AvroFileExtractor} where the {@link #getHighWatermark()} method returns the result of the
- * specified WorkUnit's {@link gobblin.source.workunit.WorkUnit#getHighWaterMark()} method.
+ * specified WorkUnit's {@link org.apache.gobblin.source.workunit.WorkUnit#getHighWaterMark()} method.
  */
 public class DatePartitionedAvroFileExtractor extends AvroFileExtractor {
 

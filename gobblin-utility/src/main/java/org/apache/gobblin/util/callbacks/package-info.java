@@ -22,13 +22,13 @@
  *    <dt>Listeners</dt>
  *    <dd>Listeners are the object to which the callbacks are sent. This package does not impose
  *    too many restrictions on what listeners should look like. For a given
- *    {@link gobblin.util.callbacks.CallbacksDispatcher}, they should all implement the same
+ *    {@link org.apache.gobblin.util.callbacks.CallbacksDispatcher}, they should all implement the same
  *    interface. </dd>
  *    <dt>Callbacks</dt>
  *    <dd>Callbacks are represented as {@link com.google.common.base.Function}<L, R> instances which
  *    take one L parameter, the listener to be applied on, and can return a result of type R. If no
  *    meaningful result is returned, R should be Void. There is a helper class
- *    {@link gobblin.util.callbacks.Callback} which allows to assign a meaningful string to the
+ *    {@link org.apache.gobblin.util.callbacks.Callback} which allows to assign a meaningful string to the
  *    callback. Typically, this is the name of the callback and short description of any bound
  *    arguments.
  *
@@ -45,15 +45,15 @@
  *    </ul>
  *    </dd>
  *    <dt>Callbacks Dispatcher</dt>
- *    <dd> The {@link gobblin.util.callbacks.CallbacksDispatcher}<L> is responsible for:
+ *    <dd> The {@link org.apache.gobblin.util.callbacks.CallbacksDispatcher}<L> is responsible for:
  *       <ul>
  *          <li>Maintaining a list of listeners of type L.
- *          <li>Dispatch callbacks invoked through {@link gobblin.util.callbacks.CallbacksDispatcher#execCallbacks(com.google.common.base.Function)}
+ *          <li>Dispatch callbacks invoked through {@link org.apache.gobblin.util.callbacks.CallbacksDispatcher#execCallbacks(com.google.common.base.Function)}
  *             to each of the above listeners.
  *          <li>Provide parallelism of the callbacks if necessary.
  *          <li>Guarantee isolation of failures in callbacks.
  *          <li>Provide logging for debugging purposes.
- *          <li>Classify callback results in {@link gobblin.util.callbacks.CallbacksDispatcher.CallbackResults}
+ *          <li>Classify callback results in {@link org.apache.gobblin.util.callbacks.CallbacksDispatcher.CallbackResults}
  *          for easier upstream processing.
  *       </ul>
  *    </dd>

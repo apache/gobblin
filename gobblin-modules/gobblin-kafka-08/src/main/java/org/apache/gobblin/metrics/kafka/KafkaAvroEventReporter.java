@@ -32,7 +32,7 @@ import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 
 
 /**
- * {@link gobblin.metrics.reporter.EventReporter} that emits events to Kafka as serialized Avro records.
+ * {@link org.apache.gobblin.metrics.reporter.EventReporter} that emits events to Kafka as serialized Avro records.
  */
 public class KafkaAvroEventReporter extends KafkaEventReporter {
 
@@ -55,7 +55,7 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
   /**
    * Returns a new {@link KafkaAvroEventReporter.Builder} for {@link KafkaAvroEventReporter}.
    *
-   * @param context the {@link gobblin.metrics.MetricContext} to report
+   * @param context the {@link org.apache.gobblin.metrics.MetricContext} to report
    * @return KafkaAvroReporter builder
    * @deprecated this method is bugged. Use {@link KafkaAvroEventReporter.Factory#forContext} instead.
    */
@@ -79,7 +79,7 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
     /**
      * Returns a new {@link KafkaAvroEventReporter.Builder} for {@link KafkaAvroEventReporter}.
      *
-     * @param context the {@link gobblin.metrics.MetricContext} to report
+     * @param context the {@link org.apache.gobblin.metrics.MetricContext} to report
      * @return KafkaAvroReporter builder
      */
     public static KafkaAvroEventReporter.BuilderImpl forContext(MetricContext context) {

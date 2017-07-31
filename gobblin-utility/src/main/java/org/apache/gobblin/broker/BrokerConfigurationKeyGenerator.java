@@ -28,7 +28,7 @@ import lombok.Builder;
 
 
 /**
- * Generates key strings that the default {@link gobblin.broker.iface.SharedResourcesBroker} can understand. Useful
+ * Generates key strings that the default {@link org.apache.gobblin.broker.iface.SharedResourcesBroker} can understand. Useful
  * for populating a configuration programmatically.
  */
 public class BrokerConfigurationKeyGenerator {
@@ -36,7 +36,7 @@ public class BrokerConfigurationKeyGenerator {
   private static final Joiner JOINER = Joiner.on(".").skipNulls();
 
   /**
-   * Generate a {@link gobblin.broker.iface.SharedResourcesBroker} configuration key for a particular {@link SharedResourceFactory},
+   * Generate a {@link org.apache.gobblin.broker.iface.SharedResourcesBroker} configuration key for a particular {@link SharedResourceFactory},
    * {@link SharedResourceKey} and {@link ScopeType}.
    *
    * Example:

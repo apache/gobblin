@@ -90,7 +90,7 @@ public class WorkUnit extends State {
   /**
    * Constructor for a {@link WorkUnit} given a {@link SourceState}, {@link Extract}, and a {@link WatermarkInterval}.
    *
-   * @param state a {@link gobblin.configuration.SourceState} the properties of which will be copied into this {@link WorkUnit} instance.
+   * @param state a {@link org.apache.gobblin.configuration.SourceState} the properties of which will be copied into this {@link WorkUnit} instance.
    * @param extract an {@link Extract}.
    * @param watermarkInterval a {@link WatermarkInterval} which defines the range of data this {@link WorkUnit} will process.
    *

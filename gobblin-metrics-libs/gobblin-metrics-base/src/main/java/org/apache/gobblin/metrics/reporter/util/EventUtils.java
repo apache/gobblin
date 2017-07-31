@@ -32,7 +32,7 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 
 /**
- * Utilities for {@link gobblin.metrics.MetricReport}.
+ * Utilities for {@link org.apache.gobblin.metrics.MetricReport}.
  */
 public class EventUtils {
 
@@ -40,7 +40,7 @@ public class EventUtils {
   private static Optional<SpecificDatumReader<GobblinTrackingEvent>> reader = Optional.absent();
 
   /**
-   * Parses a {@link gobblin.metrics.MetricReport} from a byte array representing a json input.
+   * Parses a {@link org.apache.gobblin.metrics.MetricReport} from a byte array representing a json input.
    * @param reuse MetricReport to reuse.
    * @param bytes Input bytes.
    * @return MetricReport.
@@ -75,7 +75,7 @@ public class EventUtils {
   }
 
   /**
-   * Parses a {@link gobblin.metrics.MetricReport} from a byte array Avro serialization.
+   * Parses a {@link org.apache.gobblin.metrics.MetricReport} from a byte array Avro serialization.
    * @param reuse MetricReport to reuse.
    * @param bytes Input bytes.
    * @return MetricReport.

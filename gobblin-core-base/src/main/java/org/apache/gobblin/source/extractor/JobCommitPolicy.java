@@ -36,7 +36,7 @@ public enum JobCommitPolicy {
   COMMIT_ON_FULL_SUCCESS("full"),
 
   /**
-   * Commit a job even if some of its tasks fail. It's up to the {@link gobblin.publisher.DataPublisher} to
+   * Commit a job even if some of its tasks fail. It's up to the {@link org.apache.gobblin.publisher.DataPublisher} to
    * decide whether data of failed tasks of the job should be committed or not.
    *
    * @deprecated Use {@link #COMMIT_SUCCESSFUL_TASKS} instead, which provides a less confusing commit semantics,

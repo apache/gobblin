@@ -23,7 +23,7 @@ import org.apache.hadoop.fs.FileStatus;
 
 
 /**
- * Noop implementation of {@link gobblin.data.management.trash.SnapshotCleanupPolicy}.
+ * Noop implementation of {@link org.apache.gobblin.data.management.trash.SnapshotCleanupPolicy}.
  */
 public class NoopSnapshotCleanupPolicy implements SnapshotCleanupPolicy {
 

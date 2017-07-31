@@ -30,7 +30,7 @@ import org.apache.gobblin.data.management.retention.version.finder.DateTimeDatas
 
 
 /**
- * {@link gobblin.dataset.DatasetsFinder} for tracking datasets.
+ * {@link org.apache.gobblin.dataset.DatasetsFinder} for tracking datasets.
  *
  * <p>
  *   Tracking datasets are datasets where each data point represents a timestamped action, and the records are

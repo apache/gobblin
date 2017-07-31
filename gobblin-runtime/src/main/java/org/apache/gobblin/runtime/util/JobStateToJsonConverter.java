@@ -50,7 +50,7 @@ import org.apache.gobblin.util.JobConfigurationUtils;
 
 
 /**
- * A utility class for converting a {@link gobblin.runtime.JobState} object to a json-formatted document.
+ * A utility class for converting a {@link org.apache.gobblin.runtime.JobState} object to a json-formatted document.
  *
  * @author Yinan Li
  */

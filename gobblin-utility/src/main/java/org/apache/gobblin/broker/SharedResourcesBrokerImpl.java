@@ -111,7 +111,7 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
   }
 
   /**
-   * Get a {@link gobblin.broker.iface.ConfigView} for the input scope, key, and factory.
+   * Get a {@link org.apache.gobblin.broker.iface.ConfigView} for the input scope, key, and factory.
    */
   public <K extends SharedResourceKey> KeyedScopedConfigViewImpl<S, K> getConfigView(S scope, K key, String factoryName) {
 

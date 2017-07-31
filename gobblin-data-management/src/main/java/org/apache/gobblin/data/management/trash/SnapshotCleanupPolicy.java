@@ -20,7 +20,7 @@ package org.apache.gobblin.data.management.trash;
 import org.apache.hadoop.fs.FileStatus;
 
 /**
- * Policy for determining whether a {@link gobblin.data.management.trash.Trash} snapshot should be deleted.
+ * Policy for determining whether a {@link org.apache.gobblin.data.management.trash.Trash} snapshot should be deleted.
  */
 public interface SnapshotCleanupPolicy {
   /**
@@ -31,7 +31,7 @@ public interface SnapshotCleanupPolicy {
    * </p>
    *
    * @param snapshot {@link org.apache.hadoop.fs.FileStatus} of candidate snapshot for deletion.
-   * @param trash {@link gobblin.data.management.trash.Trash} object that called this method.
+   * @param trash {@link org.apache.gobblin.data.management.trash.Trash} object that called this method.
    * @return true if the snapshot should be deleted permanently.
    */
   boolean shouldDeleteSnapshot(FileStatus snapshot, Trash trash);

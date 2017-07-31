@@ -31,13 +31,13 @@ import org.apache.gobblin.fork.CopyableSchema;
 
 /**
  * Implementation of {@link Converter} that takes in an Avro {@link Schema} and {@link GenericRecord} and returns a
- * {@link gobblin.fork.CopyableSchema} and a {@link gobblin.fork.CopyableGenericRecord}.
+ * {@link org.apache.gobblin.fork.CopyableSchema} and a {@link org.apache.gobblin.fork.CopyableGenericRecord}.
  */
 public class AvroToAvroCopyableConverter extends
     Converter<Schema, CopyableSchema, GenericRecord, CopyableGenericRecord> {
 
   /**
-   * Returns a {@link gobblin.fork.CopyableSchema} wrapper around the given {@link Schema}.
+   * Returns a {@link org.apache.gobblin.fork.CopyableSchema} wrapper around the given {@link Schema}.
    * {@inheritDoc}
    * @see gobblin.converter.Converter#convertSchema(java.lang.Object, gobblin.configuration.WorkUnitState)
    */
@@ -47,7 +47,7 @@ public class AvroToAvroCopyableConverter extends
   }
 
   /**
-   * Returns a {@link gobblin.fork.CopyableGenericRecord} wrapper around the given {@link GenericRecord}.
+   * Returns a {@link org.apache.gobblin.fork.CopyableGenericRecord} wrapper around the given {@link GenericRecord}.
    * {@inheritDoc}
    * @see gobblin.converter.Converter#convertRecord(java.lang.Object, java.lang.Object, gobblin.configuration.WorkUnitState)
    */

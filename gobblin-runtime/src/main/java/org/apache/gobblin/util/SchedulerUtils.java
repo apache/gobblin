@@ -143,7 +143,7 @@ public class SchedulerUtils {
    * {@link PathAlterationObserverScheduler}.
    *
    * @param monitor a {@link PathAlterationObserverScheduler}
-   * @param listener a {@link gobblin.util.filesystem.PathAlterationListener}
+   * @param listener a {@link org.apache.gobblin.util.filesystem.PathAlterationListener}
    * @param rootDirPath root directory
    */
   public static void addPathAlterationObserver(PathAlterationObserverScheduler monitor, PathAlterationListener listener,

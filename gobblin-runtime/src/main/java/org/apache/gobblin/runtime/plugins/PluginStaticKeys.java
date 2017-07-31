@@ -18,7 +18,7 @@
 package org.apache.gobblin.runtime.plugins;
 
 /**
- * Static keys for {@link gobblin.runtime.api.GobblinInstancePlugin}s.
+ * Static keys for {@link org.apache.gobblin.runtime.api.GobblinInstancePlugin}s.
  */
 public class PluginStaticKeys {
   public static final String HADOOP_LOGIN_FROM_KEYTAB_ALIAS = "hadoopLoginFromKeytab";

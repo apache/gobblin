@@ -24,7 +24,7 @@ import lombok.Getter;
 
 
 /**
- * A {@link gobblin.restli.throttling.LeaderFinder.Metadata} that contains the {@link URI} of the process.
+ * A {@link org.apache.gobblin.restli.throttling.LeaderFinder.Metadata} that contains the {@link URI} of the process.
  */
 @AllArgsConstructor
 public class URIMetadata implements LeaderFinder.Metadata {

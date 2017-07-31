@@ -24,8 +24,8 @@ import org.apache.hadoop.fs.Path;
 
 /**
  * @deprecated
- * Dataset version extends {@link gobblin.data.management.version.StringDatasetVersion} and implements
- * {@link gobblin.data.management.retention.version.DatasetVersion}.
+ * Dataset version extends {@link org.apache.gobblin.data.management.version.StringDatasetVersion} and implements
+ * {@link org.apache.gobblin.data.management.retention.version.DatasetVersion}.
  */
 @Deprecated
 public class StringDatasetVersion extends gobblin.data.management.version.StringDatasetVersion implements

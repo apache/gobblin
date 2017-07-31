@@ -35,8 +35,8 @@ import org.apache.gobblin.dataset.FileSystemDataset;
 
 /**
  * Implementation of a {@link CleanableDataset} that uses a
- * {@link gobblin.data.management.retention.version.finder.VersionFinder} to find dataset versions, a
- * {@link gobblin.data.management.retention.policy.RetentionPolicy} to figure out deletable versions, and then deletes
+ * {@link org.apache.gobblin.data.management.retention.version.finder.VersionFinder} to find dataset versions, a
+ * {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy} to figure out deletable versions, and then deletes
  * those files and newly empty parent directories.
  *
  * <p>
@@ -75,26 +75,26 @@ import org.apache.gobblin.dataset.FileSystemDataset;
  * </p>
  *
  * <p>
- *  {@link CleanableDatasetBase} uses a {@link gobblin.data.management.version.finder.DatasetVersionFinder} to find all
+ *  {@link CleanableDatasetBase} uses a {@link org.apache.gobblin.data.management.version.finder.DatasetVersionFinder} to find all
  *  subdirectories that are versions of this dataset. After that, for each dataset, it uses a
- *  {@link gobblin.data.management.retention.policy.RetentionPolicy} to decide which versions of the dataset should be
+ *  {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy} to decide which versions of the dataset should be
  *  deleted. For each version deleted, if {@link #deleteEmptyDirectories} it will also look at all parent directories
  *  and delete directories that are now empty, up to but not including the dataset root.
  * </p>
  *
- * @param <T> type of {@link gobblin.data.management.retention.version.DatasetVersion} supported by this
+ * @param <T> type of {@link org.apache.gobblin.data.management.retention.version.DatasetVersion} supported by this
  *           {@link CleanableDataset}.
  */
 public abstract class CleanableDatasetBase<T extends FileSystemDatasetVersion>
     extends MultiVersionCleanableDatasetBase<T> implements CleanableDataset, FileSystemDataset {
 
   /**
-   * Get {@link gobblin.data.management.retention.version.finder.VersionFinder} to use.
+   * Get {@link org.apache.gobblin.data.management.retention.version.finder.VersionFinder} to use.
    */
   public abstract VersionFinder<? extends T> getVersionFinder();
 
   /**
-   * Get {@link gobblin.data.management.retention.policy.RetentionPolicy} to use.
+   * Get {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy} to use.
    */
   public abstract RetentionPolicy<T> getRetentionPolicy();
 

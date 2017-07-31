@@ -32,7 +32,7 @@ import org.apache.gobblin.data.management.retention.version.TimestampedDatasetVe
 
 /**
  * @deprecated
- * See javadoc for {@link gobblin.data.management.version.finder.DateTimeDatasetVersionFinder}.
+ * See javadoc for {@link org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder}.
  */
 @Deprecated
 public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {

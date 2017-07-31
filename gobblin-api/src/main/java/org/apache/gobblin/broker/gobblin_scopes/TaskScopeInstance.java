@@ -21,7 +21,7 @@ import lombok.Getter;
 
 
 /**
- * A {@link gobblin.broker.iface.ScopeInstance} for a Gobblin task.
+ * A {@link org.apache.gobblin.broker.iface.ScopeInstance} for a Gobblin task.
  */
 public class TaskScopeInstance extends GobblinScopeInstance {
 

@@ -117,9 +117,9 @@ public class GobblinMetricsRegistry {
 
   /**
    * <p>
-   * Creates {@link gobblin.metrics.MetricContext}. Tries to read the name of the parent context
+   * Creates {@link org.apache.gobblin.metrics.MetricContext}. Tries to read the name of the parent context
    * from key "metrics.context.name" at state, and tries to get the parent context by name from
-   * the {@link gobblin.metrics.MetricContext} registry (the parent context must be registered).
+   * the {@link org.apache.gobblin.metrics.MetricContext} registry (the parent context must be registered).
    * </p>
    *
    * <p>

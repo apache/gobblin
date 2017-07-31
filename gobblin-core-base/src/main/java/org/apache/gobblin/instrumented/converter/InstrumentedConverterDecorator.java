@@ -33,8 +33,8 @@ import org.apache.gobblin.util.DecoratorUtils;
 
 
 /**
- * Decorator that automatically instruments {@link gobblin.converter.Converter}.
- * Handles already instrumented {@link gobblin.instrumented.converter.InstrumentedConverter}
+ * Decorator that automatically instruments {@link org.apache.gobblin.converter.Converter}.
+ * Handles already instrumented {@link org.apache.gobblin.instrumented.converter.InstrumentedConverter}
  * appropriately to avoid double metric reporting.
  */
 public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends InstrumentedConverterBase<SI, SO, DI, DO>
@@ -96,7 +96,7 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
 
   /**
    * This workarounds the issue that {@link Converter#processStream(RecordStreamWithMetadata, WorkUnitState)} will invoke
-   * {@link gobblin.converter.AsyncConverter1to1#convertRecord(Object, Object, WorkUnitState)} directly, which is an unsupported method.
+   * {@link org.apache.gobblin.converter.AsyncConverter1to1#convertRecord(Object, Object, WorkUnitState)} directly, which is an unsupported method.
    */
   @Override
   public RecordStreamWithMetadata<DO, SO> processStream(RecordStreamWithMetadata<DI, SI> inputStream,

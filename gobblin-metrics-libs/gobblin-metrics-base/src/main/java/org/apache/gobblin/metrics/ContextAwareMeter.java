@@ -25,7 +25,7 @@ import lombok.experimental.Delegate;
 
 
 /**
- * A type of {@link com.codahale.metrics.Meter}s that are aware of their {@link gobblin.metrics.MetricContext}
+ * A type of {@link com.codahale.metrics.Meter}s that are aware of their {@link org.apache.gobblin.metrics.MetricContext}
  * and can have associated {@link Tag}s.
  *
  * <p>

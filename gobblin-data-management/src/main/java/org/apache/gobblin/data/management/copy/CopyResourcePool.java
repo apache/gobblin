@@ -92,7 +92,7 @@ public class CopyResourcePool extends ResourcePool {
     }
 
     /**
-     * Set number of {@link CopyEntity}s in {@link gobblin.data.management.partition.FileSet}.
+     * Set number of {@link CopyEntity}s in {@link org.apache.gobblin.data.management.partition.FileSet}.
      */
     public CopyResourceRequirementBuilder setEntities(int numberOfEntities) {
       setRequirement(ENTITIES_DIMENSION, (double) numberOfEntities);
@@ -100,7 +100,7 @@ public class CopyResourcePool extends ResourcePool {
     }
 
     /**
-     * Set total bytes to copy in {@link gobblin.data.management.partition.FileSet}.
+     * Set total bytes to copy in {@link org.apache.gobblin.data.management.partition.FileSet}.
      */
     public CopyResourceRequirementBuilder setBytes(long totalBytes) {
       setRequirement(BYTES_DIMENSION, (double) totalBytes);

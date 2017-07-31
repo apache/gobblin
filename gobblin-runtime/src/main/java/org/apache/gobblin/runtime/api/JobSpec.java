@@ -61,7 +61,7 @@ public class JobSpec implements Configurable, Spec {
   // Note that this property is not strictly necessary as it can be generated from the typesafe
   // config. We use it as a cache until typesafe config is more widely adopted in Gobblin.
   Properties configAsProperties;
-  /** URI of {@link gobblin.runtime.api.JobTemplate} to use. */
+  /** URI of {@link org.apache.gobblin.runtime.api.JobTemplate} to use. */
   Optional<URI> templateURI;
 
   public static Builder builder(URI jobSpecUri) {

@@ -21,7 +21,7 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 
 /**
- * Notification wrapping a {@link gobblin.metrics.GobblinTrackingEvent}.
+ * Notification wrapping a {@link org.apache.gobblin.metrics.GobblinTrackingEvent}.
  */
 public class EventNotification implements Notification {
   private final GobblinTrackingEvent event;

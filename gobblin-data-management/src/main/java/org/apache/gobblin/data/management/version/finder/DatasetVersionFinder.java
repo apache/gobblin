@@ -37,7 +37,7 @@ import org.apache.gobblin.dataset.FileSystemDataset;
  * Use {@link AbstractDatasetVersionFinder#getDatasetVersion(Path, FileStatus)} if you need a callback with {@link FileStatus}
  * of the version.
  *
- * @param <T> Type of {@link gobblin.data.management.version.FileSystemDatasetVersion} expected from this class.
+ * @param <T> Type of {@link org.apache.gobblin.data.management.version.FileSystemDatasetVersion} expected from this class.
  */
 public abstract class DatasetVersionFinder<T extends FileSystemDatasetVersion> extends AbstractDatasetVersionFinder<T>
     implements VersionFinder<T> {
@@ -56,10 +56,10 @@ public abstract class DatasetVersionFinder<T extends FileSystemDatasetVersion> e
   }
 
   /**
-   * Parse {@link gobblin.data.management.version.DatasetVersion} from the path of a dataset version.
+   * Parse {@link org.apache.gobblin.data.management.version.DatasetVersion} from the path of a dataset version.
    * @param pathRelativeToDatasetRoot {@link org.apache.hadoop.fs.Path} of dataset version relative to dataset root.
    * @param fullPath full {@link org.apache.hadoop.fs.Path} of the dataset version.
-   * @return {@link gobblin.data.management.version.DatasetVersion} for that path.
+   * @return {@link org.apache.gobblin.data.management.version.DatasetVersion} for that path.
    */
   public abstract T getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath);
 

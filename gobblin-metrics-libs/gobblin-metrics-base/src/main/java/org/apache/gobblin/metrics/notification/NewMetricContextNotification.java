@@ -25,7 +25,7 @@ import org.apache.gobblin.metrics.MetricContext;
 
 
 /**
- * {@link Notification} that a new {@link gobblin.metrics.MetricContext} has been created. Contains the
+ * {@link Notification} that a new {@link org.apache.gobblin.metrics.MetricContext} has been created. Contains the
  * new {@link MetricContext}.
  */
 @AllArgsConstructor

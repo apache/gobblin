@@ -82,7 +82,7 @@ public class KafkaReporter extends MetricReportReporter {
   }
 
   /**
-   * A static factory class for obtaining new {@link gobblin.metrics.kafka.KafkaReporter.Builder}s
+   * A static factory class for obtaining new {@link org.apache.gobblin.metrics.kafka.KafkaReporter.Builder}s
    *
    * @see gobblin.metrics.kafka.KafkaReporter.Builder
    */
@@ -118,7 +118,7 @@ public class KafkaReporter extends MetricReportReporter {
     }
 
     /**
-     * Set {@link gobblin.metrics.kafka.KafkaPusher} to use.
+     * Set {@link org.apache.gobblin.metrics.kafka.KafkaPusher} to use.
      */
     public T withKafkaPusher(KafkaPusher pusher) {
       this.kafkaPusher = Optional.of(pusher);

@@ -28,7 +28,7 @@ import com.google.common.collect.Lists;
 public class DecoratorUtils {
 
   /**
-   * Resolves the truly underlying object in a possible chain of {@link gobblin.util.Decorator}.
+   * Resolves the truly underlying object in a possible chain of {@link org.apache.gobblin.util.Decorator}.
    *
    * @param obj object to resolve.
    * @return the true non-decorator underlying object.
@@ -44,8 +44,8 @@ public class DecoratorUtils {
    * Finds the decorator lineage of the given object.
    *
    * <p>
-   * If object is not a {@link gobblin.util.Decorator}, this method will return a singleton list with just the object.
-   * If object is a {@link gobblin.util.Decorator}, it will return a list of the underlying object followed by the
+   * If object is not a {@link org.apache.gobblin.util.Decorator}, this method will return a singleton list with just the object.
+   * If object is a {@link org.apache.gobblin.util.Decorator}, it will return a list of the underlying object followed by the
    * decorator lineage up to the input decorator object.
    * </p>
    *

@@ -41,7 +41,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**
- * A concrete extension to {@link gobblin.runtime.AbstractTaskStateTracker} for Hadoop MapReduce based runtime.
+ * A concrete extension to {@link org.apache.gobblin.runtime.AbstractTaskStateTracker} for Hadoop MapReduce based runtime.
  *
  * @author Yinan Li
  */

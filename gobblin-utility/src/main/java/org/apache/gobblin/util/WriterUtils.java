@@ -42,7 +42,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**
- * Utility class for use with the {@link gobblin.writer.DataWriter} class.
+ * Utility class for use with the {@link org.apache.gobblin.writer.DataWriter} class.
  */
 @Slf4j
 public class WriterUtils {
@@ -59,13 +59,13 @@ public class WriterUtils {
   }
 
   /**
-   * Get the {@link Path} corresponding the to the directory a given {@link gobblin.writer.DataWriter} should be writing
+   * Get the {@link Path} corresponding the to the directory a given {@link org.apache.gobblin.writer.DataWriter} should be writing
    * its staging data. The staging data directory is determined by combining the
    * {@link ConfigurationKeys#WRITER_STAGING_DIR} and the {@link ConfigurationKeys#WRITER_FILE_PATH}.
-   * @param state is the {@link State} corresponding to a specific {@link gobblin.writer.DataWriter}.
+   * @param state is the {@link State} corresponding to a specific {@link org.apache.gobblin.writer.DataWriter}.
    * @param numBranches is the total number of branches for the given {@link State}.
-   * @param branchId is the id for the specific branch that the {@link gobblin.writer.DataWriter} will write to.
-   * @return a {@link Path} specifying the directory where the {@link gobblin.writer.DataWriter} will write to.
+   * @param branchId is the id for the specific branch that the {@link org.apache.gobblin.writer.DataWriter} will write to.
+   * @return a {@link Path} specifying the directory where the {@link org.apache.gobblin.writer.DataWriter} will write to.
    */
   public static Path getWriterStagingDir(State state, int numBranches, int branchId) {
     String writerStagingDirKey =
@@ -80,7 +80,7 @@ public class WriterUtils {
   }
 
   /**
-   * Get the staging {@link Path} for {@link gobblin.writer.DataWriter} that has attemptId in the path.
+   * Get the staging {@link Path} for {@link org.apache.gobblin.writer.DataWriter} that has attemptId in the path.
    */
   public static Path getWriterStagingDir(State state, int numBranches, int branchId, String attemptId) {
     Preconditions.checkArgument(attemptId != null && !attemptId.isEmpty(), "AttemptId cannot be null or empty: " + attemptId);
@@ -88,13 +88,13 @@ public class WriterUtils {
   }
 
   /**
-   * Get the {@link Path} corresponding the to the directory a given {@link gobblin.writer.DataWriter} should be writing
+   * Get the {@link Path} corresponding the to the directory a given {@link org.apache.gobblin.writer.DataWriter} should be writing
    * its output data. The output data directory is determined by combining the
    * {@link ConfigurationKeys#WRITER_OUTPUT_DIR} and the {@link ConfigurationKeys#WRITER_FILE_PATH}.
-   * @param state is the {@link State} corresponding to a specific {@link gobblin.writer.DataWriter}.
+   * @param state is the {@link State} corresponding to a specific {@link org.apache.gobblin.writer.DataWriter}.
    * @param numBranches is the total number of branches for the given {@link State}.
-   * @param branchId is the id for the specific branch that the {@link gobblin.writer.DataWriter} will write to.
-   * @return a {@link Path} specifying the directory where the {@link gobblin.writer.DataWriter} will write to.
+   * @param branchId is the id for the specific branch that the {@link org.apache.gobblin.writer.DataWriter} will write to.
+   * @return a {@link Path} specifying the directory where the {@link org.apache.gobblin.writer.DataWriter} will write to.
    */
   public static Path getWriterOutputDir(State state, int numBranches, int branchId) {
     String writerOutputDirKey =
@@ -105,13 +105,13 @@ public class WriterUtils {
   }
 
   /**
-   * Get the {@link Path} corresponding the to the directory a given {@link gobblin.publisher.BaseDataPublisher} should
+   * Get the {@link Path} corresponding the to the directory a given {@link org.apache.gobblin.publisher.BaseDataPublisher} should
    * commits its output data. The final output data directory is determined by combining the
    * {@link ConfigurationKeys#DATA_PUBLISHER_FINAL_DIR} and the {@link ConfigurationKeys#WRITER_FILE_PATH}.
-   * @param state is the {@link State} corresponding to a specific {@link gobblin.writer.DataWriter}.
+   * @param state is the {@link State} corresponding to a specific {@link org.apache.gobblin.writer.DataWriter}.
    * @param numBranches is the total number of branches for the given {@link State}.
-   * @param branchId is the id for the specific branch that the {@link gobblin.publisher.BaseDataPublisher} will publish.
-   * @return a {@link Path} specifying the directory where the {@link gobblin.publisher.BaseDataPublisher} will publish.
+   * @param branchId is the id for the specific branch that the {@link org.apache.gobblin.publisher.BaseDataPublisher} will publish.
+   * @return a {@link Path} specifying the directory where the {@link org.apache.gobblin.publisher.BaseDataPublisher} will publish.
    */
   public static Path getDataPublisherFinalDir(State state, int numBranches, int branchId) {
     String dataPublisherFinalDirKey =
@@ -131,14 +131,14 @@ public class WriterUtils {
   }
 
   /**
-   * Get the {@link Path} corresponding the the relative file path for a given {@link gobblin.writer.DataWriter}.
+   * Get the {@link Path} corresponding the the relative file path for a given {@link org.apache.gobblin.writer.DataWriter}.
    * This method retrieves the value of {@link ConfigurationKeys#WRITER_FILE_PATH} from the given {@link State}. It also
    * constructs the default value of the {@link ConfigurationKeys#WRITER_FILE_PATH} if not is not specified in the given
    * {@link State}.
-   * @param state is the {@link State} corresponding to a specific {@link gobblin.writer.DataWriter}.
+   * @param state is the {@link State} corresponding to a specific {@link org.apache.gobblin.writer.DataWriter}.
    * @param numBranches is the total number of branches for the given {@link State}.
-   * @param branchId is the id for the specific branch that the {{@link gobblin.writer.DataWriter} will write to.
-   * @return a {@link Path} specifying the relative directory where the {@link gobblin.writer.DataWriter} will write to.
+   * @param branchId is the id for the specific branch that the {{@link org.apache.gobblin.writer.DataWriter} will write to.
+   * @return a {@link Path} specifying the relative directory where the {@link org.apache.gobblin.writer.DataWriter} will write to.
    */
   public static Path getWriterFilePath(State state, int numBranches, int branchId) {
     if (state.contains(
@@ -175,8 +175,8 @@ public class WriterUtils {
   /**
    * Creates the default {@link Path} for the {@link ConfigurationKeys#WRITER_FILE_PATH} key.
    * @param numBranches is the total number of branches for the given {@link State}.
-   * @param branchId is the id for the specific branch that the {@link gobblin.writer.DataWriter} will write to.
-   * @return a {@link Path} specifying the directory where the {@link gobblin.writer.DataWriter} will write to.
+   * @param branchId is the id for the specific branch that the {@link org.apache.gobblin.writer.DataWriter} will write to.
+   * @return a {@link Path} specifying the directory where the {@link org.apache.gobblin.writer.DataWriter} will write to.
    */
   public static Path getDefaultWriterFilePath(State state, int numBranches, int branchId) {
     if (state instanceof WorkUnitState) {
@@ -195,13 +195,13 @@ public class WriterUtils {
   }
 
   /**
-   * Get the value of {@link ConfigurationKeys#WRITER_FILE_NAME} for the a given {@link gobblin.writer.DataWriter}. The
+   * Get the value of {@link ConfigurationKeys#WRITER_FILE_NAME} for the a given {@link org.apache.gobblin.writer.DataWriter}. The
    * method also constructs the default value of the {@link ConfigurationKeys#WRITER_FILE_NAME} if it is not set in the
    * {@link State}
-   * @param state is the {@link State} corresponding to a specific {@link gobblin.writer.DataWriter}.
+   * @param state is the {@link State} corresponding to a specific {@link org.apache.gobblin.writer.DataWriter}.
    * @param numBranches is the total number of branches for the given {@link State}.
-   * @param branchId is the id for the specific branch that the {{@link gobblin.writer.DataWriter} will write to.
-   * @param writerId is the id for a specific {@link gobblin.writer.DataWriter}.
+   * @param branchId is the id for the specific branch that the {{@link org.apache.gobblin.writer.DataWriter} will write to.
+   * @param writerId is the id for a specific {@link org.apache.gobblin.writer.DataWriter}.
    * @param formatExtension is the format extension for the file (e.g. ".avro").
    * @return a {@link String} representation of the file name.
    */

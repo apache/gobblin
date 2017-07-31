@@ -40,8 +40,8 @@ import org.apache.gobblin.qualitychecker.row.RowLevelPolicy;
 
 
 /**
- * package-private implementation of instrumentation for {@link gobblin.qualitychecker.row.RowLevelPolicy}.
- * See {@link gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy} for extensible class.
+ * package-private implementation of instrumentation for {@link org.apache.gobblin.qualitychecker.row.RowLevelPolicy}.
+ * See {@link org.apache.gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy} for extensible class.
  */
 abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements Instrumentable, Closeable {
 
@@ -156,7 +156,7 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
   }
 
   /**
-   * Subclasses should implement this instead of {@link gobblin.qualitychecker.row.RowLevelPolicy#executePolicy}.
+   * Subclasses should implement this instead of {@link org.apache.gobblin.qualitychecker.row.RowLevelPolicy#executePolicy}.
    */
   public abstract Result executePolicyImpl(Object record);
 

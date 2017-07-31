@@ -22,7 +22,7 @@ import org.apache.gobblin.instrumented.extractor.InstrumentedExtractor;
 
 
 /**
- * A base {@link gobblin.source.extractor.Extractor} class for
+ * A base {@link org.apache.gobblin.source.extractor.Extractor} class for
  * event-based sources.
  */
 public abstract class EventBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {

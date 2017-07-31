@@ -29,7 +29,7 @@ import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 
 /**
  * A {@link DataWriterBuilder} used with a {@link WriterPartitioner}. When provided with a partitioner, Gobblin will create a
- * {@link gobblin.writer.DataWriter} per partition. All partitions will be build with identical builders, except
+ * {@link org.apache.gobblin.writer.DataWriter} per partition. All partitions will be build with identical builders, except
  * that {@link #forPartition} will specify the partition.
  *
  * <p>

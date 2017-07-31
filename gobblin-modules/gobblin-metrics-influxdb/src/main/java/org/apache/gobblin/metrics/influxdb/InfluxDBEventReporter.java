@@ -41,7 +41,7 @@ import static org.apache.gobblin.metrics.event.TimingEvent.METADATA_DURATION;
 
 /**
  *
- * {@link gobblin.metrics.reporter.EventReporter} that emits {@link gobblin.metrics.GobblinTrackingEvent} events
+ * {@link org.apache.gobblin.metrics.reporter.EventReporter} that emits {@link org.apache.gobblin.metrics.GobblinTrackingEvent} events
  * as timestamped name - value pairs to InfluxDB
  *
  * @author Lorand Bendig
@@ -128,7 +128,7 @@ public class InfluxDBEventReporter extends EventReporter {
    * Returns a new {@link InfluxDBEventReporter.Builder} for {@link InfluxDBEventReporter}.
    * Will automatically add all Context tags to the reporter.
    *
-   * @param context the {@link gobblin.metrics.MetricContext} to report
+   * @param context the {@link org.apache.gobblin.metrics.MetricContext} to report
    * @return InfluxDBEventReporter builder
    * @deprecated this method is bugged. Use {@link InfluxDBEventReporter.Factory#forContext} instead.
    */
@@ -154,7 +154,7 @@ public class InfluxDBEventReporter extends EventReporter {
      * Returns a new {@link InfluxDBEventReporter.Builder} for {@link InfluxDBEventReporter}.
      * Will automatically add all Context tags to the reporter.
      *
-     * @param context the {@link gobblin.metrics.MetricContext} to report
+     * @param context the {@link org.apache.gobblin.metrics.MetricContext} to report
      * @return InfluxDBEventReporter builder
      */
     public static BuilderImpl forContext(MetricContext context) {
@@ -182,7 +182,7 @@ public class InfluxDBEventReporter extends EventReporter {
     }
 
     /**
-     * Set {@link gobblin.metrics.influxdb.InfluxDBPusher} to use.
+     * Set {@link org.apache.gobblin.metrics.influxdb.InfluxDBPusher} to use.
      */
     public T withInfluxDBPusher(InfluxDBPusher pusher) {
       this.influxDBPusher = Optional.of(pusher);
@@ -190,7 +190,7 @@ public class InfluxDBEventReporter extends EventReporter {
     }
 
     /**
-     * Set connection parameters for the {@link gobblin.metrics.influxdb.InfluxDBPusher} creation
+     * Set connection parameters for the {@link org.apache.gobblin.metrics.influxdb.InfluxDBPusher} creation
      */
     public T withConnection(String url, String username, String password, String database) {
       this.url = url;
@@ -201,7 +201,7 @@ public class InfluxDBEventReporter extends EventReporter {
     }
 
     /**
-     * Set {@link gobblin.metrics.influxdb.InfluxDBConnectionType} to use.
+     * Set {@link org.apache.gobblin.metrics.influxdb.InfluxDBConnectionType} to use.
      */
     public T withConnectionType(InfluxDBConnectionType connectionType) {
       this.connectionType = connectionType;

@@ -26,7 +26,7 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificRecord;
 
 /**
- * {@link gobblin.metrics.reporter.util.AvroSerializer} that serializes into binary.
+ * {@link org.apache.gobblin.metrics.reporter.util.AvroSerializer} that serializes into binary.
  */
 public class AvroBinarySerializer<T extends SpecificRecord> extends AvroSerializer<T> {
 

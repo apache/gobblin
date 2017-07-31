@@ -36,7 +36,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  * An implementation of {@link Source} for the simple JSON example.
  *
  * <p>
- *   This source creates one {@link gobblin.source.workunit.WorkUnit}
+ *   This source creates one {@link org.apache.gobblin.source.workunit.WorkUnit}
  *   for each file to pull and uses the {@link SimpleJsonExtractor} to pull the data.
  * </p>
  *

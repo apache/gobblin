@@ -48,7 +48,7 @@ import org.apache.gobblin.metrics.reporter.ContextAwareScheduledReporter;
  * <p>
  *   This test class also tests classes {@link ContextAwareCounter}, {@link ContextAwareMeter},
  *   {@link ContextAwareHistogram}, {@link ContextAwareTimer}, {@link ContextAwareGauge},
- *   {@link gobblin.metrics.reporter.ContextAwareScheduledReporter}, and {@link TagBasedMetricFilter}.
+ *   {@link org.apache.gobblin.metrics.reporter.ContextAwareScheduledReporter}, and {@link TagBasedMetricFilter}.
  * </p>
  *
  * @author Yinan Li

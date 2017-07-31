@@ -55,7 +55,7 @@ import org.apache.gobblin.util.AvroUtils;
 
 
 /**
- * A subclass of {@link gobblin.compaction.mapreduce.MRCompactorJobRunner} that configures
+ * A subclass of {@link org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner} that configures
  * and runs MR compaction job for Avro data.
  *
  * To dedup using entire records set compaction.use.all.attributes=true. Otherwise, a schema needs

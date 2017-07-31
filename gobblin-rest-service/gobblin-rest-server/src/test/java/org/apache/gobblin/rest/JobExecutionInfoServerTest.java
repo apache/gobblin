@@ -43,12 +43,12 @@ import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 
 
 /**
- * Unit tests for {@link gobblin.rest.JobExecutionInfoServer}.
+ * Unit tests for {@link org.apache.gobblin.rest.JobExecutionInfoServer}.
  *
  * <p>
- *     This test case uses {@link gobblin.rest.JobExecutionInfoClient} to talk to the
- *     {@link gobblin.rest.JobExecutionInfoServer}, which runs the Rest.li resource
- *     {@link gobblin.rest.JobExecutionInfoResource}. So this test case is also testing
+ *     This test case uses {@link org.apache.gobblin.rest.JobExecutionInfoClient} to talk to the
+ *     {@link org.apache.gobblin.rest.JobExecutionInfoServer}, which runs the Rest.li resource
+ *     {@link org.apache.gobblin.rest.JobExecutionInfoResource}. So this test case is also testing
  *     those classes.
  * </p>
  *

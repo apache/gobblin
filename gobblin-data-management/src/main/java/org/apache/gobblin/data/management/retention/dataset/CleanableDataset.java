@@ -24,14 +24,14 @@ import java.io.IOException;
 
 
 /**
- * An abstraction for a set of files where a simple {@link gobblin.data.management.retention.policy.RetentionPolicy}
+ * An abstraction for a set of files where a simple {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy}
  * can be applied.
  */
 public interface CleanableDataset extends Dataset, FileSystemDataset {
 
   /**
    * Cleans the {@link CleanableDataset}. In general, this means to apply a
-   * {@link gobblin.data.management.retention.policy.RetentionPolicy} and delete files and directories that need deleting.
+   * {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy} and delete files and directories that need deleting.
    * @throws IOException
    */
   public void clean() throws IOException;

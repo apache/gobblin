@@ -42,7 +42,7 @@ import org.apache.gobblin.util.request_allocation.SimpleHierarchicalPrioritizer;
  *
  *  1-1-1 mapping between {@link Dataset} - {@link SimpleDatasetRequest} - {@link SimpleDatasetRequestor}
  *
- * {@link gobblin.util.request_allocation.HierarchicalAllocator} will use {@link TierComparator} from this class
+ * {@link org.apache.gobblin.util.request_allocation.HierarchicalAllocator} will use {@link TierComparator} from this class
  * to shuffle {@link SimpleDatasetRequestor}s so that high priority tiers will appear in front of low priority tiers.
  *
  * Usage:

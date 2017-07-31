@@ -20,7 +20,7 @@ package org.apache.gobblin.runtime;
 /**
  * {@inheritDoc}
  *
- * @deprecated This class has been moved to {@link gobblin.util.limiter.DefaultLimiterFactory}.
+ * @deprecated This class has been moved to {@link org.apache.gobblin.util.limiter.DefaultLimiterFactory}.
  */
 @Deprecated
 public class DefaultLimiterFactory extends gobblin.util.limiter.DefaultLimiterFactory {

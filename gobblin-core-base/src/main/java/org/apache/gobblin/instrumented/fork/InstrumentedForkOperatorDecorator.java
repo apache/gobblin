@@ -30,8 +30,8 @@ import org.apache.gobblin.util.DecoratorUtils;
 
 
 /**
- * Decorator that automatically instruments {@link gobblin.fork.ForkOperator}.
- * Handles already instrumented {@link gobblin.instrumented.fork.InstrumentedForkOperator}
+ * Decorator that automatically instruments {@link org.apache.gobblin.fork.ForkOperator}.
+ * Handles already instrumented {@link org.apache.gobblin.instrumented.fork.InstrumentedForkOperator}
  * appropriately to avoid double metric reporting.
  */
 public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOperatorBase<S, D> implements Decorator {

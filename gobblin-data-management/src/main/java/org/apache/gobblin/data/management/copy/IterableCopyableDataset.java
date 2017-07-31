@@ -35,7 +35,7 @@ public interface IterableCopyableDataset extends CopyableDatasetBase {
    * Get an iterator of {@link FileSet}s of {@link CopyEntity}, each one representing a group of files to copy and
    * associated actions.
    * @param targetFs target {@link org.apache.hadoop.fs.FileSystem} where copied files will be placed.
-   * @param configuration {@link gobblin.data.management.copy.CopyConfiguration} for this job. See {@link gobblin.data.management.copy.CopyConfiguration}.
+   * @param configuration {@link org.apache.gobblin.data.management.copy.CopyConfiguration} for this job. See {@link org.apache.gobblin.data.management.copy.CopyConfiguration}.
    * @throws IOException
    */
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)

@@ -72,7 +72,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
   }
 
   /**
-   * A static factory class for obtaining new {@link gobblin.metrics.influxdb.InfluxDBReporter.Builder}s
+   * A static factory class for obtaining new {@link org.apache.gobblin.metrics.influxdb.InfluxDBReporter.Builder}s
    *
    * @see gobblin.metrics.influxdb.InfluxDBReporter.Builder
    */
@@ -115,7 +115,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
     }
 
     /**
-     * Set {@link gobblin.metrics.influxdb.InfluxDBPusher} to use.
+     * Set {@link org.apache.gobblin.metrics.influxdb.InfluxDBPusher} to use.
      */
     public T withInfluxDBPusher(InfluxDBPusher pusher) {
       this.influxDBPusher = Optional.of(pusher);
@@ -123,7 +123,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
     }
 
     /**
-     * Set connection parameters for the {@link gobblin.metrics.influxdb.InfluxDBPusher} creation
+     * Set connection parameters for the {@link org.apache.gobblin.metrics.influxdb.InfluxDBPusher} creation
      */
     public T withConnection(String url, String username, String password, String database) {
       this.url = url;
@@ -134,7 +134,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
     }
 
     /**
-     * Set {@link gobblin.metrics.influxdb.InfluxDBConnectionType} to use.
+     * Set {@link org.apache.gobblin.metrics.influxdb.InfluxDBConnectionType} to use.
      */
     public T withConnectionType(InfluxDBConnectionType connectionType) {
       this.connectionType = connectionType;

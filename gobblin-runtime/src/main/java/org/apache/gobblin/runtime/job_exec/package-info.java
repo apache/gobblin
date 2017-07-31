@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 /**
- * Standard {@link gobblin.runtime.api.JobExecutionLauncher} implementations
+ * Standard {@link org.apache.gobblin.runtime.api.JobExecutionLauncher} implementations
  *
  */
 package org.apache.gobblin.runtime.job_exec;

@@ -38,8 +38,8 @@ import org.apache.gobblin.source.workunit.WorkUnitStream;
 
 
 /**
- * A decorator class for {@link gobblin.source.Source} that catches any
- * possible exceptions/errors thrown by the {@link gobblin.source.Source}.
+ * A decorator class for {@link org.apache.gobblin.source.Source} that catches any
+ * possible exceptions/errors thrown by the {@link org.apache.gobblin.source.Source}.
  *
  * @author Yinan Li
  */

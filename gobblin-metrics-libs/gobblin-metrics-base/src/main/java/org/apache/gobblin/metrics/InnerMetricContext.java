@@ -144,9 +144,9 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   }
 
   /**
-   * Get a view of the child {@link gobblin.metrics.MetricContext}s as a {@link com.google.common.collect.ImmutableMap}.
+   * Get a view of the child {@link org.apache.gobblin.metrics.MetricContext}s as a {@link com.google.common.collect.ImmutableMap}.
    * @return {@link com.google.common.collect.ImmutableMap} of
-   *      child {@link gobblin.metrics.MetricContext}s keyed by their names.
+   *      child {@link org.apache.gobblin.metrics.MetricContext}s keyed by their names.
    */
   @Override
   public Map<String, MetricContext> getChildContextsAsMap() {
@@ -274,7 +274,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   }
 
   /**
-   * Register a {@link gobblin.metrics.ContextAwareMetric} under its own name.
+   * Register a {@link org.apache.gobblin.metrics.ContextAwareMetric} under its own name.
    */
   public <T extends ContextAwareMetric> T register(T metric) throws IllegalArgumentException {
     return register(metric.getName(), metric);

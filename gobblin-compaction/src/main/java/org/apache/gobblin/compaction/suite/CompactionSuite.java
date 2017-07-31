@@ -31,16 +31,16 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * This interface provides major components required by {@link gobblin.compaction.source.CompactionSource}
- * and {@link gobblin.compaction.mapreduce.MRCompactionTask} flow.
+ * This interface provides major components required by {@link org.apache.gobblin.compaction.source.CompactionSource}
+ * and {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask} flow.
  *
  * User needs to implement {@link #createJob(Dataset)} method to create a customized map-reduce job.
  * Two types of {@link CompactionVerifier}s should be provided. One is to verify datasets returned by
  * {@link ConfigBasedDatasetsFinder#findDatasets()}. The other is to verify datasets before we run MR
- * job inside {@link gobblin.compaction.mapreduce.MRCompactionTask}
+ * job inside {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask}
  *
  * The class also handles how to create a map-reduce job and how to serialized and deserialize a {@link Dataset}
- * to and from a {@link gobblin.source.workunit.WorkUnit} properly.
+ * to and from a {@link org.apache.gobblin.source.workunit.WorkUnit} properly.
  */
 
 public interface CompactionSuite<D extends Dataset> {
@@ -57,7 +57,7 @@ public interface CompactionSuite<D extends Dataset> {
 
   /**
    * Get a list of verifiers for each dataset validation.
-   * Verifiers are executed by {@link gobblin.compaction.source.CompactionSource#getWorkunits(SourceState)}
+   * Verifiers are executed by {@link org.apache.gobblin.compaction.source.CompactionSource#getWorkunits(SourceState)}
    */
   List<CompactionVerifier<D>> getDatasetsFinderVerifiers();
 

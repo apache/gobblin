@@ -28,7 +28,7 @@ import org.apache.gobblin.metrics.MetricContext;
 
 
 /**
- * An implementation of {@link gobblin.metrics.reporter.ContextAwareScheduledReporter} that reports
+ * An implementation of {@link org.apache.gobblin.metrics.reporter.ContextAwareScheduledReporter} that reports
  * applicable metrics as Hadoop counters using a {@link org.apache.hadoop.mapred.Reporter}.
  *
  * @author Yinan Li
@@ -54,23 +54,23 @@ public class HadoopCounterReporter extends AbstractHadoopCounterReporter {
   }
 
   /**
-   * Create a new {@link gobblin.metrics.hadoop.HadoopCounterReporter.Builder} that
+   * Create a new {@link org.apache.gobblin.metrics.hadoop.HadoopCounterReporter.Builder} that
    * uses the simple name of {@link HadoopCounterReporter} as the reporter name.
    *
    * @param reporter a {@link org.apache.hadoop.mapred.Reporter} used to access Hadoop counters
-   * @return a new {@link gobblin.metrics.hadoop.HadoopCounterReporter.Builder}
+   * @return a new {@link org.apache.gobblin.metrics.hadoop.HadoopCounterReporter.Builder}
    */
   public static Builder builder(Reporter reporter) {
     return builder(HadoopCounterReporter.class.getName(), reporter);
   }
 
   /**
-   * Create a new {@link gobblin.metrics.hadoop.HadoopCounterReporter.Builder} that
+   * Create a new {@link org.apache.gobblin.metrics.hadoop.HadoopCounterReporter.Builder} that
    * uses a given reporter name.
    *
    * @param name the given reporter name
    * @param reporter a {@link org.apache.hadoop.mapred.Reporter} used to access Hadoop counters
-   * @return a new {@link gobblin.metrics.hadoop.HadoopCounterReporter.Builder}
+   * @return a new {@link org.apache.gobblin.metrics.hadoop.HadoopCounterReporter.Builder}
    */
   public static Builder builder(String name, Reporter reporter) {
     return new Builder(name, reporter);

@@ -30,7 +30,7 @@ import org.apache.gobblin.dataset.Dataset;
 
 /**
  * @deprecated
- * See javadoc for {@link gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder}.
+ * See javadoc for {@link org.apache.gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder}.
  */
 @Deprecated
 public class ModDateTimeDatasetVersionFinder implements VersionFinder<TimestampedDatasetVersion> {

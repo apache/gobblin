@@ -37,7 +37,7 @@ import javax.annotation.Nullable;
  *
  * <p>
  *     All source specific logic for a data source should be encapsulated in an
- *     implementation of this interface and {@link gobblin.source.Source}.
+ *     implementation of this interface and {@link org.apache.gobblin.source.Source}.
  * </p>
  *
  * @author kgoodhop

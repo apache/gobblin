@@ -69,7 +69,7 @@ public class JobState extends SourceState {
 
   /**
    * An enumeration of possible job states, which are identical to
-   * {@link gobblin.configuration.WorkUnitState.WorkingState}
+   * {@link org.apache.gobblin.configuration.WorkUnitState.WorkingState}
    * in terms of naming.
    *
    * <p> Status state diagram:

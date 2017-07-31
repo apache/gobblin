@@ -25,8 +25,8 @@ import org.apache.gobblin.data.management.version.DatasetVersion;
 
 /**
  * Retention policy around versions of a dataset. Specifies which versions of a dataset should be deleted by
- * {@link gobblin.data.management.retention.DatasetCleaner}.
- * @param <T> {@link gobblin.data.management.retention.version.DatasetVersion} accepted by this policy.
+ * {@link org.apache.gobblin.data.management.retention.DatasetCleaner}.
+ * @param <T> {@link org.apache.gobblin.data.management.retention.version.DatasetVersion} accepted by this policy.
  */
 public interface RetentionPolicy<T extends DatasetVersion> {
 

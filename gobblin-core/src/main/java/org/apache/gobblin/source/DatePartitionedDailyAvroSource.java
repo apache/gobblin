@@ -18,7 +18,7 @@ import org.apache.gobblin.util.DatePartitionType;
 
 
 /**
- * Implementation of {@link gobblin.source.Source} that reads over date-partitioned Avro data.
+ * Implementation of {@link org.apache.gobblin.source.Source} that reads over date-partitioned Avro data.
  *
  * <p>
  *

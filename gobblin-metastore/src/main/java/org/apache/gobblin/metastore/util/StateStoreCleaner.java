@@ -50,7 +50,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
- * A utility class for cleaning up old state store files created by {@link gobblin.metastore.FsStateStore}
+ * A utility class for cleaning up old state store files created by {@link org.apache.gobblin.metastore.FsStateStore}
  * based on a configured retention.
  * @deprecated Please use Gobblin-retention instead: http://gobblin.readthedocs.io/en/latest/data-management/Gobblin-Retention/.
  *

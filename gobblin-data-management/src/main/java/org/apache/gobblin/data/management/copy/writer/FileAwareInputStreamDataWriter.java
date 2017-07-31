@@ -102,7 +102,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected final Optional<String> writerAttemptIdOptional;
   /**
    * The copyable file in the WorkUnit might be modified by converters (e.g. output extensions added / removed).
-   * This field is set when {@link #write} is called, and points to the actual, possibly modified {@link gobblin.data.management.copy.CopyEntity}
+   * This field is set when {@link #write} is called, and points to the actual, possibly modified {@link org.apache.gobblin.data.management.copy.CopyEntity}
    * that was written by this writer.
    */
   protected Optional<CopyableFile> actualProcessedCopyableFile;
@@ -180,7 +180,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    *
    * @param inputStream {@link FSDataInputStream} whose contents should be written to staging path.
    * @param writeAt {@link Path} at which contents should be written.
-   * @param copyableFile {@link gobblin.data.management.copy.CopyEntity} that generated this copy operation.
+   * @param copyableFile {@link org.apache.gobblin.data.management.copy.CopyEntity} that generated this copy operation.
    * @throws IOException
    */
   protected void writeImpl(InputStream inputStream, Path writeAt, CopyableFile copyableFile)

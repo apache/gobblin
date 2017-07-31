@@ -47,7 +47,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 /**
  * A Restorable {@link HivePartitionDataset}. It restores a given {@link HivePartitionDataset} with a
- * {@link gobblin.compliance.HivePartitionVersion} based on {@link RestorePolicy}
+ * {@link org.apache.gobblin.compliance.HivePartitionVersion} based on {@link RestorePolicy}
  *
  * @author adsharma
  */

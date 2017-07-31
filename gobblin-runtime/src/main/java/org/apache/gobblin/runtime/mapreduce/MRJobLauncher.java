@@ -510,7 +510,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Create a {@link gobblin.metrics.GobblinMetrics} instance for this job run from the Hadoop counters.
+   * Create a {@link org.apache.gobblin.metrics.GobblinMetrics} instance for this job run from the Hadoop counters.
    */
   @VisibleForTesting
   void countersToMetrics(GobblinMetrics metrics)

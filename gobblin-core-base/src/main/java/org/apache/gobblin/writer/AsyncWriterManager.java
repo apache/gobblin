@@ -190,9 +190,9 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
 
   /**
    * TODO: Figure out what this means for checkpointing.
-   * Get final state for this object. By default this returns an empty {@link gobblin.configuration.State}, but
+   * Get final state for this object. By default this returns an empty {@link org.apache.gobblin.configuration.State}, but
    * concrete subclasses can add information that will be added to the task state.
-   * @return Empty {@link gobblin.configuration.State}.
+   * @return Empty {@link org.apache.gobblin.configuration.State}.
    */
   @Override
   public State getFinalState() {

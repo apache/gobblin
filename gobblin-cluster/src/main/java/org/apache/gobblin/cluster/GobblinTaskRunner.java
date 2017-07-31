@@ -84,7 +84,7 @@ import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 
 /**
  * The main class running in the containers managing services for running Gobblin
- * {@link gobblin.source.workunit.WorkUnit}s.
+ * {@link org.apache.gobblin.source.workunit.WorkUnit}s.
  *
  * <p>
  *   This class serves as a Helix participant and it uses a {@link HelixManager} to work with Helix.

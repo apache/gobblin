@@ -40,10 +40,10 @@ import org.apache.gobblin.util.FileListUtils;
 
 
 /**
- * {@link gobblin.data.management.version.finder.VersionFinder} that uses the most nested file,
+ * {@link org.apache.gobblin.data.management.version.finder.VersionFinder} that uses the most nested file,
  * or directory if no file exists, level modifiedTimestamp under the datasetRoot path to find
- * {@link gobblin.data.management.version.FileSystemDatasetVersion}s, and represents each version as
- * {@link gobblin.data.management.version.TimestampedDatasetVersion} using the file level path
+ * {@link org.apache.gobblin.data.management.version.FileSystemDatasetVersion}s, and represents each version as
+ * {@link org.apache.gobblin.data.management.version.TimestampedDatasetVersion} using the file level path
  * and modifiedTimestamp.
  */
 public class FileLevelTimestampVersionFinder implements VersionFinder<TimestampedDatasetVersion> {

@@ -41,7 +41,7 @@ import org.apache.gobblin.data.management.version.DatasetVersion;
 
 
 /**
- * Implementation of {@link gobblin.data.management.retention.policy.RetentionPolicy} that allows combining different
+ * Implementation of {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy} that allows combining different
  * policies through a union or intersect operation. It will combine the delete sets from each sub-policy using the
  * specified operation.
  *

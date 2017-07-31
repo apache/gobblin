@@ -35,7 +35,7 @@ import org.apache.gobblin.hive.spec.HiveSpec;
 public interface HiveRegistrationPolicy {
 
   /**
-   * Get a collection of {@link HiveSpec}s for a {@link Path}, which can be used by {@link gobblin.hive.HiveRegister}
+   * Get a collection of {@link HiveSpec}s for a {@link Path}, which can be used by {@link org.apache.gobblin.hive.HiveRegister}
    * to register the given {@link Path}.
    */
   public Collection<HiveSpec> getHiveSpecs(Path path) throws IOException;

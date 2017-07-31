@@ -44,8 +44,8 @@ import org.apache.gobblin.metrics.Tag;
 
 
 /**
- * package-private implementation of instrumentation for {@link gobblin.converter.Converter}.
- * See {@link gobblin.instrumented.converter.InstrumentedConverter} for extensible class.
+ * package-private implementation of instrumentation for {@link org.apache.gobblin.converter.Converter}.
+ * See {@link org.apache.gobblin.instrumented.converter.InstrumentedConverter} for extensible class.
  */
 abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO>
     implements Instrumentable, Closeable {
@@ -178,7 +178,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
   /**
    * Subclasses should implement this method instead of convertRecord.
    *
-   * See {@link gobblin.converter.Converter#convertRecord}.
+   * See {@link org.apache.gobblin.converter.Converter#convertRecord}.
    */
   public abstract Iterable<DO> convertRecordImpl(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException;

@@ -30,8 +30,8 @@ import com.google.common.collect.Lists;
 
 
 /**
- * Mock version of {@link gobblin.data.management.trash.ProxiedTrash} for simulating deletions. Can also be used as
- * a mock for {@link gobblin.data.management.trash.Trash}.
+ * Mock version of {@link org.apache.gobblin.data.management.trash.ProxiedTrash} for simulating deletions. Can also be used as
+ * a mock for {@link org.apache.gobblin.data.management.trash.Trash}.
  */
 public class MockTrash extends ProxiedTrash {
 

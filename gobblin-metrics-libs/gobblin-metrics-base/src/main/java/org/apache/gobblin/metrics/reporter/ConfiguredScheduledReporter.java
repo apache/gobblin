@@ -147,7 +147,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
 
     /**
      * Add tags
-     * @param tags additional {@link gobblin.metrics.Tag}s for the reporter.
+     * @param tags additional {@link org.apache.gobblin.metrics.Tag}s for the reporter.
      * @return {@code this}
      */
     public T withTags(Map<String, String> tags) {
@@ -157,7 +157,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
 
     /**
      * Add tags.
-     * @param tags List of {@link gobblin.metrics.Tag}
+     * @param tags List of {@link org.apache.gobblin.metrics.Tag}
      * @return {@code this}
      */
     public T withTags(List<Tag<?>> tags) {

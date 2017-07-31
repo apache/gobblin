@@ -79,7 +79,7 @@ public class RecoveryHelper {
    * persisted file.
    *
    * @param state {@link State} containing job information.
-   * @param file {@link gobblin.data.management.copy.CopyEntity} from which input {@link Path} originated.
+   * @param file {@link org.apache.gobblin.data.management.copy.CopyEntity} from which input {@link Path} originated.
    * @param path {@link Path} to persist.
    * @return true if persist was successful.
    * @throws IOException
@@ -109,11 +109,11 @@ public class RecoveryHelper {
   }
 
   /**
-   * Searches the persist directory to find {@link Path}s matching the input {@link gobblin.data.management.copy.CopyEntity}.
+   * Searches the persist directory to find {@link Path}s matching the input {@link org.apache.gobblin.data.management.copy.CopyEntity}.
    * @param state {@link State} containing job information.
-   * @param file {@link gobblin.data.management.copy.CopyEntity} for which persisted {@link Path}s should be found.
+   * @param file {@link org.apache.gobblin.data.management.copy.CopyEntity} for which persisted {@link Path}s should be found.
    * @param filter {@link com.google.common.base.Predicate} used to filter found paths.
-   * @return Optionally, a {@link Path} in the {@link FileSystem} that is the desired copy of the {@link gobblin.data.management.copy.CopyEntity}.
+   * @return Optionally, a {@link Path} in the {@link FileSystem} that is the desired copy of the {@link org.apache.gobblin.data.management.copy.CopyEntity}.
    * @throws IOException
    */
   public Optional<FileStatus> findPersistedFile(State state, CopyEntity file, Predicate<FileStatus> filter)

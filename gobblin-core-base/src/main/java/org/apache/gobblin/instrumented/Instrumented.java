@@ -60,9 +60,9 @@ import org.apache.gobblin.writer.DataWriter;
  * Provides simple instrumentation for gobblin-core components.
  *
  * <p>
- * Creates {@link gobblin.metrics.MetricContext}. Tries to read the name of the parent context
+ * Creates {@link org.apache.gobblin.metrics.MetricContext}. Tries to read the name of the parent context
  * from key "metrics.context.name" at state, and tries to get the parent context by name from
- * the {@link gobblin.metrics.MetricContext} registry (the parent context must be registered).
+ * the {@link org.apache.gobblin.metrics.MetricContext} registry (the parent context must be registered).
  * </p>
  *
  * <p>
@@ -92,26 +92,26 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
-   * Get a {@link gobblin.metrics.MetricContext} to be used by an object needing instrumentation.
+   * Get a {@link org.apache.gobblin.metrics.MetricContext} to be used by an object needing instrumentation.
    *
    * <p>
    * This method will read the property "metrics.context.name" from the input State, and will attempt
-   * to find a MetricContext with that name in the global instance of {@link gobblin.metrics.GobblinMetricsRegistry}.
+   * to find a MetricContext with that name in the global instance of {@link org.apache.gobblin.metrics.GobblinMetricsRegistry}.
    * If it succeeds, the generated MetricContext will be a child of the retrieved Context, otherwise it will
    * be a parent-less context.
    * </p>
    * <p>
    * The method will automatically add two tags to the context:
    * <ul>
-   *  <li> construct will contain the name of the {@link gobblin.Constructs} that klazz represents. </li>
+   *  <li> construct will contain the name of the {@link org.apache.gobblin.Constructs} that klazz represents. </li>
    *  <li> class will contain the canonical name of the input class. </li>
    * </ul>
    * </p>
    *
-   * @param state {@link gobblin.configuration.State} used to find the parent MetricContext.
+   * @param state {@link org.apache.gobblin.configuration.State} used to find the parent MetricContext.
    * @param klazz Class of the object needing instrumentation.
    * @param tags Additional tags to add to the returned context.
-   * @return A {@link gobblin.metrics.MetricContext} with the appropriate tags and parent.
+   * @return A {@link org.apache.gobblin.metrics.MetricContext} with the appropriate tags and parent.
    */
   public static MetricContext getMetricContext(State state, Class<?> klazz, List<Tag<?>> tags) {
     int randomId = RAND.nextInt(Integer.MAX_VALUE);
@@ -148,15 +148,15 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
-   * Generates a new {@link gobblin.metrics.MetricContext} with the parent and tags taken from the reference context.
-   * Allows replacing {@link gobblin.metrics.Tag} with new input tags.
-   * This method will not copy any {@link gobblin.metrics.Metric} contained in the reference {@link gobblin.metrics.MetricContext}.
+   * Generates a new {@link org.apache.gobblin.metrics.MetricContext} with the parent and tags taken from the reference context.
+   * Allows replacing {@link org.apache.gobblin.metrics.Tag} with new input tags.
+   * This method will not copy any {@link org.apache.gobblin.metrics.Metric} contained in the reference {@link org.apache.gobblin.metrics.MetricContext}.
    *
-   * @param context Reference {@link gobblin.metrics.MetricContext}.
-   * @param newTags New {@link gobblin.metrics.Tag} to apply to context. Repeated keys will override old tags.
-   * @param name Name of the new {@link gobblin.metrics.MetricContext}.
+   * @param context Reference {@link org.apache.gobblin.metrics.MetricContext}.
+   * @param newTags New {@link org.apache.gobblin.metrics.Tag} to apply to context. Repeated keys will override old tags.
+   * @param name Name of the new {@link org.apache.gobblin.metrics.MetricContext}.
    *             If absent or empty, will modify old name by adding a random integer at the end.
-   * @return Generated {@link gobblin.metrics.MetricContext}.
+   * @return Generated {@link org.apache.gobblin.metrics.MetricContext}.
    */
   public static MetricContext newContextFromReferenceContext(MetricContext context, List<Tag<?>> newTags,
       Optional<String> name) {
@@ -184,8 +184,8 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
-   * Determines whether an object or, if it is a {@link gobblin.util.Decorator}, any object on its lineage,
-   * is of class {@link gobblin.instrumented.Instrumentable}.
+   * Determines whether an object or, if it is a {@link org.apache.gobblin.util.Decorator}, any object on its lineage,
+   * is of class {@link org.apache.gobblin.instrumented.Instrumentable}.
    * @param obj Object to analyze.
    * @return Whether the lineage is instrumented.
    */
@@ -203,8 +203,8 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
-   * Returns a {@link com.codahale.metrics.Timer.Context} only if {@link gobblin.metrics.MetricContext} is defined.
-   * @param context an Optional&lt;{@link gobblin.metrics.MetricContext}$gt;
+   * Returns a {@link com.codahale.metrics.Timer.Context} only if {@link org.apache.gobblin.metrics.MetricContext} is defined.
+   * @param context an Optional&lt;{@link org.apache.gobblin.metrics.MetricContext}$gt;
    * @param name name of the timer.
    * @return an Optional&lt;{@link com.codahale.metrics.Timer.Context}$gt;
    */

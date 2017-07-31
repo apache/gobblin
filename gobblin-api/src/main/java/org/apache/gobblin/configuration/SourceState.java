@@ -50,7 +50,7 @@ import lombok.Getter;
  * <p>
  *   Properties can be overwritten at runtime and persisted upon job completion. Persisted
  *   properties will be loaded in the next run and made available to use by the
- *   {@link gobblin.source.Source}.
+ *   {@link org.apache.gobblin.source.Source}.
  * </p>
  *
  * @author kgoodhop
@@ -167,12 +167,12 @@ public class SourceState extends State {
    *   This method should always return a new unique {@link Extract} instance.
    * </p>
    *
-   * @param type {@link gobblin.source.workunit.Extract.TableType}
+   * @param type {@link org.apache.gobblin.source.workunit.Extract.TableType}
    * @param namespace namespace of the table this extract belongs to
    * @param table name of the table this extract belongs to
    * @return a new unique {@link Extract} instance
    *
-   * @Deprecated Use {@link gobblin.source.extractor.extract.AbstractSource#createExtract(
+   * @Deprecated Use {@link org.apache.gobblin.source.extractor.extract.AbstractSource#createExtract(
    * gobblin.source.workunit.Extract.TableType, String, String)}
    */
   @Deprecated

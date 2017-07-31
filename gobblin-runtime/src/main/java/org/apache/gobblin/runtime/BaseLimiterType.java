@@ -18,7 +18,7 @@
 package org.apache.gobblin.runtime;
 
 /**
- * @deprecated This class has been moved to {@link gobblin.util.limiter.BaseLimiterType}.
+ * @deprecated This class has been moved to {@link org.apache.gobblin.util.limiter.BaseLimiterType}.
  */
 @Deprecated
 public enum BaseLimiterType {

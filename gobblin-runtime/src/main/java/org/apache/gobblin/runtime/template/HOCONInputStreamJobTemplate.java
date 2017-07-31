@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * A {@link gobblin.runtime.api.JobTemplate} that loads a HOCON file as a {@link StaticJobTemplate}.
+ * A {@link org.apache.gobblin.runtime.api.JobTemplate} that loads a HOCON file as a {@link StaticJobTemplate}.
  */
 @Slf4j
 public class HOCONInputStreamJobTemplate extends StaticJobTemplate {

@@ -58,10 +58,10 @@ public class JobExecutionInfoClient implements Closeable {
   }
 
   /**
-   * Get a {@link gobblin.rest.JobExecutionQueryResult} for a {@link gobblin.rest.JobExecutionQuery}.
+   * Get a {@link org.apache.gobblin.rest.JobExecutionQueryResult} for a {@link org.apache.gobblin.rest.JobExecutionQuery}.
    *
-   * @param query a {@link gobblin.rest.JobExecutionQuery}
-   * @return a {@link gobblin.rest.JobExecutionQueryResult}
+   * @param query a {@link org.apache.gobblin.rest.JobExecutionQuery}
+   * @return a {@link org.apache.gobblin.rest.JobExecutionQueryResult}
    * @throws RemoteInvocationException
    */
   public JobExecutionQueryResult get(JobExecutionQuery query)

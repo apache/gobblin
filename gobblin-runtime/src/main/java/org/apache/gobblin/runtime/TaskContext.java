@@ -254,7 +254,7 @@ public class TaskContext {
 
   /**
    * Get a pre-fork {@link RowLevelPolicyChecker} for executing row-level
-   * {@link gobblin.qualitychecker.row.RowLevelPolicy}.
+   * {@link org.apache.gobblin.qualitychecker.row.RowLevelPolicy}.
    *
    * @return a {@link RowLevelPolicyChecker}
    */
@@ -264,7 +264,7 @@ public class TaskContext {
 
   /**
    * Get a post-fork {@link RowLevelPolicyChecker} for executing row-level
-   * {@link gobblin.qualitychecker.row.RowLevelPolicy} in the given branch.
+   * {@link org.apache.gobblin.qualitychecker.row.RowLevelPolicy} in the given branch.
    *
    * @param index branch index
    * @return a {@link RowLevelPolicyChecker}
@@ -275,7 +275,7 @@ public class TaskContext {
 
   /**
    * Get a post-fork {@link TaskLevelPolicyChecker} for executing task-level
-   * {@link gobblin.qualitychecker.task.TaskLevelPolicy} in the given branch.
+   * {@link org.apache.gobblin.qualitychecker.task.TaskLevelPolicy} in the given branch.
    *
    * @param taskState {@link TaskState} of a {@link Task}
    * @param index branch index
@@ -298,7 +298,7 @@ public class TaskContext {
   }
 
   /**
-   * Get a {@link DataWriterBuilder} for building a {@link gobblin.writer.DataWriter}.
+   * Get a {@link DataWriterBuilder} for building a {@link org.apache.gobblin.writer.DataWriter}.
    *
    * @param branches number of forked branches
    * @param index branch index

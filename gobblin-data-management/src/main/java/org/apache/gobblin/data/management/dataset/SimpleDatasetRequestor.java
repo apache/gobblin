@@ -31,7 +31,7 @@ import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 
 /**
- * A simple {@link gobblin.util.request_allocation.Requestor} used to generate a single {@link SimpleDatasetRequest}
+ * A simple {@link org.apache.gobblin.util.request_allocation.Requestor} used to generate a single {@link SimpleDatasetRequest}
  */
 @AllArgsConstructor
 public class SimpleDatasetRequestor implements PushDownRequestor<SimpleDatasetRequest> {

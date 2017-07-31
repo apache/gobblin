@@ -56,8 +56,8 @@ public class PerformanceUtils {
    * </p>
    *
    * @param threads Number of threads to spawn. Each thread will have an {@link Incrementer} and update metrics.
-   * @param depth Depth of the {@link gobblin.metrics.MetricContext} tree.
-   * @param forkAtDepth If multiple threads, each thread has its own {@link gobblin.metrics.MetricContext}. This
+   * @param depth Depth of the {@link org.apache.gobblin.metrics.MetricContext} tree.
+   * @param forkAtDepth If multiple threads, each thread has its own {@link org.apache.gobblin.metrics.MetricContext}. This
    *                    parameter sets the first level in the tree where the per-thread MetricContexts branch off.
    * @param counters Number of counters to generate per thread.
    * @param meters Number of meters to generate per thread.
@@ -149,13 +149,13 @@ public class PerformanceUtils {
   }
 
   /**
-   * Runs a single performance test. Creates a {@link gobblin.metrics.MetricContext} tree, spawns a number of threads,
+   * Runs a single performance test. Creates a {@link org.apache.gobblin.metrics.MetricContext} tree, spawns a number of threads,
    * uses and {@link Incrementer} to update the metrics repeatedly, then determines the achieved QPS in number
    * of iterations of {@link Incrementer} per second.
    *
    * @param threads Number of threads to spawn. Each thread will have an {@link Incrementer} and update metrics.
-   * @param depth Depth of the {@link gobblin.metrics.MetricContext} tree.
-   * @param forkAtDepth If multiple threads, each thread has its own {@link gobblin.metrics.MetricContext}. This
+   * @param depth Depth of the {@link org.apache.gobblin.metrics.MetricContext} tree.
+   * @param forkAtDepth If multiple threads, each thread has its own {@link org.apache.gobblin.metrics.MetricContext}. This
    *                    parameter sets the first level in the tree where the per-thread MetricContexts branch off.
    * @param counters Number of counters to generate per thread.
    * @param meters Number of meters to generate per thread.

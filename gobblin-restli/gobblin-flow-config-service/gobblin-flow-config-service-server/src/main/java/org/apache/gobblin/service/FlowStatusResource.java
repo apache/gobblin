@@ -90,9 +90,9 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
   }
 
   /**
-   * Forms a {@link gobblin.service.FlowStatus} from a {@link gobblin.service.monitoring.FlowStatus}
+   * Forms a {@link org.apache.gobblin.service.FlowStatus} from a {@link org.apache.gobblin.service.monitoring.FlowStatus}
    * @param monitoringFlowStatus
-   * @return a {@link gobblin.service.FlowStatus} converted from a {@link gobblin.service.monitoring.FlowStatus}
+   * @return a {@link org.apache.gobblin.service.FlowStatus} converted from a {@link org.apache.gobblin.service.monitoring.FlowStatus}
    */
   private FlowStatus convertFlowStatus(gobblin.service.monitoring.FlowStatus monitoringFlowStatus) {
     if (monitoringFlowStatus == null) {

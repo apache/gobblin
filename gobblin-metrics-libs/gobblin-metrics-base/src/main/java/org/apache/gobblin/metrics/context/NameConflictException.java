@@ -21,8 +21,8 @@ import java.io.IOException;
 
 
 /**
- * Thrown when a {@link gobblin.metrics.MetricContext} cannot be created as a child of a second
- * {@link gobblin.metrics.MetricContext} because the parent already has a {@link gobblin.metrics.MetricContext} with
+ * Thrown when a {@link org.apache.gobblin.metrics.MetricContext} cannot be created as a child of a second
+ * {@link org.apache.gobblin.metrics.MetricContext} because the parent already has a {@link org.apache.gobblin.metrics.MetricContext} with
  * that name.
  */
 public class NameConflictException extends IOException {

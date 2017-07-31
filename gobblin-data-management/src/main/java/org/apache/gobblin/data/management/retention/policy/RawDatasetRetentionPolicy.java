@@ -36,7 +36,7 @@ import org.apache.gobblin.util.FileListUtils;
 
 
 /**
- * An abstract {@link RetentionPolicy} for {@link gobblin.data.management.retention.dataset.RawDataset}.
+ * An abstract {@link RetentionPolicy} for {@link org.apache.gobblin.data.management.retention.dataset.RawDataset}.
  *
  * This class embeds another {@link RetentionPolicy}. In {@link #listDeletableVersions(List)} it applies the
  * embedded {@link RetentionPolicy}'s predicate, as well as {@link #listQualifiedRawFileSystemDatasetVersions(Collection)}.

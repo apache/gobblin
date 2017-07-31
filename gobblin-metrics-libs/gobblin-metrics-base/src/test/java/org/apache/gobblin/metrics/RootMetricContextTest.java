@@ -41,7 +41,7 @@ import org.apache.gobblin.metrics.test.ContextStoreReporter;
 
 
 /**
- * Tests for {@link gobblin.metrics.RootMetricContext}
+ * Tests for {@link org.apache.gobblin.metrics.RootMetricContext}
  */
 public class RootMetricContextTest {
 

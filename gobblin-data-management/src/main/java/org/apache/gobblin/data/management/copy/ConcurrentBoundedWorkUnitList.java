@@ -38,10 +38,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * A {@link WorkUnit} container that is bounded, supports concurrent all-or-nothing addAll, and supports priority of
  * file sets, ie. attempting to add a file set with higher priority will automatically evict
- * lower priority {@link gobblin.data.management.partition.FileSet}s if necessary.
+ * lower priority {@link org.apache.gobblin.data.management.partition.FileSet}s if necessary.
  *
  * <p>
- *   File sets in {@link CopySource} are handled as {@link gobblin.data.management.partition.FileSet}, so this class uses a {@link gobblin.data.management.partition.FileSet} comparator
+ *   File sets in {@link CopySource} are handled as {@link org.apache.gobblin.data.management.partition.FileSet}, so this class uses a {@link org.apache.gobblin.data.management.partition.FileSet} comparator
  *   for priority. If fileSetA < fileSetB, then fileSetA has higher priority than fileSetB
  *   (similar to {@link java.util.PriorityQueue}).
  * </p>
@@ -82,7 +82,7 @@ class ConcurrentBoundedWorkUnitList {
   /**
    * Creates a new {@link ConcurrentBoundedWorkUnitList}.
    * @param maxSize Maximum number of {@link WorkUnit}s to contain.
-   * @param comparator {@link Comparator} for {@link gobblin.data.management.partition.FileSet}s to use for {@link gobblin.data.management.partition.FileSet} priority.
+   * @param comparator {@link Comparator} for {@link org.apache.gobblin.data.management.partition.FileSet}s to use for {@link org.apache.gobblin.data.management.partition.FileSet} priority.
    * @param strictLimitMultiplier the list will only start rejecting {@link WorkUnit}s if its capacity exceeds
    *                              maxSize * strictLimitMultiplier. If this parameter is < 1, it will be auto-set to 1.
    */
@@ -101,7 +101,7 @@ class ConcurrentBoundedWorkUnitList {
 
   /**
    * Add a file set to the container.
-   * @param fileSet File set, expressed as a {@link gobblin.data.management.partition.FileSet} of {@link CopyEntity}s.
+   * @param fileSet File set, expressed as a {@link org.apache.gobblin.data.management.partition.FileSet} of {@link CopyEntity}s.
    * @param workUnits List of {@link WorkUnit}s corresponding to this file set.
    * @return true if the file set was added to the container, false otherwise (i.e. has reached max size).
    */

@@ -53,7 +53,7 @@ import static org.mockito.Mockito.when;
 
 
 /**
- * Test class for {@link gobblin.compaction.conditions.RecompactionCondition}.
+ * Test class for {@link org.apache.gobblin.compaction.conditions.RecompactionCondition}.
  */
 @Test(groups = {"gobblin.compaction.mapreduce.conditions"})
 public class RecompactionConditionTest {

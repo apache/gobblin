@@ -70,7 +70,7 @@ public class TestGraphiteSender implements GraphiteSender {
    * Get a metric with a given name.
    *
    * @param name metric name
-   * @return a {@link gobblin.metrics.TimestampedValue}
+   * @return a {@link org.apache.gobblin.metrics.TimestampedValue}
    */
   public TimestampedValue getMetric(String name) {
     return this.data.get(name);

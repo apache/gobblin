@@ -37,8 +37,8 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Implementation of {@link gobblin.metrics.reporter.util.SchemaVersionWriter} that uses a
- * {@link gobblin.metrics.kafka.KafkaAvroSchemaRegistry} to get Schema version identifier and write it to
+ * Implementation of {@link org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter} that uses a
+ * {@link org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry} to get Schema version identifier and write it to
  * {@link java.io.DataOutputStream}.
  */
 public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> {

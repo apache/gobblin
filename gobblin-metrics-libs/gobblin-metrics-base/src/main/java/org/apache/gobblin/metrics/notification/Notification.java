@@ -19,7 +19,7 @@ package org.apache.gobblin.metrics.notification;
 
 /**
  * Generic interface for notifications.
- * See for example {@link gobblin.metrics.MetricContext#sendNotification}.
+ * See for example {@link org.apache.gobblin.metrics.MetricContext#sendNotification}.
  */
 public interface Notification {
 }

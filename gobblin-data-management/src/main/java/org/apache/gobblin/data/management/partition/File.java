@@ -23,7 +23,7 @@ import org.apache.hadoop.fs.FileStatus;
 /**
  * Interface representing a File.
  *
- * This interface is implemented by file abstractions such as {@link gobblin.data.management.copy.CopyEntity}.
+ * This interface is implemented by file abstractions such as {@link org.apache.gobblin.data.management.copy.CopyEntity}.
  *
  */
 public interface File {

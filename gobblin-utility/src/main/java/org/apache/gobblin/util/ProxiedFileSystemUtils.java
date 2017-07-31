@@ -48,7 +48,7 @@ import org.apache.gobblin.configuration.State;
  * access any operations on behalf of the specified user.
  *
  * <p>
- *   As a user, use methods in {@link gobblin.util.ProxiedFileSystemCache} to generate the proxied file systems.
+ *   As a user, use methods in {@link org.apache.gobblin.util.ProxiedFileSystemCache} to generate the proxied file systems.
  * </p>
  *
  * @see <a href="http://hadoop.apache.org/docs/r1.2.1/Secure_Impersonation.html">Secure Impersonation</a>,

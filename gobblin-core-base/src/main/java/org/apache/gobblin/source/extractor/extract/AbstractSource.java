@@ -36,7 +36,7 @@ import org.apache.gobblin.source.workunit.Extract.TableType;
 
 
 /**
- * A base implementation of {@link gobblin.source.Source} that provides default behavior.
+ * A base implementation of {@link org.apache.gobblin.source.Source} that provides default behavior.
  *
  * @author Yinan Li
  */

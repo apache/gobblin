@@ -161,7 +161,7 @@ public class HiveRegistrationUnit {
    * Set a table/partition parameter.
    *
    * <p>
-   *   When using {@link gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
+   *   When using {@link org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
    *   {@link org.apache.hadoop.hive.metastore.api.Table} and {@link org.apache.hadoop.hive.metastore.api.Partition}
    *   which distinguishes between table/partition parameters, storage descriptor parameters, and serde parameters,
    *   one may need to distinguish them when constructing a {@link HiveRegistrationUnit} by using
@@ -179,7 +179,7 @@ public class HiveRegistrationUnit {
    * Set a storage parameter for a table/partition.
    *
    * <p>
-   *   When using {@link gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
+   *   When using {@link org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
    *   {@link org.apache.hadoop.hive.metastore.api.Table} and {@link org.apache.hadoop.hive.metastore.api.Partition}
    *   which distinguishes between table/partition parameters, storage descriptor parameters, and serde parameters,
    *   one may need to distinguish them when constructing a {@link HiveRegistrationUnit} by using
@@ -197,7 +197,7 @@ public class HiveRegistrationUnit {
    * Set a serde parameter for a table/partition.
    *
    * <p>
-   *   When using {@link gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
+   *   When using {@link org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
    *   {@link org.apache.hadoop.hive.metastore.api.Table} and {@link org.apache.hadoop.hive.metastore.api.Partition}
    *   which distinguishes between table/partition parameters, storage descriptor parameters, and serde parameters,
    *   one may need to distinguish them when constructing a {@link HiveRegistrationUnit} by using
@@ -215,7 +215,7 @@ public class HiveRegistrationUnit {
    * Set table/partition parameters.
    *
    * <p>
-   *   When using {@link gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
+   *   When using {@link org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
    *   {@link org.apache.hadoop.hive.metastore.api.Table} and {@link org.apache.hadoop.hive.metastore.api.Partition}
    *   which distinguishes between table/partition parameters, storage descriptor parameters, and serde parameters,
    *   one may need to distinguish them when constructing a {@link HiveRegistrationUnit} by using
@@ -234,7 +234,7 @@ public class HiveRegistrationUnit {
    * Set storage parameters for a table/partition.
    *
    * <p>
-   *   When using {@link gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
+   *   When using {@link org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
    *   {@link org.apache.hadoop.hive.metastore.api.Table} and {@link org.apache.hadoop.hive.metastore.api.Partition}
    *   which distinguishes between table/partition parameters, storage descriptor parameters, and serde parameters,
    *   one may need to distinguish them when constructing a {@link HiveRegistrationUnit} by using
@@ -253,7 +253,7 @@ public class HiveRegistrationUnit {
    * Set serde parameters for a table/partition.
    *
    * <p>
-   *   When using {@link gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
+   *   When using {@link org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister}, since it internally use
    *   {@link org.apache.hadoop.hive.metastore.api.Table} and {@link org.apache.hadoop.hive.metastore.api.Partition}
    *   which distinguishes between table/partition parameters, storage descriptor parameters, and serde parameters,
    *   one may need to distinguish them when constructing a {@link HiveRegistrationUnit} by using

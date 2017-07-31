@@ -35,7 +35,7 @@ import org.apache.gobblin.dataset.FileSystemDataset;
 
 /**
  * @deprecated
- * See javadoc for {@link gobblin.data.management.version.finder.SingleVersionFinder}.
+ * See javadoc for {@link org.apache.gobblin.data.management.version.finder.SingleVersionFinder}.
  */
 @Deprecated
 public class SingleVersionFinder implements VersionFinder<FileStatusDatasetVersion> {

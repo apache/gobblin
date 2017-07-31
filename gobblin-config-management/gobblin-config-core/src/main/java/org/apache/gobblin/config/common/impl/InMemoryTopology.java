@@ -38,7 +38,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 
 /**
- * InMemoryTopology will return stale data if the internal config store is Not {@link gobblin.config.store.api.ConfigStoreWithStableVersioning}
+ * InMemoryTopology will return stale data if the internal config store is Not {@link org.apache.gobblin.config.store.api.ConfigStoreWithStableVersioning}
  *
  * @author ibuenros
  *
@@ -142,7 +142,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    *   If the result is already in cache, return the result.
    *   Otherwise, delegate the functionality to the fallback object.
    *
-   *   If the fallback did not support this operation, will build the entire topology of the {@link gobblin.config.store.api.ConfigStore}
+   *   If the fallback did not support this operation, will build the entire topology of the {@link org.apache.gobblin.config.store.api.ConfigStore}
    *   using default breath first search.
    * </p>
    */
@@ -177,7 +177,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    *   If the result is already in cache, return the result.
    *   Otherwise, delegate the functionality to the fallback object.
    *
-   *   If the fallback did not support this operation, will build the entire topology of the {@link gobblin.config.store.api.ConfigStore}
+   *   If the fallback did not support this operation, will build the entire topology of the {@link org.apache.gobblin.config.store.api.ConfigStore}
    *   using default breath first search.
    * </p>
    */
@@ -208,7 +208,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    *   If the result is already in cache, return the result.
    *   Otherwise, delegate the functionality to the fallback object.
    *
-   *   If the fallback did not support this operation, will build the entire topology of the {@link gobblin.config.store.api.ConfigStore}
+   *   If the fallback did not support this operation, will build the entire topology of the {@link org.apache.gobblin.config.store.api.ConfigStore}
    *   using default breath first search.
    * </p>
    */

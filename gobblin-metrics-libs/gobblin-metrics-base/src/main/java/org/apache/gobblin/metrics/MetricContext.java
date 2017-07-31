@@ -162,9 +162,9 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
   }
 
   /**
-   * Get a view of the child {@link gobblin.metrics.MetricContext}s as a {@link com.google.common.collect.ImmutableMap}.
+   * Get a view of the child {@link org.apache.gobblin.metrics.MetricContext}s as a {@link com.google.common.collect.ImmutableMap}.
    * @return {@link com.google.common.collect.ImmutableMap} of
-   *      child {@link gobblin.metrics.MetricContext}s keyed by their names.
+   *      child {@link org.apache.gobblin.metrics.MetricContext}s keyed by their names.
    */
   public Map<String, MetricContext> getChildContextsAsMap() {
     return this.innerMetricContext.getChildContextsAsMap();
@@ -184,8 +184,8 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
   }
 
   /**
-   * Submit {@link gobblin.metrics.GobblinTrackingEvent} to all notification listeners attached to this or any
-   * ancestor {@link gobblin.metrics.MetricContext}s. The argument for this method is mutated by the method, so it
+   * Submit {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to all notification listeners attached to this or any
+   * ancestor {@link org.apache.gobblin.metrics.MetricContext}s. The argument for this method is mutated by the method, so it
    * should not be reused by the caller.
    *
    * @param nonReusableEvent {@link GobblinTrackingEvent} to submit. This object will be mutated by the method,
@@ -405,7 +405,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
   }
 
   /**
-   * Register a {@link gobblin.metrics.ContextAwareMetric} under its own name.
+   * Register a {@link org.apache.gobblin.metrics.ContextAwareMetric} under its own name.
    */
   public <T extends ContextAwareMetric> T register(T metric) throws IllegalArgumentException {
     return register(metric.getName(), metric);
@@ -563,9 +563,9 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
   }
 
   /**
-   * Add a target for {@link gobblin.metrics.notification.Notification}s.
+   * Add a target for {@link org.apache.gobblin.metrics.notification.Notification}s.
    * @param target A {@link com.google.common.base.Function} that will be run every time
-   *               there is a new {@link gobblin.metrics.notification.Notification} in this context.
+   *               there is a new {@link org.apache.gobblin.metrics.notification.Notification} in this context.
    * @return a key for this notification target. Can be used to remove the notification target later.
    */
   public UUID addNotificationTarget(Function<Notification, Void> target) {
@@ -590,7 +590,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
 
   /**
    * Send a notification to all targets of this context and to the parent of this context.
-   * @param notification {@link gobblin.metrics.notification.Notification} to send.
+   * @param notification {@link org.apache.gobblin.metrics.notification.Notification} to send.
    */
   public void sendNotification(final Notification notification) {
 

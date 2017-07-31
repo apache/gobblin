@@ -56,7 +56,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
   /**
    * Implementation of {@link CompactionSuite#getDatasetsFinderVerifiers()}
    * @return A list of {@link CompactionVerifier} instances which will be verified after
-   *         {@link FileSystemDataset} is found but before a {@link gobblin.source.workunit.WorkUnit}
+   *         {@link FileSystemDataset} is found but before a {@link org.apache.gobblin.source.workunit.WorkUnit}
    *         is created.
    */
   public List<CompactionVerifier<FileSystemDataset>> getDatasetsFinderVerifiers() {
@@ -70,7 +70,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
   /**
    * Implementation of {@link CompactionSuite#getMapReduceVerifiers()}
    * @return A list of {@link CompactionVerifier} instances which will be verified before
-   *         {@link gobblin.compaction.mapreduce.MRCompactionTask} starts the map-reduce job
+   *         {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask} starts the map-reduce job
    */
   public List<CompactionVerifier<FileSystemDataset>> getMapReduceVerifiers() {
     List<CompactionVerifier<FileSystemDataset>> list = new ArrayList<>();
@@ -80,7 +80,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
   /**
    * Serialize a dataset {@link FileSystemDataset} to a {@link State}
    * @param dataset A dataset needs serialization
-   * @param state   A state that is used to save {@link gobblin.dataset.Dataset}
+   * @param state   A state that is used to save {@link org.apache.gobblin.dataset.Dataset}
    */
   public void save (FileSystemDataset dataset, State state) {
     state.setProp(SERIALIZE_COMPACTION_FILE_PATH_NAME, dataset.datasetURN());
@@ -89,7 +89,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
   /**
    * Deserialize a new {@link FileSystemDataset} from a given {@link State}
    *
-   * @param state a type of {@link gobblin.runtime.TaskState}
+   * @param state a type of {@link org.apache.gobblin.runtime.TaskState}
    * @return A new instance of {@link FileSystemDataset}
    */
   public FileSystemDataset load (final State state) {
@@ -125,7 +125,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
    * work is delegated to {@link CompactionAvroJobConfigurator#createJob(FileSystemDataset)}
    *
    * @param  dataset a top level input path which contains all avro files those need to be compacted
-   * @return a map-reduce job which will compact avro files against {@link gobblin.dataset.Dataset}
+   * @return a map-reduce job which will compact avro files against {@link org.apache.gobblin.dataset.Dataset}
    */
   public Job createJob (FileSystemDataset dataset) throws IOException {
     configurator = new CompactionAvroJobConfigurator(this.state);

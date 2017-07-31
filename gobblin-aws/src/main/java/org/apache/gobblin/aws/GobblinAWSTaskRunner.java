@@ -52,7 +52,7 @@ import org.apache.gobblin.util.JvmUtils;
 
 /**
  * Class running on worker nodes managing services for executing Gobblin
- * {@link gobblin.source.workunit.WorkUnit}s.
+ * {@link org.apache.gobblin.source.workunit.WorkUnit}s.
  *
  * <p>
  *   This class makes use of super class {@link GobblinTaskRunner} to run:

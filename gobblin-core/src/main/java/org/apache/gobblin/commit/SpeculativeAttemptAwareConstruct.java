@@ -22,8 +22,8 @@ import org.apache.gobblin.annotation.Alpha;
 
 /**
  * A declaration by any Gobblin construct to claim whether it is safe to have multiple speculative attempts.
- * For example, if any {@link gobblin.writer.DataWriter} implements {@link SpeculativeAttemptAwareConstruct}
- * and returns true in {@link #isSpeculativeAttemptSafe()}, then multiple attempts of one {@link gobblin.writer.DataWriter}
+ * For example, if any {@link org.apache.gobblin.writer.DataWriter} implements {@link SpeculativeAttemptAwareConstruct}
+ * and returns true in {@link #isSpeculativeAttemptSafe()}, then multiple attempts of one {@link org.apache.gobblin.writer.DataWriter}
  * should not cause conflict among them.
  */
 @Alpha

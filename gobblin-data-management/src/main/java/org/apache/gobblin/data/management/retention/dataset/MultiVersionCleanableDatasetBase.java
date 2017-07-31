@@ -182,7 +182,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   @Deprecated
   protected final boolean deleteAsOwner;
   /**
-   * Get {@link gobblin.data.management.retention.policy.RetentionPolicy} to use.
+   * Get {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy} to use.
    */
   public abstract List<VersionFinderAndPolicy<T>> getVersionFindersAndPolicies();
 

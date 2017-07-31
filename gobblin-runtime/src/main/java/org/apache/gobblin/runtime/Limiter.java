@@ -21,7 +21,7 @@ package org.apache.gobblin.runtime;
 /**
  * {@inheritDoc}
  *
- * @deprecated This class has been moved to {@link gobblin.util.limiter.Limiter}.
+ * @deprecated This class has been moved to {@link org.apache.gobblin.util.limiter.Limiter}.
  */
 @Deprecated
 public interface Limiter extends gobblin.util.limiter.Limiter {

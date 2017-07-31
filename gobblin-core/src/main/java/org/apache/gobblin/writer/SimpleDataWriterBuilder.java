@@ -38,9 +38,9 @@ import org.apache.gobblin.crypto.EncryptionFactory;
  */
 public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, Object> {
   /**
-   * Build a {@link gobblin.writer.DataWriter}.
+   * Build a {@link org.apache.gobblin.writer.DataWriter}.
    *
-   * @return the built {@link gobblin.writer.DataWriter}
+   * @return the built {@link org.apache.gobblin.writer.DataWriter}
    * @throws java.io.IOException if there is anything wrong building the writer
    */
   @Override

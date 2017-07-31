@@ -243,7 +243,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   /**
    * {@inheritDoc}.
    *
-   * @return a {@link gobblin.configuration.State} object storing merged final states of constructs
+   * @return a {@link org.apache.gobblin.configuration.State} object storing merged final states of constructs
    *         used in this {@link Fork}
    */
   @Override
@@ -499,7 +499,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   }
 
   /**
-   * Build a {@link gobblin.writer.DataWriter} for writing fetched data records.
+   * Build a {@link org.apache.gobblin.writer.DataWriter} for writing fetched data records.
    */
   private DataWriter<Object> buildWriter()
       throws IOException {

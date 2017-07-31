@@ -34,7 +34,7 @@ import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
 
 
 /**
- * A {@link gobblin.runtime.api.JobCatalog} with a static collection of {@link JobSpec}s defined at construction time.
+ * A {@link org.apache.gobblin.runtime.api.JobCatalog} with a static collection of {@link JobSpec}s defined at construction time.
  */
 public class StaticJobCatalog extends JobCatalogBase {
 

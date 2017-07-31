@@ -75,7 +75,7 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
 
   /**
    * Retrieves the specified field from the inputRecord, and checks if it is equal to the expected value
-   * {@link #fieldValue}. If it is then it returns a {@link gobblin.converter.SingleRecordIterable} for the input record.
+   * {@link #fieldValue}. If it is then it returns a {@link org.apache.gobblin.converter.SingleRecordIterable} for the input record.
    * Otherwise it returns a {@link EmptyIterable}.
    * {@inheritDoc}
    * @see gobblin.converter.AvroToAvroConverterBase#convertRecord(org.apache.avro.Schema, org.apache.avro.generic.GenericRecord, gobblin.configuration.WorkUnitState)

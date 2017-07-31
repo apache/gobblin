@@ -31,7 +31,7 @@ import com.google.common.collect.Lists;
  * A class that wraps multiple {@link WorkUnit}s so they can executed within a single task.
  *
  * <p>
- *  This class also extends the {@link gobblin.configuration.State} object and thus it is possible to set and get
+ *  This class also extends the {@link org.apache.gobblin.configuration.State} object and thus it is possible to set and get
  *  properties from this class. The {@link #setProp(String, Object)} method will add the specified key, value pair to
  *  this class as well as to every {@link WorkUnit} in {@link #workUnits}. The {@link #getProp(String)} methods will
  *  only return properties that have been explicitily set in this class (e.g. it will not retrieve properties from

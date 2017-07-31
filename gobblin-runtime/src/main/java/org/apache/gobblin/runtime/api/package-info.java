@@ -23,12 +23,12 @@
  *  <dd>A self-contained context for running alike Gobblin jobs. These jobs share location where
  *  they are stored and managed, how they are scheduled, and how they are run.
  *     <dl>
- *      <dt>Gobblin instance driver ({@link gobblin.runtime.api.GobblinInstanceDriver})</dt>
+ *      <dt>Gobblin instance driver ({@link org.apache.gobblin.runtime.api.GobblinInstanceDriver})</dt>
  *      <dd>Starts all global Gobblin services, instantiates Job Catalog, Job Launcher, and scheduler.
  *          Interprets job specs to schedule via the executor or run immediately. (Similar to original
  *          JobScheduler class).</dd>
  *     </dl>
- *      <dt>Gobblin instance launcher ({@link gobblin.runtime.api.GobblinInstanceLauncher})<dt>
+ *      <dt>Gobblin instance launcher ({@link org.apache.gobblin.runtime.api.GobblinInstanceLauncher})<dt>
  *      <dd>Main class instantiated by the JVM or running framework. Reads application level
  *          configurations, instantiates and runs the Gobblin instance driver.
  *          Examples: JavaMainAppLauncher (original SchedulerDaemon), AzkabanAppLauncher (original
@@ -44,24 +44,24 @@
  *      <dt>JobExecution Driver</dt>
  *      <dd>Executes the job and its tasks. This can be done locally in a thread-pool,
  *          or as a M/R job, as a Yarn job using the Helix task execution framework, etc. This
- *          concept replaces the previous {@link gobblin.runtime.JobLauncher}. </dd>
- *      <dt>JobExecution Launcher ({@link gobblin.runtime.api.JobExecutionLauncher})</dt>
+ *          concept replaces the previous {@link org.apache.gobblin.runtime.JobLauncher}. </dd>
+ *      <dt>JobExecution Launcher ({@link org.apache.gobblin.runtime.api.JobExecutionLauncher})</dt>
  *      <dd>Instantiates the JobExecution Driver. The driver may be instantiated locally, or it
  *      can be launched in a remote container (similarly to Oozie). JobExecutionLauncher should not
- *      be confused with the legacy {@link gobblin.runtime.JobLauncher}. Essentially, we decided to
+ *      be confused with the legacy {@link org.apache.gobblin.runtime.JobLauncher}. Essentially, we decided to
  *      roughly split the JobLauncher into JobExecutionLauncher and a JobExecutionDriver. This
  *      allows us to abstract the aspect of instantiating and running the JobExecutionDriver. Thus,
  *      we have the option of running the driver locally or remotely. </dd>
  *    </dl>
  *  </dd>
- *  <dt>Job catalog ({@link gobblin.runtime.api.JobCatalog})</dt>
+ *  <dt>Job catalog ({@link org.apache.gobblin.runtime.api.JobCatalog})</dt>
  *  <dd>Maintains the collection of JobSpecs known to a specific Gobblin instance.
  *    <dl>
- *      <dt>JobSpec Monitor ({@link gobblin.runtime.api.JobSpecMonitorFactory})</dt>
+ *      <dt>JobSpec Monitor ({@link org.apache.gobblin.runtime.api.JobSpecMonitorFactory})</dt>
  *      <dd>Discovers jobs to execute and generates job specs for each one.</dd>
  *    </dl>
  *  </dd>
- *  <dt>Job Scheduler ({@link gobblin.runtime.api.JobSpecScheduler})</dt>
+ *  <dt>Job Scheduler ({@link org.apache.gobblin.runtime.api.JobSpecScheduler})</dt>
  *  <dd>A pluggable scheduler implementation that triggers job executions on a schedule.
  *  Examples: Quartz, pass-through.
  *  </dd>

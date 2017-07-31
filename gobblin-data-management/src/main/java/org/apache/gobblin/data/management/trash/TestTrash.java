@@ -49,8 +49,8 @@ public class TestTrash extends MockTrash {
   private static final String DELAY_TICKS_KEY = "gobblin.trash.test.delays.ticks";
 
   /**
-   * Creates {@link java.util.Properties} that will generate a {@link gobblin.data.management.trash.TestTrash} when
-   * using {@link gobblin.data.management.trash.TrashFactory}.
+   * Creates {@link java.util.Properties} that will generate a {@link org.apache.gobblin.data.management.trash.TestTrash} when
+   * using {@link org.apache.gobblin.data.management.trash.TrashFactory}.
    */
   public static Properties propertiesForTestTrash() {
     Properties properties = new Properties();

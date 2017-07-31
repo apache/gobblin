@@ -30,11 +30,11 @@ import lombok.Getter;
  * A class that represents a Hive partition.
  *
  * <p>
- *   This class is used in {@link gobblin.hive.spec.HiveSpec} instead of Hive's
+ *   This class is used in {@link org.apache.gobblin.hive.spec.HiveSpec} instead of Hive's
  *   {@link org.apache.hadoop.hive.metastore.api.Partition} class to minimize the dependency on the hive-metastore API
  *   (since it is unstable and may go through backward incompatible changes). {@link HivePartition} and Hive's
  *   {@link org.apache.hadoop.hive.metastore.api.Partition} can be converted to each other using
- *   {@link gobblin.hive.metastore.HiveMetaStoreUtils}.
+ *   {@link org.apache.gobblin.hive.metastore.HiveMetaStoreUtils}.
  * </p>
  *
  * @author Ziyang Liu

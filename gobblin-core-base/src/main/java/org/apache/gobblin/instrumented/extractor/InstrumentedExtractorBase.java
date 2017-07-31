@@ -54,8 +54,8 @@ import javax.annotation.Nullable;
 
 
 /**
- * package-private implementation of instrumentation for {@link gobblin.source.extractor.Extractor}.
- * See {@link gobblin.instrumented.extractor.InstrumentedExtractor} for extensible class.
+ * package-private implementation of instrumentation for {@link org.apache.gobblin.source.extractor.Extractor}.
+ * See {@link org.apache.gobblin.instrumented.extractor.InstrumentedExtractor} for extensible class.
  */
 public abstract class InstrumentedExtractorBase<S, D>
     implements Extractor<S, D>, Instrumentable, Closeable, FinalState {
@@ -222,7 +222,7 @@ public abstract class InstrumentedExtractorBase<S, D>
 
   /**
    * Subclasses should implement this or {@link #readRecordEnvelopeImpl()}
-   * instead of {@link gobblin.source.extractor.Extractor#readRecord}
+   * instead of {@link org.apache.gobblin.source.extractor.Extractor#readRecord}
    */
   protected StreamEntity<D> readStreamEntityImpl() throws DataRecordException, IOException {
     return readRecordEnvelopeImpl();
@@ -230,7 +230,7 @@ public abstract class InstrumentedExtractorBase<S, D>
 
   /**
    * Subclasses should implement this or {@link #readRecordImpl(Object)}
-   * instead of {@link gobblin.source.extractor.Extractor#readRecord}
+   * instead of {@link org.apache.gobblin.source.extractor.Extractor#readRecord}
    */
   @SuppressWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE",
       justification = "Findbugs believes readRecord(null) is non-null. This is not true.")
@@ -241,7 +241,7 @@ public abstract class InstrumentedExtractorBase<S, D>
 
   /**
    * Subclasses should implement this or {@link #readRecordEnvelopeImpl()}
-   * instead of {@link gobblin.source.extractor.Extractor#readRecord}
+   * instead of {@link org.apache.gobblin.source.extractor.Extractor#readRecord}
    */
   @Nullable
   protected D readRecordImpl(D reuse) throws DataRecordException, IOException {
@@ -249,9 +249,9 @@ public abstract class InstrumentedExtractorBase<S, D>
   }
 
   /**
-   * Get final state for this object. By default this returns an empty {@link gobblin.configuration.State}, but
+   * Get final state for this object. By default this returns an empty {@link org.apache.gobblin.configuration.State}, but
    * concrete subclasses can add information that will be added to the task state.
-   * @return Empty {@link gobblin.configuration.State}.
+   * @return Empty {@link org.apache.gobblin.configuration.State}.
    */
   @Override
   public State getFinalState() {

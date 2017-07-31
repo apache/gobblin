@@ -111,7 +111,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
      *   Currently it handles the following sub types of messages:
      *
      *   <ul>
-     *     <li>{@link gobblin.cluster.HelixMessageSubTypes#TOKEN_FILE_UPDATED}</li>
+     *     <li>{@link org.apache.gobblin.cluster.HelixMessageSubTypes#TOKEN_FILE_UPDATED}</li>
      *   </ul>
      * </p>
      */

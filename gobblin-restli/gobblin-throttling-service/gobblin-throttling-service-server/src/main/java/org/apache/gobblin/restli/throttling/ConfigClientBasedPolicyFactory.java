@@ -33,7 +33,7 @@ import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
 
 /**
- * A {@link gobblin.restli.throttling.ThrottlingPolicyFactory.SpecificPolicyFactory} that looks up policies using a
+ * A {@link org.apache.gobblin.restli.throttling.ThrottlingPolicyFactory.SpecificPolicyFactory} that looks up policies using a
  * {@link ConfigClient}.
  *
  * The config store prefix should be specified at key {@link #CONFIG_KEY_URI_PREFIX_KEY}

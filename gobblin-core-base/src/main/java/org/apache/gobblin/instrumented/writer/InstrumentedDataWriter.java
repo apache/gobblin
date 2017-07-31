@@ -23,7 +23,7 @@ import org.apache.gobblin.configuration.State;
 
 
 /**
- * Instrumented version of {@link gobblin.writer.DataWriter} automatically capturing certain metrics.
+ * Instrumented version of {@link org.apache.gobblin.writer.DataWriter} automatically capturing certain metrics.
  * Subclasses should implement writeImpl instead of write.
  */
 public abstract class InstrumentedDataWriter<D> extends InstrumentedDataWriterBase<D> {

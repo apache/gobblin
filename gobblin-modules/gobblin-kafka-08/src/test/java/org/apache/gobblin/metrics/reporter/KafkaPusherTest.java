@@ -30,7 +30,7 @@ import org.apache.gobblin.metrics.kafka.KafkaPusher;
 
 
 /**
- * Test {@link gobblin.metrics.kafka.KafkaPusher}.
+ * Test {@link org.apache.gobblin.metrics.kafka.KafkaPusher}.
  */
 public class KafkaPusherTest extends KafkaTestBase {
 

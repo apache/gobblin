@@ -32,7 +32,7 @@ import org.apache.gobblin.hive.spec.HiveSpec;
 public interface HiveRegistrableDataset extends Dataset {
 
   /**
-   * Get a list of {@link HiveSpec}s for this dataset, which can be used by {@link gobblin.hive.HiveRegister}
+   * Get a list of {@link HiveSpec}s for this dataset, which can be used by {@link org.apache.gobblin.hive.HiveRegister}
    * to register this dataset in Hive.
    */
   public List<HiveSpec> getHiveSpecs() throws IOException;

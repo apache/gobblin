@@ -45,7 +45,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
- * Implementation of {@link gobblin.data.management.policy.VersionSelectionPolicy} that allows combining different
+ * Implementation of {@link org.apache.gobblin.data.management.policy.VersionSelectionPolicy} that allows combining different
  * policies through a union or intersect operation. It will combine the selected sets from each sub-policy using the
  * specified operation.
  *

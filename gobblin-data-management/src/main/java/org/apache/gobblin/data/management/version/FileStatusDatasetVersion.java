@@ -28,7 +28,7 @@ import lombok.Data;
 
 
 /**
- * Implementation of {@link gobblin.data.management.version.DatasetVersion} that uses a single path per
+ * Implementation of {@link org.apache.gobblin.data.management.version.DatasetVersion} that uses a single path per
  * version and stores the {@link org.apache.hadoop.fs.FileStatus} of that path.
  */
 @Data

@@ -29,8 +29,8 @@ import lombok.Data;
 
 /**
  * @deprecated
- * Extends {@link gobblin.data.management.version.FileStatusDatasetVersion} and implements
- * {@link gobblin.data.management.retention.version.DatasetVersion}.
+ * Extends {@link org.apache.gobblin.data.management.version.FileStatusDatasetVersion} and implements
+ * {@link org.apache.gobblin.data.management.retention.version.DatasetVersion}.
  */
 @Data
 @Deprecated

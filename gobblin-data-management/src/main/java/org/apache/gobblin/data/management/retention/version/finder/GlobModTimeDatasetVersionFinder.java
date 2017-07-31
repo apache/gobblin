@@ -27,7 +27,7 @@ import org.apache.gobblin.data.management.retention.version.TimestampedDatasetVe
 
 /**
  * @deprecated
- * See javadoc for {@link gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder}.
+ * See javadoc for {@link org.apache.gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder}.
  */
 @Deprecated
 public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {

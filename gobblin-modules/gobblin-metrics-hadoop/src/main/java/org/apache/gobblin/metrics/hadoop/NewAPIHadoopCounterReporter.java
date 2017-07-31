@@ -28,7 +28,7 @@ import org.apache.gobblin.metrics.MetricContext;
 
 
 /**
- * An implementation of {@link gobblin.metrics.reporter.ContextAwareScheduledReporter} that reports applicable
+ * An implementation of {@link org.apache.gobblin.metrics.reporter.ContextAwareScheduledReporter} that reports applicable
  * metrics as Hadoop counters using a {@link org.apache.hadoop.mapreduce.TaskInputOutputContext}.
  *
  * @param <KI> the input key type of {@code hadoopContext}
@@ -59,7 +59,7 @@ public class NewAPIHadoopCounterReporter<KI, VI, KO, VO> extends AbstractHadoopC
   }
 
   /**
-   * Create a new {@link gobblin.metrics.hadoop.NewAPIHadoopCounterReporter.Builder}
+   * Create a new {@link org.apache.gobblin.metrics.hadoop.NewAPIHadoopCounterReporter.Builder}
    * that uses the simple name of {@link NewAPIHadoopCounterReporter} as the reporter name.
    *
    * @param hadoopContext a {@link org.apache.hadoop.mapreduce.TaskInputOutputContext}
@@ -68,7 +68,7 @@ public class NewAPIHadoopCounterReporter<KI, VI, KO, VO> extends AbstractHadoopC
    * @param <VI> the input value type of {@code hadoopContext}
    * @param <KO> the output key type of {@code hadoopContext}
    * @param <VO> the output value type of {@code hadoopContext}
-   * @return a new {@link gobblin.metrics.hadoop.NewAPIHadoopCounterReporter.Builder}
+   * @return a new {@link org.apache.gobblin.metrics.hadoop.NewAPIHadoopCounterReporter.Builder}
    */
   public static <KI, VI, KO, VO> Builder<KI, VI, KO, VO> builder(
       TaskInputOutputContext<KI, VI, KO, VO> hadoopContext) {
@@ -76,7 +76,7 @@ public class NewAPIHadoopCounterReporter<KI, VI, KO, VO> extends AbstractHadoopC
   }
 
   /**
-   * Create a new {@link gobblin.metrics.hadoop.NewAPIHadoopCounterReporter.Builder}
+   * Create a new {@link org.apache.gobblin.metrics.hadoop.NewAPIHadoopCounterReporter.Builder}
    * that uses a given reporter name.
    *
    * @param name the given reporter name
@@ -86,7 +86,7 @@ public class NewAPIHadoopCounterReporter<KI, VI, KO, VO> extends AbstractHadoopC
    * @param <VI> the input value type of {@code hadoopContext}
    * @param <KO> the output key type of {@code hadoopContext}
    * @param <VO> the output value type of {@code hadoopContext}
-   * @return a new {@link gobblin.metrics.hadoop.NewAPIHadoopCounterReporter.Builder}
+   * @return a new {@link org.apache.gobblin.metrics.hadoop.NewAPIHadoopCounterReporter.Builder}
    */
   public static <KI, VI, KO, VO> Builder<KI, VI, KO, VO> builder(String name,
       TaskInputOutputContext<KI, VI, KO, VO> hadoopContext) {

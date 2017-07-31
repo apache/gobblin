@@ -28,7 +28,7 @@ import org.apache.gobblin.config.store.api.ConfigKeyPath;
 
 /**
  * The ConfigStoreValueInspector interface used to inspect the {@link com.typesafe.config.Config} for a given
- * {@link gobblin.config.store.api.ConfigKeyPath} in {@link ConfigStore}
+ * {@link org.apache.gobblin.config.store.api.ConfigKeyPath} in {@link ConfigStore}
  *
  * @author mitu
  *

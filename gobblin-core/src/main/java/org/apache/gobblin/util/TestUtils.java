@@ -33,7 +33,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 public class TestUtils {
 
   /**
-   * Create a {@link WorkUnitState} with a {@link gobblin.broker.iface.SharedResourcesBroker} for running unit tests of
+   * Create a {@link WorkUnitState} with a {@link org.apache.gobblin.broker.iface.SharedResourcesBroker} for running unit tests of
    * constructs.
    */
   public static WorkUnitState createTestWorkUnitState() {

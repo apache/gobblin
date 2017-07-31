@@ -29,8 +29,8 @@ import com.google.common.collect.Lists;
 
 /**
  * @deprecated
- * Extends {@link gobblin.data.management.version.TimestampedDatasetVersion} and implements
- * {@link gobblin.data.management.retention.version.DatasetVersion}.
+ * Extends {@link org.apache.gobblin.data.management.version.TimestampedDatasetVersion} and implements
+ * {@link org.apache.gobblin.data.management.retention.version.DatasetVersion}.
  */
 @Deprecated
 public class TimestampedDatasetVersion extends gobblin.data.management.version.TimestampedDatasetVersion implements

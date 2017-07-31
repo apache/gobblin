@@ -49,7 +49,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * A class {@link DatasetHelper} which provides runtime metrics and other helper functions for a given dataset.
  *
  * The class also contains different recompaction conditions {@link RecompactionCondition}, which indicates if a
- * recompaction is needed. These conditions will be examined by {@link gobblin.compaction.mapreduce.MRCompactorJobRunner}
+ * recompaction is needed. These conditions will be examined by {@link org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner}
  * after late data was found and copied from inputDir to outputLateDir.
  */
 

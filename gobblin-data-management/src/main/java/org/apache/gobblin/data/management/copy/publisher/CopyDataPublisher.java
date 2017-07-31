@@ -66,7 +66,7 @@ import org.apache.gobblin.util.WriterUtils;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * A {@link DataPublisher} to {@link gobblin.data.management.copy.CopyEntity}s from task output to final destination.
+ * A {@link DataPublisher} to {@link org.apache.gobblin.data.management.copy.CopyEntity}s from task output to final destination.
  */
 @Slf4j
 public class CopyDataPublisher extends DataPublisher implements UnpublishedHandling {

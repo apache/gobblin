@@ -47,7 +47,7 @@ import org.apache.gobblin.source.workunit.Extract.TableType;
  * An implementation of {@link Source} for the Wikipedia example.
  *
  * <p>
- *   This source creates a {@link gobblin.source.workunit.WorkUnit}, and uses
+ *   This source creates a {@link org.apache.gobblin.source.workunit.WorkUnit}, and uses
  *   {@link WikipediaExtractor} to pull the data from Wikipedia.
  * </p>
  *

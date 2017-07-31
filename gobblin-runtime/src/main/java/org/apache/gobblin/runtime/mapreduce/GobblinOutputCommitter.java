@@ -54,7 +54,7 @@ import lombok.Getter;
  * Hadoop {@link OutputCommitter} implementation that overrides the default
  * {@link #abortJob(JobContext, org.apache.hadoop.mapreduce.JobStatus.State)} behavior.
  * This is necessary to add functionality for cleaning up staging data when the
- * {@link gobblin.runtime.JobLauncher#cancelJob(JobListener)} method is
+ * {@link org.apache.gobblin.runtime.JobLauncher#cancelJob(JobListener)} method is
  * called via Azkaban. Azkaban only allows the cancel method run to for 5 ms until it
  * does a hard kill on the process. In order to make sure the staging data still gets
  * cleaned-up, the cleanup will take place in the AM.

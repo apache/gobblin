@@ -65,7 +65,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * A base implementation of {@link gobblin.source.Source} for
+ * A base implementation of {@link org.apache.gobblin.source.Source} for
  * query-based sources.
  */
 @Slf4j

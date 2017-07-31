@@ -33,20 +33,20 @@ import org.apache.gobblin.util.limiter.RateBasedLimiter;
 
 
 /**
- * Subclass of {@link org.apache.hadoop.fs.FileSystem} that wraps with a {@link gobblin.util.limiter.Limiter}
+ * Subclass of {@link org.apache.hadoop.fs.FileSystem} that wraps with a {@link org.apache.gobblin.util.limiter.Limiter}
  * to control HDFS call rate.
  *
  *  <p>
  *  This classes uses Guava's {@link Cache} for storing {@link org.apache.hadoop.fs.FileSystem} URI to
- *  {@link gobblin.util.limiter.Limiter} mapping.
+ *  {@link org.apache.gobblin.util.limiter.Limiter} mapping.
  *  </p>
  *
  *  <p>
- *  For methods that require HDFS calls, this class will first acquire a permit using {@link gobblin.util.limiter.Limiter},
+ *  For methods that require HDFS calls, this class will first acquire a permit using {@link org.apache.gobblin.util.limiter.Limiter},
  *  to make sure HDFS call rate is allowed by the uppper limit.
  *  </p>
  *
- *  @deprecated use {@link gobblin.util.filesystem.ThrottledFileSystem}
+ *  @deprecated use {@link org.apache.gobblin.util.filesystem.ThrottledFileSystem}
  */
 @Deprecated
 public class RateControlledFileSystem extends ThrottledFileSystem {

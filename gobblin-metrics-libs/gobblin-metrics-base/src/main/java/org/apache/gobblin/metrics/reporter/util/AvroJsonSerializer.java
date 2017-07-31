@@ -27,7 +27,7 @@ import org.apache.avro.specific.SpecificRecord;
 
 
 /**
- * {@link gobblin.metrics.reporter.util.AvroSerializer} that serializes into JSON.
+ * {@link org.apache.gobblin.metrics.reporter.util.AvroSerializer} that serializes into JSON.
  */
 public class AvroJsonSerializer<T extends SpecificRecord> extends AvroSerializer<T> {
 

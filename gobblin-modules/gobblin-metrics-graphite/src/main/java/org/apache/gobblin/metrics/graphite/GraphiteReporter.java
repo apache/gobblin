@@ -65,7 +65,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
   }
 
   /**
-   * A static factory class for obtaining new {@link gobblin.metrics.graphite.GraphiteReporter.Builder}s
+   * A static factory class for obtaining new {@link org.apache.gobblin.metrics.graphite.GraphiteReporter.Builder}s
    *
    * @see gobblin.metrics.graphite.GraphiteReporter.Builder
    */
@@ -106,7 +106,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
     }
 
     /**
-     * Set {@link gobblin.metrics.graphite.GraphitePusher} to use.
+     * Set {@link org.apache.gobblin.metrics.graphite.GraphitePusher} to use.
      */
     public T withGraphitePusher(GraphitePusher pusher) {
       this.graphitePusher = Optional.of(pusher);
@@ -114,7 +114,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
     }
 
     /**
-     * Set connection parameters for the {@link gobblin.metrics.graphite.GraphitePusher} creation
+     * Set connection parameters for the {@link org.apache.gobblin.metrics.graphite.GraphitePusher} creation
      */
     public T withConnection(String hostname, int port) {
       this.hostname = hostname;
@@ -123,7 +123,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
     }
 
     /**
-     * Set {@link gobblin.metrics.graphite.GraphiteConnectionType} to use.
+     * Set {@link org.apache.gobblin.metrics.graphite.GraphiteConnectionType} to use.
      */
     public T withConnectionType(GraphiteConnectionType connectionType) {
       this.connectionType = connectionType;

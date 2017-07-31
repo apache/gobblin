@@ -30,7 +30,7 @@ import org.apache.gobblin.data.management.retention.version.StringDatasetVersion
 
 /**
  * @deprecated
- * See javadoc for {@link gobblin.data.management.version.finder.WatermarkDatasetVersionFinder}.
+ * See javadoc for {@link org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder}.
  */
 @Slf4j
 @Deprecated

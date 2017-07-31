@@ -21,8 +21,8 @@ import org.joda.time.chrono.ISOChronology;
 
 
 /**
- * Temporal granularity types for writing ({@link gobblin.writer.partitioner.TimeBasedWriterPartitioner}) and reading
- * ({@link gobblin.source.DatePartitionedAvroFileSource}) date partitioned data.
+ * Temporal granularity types for writing ({@link org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner}) and reading
+ * ({@link org.apache.gobblin.source.DatePartitionedAvroFileSource}) date partitioned data.
  *
  * @author Lorand Bendig
  *

@@ -40,7 +40,7 @@ import org.apache.gobblin.metrics.Tag;
 
 
 /**
- * Package-private implementation of instrumentation for {@link gobblin.fork.ForkOperator}.
+ * Package-private implementation of instrumentation for {@link org.apache.gobblin.fork.ForkOperator}.
  *
  * @see gobblin.instrumented.fork.InstrumentedForkOperator for extensible class.
  */
@@ -159,7 +159,7 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
   }
 
   /**
-   * Subclasses should implement this instead of {@link gobblin.fork.ForkOperator#forkDataRecord}.
+   * Subclasses should implement this instead of {@link org.apache.gobblin.fork.ForkOperator#forkDataRecord}.
    */
   public abstract List<Boolean> forkDataRecordImpl(WorkUnitState workUnitState, D input);
 

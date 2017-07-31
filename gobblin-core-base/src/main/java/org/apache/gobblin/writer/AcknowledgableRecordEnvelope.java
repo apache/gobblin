@@ -59,7 +59,7 @@ public class AcknowledgableRecordEnvelope<D> implements Ackable {
 
   /**
    * Get the original watermark that was attached to this record,
-   * typically by a {@link gobblin.source.extractor.StreamingExtractor}
+   * typically by a {@link org.apache.gobblin.source.extractor.StreamingExtractor}
    */
   public CheckpointableWatermark getWatermark() {
     return _watermark.getCheckpointableWatermark();

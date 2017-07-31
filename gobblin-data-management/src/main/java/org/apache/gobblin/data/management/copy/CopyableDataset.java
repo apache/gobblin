@@ -35,14 +35,14 @@ public interface CopyableDataset extends CopyableDatasetBase {
    *
    * <p>
    *   This method should return a collection of {@link CopyEntity}, each describing one work unit for distcp.
-   *   The most common {@link CopyEntity} is the {@link gobblin.data.management.copy.CopyableDataset}, describing a file
+   *   The most common {@link CopyEntity} is the {@link org.apache.gobblin.data.management.copy.CopyableDataset}, describing a file
    *   that should be copied
    *   to the target.
    *   See {@link CopyableFile} for explanation of the information contained in the {@link CopyableFile}s.
    * </p>
    *
    * @param targetFs target {@link org.apache.hadoop.fs.FileSystem} where copied files will be placed.
-   * @param configuration {@link gobblin.data.management.copy.CopyConfiguration} for this job. See {@link gobblin.data.management.copy.CopyConfiguration}.
+   * @param configuration {@link org.apache.gobblin.data.management.copy.CopyConfiguration} for this job. See {@link org.apache.gobblin.data.management.copy.CopyConfiguration}.
    * @return List of {@link CopyEntity}s in this dataset.
    * @throws IOException
    */

@@ -23,7 +23,7 @@ import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**
- * Instrumented {@link gobblin.fork.ForkOperator} automatically capturing certain metrics.
+ * Instrumented {@link org.apache.gobblin.fork.ForkOperator} automatically capturing certain metrics.
  * Subclasses should implement forkDataRecordImpl instead of forkDataRecord.
  *
  * @author ibuenros

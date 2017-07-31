@@ -227,7 +227,7 @@ public class EmbeddedGobblin {
   }
 
   /**
-   * Use a {@link gobblin.runtime.api.GobblinInstancePlugin}.
+   * Use a {@link org.apache.gobblin.runtime.api.GobblinInstancePlugin}.
    */
   public EmbeddedGobblin usePlugin(GobblinInstancePluginFactory pluginFactory) {
     this.plugins.add(pluginFactory);
@@ -235,7 +235,7 @@ public class EmbeddedGobblin {
   }
 
   /**
-   * Use a {@link gobblin.runtime.api.GobblinInstancePlugin} identified by name.
+   * Use a {@link org.apache.gobblin.runtime.api.GobblinInstancePlugin} identified by name.
    */
   public EmbeddedGobblin usePlugin(String pluginAlias) throws ClassNotFoundException, IllegalAccessException, InstantiationException {
     return usePlugin(GobblinInstancePluginUtils.instantiatePluginByAlias(pluginAlias));
@@ -372,7 +372,7 @@ public class EmbeddedGobblin {
 
   /**
    * This is the base {@link Config} used for the job, containing all default configurations. Subclasses can override
-   * default configurations (for example setting a particular {@link gobblin.runtime.JobLauncherFactory.JobLauncherType}.
+   * default configurations (for example setting a particular {@link org.apache.gobblin.runtime.JobLauncherFactory.JobLauncherType}.
    */
   protected Config getDefaultSysConfig() {
     return ConfigFactory.parseResources("embedded/embedded.conf");
@@ -566,7 +566,7 @@ public class EmbeddedGobblin {
   }
 
   /**
-   * A {@link gobblin.runtime.api.JobLifecycleListener} that listens for a particular job and detects the start of the job.
+   * A {@link org.apache.gobblin.runtime.api.JobLifecycleListener} that listens for a particular job and detects the start of the job.
    */
   private static class EmbeddedJobLifecycleListener extends DefaultJobLifecycleListenerImpl {
 

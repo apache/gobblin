@@ -60,7 +60,7 @@ import static org.apache.gobblin.metrics.event.JobEvent.METADATA_JOB_ID;
 import static org.apache.gobblin.metrics.event.TaskEvent.METADATA_TASK_ID;
 
 /**
- * Abstract class for reporting {@link gobblin.metrics.GobblinTrackingEvent}s at a fixed schedule.
+ * Abstract class for reporting {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s at a fixed schedule.
  *
  * <p>
  *   Subclasses should implement {@link #reportEventQueue} to emit the events to the sink. Events will only be
@@ -105,9 +105,9 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   }
 
   /**
-   * Callback used by the {@link gobblin.metrics.MetricContext} to notify the object of a new
-   * {@link gobblin.metrics.GobblinTrackingEvent}.
-   * @param notification {@link gobblin.metrics.notification.Notification} to process.
+   * Callback used by the {@link org.apache.gobblin.metrics.MetricContext} to notify the object of a new
+   * {@link org.apache.gobblin.metrics.GobblinTrackingEvent}.
+   * @param notification {@link org.apache.gobblin.metrics.notification.Notification} to process.
    */
   public void notificationCallback(Notification notification) {
     if (notification instanceof EventNotification) {
@@ -116,8 +116,8 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   }
 
   /**
-   * Add {@link gobblin.metrics.GobblinTrackingEvent} to the events queue.
-   * @param event {@link gobblin.metrics.GobblinTrackingEvent} to add to queue.
+   * Add {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to the events queue.
+   * @param event {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to add to queue.
    */
   public void addEventToReportingQueue(GobblinTrackingEvent event) {
     if (this.reportingQueue.size() > QUEUE_CAPACITY * 2 / 3) {
@@ -135,7 +135,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   }
 
   /**
-   * Report all {@link gobblin.metrics.GobblinTrackingEvent}s in the queue.
+   * Report all {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s in the queue.
    */
   @Override
   public void report() {
@@ -143,8 +143,8 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   }
 
   /**
-   * Emit all {@link gobblin.metrics.GobblinTrackingEvent} in queue.
-   * @param queue {@link java.util.Queue} containing {@link gobblin.metrics.GobblinTrackingEvent}s that should be emitted.
+   * Emit all {@link org.apache.gobblin.metrics.GobblinTrackingEvent} in queue.
+   * @param queue {@link java.util.Queue} containing {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s that should be emitted.
    */
   public abstract void reportEventQueue(Queue<GobblinTrackingEvent> queue);
 

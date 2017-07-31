@@ -23,19 +23,19 @@ package org.apache.gobblin.kafka.writer;
 public class KafkaWriterMetricNames {
   /**
    * A {@link com.codahale.metrics.Meter} measuring the number of records sent to
-   * a {@link gobblin.kafka.writer.KafkaDataWriter}.
+   * a {@link org.apache.gobblin.kafka.writer.KafkaDataWriter}.
    */
   public static final String RECORDS_PRODUCED_METER = "gobblin.writer.kafka.records.produced";
 
   /**
    * A {@link com.codahale.metrics.Meter} measuring the number of records that failed to be written by
-   * {@link gobblin.kafka.writer.KafkaDataWriter}.
+   * {@link org.apache.gobblin.kafka.writer.KafkaDataWriter}.
    */
   public static final String RECORDS_FAILED_METER = "gobblin.writer.kafka.records.failed";
 
   /**
    * A {@link com.codahale.metrics.Meter} measuring the number of records that were successfully written by
-   * {@link gobblin.kafka.writer.KafkaDataWriter}.
+   * {@link org.apache.gobblin.kafka.writer.KafkaDataWriter}.
    */
   public static final String RECORDS_SUCCESS_METER = "gobblin.writer.kafka.records.success";
 

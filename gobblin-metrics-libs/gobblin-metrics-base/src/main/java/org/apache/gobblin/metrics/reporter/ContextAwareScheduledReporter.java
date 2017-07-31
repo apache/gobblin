@@ -35,7 +35,7 @@ import org.apache.gobblin.metrics.MetricContext;
 
 /**
  * A custom {@link com.codahale.metrics.ScheduledReporter} that is aware of the
- * {@link gobblin.metrics.MetricContext} it is associated to.
+ * {@link org.apache.gobblin.metrics.MetricContext} it is associated to.
  *
  * @author Yinan Li
  */
@@ -86,12 +86,12 @@ public abstract class ContextAwareScheduledReporter extends ScheduledReporter {
    *
    * <p>
    *   The metric names (the keys in the given {@link SortedMap}s) may or may not include the
-   *   {@link gobblin.metrics.Tag}s of the {@link MetricContext} depending on if the {@link MetricContext} is
+   *   {@link org.apache.gobblin.metrics.Tag}s of the {@link MetricContext} depending on if the {@link MetricContext} is
    *   configured to report fully-qualified metric names or not using the method
    *   {@link MetricContext.Builder#reportFullyQualifiedNames(boolean)}. It is up to the
    *   implementation of this method to decide on whether to include the name of the
-   *   {@link MetricContext} (given by {@link MetricContext#getName()}) and the {@link gobblin.metrics.Tag}s
-   *   of individual {@link gobblin.metrics.ContextAwareMetric}s when reporting them.
+   *   {@link MetricContext} (given by {@link MetricContext#getName()}) and the {@link org.apache.gobblin.metrics.Tag}s
+   *   of individual {@link org.apache.gobblin.metrics.ContextAwareMetric}s when reporting them.
    * </p>
    *
    * @param gauges     all of the gauges in the {@link MetricContext}

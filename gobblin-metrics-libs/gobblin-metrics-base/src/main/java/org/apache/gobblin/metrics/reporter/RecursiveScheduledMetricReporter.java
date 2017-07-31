@@ -35,7 +35,7 @@ import org.apache.gobblin.metrics.MetricContext;
 
 
 /**
- * Reports the metrics of a {@link gobblin.metrics.MetricContext} following a schedule.
+ * Reports the metrics of a {@link org.apache.gobblin.metrics.MetricContext} following a schedule.
  */
 public abstract class RecursiveScheduledMetricReporter extends RecursiveScheduledReporter {
 

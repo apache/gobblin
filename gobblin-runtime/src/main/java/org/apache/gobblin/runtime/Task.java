@@ -85,7 +85,7 @@ import org.apache.gobblin.writer.WatermarkStorage;
 
 
 /**
- * A physical unit of execution for a Gobblin {@link gobblin.source.workunit.WorkUnit}.
+ * A physical unit of execution for a Gobblin {@link org.apache.gobblin.source.workunit.WorkUnit}.
  *
  * <p>
  *     Each task is executed by a single thread in a thread pool managed by the {@link TaskExecutor}
@@ -771,9 +771,9 @@ public class Task implements TaskIFace {
   }
 
   /**
-   * Get the final state of each construct used by this task and add it to the {@link gobblin.runtime.TaskState}.
-   * @param extractor the {@link gobblin.instrumented.extractor.InstrumentedExtractorBase} used by this task.
-   * @param converter the {@link gobblin.converter.Converter} used by this task.
+   * Get the final state of each construct used by this task and add it to the {@link org.apache.gobblin.runtime.TaskState}.
+   * @param extractor the {@link org.apache.gobblin.instrumented.extractor.InstrumentedExtractorBase} used by this task.
+   * @param converter the {@link org.apache.gobblin.converter.Converter} used by this task.
    * @param rowChecker the {@link RowLevelPolicyChecker} used by this task.
    */
   private void addConstructsFinalStateToTaskState(InstrumentedExtractorBase<?, ?> extractor,

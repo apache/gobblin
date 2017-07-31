@@ -34,7 +34,7 @@ import org.apache.gobblin.converter.ToAvroConverterBase;
 
 
 /**
- * An implementation of {@link gobblin.converter.Converter} for the Wikipedia example.
+ * An implementation of {@link org.apache.gobblin.converter.Converter} for the Wikipedia example.
  *
  *<p>
  *   This converter converts the input string schema into an Avro {@link org.apache.avro.Schema}

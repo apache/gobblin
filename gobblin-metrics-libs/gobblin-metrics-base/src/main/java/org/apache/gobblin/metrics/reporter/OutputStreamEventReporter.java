@@ -40,7 +40,7 @@ import org.apache.gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
 
 
 /**
- * {@link gobblin.metrics.reporter.EventReporter} that writes {@link gobblin.metrics.GobblinTrackingEvent}s to an
+ * {@link org.apache.gobblin.metrics.reporter.EventReporter} that writes {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s to an
  * {@link java.io.OutputStream}.
  */
 public class OutputStreamEventReporter extends EventReporter {
@@ -100,10 +100,10 @@ public class OutputStreamEventReporter extends EventReporter {
   }
 
   /**
-   * Returns a new {@link gobblin.metrics.kafka.KafkaEventReporter.Builder} for {@link gobblin.metrics.kafka.KafkaEventReporter}.
+   * Returns a new {@link org.apache.gobblin.metrics.kafka.KafkaEventReporter.Builder} for {@link org.apache.gobblin.metrics.kafka.KafkaEventReporter}.
    * Will automatically add all Context tags to the reporter.
    *
-   * @param context the {@link gobblin.metrics.MetricContext} to report
+   * @param context the {@link org.apache.gobblin.metrics.MetricContext} to report
    * @return KafkaReporter builder
    */
   public static Builder<? extends Builder> forContext(MetricContext context) {

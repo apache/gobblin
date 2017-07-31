@@ -93,7 +93,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * {@link gobblin.source.Source} that generates work units from {@link gobblin.data.management.copy.CopyableDataset}s.
+ * {@link org.apache.gobblin.source.Source} that generates work units from {@link org.apache.gobblin.data.management.copy.CopyableDataset}s.
  *
  */
 @Slf4j
@@ -132,7 +132,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * and writers are built to support multiple {@link CopyEntity}s per workunit
    * </p>
    *
-   * @param state see {@link gobblin.configuration.SourceState}
+   * @param state see {@link org.apache.gobblin.configuration.SourceState}
    * @return Work units for copying files.
    */
   @Override
@@ -312,7 +312,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   }
 
   /**
-   * @param state a {@link gobblin.configuration.WorkUnitState} carrying properties needed by the returned
+   * @param state a {@link org.apache.gobblin.configuration.WorkUnitState} carrying properties needed by the returned
    *          {@link Extractor}
    * @return a {@link FileAwareInputStreamExtractor}.
    * @throws IOException

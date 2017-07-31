@@ -24,12 +24,12 @@ import lombok.Getter;
 
 
 /**
- * Entity that stores information required for launching an {@link gobblin.compaction.mapreduce.MRCompactor} job
+ * Entity that stores information required for launching an {@link org.apache.gobblin.compaction.mapreduce.MRCompactor} job
  *
  * {@link #primaryKeyList}: Comma delimited list of fields to use as primary key
  * {@link #deltaList}: Comma delimited list of fields to use as deltaList
  * {@link #dataFilesPath}: Location of files associated with table
- * {@link #props}: Other properties to be passed to {@link gobblin.compaction.mapreduce.MRCompactor}
+ * {@link #props}: Other properties to be passed to {@link org.apache.gobblin.compaction.mapreduce.MRCompactor}
  */
 @Getter
 public class MRCompactionEntity {

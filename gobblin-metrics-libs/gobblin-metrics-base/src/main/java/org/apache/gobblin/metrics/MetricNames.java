@@ -67,43 +67,43 @@ public class MetricNames {
   }
 
   /**
-   * {@link gobblin.writer.DataWriter} metrics.
+   * {@link org.apache.gobblin.writer.DataWriter} metrics.
    */
   public static class DataWriterMetrics {
 
     /**
      * A {@link com.codahale.metrics.Meter} measuring the number of records
-     * given to a {@link gobblin.writer.DataWriter}. This does not count retries.
+     * given to a {@link org.apache.gobblin.writer.DataWriter}. This does not count retries.
      */
     public static final String RECORDS_IN_METER = "gobblin.writer.records.in";
 
     /**
      * A {@link com.codahale.metrics.Meter} measuring the number of records attempted
-     * to be written by a {@link gobblin.writer.DataWriter}. This includes retries.
+     * to be written by a {@link org.apache.gobblin.writer.DataWriter}. This includes retries.
      */
     public static final String RECORDS_ATTEMPTED_METER = "gobblin.writer.records.attempted";
 
     /**
      * A {@link com.codahale.metrics.Meter} measuring the number of successful write operations performed by a
-     * {@link gobblin.writer.DataWriter}.
+     * {@link org.apache.gobblin.writer.DataWriter}.
      */
     public static final String SUCCESSFUL_WRITES_METER = "gobblin.writer.successful.writes";
 
     /**
      * A {@link com.codahale.metrics.Meter} measuring the number of failed write operations performed by a
-     * {@link gobblin.writer.DataWriter}.
+     * {@link org.apache.gobblin.writer.DataWriter}.
      */
     public static final String FAILED_WRITES_METER = "gobblin.writer.failed.writes";
 
     /**
-     * A {@link com.codahale.metrics.Meter} measuring the number records written by a {@link gobblin.writer.DataWriter}
-     * as reported by its {@link gobblin.writer.DataWriter#recordsWritten()} method.
+     * A {@link com.codahale.metrics.Meter} measuring the number records written by a {@link org.apache.gobblin.writer.DataWriter}
+     * as reported by its {@link org.apache.gobblin.writer.DataWriter#recordsWritten()} method.
      */
     public static final String RECORDS_WRITTEN_METER = "gobblin.writer.records.written";
 
     /**
-     * A {@link com.codahale.metrics.Meter} measuring the number bytes written by a {@link gobblin.writer.DataWriter} as
-     * reported by its {@link gobblin.writer.DataWriter#bytesWritten()} method.
+     * A {@link com.codahale.metrics.Meter} measuring the number bytes written by a {@link org.apache.gobblin.writer.DataWriter} as
+     * reported by its {@link org.apache.gobblin.writer.DataWriter#bytesWritten()} method.
      */
     public static final String BYTES_WRITTEN_METER = "gobblin.writer.bytes.written";
 

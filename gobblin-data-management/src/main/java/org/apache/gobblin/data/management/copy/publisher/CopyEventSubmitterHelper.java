@@ -57,7 +57,7 @@ public class CopyEventSubmitterHelper {
   }
 
   /**
-   * Submit an sla event when a {@link gobblin.data.management.copy.CopyableFile} is published. The <code>workUnitState</code> passed should have the
+   * Submit an sla event when a {@link org.apache.gobblin.data.management.copy.CopyableFile} is published. The <code>workUnitState</code> passed should have the
    * required {@link SlaEventKeys} set.
    *
    * @see SlaEventSubmitter#submit()

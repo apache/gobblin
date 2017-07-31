@@ -47,7 +47,7 @@ import org.apache.gobblin.metrics.notification.Notification;
 
 /**
  * Base {@link Reporter} for gobblin metrics. Automatically handles {@link MetricContext} selection,
- * {@link gobblin.metrics.Metric} filtering, and changes to reporting on {@link MetricContext} life cycle.
+ * {@link org.apache.gobblin.metrics.Metric} filtering, and changes to reporting on {@link MetricContext} life cycle.
  *
  * <p>
  *   The lifecycle of a {@link ContextAwareReporter} fully managed by the {@link RootMetricContext} is:

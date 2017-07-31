@@ -37,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * Flatten {@link gobblin.metrics.MetricReport} for use by Pinot.
+ * Flatten {@link org.apache.gobblin.metrics.MetricReport} for use by Pinot.
  * The output schema can be found at "gobblin-metrics/src/main/avro/FlatGobblinMetric.avsc".
  */
 @Slf4j

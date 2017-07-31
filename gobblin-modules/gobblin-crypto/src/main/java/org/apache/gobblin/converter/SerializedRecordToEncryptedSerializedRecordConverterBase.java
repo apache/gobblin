@@ -31,7 +31,7 @@ import org.apache.gobblin.type.RecordWithMetadata;
 
 
 /**
- * A converter that converts a {@link gobblin.type.SerializedRecordWithMetadata} to a {@link gobblin.type.SerializedRecordWithMetadata}
+ * A converter that converts a {@link org.apache.gobblin.type.SerializedRecordWithMetadata} to a {@link org.apache.gobblin.type.SerializedRecordWithMetadata}
  * where the serialized bytes represent encrypted data. The encryption algorithm used will be appended to the
  * Transfer-Encoding of the new record.
  */

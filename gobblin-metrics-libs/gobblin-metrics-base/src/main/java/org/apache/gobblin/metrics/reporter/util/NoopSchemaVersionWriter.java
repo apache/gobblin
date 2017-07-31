@@ -27,7 +27,7 @@ import org.apache.gobblin.annotation.Alias;
 
 
 /**
- * Implementation of {@link gobblin.metrics.reporter.util.SchemaVersionWriter} that does not write anything to
+ * Implementation of {@link org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter} that does not write anything to
  * {@link java.io.DataOutputStream}.
  */
 @Alias(value = "NOOP")

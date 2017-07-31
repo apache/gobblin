@@ -47,7 +47,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 /**
- * Unit tests for the job configuration file monitor in {@link gobblin.scheduler.JobScheduler}.
+ * Unit tests for the job configuration file monitor in {@link org.apache.gobblin.scheduler.JobScheduler}.
  *
  * @author Yinan Li
  */

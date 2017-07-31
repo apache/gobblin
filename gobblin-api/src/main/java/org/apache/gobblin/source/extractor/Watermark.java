@@ -25,8 +25,8 @@ import com.google.gson.JsonElement;
  * to track this state.
  *
  * <p>
- *  A {@link Watermark} will be serialized in {@link gobblin.source.workunit.WorkUnit}s and
- *  {@link gobblin.configuration.WorkUnitState}s. The {@link #toJson()} method will be used to serialize the
+ *  A {@link Watermark} will be serialized in {@link org.apache.gobblin.source.workunit.WorkUnit}s and
+ *  {@link org.apache.gobblin.configuration.WorkUnitState}s. The {@link #toJson()} method will be used to serialize the
  *  {@link Watermark} into a {@link JsonElement}.
  * </p>
  */

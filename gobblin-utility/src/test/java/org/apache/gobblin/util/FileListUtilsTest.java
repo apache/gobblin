@@ -33,7 +33,7 @@ import com.google.common.collect.Sets;
 
 
 /**
- * Unit tests for the job configuration file monitor in {@link gobblin.util.FileListUtils}.
+ * Unit tests for the job configuration file monitor in {@link org.apache.gobblin.util.FileListUtils}.
  */
 @Test(groups = { "gobblin.util" })
 public class FileListUtilsTest {

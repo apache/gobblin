@@ -30,7 +30,7 @@ import org.apache.gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
 
 
 /**
- * Implementation of {@link gobblin.source.Source} that reads over date-partitioned Avro data.
+ * Implementation of {@link org.apache.gobblin.source.Source} that reads over date-partitioned Avro data.
  * This source can be regarded as the reader equivalent of {@link TimeBasedAvroWriterPartitioner}.
  *
  * <p>

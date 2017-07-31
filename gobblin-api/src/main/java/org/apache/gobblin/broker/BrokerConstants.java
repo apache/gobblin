@@ -18,7 +18,7 @@
 package org.apache.gobblin.broker;
 
 /**
- * Constants used for {@link gobblin.broker.iface.SharedResourcesBroker}.
+ * Constants used for {@link org.apache.gobblin.broker.iface.SharedResourcesBroker}.
  */
 public class BrokerConstants {
   public static final String GOBBLIN_BROKER_CONFIG_PREFIX = "gobblin.broker";

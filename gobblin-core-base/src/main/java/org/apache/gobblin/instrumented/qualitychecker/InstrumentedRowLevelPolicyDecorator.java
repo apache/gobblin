@@ -30,8 +30,8 @@ import org.apache.gobblin.util.DecoratorUtils;
 
 
 /**
- * Decorator that automatically instruments {@link gobblin.qualitychecker.row.RowLevelPolicy}.
- * Handles already instrumented {@link gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy}
+ * Decorator that automatically instruments {@link org.apache.gobblin.qualitychecker.row.RowLevelPolicy}.
+ * Handles already instrumented {@link org.apache.gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy}
  * appropriately to avoid double metric reporting.
  */
 public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPolicyBase implements Decorator {

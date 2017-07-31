@@ -21,7 +21,7 @@ import org.apache.gobblin.configuration.State;
 
 
 /**
- * Instrumented {@link gobblin.qualitychecker.row.RowLevelPolicy} automatically capturing certain metrics.
+ * Instrumented {@link org.apache.gobblin.qualitychecker.row.RowLevelPolicy} automatically capturing certain metrics.
  * Subclasses should implement executePolicyImpl instead of executePolicy.
  *
  * @author ibuenros

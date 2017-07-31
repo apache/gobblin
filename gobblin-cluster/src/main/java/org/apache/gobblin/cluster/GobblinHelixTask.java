@@ -60,16 +60,16 @@ import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 
 /**
  * An implementation of Helix's {@link org.apache.helix.task.Task} that wraps and runs one or more Gobblin
- * {@link gobblin.runtime.Task}s.
+ * {@link org.apache.gobblin.runtime.Task}s.
  *
  * <p>
  *   Upon startup, a {@link GobblinHelixTask} reads the property
  *   {@link GobblinClusterConfigurationKeys#WORK_UNIT_FILE_PATH} for the path of the file storing a serialized
  *   {@link WorkUnit} on the {@link FileSystem} of choice and de-serializes the {@link WorkUnit}. Depending on
  *   if the serialized {@link WorkUnit} is a {@link MultiWorkUnit}, it then creates one or more Gobblin
- *   {@link gobblin.runtime.Task}s to run the {@link WorkUnit}(s) (possibly wrapped in the {@link MultiWorkUnit})
- *   and waits for the Gobblin {@link gobblin.runtime.Task}(s) to finish. Upon completion of the Gobblin
- *   {@link gobblin.runtime.Task}(s), it persists the {@link TaskState} of each {@link gobblin.runtime.Task} to
+ *   {@link org.apache.gobblin.runtime.Task}s to run the {@link WorkUnit}(s) (possibly wrapped in the {@link MultiWorkUnit})
+ *   and waits for the Gobblin {@link org.apache.gobblin.runtime.Task}(s) to finish. Upon completion of the Gobblin
+ *   {@link org.apache.gobblin.runtime.Task}(s), it persists the {@link TaskState} of each {@link org.apache.gobblin.runtime.Task} to
  *   a file that will be collected by the {@link GobblinHelixJobLauncher} later upon completion of the job.
  * </p>
  *

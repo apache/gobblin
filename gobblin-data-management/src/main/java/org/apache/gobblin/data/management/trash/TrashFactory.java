@@ -27,11 +27,11 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * Factory for creating {@link gobblin.data.management.trash.Trash} instance. Will automatically use
- * {@link gobblin.data.management.trash.TestTrash} if {@link #TRASH_TEST} is true,
- * {@link gobblin.data.management.trash.MockTrash} if {@link #SIMULATE} is true,
- * and {@link gobblin.data.management.trash.ImmediateDeletionTrash} if {@link #SKIP_TRASH} is true.
- * Otherwise, it will use {@link gobblin.data.management.trash.ProxiedTrash} or {@link gobblin.data.management.trash.Trash}.
+ * Factory for creating {@link org.apache.gobblin.data.management.trash.Trash} instance. Will automatically use
+ * {@link org.apache.gobblin.data.management.trash.TestTrash} if {@link #TRASH_TEST} is true,
+ * {@link org.apache.gobblin.data.management.trash.MockTrash} if {@link #SIMULATE} is true,
+ * and {@link org.apache.gobblin.data.management.trash.ImmediateDeletionTrash} if {@link #SKIP_TRASH} is true.
+ * Otherwise, it will use {@link org.apache.gobblin.data.management.trash.ProxiedTrash} or {@link org.apache.gobblin.data.management.trash.Trash}.
  */
 public class TrashFactory {
 
@@ -50,11 +50,11 @@ public class TrashFactory {
   }
 
   /**
-   * Creates a {@link gobblin.data.management.trash.Trash} instance.
+   * Creates a {@link org.apache.gobblin.data.management.trash.Trash} instance.
    * @param fs {@link org.apache.hadoop.fs.FileSystem} where trash is located.
    * @param props {@link java.util.Properties} used to generate trash.
    * @param user $USER tokens in the trash path will be replaced by this string.
-   * @return instance of {@link gobblin.data.management.trash.Trash}.
+   * @return instance of {@link org.apache.gobblin.data.management.trash.Trash}.
    * @throws IOException
    */
   public static Trash createTrash(FileSystem fs, Properties props, String user)
@@ -83,11 +83,11 @@ public class TrashFactory {
   }
 
   /**
-   * Creates a {@link gobblin.data.management.trash.ProxiedTrash} instance.
+   * Creates a {@link org.apache.gobblin.data.management.trash.ProxiedTrash} instance.
    * @param fs {@link org.apache.hadoop.fs.FileSystem} where trash is located.
    * @param props {@link java.util.Properties} used to generate trash.
    * @param user $USER tokens in the trash path will be replaced by this string.
-   * @return instance of {@link gobblin.data.management.trash.ProxiedTrash}.
+   * @return instance of {@link org.apache.gobblin.data.management.trash.ProxiedTrash}.
    * @throws IOException
    */
   public static ProxiedTrash createProxiedTrash(FileSystem fs, Properties props, String user)

@@ -242,20 +242,20 @@ public class WorkUnitState extends State {
    * {@link Watermark} indicates that all data for the source has been pulled up to a specific point.
    *
    * <p>
-   *  This method should be called inside the {@link gobblin.source.extractor.Extractor} class, during the initialization
-   *  of the class, before any calls to {@link gobblin.source.extractor.Extractor#readRecord(Object)} are executed. This
+   *  This method should be called inside the {@link org.apache.gobblin.source.extractor.Extractor} class, during the initialization
+   *  of the class, before any calls to {@link org.apache.gobblin.source.extractor.Extractor#readRecord(Object)} are executed. This
    *  method keeps a local point to the given {@link Watermark} and expects the following invariant to always be upheld.
    *  The invariant for this {@link Watermark} is that it should cover all records up to and including the most recent
-   *  record returned by {@link gobblin.source.extractor.Extractor#readRecord(Object)}.
+   *  record returned by {@link org.apache.gobblin.source.extractor.Extractor#readRecord(Object)}.
    * </p>
    * <p>
    *  The {@link Watermark} set in this method may be polled by the framework multiple times, in order to track the
    *  progress of how the {@link Watermark} changes. This is important for reporting percent completion of a
-   *  {@link gobblin.source.workunit.WorkUnit}.
+   *  {@link org.apache.gobblin.source.workunit.WorkUnit}.
    * </p>
    *
-   * TODO - Once we are ready to make a backwards incompatible change to the {@link gobblin.source.extractor.Extractor}
-   * interface, this method should become part of the {@link gobblin.source.extractor.Extractor} interface. For example,
+   * TODO - Once we are ready to make a backwards incompatible change to the {@link org.apache.gobblin.source.extractor.Extractor}
+   * interface, this method should become part of the {@link org.apache.gobblin.source.extractor.Extractor} interface. For example,
    * a method such as getCurrentHighWatermark() should be added.
    */
   public void setActualHighWatermark(Watermark watermark) {
@@ -281,7 +281,7 @@ public class WorkUnitState extends State {
   }
 
   /**
-   * Get the high watermark as set in {@link gobblin.source.extractor.Extractor}.
+   * Get the high watermark as set in {@link org.apache.gobblin.source.extractor.Extractor}.
    *
    * @return high watermark
    * @deprecated use {@link #getActualHighWatermark}.
@@ -368,9 +368,9 @@ public class WorkUnitState extends State {
   }
 
   /**
-   * Get the {@link gobblin.source.workunit.Extract} associated with the {@link WorkUnit}.
+   * Get the {@link org.apache.gobblin.source.workunit.Extract} associated with the {@link WorkUnit}.
    *
-   * @return {@link gobblin.source.workunit.Extract} associated with the {@link WorkUnit}
+   * @return {@link org.apache.gobblin.source.workunit.Extract} associated with the {@link WorkUnit}
    */
   public Extract getExtract() {
     return new Extract(this.workUnit.getExtract());
@@ -430,15 +430,15 @@ public class WorkUnitState extends State {
   }
 
   /**
-   * Adds all properties from {@link gobblin.configuration.State} to this {@link gobblin.configuration.WorkUnitState}.
+   * Adds all properties from {@link org.apache.gobblin.configuration.State} to this {@link org.apache.gobblin.configuration.WorkUnitState}.
    *
    * <p>
    *   A property with name "property" will be added to this object with the key
    *   "{@link #FINAL_CONSTRUCT_STATE_PREFIX}[.<infix>].property"
    * </p>
    *
-   * @param infix Optional infix used for the name of the property in the {@link gobblin.configuration.WorkUnitState}.
-   * @param finalConstructState {@link gobblin.configuration.State} for which all properties should be added to this
+   * @param infix Optional infix used for the name of the property in the {@link org.apache.gobblin.configuration.WorkUnitState}.
+   * @param finalConstructState {@link org.apache.gobblin.configuration.State} for which all properties should be added to this
    *                                                               object.
    */
   public void addFinalConstructState(String infix, State finalConstructState) {
@@ -453,7 +453,7 @@ public class WorkUnitState extends State {
 
   /**
    * Builds a State containing all properties added with {@link #addFinalConstructState}
-   * to this {@link gobblin.configuration.WorkUnitState}. All such properties will be stripped of
+   * to this {@link org.apache.gobblin.configuration.WorkUnitState}. All such properties will be stripped of
    * {@link #FINAL_CONSTRUCT_STATE_PREFIX} but not of any infixes.
    *
    * <p>

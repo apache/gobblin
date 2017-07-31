@@ -47,7 +47,7 @@ public interface Source<S, D> {
    * Get a list of {@link WorkUnit}s, each of which is for extracting a portion of the data.
    *
    * <p>
-   *   Each {@link WorkUnit} will be used instantiate a {@link gobblin.configuration.WorkUnitState} that gets passed to the
+   *   Each {@link WorkUnit} will be used instantiate a {@link org.apache.gobblin.configuration.WorkUnitState} that gets passed to the
    *   {@link #getExtractor(gobblin.configuration.WorkUnitState)} method to get an {@link Extractor} for extracting schema
    *   and data records from the source. The {@link WorkUnit} instance should have all the properties
    *   needed for the {@link Extractor} to work.
@@ -56,24 +56,24 @@ public interface Source<S, D> {
    * <p>
    *   Typically the list of {@link WorkUnit}s for the current run is determined by taking into account
    *   the list of {@link WorkUnit}s from the previous run so data gets extracted incrementally. The
-   *   method {@link gobblin.configuration.SourceState#getPreviousWorkUnitStates} can be used to get the list of {@link WorkUnit}s
+   *   method {@link org.apache.gobblin.configuration.SourceState#getPreviousWorkUnitStates} can be used to get the list of {@link WorkUnit}s
    *   from the previous run.
    * </p>
    *
-   * @param state see {@link gobblin.configuration.SourceState}
+   * @param state see {@link org.apache.gobblin.configuration.SourceState}
    * @return a list of {@link WorkUnit}s
    */
   public abstract List<WorkUnit> getWorkunits(SourceState state);
 
   /**
-   * Get an {@link Extractor} based on a given {@link gobblin.configuration.WorkUnitState}.
+   * Get an {@link Extractor} based on a given {@link org.apache.gobblin.configuration.WorkUnitState}.
    *
    * <p>
-   *   The {@link Extractor} returned can use {@link gobblin.configuration.WorkUnitState} to store arbitrary key-value pairs
+   *   The {@link Extractor} returned can use {@link org.apache.gobblin.configuration.WorkUnitState} to store arbitrary key-value pairs
    *   that will be persisted to the state store and loaded in the next scheduled job run.
    * </p>
    *
-   * @param state a {@link gobblin.configuration.WorkUnitState} carrying properties needed by the returned {@link Extractor}
+   * @param state a {@link org.apache.gobblin.configuration.WorkUnitState} carrying properties needed by the returned {@link Extractor}
    * @return an {@link Extractor} used to extract schema and data records from the data source
    * @throws IOException if it fails to create an {@link Extractor}
    */

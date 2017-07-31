@@ -40,7 +40,7 @@ import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 
 
 /**
- * {@link gobblin.data.management.version.finder.DatasetVersionFinder} for datasets based on path timestamps.
+ * {@link org.apache.gobblin.data.management.version.finder.DatasetVersionFinder} for datasets based on path timestamps.
  * Uses a datetime pattern to find dataset versions from the dataset path
  * and parse the {@link org.joda.time.DateTime} representing the version.
  */

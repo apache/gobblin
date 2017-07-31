@@ -19,7 +19,7 @@ package org.apache.gobblin.runtime;
 
 /**
  * A type of {@link java.lang.Exception}s thrown when the number of schemas or
- * data records returned by a {@link gobblin.fork.ForkOperator}
+ * data records returned by a {@link org.apache.gobblin.fork.ForkOperator}
  * is not equal to the number of declared branches.
  *
  * @author Yinan Li

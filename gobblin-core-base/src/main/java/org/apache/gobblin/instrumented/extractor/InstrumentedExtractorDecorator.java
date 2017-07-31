@@ -36,8 +36,8 @@ import org.apache.gobblin.util.FinalState;
 
 
 /**
- * Decorator that automatically instruments {@link gobblin.source.extractor.Extractor}.
- * Handles already instrumented {@link gobblin.instrumented.extractor.InstrumentedExtractor}
+ * Decorator that automatically instruments {@link org.apache.gobblin.source.extractor.Extractor}.
+ * Handles already instrumented {@link org.apache.gobblin.instrumented.extractor.InstrumentedExtractor}
  * appropriately to avoid double metric reporting.
  */
 public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorBase<S, D> implements Decorator {

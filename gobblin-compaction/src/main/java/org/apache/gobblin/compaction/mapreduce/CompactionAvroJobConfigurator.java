@@ -234,7 +234,7 @@ public class CompactionAvroJobConfigurator {
 
   /**
    * Customized MR job creation. This method will be used in
-   * {@link gobblin.compaction.suite.CompactionAvroSuite#createJob(Dataset)}
+   * {@link org.apache.gobblin.compaction.suite.CompactionAvroSuite#createJob(Dataset)}
    *
    * @param  dataset  A path or directory which needs compaction
    * @return A configured map-reduce job for avro compaction

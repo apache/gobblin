@@ -34,11 +34,11 @@ import lombok.ToString;
  * A class that represents a Hive table.
  *
  * <p>
- *   This class is used in {@link gobblin.hive.spec.HiveSpec} instead of Hive's
+ *   This class is used in {@link org.apache.gobblin.hive.spec.HiveSpec} instead of Hive's
  *   {@link org.apache.hadoop.hive.metastore.api.Table} class to minimize the dependency on the hive-metastore API
  *   (since it is unstable and may go through backward incompatible changes). {@link HiveTable} and Hive's
  *   {@link org.apache.hadoop.hive.metastore.api.Table} can be converted to each other using
- *   {@link gobblin.hive.metastore.HiveMetaStoreUtils}.
+ *   {@link org.apache.gobblin.hive.metastore.HiveMetaStoreUtils}.
  * </p>
  *
  * @author Ziyang Liu

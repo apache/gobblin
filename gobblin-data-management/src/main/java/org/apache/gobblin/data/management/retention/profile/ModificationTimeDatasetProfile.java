@@ -27,7 +27,7 @@ import org.apache.gobblin.data.management.retention.dataset.ModificationTimeData
 
 
 /**
- * {@link gobblin.dataset.DatasetsFinder} for {@link ModificationTimeDataset}s.
+ * {@link org.apache.gobblin.dataset.DatasetsFinder} for {@link ModificationTimeDataset}s.
  *
  * Modification time datasets will be cleaned by the modification timestamps of the datasets that match
  * 'gobblin.retention.dataset.pattern'.

@@ -28,7 +28,7 @@ public interface FinalState {
   /**
    * Called by tasks after all work for the construct has been executed. The construct can return a state
    * describing a summary of its execution / final state.
-   * @return a {@link gobblin.configuration.State} with summary of execution / final state of the construct.
+   * @return a {@link org.apache.gobblin.configuration.State} with summary of execution / final state of the construct.
    */
   public State getFinalState();
 

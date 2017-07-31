@@ -34,8 +34,8 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 
 /**
- * Interface for a context that can be reported (e.g. {@link gobblin.metrics.InnerMetricContext},
- * {@link gobblin.metrics.MetricContext}).
+ * Interface for a context that can be reported (e.g. {@link org.apache.gobblin.metrics.InnerMetricContext},
+ * {@link org.apache.gobblin.metrics.MetricContext}).
  */
 public interface ReportableContext {
 
@@ -57,9 +57,9 @@ public interface ReportableContext {
   public Optional<? extends ReportableContext> getParent();
 
   /**
-   * Get a view of the child {@link gobblin.metrics.MetricContext}s as a {@link com.google.common.collect.ImmutableMap}.
+   * Get a view of the child {@link org.apache.gobblin.metrics.MetricContext}s as a {@link com.google.common.collect.ImmutableMap}.
    * @return {@link com.google.common.collect.ImmutableMap} of
-   *      child {@link gobblin.metrics.MetricContext}s keyed by their names.
+   *      child {@link org.apache.gobblin.metrics.MetricContext}s keyed by their names.
    */
   public Map<String, ? extends ReportableContext> getChildContextsAsMap();
 

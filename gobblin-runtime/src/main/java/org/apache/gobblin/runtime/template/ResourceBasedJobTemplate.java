@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * A {@link gobblin.runtime.api.JobTemplate} that reads the template information from a resources file.
+ * A {@link org.apache.gobblin.runtime.api.JobTemplate} that reads the template information from a resources file.
  *
  * This class is final because otherwise we could not guarantee the {@link InputStream} to be closed if the super
  * constructor throws an exception.

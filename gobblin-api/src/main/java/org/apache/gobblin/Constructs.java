@@ -32,21 +32,21 @@ import org.apache.gobblin.writer.DataWriter;
  */
 public enum Constructs {
 
-  /** {@link gobblin.source.Source} */
+  /** {@link org.apache.gobblin.source.Source} */
   SOURCE("Source", Source.class),
-  /** {@link gobblin.source.extractor.Extractor} */
+  /** {@link org.apache.gobblin.source.extractor.Extractor} */
   EXTRACTOR("Extractor", Extractor.class),
-  /** {@link gobblin.converter.Converter} */
+  /** {@link org.apache.gobblin.converter.Converter} */
   CONVERTER("Converter", Converter.class),
-  /** {@link gobblin.qualitychecker.row.RowLevelPolicy} */
+  /** {@link org.apache.gobblin.qualitychecker.row.RowLevelPolicy} */
   ROW_QUALITY_CHECKER("RowLevelPolicy", RowLevelPolicy.class),
-  /** {@link gobblin.qualitychecker.task.TaskLevelPolicy} */
+  /** {@link org.apache.gobblin.qualitychecker.task.TaskLevelPolicy} */
   TASK_QUALITY_CHECKER("TaskLevelPolicy", TaskLevelPolicy.class),
-  /** {@link gobblin.fork.ForkOperator} */
+  /** {@link org.apache.gobblin.fork.ForkOperator} */
   FORK_OPERATOR("ForkOperator", ForkOperator.class),
-  /** {@link gobblin.writer.DataWriter} */
+  /** {@link org.apache.gobblin.writer.DataWriter} */
   WRITER("DataWriter", DataWriter.class),
-  /** {@link gobblin.publisher.DataPublisher} */
+  /** {@link org.apache.gobblin.publisher.DataPublisher} */
   DATA_PUBLISHER("DataPublisher",DataPublisher.class);
 
   private final String name;

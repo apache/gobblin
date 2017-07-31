@@ -23,9 +23,9 @@ import org.apache.gobblin.metrics.InnerMetricContext;
 
 
 /**
- * {@link Notification} that a {@link gobblin.metrics.MetricContext} has been garbage collected. Contains the
- * {@link InnerMetricContext} associated which still includes {@link gobblin.metrics.Metric}s and
- * {@link gobblin.metrics.Tag}s.
+ * {@link Notification} that a {@link org.apache.gobblin.metrics.MetricContext} has been garbage collected. Contains the
+ * {@link InnerMetricContext} associated which still includes {@link org.apache.gobblin.metrics.Metric}s and
+ * {@link org.apache.gobblin.metrics.Tag}s.
  */
 @Data
 public class MetricContextCleanupNotification implements Notification {

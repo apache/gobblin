@@ -77,7 +77,7 @@ import static java.util.stream.Collectors.toSet;
 
 
 /**
- * A {@link gobblin.source.Source} implementation for Kafka source.
+ * A {@link org.apache.gobblin.source.Source} implementation for Kafka source.
  *
  * @author Ziyang Liu
  */

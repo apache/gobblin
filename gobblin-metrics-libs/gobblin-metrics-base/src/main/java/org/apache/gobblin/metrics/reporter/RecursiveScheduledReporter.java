@@ -51,7 +51,7 @@ public abstract class RecursiveScheduledReporter extends ScheduledReporter {
   }
 
   /**
-   * Report a {@link com.codahale.metrics.MetricRegistry}. If the input is a {@link gobblin.metrics.MetricContext}
+   * Report a {@link com.codahale.metrics.MetricRegistry}. If the input is a {@link org.apache.gobblin.metrics.MetricContext}
    * it will also report all of its children recursively.
    * @param registry MetricRegistry to report.
    */

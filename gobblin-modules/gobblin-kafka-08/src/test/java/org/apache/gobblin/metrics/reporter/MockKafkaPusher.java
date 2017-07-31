@@ -31,7 +31,7 @@ import org.apache.gobblin.metrics.kafka.ProducerCloseable;
 
 
 /**
- * Mock instance of {@link gobblin.metrics.kafka.KafkaPusher} used for testing.
+ * Mock instance of {@link org.apache.gobblin.metrics.kafka.KafkaPusher} used for testing.
  */
 public class MockKafkaPusher extends KafkaPusher {
 

@@ -31,7 +31,7 @@ import org.apache.gobblin.broker.iface.ScopeType;
 
 
 /**
- * General utilities for {@link gobblin.broker.iface.SharedResourcesBroker} functionality.
+ * General utilities for {@link org.apache.gobblin.broker.iface.SharedResourcesBroker} functionality.
  */
 public class SharedResourcesBrokerUtils {
 

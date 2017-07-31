@@ -28,7 +28,7 @@ import org.apache.gobblin.configuration.WorkUnitState;
 
 
 /**
- * Utility class for use with the {@link gobblin.fork.ForkOperator} class.
+ * Utility class for use with the {@link org.apache.gobblin.fork.ForkOperator} class.
  *
  * @author Yinan Li
  */
@@ -64,8 +64,8 @@ public class ForkOperatorUtils {
    * Get a new property key from an original one based on the branch id. The method assumes the branch id specified by
    * the {@link ConfigurationKeys#FORK_BRANCH_ID_KEY} parameter in the given WorkUnitState. The fork id key specifies
    * which fork this parameter belongs to. Note this method will only provide the aforementioned functionality for
-   * {@link gobblin.converter.Converter}s. To get the same functionality in {@link gobblin.writer.DataWriter}s use
-   * the {@link gobblin.writer.DataWriterBuilder#forBranch(int)} to construct a writer with a specific branch id.
+   * {@link org.apache.gobblin.converter.Converter}s. To get the same functionality in {@link org.apache.gobblin.writer.DataWriter}s use
+   * the {@link org.apache.gobblin.writer.DataWriterBuilder#forBranch(int)} to construct a writer with a specific branch id.
    *
    * @param workUnitState contains the fork id key
    * @param key           property key

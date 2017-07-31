@@ -70,7 +70,7 @@ import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_
  * A utility class for launching a Gobblin Hadoop MR job through Azkaban.
  *
  * <p>
- *   By default, this class will use the {@link gobblin.runtime.mapreduce.MRJobLauncher} to launch and run
+ *   By default, this class will use the {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher} to launch and run
  *   the Gobblin job unless a different job launcher type is explicitly specified in the job configuration
  *   using {@link ConfigurationKeys#JOB_LAUNCHER_TYPE_KEY}.
  * </p>

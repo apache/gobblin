@@ -52,7 +52,7 @@ import org.apache.gobblin.runtime.util.MultiWorkUnitUnpackingIterator;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 
 /**
- * An implementation of {@link gobblin.runtime.JobLauncher} for launching and running jobs
+ * An implementation of {@link org.apache.gobblin.runtime.JobLauncher} for launching and running jobs
  * locally on a single node.
  *
  * @author Yinan Li
