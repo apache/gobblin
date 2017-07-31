@@ -3,15 +3,14 @@
  *
  * DO NOT EDIT DIRECTLY
  */
-package org.apache.gobblin.metrics;
 
 import org.apache.avro.specific.SpecificData;
 
 @SuppressWarnings("all")
 @org.apache.avro.specific.AvroGenerated
 public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = -6700465194787422943L;
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"gobblin.metrics\",\"fields\":[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},{\"name\":\"namespace\",\"type\":[{\"type\":\"string\",\"avro.java.string\":\"String\"},\"null\"],\"doc\":\"Namespace used for filtering of events.\"},{\"name\":\"name\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"doc\":\"Event name.\"},{\"name\":\"metadata\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"avro.java.string\":\"String\"},\"doc\":\"Event metadata.\",\"default\":{}}]}");
+  private static final long serialVersionUID = 2436287129421894415L;
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"fields\":[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},{\"name\":\"namespace\",\"type\":[{\"type\":\"string\",\"avro.java.string\":\"String\"},\"null\"],\"doc\":\"Namespace used for filtering of events.\"},{\"name\":\"name\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"doc\":\"Event name.\"},{\"name\":\"metadata\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"avro.java.string\":\"String\"},\"doc\":\"Event metadata.\",\"default\":{}}],\"namesapce\":\"org.apache.gobblin.metrics\"}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
   /** Time at which event was created. */
   @Deprecated public long timestamp;
@@ -139,8 +138,8 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
    * Creates a new GobblinTrackingEvent RecordBuilder.
    * @return A new GobblinTrackingEvent RecordBuilder
    */
-  public static org.apache.gobblin.metrics.GobblinTrackingEvent.Builder newBuilder() {
-    return new org.apache.gobblin.metrics.GobblinTrackingEvent.Builder();
+  public static GobblinTrackingEvent.Builder newBuilder() {
+    return new GobblinTrackingEvent.Builder();
   }
 
   /**
@@ -148,8 +147,8 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
    * @param other The existing builder to copy.
    * @return A new GobblinTrackingEvent RecordBuilder
    */
-  public static org.apache.gobblin.metrics.GobblinTrackingEvent.Builder newBuilder(org.apache.gobblin.metrics.GobblinTrackingEvent.Builder other) {
-    return new org.apache.gobblin.metrics.GobblinTrackingEvent.Builder(other);
+  public static GobblinTrackingEvent.Builder newBuilder(GobblinTrackingEvent.Builder other) {
+    return new GobblinTrackingEvent.Builder(other);
   }
 
   /**
@@ -157,8 +156,8 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
    * @param other The existing instance to copy.
    * @return A new GobblinTrackingEvent RecordBuilder
    */
-  public static org.apache.gobblin.metrics.GobblinTrackingEvent.Builder newBuilder(org.apache.gobblin.metrics.GobblinTrackingEvent other) {
-    return new org.apache.gobblin.metrics.GobblinTrackingEvent.Builder(other);
+  public static GobblinTrackingEvent.Builder newBuilder(GobblinTrackingEvent other) {
+    return new GobblinTrackingEvent.Builder(other);
   }
 
   /**
@@ -185,7 +184,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
      * Creates a Builder by copying an existing Builder.
      * @param other The existing Builder to copy.
      */
-    private Builder(org.apache.gobblin.metrics.GobblinTrackingEvent.Builder other) {
+    private Builder(GobblinTrackingEvent.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.timestamp)) {
         this.timestamp = data().deepCopy(fields()[0].schema(), other.timestamp);
@@ -209,7 +208,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
      * Creates a Builder by copying an existing GobblinTrackingEvent instance
      * @param other The existing instance to copy.
      */
-    private Builder(org.apache.gobblin.metrics.GobblinTrackingEvent other) {
+    private Builder(GobblinTrackingEvent other) {
             super(SCHEMA$);
       if (isValidValue(fields()[0], other.timestamp)) {
         this.timestamp = data().deepCopy(fields()[0].schema(), other.timestamp);
@@ -244,7 +243,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
       * @param value The value of 'timestamp'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.GobblinTrackingEvent.Builder setTimestamp(long value) {
+    public GobblinTrackingEvent.Builder setTimestamp(long value) {
       validate(fields()[0], value);
       this.timestamp = value;
       fieldSetFlags()[0] = true;
@@ -266,7 +265,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
       * Time at which event was created.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.GobblinTrackingEvent.Builder clearTimestamp() {
+    public GobblinTrackingEvent.Builder clearTimestamp() {
       fieldSetFlags()[0] = false;
       return this;
     }
@@ -286,7 +285,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
       * @param value The value of 'namespace'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.GobblinTrackingEvent.Builder setNamespace(java.lang.String value) {
+    public GobblinTrackingEvent.Builder setNamespace(java.lang.String value) {
       validate(fields()[1], value);
       this.namespace = value;
       fieldSetFlags()[1] = true;
@@ -308,7 +307,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
       * Namespace used for filtering of events.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.GobblinTrackingEvent.Builder clearNamespace() {
+    public GobblinTrackingEvent.Builder clearNamespace() {
       namespace = null;
       fieldSetFlags()[1] = false;
       return this;
@@ -329,7 +328,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
       * @param value The value of 'name'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.GobblinTrackingEvent.Builder setName(java.lang.String value) {
+    public GobblinTrackingEvent.Builder setName(java.lang.String value) {
       validate(fields()[2], value);
       this.name = value;
       fieldSetFlags()[2] = true;
@@ -351,7 +350,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
       * Event name.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.GobblinTrackingEvent.Builder clearName() {
+    public GobblinTrackingEvent.Builder clearName() {
       name = null;
       fieldSetFlags()[2] = false;
       return this;
@@ -372,7 +371,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
       * @param value The value of 'metadata'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.GobblinTrackingEvent.Builder setMetadata(java.util.Map<java.lang.String,java.lang.String> value) {
+    public GobblinTrackingEvent.Builder setMetadata(java.util.Map<java.lang.String,java.lang.String> value) {
       validate(fields()[3], value);
       this.metadata = value;
       fieldSetFlags()[3] = true;
@@ -394,7 +393,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
       * Event metadata.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.GobblinTrackingEvent.Builder clearMetadata() {
+    public GobblinTrackingEvent.Builder clearMetadata() {
       metadata = null;
       fieldSetFlags()[3] = false;
       return this;

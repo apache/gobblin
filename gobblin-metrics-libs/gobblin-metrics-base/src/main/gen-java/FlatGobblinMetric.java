@@ -3,15 +3,14 @@
  *
  * DO NOT EDIT DIRECTLY
  */
-package org.apache.gobblin.metrics;
 
 import org.apache.avro.specific.SpecificData;
 
 @SuppressWarnings("all")
 @org.apache.avro.specific.AvroGenerated
 public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = 277556715077932861L;
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"FlatGobblinMetric\",\"namespace\":\"gobblin.metrics\",\"fields\":[{\"name\":\"tags\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"avro.java.string\":\"String\"}},\"doc\":\"Tags associated with the metrics in the form key:value.\"},{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which metrics were reported.\"},{\"name\":\"metricName\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"doc\":\"The name of this metric.\"},{\"name\":\"metricValue\",\"type\":\"double\",\"doc\":\"The value of this metric.\"}]}");
+  private static final long serialVersionUID = -3004215093744611038L;
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"FlatGobblinMetric\",\"fields\":[{\"name\":\"tags\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"avro.java.string\":\"String\"}},\"doc\":\"Tags associated with the metrics in the form key:value.\"},{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which metrics were reported.\"},{\"name\":\"metricName\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"doc\":\"The name of this metric.\"},{\"name\":\"metricValue\",\"type\":\"double\",\"doc\":\"The value of this metric.\"}],\"namesapce\":\"org.apache.gobblin.metrics\"}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
   /** Tags associated with the metrics in the form key:value. */
   @Deprecated public java.util.List<java.lang.String> tags;
@@ -139,8 +138,8 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
    * Creates a new FlatGobblinMetric RecordBuilder.
    * @return A new FlatGobblinMetric RecordBuilder
    */
-  public static org.apache.gobblin.metrics.FlatGobblinMetric.Builder newBuilder() {
-    return new org.apache.gobblin.metrics.FlatGobblinMetric.Builder();
+  public static FlatGobblinMetric.Builder newBuilder() {
+    return new FlatGobblinMetric.Builder();
   }
 
   /**
@@ -148,8 +147,8 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
    * @param other The existing builder to copy.
    * @return A new FlatGobblinMetric RecordBuilder
    */
-  public static org.apache.gobblin.metrics.FlatGobblinMetric.Builder newBuilder(org.apache.gobblin.metrics.FlatGobblinMetric.Builder other) {
-    return new org.apache.gobblin.metrics.FlatGobblinMetric.Builder(other);
+  public static FlatGobblinMetric.Builder newBuilder(FlatGobblinMetric.Builder other) {
+    return new FlatGobblinMetric.Builder(other);
   }
 
   /**
@@ -157,8 +156,8 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
    * @param other The existing instance to copy.
    * @return A new FlatGobblinMetric RecordBuilder
    */
-  public static org.apache.gobblin.metrics.FlatGobblinMetric.Builder newBuilder(org.apache.gobblin.metrics.FlatGobblinMetric other) {
-    return new org.apache.gobblin.metrics.FlatGobblinMetric.Builder(other);
+  public static FlatGobblinMetric.Builder newBuilder(FlatGobblinMetric other) {
+    return new FlatGobblinMetric.Builder(other);
   }
 
   /**
@@ -185,7 +184,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
      * Creates a Builder by copying an existing Builder.
      * @param other The existing Builder to copy.
      */
-    private Builder(org.apache.gobblin.metrics.FlatGobblinMetric.Builder other) {
+    private Builder(FlatGobblinMetric.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.tags)) {
         this.tags = data().deepCopy(fields()[0].schema(), other.tags);
@@ -209,7 +208,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
      * Creates a Builder by copying an existing FlatGobblinMetric instance
      * @param other The existing instance to copy.
      */
-    private Builder(org.apache.gobblin.metrics.FlatGobblinMetric other) {
+    private Builder(FlatGobblinMetric other) {
             super(SCHEMA$);
       if (isValidValue(fields()[0], other.tags)) {
         this.tags = data().deepCopy(fields()[0].schema(), other.tags);
@@ -244,7 +243,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
       * @param value The value of 'tags'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.FlatGobblinMetric.Builder setTags(java.util.List<java.lang.String> value) {
+    public FlatGobblinMetric.Builder setTags(java.util.List<java.lang.String> value) {
       validate(fields()[0], value);
       this.tags = value;
       fieldSetFlags()[0] = true;
@@ -266,7 +265,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
       * Tags associated with the metrics in the form key:value.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.FlatGobblinMetric.Builder clearTags() {
+    public FlatGobblinMetric.Builder clearTags() {
       tags = null;
       fieldSetFlags()[0] = false;
       return this;
@@ -287,7 +286,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
       * @param value The value of 'timestamp'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.FlatGobblinMetric.Builder setTimestamp(long value) {
+    public FlatGobblinMetric.Builder setTimestamp(long value) {
       validate(fields()[1], value);
       this.timestamp = value;
       fieldSetFlags()[1] = true;
@@ -309,7 +308,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
       * Time at which metrics were reported.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.FlatGobblinMetric.Builder clearTimestamp() {
+    public FlatGobblinMetric.Builder clearTimestamp() {
       fieldSetFlags()[1] = false;
       return this;
     }
@@ -329,7 +328,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
       * @param value The value of 'metricName'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.FlatGobblinMetric.Builder setMetricName(java.lang.String value) {
+    public FlatGobblinMetric.Builder setMetricName(java.lang.String value) {
       validate(fields()[2], value);
       this.metricName = value;
       fieldSetFlags()[2] = true;
@@ -351,7 +350,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
       * The name of this metric.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.FlatGobblinMetric.Builder clearMetricName() {
+    public FlatGobblinMetric.Builder clearMetricName() {
       metricName = null;
       fieldSetFlags()[2] = false;
       return this;
@@ -372,7 +371,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
       * @param value The value of 'metricValue'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.FlatGobblinMetric.Builder setMetricValue(double value) {
+    public FlatGobblinMetric.Builder setMetricValue(double value) {
       validate(fields()[3], value);
       this.metricValue = value;
       fieldSetFlags()[3] = true;
@@ -394,7 +393,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
       * The value of this metric.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.FlatGobblinMetric.Builder clearMetricValue() {
+    public FlatGobblinMetric.Builder clearMetricValue() {
       fieldSetFlags()[3] = false;
       return this;
     }

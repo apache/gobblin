@@ -3,22 +3,21 @@
  *
  * DO NOT EDIT DIRECTLY
  */
-package org.apache.gobblin.metrics;
 
 import org.apache.avro.specific.SpecificData;
 
 @SuppressWarnings("all")
 @org.apache.avro.specific.AvroGenerated
 public class MetricReport extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  private static final long serialVersionUID = 8071998973089804574L;
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"MetricReport\",\"namespace\":\"gobblin.metrics\",\"fields\":[{\"name\":\"tags\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"avro.java.string\":\"String\"},\"doc\":\"Tags associated with the metrics.\"},{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which metrics were reported.\"},{\"name\":\"metrics\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"Metric\",\"fields\":[{\"name\":\"name\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"doc\":\"Metric name.\"},{\"name\":\"value\",\"type\":\"double\",\"doc\":\"Metric value.\"}]}},\"doc\":\"Array of metrics in this report.\"}]}");
+  private static final long serialVersionUID = -3871534513744778107L;
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"MetricReport\",\"fields\":[{\"name\":\"tags\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"avro.java.string\":\"String\"},\"doc\":\"Tags associated with the metrics.\"},{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which metrics were reported.\"},{\"name\":\"metrics\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"Metric\",\"fields\":[{\"name\":\"name\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"doc\":\"Metric name.\"},{\"name\":\"value\",\"type\":\"double\",\"doc\":\"Metric value.\"}]}},\"doc\":\"Array of metrics in this report.\"}],\"namesapce\":\"org.apache.gobblin.metrics\"}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
   /** Tags associated with the metrics. */
   @Deprecated public java.util.Map<java.lang.String,java.lang.String> tags;
   /** Time at which metrics were reported. */
   @Deprecated public long timestamp;
   /** Array of metrics in this report. */
-  @Deprecated public java.util.List<gobblin.metrics.Metric> metrics;
+  @Deprecated public java.util.List<Metric> metrics;
 
   /**
    * Default constructor.  Note that this does not initialize fields
@@ -33,7 +32,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * @param timestamp Time at which metrics were reported.
    * @param metrics Array of metrics in this report.
    */
-  public MetricReport(java.util.Map<java.lang.String,java.lang.String> tags, java.lang.Long timestamp, java.util.List<gobblin.metrics.Metric> metrics) {
+  public MetricReport(java.util.Map<java.lang.String,java.lang.String> tags, java.lang.Long timestamp, java.util.List<Metric> metrics) {
     this.tags = tags;
     this.timestamp = timestamp;
     this.metrics = metrics;
@@ -56,7 +55,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
     switch (field$) {
     case 0: tags = (java.util.Map<java.lang.String,java.lang.String>)value$; break;
     case 1: timestamp = (java.lang.Long)value$; break;
-    case 2: metrics = (java.util.List<gobblin.metrics.Metric>)value$; break;
+    case 2: metrics = (java.util.List<Metric>)value$; break;
     default: throw new org.apache.avro.AvroRuntimeException("Bad index");
     }
   }
@@ -99,7 +98,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * Gets the value of the 'metrics' field.
    * @return Array of metrics in this report.
    */
-  public java.util.List<gobblin.metrics.Metric> getMetrics() {
+  public java.util.List<Metric> getMetrics() {
     return metrics;
   }
 
@@ -108,7 +107,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * Array of metrics in this report.
    * @param value the value to set.
    */
-  public void setMetrics(java.util.List<gobblin.metrics.Metric> value) {
+  public void setMetrics(java.util.List<Metric> value) {
     this.metrics = value;
   }
 
@@ -116,8 +115,8 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * Creates a new MetricReport RecordBuilder.
    * @return A new MetricReport RecordBuilder
    */
-  public static org.apache.gobblin.metrics.MetricReport.Builder newBuilder() {
-    return new org.apache.gobblin.metrics.MetricReport.Builder();
+  public static MetricReport.Builder newBuilder() {
+    return new MetricReport.Builder();
   }
 
   /**
@@ -125,8 +124,8 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * @param other The existing builder to copy.
    * @return A new MetricReport RecordBuilder
    */
-  public static org.apache.gobblin.metrics.MetricReport.Builder newBuilder(org.apache.gobblin.metrics.MetricReport.Builder other) {
-    return new org.apache.gobblin.metrics.MetricReport.Builder(other);
+  public static MetricReport.Builder newBuilder(MetricReport.Builder other) {
+    return new MetricReport.Builder(other);
   }
 
   /**
@@ -134,8 +133,8 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * @param other The existing instance to copy.
    * @return A new MetricReport RecordBuilder
    */
-  public static org.apache.gobblin.metrics.MetricReport.Builder newBuilder(org.apache.gobblin.metrics.MetricReport other) {
-    return new org.apache.gobblin.metrics.MetricReport.Builder(other);
+  public static MetricReport.Builder newBuilder(MetricReport other) {
+    return new MetricReport.Builder(other);
   }
 
   /**
@@ -149,7 +148,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
     /** Time at which metrics were reported. */
     private long timestamp;
     /** Array of metrics in this report. */
-    private java.util.List<gobblin.metrics.Metric> metrics;
+    private java.util.List<Metric> metrics;
 
     /** Creates a new Builder */
     private Builder() {
@@ -160,7 +159,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
      * Creates a Builder by copying an existing Builder.
      * @param other The existing Builder to copy.
      */
-    private Builder(org.apache.gobblin.metrics.MetricReport.Builder other) {
+    private Builder(MetricReport.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.tags)) {
         this.tags = data().deepCopy(fields()[0].schema(), other.tags);
@@ -180,7 +179,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
      * Creates a Builder by copying an existing MetricReport instance
      * @param other The existing instance to copy.
      */
-    private Builder(org.apache.gobblin.metrics.MetricReport other) {
+    private Builder(MetricReport other) {
             super(SCHEMA$);
       if (isValidValue(fields()[0], other.tags)) {
         this.tags = data().deepCopy(fields()[0].schema(), other.tags);
@@ -211,7 +210,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * @param value The value of 'tags'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.MetricReport.Builder setTags(java.util.Map<java.lang.String,java.lang.String> value) {
+    public MetricReport.Builder setTags(java.util.Map<java.lang.String,java.lang.String> value) {
       validate(fields()[0], value);
       this.tags = value;
       fieldSetFlags()[0] = true;
@@ -233,7 +232,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * Tags associated with the metrics.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.MetricReport.Builder clearTags() {
+    public MetricReport.Builder clearTags() {
       tags = null;
       fieldSetFlags()[0] = false;
       return this;
@@ -254,7 +253,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * @param value The value of 'timestamp'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.MetricReport.Builder setTimestamp(long value) {
+    public MetricReport.Builder setTimestamp(long value) {
       validate(fields()[1], value);
       this.timestamp = value;
       fieldSetFlags()[1] = true;
@@ -276,7 +275,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * Time at which metrics were reported.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.MetricReport.Builder clearTimestamp() {
+    public MetricReport.Builder clearTimestamp() {
       fieldSetFlags()[1] = false;
       return this;
     }
@@ -286,7 +285,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * Array of metrics in this report.
       * @return The value.
       */
-    public java.util.List<gobblin.metrics.Metric> getMetrics() {
+    public java.util.List<Metric> getMetrics() {
       return metrics;
     }
 
@@ -296,7 +295,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * @param value The value of 'metrics'.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.MetricReport.Builder setMetrics(java.util.List<gobblin.metrics.Metric> value) {
+    public MetricReport.Builder setMetrics(java.util.List<Metric> value) {
       validate(fields()[2], value);
       this.metrics = value;
       fieldSetFlags()[2] = true;
@@ -318,7 +317,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
       * Array of metrics in this report.
       * @return This builder.
       */
-    public org.apache.gobblin.metrics.MetricReport.Builder clearMetrics() {
+    public MetricReport.Builder clearMetrics() {
       metrics = null;
       fieldSetFlags()[2] = false;
       return this;
@@ -330,7 +329,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
         MetricReport record = new MetricReport();
         record.tags = fieldSetFlags()[0] ? this.tags : (java.util.Map<java.lang.String,java.lang.String>) defaultValue(fields()[0]);
         record.timestamp = fieldSetFlags()[1] ? this.timestamp : (java.lang.Long) defaultValue(fields()[1]);
-        record.metrics = fieldSetFlags()[2] ? this.metrics : (java.util.List<gobblin.metrics.Metric>) defaultValue(fields()[2]);
+        record.metrics = fieldSetFlags()[2] ? this.metrics : (java.util.List<Metric>) defaultValue(fields()[2]);
         return record;
       } catch (Exception e) {
         throw new org.apache.avro.AvroRuntimeException(e);
