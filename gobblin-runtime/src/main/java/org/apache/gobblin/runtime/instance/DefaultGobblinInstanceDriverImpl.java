@@ -280,7 +280,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     return _instrumentationEnabled;
   }
 
-  @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+  @Override public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
     return Collections.emptyList();
   }
 

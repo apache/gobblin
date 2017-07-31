@@ -60,7 +60,7 @@ public class LiAvroDeserializer extends LiAvroDeserializerBase implements Deseri
     try {
       return super.deserialize(topic, data);
     }
-    catch (gobblin.kafka.serialize.SerializationException e) {
+    catch (org.apache.gobblin.kafka.serialize.SerializationException e) {
       throw new SerializationException("Error during Deserialization", e);
     }
   }

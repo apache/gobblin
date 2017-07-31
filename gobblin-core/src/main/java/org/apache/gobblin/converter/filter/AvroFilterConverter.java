@@ -49,7 +49,7 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
    * from the Avro record and {@link ConfigurationKeys#CONVERTER_FILTER_FIELD_VALUE} to indicate the expected value of
    * the field.
    * {@inheritDoc}
-   * @see org.apache.gobblin.converter.Converter#init(gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#init(org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public Converter<Schema, Schema, GenericRecord, GenericRecord> init(WorkUnitState workUnit) {

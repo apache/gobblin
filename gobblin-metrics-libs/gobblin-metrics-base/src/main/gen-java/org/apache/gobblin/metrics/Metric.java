@@ -102,7 +102,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
    * @param other The existing builder to copy.
    * @return A new Metric RecordBuilder
    */
-  public static org.apache.gobblin.metrics.Metric.Builder newBuilder(gobblin.metrics.Metric.Builder other) {
+  public static org.apache.gobblin.metrics.Metric.Builder newBuilder(org.apache.gobblin.metrics.Metric.Builder other) {
     return new org.apache.gobblin.metrics.Metric.Builder(other);
   }
 
@@ -111,7 +111,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
    * @param other The existing instance to copy.
    * @return A new Metric RecordBuilder
    */
-  public static org.apache.gobblin.metrics.Metric.Builder newBuilder(gobblin.metrics.Metric other) {
+  public static org.apache.gobblin.metrics.Metric.Builder newBuilder(org.apache.gobblin.metrics.Metric other) {
     return new org.apache.gobblin.metrics.Metric.Builder(other);
   }
 
@@ -135,7 +135,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
      * Creates a Builder by copying an existing Builder.
      * @param other The existing Builder to copy.
      */
-    private Builder(gobblin.metrics.Metric.Builder other) {
+    private Builder(org.apache.gobblin.metrics.Metric.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.name)) {
         this.name = data().deepCopy(fields()[0].schema(), other.name);
@@ -151,7 +151,7 @@ public class Metric extends org.apache.avro.specific.SpecificRecordBase implemen
      * Creates a Builder by copying an existing Metric instance
      * @param other The existing instance to copy.
      */
-    private Builder(gobblin.metrics.Metric other) {
+    private Builder(org.apache.gobblin.metrics.Metric other) {
             super(SCHEMA$);
       if (isValidValue(fields()[0], other.name)) {
         this.name = data().deepCopy(fields()[0].schema(), other.name);

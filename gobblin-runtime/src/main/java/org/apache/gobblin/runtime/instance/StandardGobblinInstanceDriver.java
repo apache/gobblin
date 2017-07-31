@@ -412,7 +412,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       return _instrumentationEnabled.get();
     }
 
-    @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+    @Override public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
       return Collections.emptyList();
     }
 

@@ -155,7 +155,7 @@ public class SalesforceRestWriter extends RestJsonWriter {
    *
    * For batch request, add the record into JsonArray as a subrequest and only creates HttpUriRequest with POST method if it filled the batch size.
    * {@inheritDoc}
-   * @see org.apache.gobblin.writer.http.RestJsonWriter#onNewRecord(gobblin.converter.rest.RestEntry)
+   * @see org.apache.gobblin.writer.http.RestJsonWriter#onNewRecord(org.apache.gobblin.converter.rest.RestEntry)
    */
   @Override
   public Optional<HttpUriRequest> onNewRecord(RestEntry<JsonObject> record) {

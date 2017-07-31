@@ -40,7 +40,7 @@ public class TimestampedDatasetVersion extends org.apache.gobblin.data.managemen
     super(version, path);
   }
 
-  public TimestampedDatasetVersion(gobblin.data.management.version.TimestampedDatasetVersion datasetVersion) {
+  public TimestampedDatasetVersion(org.apache.gobblin.data.management.version.TimestampedDatasetVersion datasetVersion) {
     this(datasetVersion.getVersion(), datasetVersion.getPath());
   }
 
@@ -52,7 +52,7 @@ public class TimestampedDatasetVersion extends org.apache.gobblin.data.managemen
   public static Collection<TimestampedDatasetVersion> convertFromGeneralVersion(
       Collection<gobblin.data.management.version.TimestampedDatasetVersion> realVersions) {
     List<TimestampedDatasetVersion> timestampedVersions = Lists.newArrayList();
-    for (gobblin.data.management.version.TimestampedDatasetVersion realVersion : realVersions) {
+    for (org.apache.gobblin.data.management.version.TimestampedDatasetVersion realVersion : realVersions) {
       timestampedVersions.add(new TimestampedDatasetVersion(realVersion));
     }
     return timestampedVersions;

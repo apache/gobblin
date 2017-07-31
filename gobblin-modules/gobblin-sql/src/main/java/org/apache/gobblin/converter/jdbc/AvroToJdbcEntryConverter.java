@@ -108,7 +108,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
    * Fetches JdbcWriterCommands.
    * Builds field name mapping between Avro and JDBC.
    * {@inheritDoc}
-   * @see org.apache.gobblin.converter.Converter#init(gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.converter.Converter#init(org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public Converter<Schema, JdbcEntrySchema, GenericRecord, JdbcEntryData> init(WorkUnitState workUnit) {

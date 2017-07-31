@@ -148,7 +148,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
    * @param other The existing builder to copy.
    * @return A new GobblinTrackingEvent RecordBuilder
    */
-  public static org.apache.gobblin.metrics.GobblinTrackingEvent.Builder newBuilder(gobblin.metrics.GobblinTrackingEvent.Builder other) {
+  public static org.apache.gobblin.metrics.GobblinTrackingEvent.Builder newBuilder(org.apache.gobblin.metrics.GobblinTrackingEvent.Builder other) {
     return new org.apache.gobblin.metrics.GobblinTrackingEvent.Builder(other);
   }
 
@@ -157,7 +157,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
    * @param other The existing instance to copy.
    * @return A new GobblinTrackingEvent RecordBuilder
    */
-  public static org.apache.gobblin.metrics.GobblinTrackingEvent.Builder newBuilder(gobblin.metrics.GobblinTrackingEvent other) {
+  public static org.apache.gobblin.metrics.GobblinTrackingEvent.Builder newBuilder(org.apache.gobblin.metrics.GobblinTrackingEvent other) {
     return new org.apache.gobblin.metrics.GobblinTrackingEvent.Builder(other);
   }
 
@@ -185,7 +185,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
      * Creates a Builder by copying an existing Builder.
      * @param other The existing Builder to copy.
      */
-    private Builder(gobblin.metrics.GobblinTrackingEvent.Builder other) {
+    private Builder(org.apache.gobblin.metrics.GobblinTrackingEvent.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.timestamp)) {
         this.timestamp = data().deepCopy(fields()[0].schema(), other.timestamp);
@@ -209,7 +209,7 @@ public class GobblinTrackingEvent extends org.apache.avro.specific.SpecificRecor
      * Creates a Builder by copying an existing GobblinTrackingEvent instance
      * @param other The existing instance to copy.
      */
-    private Builder(gobblin.metrics.GobblinTrackingEvent other) {
+    private Builder(org.apache.gobblin.metrics.GobblinTrackingEvent other) {
             super(SCHEMA$);
       if (isValidValue(fields()[0], other.timestamp)) {
         this.timestamp = data().deepCopy(fields()[0].schema(), other.timestamp);

@@ -52,7 +52,7 @@ public class ObjectStoreDeleteOperation extends ObjectStoreOperation<DeleteRespo
    * Calls {@link ObjectStoreClient#delete(String, Config)} for the object ot be deleted
    *
    * {@inheritDoc}
-   * @see org.apache.gobblin.writer.objectstore.ObjectStoreOperation#execute(gobblin.writer.objectstore.ObjectStoreClient)
+   * @see org.apache.gobblin.writer.objectstore.ObjectStoreOperation#execute(org.apache.gobblin.writer.objectstore.ObjectStoreClient)
    */
   @Override
   public DeleteResponse execute(ObjectStoreClient objectStoreClient) throws IOException {

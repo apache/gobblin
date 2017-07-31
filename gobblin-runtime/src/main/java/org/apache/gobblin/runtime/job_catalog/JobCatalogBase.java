@@ -124,7 +124,7 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
     return null != this.metricContext;
   }
 
-  @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+  @Override public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
     return Collections.emptyList();
   }
 

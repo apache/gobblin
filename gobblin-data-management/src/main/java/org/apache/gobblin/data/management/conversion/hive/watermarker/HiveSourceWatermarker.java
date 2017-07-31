@@ -82,9 +82,9 @@ public interface HiveSourceWatermarker {
 
   /**
    * A callback method executed before a list of workunits is returned by the
-   * {@link HiveSource#getWorkunits(gobblin.configuration.SourceState)} to the caller
+   * {@link HiveSource#getWorkunits(org.apache.gobblin.configuration.SourceState)} to the caller
    *
-   * @param workunits constructed by {@link HiveSource#getWorkunits(gobblin.configuration.SourceState)}
+   * @param workunits constructed by {@link HiveSource#getWorkunits(org.apache.gobblin.configuration.SourceState)}
    */
   public void onGetWorkunitsEnd(List<WorkUnit> workunits);
 

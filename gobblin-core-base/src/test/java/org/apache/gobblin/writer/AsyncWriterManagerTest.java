@@ -194,7 +194,7 @@ public class AsyncWriterManagerTest {
       throws Exception {
 
     FlakyAsyncWriter flakyAsyncWriter = new FlakyAsyncWriter(
-        org.apache.gobblin.test.ErrorManager.builder().errorType(gobblin.test.ErrorManager.ErrorType.ALL).build());
+        org.apache.gobblin.test.ErrorManager.builder().errorType(org.apache.gobblin.test.ErrorManager.ErrorType.ALL).build());
 
     AsyncWriterManager asyncWriterManager =
         AsyncWriterManager.builder().asyncDataWriter(flakyAsyncWriter).retriesEnabled(true).numRetries(5).build();
@@ -254,7 +254,7 @@ public class AsyncWriterManagerTest {
       throws Exception {
 
     FlakyAsyncWriter flakyAsyncWriter =
-        new FlakyAsyncWriter(gobblin.test.ErrorManager.builder().errorType(ErrorManager.ErrorType.ALL).build());
+        new FlakyAsyncWriter(org.apache.gobblin.test.ErrorManager.builder().errorType(ErrorManager.ErrorType.ALL).build());
 
     int maxOutstandingWrites = 2000;
 

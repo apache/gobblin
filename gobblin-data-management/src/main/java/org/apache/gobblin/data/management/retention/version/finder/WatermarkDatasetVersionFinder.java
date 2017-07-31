@@ -71,7 +71,7 @@ public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDa
       log.info(String.format("Found deprecated key %s. Replacing it with %s", DEPRECATED_WATERMARK_REGEX_KEY,
           org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY));
 
-      props.setProperty(gobblin.data.management.version.finder.WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY,
+      props.setProperty(org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY,
           props.getProperty(DEPRECATED_WATERMARK_REGEX_KEY));
       props.remove(DEPRECATED_WATERMARK_REGEX_KEY);
     }

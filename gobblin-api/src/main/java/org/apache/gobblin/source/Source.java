@@ -48,7 +48,7 @@ public interface Source<S, D> {
    *
    * <p>
    *   Each {@link WorkUnit} will be used instantiate a {@link org.apache.gobblin.configuration.WorkUnitState} that gets passed to the
-   *   {@link #getExtractor(gobblin.configuration.WorkUnitState)} method to get an {@link Extractor} for extracting schema
+   *   {@link #getExtractor(org.apache.gobblin.configuration.WorkUnitState)} method to get an {@link Extractor} for extracting schema
    *   and data records from the source. The {@link WorkUnit} instance should have all the properties
    *   needed for the {@link Extractor} to work.
    * </p>

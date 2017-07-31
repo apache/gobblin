@@ -454,7 +454,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
           Optional.of(getLog(jobSpec)), isInstrumentationEnabled(), getMetrics(), getInstanceBroker());
     }
 
-    @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+    @Override public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
       return Collections.emptyList();
     }
 

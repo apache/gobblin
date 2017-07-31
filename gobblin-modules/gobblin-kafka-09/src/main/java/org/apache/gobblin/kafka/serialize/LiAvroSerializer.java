@@ -37,7 +37,7 @@ public class LiAvroSerializer extends LiAvroSerializerBase implements Serializer
   public byte[] serialize(String topic, GenericRecord data) {
     try {
       return super.serialize(topic, data);
-    } catch (gobblin.kafka.serialize.SerializationException e) {
+    } catch (org.apache.gobblin.kafka.serialize.SerializationException e) {
       throw new SerializationException(e);
     }
   }

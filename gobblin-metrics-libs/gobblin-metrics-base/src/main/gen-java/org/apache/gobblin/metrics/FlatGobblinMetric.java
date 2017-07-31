@@ -148,7 +148,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
    * @param other The existing builder to copy.
    * @return A new FlatGobblinMetric RecordBuilder
    */
-  public static org.apache.gobblin.metrics.FlatGobblinMetric.Builder newBuilder(gobblin.metrics.FlatGobblinMetric.Builder other) {
+  public static org.apache.gobblin.metrics.FlatGobblinMetric.Builder newBuilder(org.apache.gobblin.metrics.FlatGobblinMetric.Builder other) {
     return new org.apache.gobblin.metrics.FlatGobblinMetric.Builder(other);
   }
 
@@ -157,7 +157,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
    * @param other The existing instance to copy.
    * @return A new FlatGobblinMetric RecordBuilder
    */
-  public static org.apache.gobblin.metrics.FlatGobblinMetric.Builder newBuilder(gobblin.metrics.FlatGobblinMetric other) {
+  public static org.apache.gobblin.metrics.FlatGobblinMetric.Builder newBuilder(org.apache.gobblin.metrics.FlatGobblinMetric other) {
     return new org.apache.gobblin.metrics.FlatGobblinMetric.Builder(other);
   }
 
@@ -185,7 +185,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
      * Creates a Builder by copying an existing Builder.
      * @param other The existing Builder to copy.
      */
-    private Builder(gobblin.metrics.FlatGobblinMetric.Builder other) {
+    private Builder(org.apache.gobblin.metrics.FlatGobblinMetric.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.tags)) {
         this.tags = data().deepCopy(fields()[0].schema(), other.tags);
@@ -209,7 +209,7 @@ public class FlatGobblinMetric extends org.apache.avro.specific.SpecificRecordBa
      * Creates a Builder by copying an existing FlatGobblinMetric instance
      * @param other The existing instance to copy.
      */
-    private Builder(gobblin.metrics.FlatGobblinMetric other) {
+    private Builder(org.apache.gobblin.metrics.FlatGobblinMetric other) {
             super(SCHEMA$);
       if (isValidValue(fields()[0], other.tags)) {
         this.tags = data().deepCopy(fields()[0].schema(), other.tags);

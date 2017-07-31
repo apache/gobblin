@@ -35,7 +35,7 @@ public class StringDatasetVersion extends org.apache.gobblin.data.management.ver
     super(version, path);
   }
 
-  public StringDatasetVersion(gobblin.data.management.version.StringDatasetVersion datasetVersion) {
+  public StringDatasetVersion(org.apache.gobblin.data.management.version.StringDatasetVersion datasetVersion) {
     this(datasetVersion.getVersion(), datasetVersion.getPath());
   }
 

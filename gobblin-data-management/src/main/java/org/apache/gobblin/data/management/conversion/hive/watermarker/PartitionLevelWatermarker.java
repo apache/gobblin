@@ -363,7 +363,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
   /**
    * Sets the actual high watermark by reading the expected high watermark
    * {@inheritDoc}
-   * @see org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#setActualHighWatermark(gobblin.configuration.WorkUnitState)
+   * @see org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker#setActualHighWatermark(org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
   public void setActualHighWatermark(WorkUnitState wus) {

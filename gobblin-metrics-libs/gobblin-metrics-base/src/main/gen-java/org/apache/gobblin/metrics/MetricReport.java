@@ -125,7 +125,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * @param other The existing builder to copy.
    * @return A new MetricReport RecordBuilder
    */
-  public static org.apache.gobblin.metrics.MetricReport.Builder newBuilder(gobblin.metrics.MetricReport.Builder other) {
+  public static org.apache.gobblin.metrics.MetricReport.Builder newBuilder(org.apache.gobblin.metrics.MetricReport.Builder other) {
     return new org.apache.gobblin.metrics.MetricReport.Builder(other);
   }
 
@@ -134,7 +134,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
    * @param other The existing instance to copy.
    * @return A new MetricReport RecordBuilder
    */
-  public static org.apache.gobblin.metrics.MetricReport.Builder newBuilder(gobblin.metrics.MetricReport other) {
+  public static org.apache.gobblin.metrics.MetricReport.Builder newBuilder(org.apache.gobblin.metrics.MetricReport other) {
     return new org.apache.gobblin.metrics.MetricReport.Builder(other);
   }
 
@@ -160,7 +160,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
      * Creates a Builder by copying an existing Builder.
      * @param other The existing Builder to copy.
      */
-    private Builder(gobblin.metrics.MetricReport.Builder other) {
+    private Builder(org.apache.gobblin.metrics.MetricReport.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.tags)) {
         this.tags = data().deepCopy(fields()[0].schema(), other.tags);
@@ -180,7 +180,7 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
      * Creates a Builder by copying an existing MetricReport instance
      * @param other The existing instance to copy.
      */
-    private Builder(gobblin.metrics.MetricReport other) {
+    private Builder(org.apache.gobblin.metrics.MetricReport other) {
             super(SCHEMA$);
       if (isValidValue(fields()[0], other.tags)) {
         this.tags = data().deepCopy(fields()[0].schema(), other.tags);

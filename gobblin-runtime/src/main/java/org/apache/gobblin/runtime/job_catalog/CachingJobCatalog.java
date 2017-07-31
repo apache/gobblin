@@ -133,7 +133,7 @@ public class CachingJobCatalog extends AbstractIdleService implements JobCatalog
     return _fallback.isInstrumentationEnabled();
   }
 
-  @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+  @Override public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
     return _fallback.generateTags(state);
   }
 

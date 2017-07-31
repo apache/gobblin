@@ -178,7 +178,7 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
   }
 
   @Override
-  public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+  public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
     return Collections.emptyList();
   }
 

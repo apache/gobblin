@@ -58,7 +58,7 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
    * {@link TarArchiveEntry} in the stream as the directory name for the untarred file. The method also commits the data
    * by moving the file from staging to output directory.
    *
-   * @see org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter#write(gobblin.data.management.copy.FileAwareInputStream)
+   * @see org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter#write(org.apache.gobblin.data.management.copy.FileAwareInputStream)
    */
   @Override
   public void writeImpl(InputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {

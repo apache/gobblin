@@ -177,7 +177,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   @Override
-  public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+  public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
     return Collections.emptyList();
   }
 

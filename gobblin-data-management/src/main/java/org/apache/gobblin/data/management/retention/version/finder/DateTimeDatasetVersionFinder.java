@@ -92,11 +92,11 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
    */
   private static Properties convertDeprecatedProperties(Properties props) {
     if (props.containsKey(RETENTION_DATE_TIME_PATTERN_KEY)) {
-      props.setProperty(gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, props.getProperty(RETENTION_DATE_TIME_PATTERN_KEY));
+      props.setProperty(org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, props.getProperty(RETENTION_DATE_TIME_PATTERN_KEY));
       props.remove(RETENTION_DATE_TIME_PATTERN_KEY);
     }
     if (props.containsKey(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY)) {
-      props.setProperty(gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_TIMEZONE_KEY, props.getProperty(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY));
+      props.setProperty(org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_TIMEZONE_KEY, props.getProperty(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY));
       props.remove(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY);
     }
     return props;

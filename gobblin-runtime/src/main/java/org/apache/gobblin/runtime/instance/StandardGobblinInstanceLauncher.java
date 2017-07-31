@@ -258,7 +258,7 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
     }
 
     @Override
-    public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+    public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
       return Collections.emptyList();
     }
 
@@ -282,7 +282,7 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
     return _instrumentationEnabled;
   }
 
-  @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+  @Override public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
     return Collections.emptyList();
   }
 
