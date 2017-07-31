@@ -67,7 +67,7 @@ public class SqlBasedRetentionPoc {
     execute("CREATE TABLE Daily_Partitions (dataset_path VARCHAR(255), path VARCHAR(255), ts TIMESTAMP)");
 
     // Register UDFs
-    execute("CREATE FUNCTION TIMESTAMP_DIFF(timestamp1 TIMESTAMP, timestamp2 TIMESTAMP, unitString VARCHAR(50)) RETURNS BIGINT PARAMETER STYLE JAVA NO SQL LANGUAGE JAVA EXTERNAL NAME 'gobblin.data.management.retention.sql.SqlUdfs.timestamp_diff'");
+    execute("CREATE FUNCTION TIMESTAMP_DIFF(timestamp1 TIMESTAMP, timestamp2 TIMESTAMP, unitString VARCHAR(50)) RETURNS BIGINT PARAMETER STYLE JAVA NO SQL LANGUAGE JAVA EXTERNAL NAME 'org.apache.gobblin.data.management.retention.sql.SqlUdfs.timestamp_diff'");
   }
 
   @AfterClass
