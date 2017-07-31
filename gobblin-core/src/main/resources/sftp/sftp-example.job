@@ -21,7 +21,7 @@ job.group=ExampleJobs
 job.description=An example config file for SFTP jobs
 
 # Source properties
-source.class=gobblin.source.extractor.extract.sftp.SftpSource
+source.class=org.apache.gobblin.source.extractor.extract.sftp.SftpSource
 
 # The SftpSource class will look for data on the SFTP server under this directory
 source.filebased.data.directory=example/input
@@ -39,7 +39,7 @@ extract.table.type=append_only
 
 # Converter properties
 # By specifying these converters, Gobblin will take each record returned by SftpSource, split each record by some delimiter, and then convert the record to an Avro record
-converter.classes=gobblin.converter.csv.CsvToJsonConverter,gobblin.converter.avro.JsonIntermediateToAvroConverter
+converter.classes=org.apache.gobblin.converter.csv.CsvToJsonConverter,org.apache.gobblin.converter.avro.JsonIntermediateToAvroConverter
 converter.csv.to.json.delimiter=,
 
 # Source connection properties

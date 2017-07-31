@@ -142,17 +142,17 @@ public class SensitiveDataAwareForkOperator implements ForkOperator<Schema, Gene
 To make the example more concrete, let's assume that the job uses some converters and quality checkers before the schema and data records reach the `SensitiveDataAwareForkOperator`, and it also uses a converter to purge the sensitive fields and a quality checker that makes sure some mandatory fields exist for purged data records in branch 0. Both branches will be written to the same HDFS but into different locations.
 
 ```
-fork.operator.class=gobblin.example.fork.SensitiveDataAwareForkOperator
+fork.operator.class=org.apache.gobblin.example.fork.SensitiveDataAwareForkOperator
 
 # Pre-fork or non-fork-specific configuration properties
 converter.classes=<Converter classes used in the task flow prior to OutlierAwareForkOperator>
-qualitychecker.task.policies=gobblin.policies.count.RowCountPolicy,gobblin.policies.schema.SchemaCompatibilityPolicy
+qualitychecker.task.policies=org.apache.gobblin.policies.count.RowCountPolicy,org.apache.gobblin.policies.schema.SchemaCompatibilityPolicy
 qualitychecker.task.policy.types=OPTIONAL,OPTIONAL
-data.publisher.type=gobblin.publisher.BaseDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 
 # Configuration properties for branch 0
-converter.classes.0=gobblin.example.converter.PurgingConverter
-qualitychecker.task.policies.0=gobblin.example,policies.MandatoryFieldExistencePolicy
+converter.classes.0=org.apache.gobblin.example.converter.PurgingConverter
+qualitychecker.task.policies.0=org.apache.gobblin.example,policies.MandatoryFieldExistencePolicy
 qualitychecker.task.policy.types.0=FAILED
 writer.fs.uri.0=hdfs://<namenode host>:<namenode port>/
 writer.destination.type.0=HDFS
