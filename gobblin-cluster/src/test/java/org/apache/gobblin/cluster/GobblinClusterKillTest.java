@@ -56,7 +56,7 @@ import org.testng.annotations.Test;
  *   shutdown request message.
  * </p>
  */
-@Test(groups = { "gobblin.cluster" }, singleThreaded = true)
+// @Test(groups = { "gobblin.cluster" }, singleThreaded = true)
 public class GobblinClusterKillTest {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinClusterKillTest.class);
 
@@ -140,7 +140,7 @@ public class GobblinClusterKillTest {
     _workerStartThreads[id].start();
   }
 
-  @BeforeClass
+  // @BeforeClass
   public void setUp() throws Exception {
     // Use a random ZK port
     _testingZKServer = new TestingServer(-1);
@@ -177,7 +177,8 @@ public class GobblinClusterKillTest {
   }
 
   // The kill tests are unreliable on Travis
-  @Test(groups = { "disabledOnTravis" })
+  // Disabled GobblinClusterKillTest until reliability improves
+  // @Test(groups = { "disabledOnTravis" })
   public void testKillWorker() throws TimeoutException, InterruptedException {
     Collection<File> matches = Collections.EMPTY_LIST;
 
@@ -226,7 +227,8 @@ public class GobblinClusterKillTest {
   }
 
   // The kill tests are unreliable on Travis
-  @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testKillWorker")
+  // Disabled GobblinClusterKillTest until reliability improves
+  // @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testKillWorker")
   public void testKillManager() throws IOException, TimeoutException, InterruptedException {
     Collection<File> matches = Collections.EMPTY_LIST;
 
@@ -271,7 +273,8 @@ public class GobblinClusterKillTest {
   }
 
   // The kill tests are unreliable on Travis
-  @Test(groups = { "disabledOnTravis" }, enabled=true, dependsOnMethods = "testKillManager")
+  // Disabled GobblinClusterKillTest until reliability improves
+  // @Test(groups = { "disabledOnTravis" }, enabled=true, dependsOnMethods = "testKillManager")
   public void testRestartManager() throws IOException, TimeoutException, InterruptedException {
     Collection<File> matches = Collections.EMPTY_LIST;
     // reinitialize test directory
@@ -319,7 +322,7 @@ public class GobblinClusterKillTest {
         }, "Waiting for job-completion");
   }
 
-  @AfterClass
+  // @AfterClass
   public void tearDown() throws IOException, InterruptedException {
 
     for (int i = 0; i < NUM_MANAGERS; i++) {
