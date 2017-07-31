@@ -1,4 +1,4 @@
-package gobblin;
+package org.apache.gobblin;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

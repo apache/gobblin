@@ -1,4 +1,4 @@
-package gobblin;
+package org.apache.gobblin;
 
 import java.util.HashMap;
 import java.util.Map;

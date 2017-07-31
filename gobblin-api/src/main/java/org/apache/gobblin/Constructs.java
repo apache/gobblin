@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin;
+package org.apache.gobblin;
 
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.fork.ForkOperator;
