@@ -33,7 +33,7 @@ import org.apache.hadoop.fs.Path;
 @Deprecated
 public class UnixTimestampVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
-  private final gobblin.data.management.version.finder.UnixTimestampVersionFinder realVersionFinder;
+  private final org.apache.gobblin.data.management.version.finder.UnixTimestampVersionFinder realVersionFinder;
 
   public UnixTimestampVersionFinder(FileSystem fs, Properties props) {
     super(fs, props);

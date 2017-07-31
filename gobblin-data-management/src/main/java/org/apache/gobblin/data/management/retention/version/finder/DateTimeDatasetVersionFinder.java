@@ -37,7 +37,7 @@ import org.apache.gobblin.data.management.retention.version.TimestampedDatasetVe
 @Deprecated
 public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
-  private final gobblin.data.management.version.finder.DateTimeDatasetVersionFinder realVersionFinder;
+  private final org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder realVersionFinder;
 
   /**
    * @deprecated use {@link #DATE_TIME_PATTERN_KEY} instead.

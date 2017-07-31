@@ -36,7 +36,7 @@ import org.apache.gobblin.data.management.retention.version.StringDatasetVersion
 @Deprecated
 public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDatasetVersion> {
 
-  private final gobblin.data.management.version.finder.WatermarkDatasetVersionFinder realVersionFinder;
+  private final org.apache.gobblin.data.management.version.finder.WatermarkDatasetVersionFinder realVersionFinder;
 
   public static final String DEPRECATED_WATERMARK_REGEX_KEY = "gobblin.retention.watermark.regex";
 

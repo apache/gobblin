@@ -32,7 +32,7 @@ import org.apache.gobblin.data.management.retention.version.TimestampedDatasetVe
 @Deprecated
 public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
-  private final gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder realVersionFinder;
+  private final org.apache.gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder realVersionFinder;
   private static final String VERSION_FINDER_GLOB_PATTERN_KEY = "gobblin.retention.version.finder.pattern";
 
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Config config) {

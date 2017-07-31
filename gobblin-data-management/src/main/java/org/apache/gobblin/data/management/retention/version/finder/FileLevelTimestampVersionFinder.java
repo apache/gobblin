@@ -35,7 +35,7 @@ import org.apache.gobblin.dataset.Dataset;
 @Deprecated
 public class FileLevelTimestampVersionFinder implements VersionFinder<TimestampedDatasetVersion> {
 
-  private final gobblin.data.management.version.finder.FileLevelTimestampVersionFinder realVersionFinder;
+  private final org.apache.gobblin.data.management.version.finder.FileLevelTimestampVersionFinder realVersionFinder;
   public FileLevelTimestampVersionFinder(FileSystem fs, Properties props) {
     this.realVersionFinder =
         new org.apache.gobblin.data.management.version.finder.FileLevelTimestampVersionFinder(fs,props);

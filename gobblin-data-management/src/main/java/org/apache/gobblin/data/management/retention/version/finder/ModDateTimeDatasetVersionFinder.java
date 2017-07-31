@@ -35,7 +35,7 @@ import org.apache.gobblin.dataset.Dataset;
 @Deprecated
 public class ModDateTimeDatasetVersionFinder implements VersionFinder<TimestampedDatasetVersion> {
 
-  private final gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder realVersionFinder;
+  private final org.apache.gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder realVersionFinder;
 
   public ModDateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
     this.realVersionFinder = new org.apache.gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder(fs, props);
