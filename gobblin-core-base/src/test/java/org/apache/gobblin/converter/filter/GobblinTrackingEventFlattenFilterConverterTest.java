@@ -46,7 +46,7 @@ public class GobblinTrackingEventFlattenFilterConverterTest {
         new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc")),
         workUnitState);
     Assert.assertEquals(output, new Schema.Parser().parse(
-        "{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"gobblin.metrics\",\"fields\":"
+        "{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"org.apache.gobblin.metrics\",\"fields\":"
             + "[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},"
             + "{\"name\":\"namespace\",\"type\":[\"string\",\"null\"],\"doc\":\"Namespace used for filtering of events.\"},"
             + "{\"name\":\"name\",\"type\":\"string\",\"doc\":\"Event name.\"},{\"name\":\"field1\",\"type\":\"string\",\"doc\":\"\"},"
@@ -62,7 +62,7 @@ public class GobblinTrackingEventFlattenFilterConverterTest {
         new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc")),
         workUnitState2);
     Assert.assertEquals(output2, new Schema.Parser().parse(
-        "{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"gobblin.metrics\",\"fields\":"
+        "{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"org.apache.gobblin.metrics\",\"fields\":"
             + "[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},"
             + "{\"name\":\"namespace\",\"type\":[\"string\",\"null\"],\"doc\":\"Namespace used for filtering of events.\"},"
             + "{\"name\":\"eventName\",\"type\":\"string\",\"doc\":\"Event name.\"},{\"name\":\"field3\",\"type\":\"string\",\"doc\":\"\"},"
