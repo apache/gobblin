@@ -99,7 +99,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
       return null;
     }
 
-    Iterator<gobblin.service.monitoring.JobStatus> jobStatusIter = monitoringFlowStatus.getJobStatusIterator();
+    Iterator<org.apache.gobblin.service.monitoring.JobStatus> jobStatusIter = monitoringFlowStatus.getJobStatusIterator();
     JobStatusArray jobStatusArray = new JobStatusArray();
     FlowId flowId = new FlowId().setFlowName(monitoringFlowStatus.getFlowName())
         .setFlowGroup(monitoringFlowStatus.getFlowGroup());

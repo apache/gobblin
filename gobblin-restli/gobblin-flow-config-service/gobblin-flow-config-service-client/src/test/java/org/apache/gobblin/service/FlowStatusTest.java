@@ -44,12 +44,12 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 public class FlowStatusTest {
   private FlowStatusClient _client;
   private EmbeddedRestliServer _server;
-  private List<List<gobblin.service.monitoring.JobStatus>> _listOfJobStatusLists;
+  private List<List<org.apache.gobblin.service.monitoring.JobStatus>> _listOfJobStatusLists;
   private Joiner messageJoiner;
 
   class TestJobStatusRetriever extends JobStatusRetriever {
     @Override
-    public Iterator<gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName,
+    public Iterator<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName,
         String flowGroup, long flowExecutionId) {
       return _listOfJobStatusLists.get((int)flowExecutionId).iterator();
     }
@@ -102,8 +102,8 @@ public class FlowStatusTest {
         .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(2000L).endTime(6000L)
         .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(1).message("Test message 2")
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
-    List<gobblin.service.monitoring.JobStatus> jobStatusList1 = Lists.newArrayList(js1);
-    List<gobblin.service.monitoring.JobStatus> jobStatusList2 = Lists.newArrayList(js2);
+    List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList1 = Lists.newArrayList(js1);
+    List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList2 = Lists.newArrayList(js2);
     _listOfJobStatusLists = Lists.newArrayList();
     _listOfJobStatusLists.add(jobStatusList1);
     _listOfJobStatusLists.add(jobStatusList2);
@@ -144,7 +144,7 @@ public class FlowStatusTest {
         .flowName("flow1").jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
         .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 2")
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
-    List<gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2);
+    List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2);
     _listOfJobStatusLists = Lists.newArrayList();
     _listOfJobStatusLists.add(jobStatusList);
 
@@ -184,7 +184,7 @@ public class FlowStatusTest {
         .flowName("flow1").jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
         .eventName(TimingEvent.LauncherTimings.JOB_COMPLETE).flowExecutionId(0).message("Test message 2")
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
-    List<gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2);
+    List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2);
     _listOfJobStatusLists = Lists.newArrayList();
     _listOfJobStatusLists.add(jobStatusList);
 
@@ -224,7 +224,7 @@ public class FlowStatusTest {
         .flowName("flow1").jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
         .eventName(TimingEvent.LauncherTimings.JOB_FAILED).flowExecutionId(0).message("Test message 2")
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
-    List<gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2);
+    List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2);
     _listOfJobStatusLists = Lists.newArrayList();
     _listOfJobStatusLists.add(jobStatusList);
 
