@@ -29,23 +29,23 @@ job.lock.enabled=true
 
 kafka.brokers=${inputBrokers}
 
-source.class=gobblin.source.extractor.extract.kafka.UniversalKafkaSource
+source.class=org.apache.gobblin.source.extractor.extract.kafka.UniversalKafkaSource
 gobblin.source.kafka.extractorType=DESERIALIZER
 kafka.deserializer.type=BYTE_ARRAY
 
-extract.namespace=gobblin.extract.kafka
+extract.namespace=org.apache.gobblin.extract.kafka
 
 bootstrap.with.offset=latest
 
 topic.whitelist=${inputTopics}
 
-writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder
+writer.builder.class=org.apache.gobblin.kafka.writer.KafkaDataWriterBuilder
 writer.kafka.topic=${outputTopic}
 writer.kafka.producerConfig.bootstrap.servers=${outputBrokers}
 
 writer.kafka.producerConfig.value.serializer=org.apache.kafka.common.serialization.ByteArraySerializer
 writer.output.format=TEXT
-data.publisher.type=gobblin.publisher.NoopPublisher
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher
 
 inputBrokers="localhost:9092"
 outputBrokers="localhost:9092"

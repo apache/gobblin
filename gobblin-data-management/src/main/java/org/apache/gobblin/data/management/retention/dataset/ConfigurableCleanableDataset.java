@@ -85,7 +85,7 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
    *            timeBased.lookbackTime = 5d
    *       }
    *       version : {
-   *           finder.class=gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
+   *           finder.class=org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
    *           pattern="hourly/*&#47;"
    *       }
    *    },
@@ -95,7 +95,7 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
    *           timeBased.lookbackTime = 20d
    *       }
    *       version : {
-   *           finder.class=gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
+   *           finder.class=org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
    *           pattern="daily/*&#47;"
    *       }
    *    }

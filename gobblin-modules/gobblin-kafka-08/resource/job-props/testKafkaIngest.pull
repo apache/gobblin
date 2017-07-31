@@ -19,23 +19,23 @@ job.name=GobblinKafkaWriterTest1
 job.group=Test
 job.description=Test Gobblin job for kafka writer
 
-extract.namespace=gobblin.kafka.writer.test1
+extract.namespace=org.apache.gobblin.kafka.writer.test1
 
-source.class=gobblin.test.SequentialTestSource
+source.class=org.apache.gobblin.test.SequentialTestSource
 source.numRecordsPerExtract=5
 
-converter.classes=gobblin.test.AnyToStringConverter
+converter.classes=org.apache.gobblin.test.AnyToStringConverter
 
-writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder
+writer.builder.class=org.apache.gobblin.kafka.writer.KafkaDataWriterBuilder
 writer.kafka.topic={$topic}
-writer.kafka.producerClass=gobblin.kafka.FlakyKafkaProducer
+writer.kafka.producerClass=org.apache.gobblin.kafka.FlakyKafkaProducer
 #writer.kafka.producerConfig.flaky.errorType=SET_BY_TEST
 #writer.kafka.producerConfig.flaky.errorEvery=SET_BY_TEST
 writer.kafka.producerConfig.bootstrap.servers=localhost:{$kafkaPort}
 writer.kafka.producerConfig.value.serializer=org.apache.kafka.common.serialization.StringSerializer
 writer.kafka.producerConfig.key.serializer=org.apache.kafka.common.serialization.StringSerializer
 
-data.publisher.type=gobblin.publisher.NoopPublisher
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher
 
 task.maxretries=0
 workunit.retry.enabled=false

@@ -1159,8 +1159,8 @@ No
 # JDBC Writer properties <a name="JdbcWriter-Properties"></a>
 Writer(and publisher) that writes to JDBC database. Please configure below two properties to use JDBC writer & publisher.
 
-*  writer.builder.class=gobblin.writer.JdbcWriterBuilder
-*  data.publisher.type=gobblin.publisher.JdbcPublisher
+*  writer.builder.class=org.apache.gobblin.writer.JdbcWriterBuilder
+*  data.publisher.type=org.apache.gobblin.publisher.JdbcPublisher
 
 #### jdbc.publisher.database_name
 ###### Description

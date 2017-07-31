@@ -25,7 +25,7 @@ job.description=A Gobblin job for demo purpose
 
 source.class=org.apache.gobblin.example.simplejson.SimpleJsonSource
 converter.classes=org.apache.gobblin.example.simplejson.SimpleJsonConverter
-extract.namespace=gobblin.example.simplejson
+extract.namespace=org.apache.gobblin.example.simplejson
 
 # source configuration properties
 # comma-separated list of file URIs (supporting different schemes, e.g., file://, ftp://, sftp://, http://, etc)

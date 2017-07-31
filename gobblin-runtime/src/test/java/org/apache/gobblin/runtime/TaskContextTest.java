@@ -45,7 +45,7 @@ public class TaskContextTest {
       "job.group=Test\n" +
       "job.description=Test Gobblin job 1\n" +
       "job.schedule=0 0/1 * * * ?\n" +
-      "source.class=gobblin.test.TestSource\n" +
+      "source.class=org.apache.gobblin.test.TestSource\n" +
       "workunit.namespace=test\n" +
       "workunit.table=test\n" +
       "writer.destination.type=HDFS\n" +

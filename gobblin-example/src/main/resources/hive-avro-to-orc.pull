@@ -32,13 +32,13 @@ hive.dataset.hive.metastore.uri=thrift://localhost:9083
 hiveserver.connection.string=jdbc:hive2://localhost:10000
 
 type=hadoopJava
-job.class=gobblin.azkaban.AzkabanJobLauncher
+job.class=org.apache.gobblin.azkaban.AzkabanJobLauncher
 job.lock.enabled=false
 
-data.publisher.type=gobblin.data.management.convertion.hive.HiveConvertPublisher
-source.class=gobblin.data.management.convertion.hive.HiveSource
-writer.builder.class=gobblin.data.management.convertion.hive.HiveQueryWriterBuilder
-converter.classes=gobblin.data.management.convertion.hive.HiveAvroToOrcConverter
+data.publisher.type=org.apache.gobblin.data.management.convertion.hive.HiveConvertPublisher
+source.class=org.apache.gobblin.data.management.convertion.hive.HiveSource
+writer.builder.class=org.apache.gobblin.data.management.convertion.hive.HiveQueryWriterBuilder
+converter.classes=org.apache.gobblin.data.management.convertion.hive.HiveAvroToOrcConverter
 
 task.maxretries=0
 workunit.retry.enabled=false

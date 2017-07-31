@@ -56,7 +56,7 @@ public class MultiAccessControlAction extends RetentionAction {
    *
    *       restricted {
    *           selection {
-   *             policy.class=gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
+   *             policy.class=org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
    *            timeBased.lookbackTime = 7d
    *         }
    *          mode : 750

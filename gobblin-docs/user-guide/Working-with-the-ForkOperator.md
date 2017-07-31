@@ -23,7 +23,7 @@ Using the ForkOperator
 The [`ForkOperator`](https://github.com/linkedin/gobblin/blob/master/gobblin-api/src/main/java/gobblin/fork/ForkOperator.java), like most other operators in a Gobblin task flow, is pluggable through the configuration, or more specifically , the configuration property `fork.operator.class` that points to a class that implements the `ForkOperator` interface. For instance:
 
 ```
-fork.operator.class=gobblin.fork.IdentityForkOperator
+fork.operator.class=org.apache.gobblin.fork.IdentityForkOperator
 ```
 
 By default, if no `ForkOperator` class is specified, internally Gobblin uses the default implementation [`IdentityForkOperator`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/fork/IdentityForkOperator.java) with a single forked branch (although it does supports multiple forked branches). The `IdentityForkOperator` simply unconditionally forwards the schema and ingested data records to all the forked branches, the number of which is specified through the configuration property `fork.branches` with a default value of 1. When an `IdentityForkOperator` instance is initialized, it will read the value of `fork.branches` and use that as the return value of `getBranches`.   

@@ -31,8 +31,8 @@ writer.kafka.producerConfig.key.serializer=io.confluent.kafka.serializers.KafkaA
 writer.kafka.producerConfig.schema.registry.url=http://localhost:8081  #Set this to the correct schema-reg url
 
 ##Use Local Schema Registry and serializers
-#writer.kafka.producerConfig.value.serializer=gobblin.kafka.serialize.LiAvroSerializer
-#writer.kafka.producerConfig.kafka.schemaRegistry.class=gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry
+#writer.kafka.producerConfig.value.serializer=org.apache.gobblin.kafka.serialize.LiAvroSerializer
+#writer.kafka.producerConfig.kafka.schemaRegistry.class=org.apache.gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry
 #writer.kafka.producerConfig.schemaRegistry.schema.name=WikipediaExample
 #writer.kafka.producerConfig.schemaRegistry.schema.value={"namespace": "example.wikipedia.avro","type": "record","name": "WikipediaArticle","fields": [{"name": "pageid", "type": ["double", "null"]},{"name": "title", "type": ["string", "null"]},{"name": "user", "type": ["string", "null"]},{"name": "anon", "type": ["string", "null"]},{"name": "userid",  "type": ["double", "null"]},{"name": "timestamp", "type": ["string", "null"]},{"name": "size",  "type": ["double", "null"]},{"name": "contentformat",  "type": ["string", "null"]},{"name": "contentmodel",  "type": ["string", "null"]},{"name": "content", "type": ["string", "null"]}]}
 ```

@@ -19,18 +19,18 @@ job.name=PullFromWikipedia
 job.group=Wikipedia
 job.description=A getting started example for Gobblin
 
-source.class=gobblin.example.wikipedia.WikipediaSource
+source.class=org.apache.gobblin.example.wikipedia.WikipediaSource
 source.page.titles=NASA,LinkedIn,Parris_Cues,Barbara_Corcoran
 source.revisions.cnt=5
 
 wikipedia.api.rooturl=https://en.wikipedia.org/w/api.php
 wikipedia.avro.schema={"namespace": "example.wikipedia.avro","type": "record","name": "WikipediaArticle","fields": [{"name": "revid", "type": ["double", "null"]},{"name": "pageid", "type": ["double", "null"]},{"name": "title", "type": ["string", "null"]},{"name": "user", "type": ["string", "null"]},{"name": "anon", "type": ["string", "null"]},{"name": "userid",  "type": ["double", "null"]},{"name": "timestamp", "type": ["string", "null"]},{"name": "size",  "type": ["double", "null"]},{"name": "contentformat",  "type": ["string", "null"]},{"name": "contentmodel",  "type": ["string", "null"]},{"name": "content", "type": ["string", "null"]}]}
 
-converter.classes=gobblin.example.wikipedia.WikipediaConverter
+converter.classes=org.apache.gobblin.example.wikipedia.WikipediaConverter
 
-extract.namespace=gobblin.example.wikipedia
+extract.namespace=org.apache.gobblin.example.wikipedia
 
 #No partitioner as console writer doesn't work with a partitioner
-writer.builder.class=gobblin.writer.ConsoleWriterBuilder
+writer.builder.class=org.apache.gobblin.writer.ConsoleWriterBuilder
 
-data.publisher.type=gobblin.publisher.NoopPublisher
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher

@@ -23,7 +23,7 @@ job.schedule=0 0/2 * * * ?
 source.class=org.apache.gobblin.test.TestSource
 converter.classes=org.apache.gobblin.test.TestConverter
 
-extract.namespace=gobblin.test2
+extract.namespace=org.apache.gobblin.test2
 
 writer.destination.type=HDFS
 writer.output.format=AVRO

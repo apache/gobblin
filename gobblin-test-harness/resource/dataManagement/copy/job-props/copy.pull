@@ -20,20 +20,20 @@ job.group=Test
 job.description=Test Gobblin job for copy
 job.schedule=0 0/2 * * * ?
 
-extract.namespace=gobblin.copy.test1
+extract.namespace=org.apache.gobblin.copy.test1
 
 writer.fs.uri=file://localhost/
 source.filebased.fs.uri=file://localhost/
 
-data.publisher.type=gobblin.data.management.copy.publisher.CopyDataPublisher
+data.publisher.type=org.apache.gobblin.data.management.copy.publisher.CopyDataPublisher
 
-source.class=gobblin.data.management.copy.CopySource
+source.class=org.apache.gobblin.data.management.copy.CopySource
 
-writer.builder.class=gobblin.data.management.copy.writer.TarArchiveInputStreamDataWriterBuilder
+writer.builder.class=org.apache.gobblin.data.management.copy.writer.TarArchiveInputStreamDataWriterBuilder
 
 gobblin.dataset.pattern=gobblin-test-harness/resource/dataManagement/copy/data/
 
-converter.classes=gobblin.data.management.copy.converter.UnGzipConverter
+converter.classes=org.apache.gobblin.data.management.copy.converter.UnGzipConverter
 
 task.maxretries=0
 workunit.retry.enabled-false

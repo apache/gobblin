@@ -1,7 +1,7 @@
 type=hadoopJava
-job.class=gobblin.data.management.retention.DatasetCleanerJob
+job.class=org.apache.gobblin.data.management.retention.DatasetCleanerJob
 
-gobblin.retention.dataset.profile.class=gobblin.data.management.retention.profile.TrackingDatasetProfile
+gobblin.retention.dataset.profile.class=org.apache.gobblin.data.management.retention.profile.TrackingDatasetProfile
 gobblin.retention.dataset.pattern=${testNameTempPath}/user/gobblin/data/trackingData/*/hourly
 gobblin.retention.datetime.pattern=yyyy/MM/dd/HH
 

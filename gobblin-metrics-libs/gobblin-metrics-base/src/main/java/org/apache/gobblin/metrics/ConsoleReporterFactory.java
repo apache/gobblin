@@ -27,7 +27,7 @@ import org.apache.gobblin.metrics.reporter.ScheduledReporter;
  * A reporter factory to report metrics to console.
  *
  * <p>
- *   Set metrics.reporting.custom.builders=gobblin.metrics.ConsoleReporterFactory to report event to console
+ *   Set metrics.reporting.custom.builders=org.apache.gobblin.metrics.ConsoleReporterFactory to report event to console
  * </p>
  */
 public class ConsoleReporterFactory implements CustomReporterFactory {
