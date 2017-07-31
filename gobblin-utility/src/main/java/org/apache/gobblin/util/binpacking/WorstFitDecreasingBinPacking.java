@@ -111,6 +111,9 @@ public class WorstFitDecreasingBinPacking implements WorkUnitBinPacker {
 
     return Lists.<WorkUnit> newArrayList(Iterables.filter(pQueue, new Predicate<MultiWorkUnit>() {
       @Override
+      @edu.umd.cs.findbugs.annotations.SuppressWarnings(
+          value="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE",
+          justification="Allowing nullable values")
       public boolean apply(@Nullable MultiWorkUnit input) {
         return getMultiWorkUnitWeight(input) > 0;
       }

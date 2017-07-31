@@ -15,6 +15,6 @@
 # limitations under the License.
 #
 
-gobblin.util.filesystem.InstrumentedHDFSFileSystem
-gobblin.util.filesystem.InstrumentedWebHDFSFileSystem
-gobblin.util.filesystem.InstrumentedLocalFileSystem
+org.apache.gobblin.util.filesystem.InstrumentedHDFSFileSystem
+org.apache.gobblin.util.filesystem.InstrumentedWebHDFSFileSystem
+org.apache.gobblin.util.filesystem.InstrumentedLocalFileSystem
