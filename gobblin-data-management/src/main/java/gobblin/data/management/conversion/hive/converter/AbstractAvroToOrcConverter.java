@@ -92,9 +92,9 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
   /**
    * Hive runtime property key names for tracking
    */
-  private static final String GOBBLIN_DATASET_URN_KEY = "gobblin.datasetUrn";
-  private static final String GOBBLIN_PARTITION_NAME_KEY = "gobblin.partitionName";
-  private static final String GOBBLIN_WORKUNIT_CREATE_TIME_KEY = "gobblin.workunitCreateTime";
+  protected static final String GOBBLIN_DATASET_URN_KEY = "gobblin.datasetUrn";
+  protected static final String GOBBLIN_PARTITION_NAME_KEY = "gobblin.partitionName";
+  protected static final String GOBBLIN_WORKUNIT_CREATE_TIME_KEY = "gobblin.workunitCreateTime";
 
   /***
    * Separators used by Hive
@@ -109,7 +109,9 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    */
   protected enum OrcFormats {
     FLATTENED_ORC("flattenedOrc"),
-    NESTED_ORC("nestedOrc");
+    NESTED_ORC("nestedOrc"),
+    SAME_AS_SOURCE("sameAsSource");
+
     private final String configPrefix;
 
     OrcFormats(String configPrefix) {
@@ -223,6 +225,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     String orcTableDatabase = getConversionConfig().getDestinationDbName();
     String orcDataLocation = getOrcDataLocation();
     String orcStagingDataLocation = getOrcStagingDataLocation(orcStagingTableName);
+
     boolean isEvolutionEnabled = getConversionConfig().isEvolutionEnabled();
     Pair<Optional<Table>, Optional<List<Partition>>> destinationMeta = getDestinationTableMeta(orcTableDatabase,
         orcTableName, workUnit);
@@ -265,37 +268,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     Map<String, String> partitionsDMLInfo = Maps.newHashMap();
     populatePartitionInfo(conversionEntity, partitionsDDLInfo, partitionsDMLInfo);
 
-    /*
-     * Create ORC data location with the same permissions as Avro data
-     *
-     * Note that hive can also automatically create the non-existing directories but it does not
-     * seem to create it with the desired permissions.
-     * According to hive docs permissions for newly created directories/files can be controlled using uMask like,
-     *
-     * SET hive.warehouse.subdir.inherit.perms=false;
-     * SET fs.permissions.umask-mode=022;
-     * Upon testing, this did not work
-     */
-    try {
-      FileStatus sourceDataFileStatus = this.fs.getFileStatus(conversionEntity.getHiveTable().getDataLocation());
-      FsPermission sourceDataPermission = sourceDataFileStatus.getPermission();
-      if (!this.fs.mkdirs(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission)) {
-        throw new RuntimeException(String.format("Failed to create path %s with permissions %s", new Path(
-            getConversionConfig().getDestinationDataPath()), sourceDataPermission));
-      } else {
-        this.fs.setPermission(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission);
-        // Set the same group as source
-        if (!workUnit.getPropAsBoolean(HIVE_DATASET_DESTINATION_SKIP_SETGROUP,
-            DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP)) {
-          this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), null,
-              sourceDataFileStatus.getGroup());
-        }
-        log.info(String.format("Created %s with permissions %s and group %s", new Path(getConversionConfig()
-            .getDestinationDataPath()), sourceDataPermission, sourceDataFileStatus.getGroup()));
-      }
-    } catch (IOException e) {
-      Throwables.propagate(e);
-    }
+    createStagingDirectory(conversionEntity, workUnit);
 
     // Set hive runtime properties from conversion config
     for (Map.Entry<Object, Object> entry : getConversionConfig().getHiveRuntimeProperties().entrySet()) {
@@ -451,19 +424,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       // Step:
       // A.2.2.1, B.2.2.1: Delete data in final table directory
       // A.2.2.2, B.2.2.2: Move data from staging to final table directory
-      log.info("Snapshot directory to move: " + orcStagingDataLocation + " to: " + orcDataLocation);
-      publishDirectories.put(orcStagingDataLocation, orcDataLocation);
-
-      // Step:
-      // A.2.2.3, B.2.2.3: Drop this staging table and delete directories
-      String dropStagingTableDDL = HiveAvroORCQueryGenerator.generateDropTableDDL(orcTableDatabase, orcStagingTableName);
-
-      log.debug("Drop staging table DDL: " + dropStagingTableDDL);
-      cleanupQueries.add(dropStagingTableDDL);
-
-      // Delete: orcStagingDataLocation
-      log.info("Staging table directory to delete: " + orcStagingDataLocation);
-      cleanupDirectories.add(orcStagingDataLocation);
+      HiveAvroORCQueryGenerator.cleanUpNonPartitionedTable(publishDirectories, cleanupQueries, orcStagingDataLocation,
+          cleanupDirectories, orcDataLocation, orcTableDatabase, orcStagingTableName);
 
     } else {
       // Step:
@@ -561,12 +523,47 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     HiveAvroORCQueryGenerator.serializePublishCommands(workUnit, publishEntity);
     log.debug("Publish partition entity: " + publishEntity);
 
-
     log.debug("Conversion Query " + conversionEntity.getQueries());
 
     EventWorkunitUtils.setEndDDLBuildTimeMetadata(workUnit, System.currentTimeMillis());
 
     return new SingleRecordIterable<>(conversionEntity);
+  }
+
+
+  protected void createStagingDirectory(QueryBasedHiveConversionEntity conversionEntity,
+      WorkUnitState workUnit) {
+    /*
+     * Create ORC data location with the same permissions as Avro data
+     *
+     * Note that hive can also automatically create the non-existing directories but it does not
+     * seem to create it with the desired permissions.
+     * According to hive docs permissions for newly created directories/files can be controlled using uMask like,
+     *
+     * SET hive.warehouse.subdir.inherit.perms=false;
+     * SET fs.permissions.umask-mode=022;
+     * Upon testing, this did not work
+     */
+    try {
+      FileStatus sourceDataFileStatus = this.fs.getFileStatus(conversionEntity.getHiveTable().getDataLocation());
+      FsPermission sourceDataPermission = sourceDataFileStatus.getPermission();
+      if (!this.fs.mkdirs(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission)) {
+        throw new RuntimeException(String.format("Failed to create path %s with permissions %s", new Path(
+            getConversionConfig().getDestinationDataPath()), sourceDataPermission));
+      } else {
+        this.fs.setPermission(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission);
+        // Set the same group as source
+        if (!workUnit.getPropAsBoolean(HIVE_DATASET_DESTINATION_SKIP_SETGROUP,
+            DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP)) {
+          this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), null,
+              sourceDataFileStatus.getGroup());
+        }
+        log.info(String.format("Created %s with permissions %s and group %s", new Path(getConversionConfig()
+            .getDestinationDataPath()), sourceDataPermission, sourceDataFileStatus.getGroup()));
+      }
+    } catch (IOException e) {
+      Throwables.propagate(e);
+    }
   }
 
   /***
@@ -600,7 +597,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * @param stagingTableNamePrefix for the staging table for this converter.
    * @return Staging table name.
    */
-  private String getOrcStagingTableName(String stagingTableNamePrefix) {
+  protected String getOrcStagingTableName(String stagingTableNamePrefix) {
     int randomNumber = new Random().nextInt(10);
     String uniqueStagingTableQualifier = String.format("%s%s", System.currentTimeMillis(), randomNumber);
 
@@ -614,7 +611,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    *                               such as hourly or daily.
    * @return Partition directory name.
    */
-  private String getOrcStagingDataPartitionDirName(QueryBasedHiveConversionEntity conversionEntity,
+  protected String getOrcStagingDataPartitionDirName(QueryBasedHiveConversionEntity conversionEntity,
       List<String> sourceDataPathIdentifier) {
 
     if (conversionEntity.getHivePartition().isPresent()) {
@@ -638,7 +635,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * Get the ORC final table location of format: <ORC final table location>/final
    * @return ORC final table location.
    */
-  private String getOrcDataLocation() {
+  protected String getOrcDataLocation() {
     String orcDataLocation = getConversionConfig().getDestinationDataPath();
 
     return orcDataLocation + Path.SEPARATOR + PUBLISHED_TABLE_SUBDIRECTORY;
@@ -649,7 +646,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * @param orcStagingTableName ORC staging table name.
    * @return ORC staging table location.
    */
-  private String getOrcStagingDataLocation(String orcStagingTableName) {
+  protected String getOrcStagingDataLocation(String orcStagingTableName) {
     String orcDataLocation = getConversionConfig().getDestinationDataPath();
 
     return orcDataLocation + Path.SEPARATOR + orcStagingTableName;
@@ -699,7 +696,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     return replacedPartitionsDDLInfo;
   }
 
-  private void populatePartitionInfo(QueryBasedHiveConversionEntity conversionEntity, Map<String, String> partitionsDDLInfo,
+  protected void populatePartitionInfo(QueryBasedHiveConversionEntity conversionEntity, Map<String, String> partitionsDDLInfo,
       Map<String, String> partitionsDMLInfo) {
     String partitionsInfoString = null;
     String partitionsTypeString = null;
@@ -726,7 +723,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         String partitionType = pType.get(i);
         if (partitionInfoParts.size() != 2) {
           throw new IllegalArgumentException(
-              String.format("Partition details should be of the format partitionName=partitionValue. Recieved: %s", pInfo.get(i)));
+              String.format("Partition details should be of the format partitionName=partitionValue. Received: %s", pInfo.get(i)));
         }
         partitionsDDLInfo.put(partitionInfoParts.get(0), partitionType);
         partitionsDMLInfo.put(partitionInfoParts.get(0), partitionInfoParts.get(1));
@@ -734,7 +731,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
   }
 
-  private Pair<Optional<Table>, Optional<List<Partition>>> getDestinationTableMeta(String dbName,
+  protected Pair<Optional<Table>, Optional<List<Partition>>> getDestinationTableMeta(String dbName,
       String tableName, WorkUnitState state)
       throws DataConversionException {
 
@@ -767,7 +764,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * If partition location is /a/b/c/<oldTimeStamp> then new partition location is /a/b/c/<currentTimeStamp>
    * If partition location is /a/b/c/ then new partition location is /a/b/c/<currentTimeStamp>
    **/
-  private String updatePartitionLocation(String orcDataPartitionLocation, WorkUnitState workUnitState,
+  protected String updatePartitionLocation(String orcDataPartitionLocation, WorkUnitState workUnitState,
       Optional<Path> destPartitionLocation)
       throws DataConversionException {
 
@@ -781,7 +778,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     return StringUtils.join(Arrays.asList(orcDataPartitionLocation, timeStamp), '/');
   }
 
-  private Optional<Path> getDestinationPartitionLocation(Optional<Table> table, WorkUnitState state,
+  protected Optional<Path> getDestinationPartitionLocation(Optional<Table> table, WorkUnitState state,
       String partitionName)
       throws DataConversionException {
     Optional<org.apache.hadoop.hive.metastore.api.Partition> partitionOptional =

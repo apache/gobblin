@@ -135,6 +135,50 @@ public class HiveAvroORCQueryGenerator {
     }
   }
 
+
+  /***
+   * Generate DDL query to create a duplicate Hive table
+   * @param inputDbName source DB name
+   * @param inputTblName source table name
+   * @param tblName New Hive table name
+   * @param tblLocation New hive table location
+   * @param optionalDbName Optional DB name, if not specified it defaults to 'default'
+   */
+  public static String generateCreateDuplicateTableDDL(Schema schema,
+      String inputDbName,
+      String inputTblName,
+      String tblName,
+      String tblLocation,
+      Optional<String> optionalDbName) {
+
+    Preconditions.checkNotNull(schema);
+    Preconditions.checkArgument(StringUtils.isNotBlank(tblName));
+    Preconditions.checkArgument(StringUtils.isNotBlank(tblLocation));
+
+    String dbName = optionalDbName.isPresent() ? optionalDbName.get() : DEFAULT_DB_NAME;
+
+    return String.format("CREATE EXTERNAL TABLE IF NOT EXISTS `%s`.`%s` LIKE `%s`.`%s` LOCATION %n  '%s' %n",
+        dbName, tblName, inputDbName, inputTblName, tblLocation);
+  }
+
+  public static void cleanUpNonPartitionedTable(Map<String, String> publishDirectories, List<String> cleanupQueries,
+      String orcStagingDataLocation, List<String> cleanupDirectories, String orcDataLocation,
+      String orcTableDatabase, String orcStagingTableName) {
+    log.info("Snapshot directory to move: " + orcStagingDataLocation + " to: " + orcDataLocation);
+    publishDirectories.put(orcStagingDataLocation, orcDataLocation);
+
+    // Step:
+    // A.2.2.3, B.2.2.3: Drop this staging table and delete directories
+    String dropStagingTableDDL = HiveAvroORCQueryGenerator.generateDropTableDDL(orcTableDatabase, orcStagingTableName);
+
+    log.debug("Drop staging table DDL: " + dropStagingTableDDL);
+    cleanupQueries.add(dropStagingTableDDL);
+
+    // Delete: orcStagingDataLocation
+    log.info("Staging table directory to delete: " + orcStagingDataLocation);
+    cleanupDirectories.add(orcStagingDataLocation);
+  }
+
   /***
    * Generate DDL query to create a different format (default: ORC) Hive table for a given Avro Schema
    * @param schema Avro schema to use to generate the DDL for new Hive table
@@ -611,6 +655,87 @@ public class HiveAvroORCQueryGenerator {
     }
 
     return Optional.<Schema>absent();
+  }
+
+  public static String generateTableCopy(Schema inputAvroSchema,
+      Schema outputOrcSchema,
+      String inputTblName,
+      String outputTblName,
+      Optional<String> optionalInputDbName,
+      Optional<String> optionalOutputDbName,
+      Optional<Map<String, String>> optionalPartitionDMLInfo,
+      Optional<Boolean> optionalOverwriteTable,
+      Optional<Boolean> optionalCreateIfNotExists) {
+    Preconditions.checkNotNull(inputAvroSchema);
+    Preconditions.checkNotNull(outputOrcSchema);
+    Preconditions.checkArgument(StringUtils.isNotBlank(inputTblName));
+    Preconditions.checkArgument(StringUtils.isNotBlank(outputTblName));
+
+    String inputDbName = optionalInputDbName.isPresent() ? optionalInputDbName.get() : DEFAULT_DB_NAME;
+    String outputDbName = optionalOutputDbName.isPresent() ? optionalOutputDbName.get() : DEFAULT_DB_NAME;
+    boolean shouldOverwriteTable = optionalOverwriteTable.isPresent() ? optionalOverwriteTable.get() : true;
+    boolean shouldCreateIfNotExists = optionalCreateIfNotExists.isPresent() ? optionalCreateIfNotExists.get() : false;
+
+    log.debug("Input Schema: " + inputAvroSchema.toString());
+    log.debug("Output Schema: " + outputOrcSchema.toString());
+
+    // Start building Hive DML
+    // Refer to Hive DDL manual for explanation of clauses:
+    // https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML#LanguageManualDML-InsertingdataintoHiveTablesfromqueries
+    StringBuilder dmlQuery = new StringBuilder();
+
+    // Insert query
+    if (shouldOverwriteTable) {
+      dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s`.`%s` %n", outputDbName, outputTblName));
+    } else {
+      dmlQuery.append(String.format("INSERT INTO TABLE `%s`.`%s` %n", outputDbName, outputTblName));
+    }
+
+    // Partition details
+    dmlQuery.append(partitionKeyValues(optionalPartitionDMLInfo));
+
+    // If not exists
+    if (shouldCreateIfNotExists) {
+      dmlQuery.append(" IF NOT EXISTS \n");
+    }
+    dmlQuery.append(String.format("SELECT * FROM `%s`.`%s`", inputDbName, inputTblName));
+    if (optionalPartitionDMLInfo.isPresent()) {
+      if (optionalPartitionDMLInfo.get().size() > 0) {
+        dmlQuery.append("WHERE ");
+        boolean isFirstPartitionSpec = true;
+        for (Map.Entry<String, String> partition : optionalPartitionDMLInfo.get().entrySet()) {
+          if (isFirstPartitionSpec) {
+            isFirstPartitionSpec = false;
+          } else {
+            dmlQuery.append(" AND ");
+          }
+          dmlQuery.append(String.format("`%s`='%s'",
+              partition.getKey(), partition.getValue()));
+        }
+        dmlQuery.append(" \n");
+      }
+    }return dmlQuery.toString();
+    //dmlQuery.append(String.format(" %n FROM `%s`.`%s` ", inputDbName, inputTblName));
+  }
+
+  protected static StringBuilder partitionKeyValues(Optional<Map<String, String>> optionalPartitionDMLInfo) {
+    StringBuilder partitionKV = new StringBuilder();
+    if (optionalPartitionDMLInfo.isPresent()) {
+      if (optionalPartitionDMLInfo.get().size()  > 0) {
+        partitionKV.append("PARTITION (");
+        boolean isFirstPartitionSpec = true;
+        for (Map.Entry<String, String> partition : optionalPartitionDMLInfo.get().entrySet()) {
+          if (isFirstPartitionSpec) {
+            isFirstPartitionSpec = false;
+          } else {
+            partitionKV.append(", ");
+          }
+          partitionKV.append(String.format("`%s`='%s'", partition.getKey(), partition.getValue()));
+        }
+        partitionKV.append(") \n");
+      }
+    }
+    return partitionKV;
   }
 
   /***
