@@ -15,6 +15,6 @@
 # limitations under the License.
 #
 
-gobblin.config.store.hdfs.SimpleHDFSConfigStoreFactory
-gobblin.config.store.hdfs.SimpleLocalHDFSConfigStoreFactory
-gobblin.config.store.hdfs.DefaultCapableLocalConfigStoreFactory
+org.apache.gobblin.config.store.hdfs.SimpleHDFSConfigStoreFactory
+org.apache.gobblin.config.store.hdfs.SimpleLocalHDFSConfigStoreFactory
+org.apache.gobblin.config.store.hdfs.DefaultCapableLocalConfigStoreFactory

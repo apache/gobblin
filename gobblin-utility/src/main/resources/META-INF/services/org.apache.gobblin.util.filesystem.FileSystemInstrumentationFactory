@@ -15,4 +15,4 @@
 # limitations under the License.
 #
 
-gobblin.filesystem.MetricsFileSystemInstrumentation$Factory
+org.apache.gobblin.util.filesystem.ThrottledFileSystem$Factory
