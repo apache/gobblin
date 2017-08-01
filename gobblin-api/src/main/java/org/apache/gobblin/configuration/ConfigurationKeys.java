@@ -48,6 +48,10 @@ public class ConfigurationKeys {
    */
   // State store type.  References an alias or factory class name
   public static final String STATE_STORE_TYPE_KEY = "state.store.type";
+  public static final String DATASET_STATE_STORE_PREFIX = "dataset";
+  public static final String DATASET_STATE_STORE_TYPE_KEY = DATASET_STATE_STORE_PREFIX + ".state.store.type";
+  public static final String INTERMEDIATE_STATE_STORE_PREFIX = "intermediate";
+  public static final String INTERMEDIATE_STATE_STORE_TYPE_KEY = INTERMEDIATE_STATE_STORE_PREFIX + ".state.store.type";
   public static final String DEFAULT_STATE_STORE_TYPE = "fs";
   public static final String STATE_STORE_TYPE_NOOP = "noop";
 

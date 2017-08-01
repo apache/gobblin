@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -142,7 +143,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
-    jobConfig = ConfigUtils.propertiesToConfig(jobProps);
+    jobConfig = ConfigUtils.propertiesToConfig(jobProps)
+        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
+        new URI(appWorkDir.toUri().getScheme(), appWorkDir.toUri().getHost(), null, null).toString()));
 
     this.stateStores = new StateStores(jobConfig, appWorkDir,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
