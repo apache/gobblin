@@ -68,13 +68,26 @@ public class FileListUtils {
     return results;
   }
 
+  public static List<FileStatus> getFilesToCopyAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
+    List<FileStatus> files = Lists.newArrayList();
+    FileStatus rootFile = fs.getFileStatus(path);
+
+    listFilesRecursivelyHelper(fs, files, rootFile, fileFilter, false, true);
+
+    // Copy the empty root directory
+    if (files.size() == 0 && rootFile.isDirectory()) {
+      files.add(rootFile);
+    }
+    return files;
+  }
+
   /**
    * Helper method to list out all files under a specified path. The specified {@link PathFilter} is treated as a file
    * filter, that is it is only applied to file {@link Path}s.
    */
   public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path, PathFilter fileFilter)
       throws IOException {
-    return listFilesRecursivelyHelper(fs, Lists.<FileStatus> newArrayList(), fs.getFileStatus(path), fileFilter, false);
+    return listFilesRecursively(fs, path, fileFilter, false);
   }
 
   /**
@@ -83,18 +96,31 @@ public class FileListUtils {
    */
   public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path, PathFilter fileFilter,
       boolean applyFilterToDirectories) throws IOException {
-    return listFilesRecursivelyHelper(fs, Lists.<FileStatus> newArrayList(), fs.getFileStatus(path), fileFilter,
-        applyFilterToDirectories);
+    return listFilesRecursivelyHelper(fs, Lists.newArrayList(), fs.getFileStatus(path), fileFilter,
+        applyFilterToDirectories, false);
   }
 
   private static List<FileStatus> listFilesRecursivelyHelper(FileSystem fs, List<FileStatus> files,
-      FileStatus fileStatus, PathFilter fileFilter, boolean applyFilterToDirectories)
+      FileStatus fileStatus, PathFilter fileFilter, boolean applyFilterToDirectories, boolean addEmptyDirectories)
       throws FileNotFoundException, IOException {
     if (fileStatus.isDirectory()) {
       for (FileStatus status : fs.listStatus(fileStatus.getPath(),
           applyFilterToDirectories ? fileFilter : NO_OP_PATH_FILTER)) {
         if (fileStatus.isDirectory()) {
-          listFilesRecursivelyHelper(fs, files, status, fileFilter, applyFilterToDirectories);
+          // Number of files collected before diving into the directory
+          int numFilesBefore = files.size();
+
+          listFilesRecursivelyHelper(fs, files, status, fileFilter, applyFilterToDirectories, addEmptyDirectories);
+
+          // Number of files collected after diving into the directory
+          int numFilesAfter = files.size();
+          if (numFilesAfter == numFilesBefore && addEmptyDirectories) {
+            /*
+             * This is effectively an empty directory, which needs explicit copying. Has there any data file
+             * in the directory, the directory would be created as a side-effect of copying the data file
+             */
+            files.add(fileStatus);
+          }
         } else {
           files.add(fileStatus);
         }

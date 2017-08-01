@@ -203,7 +203,7 @@ public class CopyableFile extends CopyEntity implements File {
             this.configuration.getTargetFs(), this.destination);
       }
       if (this.checksum == null) {
-        FileChecksum checksumTmp = this.originFs.getFileChecksum(this.origin.getPath());
+        FileChecksum checksumTmp = this.origin.isDirectory() ? null : this.originFs.getFileChecksum(this.origin.getPath());
         this.checksum = checksumTmp == null ? new byte[0] : checksumTmp.getBytes();
       }
       if (this.fileSet == null) {

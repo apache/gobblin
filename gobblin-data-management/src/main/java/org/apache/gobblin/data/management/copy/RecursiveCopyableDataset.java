@@ -150,7 +150,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   @VisibleForTesting
   protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
     try {
-      return FileListUtils.listFilesRecursively(fs, path, fileFilter);
+      return FileListUtils.getFilesToCopyAtPath(fs, path, fileFilter);
     } catch (FileNotFoundException fnfe) {
       return Lists.newArrayList();
     }
