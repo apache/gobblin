@@ -61,7 +61,7 @@ public class RecursivePathFinder {
     }
     PathFilter actualFilter =
         skipHiddenPaths ? new AndPathFilter(new HiddenFilter(), this.pathFilter) : this.pathFilter;
-    List<FileStatus> files = FileListUtils.getFilesToCopyAtPath(this.fs, this.rootPath, actualFilter);
+    List<FileStatus> files = FileListUtils.listFilesToCopyAtPath(this.fs, this.rootPath, actualFilter);
 
     return Sets.newHashSet(files);
   }

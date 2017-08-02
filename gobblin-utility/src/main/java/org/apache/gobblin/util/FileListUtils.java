@@ -68,7 +68,14 @@ public class FileListUtils {
     return results;
   }
 
-  public static List<FileStatus> getFilesToCopyAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
+  /**
+   * Given a path to copy, list all files rooted at the given path to copy
+   *
+   * @param fs the file system of the path
+   * @param path root path to copy
+   * @param fileFilter a filter only applied to root
+   */
+  public static List<FileStatus> listFilesToCopyAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
     List<FileStatus> files = Lists.newArrayList();
     FileStatus rootFile = fs.getFileStatus(path);
 
@@ -106,7 +113,7 @@ public class FileListUtils {
     if (fileStatus.isDirectory()) {
       for (FileStatus status : fs.listStatus(fileStatus.getPath(),
           applyFilterToDirectories ? fileFilter : NO_OP_PATH_FILTER)) {
-        if (fileStatus.isDirectory()) {
+        if (status.isDirectory()) {
           // Number of files collected before diving into the directory
           int numFilesBefore = files.size();
 
@@ -119,10 +126,10 @@ public class FileListUtils {
              * This is effectively an empty directory, which needs explicit copying. Has there any data file
              * in the directory, the directory would be created as a side-effect of copying the data file
              */
-            files.add(fileStatus);
+            files.add(status);
           }
         } else {
-          files.add(fileStatus);
+          files.add(status);
         }
       }
     } else if (fileFilter.accept(fileStatus.getPath())) {

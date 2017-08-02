@@ -146,4 +146,47 @@ public class FileListUtilsTest {
     }
   }
 
+  public void testListFilesToCopyAtPath() throws IOException {
+    FileSystem localFs = FileSystem.getLocal(new Configuration());
+    Path baseDir = new Path(FILE_UTILS_TEST_DIR, "fileListTestDir4");
+    try {
+      if (localFs.exists(baseDir)) {
+        localFs.delete(baseDir, true);
+      }
+      localFs.mkdirs(baseDir);
+
+      // Empty root directory
+      List<FileStatus> testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      Assert.assertEquals(testFiles.size(), 1);
+      Assert.assertEquals(testFiles.get(0).getPath().getName(), baseDir.getName());
+
+      // With an empty sub directory
+      Path subDir = new Path(baseDir, "subDir");
+      localFs.mkdirs(subDir);
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      Assert.assertEquals(testFiles.size(), 1);
+      Assert.assertEquals(testFiles.get(0).getPath().getName(), subDir.getName());
+
+      // With file subDir/tes1
+      Path test1Path = new Path(subDir, TEST_FILE_NAME1);
+      localFs.create(test1Path);
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      Assert.assertEquals(testFiles.size(), 1);
+      Assert.assertEquals(testFiles.get(0).getPath().getName(), test1Path.getName());
+
+      // With file subDir/test2
+      Path test2Path = new Path(subDir, TEST_FILE_NAME2);
+      localFs.create(test2Path);
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      Assert.assertEquals(testFiles.size(), 2);
+      Set<String> fileNames = Sets.newHashSet();
+      for (FileStatus testFileStatus : testFiles) {
+        fileNames.add(testFileStatus.getPath().getName());
+      }
+      Assert.assertTrue(fileNames.contains(TEST_FILE_NAME1) && fileNames.contains(TEST_FILE_NAME2));
+    } finally {
+      localFs.delete(baseDir, true);
+    }
+  }
+
 }
