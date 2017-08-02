@@ -36,6 +36,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
+import gobblin.annotation.Alias;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -65,6 +66,7 @@ import lombok.extern.slf4j.Slf4j;
  * @author Ziyang Liu
  */
 @Slf4j
+@Alias("hivereg")
 public class HiveRegistrationPublisher extends DataPublisher {
 
   private static final String DATA_PUBLISH_TIME = HiveRegistrationPublisher.class.getName() + ".lastDataPublishTime";
@@ -74,6 +76,11 @@ public class HiveRegistrationPublisher extends DataPublisher {
   private final HiveRegister hiveRegister;
   private final ExecutorService hivePolicyExecutor;
   private final MetricContext metricContext;
+  /**
+   * Make the deduplication of path to be registered in the Publisher level,
+   * So that each invocation of {@link #publishData(Collection)} contribute paths registered to this set.
+   */
+  private static Set<String> pathsToRegisterFromSingleState = Sets.newHashSet();
 
   /**
    * @param state This is a Job State
@@ -113,7 +120,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
     // Here all runtime task-level props are injected into superstate which installed in each Policy Object.
     // runtime.props are comma-separated props collected in runtime.
-    Set<String> pathsToRegisterFromSingleState = Sets.newHashSet() ;
+    int toRegisterPathCount = 0 ;
     for (State state:states) {
       State taskSpecificState = state;
       if (state.contains(ConfigurationKeys.PUBLISHER_DIRS)) {
@@ -135,6 +142,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
             continue;
           }
           pathsToRegisterFromSingleState.add(path);
+          toRegisterPathCount += 1;
           completionService.submit(new Callable<Collection<HiveSpec>>() {
             @Override
             public Collection<HiveSpec> call() throws Exception {
@@ -147,7 +155,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
       }
       else continue;
     }
-    for (int i = 0; i < pathsToRegisterFromSingleState.size(); i++) {
+    for (int i = 0; i < toRegisterPathCount; i++) {
       try {
         for (HiveSpec spec : completionService.take().get()) {
           this.hiveRegister.register(spec);

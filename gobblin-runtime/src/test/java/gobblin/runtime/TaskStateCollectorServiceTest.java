@@ -17,6 +17,7 @@
 
 package gobblin.runtime;
 
+import gobblin.configuration.ConfigurationKeys;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
@@ -71,7 +72,9 @@ public class TaskStateCollectorServiceTest {
 
     this.taskStateStore = new FsStateStore<>(this.localFs, this.outputTaskStateDir.toUri().getPath(), TaskState.class);
 
-    this.taskStateCollectorService = new TaskStateCollectorService(new Properties(), this.jobState, this.eventBus,
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS, "hivereg");
+    this.taskStateCollectorService = new TaskStateCollectorService(props, this.jobState, this.eventBus,
         this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID));
 
     this.eventBus.register(this);
