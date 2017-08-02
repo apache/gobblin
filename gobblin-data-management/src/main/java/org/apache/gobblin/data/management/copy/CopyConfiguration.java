@@ -51,6 +51,8 @@ public class CopyConfiguration {
   public static final String DESTINATION_GROUP_KEY = COPY_PREFIX + ".dataset.destination.group";
   public static final String PRIORITIZATION_PREFIX = COPY_PREFIX + ".prioritization";
 
+  public static final String INCLUDE_EMPTY_DIRECTORIES = COPY_PREFIX + ".includeEmptyDirectories";
+
   public static final String PRIORITIZER_ALIAS_KEY = PRIORITIZATION_PREFIX + ".prioritizerAlias";
   public static final String MAX_COPY_PREFIX = PRIORITIZATION_PREFIX + ".maxCopy";
 

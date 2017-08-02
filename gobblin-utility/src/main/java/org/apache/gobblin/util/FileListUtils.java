@@ -74,15 +74,18 @@ public class FileListUtils {
    * @param fs the file system of the path
    * @param path root path to copy
    * @param fileFilter a filter only applied to root
+   * @param includeEmptyDirectories a control to include empty directories for copy
    */
-  public static List<FileStatus> listFilesToCopyAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
+  public static List<FileStatus> listFilesToCopyAtPath(FileSystem fs, Path path, PathFilter fileFilter,
+      boolean includeEmptyDirectories)
+      throws IOException {
     List<FileStatus> files = Lists.newArrayList();
     FileStatus rootFile = fs.getFileStatus(path);
 
-    listFilesRecursivelyHelper(fs, files, rootFile, fileFilter, false, true);
+    listFilesRecursivelyHelper(fs, files, rootFile, fileFilter, false, includeEmptyDirectories);
 
     // Copy the empty root directory
-    if (files.size() == 0 && rootFile.isDirectory()) {
+    if (files.size() == 0 && rootFile.isDirectory() && includeEmptyDirectories) {
       files.add(rootFile);
     }
     return files;
@@ -108,7 +111,7 @@ public class FileListUtils {
   }
 
   private static List<FileStatus> listFilesRecursivelyHelper(FileSystem fs, List<FileStatus> files,
-      FileStatus fileStatus, PathFilter fileFilter, boolean applyFilterToDirectories, boolean addEmptyDirectories)
+      FileStatus fileStatus, PathFilter fileFilter, boolean applyFilterToDirectories, boolean includeEmptyDirectories)
       throws FileNotFoundException, IOException {
     if (fileStatus.isDirectory()) {
       for (FileStatus status : fs.listStatus(fileStatus.getPath(),
@@ -117,11 +120,11 @@ public class FileListUtils {
           // Number of files collected before diving into the directory
           int numFilesBefore = files.size();
 
-          listFilesRecursivelyHelper(fs, files, status, fileFilter, applyFilterToDirectories, addEmptyDirectories);
+          listFilesRecursivelyHelper(fs, files, status, fileFilter, applyFilterToDirectories, includeEmptyDirectories);
 
           // Number of files collected after diving into the directory
           int numFilesAfter = files.size();
-          if (numFilesAfter == numFilesBefore && addEmptyDirectories) {
+          if (numFilesAfter == numFilesBefore && includeEmptyDirectories) {
             /*
              * This is effectively an empty directory, which needs explicit copying. Has there any data file
              * in the directory, the directory would be created as a side-effect of copying the data file

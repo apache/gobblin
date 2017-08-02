@@ -156,28 +156,32 @@ public class FileListUtilsTest {
       localFs.mkdirs(baseDir);
 
       // Empty root directory
-      List<FileStatus> testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      List<FileStatus> testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER, true);
       Assert.assertEquals(testFiles.size(), 1);
       Assert.assertEquals(testFiles.get(0).getPath().getName(), baseDir.getName());
 
       // With an empty sub directory
       Path subDir = new Path(baseDir, "subDir");
       localFs.mkdirs(subDir);
-      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER, true);
       Assert.assertEquals(testFiles.size(), 1);
       Assert.assertEquals(testFiles.get(0).getPath().getName(), subDir.getName());
+
+      // Disable include empty directories
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER, false);
+      Assert.assertEquals(testFiles.size(), 0);
 
       // With file subDir/tes1
       Path test1Path = new Path(subDir, TEST_FILE_NAME1);
       localFs.create(test1Path);
-      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER, true);
       Assert.assertEquals(testFiles.size(), 1);
       Assert.assertEquals(testFiles.get(0).getPath().getName(), test1Path.getName());
 
       // With file subDir/test2
       Path test2Path = new Path(subDir, TEST_FILE_NAME2);
       localFs.create(test2Path);
-      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER, true);
       Assert.assertEquals(testFiles.size(), 2);
       Set<String> fileNames = Sets.newHashSet();
       for (FileStatus testFileStatus : testFiles) {
