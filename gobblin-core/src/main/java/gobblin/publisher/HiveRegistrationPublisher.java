@@ -72,10 +72,24 @@ public class HiveRegistrationPublisher extends DataPublisher {
   private static final String DATA_PUBLISH_TIME = HiveRegistrationPublisher.class.getName() + ".lastDataPublishTime";
   private static final Splitter LIST_SPLITTER_COMMA = Splitter.on(",").trimResults().omitEmptyStrings();
   public static final String HIVE_SPEC_COMPUTATION_TIMER = "hiveSpecComputationTimer";
+  private static final String PATH_DEDUPE_ENALED = "hive.registration.path.dedupe.enabled";
+  private static final boolean DEFAULT_PATH_DEDUPE_ENALED = true;
+
   private final Closer closer = Closer.create();
   private final HiveRegister hiveRegister;
   private final ExecutorService hivePolicyExecutor;
   private final MetricContext metricContext;
+
+  /**
+   * The configuration to determine if path deduplication should be enabled during Hive Registration process.
+   * Recall that HiveRegistration iterate thru. each topics' data folder and obtain schema from newest partition,
+   * it might be the case that a table corresponding to a registered path has a schema changed.
+   * In this case, path-deduplication won't work.
+   *
+   * e.g. In streaming mode, there could be cases that files(e.g. avro) under single topic folder carry different schema.
+   */
+  private boolean isDefaultPathDedupeEnaled;
+
   /**
    * Make the deduplication of path to be registered in the Publisher level,
    * So that each invocation of {@link #publishData(Collection)} contribute paths registered to this set.
@@ -91,6 +105,9 @@ public class HiveRegistrationPublisher extends DataPublisher {
     this.hivePolicyExecutor = ExecutorsUtils.loggingDecorator(Executors.newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d"))));
     this.metricContext = Instrumented.getMetricContext(state, HiveRegistrationPublisher.class);
+
+    isDefaultPathDedupeEnaled = state.contains(PATH_DEDUPE_ENALED)
+        ? state.getPropAsBoolean(PATH_DEDUPE_ENALED) : this.DEFAULT_PATH_DEDUPE_ENALED;
   }
 
   @Override
@@ -138,7 +155,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
         final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(taskSpecificState);
         for ( final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS) ) {
-          if (pathsToRegisterFromSingleState.contains(path)){
+          if (pathsToRegisterFromSingleState.contains(path) && isDefaultPathDedupeEnaled ){
             continue;
           }
           pathsToRegisterFromSingleState.add(path);

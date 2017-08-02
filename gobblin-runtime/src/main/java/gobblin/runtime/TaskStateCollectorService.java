@@ -17,9 +17,6 @@
 
 package gobblin.runtime;
 
-import com.google.common.base.Optional;
-import gobblin.util.ClassAliasResolver;
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -27,7 +24,6 @@ import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,12 +34,13 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractScheduledService;
 import com.google.common.base.Predicate;
 import com.google.common.io.Closer;
+import com.google.common.base.Optional;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.ClassAliasResolver;
 import gobblin.util.ParallelRunner;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
-import gobblin.publisher.HiveRegistrationPublisher;
 
 
 /**
@@ -77,7 +74,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
    * A typical example to plug here is hive registration:
    * We do hive registration everytime there are available taskStates deserialized from storage, on the driver level.
    */
-  public final Optional<Closeable> optionalTaskCollectorHandler;
+  public final Optional<TaskStateCollectorServiceHandler> optionalTaskCollectorHandler;
   private final Closer handlerCloser = Closer.create();
 
   public TaskStateCollectorService(Properties jobProps, JobState jobState, EventBus eventBus,
@@ -95,14 +92,15 @@ public class TaskStateCollectorService extends AbstractScheduledService {
             Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_COLLECTOR_INTERVAL_SECONDS)));
 
     if (jobProps.containsKey(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS)){
-      String handlerClassName = jobProps.getProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS);
+      String handlerTypeName = jobProps.getProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS);
       try{
-        ClassAliasResolver<Closeable> aliasResolver = new ClassAliasResolver<>(Closeable.class);
-        this.optionalTaskCollectorHandler = Optional.of((Closeable) ConstructorUtils
-                .invokeConstructor(Class.forName(aliasResolver
-                    .resolve(handlerClassName)), this.jobState));
+        ClassAliasResolver<TaskStateCollectorServiceHandler.TaskStateCollectorServiceHandlerFactory> aliasResolver =
+            new ClassAliasResolver<>(TaskStateCollectorServiceHandler.TaskStateCollectorServiceHandlerFactory.class);
+        TaskStateCollectorServiceHandler.TaskStateCollectorServiceHandlerFactory handlerFactory =
+            aliasResolver.resolveClass(handlerTypeName).newInstance();
+        optionalTaskCollectorHandler = Optional.of(handlerCloser.register(handlerFactory.createHandler(this.jobState)));
       } catch (ReflectiveOperationException rfe){
-        throw  new RuntimeException("Could not construct TaskCollectorHandler " + handlerClassName, rfe);
+        throw new RuntimeException("Could not construct TaskCollectorHandler " + handlerTypeName, rfe);
       }
     }
     else{
@@ -190,15 +188,11 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       this.jobState.addTaskState(taskState);
     }
 
-    // Finish any addtional steps defined in handler globally.
+    // Finish any addtional steps defined in handler on driver level.
     // Currently implemented handler for Hive registration only.
-    if (optionalTaskCollectorHandler.isPresent() &&
-        this.jobState.getPropAsBoolean(ConfigurationKeys.PIPELINED_HIVE_REGISTRATION_ENABLED)){
-      LOGGER.info("Enabled Pipelined HiveRegistrationPublisher for " + taskStateQueue.size() + " tasks");
-
-      long startTime = System.currentTimeMillis();
-      ((HiveRegistrationPublisher)(this.optionalTaskCollectorHandler.get())).publishData(taskStateQueue);
-      LOGGER.info("This round of Pipelined HiveReg take:" + (System.currentTimeMillis() - startTime) + " msc");
+    if (optionalTaskCollectorHandler.isPresent()){
+      LOGGER.info("Enabled Pipelined TaskStateCollectorService Handler for " + taskStateQueue.size() + " tasks");
+      optionalTaskCollectorHandler.get().execute(taskStateQueue);
     }
 
     // Notify the listeners for the completion of the tasks

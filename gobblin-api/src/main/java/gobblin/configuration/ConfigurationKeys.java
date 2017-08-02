@@ -745,8 +745,6 @@ public class ConfigurationKeys {
    * Hive registration properties
    */
   public static final String HIVE_REGISTRATION_POLICY = "hive.registration.policy";
-  // Set to true if hive registration is done in taskStateTracker on task commit.
-  public static final String PIPELINED_HIVE_REGISTRATION_ENABLED = "hive.registration.pipelined.enabled";
 
   /**
    * Config store properties

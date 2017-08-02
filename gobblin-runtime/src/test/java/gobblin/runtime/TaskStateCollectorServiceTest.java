@@ -72,9 +72,8 @@ public class TaskStateCollectorServiceTest {
 
     this.taskStateStore = new FsStateStore<>(this.localFs, this.outputTaskStateDir.toUri().getPath(), TaskState.class);
 
-    Properties props = new Properties();
-    props.setProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS, "hivereg");
-    this.taskStateCollectorService = new TaskStateCollectorService(props, this.jobState, this.eventBus,
+
+    this.taskStateCollectorService = new TaskStateCollectorService(new Properties(), this.jobState, this.eventBus,
         this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID));
 
     this.eventBus.register(this);
@@ -102,6 +101,18 @@ public class TaskStateCollectorServiceTest {
     Assert.assertEquals(this.taskStateMap.get(TASK_ID_0).getTaskId(), TASK_ID_0);
     Assert.assertEquals(this.taskStateMap.get(TASK_ID_1).getJobId(), JOB_ID);
     Assert.assertEquals(this.taskStateMap.get(TASK_ID_1).getTaskId(), TASK_ID_1);
+  }
+
+  @Test
+  public void testHandlerResolution() throws Exception{
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS, "hivereg");
+    TaskStateCollectorService taskStateCollectorService_hive = new TaskStateCollectorService(props, this.jobState, this.eventBus,
+        this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID + "_prime"));
+    Assert.assertEquals(taskStateCollectorService_hive.optionalTaskCollectorHandler.get().getClass().getName(),
+        "gobblin.runtime.HiveRegTaskStateCollectorServiceHandlerImpl");
+    taskStateCollectorService_hive.shutDown();
+    return;
   }
 
   @AfterClass
