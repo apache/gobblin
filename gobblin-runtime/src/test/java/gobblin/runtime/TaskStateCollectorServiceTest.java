@@ -107,11 +107,11 @@ public class TaskStateCollectorServiceTest {
   public void testHandlerResolution() throws Exception{
     Properties props = new Properties();
     props.setProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS, "hivereg");
-    TaskStateCollectorService taskStateCollectorService_hive = new TaskStateCollectorService(props, this.jobState, this.eventBus,
+    TaskStateCollectorService taskStateCollectorServiceHive = new TaskStateCollectorService(props, this.jobState, this.eventBus,
         this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID + "_prime"));
-    Assert.assertEquals(taskStateCollectorService_hive.optionalTaskCollectorHandler.get().getClass().getName(),
+    Assert.assertEquals(taskStateCollectorServiceHive.optionalTaskCollectorHandler.get().getClass().getName(),
         "gobblin.runtime.HiveRegTaskStateCollectorServiceHandlerImpl");
-    taskStateCollectorService_hive.shutDown();
+    taskStateCollectorServiceHive.shutDown();
     return;
   }
 

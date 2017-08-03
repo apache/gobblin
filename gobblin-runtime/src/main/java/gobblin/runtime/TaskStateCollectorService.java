@@ -191,7 +191,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     // Finish any addtional steps defined in handler on driver level.
     // Currently implemented handler for Hive registration only.
     if (optionalTaskCollectorHandler.isPresent()){
-      LOGGER.info("Enabled Pipelined TaskStateCollectorService Handler for " + taskStateQueue.size() + " tasks");
+      LOGGER.info("Execute Pipelined TaskStateCollectorService Handler for " + taskStateQueue.size() + " tasks");
       optionalTaskCollectorHandler.get().execute(taskStateQueue);
     }
 

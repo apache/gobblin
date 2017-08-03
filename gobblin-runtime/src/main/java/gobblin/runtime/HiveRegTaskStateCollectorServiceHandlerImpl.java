@@ -30,12 +30,13 @@ public class HiveRegTaskStateCollectorServiceHandlerImpl implements TaskStateCol
   public HiveRegTaskStateCollectorServiceHandlerImpl(JobState jobState){
     hiveRegHandler = new HiveRegistrationPublisher(jobState);
   }
+
   @Override
   public void execute(Collection<? extends WorkUnitState> taskStates) {
     try {
       this.hiveRegHandler.publishData(taskStates);
     }catch (IOException ioe){
-      throw new RuntimeException("Hive-registration pushling of data in TaskStateCollector run into IOException:" + ioe);
+      throw new RuntimeException("Hive-registration pushling of data in TaskStateCollector run into IOException:", ioe);
     }
   }
 

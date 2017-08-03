@@ -26,7 +26,6 @@ import java.util.Collection;
  * Define basic interface for Handler in TaskStateCollectorService,
  * which runs in the gobblin's driver level.
  *
- * Note that,
  */
 public interface TaskStateCollectorServiceHandler extends Closeable {
 
