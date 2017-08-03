@@ -32,7 +32,7 @@ public class HiveRegTaskStateCollectorServiceHandlerImpl implements TaskStateCol
   }
 
   @Override
-  public void execute(Collection<? extends WorkUnitState> taskStates) {
+  public void handle(Collection<? extends WorkUnitState> taskStates) {
     try {
       this.hiveRegHandler.publishData(taskStates);
     }catch (IOException ioe){

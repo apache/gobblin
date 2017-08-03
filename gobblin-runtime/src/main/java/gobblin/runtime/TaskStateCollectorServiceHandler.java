@@ -39,5 +39,5 @@ public interface TaskStateCollectorServiceHandler extends Closeable {
   /**
    * Execute the actions of handler.
    */
-  public void execute(Collection<? extends WorkUnitState> states)  ;
+  public void handle(Collection<? extends WorkUnitState> states)  ;
 }

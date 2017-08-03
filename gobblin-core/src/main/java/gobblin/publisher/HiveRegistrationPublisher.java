@@ -88,7 +88,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
    *
    * e.g. In streaming mode, there could be cases that files(e.g. avro) under single topic folder carry different schema.
    */
-  private boolean isPathDedupeEnaled;
+  private boolean isPathDedupeEnabled;
 
   /**
    * Make the deduplication of path to be registered in the Publisher level,
@@ -106,8 +106,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d"))));
     this.metricContext = Instrumented.getMetricContext(state, HiveRegistrationPublisher.class);
 
-    isPathDedupeEnaled = state.contains(PATH_DEDUPE_ENABLED)
-        ? state.getPropAsBoolean(PATH_DEDUPE_ENABLED) : this.DEFAULT_PATH_DEDUPE_ENABLED;
+    isPathDedupeEnabled = state.getPropAsBoolean(PATH_DEDUPE_ENABLED, this.DEFAULT_PATH_DEDUPE_ENABLED);
   }
 
   @Override
@@ -155,7 +154,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
         final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(taskSpecificState);
         for ( final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS) ) {
-          if (isPathDedupeEnaled && pathsToRegisterFromSingleState.contains(path)){
+          if (isPathDedupeEnabled && pathsToRegisterFromSingleState.contains(path)){
             continue;
           }
           pathsToRegisterFromSingleState.add(path);
