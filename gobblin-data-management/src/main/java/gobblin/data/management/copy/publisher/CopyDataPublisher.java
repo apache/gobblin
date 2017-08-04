@@ -195,6 +195,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     long datasetOriginTimestamp = Long.MAX_VALUE;
     long datasetUpstreamTimestamp = Long.MAX_VALUE;
+    Optional<String> fileSetRoot = Optional.<String>absent();
 
     for (WorkUnitState wus : datasetWorkUnitStates) {
       if (wus.getWorkingState() == WorkingState.SUCCESSFUL) {
@@ -205,6 +206,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         CopyableFile copyableFile = (CopyableFile) copyEntity;
         if (wus.getWorkingState() == WorkingState.COMMITTED) {
           CopyEventSubmitterHelper.submitSuccessfulFilePublish(this.eventSubmitter, copyableFile, wus);
+          if (!fileSetRoot.isPresent()) {
+            fileSetRoot = Optional.of(copyableFile.getDatasetOutputPath());
+          }
         }
         if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
           datasetOriginTimestamp = copyableFile.getOriginTimestamp();
@@ -226,6 +230,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     additionalMetadata.put(SlaEventKeys.SOURCE_URI, this.state.getProp(SlaEventKeys.SOURCE_URI));
     additionalMetadata.put(SlaEventKeys.DESTINATION_URI, this.state.getProp(SlaEventKeys.DESTINATION_URI));
+    additionalMetadata.put(SlaEventKeys.DATASET_OUTPUT_PATH, fileSetRoot.or(""));
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(this.eventSubmitter, datasetAndPartition,
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp), additionalMetadata);
     }

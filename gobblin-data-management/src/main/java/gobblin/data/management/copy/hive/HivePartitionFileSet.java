@@ -149,7 +149,8 @@ public class HivePartitionFileSet extends HiveFileSet {
       multiTimer.nextStage(HiveCopyEntityHelper.Stages.CREATE_COPY_UNITS);
       for (CopyableFile.Builder builder : hiveCopyEntityHelper.getCopyableFilesFromPaths(diffPathSet.filesToCopy,
           hiveCopyEntityHelper.getConfiguration(), Optional.of(this.partition))) {
-        copyEntities.add(builder.fileSet(fileSet).checksum(new byte[0]).build());
+        copyEntities.add(builder.fileSet(fileSet).checksum(new byte[0]).
+            datasetOutputPath(desiredTargetLocation.location.toString()).build());
       }
 
       log.info("Created {} copy entities for partition {}", copyEntities.size(), this.partition.getCompleteName());

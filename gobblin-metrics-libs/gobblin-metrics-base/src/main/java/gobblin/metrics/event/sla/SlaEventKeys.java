@@ -35,4 +35,5 @@ public class SlaEventKeys {
 
   public static final String SOURCE_URI = "sourceCluster";
   public static final String DESTINATION_URI = "destinationCluster";
+  public static final String DATASET_OUTPUT_PATH = "datasetOutputPath";
 }
