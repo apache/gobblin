@@ -19,12 +19,14 @@ package org.apache.gobblin.cluster;
 
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.Future;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 
+import org.quartz.InterruptableJob;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
@@ -38,6 +40,7 @@ import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
+import org.quartz.UnableToInterruptJobException;
 
 
 /**
@@ -48,7 +51,9 @@ import org.apache.gobblin.scheduler.JobScheduler;
  */
 @Alpha
 @Slf4j
-public class GobblinHelixJob extends BaseGobblinJob {
+public class GobblinHelixJob extends BaseGobblinJob implements InterruptableJob {
+  private Future cancellable = null;
+
   @Override
   public void executeImpl(JobExecutionContext context) throws JobExecutionException {
     JobDataMap dataMap = context.getJobDetail().getJobDataMap();
@@ -65,28 +70,32 @@ public class GobblinHelixJob extends BaseGobblinJob {
 
     try {
       final JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, helixManager, appWorkDir, eventMetadata);
-
       if (Boolean.valueOf(jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD,
-          Boolean.toString(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT)))) {
+              Boolean.toString(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT)))) {
         jobScheduler.runJob(jobProps, jobListener, jobLauncher);
       } else {
-        // if not executing in the scheduling thread then submit a runnable to the job scheduler's ExecutorService
-        // for asynchronous execution.
-        Runnable runnable = new Runnable() {
-          @Override
-          public void run() {
-            try {
-              jobScheduler.runJob(jobProps, jobListener, jobLauncher);
-            } catch (JobException je) {
-              log.error("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
-            }
-          }
-        };
-
-        jobScheduler.submitRunnableToExecutor(runnable);
+        cancellable = jobScheduler.submitJob(jobProps, jobListener, jobLauncher);
       }
     } catch (Throwable t) {
       throw new JobExecutionException(t);
+    }
+  }
+
+  @Override
+  public void interrupt() throws UnableToInterruptJobException {
+    if (cancellable != null) {
+      try {
+        if (cancellable.cancel(false)) {
+          return;
+        }
+      } catch (Exception e) {
+        log.error("Failed to gracefully cancel job. Attempting to force cancellation.", e);
+      }
+      try {
+        cancellable.cancel(true);
+      } catch (Exception e) {
+        throw new UnableToInterruptJobException(e);
+      }
     }
   }
 }

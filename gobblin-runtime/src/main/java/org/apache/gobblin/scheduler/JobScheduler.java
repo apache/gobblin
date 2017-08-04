@@ -24,8 +24,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -202,7 +204,11 @@ public class JobScheduler extends AbstractIdleService {
 
     List<JobExecutionContext> currentExecutions = this.scheduler.getScheduler().getCurrentlyExecutingJobs();
     for (JobExecutionContext jobExecutionContext : currentExecutions) {
-      this.scheduler.getScheduler().interrupt(jobExecutionContext.getFireInstanceId());
+      try {
+        this.scheduler.getScheduler().interrupt(jobExecutionContext.getFireInstanceId());
+      } catch (UnableToInterruptJobException e) {
+        LOG.error("Failed to cancel job " + jobExecutionContext.getJobDetail().getKey(), e);
+      }
     }
 
     ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
@@ -228,6 +234,57 @@ public class JobScheduler extends AbstractIdleService {
     } catch (JobException | RuntimeException exc) {
       LOG.error("Could not schedule job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "Unknown job"), exc);
     }
+  }
+
+  public Future submitJob(Properties jobProps, JobListener jobListener, JobLauncher jobLauncher) {
+    Runnable runnable = new Runnable() {
+      @Override
+      public void run() {
+        try {
+          runJob(jobProps, jobListener, jobLauncher);
+        } catch (JobException je) {
+          LOG.error("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
+        }
+      }
+    };
+    final Future<?> future = this.jobExecutor.submit(runnable);
+    this.submitRunnableToExecutor(runnable);
+    return new Future() {
+      @Override
+      public boolean cancel(boolean mayInterruptIfRunning) {
+        boolean result = true;
+        try {
+          jobLauncher.cancelJob(jobListener);
+        } catch (JobException e) {
+          LOG.error("Failed to cancel job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+          result = false;
+        }
+        if (mayInterruptIfRunning) {
+          result &= future.cancel(true);
+        }
+        return result;
+      }
+
+      @Override
+      public boolean isCancelled() {
+        return future.isCancelled();
+      }
+
+      @Override
+      public boolean isDone() {
+        return future.isDone();
+      }
+
+      @Override
+      public Object get() throws InterruptedException, ExecutionException {
+        return future.get();
+      }
+
+      @Override
+      public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        return future.get(timeout, unit);
+      }
+    };
   }
 
   /**
