@@ -17,10 +17,14 @@
 
 package org.apache.gobblin.source.extractor.extract.jdbc;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
 import java.io.IOException;
 
+import org.apache.gobblin.source.workunit.WorkUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,5 +53,14 @@ public class MysqlSource extends QueryBasedSource<JsonArray, JsonElement> {
       throw new IOException(e);
     }
     return extractor;
+  }
+
+  protected void addLineageSourceInfo (SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
+    super.addLineageSourceInfo(sourceState, entity, workUnit);
+    String host = sourceState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
+    String port = sourceState.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
+    String database = sourceState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
+    String connectionUrl = "jdbc:mysql://" + host.trim() + ":" + port + "/" + database.trim();
+    LineageInfo.setDatasetLineageAttribute(workUnit, "connectionUrl", connectionUrl);
   }
 }

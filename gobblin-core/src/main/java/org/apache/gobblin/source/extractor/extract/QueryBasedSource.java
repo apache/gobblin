@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.lineage.LineageInfo;
 import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
@@ -234,11 +235,18 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       workunit.setProp(ConfigurationKeys.SOURCE_ENTITY, sourceEntity.getSourceEntityName());
       workunit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, sourceEntity.getDestTableName());
       workunit.setProp(WORK_UNIT_STATE_VERSION_KEY, CURRENT_WORK_UNIT_STATE_VERSION);
+      addLineageSourceInfo (state, sourceEntity, workunit);
       partition.serialize(workunit);
       workUnits.add(workunit);
     }
 
     return workUnits;
+  }
+
+  protected void addLineageSourceInfo (SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
+    String jobId = sourceState.getProp(ConfigurationKeys.JOB_ID_KEY, "");
+    LineageInfo.setDatasetLineageAttribute(workUnit, ConfigurationKeys.JOB_ID_KEY, jobId);
+    LineageInfo.setDatasetLineageAttribute(workUnit, ConfigurationKeys.DATASET_URN_KEY, entity.destTableName);
   }
 
   protected Set<SourceEntity> getFilteredSourceEntities(SourceState state) {
