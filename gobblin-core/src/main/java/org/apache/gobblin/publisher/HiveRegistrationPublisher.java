@@ -36,6 +36,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
+import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -65,22 +66,47 @@ import lombok.extern.slf4j.Slf4j;
  * @author Ziyang Liu
  */
 @Slf4j
+@Alias("hivereg")
 public class HiveRegistrationPublisher extends DataPublisher {
 
   private static final String DATA_PUBLISH_TIME = HiveRegistrationPublisher.class.getName() + ".lastDataPublishTime";
   private static final Splitter LIST_SPLITTER_COMMA = Splitter.on(",").trimResults().omitEmptyStrings();
   public static final String HIVE_SPEC_COMPUTATION_TIMER = "hiveSpecComputationTimer";
+  private static final String PATH_DEDUPE_ENABLED = "hive.registration.path.dedupe.enabled";
+  private static final boolean DEFAULT_PATH_DEDUPE_ENABLED = true;
+
   private final Closer closer = Closer.create();
   private final HiveRegister hiveRegister;
   private final ExecutorService hivePolicyExecutor;
   private final MetricContext metricContext;
 
+  /**
+   * The configuration to determine if path deduplication should be enabled during Hive Registration process.
+   * Recall that HiveRegistration iterate thru. each topics' data folder and obtain schema from newest partition,
+   * it might be the case that a table corresponding to a registered path has a schema changed.
+   * In this case, path-deduplication won't work.
+   *
+   * e.g. In streaming mode, there could be cases that files(e.g. avro) under single topic folder carry different schema.
+   */
+  private boolean isPathDedupeEnabled;
+
+  /**
+   * Make the deduplication of path to be registered in the Publisher level,
+   * So that each invocation of {@link #publishData(Collection)} contribute paths registered to this set.
+   */
+  private static Set<String> pathsToRegisterFromSingleState = Sets.newHashSet();
+
+  /**
+   * @param state This is a Job State
+   */
   public HiveRegistrationPublisher(State state) {
     super(state);
     this.hiveRegister = this.closer.register(HiveRegister.get(state));
     this.hivePolicyExecutor = ExecutorsUtils.loggingDecorator(Executors.newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d"))));
     this.metricContext = Instrumented.getMetricContext(state, HiveRegistrationPublisher.class);
+
+    isPathDedupeEnabled = state.getPropAsBoolean(PATH_DEDUPE_ENABLED, this.DEFAULT_PATH_DEDUPE_ENABLED);
   }
 
   @Override
@@ -96,6 +122,9 @@ public class HiveRegistrationPublisher extends DataPublisher {
   @Override
   public void initialize() throws IOException {}
 
+  /**
+   * @param states This is a collection of TaskState.
+   */
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
     CompletionService<Collection<HiveSpec>> completionService =
@@ -107,7 +136,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
     // Here all runtime task-level props are injected into superstate which installed in each Policy Object.
     // runtime.props are comma-separated props collected in runtime.
-    Set<String> pathsToRegisterFromSingleState = Sets.newHashSet() ;
+    int toRegisterPathCount = 0 ;
     for (State state:states) {
       State taskSpecificState = state;
       if (state.contains(ConfigurationKeys.PUBLISHER_DIRS)) {
@@ -125,10 +154,11 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
         final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(taskSpecificState);
         for ( final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS) ) {
-          if (pathsToRegisterFromSingleState.contains(path)){
+          if (isPathDedupeEnabled && pathsToRegisterFromSingleState.contains(path)){
             continue;
           }
           pathsToRegisterFromSingleState.add(path);
+          toRegisterPathCount += 1;
           completionService.submit(new Callable<Collection<HiveSpec>>() {
             @Override
             public Collection<HiveSpec> call() throws Exception {
@@ -141,7 +171,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
       }
       else continue;
     }
-    for (int i = 0; i < pathsToRegisterFromSingleState.size(); i++) {
+    for (int i = 0; i < toRegisterPathCount; i++) {
       try {
         for (HiveSpec spec : completionService.take().get()) {
           this.hiveRegister.register(spec);
