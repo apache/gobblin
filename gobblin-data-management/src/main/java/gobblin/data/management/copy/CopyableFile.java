@@ -89,13 +89,6 @@ public class CopyableFile extends CopyEntity implements File {
   /** Timestamp of file as in upstream. */
   private long upstreamTimestamp;
 
-  public CopyableFile(FileStatus origin, Path destination, OwnerAndPermission destinationOwnerAndPermission,
-      List<OwnerAndPermission> ancestorsOwnerAndPermission, byte[] checksum, PreserveAttributes preserve,
-      String fileSet, long originTimestamp, long upstreamTimestamp, Map<String, String> additionalMetadata) {
-    this(origin, destination, destinationOwnerAndPermission, ancestorsOwnerAndPermission, checksum, preserve, fileSet,
-        originTimestamp, upstreamTimestamp, additionalMetadata, "");
-  }
-
   @lombok.Builder(builderClassName = "Builder", builderMethodName = "_hiddenBuilder")
   public CopyableFile(FileStatus origin, Path destination, OwnerAndPermission destinationOwnerAndPermission,
       List<OwnerAndPermission> ancestorsOwnerAndPermission, byte[] checksum, PreserveAttributes preserve,

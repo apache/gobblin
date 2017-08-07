@@ -206,6 +206,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         CopyableFile copyableFile = (CopyableFile) copyEntity;
         if (wus.getWorkingState() == WorkingState.COMMITTED) {
           CopyEventSubmitterHelper.submitSuccessfulFilePublish(this.eventSubmitter, copyableFile, wus);
+          // Dataset Output path is injected in each copyableFile.
+          // This can be optimized by having a dataset level equivalent class for copyable entities
+          // and storing dataset related information, e.g. dataset output path, there.
           if (!fileSetRoot.isPresent()) {
             fileSetRoot = Optional.of(copyableFile.getDatasetOutputPath());
           }
@@ -230,7 +233,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     additionalMetadata.put(SlaEventKeys.SOURCE_URI, this.state.getProp(SlaEventKeys.SOURCE_URI));
     additionalMetadata.put(SlaEventKeys.DESTINATION_URI, this.state.getProp(SlaEventKeys.DESTINATION_URI));
-    additionalMetadata.put(SlaEventKeys.DATASET_OUTPUT_PATH, fileSetRoot.or(""));
+    additionalMetadata.put(SlaEventKeys.DATASET_OUTPUT_PATH, fileSetRoot.or("Unknown"));
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(this.eventSubmitter, datasetAndPartition,
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp), additionalMetadata);
     }
