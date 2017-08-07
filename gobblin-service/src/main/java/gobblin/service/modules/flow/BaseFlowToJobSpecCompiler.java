@@ -28,10 +28,10 @@ import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.job_spec.ResolvedJobSpec;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import javax.annotation.Nonnull;
 
 import lombok.Setter;
@@ -86,7 +86,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
    * Key: EdgeIdentifier from {@link gobblin.runtime.api.FlowEdge#getEdgeIdentity()}
    * Value: List of template URI.
    */
-  // TODO: Define how template info are injected.
+  // TODO: Define how template info are instantiated.
   @Getter
   @Setter
   protected final Map<String, List<URI>> edgeTemplateMap;
@@ -160,14 +160,14 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
   @Override
   public synchronized void onAddSpec(Spec addedSpec) {
     topologySpecMap.put(addedSpec.getUri(), (TopologySpec) addedSpec);
-    specExecutorMap.put(((TopologySpec) addedSpec).getSpecExecutorInstance().getUri(),
-        ((TopologySpec) addedSpec).getSpecExecutorInstance());
+    specExecutorMap.put(((TopologySpec) addedSpec).getSpecExecutor().getUri(),
+        ((TopologySpec) addedSpec).getSpecExecutor());
   }
 
   @Override
   public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
     if (topologySpecMap.containsKey(deletedSpecURI)) {
-      specExecutorMap.remove(topologySpecMap.get(deletedSpecURI).getSpecExecutorInstance().getUri());
+      specExecutorMap.remove(topologySpecMap.get(deletedSpecURI).getSpecExecutor().getUri());
       topologySpecMap.remove(deletedSpecURI);
     }
   }
@@ -175,8 +175,8 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
   @Override
   public synchronized void onUpdateSpec(Spec updatedSpec) {
     topologySpecMap.put(updatedSpec.getUri(), (TopologySpec) updatedSpec);
-    specExecutorMap.put(((TopologySpec) updatedSpec).getSpecExecutorInstance().getUri(),
-        ((TopologySpec) updatedSpec).getSpecExecutorInstance());
+    specExecutorMap.put(((TopologySpec) updatedSpec).getSpecExecutor().getUri(),
+        ((TopologySpec) updatedSpec).getSpecExecutor());
   }
 
   @Nonnull
@@ -261,4 +261,14 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
     jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobSpec.getConfig()));
     return jobSpec;
   }
+
+  /**
+   * Ideally each edge has its own eligible template repository(Based on {@link SpecExecutor})
+   * to pick template from.
+   *
+   * This function is to transfrom from all available templates ({@link #templateCatalog})
+   * into categorized {@link #edgeTemplateMap}.
+   *
+   */
+  abstract protected void populateEdgeTemplateMap();
 }

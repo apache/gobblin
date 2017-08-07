@@ -68,8 +68,8 @@ public class ServiceConfigKeys {
   public static final String TOPOLOGYSPEC_DESCRIPTION_KEY = "description";
   public static final String TOPOLOGYSPEC_VERSION_KEY = "version";
   public static final String TOPOLOGYSPEC_URI_KEY = "uri";
-  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER = InMemorySpecExecutor.class.getCanonicalName();
-  public static final String SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY = "specExecutorInstance.class";
+  public static final String DEFAULT_SPEC_EXECUTOR = InMemorySpecExecutor.class.getCanonicalName();
+  public static final String SPEC_EXECUTOR_KEY = "specExecutorInstance.class";
   public static final String EDGE_SECURITY_KEY = "edge.secured";
   public static final String INITIAL_LOAD = "initialLoad";
 

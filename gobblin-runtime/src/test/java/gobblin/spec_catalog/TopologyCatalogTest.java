@@ -95,7 +95,7 @@ public class TopologyCatalogTest {
         .withConfig(config)
         .withDescription(SPEC_DESCRIPTION)
         .withVersion(SPEC_VERSION)
-        .withSpecExecutorInstanceProducer(specExecutorInstanceProducer);
+        .withSpecExecutor(specExecutorInstanceProducer);
     return topologySpecBuilder.build();
   }
 

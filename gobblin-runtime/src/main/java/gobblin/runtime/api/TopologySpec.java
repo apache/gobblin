@@ -85,18 +85,18 @@ public class TopologySpec implements Configurable, Spec {
    * @return A {@link SpecExecutor}'s instance defined by <Technology, Location, Communication Mechanism> that
    * defines part of data movement topology.
    */
-  public SpecExecutor getSpecExecutorInstance() {
+  public SpecExecutor getSpecExecutor() {
     if (null == specExecutorInstance) {
-      String specExecutorInstanceProducerClass = DEFAULT_SPEC_EXECUTOR_INSTANCE;
+      String specExecutorClass = DEFAULT_SPEC_EXECUTOR_INSTANCE;
       if (config.hasPath(SPEC_EXECUTOR_INSTANCE_KEY)) {
-        specExecutorInstanceProducerClass = config.getString(SPEC_EXECUTOR_INSTANCE_KEY);
+        specExecutorClass = config.getString(SPEC_EXECUTOR_INSTANCE_KEY);
       }
       try {
         ClassAliasResolver<SpecExecutor> _aliasResolver =
             new ClassAliasResolver<>(SpecExecutor.class);
         specExecutorInstance = (SpecExecutor) ConstructorUtils
             .invokeConstructor(Class.forName(_aliasResolver
-                .resolve(specExecutorInstanceProducerClass)), config);
+                .resolve(specExecutorClass)), config);
       } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
           | ClassNotFoundException e) {
         throw new RuntimeException(e);
@@ -327,9 +327,9 @@ public class TopologySpec implements Configurable, Spec {
       return this.specExecutorInstance.get();
     }
 
-    public TopologySpec.Builder withSpecExecutorInstanceProducer(SpecExecutor specExecutorInstance) {
-      Preconditions.checkNotNull(specExecutorInstance);
-      this.specExecutorInstance = Optional.of(specExecutorInstance);
+    public TopologySpec.Builder withSpecExecutor(SpecExecutor specExecutor) {
+      Preconditions.checkNotNull(specExecutor);
+      this.specExecutorInstance = Optional.of(specExecutor);
       return this;
     }
   }

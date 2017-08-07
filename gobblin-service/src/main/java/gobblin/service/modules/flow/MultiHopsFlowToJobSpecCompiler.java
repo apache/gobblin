@@ -22,7 +22,6 @@ import gobblin.runtime.api.BaseServiceNodeImpl;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecExecutor;
-import gobblin.runtime.api.SpecProducer;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.job_spec.ResolvedJobSpec;
 import java.net.URI;
@@ -34,6 +33,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.jgrapht.alg.DijkstraShortestPath;
 import org.jgrapht.graph.WeightedMultigraph;
@@ -134,6 +134,19 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   /**
+   * As the base implementation here, all templates will be considered for each edge.
+   */
+  @Override
+  protected void populateEdgeTemplateMap() {
+    for (FlowEdge flowEdge:this.weightedGraph.edgeSet()) {
+      edgeTemplateMap.put(flowEdge.getEdgeIdentity(),
+          templateCatalog.get().
+              getAllTemplates().
+              stream().map(jobTemplate -> jobTemplate.getUri()).collect(Collectors.toList()));
+    }
+  }
+
+  /**
    * @return Transform a set of {@link TopologySpec} into a instance of {@link org.jgrapht.graph.WeightedMultigraph}
    * and filter out connections between blacklisted vertices that user specified.
    * The side-effect of this function only stays in memory, so each time a logical flow is compiled, the multigraph will
@@ -146,6 +159,8 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     for( TopologySpec topologySpec : topologySpecMap.values()) {
       weightGraphGenerateHelper(topologySpec);
     }
+
+//    populateEdgeTemplateMap();
 
     // Filter out connection appearing in {@link optionalPolicyBasedBlockedConnection}
     if (optionalPolicyBasedBlockedConnection.isPresent()) {
@@ -184,7 +199,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
         return;
       }
       else {
-        log.error("Will not execute user specified path[ " + optionalUserSpecifiedPath.get());
+        log.error("Will not execute user specified path[ " + optionalUserSpecifiedPath.get() + "]");
         log.info("Start to execute FlowCompiler's algorithm for valid data movement path");
       }
     }
@@ -235,7 +250,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   private void weightGraphGenerateHelper(TopologySpec topologySpec){
     try{
       Map<ServiceNode, ServiceNode> capabilities =
-          topologySpec.getSpecExecutorInstance().getCapabilities().get();
+          topologySpec.getSpecExecutor().getCapabilities().get();
       for (Map.Entry<ServiceNode, ServiceNode> capability : capabilities.entrySet()) {
         ServiceNode sourceNode = capability.getKey();
         ServiceNode targetNode = capability.getValue();
@@ -247,7 +262,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
         }
 
         FlowEdge flowEdge = new LoadBasedFlowEdgeImpl
-            (sourceNode, targetNode, defaultFlowEdgeProps, topologySpec.getSpecExecutorInstance());
+            (sourceNode, targetNode, defaultFlowEdgeProps, topologySpec.getSpecExecutor());
 
         // In Multi-Graph if flowEdge existed, just skip it.
         if (!weightedGraph.containsEdge(flowEdge)) {
@@ -270,7 +285,8 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
         .withConfig(flowSpec.getConfig())
         .withDescription(flowSpec.getDescription())
         .withVersion(flowSpec.getVersion());
-    if (edgeTemplateMap.get(flowEdge.getEdgeIdentity()).contains(templateURI)){
+    if (edgeTemplateMap.containsKey(flowEdge.getEdgeIdentity())
+        && edgeTemplateMap.get(flowEdge.getEdgeIdentity()).contains(templateURI)){
       jobSpecBuilder.withTemplate(templateURI);
       try{
         jobSpec = new ResolvedJobSpec(jobSpecBuilder.build(), templateCatalog.get());
@@ -289,12 +305,16 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   /**
    * A naive implementation of resolving templates in each JobSpec among Multi-hop FlowSpec.
    * Handling the case when edge is not specified.
-   * Select the first available tempalate.
+   * Select the first available template.
    * Set as the default invocation.
+   *
+   * TODO: Need to define how {@link #edgeTemplateMap} is initializd.
    */
   private JobSpec jobSpecGenerator(ServiceNode sourceNode, ServiceNode targetNode, FlowSpec flowSpec){
     FlowEdge flowEdge = weightedGraph.getAllEdges(sourceNode, targetNode).iterator().next();
-    URI firstTemplateURI = edgeTemplateMap.get(flowEdge.getEdgeIdentity()).get(0);
+    URI firstTemplateURI = (edgeTemplateMap!=null && edgeTemplateMap.containsKey(flowEdge.getEdgeIdentity())) ?
+        edgeTemplateMap.get(flowEdge.getEdgeIdentity()).get(0)
+        : jobSpecGenerator(flowSpec).getUri();
     return this.jobSpecGenerator(sourceNode, targetNode, flowEdge, firstTemplateURI, flowSpec);
   }
 

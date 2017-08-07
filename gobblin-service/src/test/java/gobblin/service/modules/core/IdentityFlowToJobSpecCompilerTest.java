@@ -122,7 +122,7 @@ public class IdentityFlowToJobSpecCompilerTest {
         .withConfig(config)
         .withDescription(SPEC_DESCRIPTION)
         .withVersion(SPEC_VERSION)
-        .withSpecExecutorInstanceProducer(specExecutorInstance);
+        .withSpecExecutor(specExecutorInstance);
     return topologySpecBuilder.build();
   }
 
@@ -187,7 +187,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec();
 
     // Run compiler on flowSpec
-    Map<Spec, SpecProducer> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
+    Map<Spec, SpecExecutor> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
 
     // Assert pre-requisites
     Assert.assertNotNull(specExecutorMapping, "Expected non null mapping.");
@@ -216,7 +216,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec();
 
     // Run compiler on flowSpec
-    Map<Spec, SpecProducer> specExecutorMapping = this.compilerWithoutTemplateCalague.compileFlow(flowSpec);
+    Map<Spec, SpecExecutor> specExecutorMapping = this.compilerWithoutTemplateCalague.compileFlow(flowSpec);
 
     // Assert pre-requisites
     Assert.assertNotNull(specExecutorMapping, "Expected non null mapping.");
@@ -245,7 +245,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec(TEST_FLOW_GROUP, TEST_FLOW_NAME, "unsupportedSource", "unsupportedSink");
 
     // Run compiler on flowSpec
-    Map<Spec, SpecProducer> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
+    Map<Spec, SpecExecutor> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
 
     // Assert pre-requisites
     Assert.assertNotNull(specExecutorMapping, "Expected non null mapping.");

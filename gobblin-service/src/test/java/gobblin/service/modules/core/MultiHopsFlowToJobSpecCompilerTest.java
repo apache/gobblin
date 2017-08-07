@@ -23,23 +23,25 @@ import gobblin.runtime.api.FlowEdge;
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.ServiceNode;
 import gobblin.runtime.api.SpecExecutor;
-import gobblin.runtime.api.SpecProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import gobblin.service.ServiceConfigKeys;
 import gobblin.service.modules.flow.LoadBasedFlowEdgeImpl;
 import gobblin.service.modules.flow.MultiHopsFlowToJobSpecCompiler;
 import gobblin.util.ConfigUtils;
+import gobblin.util.PathUtils;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.Path;
 import org.jgrapht.graph.WeightedMultigraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +90,13 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     // Create dir for template catalog
     FileUtils.forceMkdir(new File(TEST_TEMPLATE_CATALOG_PATH));
 
+    // Create template to use in test
+    List<String> templateEntries = new ArrayList<>();
+    templateEntries.add("testProperty1 = \"testValue1\"");
+    templateEntries.add("testProperty2 = \"test.Value1\"");
+    templateEntries.add("testProperty3 = 100");
+    FileUtils.writeLines(new File(TEST_TEMPLATE_CATALOG_PATH + "/" + TEST_TEMPLATE_NAME), templateEntries);
+
     // Initialize complier with template catalog
     Properties compilerWithTemplateCatalogProperties = new Properties();
     compilerWithTemplateCatalogProperties.setProperty(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, TEST_TEMPLATE_CATALOG_URI);
@@ -97,11 +106,11 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     compilerWithTemplateCatalogProperties.setProperty(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH, testPath);
     this.compilerWithTemplateCalague = new MultiHopsFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(compilerWithTemplateCatalogProperties));
 
-    ServiceNode vertexSource = new BaseServiceNodeImpl(TEST_SOURCE_NAME);
-    ServiceNode vertexHopA = new BaseServiceNodeImpl(TEST_HOP_NAME_A);
-    ServiceNode vertexHopB = new BaseServiceNodeImpl(TEST_HOP_NAME_B);
-    ServiceNode vertexHopC = new BaseServiceNodeImpl(TEST_HOP_NAME_C);
-    ServiceNode vertexSink = new BaseServiceNodeImpl(TEST_SINK_NAME);
+    vertexSource = new BaseServiceNodeImpl(TEST_SOURCE_NAME);
+    vertexHopA = new BaseServiceNodeImpl(TEST_HOP_NAME_A);
+    vertexHopB = new BaseServiceNodeImpl(TEST_HOP_NAME_B);
+    vertexHopC = new BaseServiceNodeImpl(TEST_HOP_NAME_C);
+    vertexSink = new BaseServiceNodeImpl(TEST_SINK_NAME);
 
   }
 
@@ -144,9 +153,9 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     Assert.assertTrue(weightedGraph.containsVertex(vertexHopB));
     Assert.assertTrue(weightedGraph.containsVertex(vertexSink));
 
-    FlowEdge edgeSrc2A = new LoadBasedFlowEdgeImpl(vertexSource, vertexHopA, topologySpec.getSpecExecutorInstance());
-    FlowEdge edgeA2B = new LoadBasedFlowEdgeImpl(vertexHopA, vertexHopB, topologySpec.getSpecExecutorInstance());
-    FlowEdge edgeB2Sink = new LoadBasedFlowEdgeImpl(vertexHopB, vertexSink, topologySpec.getSpecExecutorInstance());
+    FlowEdge edgeSrc2A = new LoadBasedFlowEdgeImpl(vertexSource, vertexHopA, topologySpec.getSpecExecutor());
+    FlowEdge edgeA2B = new LoadBasedFlowEdgeImpl(vertexHopA, vertexHopB, topologySpec.getSpecExecutor());
+    FlowEdge edgeB2Sink = new LoadBasedFlowEdgeImpl(vertexHopB, vertexSink, topologySpec.getSpecExecutor());
 
     Assert.assertTrue( weightedGraph.containsEdge(edgeSrc2A));
     Assert.assertTrue( weightedGraph.containsEdge(edgeA2B));
@@ -209,6 +218,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     Assert.assertEquals(capabilitiesString.charAt(capabilitiesString.length() - 1) , ',');
     capabilitiesString = capabilitiesString.substring(0, capabilitiesString.length() - 1 );
     properties.put("specExecInstance.capabilities", capabilitiesString);
+    properties.put("executorAttrs", new Properties());
     Config config = ConfigUtils.propertiesToConfig(properties);
     SpecExecutor specExecutorInstance = new InMemorySpecExecutor(config);
 
@@ -218,7 +228,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
         .withConfig(config)
         .withDescription(SPEC_DESCRIPTION)
         .withVersion(SPEC_VERSION)
-        .withSpecExecutorInstanceProducer(specExecutorInstance);
+        .withSpecExecutor(specExecutorInstance);
     return topologySpecBuilder.build();
   }
 
@@ -237,7 +247,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
 
     FlowSpec.Builder flowSpecBuilder = null;
     try {
-      flowSpecBuilder = FlowSpec.builder(IdentityFlowToJobSpecCompilerTest.computeTopologySpecURI(SPEC_STORE_PARENT_DIR,
+      flowSpecBuilder = FlowSpec.builder(computeTopologySpecURI(SPEC_STORE_PARENT_DIR,
           FLOW_SPEC_STORE_DIR))
           .withConfig(config)
           .withDescription("dummy description")
@@ -269,6 +279,11 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     for ( FlowEdge edge : allEdges ) {
       this.edgeTemplateMap.put(edge.getEdgeIdentity(), Arrays.asList(exempliedURI)) ;
     }
+  }
+
+  public static URI computeTopologySpecURI(String parent, String current) {
+    // Make sure this is relative
+    return PathUtils.relativizePath(new Path(current), new Path(parent)).toUri();
   }
 
 }

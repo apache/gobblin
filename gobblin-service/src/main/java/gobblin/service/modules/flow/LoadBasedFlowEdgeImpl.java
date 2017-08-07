@@ -1,5 +1,7 @@
 package gobblin.service.modules.flow;
 
+import gobblin.util.ConfigUtils;
+import gobblin.util.PropertiesUtils;
 import java.util.Properties;
 
 import org.jgrapht.graph.DefaultWeightedEdge;
@@ -47,8 +49,9 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
   }
 
   public LoadBasedFlowEdgeImpl(ServiceNode sourceNode, ServiceNode targetName,
-      SpecExecutor specExecutorInstance){
-    this(sourceNode, targetName, new FlowEdgeProps(specExecutorInstance.getAttrs()), specExecutorInstance);
+      SpecExecutor specExecutor){
+    this(sourceNode, targetName, new FlowEdgeProps(ConfigUtils.configToProperties(specExecutor.getAttrs())),
+        specExecutor);
   }
 
   /**

@@ -18,7 +18,6 @@
 package gobblin.service.modules.orchestration;
 
 import gobblin.runtime.api.SpecExecutor;
-import gobblin.runtime.api.SpecProducer;
 import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import java.io.File;
 import java.net.URI;
@@ -127,7 +126,7 @@ public class OrchestratorTest {
         .withConfig(config)
         .withDescription(SPEC_DESCRIPTION)
         .withVersion(SPEC_VERSION)
-        .withSpecExecutorInstanceProducer(specExecutorInstance);
+        .withSpecExecutor(specExecutorInstance);
     return topologySpecBuilder.build();
   }
 
@@ -210,7 +209,7 @@ public class OrchestratorTest {
     // Since only 1 Topology with 1 SpecProducer has been added in previous test
     // .. it should be available and responsible for our new FlowSpec
     IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
-    SpecExecutor sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutorInstance();
+    SpecExecutor sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutor();
 
     // List Current Specs
     Collection<Spec> specs = flowCatalog.getSpecs();
@@ -249,7 +248,7 @@ public class OrchestratorTest {
   public void deleteFlowSpec() throws Exception {
     // Since only 1 Flow has been added in previous test it should be available
     IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
-    SpecExecutor sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutorInstance();
+    SpecExecutor sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutor();
 
     // List Current Specs
     Collection<Spec> specs = flowCatalog.getSpecs();

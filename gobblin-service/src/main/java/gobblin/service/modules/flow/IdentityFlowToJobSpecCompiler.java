@@ -19,7 +19,6 @@ package gobblin.service.modules.flow;
 
 import gobblin.runtime.api.ServiceNode;
 import gobblin.runtime.api.SpecExecutor;
-import gobblin.runtime.api.SpecProducer;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -64,12 +63,12 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   @Override
-  public Map<Spec, SpecProducer> compileFlow(Spec spec) {
+  public Map<Spec, SpecExecutor> compileFlow(Spec spec) {
     Preconditions.checkNotNull(spec);
     Preconditions.checkArgument(spec instanceof FlowSpec, "IdentityFlowToJobSpecCompiler only converts FlowSpec to JobSpec");
 
     long startTime = System.nanoTime();
-    Map<Spec, SpecProducer> specExecutorInstanceMap = Maps.newLinkedHashMap();
+    Map<Spec, SpecExecutor> specExecutorMap = Maps.newLinkedHashMap();
 
     FlowSpec flowSpec = (FlowSpec) spec;
     String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);
@@ -80,19 +79,19 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
 
     for (TopologySpec topologySpec : topologySpecMap.values()) {
       try {
-        Map<ServiceNode, ServiceNode> capabilities = (Map<ServiceNode, ServiceNode>) topologySpec.getSpecExecutorInstance().getCapabilities().get();
+        Map<ServiceNode, ServiceNode> capabilities = (Map<ServiceNode, ServiceNode>) topologySpec.getSpecExecutor().getCapabilities().get();
         for (Map.Entry<ServiceNode, ServiceNode> capability : capabilities.entrySet()) {
           log.info(String.format("Evaluating current JobSpec: %s against TopologySpec: %s with "
               + "capability of source: %s and destination: %s ", jobSpec.getUri(),
               topologySpec.getUri(), capability.getKey(), capability.getValue()));
           if (source.equals(capability.getKey().getNodeName()) && destination.equals(capability.getValue().getNodeName())) {
-            specExecutorInstanceMap.put(jobSpec, topologySpec.getSpecExecutorInstance());
+            specExecutorMap.put(jobSpec, topologySpec.getSpecExecutor());
             log.info(String.format("Current JobSpec: %s is executable on TopologySpec: %s. Added TopologySpec as candidate.",
                 jobSpec.getUri(), topologySpec.getUri()));
 
             log.info("Since we found a candidate executor, we will not try to compute more. "
                 + "(Intended limitation for IdentityFlowToJobSpecCompiler)");
-            return specExecutorInstanceMap;
+            return specExecutorMap;
           }
         }
       } catch (InterruptedException | ExecutionException e) {
@@ -103,6 +102,12 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     Instrumented.markMeter(this.flowCompilationSuccessFulMeter);
     Instrumented.updateTimer(this.flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
 
-    return specExecutorInstanceMap;
+    return specExecutorMap;
+  }
+
+  @Override
+  protected void populateEdgeTemplateMap() {
+    log.warn("No population of templates based on edge happen in this implementation");
+    return;
   }
 }

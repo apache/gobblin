@@ -17,6 +17,7 @@
 
 package gobblin.service.modules.topology;
 
+import gobblin.runtime.api.SpecExecutor;
 import gobblin.runtime.api.SpecProducer;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
@@ -45,7 +46,7 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
   private static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
   private final Config _config;
   private final Logger _log;
-  private final ClassAliasResolver<SpecProducer> _aliasResolver;
+  private final ClassAliasResolver<SpecExecutor> _aliasResolver;
 
   public ConfigBasedTopologySpecFactory(Config config) {
     this(config, Optional.<Logger>absent());
@@ -55,7 +56,7 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
     Preconditions.checkNotNull(config, "Config should not be null");
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     _config = config;
-    _aliasResolver = new ClassAliasResolver<>(SpecProducer.class);
+    _aliasResolver = new ClassAliasResolver<>(SpecExecutor.class);
   }
 
   @Override
@@ -75,16 +76,16 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
       String description = ConfigUtils.getString(topologyConfig, ServiceConfigKeys.TOPOLOGYSPEC_DESCRIPTION_KEY, "NA");
       String version = ConfigUtils.getString(topologyConfig, ServiceConfigKeys.TOPOLOGYSPEC_VERSION_KEY, "-1");
 
-      String specExecutorInstanceProducerClass = ServiceConfigKeys.DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER;
-      if (topologyConfig.hasPath(ServiceConfigKeys.SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY)) {
-        specExecutorInstanceProducerClass = topologyConfig.getString(ServiceConfigKeys.SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY);
+      String specExecutorClass = ServiceConfigKeys.DEFAULT_SPEC_EXECUTOR;
+      if (topologyConfig.hasPath(ServiceConfigKeys.SPEC_EXECUTOR_KEY)) {
+        specExecutorClass = topologyConfig.getString(ServiceConfigKeys.SPEC_EXECUTOR_KEY);
       }
-      SpecProducer specExecutorInstanceProducer;
+      SpecExecutor specExecutor;
       try {
-        _log.info("Using SpecProducer class name/alias " + specExecutorInstanceProducerClass);
-        specExecutorInstanceProducer = (SpecProducer) ConstructorUtils
+        _log.info("Using SpecProducer class name/alias " + specExecutorClass);
+        specExecutor = (SpecExecutor) ConstructorUtils
             .invokeConstructor(Class.forName(_aliasResolver
-                .resolve(specExecutorInstanceProducerClass)), topologyConfig);
+                .resolve(specExecutorClass)), topologyConfig);
       } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
           | ClassNotFoundException e) {
         throw new RuntimeException(e);
@@ -95,7 +96,7 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
           .withConfig(topologyConfig)
           .withDescription(description)
           .withVersion(version)
-          .withSpecExecutorInstanceProducer(specExecutorInstanceProducer);
+          .withSpecExecutor(specExecutor);
       topologySpecs.add(topologySpecBuilder.build());
     }
 
