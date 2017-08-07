@@ -21,41 +21,25 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Properties;
-import java.util.regex.Pattern;
 
-import org.apache.hadoop.fs.Path;
-
-import com.codahale.metrics.Counter;
-import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValue;
 
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
-import gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
 import gobblin.metrics.reporter.util.SchemaVersionWriter;
 import gobblin.runtime.api.GobblinInstanceDriver;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecMonitor;
 import gobblin.runtime.api.JobSpecMonitorFactory;
 import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.api.SpecExecutorInstance;
-import gobblin.runtime.api.SpecExecutorInstance.Verb;
+import gobblin.runtime.api.SpecExecutor.Verb;
 import gobblin.runtime.job_spec.AvroJobSpec;
-import gobblin.runtime.metrics.RuntimeMetrics;
 import gobblin.util.Either;
-import gobblin.util.PathUtils;
 import gobblin.util.reflection.GobblinConstructorUtils;
-import kafka.message.MessageAndMetadata;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

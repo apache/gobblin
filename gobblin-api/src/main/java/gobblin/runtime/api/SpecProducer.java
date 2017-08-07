@@ -17,19 +17,30 @@
 
 package gobblin.runtime.api;
 
-public interface FlowEdgeMetric<T> {
-  /**
-   * @return An abstraction of instance/cluster load of a specExecutor, will be considered as important reference for
-   * edge weight in graph.
-   */
-  double getFlowEdgeLoad();
+import java.net.URI;
+import java.util.List;
+import java.util.concurrent.Future;
 
-  void setFlowEdgeLoad(double load);
+import gobblin.annotation.Alpha;
 
-  /**
-   * Once there are multiple metrics to evaluate a FlowEdge being defined,
-   * there should be a way to combine different metrics to evaluate a edge.
-   * @return The combined result of all metrics to be considered for evaluating a {@link FlowEdge}
-   */
-  T getCombinedMetric();
+
+/**
+ * Defines a SpecProducer to produce jobs to {@link SpecExecutor}
+ * that can execute a {@link Spec}.
+ *
+ * A handle on the Orchestrator side to send {@link Spec}s.
+ */
+@Alpha
+public interface SpecProducer<V> {
+  /** Add a {@link Spec} for execution on {@link SpecExecutor}. */
+  Future<?> addSpec(V addedSpec);
+
+  /** Update a {@link Spec} being executed on {@link SpecExecutor}. */
+  Future<?> updateSpec(V updatedSpec);
+
+  /** Delete a {@link Spec} being executed on {@link SpecExecutor}. */
+  Future<?> deleteSpec(URI deletedSpecURI);
+
+  /** List all {@link Spec} being executed on {@link SpecExecutor}. */
+  Future<? extends List<V>> listSpecs();
 }

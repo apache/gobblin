@@ -21,6 +21,8 @@ import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import gobblin.runtime.api.BaseServiceNodeImpl;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
+import gobblin.runtime.api.SpecExecutor;
+import gobblin.runtime.api.SpecProducer;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.job_spec.ResolvedJobSpec;
 import java.net.URI;
@@ -29,6 +31,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.lang3.StringUtils;
@@ -47,7 +50,6 @@ import gobblin.runtime.api.ServiceNode;
 import gobblin.runtime.api.FlowSpec;
 import gobblin.instrumented.Instrumented;
 import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.service.ServiceConfigKeys;
 
@@ -81,10 +83,8 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   // TODO: The way for injecting/updating edge weight need to be defined.
   private boolean edgeWeightEnabled = false;
 
-  // Default setting for FlowEdgeMetric, which is totally based on DefaultLoad as a constant.
-  // Will change all usage of {@link #defaultFlowEdgeMetric} once there's well-defined way to inject edge metric information.
-  private static int DEFAULT_SPEC_EXECUTOR_LOAD = 1 ;
-  private BaseFlowEdgeMetricImpl defaultFlowEdgeMetric = new BaseFlowEdgeMetricImpl(this.DEFAULT_SPEC_EXECUTOR_LOAD);
+
+  private FlowEdgeProps defaultFlowEdgeProps = new FlowEdgeProps(new Properties());
 
 
   public MultiHopsFlowToJobSpecCompiler(Config config){
@@ -125,10 +125,10 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   @Override
-  public Map<Spec, SpecExecutorInstanceProducer> compileFlow(Spec spec) {
-    // A Map from JobSpec to SpecExecutorInstanceProducer
+  public Map<Spec, SpecExecutor> compileFlow(Spec spec) {
+    // A Map from JobSpec to SpecProducer
     // TODO: Understand when multiple enties are put into this map, how the execution of them being proceeded.
-    Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = Maps.newLinkedHashMap();
+    Map<Spec, SpecExecutor> specExecutorInstanceMap = Maps.newLinkedHashMap();
     pathFinding(specExecutorInstanceMap, spec);
     return specExecutorInstanceMap;
   }
@@ -140,7 +140,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
    * be re-calculated.
    *
    * TODO: Have finer granularity of edge filtering, which is removing a triplet of <SourceNode, targetNode, SpecExectorInstance>
-   *   But this could involve more knowledge from users where they are required to specify SpecExecutorInstance as well.
+   *   But this could involve more knowledge from users where they are required to specify SpecExecutor as well.
    */
   private void inMemoryWeightGraphGenerator(){
     for( TopologySpec topologySpec : topologySpecMap.values()) {
@@ -174,7 +174,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   // TODO: It is expected to introduce stronger locking mechanism to ensure when pathFinding is going on
   // there's no updates on TopologySpec, or user should be aware of the possibility
   // that a topologySpec not being reflected in pathFinding.
-  private void pathFinding(Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap, Spec spec){
+  private void pathFinding(Map<Spec, SpecExecutor> specExecutorInstanceMap, Spec spec){
     inMemoryWeightGraphGenerator();
     FlowSpec flowSpec = (FlowSpec) spec;
     if (optionalUserSpecifiedPath.isPresent()) {
@@ -197,7 +197,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       ServiceNode edgeSrcNode = ((LoadBasedFlowEdgeImpl)tmpFlowEdge).getSourceNode();
       ServiceNode edgeTgtNode = ((LoadBasedFlowEdgeImpl)tmpFlowEdge).getTargetNode();
       specExecutorInstanceMap.put(jobSpecGenerator(edgeSrcNode, edgeTgtNode, flowSpec),
-          ((LoadBasedFlowEdgeImpl)(resultEdgePath.get(i))).getSpecExecutorInstanceProducer());
+          ((LoadBasedFlowEdgeImpl)(resultEdgePath.get(i))).getSpecExecutorInstance());
     }
   }
 
@@ -211,8 +211,8 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
 
   // If path specified not existed, return false;
   // else return true.
-  private boolean userSpecifiedPathVerificator(Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap, FlowSpec flowSpec){
-    Map<Spec, SpecExecutorInstanceProducer> tmpSpecExecutorInstanceMap = new HashMap<>();
+  private boolean userSpecifiedPathVerificator(Map<Spec, SpecExecutor> specExecutorInstanceMap, FlowSpec flowSpec){
+    Map<Spec, SpecExecutor> tmpSpecExecutorInstanceMap = new HashMap<>();
     List<String> userSpecfiedPath = Arrays.asList(optionalUserSpecifiedPath.get().split(","));
     for (int i = 0 ; i < userSpecfiedPath.size() - 1 ; i ++ ) {
       ServiceNode sourceNode = new BaseServiceNodeImpl(userSpecfiedPath.get(i));
@@ -220,7 +220,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       if (weightedGraph.containsVertex(sourceNode) && weightedGraph.containsVertex(targetNode) &&
       weightedGraph.containsEdge(sourceNode, targetNode)) {
         tmpSpecExecutorInstanceMap.put(jobSpecGenerator(sourceNode, targetNode, flowSpec),
-            (((LoadBasedFlowEdgeImpl)weightedGraph.getEdge(sourceNode, targetNode)).getSpecExecutorInstanceProducer()));
+            (((LoadBasedFlowEdgeImpl)weightedGraph.getEdge(sourceNode, targetNode)).getSpecExecutorInstance()));
       }
       else {
         log.error("User Specified Path is invalid");
@@ -235,7 +235,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   private void weightGraphGenerateHelper(TopologySpec topologySpec){
     try{
       Map<ServiceNode, ServiceNode> capabilities =
-          topologySpec.getSpecExecutorInstanceProducer().getCapabilities().get();
+          topologySpec.getSpecExecutorInstance().getCapabilities().get();
       for (Map.Entry<ServiceNode, ServiceNode> capability : capabilities.entrySet()) {
         ServiceNode sourceNode = capability.getKey();
         ServiceNode targetNode = capability.getValue();
@@ -247,7 +247,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
         }
 
         FlowEdge flowEdge = new LoadBasedFlowEdgeImpl
-            (sourceNode, targetNode, defaultFlowEdgeMetric, topologySpec.getSpecExecutorInstanceProducer());
+            (sourceNode, targetNode, defaultFlowEdgeProps, topologySpec.getSpecExecutorInstance());
 
         // In Multi-Graph if flowEdge existed, just skip it.
         if (!weightedGraph.containsEdge(flowEdge)) {

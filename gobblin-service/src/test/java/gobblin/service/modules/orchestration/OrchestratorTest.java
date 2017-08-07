@@ -17,6 +17,9 @@
 
 package gobblin.service.modules.orchestration;
 
+import gobblin.runtime.api.SpecExecutor;
+import gobblin.runtime.api.SpecProducer;
+import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -40,13 +43,10 @@ import com.typesafe.config.Config;
 
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecCompiler;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.runtime.spec_catalog.FlowCatalog;
 import gobblin.runtime.spec_catalog.TopologyCatalog;
-import gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
 import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 import gobblin.util.ConfigUtils;
 import gobblin.util.PathUtils;
@@ -120,14 +120,14 @@ public class OrchestratorTest {
     properties.put("specExecInstance.capabilities", "source:destination");
     Config config = ConfigUtils.propertiesToConfig(properties);
 
-    SpecExecutorInstanceProducer specExecutorInstanceProducer = new InMemorySpecExecutorInstanceProducer(config);
+    SpecExecutor specExecutorInstance = new InMemorySpecExecutor(config);
 
     TopologySpec.Builder topologySpecBuilder = TopologySpec.builder(computeTopologySpecURI(SPEC_STORE_PARENT_DIR,
         TOPOLOGY_SPEC_STORE_DIR))
         .withConfig(config)
         .withDescription(SPEC_DESCRIPTION)
         .withVersion(SPEC_VERSION)
-        .withSpecExecutorInstanceProducer(specExecutorInstanceProducer);
+        .withSpecExecutorInstanceProducer(specExecutorInstance);
     return topologySpecBuilder.build();
   }
 
@@ -138,8 +138,6 @@ public class OrchestratorTest {
     properties.put("gobblin.flow.sourceIdentifier", "source");
     properties.put("gobblin.flow.destinationIdentifier", "destination");
     Config config = ConfigUtils.propertiesToConfig(properties);
-
-    SpecExecutorInstanceProducer specExecutorInstanceProducer = new InMemorySpecExecutorInstanceProducer(config);
 
     FlowSpec.Builder flowSpecBuilder = null;
     try {
@@ -209,10 +207,10 @@ public class OrchestratorTest {
 
   @Test (dependsOnMethods = "createTopologySpec")
   public void createFlowSpec() throws Exception {
-    // Since only 1 Topology with 1 SpecExecutorInstanceProducer has been added in previous test
+    // Since only 1 Topology with 1 SpecProducer has been added in previous test
     // .. it should be available and responsible for our new FlowSpec
     IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
-    SpecExecutorInstanceProducer sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutorInstanceProducer();
+    SpecExecutor sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutorInstance();
 
     // List Current Specs
     Collection<Spec> specs = flowCatalog.getSpecs();
@@ -225,7 +223,7 @@ public class OrchestratorTest {
     // Make sure FlowCatalog is empty
     Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
     // Make sure FlowCatalog Listener is empty
-    Assert.assertTrue(((List)(sei.listSpecs().get())).size() == 0, "SpecExecutorInstanceProducer should not know about "
+    Assert.assertTrue(((List)(sei.getProducer().get().listSpecs().get())).size() == 0, "SpecProducer should not know about "
         + "any Flow before addition");
 
     // Create and add Spec
@@ -243,7 +241,7 @@ public class OrchestratorTest {
     // Make sure FlowCatalog has the added Flow
     Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Spec after addition");
     // Orchestrator is a no-op listener for any new FlowSpecs
-    Assert.assertTrue(((List)(sei.listSpecs().get())).size() == 0, "SpecExecutorInstanceProducer should contain 0 "
+    Assert.assertTrue(((List)(sei.getProducer().get().listSpecs().get())).size() == 0, "SpecProducer should contain 0 "
         + "Spec after addition");
   }
 
@@ -251,7 +249,7 @@ public class OrchestratorTest {
   public void deleteFlowSpec() throws Exception {
     // Since only 1 Flow has been added in previous test it should be available
     IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
-    SpecExecutorInstanceProducer sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutorInstanceProducer();
+    SpecExecutor sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutorInstance();
 
     // List Current Specs
     Collection<Spec> specs = flowCatalog.getSpecs();
@@ -264,8 +262,8 @@ public class OrchestratorTest {
     // Make sure FlowCatalog has the previously added Flow
     Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Flow that was added in last test");
     // Orchestrator is a no-op listener for any new FlowSpecs, so no FlowSpecs should be around
-    int specsInSEI = ((List)(sei.listSpecs().get())).size();
-    Assert.assertTrue(specsInSEI == 0, "SpecExecutorInstanceProducer should contain 0 "
+    int specsInSEI = ((List)(sei.getProducer().get().listSpecs().get())).size();
+    Assert.assertTrue(specsInSEI == 0, "SpecProducer should contain 0 "
         + "Spec after addition because Orchestrator is a no-op listener for any new FlowSpecs");
 
     // Remove the flow
@@ -283,8 +281,8 @@ public class OrchestratorTest {
     // Make sure FlowCatalog has the Flow removed
     Assert.assertTrue(specs.size() == 0, "Spec store should not contain Spec after deletion");
     // Make sure FlowCatalog Listener knows about the deletion
-    specsInSEI = ((List)(sei.listSpecs().get())).size();
-    Assert.assertTrue(specsInSEI == 0, "SpecExecutorInstanceProducer should not contain "
+    specsInSEI = ((List)(sei.getProducer().get().listSpecs().get())).size();
+    Assert.assertTrue(specsInSEI == 0, "SpecProducer should not contain "
         + "Spec after deletion");
   }
 }

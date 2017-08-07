@@ -17,15 +17,14 @@
 
 package gobblin.service;
 
-import java.io.File;
-import java.io.IOException;
+import gobblin.runtime.api.SpecExecutor;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -33,53 +32,31 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
-import com.typesafe.config.Config;
-
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.kafka.writer.KafkaWriterConfigurationKeys;
 import gobblin.metrics.reporter.KafkaTestBase;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstance;
-import gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
 import gobblin.util.ConfigUtils;
 import gobblin.writer.WriteResponse;
-import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
-public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
+public class SimpleKafkaSpecExecutorTest extends KafkaTestBase {
 
-  public static final String TOPIC = StreamingKafkaSpecExecutorInstanceTest.class.getSimpleName();
+  public static final String TOPIC = SimpleKafkaSpecExecutorTest.class.getSimpleName();
 
   private Closer _closer;
   private Properties _properties;
-  private SimpleKafkaSpecExecutorInstanceProducer _seip;
-  private StreamingKafkaSpecExecutorInstanceConsumer _seic;
-  private NonObservingFSJobCatalog _jobCatalog;
+  private SimpleKafkaSpecProducer _seip;
+  private SimpleKafkaSpecConsumer _seic;
   private String _kafkaBrokers;
-  private static final String _TEST_DIR_PATH = "/tmp/StreamingKafkaSpecExecutorInstanceTest";
-  private static final String _JOBS_DIR_PATH = _TEST_DIR_PATH + "/jobs";
 
-  public StreamingKafkaSpecExecutorInstanceTest()
+  public SimpleKafkaSpecExecutorTest()
       throws InterruptedException, RuntimeException {
     super(TOPIC);
     _kafkaBrokers = "localhost:" + kafkaPort;
     log.info("Going to use Kakfa broker: " + _kafkaBrokers);
-
-    cleanupTestDir();
-  }
-
-  private void cleanupTestDir() {
-    File testDir = new File(_TEST_DIR_PATH);
-
-    if (testDir.exists()) {
-      try {
-        FileUtils.deleteDirectory(testDir);
-      } catch (IOException e) {
-        throw new RuntimeException("Could not delete test directory", e);
-      }
-    }
   }
 
   @Test
@@ -93,67 +70,84 @@ public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
     _properties.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
 
     // Properties for Consumer
-    _properties.setProperty("jobSpecMonitor.kafka.zookeeper.connect", zkConnect);
-    _properties.setProperty(SimpleKafkaSpecExecutorInstanceProducer.SPEC_KAFKA_TOPICS_KEY, TOPIC);
-    _properties.setProperty("gobblin.cluster.jobconf.fullyQualifiedPath", _JOBS_DIR_PATH);
-
-    Config config = ConfigUtils.propertiesToConfig(_properties);
+    _properties.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
+    _properties.setProperty(SimpleKafkaSpecExecutor.SPEC_KAFKA_TOPICS_KEY, TOPIC);
 
     // SEI Producer
-    _seip = _closer.register(new SimpleKafkaSpecExecutorInstanceProducer(config));
+    _seip = _closer.register(new SimpleKafkaSpecProducer(ConfigUtils.propertiesToConfig(_properties)));
 
     String addedSpecUriString = "/foo/bar/addedSpec";
     Spec spec = initJobSpec(addedSpecUriString);
     WriteResponse writeResponse = (WriteResponse) _seip.addSpec(spec).get();
     log.info("WriteResponse: " + writeResponse);
 
-    _jobCatalog = new NonObservingFSJobCatalog(config.getConfig("gobblin.cluster"));
-    _jobCatalog.startAsync().awaitRunning();
+    try {
+      Thread.sleep(1000);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
 
-    // SEI Consumer
-    _seic = _closer.register(new StreamingKafkaSpecExecutorInstanceConsumer(config, _jobCatalog));
-    _seic.startAsync().awaitRunning();
+    _seic = _closer.register(new SimpleKafkaSpecConsumer(ConfigUtils.propertiesToConfig(_properties)));
 
-    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
-    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.ADD), "Verb did not match");
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.ADD), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(addedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
   @Test (dependsOnMethods = "testAddSpec")
   public void testUpdateSpec() throws Exception {
-    // update is only treated as an update for existing job specs
-    String updatedSpecUriString = "/foo/bar/addedSpec";
+    String updatedSpecUriString = "/foo/bar/updatedSpec";
     Spec spec = initJobSpec(updatedSpecUriString);
     WriteResponse writeResponse = (WriteResponse) _seip.updateSpec(spec).get();
     log.info("WriteResponse: " + writeResponse);
 
-    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    try {
+      Thread.sleep(1000);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
-    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.UPDATE), "Verb did not match");
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.UPDATE), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(updatedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
   @Test (dependsOnMethods = "testUpdateSpec")
   public void testDeleteSpec() throws Exception {
-    // delete needs to be on a job spec that exists to get notification
-    String deletedSpecUriString = "/foo/bar/addedSpec";
+    String deletedSpecUriString = "/foo/bar/deletedSpec";
     WriteResponse writeResponse = (WriteResponse) _seip.deleteSpec(new URI(deletedSpecUriString)).get();
     log.info("WriteResponse: " + writeResponse);
 
-    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    try {
+      Thread.sleep(1000);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
-    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.DELETE), "Verb did not match");
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.DELETE), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(deletedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
+  }
+
+  @Test (dependsOnMethods = "testDeleteSpec")
+  public void testResetConsumption() throws Exception {
+    SimpleKafkaSpecConsumer seic = _closer
+        .register(new SimpleKafkaSpecConsumer(ConfigUtils.propertiesToConfig(_properties)));
+
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = seic.changedSpecs().get();
+    Assert.assertTrue(consumedEvent.size() == 3, "Consumption was reset, we should see all events");
   }
 
   private JobSpec initJobSpec(String specUri) {
@@ -177,12 +171,6 @@ public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
     } catch(Exception e) {
       log.error("Failed to close Kafka server.", e);
     }
-
-    if (_jobCatalog != null) {
-      _jobCatalog.stopAsync().awaitTerminated();
-    }
-
-    cleanupTestDir();
   }
 
   @AfterSuite

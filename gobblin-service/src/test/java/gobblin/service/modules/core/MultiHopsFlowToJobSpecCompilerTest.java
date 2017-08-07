@@ -22,9 +22,10 @@ import gobblin.runtime.api.BaseServiceNodeImpl;
 import gobblin.runtime.api.FlowEdge;
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.ServiceNode;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
+import gobblin.runtime.api.SpecExecutor;
+import gobblin.runtime.api.SpecProducer;
 import gobblin.runtime.api.TopologySpec;
-import gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
+import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import gobblin.service.ServiceConfigKeys;
 import gobblin.service.modules.flow.LoadBasedFlowEdgeImpl;
 import gobblin.service.modules.flow.MultiHopsFlowToJobSpecCompiler;
@@ -143,9 +144,9 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     Assert.assertTrue(weightedGraph.containsVertex(vertexHopB));
     Assert.assertTrue(weightedGraph.containsVertex(vertexSink));
 
-    FlowEdge edgeSrc2A = new LoadBasedFlowEdgeImpl(vertexSource, vertexHopA, topologySpec.getSpecExecutorInstanceProducer());
-    FlowEdge edgeA2B = new LoadBasedFlowEdgeImpl(vertexHopA, vertexHopB, topologySpec.getSpecExecutorInstanceProducer());
-    FlowEdge edgeB2Sink = new LoadBasedFlowEdgeImpl(vertexHopB, vertexSink, topologySpec.getSpecExecutorInstanceProducer());
+    FlowEdge edgeSrc2A = new LoadBasedFlowEdgeImpl(vertexSource, vertexHopA, topologySpec.getSpecExecutorInstance());
+    FlowEdge edgeA2B = new LoadBasedFlowEdgeImpl(vertexHopA, vertexHopB, topologySpec.getSpecExecutorInstance());
+    FlowEdge edgeB2Sink = new LoadBasedFlowEdgeImpl(vertexHopB, vertexSink, topologySpec.getSpecExecutorInstance());
 
     Assert.assertTrue( weightedGraph.containsEdge(edgeSrc2A));
     Assert.assertTrue( weightedGraph.containsEdge(edgeA2B));
@@ -209,7 +210,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     capabilitiesString = capabilitiesString.substring(0, capabilitiesString.length() - 1 );
     properties.put("specExecInstance.capabilities", capabilitiesString);
     Config config = ConfigUtils.propertiesToConfig(properties);
-    SpecExecutorInstanceProducer specExecutorInstanceProducer = new InMemorySpecExecutorInstanceProducer(config);
+    SpecExecutor specExecutorInstance = new InMemorySpecExecutor(config);
 
     TopologySpec.Builder topologySpecBuilder = TopologySpec.builder(
         IdentityFlowToJobSpecCompilerTest.computeTopologySpecURI(SPEC_STORE_PARENT_DIR,
@@ -217,7 +218,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
         .withConfig(config)
         .withDescription(SPEC_DESCRIPTION)
         .withVersion(SPEC_VERSION)
-        .withSpecExecutorInstanceProducer(specExecutorInstanceProducer);
+        .withSpecExecutorInstanceProducer(specExecutorInstance);
     return topologySpecBuilder.build();
   }
 
@@ -261,7 +262,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
         ((LoadBasedFlowEdgeImpl)a).getEdgeLoad() == ((LoadBasedFlowEdgeImpl)b).getEdgeLoad());
   }
 
-  // Use this function for 
+  // Use this function for
   private void populateTemplateMap(WeightedMultigraph<ServiceNode, FlowEdge> weightedGraph, URI exempliedURI){
     this.edgeTemplateMap.clear();
     Set<FlowEdge> allEdges = weightedGraph.edgeSet();

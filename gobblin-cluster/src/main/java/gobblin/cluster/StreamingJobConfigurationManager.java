@@ -17,6 +17,7 @@
 
 package gobblin.cluster;
 
+import gobblin.runtime.api.SpecConsumer;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Properties;
@@ -39,8 +40,7 @@ import gobblin.annotation.Alpha;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstance;
-import gobblin.runtime.api.SpecExecutorInstanceConsumer;
+import gobblin.runtime.api.SpecExecutor;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
@@ -48,7 +48,7 @@ import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
- * A {@link JobConfigurationManager} that fetches job specs from a {@link SpecExecutorInstanceConsumer} in a loop
+ * A {@link JobConfigurationManager} that fetches job specs from a {@link SpecConsumer} in a loop
  * without
  */
 @Alpha
@@ -57,7 +57,7 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
   private final ExecutorService fetchJobSpecExecutor;
 
-  private final SpecExecutorInstanceConsumer specExecutorInstanceConsumer;
+  private final SpecConsumer _specConsumer;
 
   private final long stopTimeoutSeconds;
 
@@ -71,23 +71,23 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("FetchJobSpecExecutor")));
 
     String specExecutorInstanceConsumerClassName =
-        ConfigUtils.getString(config, GobblinClusterConfigurationKeys.SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS_KEY,
-            GobblinClusterConfigurationKeys.DEFAULT_STREAMING_SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS);
+        ConfigUtils.getString(config, GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY,
+            GobblinClusterConfigurationKeys.DEFAULT_STREAMING_SPEC_CONSUMER_CLASS);
 
-    LOGGER.info("Using SpecExecutorInstanceConsumer ClassNameclass name/alias " +
+    LOGGER.info("Using SpecConsumer ClassNameclass name/alias " +
         specExecutorInstanceConsumerClassName);
 
     try {
-      ClassAliasResolver<SpecExecutorInstanceConsumer> aliasResolver =
-          new ClassAliasResolver<>(SpecExecutorInstanceConsumer.class);
+      ClassAliasResolver<SpecConsumer> aliasResolver =
+          new ClassAliasResolver<>(SpecConsumer.class);
 
-      this.specExecutorInstanceConsumer = (SpecExecutorInstanceConsumer) GobblinConstructorUtils.invokeFirstConstructor(
+      this._specConsumer = (SpecConsumer) GobblinConstructorUtils.invokeFirstConstructor(
           Class.forName(aliasResolver.resolve(specExecutorInstanceConsumerClassName)),
           ImmutableList.<Object>of(config, jobCatalog),
           ImmutableList.<Object>of(config));
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
           | ClassNotFoundException e) {
-      throw new RuntimeException("Could not construct SpecExecutorInstanceConsumer " +
+      throw new RuntimeException("Could not construct SpecConsumer " +
           specExecutorInstanceConsumerClassName, e);
     }
   }
@@ -97,8 +97,8 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
     LOGGER.info("Starting the " + StreamingJobConfigurationManager.class.getSimpleName());
 
     // if the instance consumer is a service then need to start it to consume job specs
-    if (this.specExecutorInstanceConsumer instanceof Service) {
-      ((Service) this.specExecutorInstanceConsumer).startAsync().awaitRunning();
+    if (this._specConsumer instanceof Service) {
+      ((Service) this._specConsumer).startAsync().awaitRunning();
     }
 
     // submit command to fetch job specs
@@ -120,25 +120,25 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
   }
 
   private void fetchJobSpecs() throws ExecutionException, InterruptedException {
-    List<Pair<SpecExecutorInstance.Verb, Spec>> changesSpecs =
-        (List<Pair<SpecExecutorInstance.Verb, Spec>>) this.specExecutorInstanceConsumer.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, Spec>> changesSpecs =
+        (List<Pair<SpecExecutor.Verb, Spec>>) this._specConsumer.changedSpecs().get();
 
     // propagate thread interruption so that caller will exit from loop
     if (Thread.interrupted()) {
       throw new InterruptedException();
     }
 
-    for (Pair<SpecExecutorInstance.Verb, Spec> entry : changesSpecs) {
-      SpecExecutorInstance.Verb verb = entry.getKey();
-      if (verb.equals(SpecExecutorInstance.Verb.ADD)) {
+    for (Pair<SpecExecutor.Verb, Spec> entry : changesSpecs) {
+      SpecExecutor.Verb verb = entry.getKey();
+      if (verb.equals(SpecExecutor.Verb.ADD)) {
         // Handle addition
         JobSpec jobSpec = (JobSpec) entry.getValue();
         postNewJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
-      } else if (verb.equals(SpecExecutorInstanceConsumer.Verb.UPDATE)) {
+      } else if (verb.equals(SpecExecutor.Verb.UPDATE)) {
         // Handle update
         JobSpec jobSpec = (JobSpec) entry.getValue();
         postUpdateJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
-      } else if (verb.equals(SpecExecutorInstanceConsumer.Verb.DELETE)) {
+      } else if (verb.equals(SpecExecutor.Verb.DELETE)) {
         // Handle delete
         Spec anonymousSpec = (Spec) entry.getValue();
         postDeleteJobConfigArrival(anonymousSpec.getUri().toString(), new Properties());
@@ -148,8 +148,8 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
   @Override
   protected void shutDown() throws Exception {
-    if (this.specExecutorInstanceConsumer instanceof Service) {
-      ((Service) this.specExecutorInstanceConsumer).stopAsync().awaitTerminated(this.stopTimeoutSeconds,
+    if (this._specConsumer instanceof Service) {
+      ((Service) this._specConsumer).stopAsync().awaitTerminated(this.stopTimeoutSeconds,
           TimeUnit.SECONDS);
     }
 

@@ -17,28 +17,38 @@
 
 package gobblin.service.modules.flow;
 
-import gobblin.runtime.api.FlowEdgeMetric;
+import java.util.Properties;
+
+import static gobblin.service.ServiceConfigKeys.*;
+
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-
 @Data
 @Slf4j
-public class BaseFlowEdgeMetricImpl implements FlowEdgeMetric {
-  public double flowEdgeLoad;
+public class FlowEdgeProps {
 
-  public BaseFlowEdgeMetricImpl(double load){
-    this.flowEdgeLoad = load;
+  private Properties properties;
+
+  private static final double DEFAULT_EDGE_LOAD = 1.0;
+  private static final boolean DEFAULT_EDGE_SAFETY = true;
+
+  public FlowEdgeProps(Properties props){
+    this.properties = props;
   }
 
-  @Override
-  public double getFlowEdgeLoad() {
-    return this.flowEdgeLoad;
+  /**
+   * When initializing an edge, load and security value from properties will be used
+   * but could be overriden afterwards.
+   */
+  public boolean getInitialEdgeSafety(){
+    return  properties.containsKey(EDGE_SECURITY_KEY) ?
+        Boolean.parseBoolean(properties.getProperty(EDGE_SECURITY_KEY)) : DEFAULT_EDGE_SAFETY;
   }
 
-  @Override
-  public Object getCombinedMetric() {
-    log.warn("There's no implementation for combined metric at " + this.getClass().getName());
-    return null;
+  public double getInitialEdgeLoad(){
+    return properties.contains(INITIAL_LOAD) ?
+        Double.parseDouble(properties.getProperty(INITIAL_LOAD)) : DEFAULT_EDGE_LOAD;
   }
+
 }

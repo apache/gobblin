@@ -25,7 +25,6 @@ import java.util.concurrent.Future;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import org.apache.avro.mapred.AvroJob;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
@@ -33,59 +32,63 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import gobblin.runtime.api.SpecExecutor;
+import gobblin.runtime.api.SpecProducer;
 import gobblin.kafka.writer.Kafka08DataWriter;
 import gobblin.metrics.reporter.util.AvroBinarySerializer;
 import gobblin.metrics.reporter.util.AvroSerializer;
 import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.runtime.job_spec.AvroJobSpec;
 import gobblin.util.ConfigUtils;
 import gobblin.writer.WriteCallback;
+import static gobblin.service.SimpleKafkaSpecExecutor.*;
 
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @NotThreadSafe
-public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExecutorInstance
-    implements SpecExecutorInstanceProducer<Spec>, Closeable  {
+public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
   // Producer
   protected Kafka08DataWriter<byte[]> _kafka08Producer;
   private final AvroSerializer<AvroJobSpec> _serializer;
+  private Config _config;
 
-  public SimpleKafkaSpecExecutorInstanceProducer(Config config, Optional<Logger> log) {
-    super(config, log);
+  public SimpleKafkaSpecProducer(Config config, Optional<Logger> log) {
 
     try {
       _serializer = new AvroBinarySerializer<>(AvroJobSpec.SCHEMA$, new FixedSchemaVersionWriter());
+      _config = config;
     } catch (IOException e) {
       throw new RuntimeException("Could not create AvroBinarySerializer", e);
     }
   }
 
-  public SimpleKafkaSpecExecutorInstanceProducer(Config config, Logger log) {
+  public SimpleKafkaSpecProducer(Config config, Logger log) {
     this(config, Optional.of(log));
   }
 
   /** Constructor with no logging */
-  public SimpleKafkaSpecExecutorInstanceProducer(Config config) {
+  public SimpleKafkaSpecProducer(Config config) {
     this(config, Optional.<Logger>absent());
   }
 
   @Override
   public Future<?> addSpec(Spec addedSpec) {
-    AvroJobSpec avroJobSpec = convertToAvroJobSpec(addedSpec, Verb.ADD);
+    AvroJobSpec avroJobSpec = convertToAvroJobSpec(addedSpec, SpecExecutor.Verb.ADD);
 
-    _log.info("Adding Spec: " + addedSpec + " using Kafka.");
+    log.info("Adding Spec: " + addedSpec + " using Kafka.");
 
     return getKafka08Producer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }
 
   @Override
   public Future<?> updateSpec(Spec updatedSpec) {
-    AvroJobSpec avroJobSpec = convertToAvroJobSpec(updatedSpec, Verb.UPDATE);
+    AvroJobSpec avroJobSpec = convertToAvroJobSpec(updatedSpec, SpecExecutor.Verb.UPDATE);
 
-    _log.info("Updating Spec: " + updatedSpec + " using Kafka.");
+    log.info("Updating Spec: " + updatedSpec + " using Kafka.");
 
     return getKafka08Producer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }
@@ -96,7 +99,7 @@ public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExec
     AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
         .setMetadata(ImmutableMap.of(VERB_KEY, Verb.DELETE.name())).build();
 
-    _log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
+    log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
 
     return getKafka08Producer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }

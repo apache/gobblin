@@ -16,12 +16,42 @@
  */
 package gobblin.runtime.api;
 
+import java.util.Properties;
 
+
+/**
+ * A typical edge consists of two types of attributes:
+ * - Numerical value based: Return an numerical value for evaluation.
+ * - Boolean value based: Return either true or false.
+ */
 public interface FlowEdge {
 
   /**
    * @return Identifier of edge which is, by default consisting of source and destination Name with colon in the between.
    */
   String getEdgeIdentity();
+
+  /**
+   * @return If an edge is safe to use.
+   */
+  boolean isEdgeSafe();
+
+  /**
+   * Edge safety is supposed to be dynamic.
+   */
+  void setEdgeSafety(boolean safety);
+
+  /**
+   * There could be multiple edge properties besides typical ones like load, security, etc.
+   * Edge Properties are supposed to be read-only.
+   * @return
+   */
+  Properties getEdgeProperties();
+
+  /**
+   * @return If a edge should be considered as part of flow spec compilation result,
+   * based on all boolean-based properties like safety.
+   */
+  boolean isEdgeValid();
 
 }

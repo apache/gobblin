@@ -18,6 +18,8 @@
 package gobblin.service.modules.flow;
 
 import gobblin.runtime.api.ServiceNode;
+import gobblin.runtime.api.SpecExecutor;
+import gobblin.runtime.api.SpecProducer;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -34,15 +36,13 @@ import gobblin.instrumented.Instrumented;
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstance;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.service.ServiceConfigKeys;
 
 
 /***
  * Take in a logical {@link Spec} ie flow and compile corresponding materialized job {@link Spec}
- * and its mapping to {@link SpecExecutorInstance}.
+ * and its mapping to {@link SpecExecutor}.
  */
 @Alpha
 public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
@@ -64,12 +64,12 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   @Override
-  public Map<Spec, SpecExecutorInstanceProducer> compileFlow(Spec spec) {
+  public Map<Spec, SpecProducer> compileFlow(Spec spec) {
     Preconditions.checkNotNull(spec);
     Preconditions.checkArgument(spec instanceof FlowSpec, "IdentityFlowToJobSpecCompiler only converts FlowSpec to JobSpec");
 
     long startTime = System.nanoTime();
-    Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = Maps.newLinkedHashMap();
+    Map<Spec, SpecProducer> specExecutorInstanceMap = Maps.newLinkedHashMap();
 
     FlowSpec flowSpec = (FlowSpec) spec;
     String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);
@@ -80,13 +80,13 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
 
     for (TopologySpec topologySpec : topologySpecMap.values()) {
       try {
-        Map<ServiceNode, ServiceNode> capabilities = (Map<ServiceNode, ServiceNode>) topologySpec.getSpecExecutorInstanceProducer().getCapabilities().get();
+        Map<ServiceNode, ServiceNode> capabilities = (Map<ServiceNode, ServiceNode>) topologySpec.getSpecExecutorInstance().getCapabilities().get();
         for (Map.Entry<ServiceNode, ServiceNode> capability : capabilities.entrySet()) {
           log.info(String.format("Evaluating current JobSpec: %s against TopologySpec: %s with "
               + "capability of source: %s and destination: %s ", jobSpec.getUri(),
               topologySpec.getUri(), capability.getKey(), capability.getValue()));
           if (source.equals(capability.getKey().getNodeName()) && destination.equals(capability.getValue().getNodeName())) {
-            specExecutorInstanceMap.put(jobSpec, topologySpec.getSpecExecutorInstanceProducer());
+            specExecutorInstanceMap.put(jobSpec, topologySpec.getSpecExecutorInstance());
             log.info(String.format("Current JobSpec: %s is executable on TopologySpec: %s. Added TopologySpec as candidate.",
                 jobSpec.getUri(), topologySpec.getUri()));
 

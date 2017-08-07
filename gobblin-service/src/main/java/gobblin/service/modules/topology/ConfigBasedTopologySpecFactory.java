@@ -17,6 +17,7 @@
 
 package gobblin.service.modules.topology;
 
+import gobblin.runtime.api.SpecProducer;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,7 +33,6 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.service.ServiceConfigKeys;
 import gobblin.util.ClassAliasResolver;
@@ -45,7 +45,7 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
   private static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
   private final Config _config;
   private final Logger _log;
-  private final ClassAliasResolver<SpecExecutorInstanceProducer> _aliasResolver;
+  private final ClassAliasResolver<SpecProducer> _aliasResolver;
 
   public ConfigBasedTopologySpecFactory(Config config) {
     this(config, Optional.<Logger>absent());
@@ -55,7 +55,7 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
     Preconditions.checkNotNull(config, "Config should not be null");
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     _config = config;
-    _aliasResolver = new ClassAliasResolver<>(SpecExecutorInstanceProducer.class);
+    _aliasResolver = new ClassAliasResolver<>(SpecProducer.class);
   }
 
   @Override
@@ -79,10 +79,10 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
       if (topologyConfig.hasPath(ServiceConfigKeys.SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY)) {
         specExecutorInstanceProducerClass = topologyConfig.getString(ServiceConfigKeys.SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY);
       }
-      SpecExecutorInstanceProducer specExecutorInstanceProducer;
+      SpecProducer specExecutorInstanceProducer;
       try {
-        _log.info("Using SpecExecutorInstanceProducer class name/alias " + specExecutorInstanceProducerClass);
-        specExecutorInstanceProducer = (SpecExecutorInstanceProducer) ConstructorUtils
+        _log.info("Using SpecProducer class name/alias " + specExecutorInstanceProducerClass);
+        specExecutorInstanceProducer = (SpecProducer) ConstructorUtils
             .invokeConstructor(Class.forName(_aliasResolver
                 .resolve(specExecutorInstanceProducerClass)), topologyConfig);
       } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException

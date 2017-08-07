@@ -17,15 +17,11 @@
 
 package gobblin.runtime.spec_executorInstance;
 
-import gobblin.runtime.api.BaseServiceNodeImpl;
-import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
-
-import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,43 +29,59 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Closer;
+import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
-import gobblin.runtime.api.ServiceNode;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.runtime.api.BaseServiceNodeImpl;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
-import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
+import gobblin.runtime.api.ServiceNode;
+import gobblin.runtime.api.SpecExecutor;
+import gobblin.runtime.api.SpecProducer;
 import gobblin.util.CompletedFuture;
 
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
-public class InMemorySpecExecutorInstanceProducer implements SpecExecutorInstanceProducer<Spec>, Serializable {
+/**
+ * An abstract implementation of SpecExecutor without specifying communication mechanism.
+ *
+ * Normally in the implementation of {@link AbstractSpecExecutor}, it is necessary to specify:
+ * {@link SpecProducer}
+ * {@link gobblin.runtime.api.SpecConsumer}
+ * {@link Closer}
+ */
+public abstract class AbstractSpecExecutor extends AbstractIdleService implements SpecExecutor {
 
   private static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
   private static final Splitter SPLIT_BY_COLON = Splitter.on(":").omitEmptyStrings().trimResults();
-
-  private static final long serialVersionUID = 6106269076155338045L;
+  private static final String ATTRS_PATH_IN_CONFIG = "executorAttrs";
 
   protected final transient Logger log;
-  protected final Map<URI, Spec> provisionedSpecs;
-  @SuppressWarnings (justification="No bug", value="SE_BAD_FIELD")
+
+  @SuppressWarnings(justification="No bug", value="SE_BAD_FIELD")
   protected final Config config;
+
   protected final Map<ServiceNode, ServiceNode> capabilities;
 
-  public InMemorySpecExecutorInstanceProducer(Config config) {
+  /**
+   * While AbstractSpecExecutor is up, for most producer implementations (like SimpleKafkaSpecProducer),
+   * they implements {@link java.io.Closeable} which requires registration and close methods.
+   */
+  protected Optional<Closer> _optionalCloser;
+
+  public AbstractSpecExecutor(Config config){
     this(config, Optional.<Logger>absent());
   }
 
-  public InMemorySpecExecutorInstanceProducer(Config config, GobblinInstanceEnvironment env) {
+  public AbstractSpecExecutor(Config config, GobblinInstanceEnvironment env) {
     this(config, Optional.of(env.getLog()));
   }
 
-  public InMemorySpecExecutorInstanceProducer(Config config, Optional<Logger> log) {
+  public AbstractSpecExecutor(Config config, Optional<Logger> log){
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.config = config;
-    this.provisionedSpecs = Maps.newHashMap();
     this.capabilities = Maps.newHashMap();
     if (config.hasPath(ConfigurationKeys.SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY)) {
       String capabilitiesStr = config.getString(ConfigurationKeys.SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY);
@@ -81,21 +93,35 @@ public class InMemorySpecExecutorInstanceProducer implements SpecExecutorInstanc
         this.capabilities.put(new BaseServiceNodeImpl(currentCapability.get(0)), new BaseServiceNodeImpl(currentCapability.get(1)));
       }
     }
+    _optionalCloser = Optional.absent();
   }
 
+  /**
+   * A default URI of a AbstractSpecExecutor is from its corresponding class Name.
+   * In the inherited class the result of getName() would be BaseClass$DerivedClass.
+   */
   @Override
   public URI getUri() {
     try {
-      return new URI("InMemorySpecExecutorInstanceProducer");
+      return new URI(this.getClass().getName());
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
     }
   }
 
+  /**
+   * The definition of attributes are the technology that a {@link SpecExecutor} is using and
+   * the physical location that it runs on.
+   *
+   * These attributes are supposed to be static and read-only.
+   */
   @Override
-  public Future<String> getDescription() {
-    return new CompletedFuture("InMemory SpecExecutorInstanceProducer", null);
+  public Config getAttrs() {
+    Preconditions.checkArgument(this.config.hasPath(ATTRS_PATH_IN_CONFIG),
+        "Input configuration doesn't contains SpecExecutor Attributes path.");
+    return this.config.getConfig(ATTRS_PATH_IN_CONFIG);
   }
+
 
   @Override
   public Future<Config> getConfig() {
@@ -103,47 +129,23 @@ public class InMemorySpecExecutorInstanceProducer implements SpecExecutorInstanc
   }
 
   @Override
-  public Future<String> getHealth() {
-    return new CompletedFuture("Healthy", null);
-  }
-
-  @Override
   public Future<? extends Map<ServiceNode, ServiceNode>> getCapabilities() {
     return new CompletedFuture(this.capabilities, null);
   }
 
+  /**
+   * @return In default implementation we just return 'Healthy'.
+   */
   @Override
-  public Future<?> addSpec(Spec addedSpec) {
-    provisionedSpecs.put(addedSpec.getUri(), addedSpec);
-    log.info(String.format("Added Spec: %s with Uri: %s for execution on this executor.", addedSpec, addedSpec.getUri()));
-
-    return new CompletedFuture(Boolean.TRUE, null);
+  public Future<String> getHealth() {
+    return new CompletedFuture("Healthy", null);
   }
 
-  @Override
-  public Future<?> updateSpec(Spec updatedSpec) {
-    if (!provisionedSpecs.containsKey(updatedSpec.getUri())) {
-      throw new RuntimeException("Spec not found: " + updatedSpec.getUri());
-    }
-    provisionedSpecs.put(updatedSpec.getUri(), updatedSpec);
-    log.info(String.format("Updated Spec: %s with Uri: %s for execution on this executor.", updatedSpec, updatedSpec.getUri()));
+  abstract protected void startUp() throws Exception;
 
-    return new CompletedFuture(Boolean.TRUE, null);
-  }
+  abstract protected void shutDown() throws Exception;
 
-  @Override
-  public Future<?> deleteSpec(URI deletedSpecURI) {
-    if (!provisionedSpecs.containsKey(deletedSpecURI)) {
-      throw new RuntimeException("Spec not found: " + deletedSpecURI);
-    }
-    provisionedSpecs.remove(deletedSpecURI);
-    log.info(String.format("Deleted Spec with Uri: %s from this executor.", deletedSpecURI));
+  abstract public Future<? extends SpecProducer> getProducer();
 
-    return new CompletedFuture(Boolean.TRUE, null);
-  }
-
-  @Override
-  public Future<? extends List<Spec>> listSpecs() {
-    return new CompletedFuture<>(Lists.newArrayList(provisionedSpecs.values()), null);
-  }
+  abstract public Future<String> getDescription();
 }

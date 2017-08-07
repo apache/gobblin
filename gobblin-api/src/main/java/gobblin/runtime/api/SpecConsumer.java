@@ -22,9 +22,14 @@ import java.util.concurrent.Future;
 import org.apache.commons.lang3.tuple.Pair;
 
 
-public interface SpecExecutorInstanceConsumer<V> extends SpecExecutorInstance {
+/**
+ * A communication socket (receiving side for this class)
+ * for each {@link SpecExecutor} to receive spec to execute from Orchestrator.
+ * Implementation of this interface should specify communication channel (e.g. Kafka, REST, etc.)
+ */
+public interface SpecConsumer<V>  {
 
-  /** List of newly changed {@link Spec}s for execution on {@link SpecExecutorInstance}. */
-  Future<? extends List<Pair<Verb, V>>> changedSpecs();
+  /** List of newly changed {@link Spec}s for execution on {@link SpecExecutor}. */
+  Future<? extends List<Pair<SpecExecutor.Verb, V>>> changedSpecs();
 
 }

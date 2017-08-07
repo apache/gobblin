@@ -17,65 +17,58 @@
 
 package gobblin.service;
 
-import gobblin.runtime.api.BaseServiceNodeImpl;
+
+import com.google.common.io.Closer;
+import gobblin.runtime.api.SpecConsumer;
+import gobblin.runtime.api.SpecProducer;
+import gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.ServiceNode;
-import gobblin.runtime.api.SpecExecutorInstance;
 import gobblin.util.CompletedFuture;
 import gobblin.util.ConfigUtils;
+import gobblin.runtime.api.SpecExecutor;
 
 
-public class SimpleKafkaSpecExecutorInstance extends AbstractIdleService implements SpecExecutorInstance {
+/**
+ * An {@link SpecExecutor} that use Kafka as the communication mechanism.
+ */
+public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
   public static final String SPEC_KAFKA_TOPICS_KEY = "spec.kafka.topics";
-  protected static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
-  protected static final Splitter SPLIT_BY_COLON = Splitter.on(":").omitEmptyStrings().trimResults();
 
   // Executor Instance
-  protected final Config _config;
-  protected final Logger _log;
   protected final URI _specExecutorInstanceUri;
-  protected final Map<ServiceNode, ServiceNode> _capabilities;
 
   protected static final String VERB_KEY = "Verb";
 
-  public SimpleKafkaSpecExecutorInstance(Config config, Optional<Logger> log) {
-    _config = config;
-    _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
+  private SpecProducer<Spec> _specProducer;
+
+  private SpecConsumer<Spec> _specConsumer;
+
+  public SimpleKafkaSpecExecutor(Config config, Optional<Logger> log) {
+    super(config, log);
     try {
       _specExecutorInstanceUri = new URI(ConfigUtils.getString(config, ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,
           "NA"));
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
     }
-    _capabilities = Maps.newHashMap();
-    if (config.hasPath(ConfigurationKeys.SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY)) {
-      String capabilitiesStr = config.getString(ConfigurationKeys.SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY);
-      List<String> capabilities = SPLIT_BY_COMMA.splitToList(capabilitiesStr);
-      for (String capability : capabilities) {
-        List<String> currentCapability = SPLIT_BY_COLON.splitToList(capability);
-        Preconditions.checkArgument(currentCapability.size() == 2, "Only one source:destination pair is supported "
-            + "per capability, found: " + currentCapability);
-        _capabilities.put(new BaseServiceNodeImpl(currentCapability.get(0)), new BaseServiceNodeImpl(currentCapability.get(1)));
-      }
-    }
+    _specProducer = new SimpleKafkaSpecProducer(config, log);
+    _specConsumer = new SimpleKafkaSpecConsumer(config, log);
+  }
+
+  @Override
+  public Future<? extends SpecProducer> getProducer() {
+    return null;
   }
 
   @Override
@@ -89,28 +82,19 @@ public class SimpleKafkaSpecExecutorInstance extends AbstractIdleService impleme
   }
 
   @Override
-  public Future<Config> getConfig() {
-    return new CompletedFuture<>(_config, null);
-  }
-
-  @Override
-  public Future<String> getHealth() {
-    return new CompletedFuture<>("Healthy", null);
-  }
-
-  @Override
-  public Future<? extends Map<ServiceNode, ServiceNode>> getCapabilities() {
-    return new CompletedFuture<>(_capabilities, null);
-  }
-
-  @Override
   protected void startUp() throws Exception {
-    // nothing to do in default implementation
+    _optionalCloser = Optional.of(Closer.create());
+    _specProducer = _optionalCloser.get().register((SimpleKafkaSpecProducer) _specProducer);
+    _specConsumer = _optionalCloser.get().register((SimpleKafkaSpecConsumer) _specConsumer);
   }
 
   @Override
   protected void shutDown() throws Exception {
-    // nothing to do in default implementation
+    if (_optionalCloser.isPresent()) {
+      _optionalCloser.get().close();
+    }else{
+      throw new RuntimeException("Closer initialization failed");
+    }
   }
 
   public static class SpecExecutorInstanceDataPacket implements Serializable {

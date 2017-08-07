@@ -17,6 +17,7 @@
 
 package gobblin.service;
 
+import gobblin.runtime.api.SpecExecutor;
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.DataInputStream;
@@ -52,15 +53,19 @@ import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import gobblin.metrics.reporter.util.SchemaVersionWriter;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecExecutorInstanceConsumer;
+import gobblin.runtime.api.SpecConsumer;
 import gobblin.runtime.job_spec.AvroJobSpec;
 import gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import gobblin.source.extractor.extract.kafka.KafkaPartition;
 import gobblin.source.extractor.extract.kafka.KafkaTopic;
 import gobblin.util.CompletedFuture;
+import static gobblin.service.SimpleKafkaSpecExecutor.*;
 
-public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExecutorInstance
-    implements SpecExecutorInstanceConsumer<Spec>, Closeable {
+import lombok.extern.slf4j.Slf4j;
+
+
+@Slf4j
+public class SimpleKafkaSpecConsumer implements SpecConsumer<Spec>, Closeable {
 
   // Consumer
   protected final GobblinKafkaConsumerClient _kafka08Consumer;
@@ -77,13 +82,12 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
   private final SpecificDatumReader<AvroJobSpec> _reader;
   private final SchemaVersionWriter<?> _versionWriter;
 
-  public SimpleKafkaSpecExecutorInstanceConsumer(Config config, Optional<Logger> log) {
-    super(config, log);
+  public SimpleKafkaSpecConsumer(Config config, Optional<Logger> log) {
 
     // Consumer
     _kafka08Consumer = new Kafka08ConsumerClient.Factory().create(config);
     List<KafkaTopic> kafkaTopics = _kafka08Consumer.getFilteredTopics(Collections.EMPTY_LIST,
-        Lists.newArrayList(Pattern.compile(config.getString(SPEC_KAFKA_TOPICS_KEY))));
+        Lists.newArrayList(Pattern.compile(config.getString(SimpleKafkaSpecExecutor.SPEC_KAFKA_TOPICS_KEY))));
     _partitions = kafkaTopics.get(0).getPartitions();
     _lowWatermark = Lists.newArrayList(Collections.nCopies(_partitions.size(), 0L));
     _nextWatermark = Lists.newArrayList(Collections.nCopies(_partitions.size(), 0L));
@@ -95,18 +99,18 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
     _versionWriter = new FixedSchemaVersionWriter();
   }
 
-  public SimpleKafkaSpecExecutorInstanceConsumer(Config config, Logger log) {
+  public SimpleKafkaSpecConsumer(Config config, Logger log) {
     this(config, Optional.of(log));
   }
 
   /** Constructor with no logging */
-  public SimpleKafkaSpecExecutorInstanceConsumer(Config config) {
+  public SimpleKafkaSpecConsumer(Config config) {
     this(config, Optional.<Logger>absent());
   }
 
   @Override
-  public Future<? extends List<Pair<Verb, Spec>>> changedSpecs() {
-    List<Pair<Verb, Spec>> changesSpecs = new ArrayList<>();
+  public Future<? extends List<Pair<SpecExecutor.Verb, Spec>>> changedSpecs() {
+    List<Pair<SpecExecutor.Verb, Spec>> changesSpecs = new ArrayList<>();
     initializeWatermarks();
     this.currentPartitionIdx = -1;
     while (!allPartitionsFinished()) {
@@ -118,7 +122,7 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
         try {
           this.messageIterator = fetchNextMessageBuffer();
         } catch (Exception e) {
-          _log.error(String.format("Failed to fetch next message buffer for partition %s. Will skip this partition.",
+          log.error(String.format("Failed to fetch next message buffer for partition %s. Will skip this partition.",
               getCurrentPartition()), e);
           moveToNextPartition();
           continue;
@@ -172,7 +176,7 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
 
           changesSpecs.add(new ImmutablePair<Verb, Spec>(verb, jobSpecBuilder.build()));
         } catch (Throwable t) {
-          _log.error("Could not decode record at partition " + this.currentPartitionIdx +
+          log.error("Could not decode record at partition " + this.currentPartitionIdx +
               " offset " + nextValidMessage.getOffset());
         }
       }

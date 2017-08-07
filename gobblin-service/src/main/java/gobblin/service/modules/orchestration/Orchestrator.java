@@ -17,6 +17,8 @@
 
 package gobblin.service.modules.orchestration;
 
+import gobblin.runtime.api.SpecExecutor;
+import gobblin.runtime.api.SpecProducer;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Collections;
@@ -43,7 +45,6 @@ import gobblin.metrics.Tag;
 
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.SpecCompiler;
-import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecCatalogListener;
@@ -179,7 +180,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   public void orchestrate(Spec spec) throws Exception {
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
-      Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = specCompiler.compileFlow(spec);
+      Map<Spec, SpecExecutor> specExecutorInstanceMap = specCompiler.compileFlow(spec);
 
       if (specExecutorInstanceMap.isEmpty()) {
         _log.warn("Cannot determine an executor to run on for Spec: " + spec);
@@ -187,11 +188,11 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       }
 
       // Schedule all compiled JobSpecs on their respective Executor
-      for (Map.Entry<Spec, SpecExecutorInstanceProducer> specsToExecute : specExecutorInstanceMap.entrySet()) {
+      for (Map.Entry<Spec, SpecExecutor> specsToExecute : specExecutorInstanceMap.entrySet()) {
         // Run this spec on selected executor
-        SpecExecutorInstanceProducer producer = null;
+        SpecProducer producer = null;
         try {
-          producer = specsToExecute.getValue();
+          producer = specsToExecute.getValue().getProducer().get();
           Spec jobSpec = specsToExecute.getKey();
 
           _log.info(String.format("Going to orchestrate JobSpc: %s on Executor: %s", jobSpec, producer));

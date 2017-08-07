@@ -17,7 +17,7 @@
 package gobblin.runtime.api;
 
 /**
- * Abstraction of a Node in {@link gobblin.runtime.api.SpecExecutorInstance}
+ * Abstraction of a Node in {@link SpecExecutor}
  */
 public interface ServiceNode {
   /**

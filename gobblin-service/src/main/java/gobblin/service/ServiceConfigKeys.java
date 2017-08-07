@@ -18,7 +18,7 @@
 package gobblin.service;
 
 import gobblin.annotation.Alpha;
-import gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
+import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 import gobblin.service.modules.topology.ConfigBasedTopologySpecFactory;
 
@@ -68,8 +68,10 @@ public class ServiceConfigKeys {
   public static final String TOPOLOGYSPEC_DESCRIPTION_KEY = "description";
   public static final String TOPOLOGYSPEC_VERSION_KEY = "version";
   public static final String TOPOLOGYSPEC_URI_KEY = "uri";
-  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER = InMemorySpecExecutorInstanceProducer.class.getCanonicalName();
-  public static final String SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY = "specExecutorInstanceProducer.class";
+  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER = InMemorySpecExecutor.class.getCanonicalName();
+  public static final String SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY = "specExecutorInstance.class";
+  public static final String EDGE_SECURITY_KEY = "edge.secured";
+  public static final String INITIAL_LOAD = "initialLoad";
 
   // Template Catalog Keys
   public static final String TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.fullyQualifiedPath";
@@ -83,8 +85,10 @@ public class ServiceConfigKeys {
   // Complete path of how the data movement is executed from source to sink.
   // Formatted as a String, each hop separated by comma, from source to sink in order.
   public static final String POLICY_BASED_DATA_MOVEMENT_PATH = GOBBLIN_SERVICE_PREFIX + "full.data.path";
-  // Priority criteria for multiple SpecExecutorInstance has the same capabilities.
+  // Priority criteria for multiple SpecExecutor has the same capabilities.
   public static final String POLICY_BASED_SPEC_EXECUTOR_SELECTION = GOBBLIN_SERVICE_PREFIX + "specExecutor.selection.policy";
   // Topology edge weight enabled or not.
   public static final String TOPOLOGY_EDGE_WEIGHT_ENABLED = GOBBLIN_SERVICE_PREFIX + "edgeWeight.enabled";
+
+
 }
