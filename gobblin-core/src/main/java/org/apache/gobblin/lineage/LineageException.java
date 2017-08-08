@@ -18,6 +18,9 @@
 
 package org.apache.gobblin.lineage;
 
+/**
+ * A set of exceptions used by {@link LineageInfo} when lineage information is serialized or deserialized.
+ */
 public class LineageException extends Exception {
   public LineageException(String message) {
     super(message);

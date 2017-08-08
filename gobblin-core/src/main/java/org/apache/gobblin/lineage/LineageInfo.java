@@ -18,6 +18,7 @@
 package org.apache.gobblin.lineage;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -77,42 +78,14 @@ public class LineageInfo {
 
   /**
    * Retrieve lineage information from a {@link State} by {@link Level}
+   * @param state A single state
    * @param level {@link Level#DATASET}  only load dataset level lineage attributes
    *              {@link Level#BRANCH}   only load branch level lineage attributes
    *              {@link Level#All}      load all lineage attributes
    * @return A {@link LineageInfo} object containing all lineage attributes
    */
   public static LineageInfo load (State state, Level level) throws LineageException {
-    Preconditions.checkArgument(state != null);
-    HashMap<String, String> metaData = new HashMap<>();
-
-    for (Map.Entry<Object, Object> entry : state.getProperties().entrySet()) {
-      if (entry.getKey() instanceof String && ((String) entry.getKey()).startsWith(LINEAGE_NAME_SPACE)) {
-
-        String lineageKey = ((String) entry.getKey());
-        String lineageValue = (String) entry.getValue();
-
-        if (lineageKey.startsWith(BRANCH_PREFIX)) {
-          if (level == Level.BRANCH || level == Level.All) {
-            metaData.put(lineageKey.substring(BRANCH_PREFIX.length()), lineageValue);
-          }
-        } else if (lineageKey.startsWith(DATASET_PREFIX)) {
-          if (level == Level.DATASET || level == Level.All) {
-            metaData.put(lineageKey.substring(DATASET_PREFIX.length()), lineageValue);
-          }
-        }
-      }
-    }
-
-    String jobId = metaData.containsKey(ConfigurationKeys.JOB_ID_KEY)? metaData.get(ConfigurationKeys.JOB_ID_KEY):"";
-    String urn = metaData.containsKey(ConfigurationKeys.DATASET_URN_KEY)? metaData.get(ConfigurationKeys.DATASET_URN_KEY):ConfigurationKeys.DEFAULT_DATASET_URN;
-
-    metaData.remove(ConfigurationKeys.JOB_ID_KEY);
-    metaData.remove(ConfigurationKeys.DATASET_URN_KEY);
-
-    LineageInfo descriptor = new LineageInfo(urn, jobId, metaData);
-
-    return descriptor;
+    return load(Collections.singleton(state), level);
   }
 
   /**
@@ -122,10 +95,26 @@ public class LineageInfo {
     return ImmutableMap.copyOf(lineageMetaData);
   }
 
-
+  /**
+   * Retrieve all lineage information from different {@link State}s by {@link Level}.
+   * This requires the job id and dataset urn to exist in the state, once under job.id and dataset.urn.
+   * It also requires the key-value pair within all {@link State}s do not have conflict values at {@link Level#BRANCH}
+   * or {@link Level#DATASET} levels; Otherwise an exception is thrown.
+   *
+   * @param states All states which belong to the same dataset and share the same jobId.
+   * @param level {@link Level#DATASET}  only load dataset level lineage attributes
+   *              {@link Level#BRANCH}   only load branch level lineage attributes
+   *              {@link Level#All}      load all lineage attributes
+   * @return A {@link LineageInfo} object containing all lineage attributes
+   * @throws LineageException.LineageConflictAttributeException if two states have same key but not the same value.
+   */
   public static LineageInfo load (Collection<? extends State> states, Level level) throws LineageException {
     Preconditions.checkArgument(states != null && !states.isEmpty());
     HashMap<String, String> metaData = new HashMap<>();
+
+    State anyOne = states.iterator().next();
+    String jobId = anyOne.getProp(ConfigurationKeys.JOB_ID_KEY, "");
+    String urn = anyOne.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
 
     for (State state: states) {
       for (Map.Entry<Object, Object> entry : state.getProperties().entrySet()) {
@@ -153,12 +142,6 @@ public class LineageInfo {
       }
     }
 
-    String jobId = metaData.containsKey(ConfigurationKeys.JOB_ID_KEY)? metaData.get(ConfigurationKeys.JOB_ID_KEY):"";
-    String urn = metaData.containsKey(ConfigurationKeys.DATASET_URN_KEY)? metaData.get(ConfigurationKeys.DATASET_URN_KEY):ConfigurationKeys.DEFAULT_DATASET_URN;
-
-    metaData.remove(ConfigurationKeys.JOB_ID_KEY);
-    metaData.remove(ConfigurationKeys.DATASET_URN_KEY);
-
     LineageInfo descriptor = new LineageInfo(urn, jobId, metaData);
 
     return descriptor;
@@ -172,7 +155,7 @@ public class LineageInfo {
     state.setProp(BRANCH_PREFIX + Joiner.on(".").join(branchId, key), value);
   }
 
-  public final String getUUID() {
+  public final String getId() {
     return Joiner.on(":::").join(this.datasetUrn, this.jobId);
   }
 }

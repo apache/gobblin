@@ -165,8 +165,6 @@ final class SafeDatasetCommit implements Callable<Void> {
           persistDatasetState(datasetUrn, datasetState);
         }
 
-        submitLineageEvent(datasetState);
-
       } catch (IOException | RuntimeException ioe) {
         log.error(String
             .format("Failed to persist dataset state for dataset %s of job %s", datasetUrn, this.jobContext.getJobId()),
@@ -177,8 +175,7 @@ final class SafeDatasetCommit implements Callable<Void> {
     return null;
   }
 
-  private void submitLineageEvent(JobState.DatasetState datasetState) {
-    Collection<TaskState> states = datasetState.getTaskStates();
+  private void submitLineageEvent(Collection<TaskState> states) {
     if (states.size() == 0) {
       return;
     }
@@ -191,10 +188,10 @@ final class SafeDatasetCommit implements Callable<Void> {
     }
 
     try {
-      LineageInfo info = LineageInfo.load(datasetState.getTaskStates(), LineageInfo.Level.All);
+      LineageInfo info = LineageInfo.load(states, LineageInfo.Level.All);
       EventSubmitter submitter = new EventSubmitter.Builder(Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class),
           LineageInfo.LINEAGE_NAME_SPACE).build();
-      submitter.submit(info.getUUID(), info.getLineageMetaData());
+      submitter.submit(info.getId(), info.getLineageMetaData());
     } catch (LineageException e) {
       log.error ("Lineage event submission failed due to :" + e.toString());
     }
@@ -217,6 +214,7 @@ final class SafeDatasetCommit implements Callable<Void> {
 
     try {
       publisher.publish(taskStates);
+      submitLineageEvent(taskStates);
     } catch (Throwable t) {
       log.error("Failed to commit dataset", t);
       setTaskFailureException(taskStates, t);

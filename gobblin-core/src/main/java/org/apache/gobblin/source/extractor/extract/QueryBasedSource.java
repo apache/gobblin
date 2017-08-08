@@ -244,9 +244,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   }
 
   protected void addLineageSourceInfo (SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
-    String jobId = sourceState.getProp(ConfigurationKeys.JOB_ID_KEY, "");
-    LineageInfo.setDatasetLineageAttribute(workUnit, ConfigurationKeys.JOB_ID_KEY, jobId);
-    LineageInfo.setDatasetLineageAttribute(workUnit, ConfigurationKeys.DATASET_URN_KEY, entity.destTableName);
+    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, entity.destTableName);
   }
 
   protected Set<SourceEntity> getFilteredSourceEntities(SourceState state) {
