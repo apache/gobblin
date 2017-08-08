@@ -51,6 +51,9 @@ public class CopyConfiguration {
   public static final String DESTINATION_GROUP_KEY = COPY_PREFIX + ".dataset.destination.group";
   public static final String PRIORITIZATION_PREFIX = COPY_PREFIX + ".prioritization";
 
+  /**
+   * Include empty directories in the source for copy
+   */
   public static final String INCLUDE_EMPTY_DIRECTORIES = COPY_PREFIX + ".includeEmptyDirectories";
 
   public static final String PRIORITIZER_ALIAS_KEY = PRIORITIZATION_PREFIX + ".prioritizerAlias";

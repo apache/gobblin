@@ -66,7 +66,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   private final boolean update;
   private final boolean delete;
 
-  // Include empty directories in the source to copy
+  // Include empty directories in the source for copy
   private final boolean includeEmptyDirectories;
   // Delete empty directories in the destination
   private final boolean deleteEmptyDirectories;
