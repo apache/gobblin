@@ -1,0 +1,38 @@
+{
+  "type" : "record",
+  "name" : "JobStatus",
+  "namespace" : "org.apache.gobblin.service",
+  "doc" : "Execution status for a job",
+  "fields" : [
+    {
+      "name" : "flowId",
+      "type" : "FlowId",
+      "doc" : "Identifier of the flow the job belongs to"
+    },
+    {
+      "name" : "jobId",
+      "type" : "JobId",
+      "doc" : "Identifier of the job"
+    },
+    {
+      "name" : "executionStatus",
+      "type" : "ExecutionStatus",
+      "doc" : "Job execution status"
+    },
+    {
+      "name" : "message",
+      "type" : "string",
+      "doc" : "Error or status message"
+    },
+    {
+      "name" : "executionStatistics",
+      "type" : "JobStatistics",
+      "doc" : "Statistics from the job execution. The values may be updated during the run of a job."
+    },
+    {
+      "name" : "jobState",
+      "type" : "JobState",
+      "doc" : "Job state that is updated only at the start and end of a job execution."
+    }
+  ]
+}

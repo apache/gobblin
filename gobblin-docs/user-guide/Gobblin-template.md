@@ -45,21 +45,21 @@ job.name=PullFromWikipedia
 job.group=Wikipedia
 job.description=A getting started example for Gobblin
 
-source.class=gobblin.example.wikipedia.WikipediaSource
+source.class=org.apache.gobblin.example.wikipedia.WikipediaSource
 source.revisions.cnt=5
 
 wikipedia.api.rooturl=https://en.wikipedia.org/w/api.php?format=json&action=query&prop=revisions&rvprop=content|timestamp|user|userid|size
 wikipedia.avro.schema={"namespace": "example.wikipedia.avro","type": "record","name": "WikipediaArticle","fields": [{"name": "pageid", "type": ["double", "null"]},{"name": "title", "type": ["string", "null"]},{"name": "user", "type": ["string", "null"]},{"name": "anon", "type": ["string", "null"]},{"name": "userid",  "type": ["double", "null"]},{"name": "timestamp", "type": ["string", "null"]},{"name": "size",  "type": ["double", "null"]},{"name": "contentformat",  "type": ["string", "null"]},{"name": "contentmodel",  "type": ["string", "null"]},{"name": "content", "type": ["string", "null"]}]}
 
-converter.classes=gobblin.example.wikipedia.WikipediaConverter
+converter.classes=org.apache.gobblin.example.wikipedia.WikipediaConverter
 
-extract.namespace=gobblin.example.wikipedia
+extract.namespace=org.apache.gobblin.example.wikipedia
 
 writer.destination.type=HDFS
 writer.output.format=AVRO
-writer.partitioner.class=gobblin.example.wikipedia.WikipediaPartitioner
+writer.partitioner.class=org.apache.gobblin.example.wikipedia.WikipediaPartitioner
 
-data.publisher.type=gobblin.publisher.BaseDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 
 gobblin.template.required_attributes=source.page.titles
 

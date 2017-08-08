@@ -92,11 +92,11 @@ For maintainability and reusablity we define all the configs as tags and import 
 gobblin.retention : {
 
     ##Alias
-    TimeBasedSelectionPolicy=gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
-    DateTimeDatasetVersionFinder=gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
+    TimeBasedSelectionPolicy=org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
+    DateTimeDatasetVersionFinder=org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
 
     dataset : {
-      finder.class=gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
+      finder.class=org.apache.gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
       partitions=[${gobblin.retention.daily}
     }
 
@@ -145,6 +145,9 @@ gobblin.retention : {
 }
 </pre>
 
+### Examples
+Browse the [gobblin-data-management/config-example](/gobblin-data-management/config-example) directory to see example configuration.
+
 ## Supported Retention Configurations
 Below is a list of ready to use supported retention configurations. But users can always implement their own ```DatasetFinder```,```VersionFinder``` and ```VersionSelectionPolicy``` and plug it in.
 
@@ -156,16 +159,16 @@ gobblin.retention : {
 
     dataset : {
       pattern="/user/gobblin/*"
-      finder.class=gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
+      finder.class=org.apache.gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
     }
 
     selection : {
-      policy.class=gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
+      policy.class=org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
       timeBased.lookbackTime=7d
     }
 
     version : {
-      finder.class=gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder
+      finder.class=org.apache.gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder
     }
 }
 </pre>
@@ -178,16 +181,16 @@ gobblin.retention : {
 
     dataset : {
       pattern="/user/gobblin/*"
-      finder.class=gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
+      finder.class=org.apache.gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
     }
 
     selection : {
-      policy.class=gobblin.data.management.policy.NewestKSelectionPolicy
+      policy.class=org.apache.gobblin.data.management.policy.NewestKSelectionPolicy
       newestK.versionsNotSelected=2
     }
 
     version : {
-      finder.class=gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder
+      finder.class=org.apache.gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder
     }
 }
 </pre>
@@ -200,15 +203,15 @@ gobblin.retention : {
 
     dataset : {
       pattern="/user/gobblin/snapshots/*/*"
-      finder.class=gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
+      finder.class=org.apache.gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
     }
 
     selection : {
-      policy.class=gobblin.data.management.policy.CombineSelectionPolicy
+      policy.class=org.apache.gobblin.data.management.policy.CombineSelectionPolicy
       combine.operation=INTERSECT
       combine.policy.classes=[
-        gobblin.data.management.policy.SelectBeforeTimeBasedPolicy,
-        gobblin.data.management.policy.NewestKSelectionPolicy
+        org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy,
+        org.apache.gobblin.data.management.policy.NewestKSelectionPolicy
       ]
       timeBased.lookbackTime=3d
       newestK.versionsNotSelected=2
@@ -216,7 +219,7 @@ gobblin.retention : {
     }
 
     version : {
-      finder.class=gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder
+      finder.class=org.apache.gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder
     }
 }
 </pre>
@@ -227,12 +230,12 @@ This is mostly useful for retention management of datasets that have different k
 <pre>
 gobblin.retention : {
 
-    TimeBasedSelectionPolicy=gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
-    DateTimeDatasetVersionFinder=gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
+    TimeBasedSelectionPolicy=org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
+    DateTimeDatasetVersionFinder=org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
 
     dataset : {
       pattern="/user/gobblin/data/*"
-      finder.class=gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
+      finder.class=org.apache.gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
       partitions=[${gobblin.retention.hourly}, ${gobblin.retention.daily}]
     }
 
@@ -274,17 +277,17 @@ gobblin.retention : {
     is.blacklisted=false
 
     dataset : {
-      finder.class=gobblin.data.management.retention.dataset.finder.CleanableHiveDatasetFinder
+      finder.class=org.apache.gobblin.data.management.retention.dataset.finder.CleanableHiveDatasetFinder
     }
 
     selection : {
-      policy.class=gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
+      policy.class=org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
 
       ## Partitions older than 3 days will be deleted
       timeBased.lookbackTime=3d
     }
 
-    version.finder.class=gobblin.data.management.version.finder.DatePartitionHiveVersionFinder
+    version.finder.class=org.apache.gobblin.data.management.version.finder.DatePartitionHiveVersionFinder
 
     hive {
       partition {
@@ -308,12 +311,12 @@ All the access control policies to apply are discovered through the key ```acces
 <pre>
 gobblin.retention : {
 
-    TimeBasedSelectionPolicy=gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
-    DateTimeDatasetVersionFinder=gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
+    TimeBasedSelectionPolicy=org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
+    DateTimeDatasetVersionFinder=org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
 
     dataset : {
       pattern="/user/gobblin/data/*"
-      finder.class=gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
+      finder.class=org.apache.gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
       partitions=[${gobblin.retention.hourly}, ${gobblin.retention.daily}]
     }
 

@@ -2,7 +2,7 @@
   "type": "record",
   "name": "HttpRequestResponseRecord",
   "doc": "Represents an http output record",
-  "namespace": "gobblin.http",
+  "namespace" : "org.apache.gobblin.http",
   "fields" : [
     {"name": "requestUrl", "type": "string"},
     {"name": "method", "type": "string"},

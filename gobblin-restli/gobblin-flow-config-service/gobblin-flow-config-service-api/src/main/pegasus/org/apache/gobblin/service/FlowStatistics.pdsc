@@ -1,0 +1,18 @@
+{
+  "type" : "record",
+  "name" : "FlowStatistics",
+  "namespace" : "org.apache.gobblin.service",
+  "doc" : "Statistics from a flow execution",
+  "fields" : [
+    {
+      "name" : "executionStartTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the execution began"
+    },
+    {
+      "name" : "executionEndTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the execution ended"
+    }
+  ]
+}

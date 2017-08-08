@@ -36,7 +36,6 @@ compileJava {
 }
 
 dependencies {
-  compile project(":gobblin-admin")
   compile project(":gobblin-api")
   compile project(":gobblin-core")
   compile project(":gobblin-hive-registration")
@@ -173,7 +172,7 @@ ext.classification="library"
 task pullFileConverter(type: JavaExec) {
   dependsOn jar
   doFirst {
-    main = "gobblin.runtime.template.PullFileToConfigConverter"
+    main = "org.apache.gobblin.runtime.template.PullFileToConfigConverter"
 
     def pullFilesRootPath = "pullFilesRootPath"
     def pullFilesToConvertGlob = "pullFilesToConvertGlob"

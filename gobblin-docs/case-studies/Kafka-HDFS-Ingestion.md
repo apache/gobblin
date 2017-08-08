@@ -21,15 +21,15 @@ job.lock.enabled=false
 
 kafka.brokers=localhost:9092
 
-source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleSource
-extract.namespace=gobblin.extract.kafka
+source.class=org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleSource
+extract.namespace=org.apache.gobblin.extract.kafka
 
-writer.builder.class=gobblin.writer.SimpleDataWriterBuilder
+writer.builder.class=org.apache.gobblin.writer.SimpleDataWriterBuilder
 writer.file.path.type=tablename
 writer.destination.type=HDFS
 writer.output.format=txt
 
-data.publisher.type=gobblin.publisher.BaseDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 
 mr.job.max.mappers=1
 
@@ -68,15 +68,15 @@ job.lock.enabled=false
 
 kafka.brokers=localhost:9092
 
-source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleSource
-extract.namespace=gobblin.extract.kafka
+source.class=org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleSource
+extract.namespace=org.apache.gobblin.extract.kafka
 
-writer.builder.class=gobblin.writer.SimpleDataWriterBuilder
+writer.builder.class=org.apache.gobblin.writer.SimpleDataWriterBuilder
 writer.file.path.type=tablename
 writer.destination.type=HDFS
 writer.output.format=txt
 
-data.publisher.type=gobblin.publisher.BaseDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 
 mr.job.max.mappers=1
 

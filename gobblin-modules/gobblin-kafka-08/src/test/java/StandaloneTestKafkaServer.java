@@ -17,7 +17,7 @@
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.kafka.KafkaTestBase;
+import org.apache.gobblin.kafka.KafkaTestBase;
 
 
 /**

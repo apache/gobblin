@@ -18,4 +18,4 @@ wget -P "${jr}" "${jrS3}"myjar1.jar
 wget -P "${jr}" "${jrS3}"myjar2.jar
 wget -P "${jr}" "${jrS3}"myjar3.jar
 wget -P "${jr}" "${jrS3}"myjar4-"${vr}".jar
-java -cp /home/ec2-user/cluster/cluster-conf/:/home/ec2-user/cluster/gobblin-jars/* -Xmx-Xms1G  gobblin.aws.GobblinAWSClusterManager --app_name cluster --gobblin.aws.work.dir /home/ec2-user/cluster/work-dir/ 1>/home/ec2-user/cluster/log-dir/GobblinAWSClusterManager.master.stdout 2>/home/ec2-user/cluster/log-dir/GobblinAWSClusterManager.master.stderr
+java -cp /home/ec2-user/cluster/cluster-conf/:/home/ec2-user/cluster/gobblin-jars/* -Xmx-Xms1G  org.apache.gobblin.aws.GobblinAWSClusterManager --app_name cluster --gobblin.aws.work.dir /home/ec2-user/cluster/work-dir/ 1>/home/ec2-user/cluster/log-dir/GobblinAWSClusterManager.master.stdout 2>/home/ec2-user/cluster/log-dir/GobblinAWSClusterManager.master.stderr

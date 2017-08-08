@@ -17,6 +17,7 @@
 
 dependencies {
   compile project(':gobblin-example')
+  compile project(':gobblin-admin')
   compile project(':gobblin-modules:gobblin-azkaban')
   compile project(':gobblin-modules:gobblin-compliance')
   compile project(':gobblin-modules:gobblin-couchbase')

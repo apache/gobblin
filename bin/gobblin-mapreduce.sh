@@ -204,7 +204,7 @@ export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS -Dgobblin.logs.dir=$GOBBLIN_LOG_D
 # Launch the job to run on Hadoop
 $HADOOP_BIN_DIR/hadoop jar \
         $FWDIR_LIB/gobblin-runtime-$GOBBLIN_VERSION.jar \
-        gobblin.runtime.mapreduce.CliMRJobLauncher \
+        org.apache.gobblin.runtime.mapreduce.CliMRJobLauncher \
         -D mapreduce.user.classpath.first=true \
         -D mapreduce.job.user.classpath.first=true \
         $JT_COMMAND \

@@ -1,0 +1,23 @@
+{
+  "type" : "record",
+  "name" : "JobStatistics",
+  "namespace" : "org.apache.gobblin.service",
+  "doc" : "Statistics from a job execution",
+  "fields" : [
+    {
+      "name" : "executionStartTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the execution began"
+    },
+    {
+      "name" : "executionEndTime",
+      "type" : "long",
+      "doc" : "Epoch time of when the execution ended"
+    },
+    {
+      "name" : "processedCount",
+      "type" : "long",
+      "doc" : "number of records processed in the last job execution"
+    }
+  ]
+}

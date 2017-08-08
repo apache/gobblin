@@ -18,12 +18,12 @@ job.name=SampleHiveDistcp
 job.group=HiveDistcp
 job.description=Sample job config for hive distcp
 
-extract.namespace=gobblin.copy.tracking
-gobblin.dataset.profile.class=gobblin.data.management.copy.hive.HiveDatasetFinder
-data.publisher.type=gobblin.data.management.copy.publisher.CopyDataPublisher
-source.class=gobblin.data.management.copy.CopySource
-writer.builder.class=gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder
-converter.classes=gobblin.converter.IdentityConverter
+extract.namespace=org.apache.gobblin.copy.tracking
+gobblin.dataset.profile.class=org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder
+data.publisher.type=org.apache.gobblin.data.management.copy.publisher.CopyDataPublisher
+source.class=org.apache.gobblin.data.management.copy.CopySource
+writer.builder.class=org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder
+converter.classes=org.apache.gobblin.converter.IdentityConverter
 
 hive.dataset.copy.target.table.prefixToBeReplaced=
 hive.dataset.copy.target.table.prefixReplacement=

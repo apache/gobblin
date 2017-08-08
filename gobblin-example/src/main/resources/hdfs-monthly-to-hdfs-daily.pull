@@ -22,7 +22,7 @@ job.description=Pull monthly partitioned data from HDFS, write it back as daily 
 source.filebased.data.directory=/data/monthly_partitioned/job_output/dataset
 source.filebased.fs.uri=hdfs://localhost:8020
 
-source.class=gobblin.source.DatePartitionedAvroFileSource
+source.class=org.apache.gobblin.source.DatePartitionedAvroFileSource
 source.entity=dataset
 
 # Looking for data in /data/monthly_partitioned/job_output/dataset/monthly/2015/02...
@@ -30,7 +30,7 @@ date.partitioned.source.min.watermark.value=2015/01
 date.partitioned.source.partition.prefix=monthly
 date.partitioned.source.partition.pattern=yyyy/MM
 
-extract.namespace=gobblin.example.partitioned
+extract.namespace=org.apache.gobblin.example.partitioned
 extract.table.name=dataset
 extract.is.full=true
 extract.table.type=snapshot_only
@@ -39,17 +39,17 @@ extract.table.type=snapshot_only
 # Wite to HDFS as daily partitioned
 writer.fs.uri=hdfs://localhost:8020
 writer.codec.type=snappy
-writer.builder.class=gobblin.writer.AvroDataWriterBuilder
+writer.builder.class=org.apache.gobblin.writer.AvroDataWriterBuilder
 writer.buffer.size=4096
 writer.file.path.type=TABLENAME
 
-writer.partitioner.class=gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner
+writer.partitioner.class=org.apache.gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner
 writer.partition.columns=change_dt
 writer.partition.pattern=yyyy/MM/dd
 writer.partition.prefix=daily
 writer.partition.timezone=Europe/Zurich
 
-data.publisher.type=gobblin.publisher.TimePartitionedDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.TimePartitionedDataPublisher
 
 # Misc
 source.timezone=Europe/Zurich

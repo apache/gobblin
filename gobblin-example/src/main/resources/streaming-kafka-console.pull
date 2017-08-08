@@ -33,11 +33,11 @@ task.executionMode=STREAMING
 gobblin.streaming.kafka.topic.key.deserializer=org.apache.kafka.common.serialization.StringDeserializer
 gobblin.streaming.kafka.topic.value.deserializer=org.apache.kafka.common.serialization.ByteArrayDeserializer
 
-source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource
+source.class=org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource
 gobblin.streaming.kafka.topic.singleton=test
 kafka.brokers=localhost:9092
 
-writer.builder.class=gobblin.writer.ConsoleWriterBuilder
+writer.builder.class=org.apache.gobblin.writer.ConsoleWriterBuilder
 
 
-data.publisher.type=gobblin.publisher.NoopPublisher
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher

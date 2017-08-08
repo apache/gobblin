@@ -30,7 +30,7 @@ function start() {
 
   LOG_ARGS="1>${FWDIR_LOGS}/GobblinCluster.master.stdout 2>${FWDIR_LOGS}/GobblinCluster.master.stderr"
 
-  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS gobblin.cluster.GobblinClusterManager --standalone_cluster true --app_name $CLUSTER_NAME $LOG_ARGS"
+  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS org.apache.gobblin.cluster.GobblinClusterManager --standalone_cluster true --app_name $CLUSTER_NAME $LOG_ARGS"
 
   echo "Running command:"
   echo "$COMMAND"

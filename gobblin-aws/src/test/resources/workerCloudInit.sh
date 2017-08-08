@@ -16,4 +16,4 @@ wget -P "${jr}" "${jr0}"myjar2.jar
 wget -P "${jr}" "${jr0}"myjar3.jar
 wget -P "${jr}" "${jr0}"myjar4-"${vr}".jar
 pi=`curl http://169.254.169.254/latest/meta-data/local-ipv4`
-java -cp /home/ec2-user/cluster/cluster-conf/:/home/ec2-user/cluster/gobblin-jars/* -Xmx-Xms1G  gobblin.aws.GobblinAWSTaskRunner --app_name cluster --helix_instance_name $pi --gobblin.aws.work.dir /home/ec2-user/cluster/work-dir/ 1>/home/ec2-user/cluster/log-dir/GobblinAWSTaskRunner.$pi.stdout 2>/home/ec2-user/cluster/log-dir/GobblinAWSTaskRunner.$pi.stderr
+java -cp /home/ec2-user/cluster/cluster-conf/:/home/ec2-user/cluster/gobblin-jars/* -Xmx-Xms1G  org.apache.gobblin.aws.GobblinAWSTaskRunner --app_name cluster --helix_instance_name $pi --gobblin.aws.work.dir /home/ec2-user/cluster/work-dir/ 1>/home/ec2-user/cluster/log-dir/GobblinAWSTaskRunner.$pi.stdout 2>/home/ec2-user/cluster/log-dir/GobblinAWSTaskRunner.$pi.stderr

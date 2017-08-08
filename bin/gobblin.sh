@@ -63,4 +63,4 @@ then
   GOBBLIN_LOG4J_CONFIGURATION=$(calling_dir)/../conf/log4j.properties
 fi
 
-java -Dlog4j.configuration=file:$GOBBLIN_LOG4J_CONFIGURATION -cp "$CLASSPATH" $GOBBLIN_OPTS gobblin.runtime.cli.GobblinCli $@
+java -Dlog4j.configuration=file:$GOBBLIN_LOG4J_CONFIGURATION -cp "$CLASSPATH" $GOBBLIN_OPTS org.apache.gobblin.runtime.cli.GobblinCli $@

@@ -38,7 +38,7 @@ This guide focuses on getting Gobblin to run in as a stand alone Java Process. T
 
 #### Example Config Files
 
-[`gobblin-oozie/src/main/resources/`](https://github.com/linkedin/gobblin/tree/master/gobblin-oozie/src/main/resources/) contains sample configuration files for launching Gobblin Oozie. There are a number of important files in this directory:
+[`gobblin-oozie/src/main/resources/local`](https://github.com/linkedin/gobblin/tree/master/gobblin-oozie/src/main/resources/local) contains sample configuration files for launching Gobblin Oozie. There are a number of important files in this directory:
 
 `gobblin-oozie-example-system.properties` contains default system level properties for Gobblin. When launched with Oozie, Gobblin will run inside a map task; it is thus recommended to configure Gobblin to write directly to HDFS rather than the local file system. The property `fs.uri` in this file should be changed to point to the NameNode of the Hadoop File System the job should write to. By default, all data is written under a folder called `gobblin-out`; to change this modify the `gobblin.work.dir` parameter in this file.
 
@@ -60,7 +60,19 @@ Gobblin has a number of `jar` dependencies that need to be used when launching a
 
 Assuming one has the [Oozie CLI](https://oozie.apache.org/docs/3.1.3-incubating/DG_CommandLineTool.html) installed, the job can be launched using the following command: `oozie job -config gobblin-oozie-example-workflow.properties -run`.
 
-#### Debugging Tips
+### Launching Gobblin in MapReduce Mode
+
+Launching Gobblin in mapreduce Mode works quite similar to the local mode. In this mode, the oozie launcher action will spawn a second mapreduce process where gobblin will process its tasks in distributed mode across the cluster. Since each of the Mappers needs access to the gobblin libraries, we need to provide the jars via the `job.hdfs.jars` variable
+
+#### Example Config Files
+
+[`gobblin-oozie/src/main/resources/mapreduce`](https://github.com/linkedin/gobblin/tree/master/gobblin-oozie/src/main/resources/mapreduce) contains sample configuration files for launching Gobblin Oozie in Mapreduce mode. The main difference to launching Gobblin Oozie in Local mode are a view extra MapReduce related configuration variables in the sysconfig.properties file and launching CliMRJobLauncher instead CliLocalJobLauncher.
+
+#### Further steps
+
+Everything else should be working the same way as in Local mode (see above)
+
+### Debugging Tips
 
 Once the job has been launched, its status can be queried via the following command: `oozie job -info <oozie-job-id>` and the logs can be shown via the following command `oozie job -log <oozie-job-id>`.
 

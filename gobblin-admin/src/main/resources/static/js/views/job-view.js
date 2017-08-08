@@ -20,39 +20,64 @@ var app = app || {}
 
 ;(function ($) {
   app.JobView = Backbone.View.extend({
-    el: '#main-content',
-
+    mainTemplate: _.template($('#main-template').html()),
     headerTemplate: _.template($('#header-template').html()),
     contentTemplate: _.template($('#job-template').html()),
     chartTemplate: _.template($('#chart-template').html()),
-    keyValueTemplate: _.template($('#key-value-template').html()),
+    summaryTemplate: _.template($('#summary-template').html()),
 
     events: {
-      'click #query-btn': '_fetchData'
+      'click #query-btn': '_fetchData',
+      'enter #results-limit': '_fetchData'
     },
 
     initialize: function (jobName) {
-      this.jobName = jobName
-      this.collection = app.jobExecutions
+      var self = this
+      self.setElement($('#main-content'))
+      self.jobName = jobName
+      self.collection = app.jobExecutions
+      if (Gobblin.settings.refreshInterval > 0) {
+        self.timer = setInterval(function() {
+          if (self.initialized) {
+            self._fetchData()
+          }
+        }, Gobblin.settings.refreshInterval)
+      }
+      self.listenTo(self.collection, 'reset', self.refreshData)
+    },
 
-      this.headerEl = this.$el.find('#header-container')
-      this.contentEl = this.$el.find('#content-container')
-
-      this.render()
+    onBeforeClose: function() {
+      var self = this
+      if (self.timer) {
+        clearInterval(self.timer);
+      }
+      if (self.table) {
+        if (self.table.onBeforeClose) {
+          self.table.onBeforeClose()
+        }
+        self.table.remove()
+      }
     },
 
     render: function () {
       var self = this
 
-      self.renderHeader()
+      self.$el.html(self.mainTemplate)
+      self.headerEl = self.$el.find('#header-container')
+      self.contentEl = self.$el.find('#content-container')
       self.contentEl.html(self.contentTemplate({}))
+      self.renderHeader()
+      self.renderSummary()
 
       self.table = new app.TableView({
         el: '#job-table-container',
         collection: self.collection,
         columnSchema: 'listByJobName',
-        includeJobToggle: false
+        includeJobToggle: false,
+        includeJobsWithTasksToggle: true,
       })
+      self.table.render()
+      self.initialized = true
 
       self._fetchData()
     },
@@ -60,38 +85,59 @@ var app = app || {}
     _fetchData: function () {
       var self = this
 
+      var includeJobsWithoutTasks = $('#list-jobs-with-tasks-toggle .active input').val() === "ALL"
+
       var opts = {
         limit: self.table.getLimit(),
         includeTaskExecutions: false,
         includeTaskMetrics: false,
+        includeJobsWithoutTasks: includeJobsWithoutTasks,
         jobProperties: 'job.description,job.runonce,job.schedule',
         taskProperties: ''
       }
-      self.collection.fetchCurrent('JOB_NAME', self.jobName, opts).done(function () {
-        self.renderHeader(self.collection.first().getJobStateMapped())
-        self.renderSummary()
-        self.table.renderData()
-      })
+      self.collection.fetchCurrent('JOB_NAME', self.jobName, opts)
     },
 
     renderHeader: function (status) {
+      var self = this
       var header = {
         title: 'Job Information',
-        subtitle: this.jobName
+        subtitle: self.jobName
       }
       if (typeof status !== 'undefined') {
         header.highlightClass = status
       }
-      this.headerEl.html(this.headerTemplate({ header: header }))
+      self.headerEl.html(self.headerTemplate({ header: header }))
     },
-
+    refreshData: function() {
+      var self = this
+      if (self.initialized) {
+        self.renderHeader(self.collection.last().getJobStateMapped())
+        if (self.durationChart !== undefined || self.recordsChart !== undefined) {
+          var jobData = self.getDurationAndRecordsRead()
+          if (self.durationChart !== undefined) {
+            self.durationChart.data.labels = jobData.labels
+            self.durationChart.data.datasets[0].data = jobData.durations
+            self.durationChart.update();
+          }
+          if (self.recordsChart !== undefined) {
+            self.recordsChart.data.labels = jobData.labels
+            self.recordsChart.data.datasets[0].data = jobData.recordsRead
+            self.recordsChart.update();
+          }
+        }
+        self.generateSummary('Status', self.getStatusReport(), '#status-key-value')
+      }
+    },
     renderSummary: function () {
-      var jobData = this.getDurationAndRecordsRead()
-      this.generateNewLineChart('Job Duration', jobData.labels, jobData.durations, '#duration-chart')
-      this.generateNewLineChart('Records Read', jobData.labels, jobData.recordsRead, '#records-chart')
-      this.generateKeyValue('Status', this.getStatusReport(), '#status-key-value')
+      var self = this
+      var jobData = self.getDurationAndRecordsRead()
+      self.durationChart = self.generateNewLineChart('Job Duration', jobData.labels, jobData.durations, '#duration-chart')
+      self.recordsChart = self.generateNewLineChart('Records Read', jobData.labels, jobData.recordsRead, '#records-chart')
+      self.generateSummary('Status', self.getStatusReport(), '#status-key-value')
     },
     getDurationAndRecordsRead: function (maxExecutions) {
+      var self = this
       maxExecutions = maxExecutions || 10
 
       var values = {
@@ -99,9 +145,10 @@ var app = app || {}
         durations: [],
         recordsRead: []
       }
-      var max = this.collection.size() < maxExecutions ? this.collection.size() : maxExecutions
-      for (var i = max - 1; i >= 0; i--) {
-        var execution = this.collection.at(i)
+      var executedCollection = self.collection.hasExecuted();
+      var min = executedCollection.size() < maxExecutions ? 0 : executedCollection.size() - maxExecutions;
+      for (var i = min; i < executedCollection.size(); i++) {
+        var execution = executedCollection.at(i)
         values.labels.push(execution.getJobStartTime())
         var time = execution.getDurationInSeconds() === '-' ? 0 : execution.getDurationInSeconds()
         values.durations.push(time)
@@ -110,9 +157,10 @@ var app = app || {}
       return values
     },
     getStatusReport: function () {
+      var self = this
       var statuses = {}
-      for (var i = 0; i < this.collection.size(); i++) {
-        var execution = this.collection.at(i)
+      for (var i = 0; i < self.collection.size(); i++) {
+        var execution = self.collection.at(i)
         statuses[execution.getJobState()] = (statuses[execution.getJobState()] || 0) + 1
       }
       return statuses
@@ -130,28 +178,48 @@ var app = app || {}
       }
 
       var chartData = {
-        labels: labels,
-        datasets: [
-          $.extend({
-            label: title,
-            data: data
-          }, lineFormat)
-        ]
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            $.extend({
+              label: title,
+              data: data
+            }, lineFormat)
+          ]
+        },
+        options: {
+          legend: {
+              display: false
+          },
+          scales: {
+            yAxes: [{
+              ticks: {
+                beginAtZero: true,
+                userCallback: function(label, index, labels) {
+                  if (Math.floor(label) === label) {
+                    return label;
+                  }
+                }
+              }
+            }]
+          }
+        }
       }
       var chartElem = self.$el.find(elemId)
-      chartElem.html(this.chartTemplate({
+      chartElem.html(self.chartTemplate({
         title: title,
         height: 450,
         width: 600
       }))
       var ctx = chartElem.find('.chart-canvas')[0].getContext('2d')
-      return new Chart(ctx).Line(chartData, { responsive: true })
+      return new Chart(ctx, chartData)
     },
-    generateKeyValue: function (title, keyValuePairs, elemId) {
+    generateSummary: function (title, keyValuePairs, elemId) {
       var self = this
 
       keyValuePairs = self.pseudoSortStates(keyValuePairs)
-      self.$el.find(elemId).html(self.keyValueTemplate({ title: title, pairs: keyValuePairs, center: true }))
+      self.$el.find(elemId).html(self.summaryTemplate({ title: title, pairs: keyValuePairs, center: true }))
     },
     pseudoSortStates: function (data) {
       var newData = {}

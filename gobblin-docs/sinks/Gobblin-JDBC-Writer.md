@@ -142,13 +142,13 @@ The MySQL writer uses [buffered inserts](http://dev.mysql.com/doc/refman/5.0/en/
 The sink configuration for MySQL in a Gobblin job is as follows:
 ```
 writer.destination.type=MYSQL
-writer.builder.class=gobblin.writer.JdbcWriterBuilder
+writer.builder.class=org.apache.gobblin.writer.JdbcWriterBuilder
 
-data.publisher.type=gobblin.publisher.JdbcPublisher
+data.publisher.type=org.apache.gobblin.publisher.JdbcPublisher
 jdbc.publisher.url=jdbc:mysql://host:3306
 jdbc.publisher.driver=com.mysql.jdbc.Driver
 
-converter.classes=gobblin.converter.jdbc.AvroToJdbcEntryConverter
+converter.classes=org.apache.gobblin.converter.jdbc.AvroToJdbcEntryConverter
 # If field name mapping is needed between the input Avro and the target table:
 converter.avro.jdbc.entry_fields_pairs={\"src_fn\":\"firstname\",\"src_ln\":\"lastname\"}
 ```
@@ -163,13 +163,13 @@ Gobblin submitter scripts. Teradata may use the FASTLOAD option during the inser
 The sink configuration for Teradata in a Gobblin job is as follows:
 ```
 writer.destination.type=TERADATA
-writer.builder.class=gobblin.writer.JdbcWriterBuilder
+writer.builder.class=org.apache.gobblin.writer.JdbcWriterBuilder
 
-data.publisher.type=gobblin.publisher.JdbcPublisher
+data.publisher.type=org.apache.gobblin.publisher.JdbcPublisher
 jdbc.publisher.url=jdbc:teradata://host/TMODE=ANSI,CHARSET=UTF16,TYPE=FASTLOAD
 jdbc.publisher.driver=com.teradata.jdbc.TeraDriver
 
-converter.classes=gobblin.converter.jdbc.AvroToJdbcEntryConverter
+converter.classes=org.apache.gobblin.converter.jdbc.AvroToJdbcEntryConverter
 # If field name mapping is needed between the input Avro and the target table:
 converter.avro.jdbc.entry_fields_pairs={\"src_fn\":\"firstname\",\"src_ln\":\"lastname\"}
 ```

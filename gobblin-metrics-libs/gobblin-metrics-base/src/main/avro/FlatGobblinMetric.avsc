@@ -4,7 +4,7 @@
 {
   "type": "record",
   "name": "FlatGobblinMetric",
-  "namespace": "gobblin.metrics",
+  "namespace" : "org.apache.gobblin.metrics",
   "fields" : [
     {
       "name": "tags",
