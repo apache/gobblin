@@ -22,7 +22,9 @@ import lombok.Data;
 
 @Data
 public class BaseServiceNodeImpl implements ServiceNode {
+
   public String nodeName ;
+
   public BaseServiceNodeImpl(String nodeName) {
     this.nodeName = nodeName ;
   }

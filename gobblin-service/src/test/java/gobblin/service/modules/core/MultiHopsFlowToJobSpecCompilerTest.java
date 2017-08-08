@@ -42,6 +42,7 @@ import java.util.Properties;
 import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
+import org.jgrapht.graph.DirectedWeightedMultigraph;
 import org.jgrapht.graph.WeightedMultigraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +74,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
   private static final String SPEC_DESCRIPTION = "Test Orchestrator";
   private static final String SPEC_VERSION = "1";
   private static final String TOPOLOGY_SPEC_STORE_DIR = "/tmp/orchestrator/topologyTestSpecStore_" + System.currentTimeMillis();
+  private static final String TOPOLOGY_SPEC_STORE_DIR_SECOND = "/tmp/orchestrator/topologyTestSpecStore_" + System.currentTimeMillis() + "_2";
   private static final String FLOW_SPEC_STORE_DIR = "/tmp/orchestrator/flowTestSpecStore_" + System.currentTimeMillis();
 
   private ServiceNode vertexSource;
@@ -141,12 +143,12 @@ public class MultiHopsFlowToJobSpecCompilerTest {
   @Test
   public void testWeightedGraphConstruction(){
     FlowSpec flowSpec = initFlowSpec();
-    TopologySpec topologySpec = initTopologySpec(TEST_SOURCE_NAME, TEST_HOP_NAME_A, TEST_HOP_NAME_B, TEST_SINK_NAME);
+    TopologySpec topologySpec = initTopologySpec(TOPOLOGY_SPEC_STORE_DIR, TEST_SOURCE_NAME, TEST_HOP_NAME_A, TEST_HOP_NAME_B, TEST_SINK_NAME);
     this.compilerWithTemplateCalague.onAddSpec(topologySpec);
 
     // invocation of compileFlow trigger the weighedGraph construction
     this.compilerWithTemplateCalague.compileFlow(flowSpec);
-    WeightedMultigraph<ServiceNode, FlowEdge> weightedGraph = compilerWithTemplateCalague.getWeightedGraph();
+    DirectedWeightedMultigraph<ServiceNode, FlowEdge> weightedGraph = compilerWithTemplateCalague.getWeightedGraph();
 
     Assert.assertTrue(weightedGraph.containsVertex(vertexSource));
     Assert.assertTrue(weightedGraph.containsVertex(vertexHopA));
@@ -157,9 +159,9 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     FlowEdge edgeA2B = new LoadBasedFlowEdgeImpl(vertexHopA, vertexHopB, topologySpec.getSpecExecutor());
     FlowEdge edgeB2Sink = new LoadBasedFlowEdgeImpl(vertexHopB, vertexSink, topologySpec.getSpecExecutor());
 
-    Assert.assertTrue( weightedGraph.containsEdge(edgeSrc2A));
-    Assert.assertTrue( weightedGraph.containsEdge(edgeA2B));
-    Assert.assertTrue( weightedGraph.containsEdge(edgeB2Sink));
+    Assert.assertTrue(weightedGraph.containsEdge(edgeSrc2A));
+    Assert.assertTrue(weightedGraph.containsEdge(edgeA2B));
+    Assert.assertTrue(weightedGraph.containsEdge(edgeB2Sink));
 
     Assert.assertTrue(edgeEqual(weightedGraph.getEdge(vertexSource, vertexHopA), edgeSrc2A));
     Assert.assertTrue(edgeEqual(weightedGraph.getEdge(vertexHopA, vertexHopB), edgeA2B));
@@ -173,28 +175,29 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     // TODO
   }
 
-  @Test
+  @Test (dependsOnMethods = "testWeightedGraphConstruction")
   public void testDijkstraPathFinding(){
 
     FlowSpec flowSpec = initFlowSpec();
-    TopologySpec topologySpec_1 = initTopologySpec(TEST_SOURCE_NAME, TEST_HOP_NAME_A, TEST_HOP_NAME_B, TEST_SINK_NAME);
-    TopologySpec topologySpec_2 = initTopologySpec(TEST_SOURCE_NAME, TEST_HOP_NAME_B, TEST_HOP_NAME_C, TEST_SINK_NAME);
+    TopologySpec topologySpec_1 = initTopologySpec(TOPOLOGY_SPEC_STORE_DIR, TEST_SOURCE_NAME, TEST_HOP_NAME_A, TEST_HOP_NAME_B, TEST_SINK_NAME);
+    TopologySpec topologySpec_2 = initTopologySpec(TOPOLOGY_SPEC_STORE_DIR_SECOND, TEST_SOURCE_NAME, TEST_HOP_NAME_B, TEST_HOP_NAME_C, TEST_SINK_NAME);
     this.compilerWithTemplateCalague.onAddSpec(topologySpec_1);
     this.compilerWithTemplateCalague.onAddSpec(topologySpec_2);
 
     // Get the edge -> Change the weight -> Materialized the edge change back to graph -> compile again -> Assertion
     this.compilerWithTemplateCalague.compileFlow(flowSpec);
-    WeightedMultigraph<ServiceNode, FlowEdge> weightedGraph = compilerWithTemplateCalague.getWeightedGraph();
+    DirectedWeightedMultigraph<ServiceNode, FlowEdge> weightedGraph = compilerWithTemplateCalague.getWeightedGraph();
     FlowEdge a2b= weightedGraph.getEdge(vertexHopA, vertexHopB);
     FlowEdge b2c = weightedGraph.getEdge(vertexHopB, vertexHopC);
     FlowEdge c2s = weightedGraph.getEdge(vertexHopC, vertexSink);
     weightedGraph.setEdgeWeight(a2b, 1.99);
-    weightedGraph.setEdgeWeight(b2c, 0.01);
-    weightedGraph.setEdgeWeight(c2s, 0.02);
+    weightedGraph.setEdgeWeight(b2c, 0.1);
+    weightedGraph.setEdgeWeight(c2s, 0.2);
 
-    // Best route: Src - B(1) - C(0.01) - sink (0.01)
+    // Best route: Src - B(1) - C(0.1) - sink (0.2)
     this.compilerWithTemplateCalague.compileFlow(flowSpec);
-    List<FlowEdge> edgeList = this.compilerWithTemplateCalague.dijkstraBasedPathFindingHelper(vertexSource, vertexSink);
+    List<FlowEdge> edgeList = this.compilerWithTemplateCalague.dijkstraBasedPathFindingHelper
+        (vertexSource, vertexSink);
 
     FlowEdge src2b = weightedGraph.getEdge(vertexSource, vertexHopB);
     FlowEdge b2C = weightedGraph.getEdge(vertexHopB, vertexHopC);
@@ -208,9 +211,9 @@ public class MultiHopsFlowToJobSpecCompilerTest {
   }
 
   // The topology is: Src - A - B - Dest
-  private TopologySpec initTopologySpec(String ... args) {
+  private TopologySpec initTopologySpec(String storeDir, String ... args) {
     Properties properties = new Properties();
-    properties.put("specStore.fs.dir", TOPOLOGY_SPEC_STORE_DIR);
+    properties.put("specStore.fs.dir", storeDir);
     String capabilitiesString = "";
     for(int i =0 ; i < args.length - 1 ; i ++ ) {
       capabilitiesString = capabilitiesString + ( args[i] + ":" + args[i+1] + ",");
@@ -224,7 +227,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
 
     TopologySpec.Builder topologySpecBuilder = TopologySpec.builder(
         IdentityFlowToJobSpecCompilerTest.computeTopologySpecURI(SPEC_STORE_PARENT_DIR,
-            TOPOLOGY_SPEC_STORE_DIR))
+            storeDir))
         .withConfig(config)
         .withDescription(SPEC_DESCRIPTION)
         .withVersion(SPEC_VERSION)

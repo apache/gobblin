@@ -4,6 +4,7 @@ import gobblin.util.ConfigUtils;
 import gobblin.util.PropertiesUtils;
 import java.util.Properties;
 
+import lombok.Getter;
 import org.jgrapht.graph.DefaultWeightedEdge;
 
 import gobblin.annotation.Alpha;
@@ -23,18 +24,33 @@ import lombok.Data;
  * {@link FlowEdgeProps}
  */
 @Alpha
-@Data
 public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEdge {
+  @Getter
   private ServiceNode sourceNode;
+  @Getter
   private ServiceNode targetNode;
-  private final FlowEdgeProps _flowEdgeProps;
+  @Getter
   private SpecExecutor specExecutorInstance;
+
+  private final FlowEdgeProps _flowEdgeProps;
 
   /**
    * {@link #load} and {@link #edgeSafety}'s value comes from {@link FlowEdgeProps} initially
-   * and can be overrided by {@link #setEdgeSafety(boolean)} and {@link #setEdgeLoad(double)} method afterwards.
+   * and can be overrided by {@link #setEdgeSafety(boolean)} and
+   * {@link org.jgrapht.graph.DirectedWeightedMultigraph#setEdgeWeight(Object, double)} method afterwards.
    */
   private boolean edgeSafety;
+
+  /**
+   * Should make this value consistent with value of {@link DefaultWeightedEdge}'s {@link #getWeight()}
+   * In this implementation it basically behaves like a cache layer of {@link #getWeight()}
+   * The purpose for keep this field is:
+   * - {@link #getWeight()} method is protected.
+   * - Keep the flexibility to implement more complicated load.
+   *
+   * Should not expose set method since weight setting will only be accessible
+   * by {@link org.jgrapht.graph.DirectedWeightedMultigraph#setEdgeWeight}
+   */
   private double load;
 
   public LoadBasedFlowEdgeImpl(ServiceNode sourceNode, ServiceNode targetNode,
@@ -45,25 +61,24 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
     this.specExecutorInstance = specExecutorInstance;
 
     this.edgeSafety = flowEdgeProps.getInitialEdgeSafety();
-    this.load = flowEdgeProps.getInitialEdgeLoad();
+    this.load = getWeight();
   }
 
-  public LoadBasedFlowEdgeImpl(ServiceNode sourceNode, ServiceNode targetName,
+  public LoadBasedFlowEdgeImpl(ServiceNode sourceNode, ServiceNode targetNode,
       SpecExecutor specExecutor){
-    this(sourceNode, targetName, new FlowEdgeProps(ConfigUtils.configToProperties(specExecutor.getAttrs())),
+    this(sourceNode, targetNode, new FlowEdgeProps(ConfigUtils.configToProperties(specExecutor.getAttrs())),
         specExecutor);
   }
 
   /**
-   * Specific to this implementation that deals with edge load.
+   *
+   * @return
    */
   public double getEdgeLoad(){
+    this.load = getWeight();
     return this.load;
   }
 
-  public void setEdgeLoad(double load){
-    this.load = load;
-  }
 
   @Override
   public String getEdgeIdentity(){
@@ -101,9 +116,44 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
     return sourceNode.getNodeName() + "-" + specExecutorInstance.getUri() + "-" + targetNode.getNodeName();
   }
 
+  /**
+   * Recall that we need a triplet to uniquely define a {@link FlowEdge}:
+   * - {@link ServiceNode} sourceNode
+   * - {@link ServiceNode} targetNode
+   * - {@link SpecExecutor} SpecExecutor
+   *
+   * We DO NOT distinguish between two edges by other props like {@link #load}(weight),
+   * as the load should be an attribute of an edge.
+   * These are IntelliJ-generated methods for equals and hashCode().
+   *
+   * @param o The object that being compared
+   * @return If two {@link LoadBasedFlowEdgeImpl} are equivalent.
+   */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
-  protected double getWeight()
-  {
-    return getEdgeLoad();
+    LoadBasedFlowEdgeImpl that = (LoadBasedFlowEdgeImpl) o;
+
+    if (!sourceNode.equals(that.sourceNode)) {
+      return false;
+    }
+    if (!targetNode.equals(that.targetNode)) {
+      return false;
+    }
+    return specExecutorInstance.equals(that.specExecutorInstance);
+  }
+
+  @Override
+  public int hashCode() {
+    int result = sourceNode.hashCode();
+    result = 31 * result + targetNode.hashCode();
+    result = 31 * result + specExecutorInstance.hashCode();
+    return result;
   }
 }

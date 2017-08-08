@@ -46,9 +46,4 @@ public class FlowEdgeProps {
         Boolean.parseBoolean(properties.getProperty(EDGE_SECURITY_KEY)) : DEFAULT_EDGE_SAFETY;
   }
 
-  public double getInitialEdgeLoad(){
-    return properties.contains(INITIAL_LOAD) ?
-        Double.parseDouble(properties.getProperty(INITIAL_LOAD)) : DEFAULT_EDGE_LOAD;
-  }
-
 }

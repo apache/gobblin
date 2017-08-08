@@ -18,25 +18,25 @@
 package gobblin.service.modules.flow;
 
 import avro.shaded.com.google.common.annotations.VisibleForTesting;
-import gobblin.runtime.api.BaseServiceNodeImpl;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.SpecExecutor;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.job_spec.ResolvedJobSpec;
+
+import gobblin.service.modules.utils.DistancedNode;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
-import org.jgrapht.alg.DijkstraShortestPath;
-import org.jgrapht.graph.WeightedMultigraph;
+import org.jgrapht.graph.DirectedWeightedMultigraph;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
@@ -52,6 +52,12 @@ import gobblin.instrumented.Instrumented;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.service.ServiceConfigKeys;
+import gobblin.runtime.api.BaseServiceNodeImpl;
+import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.JobTemplate;
+import gobblin.runtime.api.SpecExecutor;
+import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.job_spec.ResolvedJobSpec;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -71,8 +77,8 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   */
 
   @Getter
-  private WeightedMultigraph<ServiceNode, FlowEdge> weightedGraph =
-      new WeightedMultigraph<>(LoadBasedFlowEdgeImpl.class);
+  private DirectedWeightedMultigraph<ServiceNode, FlowEdge> weightedGraph =
+      new DirectedWeightedMultigraph<>(LoadBasedFlowEdgeImpl.class);
 
   //Contains the user-specified connection that are not desired to appear in JobSpec.
   //It can be used for avoiding known expensive or undesired data movement.
@@ -176,7 +182,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     }
   }
 
-  private void vertexSafeDeletionAttempt(ServiceNode node, WeightedMultigraph weightedGraph){
+  private void vertexSafeDeletionAttempt(ServiceNode node, DirectedWeightedMultigraph weightedGraph){
     if (weightedGraph.inDegreeOf(node) == 0 && weightedGraph.outDegreeOf(node) == 0){
       log.info("Node " + node.getNodeName() + " has no connection with it therefore delete it.");
       weightedGraph.removeVertex(node);
@@ -204,8 +210,13 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       }
     }
 
-    ServiceNode sourceNode = new BaseServiceNodeImpl(flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY));
-    ServiceNode targetNode = new BaseServiceNodeImpl(flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY));
+    ServiceNode sourceNode =
+        new BaseServiceNodeImpl(flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY));
+    if (this.weightedGraph.containsVertex(sourceNode)){
+      System.out.println("yes");
+    }
+    ServiceNode targetNode =
+        new BaseServiceNodeImpl(flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY));
     List<FlowEdge> resultEdgePath = dijkstraBasedPathFindingHelper(sourceNode, targetNode);
     for (int i = 0 ; i < resultEdgePath.size() - 1 ; i ++ ) {
       FlowEdge tmpFlowEdge = resultEdgePath.get(i);
@@ -216,13 +227,78 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     }
   }
 
-  // Conduct dijkstra algorithm for finding shoretest path on WeightedDirectedMultiGraph.
+  // Since Author{autumnust@gmail.com} couldn't find the proper way to conduct Library provided by JGraphT
+  // on the customized-edge Graph, here is the raw implementation of Dijkstra algorithm for finding shortest path.
+
+  /**
+   * Given sourceNode and targetNode, find the shortest path and return shortest path.
+   * @return Each edge on this shortest path, in order.
+   *
+   * Implementation in Fibonacci Heap, optimized version.
+   */
   @VisibleForTesting
   public List<FlowEdge> dijkstraBasedPathFindingHelper(ServiceNode sourceNode, ServiceNode targetNode){
-    DijkstraShortestPath<ServiceNode, FlowEdge> dijkstraShortestPath =
-        new DijkstraShortestPath(this.weightedGraph, sourceNode, targetNode);
-    return dijkstraShortestPath.getPathEdgeList();
+    Map<DistancedNode, ArrayList<FlowEdge>> shortestPath = new HashMap<>();
+    Map<DistancedNode, Double> shortestDist = new HashMap<>();
+    PriorityQueue<DistancedNode> pq = new PriorityQueue<>(new Comparator<DistancedNode>() {
+      @Override
+      public int compare(DistancedNode o1, DistancedNode o2) {
+        if (o1.getDistToSrc() < o2.getDistToSrc()) {
+          return -1;
+        }
+        else{
+          return 1;
+        }
+      }
+    });
+    pq.add(new DistancedNode(sourceNode, 0.0));
+
+    Set<FlowEdge> visitedEdge = new HashSet<>();
+
+    while(!pq.isEmpty()){
+      DistancedNode<BaseServiceNodeImpl> node = pq.poll();
+      if ( node.getNode().getNodeName().equals(targetNode.getNodeName())){
+        // Searching finished
+        return shortestPath.get(node);
+      }
+
+      Set<FlowEdge> outgoingEdges = this.weightedGraph.outgoingEdgesOf(node.getNode());
+      for(FlowEdge outGoingEdge:outgoingEdges){
+        // Since it is a multi-graph problem, should use edge for deduplicaiton instead of vertex.
+        if (visitedEdge.contains(outGoingEdge)){
+          continue;
+        }
+
+        DistancedNode adjacentNode = new DistancedNode(this.weightedGraph.getEdgeTarget(outGoingEdge));
+        if (shortestDist.containsKey(adjacentNode)){
+          adjacentNode.setDistToSrc(shortestDist.get(adjacentNode));
+        }
+
+        double newDist = node.getDistToSrc() +
+            ((LoadBasedFlowEdgeImpl) outGoingEdge).getEdgeLoad();
+
+        if (newDist < adjacentNode.getDistToSrc()){
+          if (pq.contains(adjacentNode)){
+            pq.remove(adjacentNode);
+          }
+
+          // Update the shortest path.
+          ArrayList<FlowEdge> path = shortestPath.containsKey(node)
+              ? new ArrayList<>(shortestPath.get(node)) : new ArrayList<>();
+          path.add(outGoingEdge);
+          shortestPath.put(adjacentNode, path);
+          shortestDist.put(adjacentNode, newDist);
+
+          adjacentNode.setDistToSrc(newDist);
+          pq.add(adjacentNode);
+        }
+        visitedEdge.add(outGoingEdge);
+      }
+    }
+    log.error("No path found");
+    return new ArrayList<>();
   }
+
 
   // If path specified not existed, return false;
   // else return true.
@@ -252,8 +328,10 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       Map<ServiceNode, ServiceNode> capabilities =
           topologySpec.getSpecExecutor().getCapabilities().get();
       for (Map.Entry<ServiceNode, ServiceNode> capability : capabilities.entrySet()) {
-        ServiceNode sourceNode = capability.getKey();
-        ServiceNode targetNode = capability.getValue();
+
+        BaseServiceNodeImpl sourceNode = new BaseServiceNodeImpl(capability.getKey().getNodeName());
+        BaseServiceNodeImpl targetNode = new BaseServiceNodeImpl(capability.getValue().getNodeName());
+        // TODO: Make it generic
         if (!weightedGraph.containsVertex(sourceNode)){
           weightedGraph.addVertex(sourceNode);
         }
