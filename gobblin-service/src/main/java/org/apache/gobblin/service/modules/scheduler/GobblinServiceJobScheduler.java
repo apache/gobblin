@@ -25,6 +25,7 @@ import java.util.Properties;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 import org.quartz.DisallowConcurrentExecution;
@@ -173,8 +174,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
       try {
         Properties jobConfig = new Properties();
+        Properties flowSpecProperties = ((FlowSpec) addedSpec).getConfigAsProperties();
         jobConfig.putAll(this.properties);
         jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, addedSpec.getUri().toString());
+        if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)
+            && StringUtils.isNotBlank(flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY))) {
+          jobConfig.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
+        }
 
         this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
 
