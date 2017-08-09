@@ -58,6 +58,9 @@ public class CopyableFile extends CopyEntity implements File {
   /** Complete destination {@link Path} of the file. */
   private Path destination;
 
+  /** Common path for dataset to which this CopyableFile belongs. */
+  public String datasetOutputPath;
+
   /** Desired {@link OwnerAndPermission} of the destination path. */
   private OwnerAndPermission destinationOwnerAndPermission;
 
@@ -89,7 +92,8 @@ public class CopyableFile extends CopyEntity implements File {
   @lombok.Builder(builderClassName = "Builder", builderMethodName = "_hiddenBuilder")
   public CopyableFile(FileStatus origin, Path destination, OwnerAndPermission destinationOwnerAndPermission,
       List<OwnerAndPermission> ancestorsOwnerAndPermission, byte[] checksum, PreserveAttributes preserve,
-      String fileSet, long originTimestamp, long upstreamTimestamp, Map<String, String> additionalMetadata) {
+      String fileSet, long originTimestamp, long upstreamTimestamp, Map<String, String> additionalMetadata,
+      String datasetOutputPath) {
     super(fileSet, additionalMetadata);
     this.origin = origin;
     this.destination = destination;
@@ -99,6 +103,7 @@ public class CopyableFile extends CopyEntity implements File {
     this.preserve = preserve;
     this.originTimestamp = originTimestamp;
     this.upstreamTimestamp = upstreamTimestamp;
+    this.datasetOutputPath = datasetOutputPath;
   }
 
   /**
@@ -145,6 +150,7 @@ public class CopyableFile extends CopyEntity implements File {
     private CopyConfiguration configuration;
     private FileSystem originFs;
     private Map<String, String> additionalMetadata;
+    private String datasetOutputPath;
 
     private Builder originFS(FileSystem originFs) {
       this.originFs = originFs;
@@ -219,7 +225,7 @@ public class CopyableFile extends CopyEntity implements File {
 
       return new CopyableFile(this.origin, this.destination, this.destinationOwnerAndPermission,
           this.ancestorsOwnerAndPermission, this.checksum, this.preserve, this.fileSet, this.originTimestamp,
-          this.upstreamTimestamp, this.additionalMetadata);
+          this.upstreamTimestamp, this.additionalMetadata, this.datasetOutputPath);
     }
 
     private List<OwnerAndPermission> replicateAncestorsOwnerAndPermission(FileSystem originFs, Path originPath,
