@@ -65,7 +65,12 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   private final CopyableFileFilter copyableFileFilter;
   private final boolean update;
   private final boolean delete;
+
+  // Include empty directories in the source for copy
+  private final boolean includeEmptyDirectories;
+  // Delete empty directories in the destination
   private final boolean deleteEmptyDirectories;
+
   private final Properties properties;
 
   public RecursiveCopyableDataset(final FileSystem fs, Path rootPath, Properties properties, Path glob) {
@@ -80,6 +85,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     this.update = Boolean.parseBoolean(properties.getProperty(UPDATE_KEY));
     this.delete = Boolean.parseBoolean(properties.getProperty(DELETE_KEY));
     this.deleteEmptyDirectories = Boolean.parseBoolean(properties.getProperty(DELETE_EMPTY_DIRECTORIES_KEY));
+    this.includeEmptyDirectories =
+        Boolean.parseBoolean(properties.getProperty(CopyConfiguration.INCLUDE_EMPTY_DIRECTORIES));
     this.properties = properties;
   }
 
@@ -150,7 +157,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   @VisibleForTesting
   protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
     try {
-      return FileListUtils.listFilesRecursively(fs, path, fileFilter);
+      return FileListUtils.listFilesToCopyAtPath(fs, path, fileFilter, includeEmptyDirectories);
     } catch (FileNotFoundException fnfe) {
       return Lists.newArrayList();
     }
