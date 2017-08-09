@@ -35,7 +35,6 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.BaseServiceNodeImpl;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.ServiceNode;
 import gobblin.runtime.api.SpecExecutor;

@@ -17,7 +17,6 @@
 
 package gobblin.runtime.spec_executorInstance;
 
-import gobblin.runtime.api.GobblinInstanceEnvironment;
 import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
@@ -30,6 +29,8 @@ import gobblin.util.CompletedFuture;
 import gobblin.runtime.api.SpecExecutor;
 import gobblin.runtime.api.SpecConsumer;
 import gobblin.runtime.api.SpecProducer;
+import gobblin.runtime.api.GobblinInstanceEnvironment;
+
 
 
 /**
@@ -71,7 +72,7 @@ public class InMemorySpecExecutor extends AbstractSpecExecutor {
 
   @Override
   protected void shutDown() throws Exception {
-
+    // Nothing to do in the abstract implementation.
   }
 
 }

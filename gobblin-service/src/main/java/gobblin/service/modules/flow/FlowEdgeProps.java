@@ -45,5 +45,4 @@ public class FlowEdgeProps {
     return  properties.containsKey(EDGE_SECURITY_KEY) ?
         Boolean.parseBoolean(properties.getProperty(EDGE_SECURITY_KEY)) : DEFAULT_EDGE_SAFETY;
   }
-
 }

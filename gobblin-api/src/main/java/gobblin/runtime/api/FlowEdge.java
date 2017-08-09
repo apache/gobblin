@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package gobblin.runtime.api;
 
 import java.util.Properties;
@@ -27,22 +28,17 @@ import java.util.Properties;
 public interface FlowEdge {
 
   /**
-   * @return Identifier of edge which is, by default consisting of source and destination Name with colon in the between.
+   * @return Uniqueness of an edge is defined by
+   * - sourceNode
+   * - targetNode
+   * - SpecExecutor
+   * hashCode and equals is required to implemented accordingly.
    */
   String getEdgeIdentity();
 
   /**
-   * @return If an edge is safe to use.
-   */
-  boolean isEdgeSafe();
-
-  /**
-   * Edge safety is supposed to be dynamic.
-   */
-  void setEdgeSafety(boolean safety);
-
-  /**
    * There could be multiple edge properties besides typical ones like load, security, etc.
+   * Normally it is categorized into numerical value props and boolean value props.
    * Edge Properties are supposed to be read-only.
    * @return
    */

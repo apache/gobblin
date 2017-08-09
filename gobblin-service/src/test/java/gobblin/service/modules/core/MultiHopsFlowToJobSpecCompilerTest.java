@@ -16,9 +16,31 @@
  */
 package gobblin.service.modules.core;
 
+import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.Path;
+import org.jgrapht.graph.DirectedWeightedMultigraph;
+import org.jgrapht.graph.WeightedMultigraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
 import com.typesafe.config.Config;
+
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.api.BaseServiceNodeImpl;
+import gobblin.runtime.spec_executorInstance.BaseServiceNodeImpl;
 import gobblin.runtime.api.FlowEdge;
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.ServiceNode;
@@ -30,26 +52,6 @@ import gobblin.service.modules.flow.LoadBasedFlowEdgeImpl;
 import gobblin.service.modules.flow.MultiHopsFlowToJobSpecCompiler;
 import gobblin.util.ConfigUtils;
 import gobblin.util.PathUtils;
-import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import org.apache.commons.io.FileUtils;
-import org.apache.hadoop.fs.Path;
-import org.jgrapht.graph.DirectedWeightedMultigraph;
-import org.jgrapht.graph.WeightedMultigraph;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 // All unit tests here will be with templateCatelogue.
 public class MultiHopsFlowToJobSpecCompilerTest {

@@ -264,9 +264,9 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
 
   /**
    * Ideally each edge has its own eligible template repository(Based on {@link SpecExecutor})
-   * to pick template from.
+   * to pick templates from.
    *
-   * This function is to transfrom from all available templates ({@link #templateCatalog})
+   * This function is to transfrom from all mixed templates ({@link #templateCatalog})
    * into categorized {@link #edgeTemplateMap}.
    *
    */

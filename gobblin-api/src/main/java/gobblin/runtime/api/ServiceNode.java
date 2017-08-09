@@ -17,13 +17,21 @@
 
 package gobblin.runtime.api;
 
+import com.typesafe.config.Config;
+
 /**
  * Abstraction of a Node in {@link SpecExecutor}
+ * Please don't confused by the name, 'Service' here refers to 's' in Gaas.
  */
 public interface ServiceNode {
   /**
    * @return The name of node.
    */
   public String getNodeName();
+
+  /**
+   * @return The attributes of a {@link ServiceNode}.
+   */
+  public Config getNodeConfig();
 
 }
