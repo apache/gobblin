@@ -18,6 +18,7 @@
 package org.apache.gobblin.metrics.kafka;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
@@ -30,9 +31,11 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -59,6 +62,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
 
   private final GenericObjectPool<HttpClient> httpClientPool;
   private final String url;
+  private final Optional<Map<String, String>> namespaceOverride;
 
   /**
    * @param properties properties should contain property "kafka.schema.registry.url", and optionally
@@ -71,6 +75,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
         String.format("Property %s not provided.", KAFKA_SCHEMA_REGISTRY_URL));
 
     this.url = props.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
+    this.namespaceOverride = KafkaAvroReporterUtil.extractOverrideNamespace(props);
 
     int objPoolSize =
         Integer.parseInt(props.getProperty(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,
@@ -186,6 +191,12 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
    */
   @Override
   public synchronized String register(Schema schema) throws SchemaRegistryException {
+
+    // Change namespace if override specified
+    if (this.namespaceOverride.isPresent()) {
+      schema = AvroUtils.switchNamespace(schema, this.namespaceOverride.get());
+    }
+
     LOG.info("Registering schema " + schema.toString());
 
     PostMethod post = new PostMethod(url);

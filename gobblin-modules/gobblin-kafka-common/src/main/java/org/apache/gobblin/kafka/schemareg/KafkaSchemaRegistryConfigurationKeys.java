@@ -24,4 +24,5 @@ public class KafkaSchemaRegistryConfigurationKeys {
   public final static String KAFKA_SCHEMA_REGISTRY_CLASS = "kafka.schemaRegistry.class";
   public final static String KAFKA_SCHEMA_REGISTRY_URL = "kafka.schemaRegistry.url";
   public final static String KAFKA_SCHEMA_REGISTRY_CACHE = "kafka.schemaRegistry.cache";
+  public final static String KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE = "kafka.schemaRegistry.overrideNamespace";
 }
