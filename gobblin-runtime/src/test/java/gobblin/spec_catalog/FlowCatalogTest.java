@@ -17,8 +17,7 @@
 
 package gobblin.spec_catalog;
 
-import gobblin.runtime.api.SpecProducer;
-import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import gobblin.runtime.api.SpecExecutor;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -45,6 +44,8 @@ import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.runtime.spec_catalog.FlowCatalog;
 import gobblin.util.ConfigUtils;
 import gobblin.util.PathUtils;
+import gobblin.runtime.api.SpecProducer;
+import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 
 
 public class FlowCatalogTest {
@@ -89,7 +90,7 @@ public class FlowCatalogTest {
     properties.put("specExecInstance.capabilities", "source:destination");
     Config config = ConfigUtils.propertiesToConfig(properties);
 
-    SpecProducer specExecutorInstanceProducer = new InMemorySpecExecutor(config);
+    SpecExecutor specExecutorInstanceProducer = new InMemorySpecExecutor(config);
 
     FlowSpec.Builder flowSpecBuilder = null;
     try {

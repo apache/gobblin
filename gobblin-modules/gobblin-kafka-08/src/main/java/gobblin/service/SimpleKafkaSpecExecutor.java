@@ -17,11 +17,6 @@
 
 package gobblin.service;
 
-
-import com.google.common.io.Closer;
-import gobblin.runtime.api.SpecConsumer;
-import gobblin.runtime.api.SpecProducer;
-import gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -31,13 +26,16 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
+import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.Spec;
 import gobblin.util.CompletedFuture;
 import gobblin.util.ConfigUtils;
 import gobblin.runtime.api.SpecExecutor;
-
+import gobblin.runtime.api.SpecConsumer;
+import gobblin.runtime.api.SpecProducer;
+import gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 
 /**
  * An {@link SpecExecutor} that use Kafka as the communication mechanism.

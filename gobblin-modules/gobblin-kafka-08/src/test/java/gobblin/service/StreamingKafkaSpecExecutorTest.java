@@ -17,7 +17,6 @@
 
 package gobblin.service;
 
-import gobblin.runtime.api.SpecExecutor;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -42,6 +41,8 @@ import gobblin.runtime.api.Spec;
 import gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
 import gobblin.util.ConfigUtils;
 import gobblin.writer.WriteResponse;
+import gobblin.runtime.api.SpecExecutor;
+
 import lombok.extern.slf4j.Slf4j;
 
 

@@ -17,8 +17,6 @@
 
 package gobblin.service;
 
-import com.google.common.util.concurrent.AbstractIdleService;
-import gobblin.util.ConfigUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -37,6 +35,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.MutableJobCatalog;
@@ -46,6 +45,7 @@ import gobblin.runtime.job_monitor.AvroJobSpecKafkaJobMonitor;
 import gobblin.runtime.job_monitor.KafkaJobMonitor;
 import gobblin.runtime.std.DefaultJobCatalogListenerImpl;
 import gobblin.util.CompletedFuture;
+import gobblin.util.ConfigUtils;
 import static gobblin.service.SimpleKafkaSpecExecutor.*;
 
 import lombok.extern.slf4j.Slf4j;

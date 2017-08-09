@@ -17,6 +17,7 @@
 
 package gobblin.service.modules.flow;
 
+import java.io.Serializable;
 import java.util.Properties;
 
 import static gobblin.service.ServiceConfigKeys.*;
@@ -26,7 +27,9 @@ import lombok.extern.slf4j.Slf4j;
 
 @Data
 @Slf4j
-public class FlowEdgeProps {
+public class FlowEdgeProps implements Serializable{
+
+  private static final long serialVersionUID = 221008706467320994L;
 
   private Properties properties;
 

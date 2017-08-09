@@ -18,17 +18,9 @@
 package gobblin.service.modules.flow;
 
 import com.typesafe.config.ConfigValueFactory;
-import gobblin.annotation.Alpha;
-import gobblin.runtime.api.FlowSpec;
-import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.api.JobTemplate;
-import gobblin.runtime.api.SpecExecutor;
-import gobblin.runtime.api.SpecProducer;
-import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.job_spec.ResolvedJobSpec;
+
 import java.io.IOException;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +48,15 @@ import gobblin.runtime.job_catalog.FSJobCatalog;
 import gobblin.service.ServiceConfigKeys;
 import gobblin.service.ServiceMetricNames;
 import gobblin.util.ConfigUtils;
+import gobblin.annotation.Alpha;
+import gobblin.runtime.api.FlowSpec;
+import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.JobTemplate;
+import gobblin.runtime.api.SpecExecutor;
+import gobblin.runtime.api.SpecProducer;
+import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.job_spec.ResolvedJobSpec;
+
 import lombok.Getter;
 
 // Provide base implementation for constructing multi-hops route.

@@ -17,8 +17,6 @@
 
 package gobblin.service.modules.topology;
 
-import gobblin.runtime.api.SpecExecutor;
-import gobblin.runtime.api.SpecProducer;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,6 +36,8 @@ import gobblin.runtime.api.TopologySpec;
 import gobblin.service.ServiceConfigKeys;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
+import gobblin.runtime.api.SpecExecutor;
+
 
 
 @Alpha

@@ -17,7 +17,6 @@
 
 package gobblin.cluster;
 
-import gobblin.runtime.api.SpecConsumer;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Properties;
@@ -45,6 +44,7 @@ import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.reflection.GobblinConstructorUtils;
+import gobblin.runtime.api.SpecConsumer;
 
 
 /**

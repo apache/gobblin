@@ -17,20 +17,15 @@
 
 package gobblin.runtime.api;
 
-import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 import javax.annotation.concurrent.NotThreadSafe;
 
-import edu.umd.cs.findbugs.annotations.SuppressWarnings;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
@@ -42,6 +37,10 @@ import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
+import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
 
 /**

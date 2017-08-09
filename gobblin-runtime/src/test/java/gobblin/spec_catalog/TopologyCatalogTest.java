@@ -17,7 +17,7 @@
 
 package gobblin.spec_catalog;
 
-import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import gobblin.runtime.api.SpecExecutor;
 import java.io.File;
 import java.net.URI;
 import java.util.Collection;
@@ -42,6 +42,7 @@ import gobblin.runtime.api.SpecProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.runtime.spec_catalog.TopologyCatalog;
+import gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import gobblin.util.ConfigUtils;
 import gobblin.util.PathUtils;
 
@@ -89,7 +90,7 @@ public class TopologyCatalogTest {
     properties.put("specExecInstance.capabilities", "source:destination");
     Config config = ConfigUtils.propertiesToConfig(properties);
 
-    SpecProducer specExecutorInstanceProducer = new InMemorySpecExecutor(config);
+    SpecExecutor specExecutorInstanceProducer = new InMemorySpecExecutor(config);
 
     TopologySpec.Builder topologySpecBuilder = TopologySpec.builder(computeTopologySpecURI())
         .withConfig(config)
