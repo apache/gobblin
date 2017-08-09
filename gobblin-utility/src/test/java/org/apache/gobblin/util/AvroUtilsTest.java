@@ -21,6 +21,8 @@ import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -36,6 +38,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.Maps;
 
 
 public class AvroUtilsTest {
@@ -194,6 +198,27 @@ public class AvroUtilsTest {
     Assert.assertEquals(schema,
         AvroUtils.switchName(AvroUtils.switchName(schema, newName), schema.getName()));
 
+  }
+
+  @Test
+  public void testSwitchNamespace() {
+    String originalNamespace = "originalNamespace";
+    String originalName = "originalName";
+    String newNamespace = "newNamespace";
+    Schema schema = SchemaBuilder.builder(originalNamespace).record(originalName).fields().
+        requiredDouble("double").optionalFloat("float").endRecord();
+
+    Map<String, String> map = Maps.newHashMap();
+    map.put(originalNamespace, newNamespace);
+    Schema newSchema = AvroUtils.switchNamespace(schema, map);
+
+    Assert.assertEquals(newSchema.getNamespace(), newNamespace);
+    Assert.assertEquals(newSchema.getName(), originalName);
+    for(Schema.Field field : newSchema.getFields()) {
+      Assert.assertEquals(field, schema.getField(field.name()));
+    }
+
+    Assert.assertEquals(newNamespace, AvroUtils.switchNamespace(schema, map).getNamespace());
   }
 
   @Test public void testSerializeAsPath() throws Exception {

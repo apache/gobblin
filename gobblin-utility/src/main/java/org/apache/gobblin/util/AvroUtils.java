@@ -49,6 +49,7 @@ import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
 import org.apache.avro.util.Utf8;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -56,6 +57,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.codehaus.jackson.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -609,6 +611,127 @@ public class AvroUtils {
 
     newSchema.setFields(Lists.newArrayList(fieldsNew));
     return newSchema;
+  }
+
+  /**
+   * Copies the input {@link org.apache.avro.Schema} but changes the schema namespace.
+   * @param schema {@link org.apache.avro.Schema} to copy.
+   * @param namespaceOverride namespace for the copied {@link org.apache.avro.Schema}.
+   * @return A {@link org.apache.avro.Schema} that is a copy of schema, but has the new namespace.
+   */
+  public static Schema switchNamespace(Schema schema, Map<String, String> namespaceOverride) {
+    Schema newSchema;
+    String newNamespace = StringUtils.EMPTY;
+
+    // Process all Schema Types
+    // (Primitives are simply cloned)
+    switch (schema.getType()) {
+      case ARRAY:
+        newSchema = Schema.createArray(switchNamespace(schema.getElementType(), namespaceOverride));
+        break;
+      case BOOLEAN:
+        newSchema = Schema.create(schema.getType());
+        break;
+      case BYTES:
+        newSchema = Schema.create(schema.getType());
+        break;
+      case DOUBLE:
+        newSchema = Schema.create(schema.getType());
+        break;
+      case ENUM:
+        newNamespace = namespaceOverride.containsKey(schema.getNamespace()) ? namespaceOverride.get(schema.getNamespace())
+            : schema.getNamespace();
+        newSchema =
+            Schema.createEnum(schema.getName(), schema.getDoc(), newNamespace, schema.getEnumSymbols());
+        break;
+      case FIXED:
+        newNamespace = namespaceOverride.containsKey(schema.getNamespace()) ? namespaceOverride.get(schema.getNamespace())
+            : schema.getNamespace();
+        newSchema =
+            Schema.createFixed(schema.getName(), schema.getDoc(), newNamespace, schema.getFixedSize());
+        break;
+      case FLOAT:
+        newSchema = Schema.create(schema.getType());
+        break;
+      case INT:
+        newSchema = Schema.create(schema.getType());
+        break;
+      case LONG:
+        newSchema = Schema.create(schema.getType());
+        break;
+      case MAP:
+        newSchema = Schema.createMap(switchNamespace(schema.getValueType(), namespaceOverride));
+        break;
+      case NULL:
+        newSchema = Schema.create(schema.getType());
+        break;
+      case RECORD:
+        newNamespace = namespaceOverride.containsKey(schema.getNamespace()) ? namespaceOverride.get(schema.getNamespace())
+            : schema.getNamespace();
+        List<Schema.Field> newFields = new ArrayList<>();
+        if (schema.getFields().size() > 0) {
+          for (Schema.Field oldField : schema.getFields()) {
+            Field newField = new Field(oldField.name(), switchNamespace(oldField.schema(), namespaceOverride), oldField.doc(),
+                oldField.defaultValue(), oldField.order());
+            newFields.add(newField);
+          }
+        }
+        newSchema = Schema.createRecord(schema.getName(), schema.getDoc(), newNamespace,
+            schema.isError());
+        newSchema.setFields(newFields);
+        break;
+      case STRING:
+        newSchema = Schema.create(schema.getType());
+        break;
+      case UNION:
+        List<Schema> newUnionMembers = new ArrayList<>();
+        if (null != schema.getTypes() && schema.getTypes().size() > 0) {
+          for (Schema oldUnionMember : schema.getTypes()) {
+            newUnionMembers.add(switchNamespace(oldUnionMember, namespaceOverride));
+          }
+        }
+        newSchema = Schema.createUnion(newUnionMembers);
+        break;
+      default:
+        String exceptionMessage = String.format("Schema namespace replacement failed for \"%s\" ", schema);
+        LOG.error(exceptionMessage);
+
+        throw new AvroRuntimeException(exceptionMessage);
+    }
+
+    // Copy schema metadata
+    copyProperties(schema, newSchema);
+
+    return newSchema;
+  }
+
+  /***
+   * Copy properties from old Avro Schema to new Avro Schema
+   * @param oldSchema Old Avro Schema to copy properties from
+   * @param newSchema New Avro Schema to copy properties to
+   */
+  private static void copyProperties(Schema oldSchema, Schema newSchema) {
+    Preconditions.checkNotNull(oldSchema);
+    Preconditions.checkNotNull(newSchema);
+
+    Map<String, JsonNode> props = oldSchema.getJsonProps();
+    copyProperties(props, newSchema);
+  }
+
+  /***
+   * Copy properties to an Avro Schema
+   * @param props Properties to copy to Avro Schema
+   * @param schema Avro Schema to copy properties to
+   */
+  private static void copyProperties(Map<String, JsonNode> props, Schema schema) {
+    Preconditions.checkNotNull(schema);
+
+    // (if null, don't copy but do not throw exception)
+    if (null != props) {
+      for (Map.Entry<String, JsonNode> prop : props.entrySet()) {
+        schema.addProp(prop.getKey(), prop.getValue());
+      }
+    }
   }
 
   /**

@@ -18,6 +18,7 @@
 package org.apache.gobblin.kafka.schemareg;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
@@ -29,9 +30,11 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -53,6 +56,7 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
 
   private final GenericObjectPool<HttpClient> httpClientPool;
   private final String url;
+  private final Optional<Map<String, String>> namespaceOverride;
 
   /**
    * @param props properties should contain property "kafka.schema.registry.url", and optionally
@@ -64,6 +68,7 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
         String.format("Property %s not provided.", KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_URL));
 
     this.url = props.getProperty(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_URL);
+    this.namespaceOverride = KafkaAvroReporterUtil.extractOverrideNamespace(props);
 
     int objPoolSize =
         Integer.parseInt(props.getProperty(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,
@@ -171,6 +176,12 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
    * @throws SchemaRegistryException if registration failed
    */
   public synchronized MD5Digest register(Schema schema) throws SchemaRegistryException {
+
+    // Change namespace if override specified
+    if (this.namespaceOverride.isPresent()) {
+      schema = AvroUtils.switchNamespace(schema, this.namespaceOverride.get());
+    }
+
     LOG.info("Registering schema " + schema.toString());
 
     PostMethod post = new PostMethod(url);
