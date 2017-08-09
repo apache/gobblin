@@ -626,18 +626,6 @@ public class AvroUtils {
     // Process all Schema Types
     // (Primitives are simply cloned)
     switch (schema.getType()) {
-      case ARRAY:
-        newSchema = Schema.createArray(switchNamespace(schema.getElementType(), namespaceOverride));
-        break;
-      case BOOLEAN:
-        newSchema = Schema.create(schema.getType());
-        break;
-      case BYTES:
-        newSchema = Schema.create(schema.getType());
-        break;
-      case DOUBLE:
-        newSchema = Schema.create(schema.getType());
-        break;
       case ENUM:
         newNamespace = namespaceOverride.containsKey(schema.getNamespace()) ? namespaceOverride.get(schema.getNamespace())
             : schema.getNamespace();
@@ -650,20 +638,8 @@ public class AvroUtils {
         newSchema =
             Schema.createFixed(schema.getName(), schema.getDoc(), newNamespace, schema.getFixedSize());
         break;
-      case FLOAT:
-        newSchema = Schema.create(schema.getType());
-        break;
-      case INT:
-        newSchema = Schema.create(schema.getType());
-        break;
-      case LONG:
-        newSchema = Schema.create(schema.getType());
-        break;
       case MAP:
         newSchema = Schema.createMap(switchNamespace(schema.getValueType(), namespaceOverride));
-        break;
-      case NULL:
-        newSchema = Schema.create(schema.getType());
         break;
       case RECORD:
         newNamespace = namespaceOverride.containsKey(schema.getNamespace()) ? namespaceOverride.get(schema.getNamespace())
@@ -680,9 +656,6 @@ public class AvroUtils {
             schema.isError());
         newSchema.setFields(newFields);
         break;
-      case STRING:
-        newSchema = Schema.create(schema.getType());
-        break;
       case UNION:
         List<Schema> newUnionMembers = new ArrayList<>();
         if (null != schema.getTypes() && schema.getTypes().size() > 0) {
@@ -691,6 +664,19 @@ public class AvroUtils {
           }
         }
         newSchema = Schema.createUnion(newUnionMembers);
+        break;
+      case ARRAY:
+        newSchema = Schema.createArray(switchNamespace(schema.getElementType(), namespaceOverride));
+        break;
+      case BOOLEAN:
+      case BYTES:
+      case DOUBLE:
+      case FLOAT:
+      case INT:
+      case LONG:
+      case NULL:
+      case STRING:
+        newSchema = Schema.create(schema.getType());
         break;
       default:
         String exceptionMessage = String.format("Schema namespace replacement failed for \"%s\" ", schema);

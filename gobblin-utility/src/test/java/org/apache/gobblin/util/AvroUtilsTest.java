@@ -217,8 +217,6 @@ public class AvroUtilsTest {
     for(Schema.Field field : newSchema.getFields()) {
       Assert.assertEquals(field, schema.getField(field.name()));
     }
-
-    Assert.assertEquals(newNamespace, AvroUtils.switchNamespace(schema, map).getNamespace());
   }
 
   @Test public void testSerializeAsPath() throws Exception {

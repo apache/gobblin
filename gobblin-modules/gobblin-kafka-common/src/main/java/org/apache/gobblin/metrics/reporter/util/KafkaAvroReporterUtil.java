@@ -65,11 +65,9 @@ public class KafkaAvroReporterUtil {
       }
 
       // If no entry found in the config value, mark it absent
-      if (namespaceOverridesMap.size() == 0) {
-        return Optional.<Map<String, String>>absent();
+      if (namespaceOverridesMap.size() != 0) {
+        return Optional.of(namespaceOverridesMap);
       }
-
-      return Optional.of(namespaceOverridesMap);
     }
 
     return Optional.<Map<String, String>>absent();
