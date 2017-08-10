@@ -131,6 +131,8 @@ public class JdbcExtractorTest {
     Assert.assertTrue(result);
     result = JdbcExtractor.hasJoinOperation("select a.fromLoc from a , b");
     Assert.assertTrue(result);
+    result = JdbcExtractor.hasJoinOperation("select a.fromLoc from a , b  limit 100");
+    Assert.assertTrue(result);
     result = JdbcExtractor.hasJoinOperation("select a.fromLoc from a ,     b");
     Assert.assertTrue(result);
 
@@ -143,6 +145,11 @@ public class JdbcExtractorTest {
     // complex query
     result = JdbcExtractor.hasJoinOperation(
         "select a.fromLoc from (Select dest as fromLoc, id from b) as a, c where a.id < c.id");
+    Assert.assertTrue(result);
+
+    // complex query with limit
+    result = JdbcExtractor.hasJoinOperation(
+        "select a.fromLoc from (Select dest as fromLoc, id from b) as a, c where a.id < c.id limit 10");
     Assert.assertTrue(result);
   }
 }

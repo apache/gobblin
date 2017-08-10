@@ -38,6 +38,7 @@ import java.util.Map;
 
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOrderBy;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
@@ -1148,9 +1149,19 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     SqlParser sqlParser = SqlParser.create(selectQuery);
     try {
-      SqlSelect sqlSelect = (SqlSelect)sqlParser.parseQuery();
-      SqlNode node = sqlSelect.getFrom();
-      return node.getKind() == SqlKind.JOIN;
+
+      SqlNode all = sqlParser.parseQuery();
+      SqlSelect query;
+      SqlNode from;
+      if (all instanceof SqlSelect) {
+        query = (SqlSelect) all;
+      } else if (all instanceof SqlOrderBy) {
+        query = (SqlSelect) ((SqlOrderBy) all).query;
+      } else {
+        throw new UnsupportedOperationException("The select query is type of " + all.getClass() + " which is not supported here");
+      }
+      from = query.getFrom();
+      return from.getKind() == SqlKind.JOIN;
     } catch (SqlParseException e) {
       return false;
     }
