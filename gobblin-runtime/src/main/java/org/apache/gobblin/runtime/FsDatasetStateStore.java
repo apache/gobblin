@@ -27,7 +27,13 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.apache.gobblin.metastore.predicates.StateStorePredicate;
+import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
+import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryMetadata;
+import org.apache.gobblin.util.filters.HiddenFilter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -158,7 +164,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     this.useTmpFileForPut = false;
   }
 
-  private String santinizeDatasetStatestoreNameFromDatasetURN(String storeName, String datasetURN)
+  @Override
+  public String sanitinizeDatasetStatestoreNameFromDatasetURN(String storeName, String datasetURN)
       throws IOException {
     if (this.stateStoreNameParserLoadingCache == null) {
       return datasetURN;
@@ -175,6 +182,11 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
 
   @Override
   public JobState.DatasetState get(String storeName, String tableName, String stateId)
+      throws IOException {
+    return getInternal(storeName, tableName, stateId, false);
+  }
+
+  public JobState.DatasetState getInternal(String storeName, String tableName, String stateId, boolean sanitizeKeyForComparison)
       throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
 
@@ -193,8 +205,10 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
         Text key = new Text();
 
         while (reader.next(key)) {
+          String stringKey = sanitizeKeyForComparison ?
+              sanitinizeDatasetStatestoreNameFromDatasetURN(storeName, key.toString()) : key.toString();
           writable = reader.getCurrentValue(writable);
-          if (key.toString().equals(stateId)) {
+          if (stringKey.equals(stateId)) {
             if (writable instanceof JobState.DatasetState) {
               return (JobState.DatasetState) writable;
             }
@@ -333,7 +347,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
 
     String alias =
         Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-            : santinizeDatasetStatestoreNameFromDatasetURN(storeName, datasetUrn) + "-"
+            : sanitinizeDatasetStatestoreNameFromDatasetURN(storeName, datasetUrn) + "-"
                 + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
     return get(storeName, alias, datasetUrn);
   }
@@ -351,7 +365,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     String jobId = datasetState.getJobId();
 
     datasetUrn = CharMatcher.is(':').replaceFrom(datasetUrn, '.');
-    String datasetStatestoreName = santinizeDatasetStatestoreNameFromDatasetURN(jobName, datasetUrn);
+    String datasetStatestoreName = sanitinizeDatasetStatestoreNameFromDatasetURN(jobName, datasetUrn);
     String tableName = Strings.isNullOrEmpty(datasetUrn) ? jobId + DATASET_STATE_STORE_TABLE_SUFFIX
         : datasetStatestoreName + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
     LOGGER.info("Persisting " + tableName + " to the job state store");
@@ -384,5 +398,35 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     return Strings.isNullOrEmpty(datasetStatestoreName) ? CURRENT_DATASET_STATE_FILE_SUFFIX
         + DATASET_STATE_STORE_TABLE_SUFFIX
         : datasetStatestoreName + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
+  }
+
+  @Override
+  public List<FsDatasetStateStoreEntryMetadata> getMetadataForTables(StateStorePredicate predicate)
+      throws IOException {
+
+    Stream<Path> stores = predicate instanceof StoreNamePredicate ?
+        Stream.of(new Path(this.storeRootDir, ((StoreNamePredicate) predicate).getStoreName())) :
+        lsStream(new Path(this.storeRootDir)).map(FileStatus::getPath);
+
+    if (stores == null) {
+      return Lists.newArrayList();
+    }
+
+    Stream<FileStatus> tables = stores.flatMap(this::lsStream);
+
+    return tables.map(this::parseMetadataFromPath).filter(predicate::apply).collect(Collectors.toList());
+  }
+
+  private Stream<FileStatus> lsStream(Path path) {
+    try {
+      FileStatus[] ls = this.fs.listStatus(path, new HiddenFilter());
+      return ls == null ? Stream.empty() : Arrays.stream(ls);
+    } catch (IOException ioe) {
+      return Stream.empty();
+    }
+  }
+
+  private FsDatasetStateStoreEntryMetadata parseMetadataFromPath(FileStatus status) {
+    return new FsDatasetStateStoreEntryMetadata(status, this);
   }
 }

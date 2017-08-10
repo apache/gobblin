@@ -15,34 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.dataset;
+package org.apache.gobblin.metastore.predicates;
 
-import java.io.IOException;
-import java.util.List;
+import org.apache.gobblin.metastore.metadata.StateStoreEntryMetadata;
 
-import org.apache.hadoop.fs.Path;
+import com.google.common.base.Predicate;
+
+import lombok.Data;
+import lombok.experimental.Delegate;
 
 
 /**
- * Finds {@link Dataset}s in the file system.
+ * A {@link Predicate} used to filter entries in a {@link org.apache.gobblin.metastore.StateStore}.
  *
- * <p>
- *   Concrete subclasses should have a constructor with signature
- *   ({@link org.apache.hadoop.fs.FileSystem}, {@link java.util.Properties}).
- * </p>
+ * {@link org.apache.gobblin.metastore.StateStore}s can usually partially push down extensions of this class, so it
+ * is recommended to use bundled {@link StateStorePredicate} extensions as much as possible.
  */
-public interface DatasetsFinder<T extends Dataset> {
+@Data
+public class StateStorePredicate implements Predicate<StateStoreEntryMetadata> {
 
   /**
-   * Find all {@link Dataset}s in the file system.
-   * @return List of {@link Dataset}s in the file system.
-   * @throws IOException
+   * An additional {@link Predicate} for filtering. This predicate is never pushed down.
    */
-  public List<T> findDatasets() throws IOException;
-
-  /**
-   * @return The deepest common root shared by all {@link Dataset}s root paths returned by this finder.
-   */
-  @Deprecated
-  public Path commonDatasetRoot();
+  @Delegate
+  private final Predicate<StateStoreEntryMetadata> customPredicate;
 }
