@@ -795,6 +795,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
         partitionOptional =
             Optional.of(client.get().getPartition(table.get().getDbName(), table.get().getTableName(), partitionName));
+      } catch (NoSuchObjectException e) {
+        return Optional.<Path>absent();
       }
       if (partitionOptional.isPresent()) {
         org.apache.hadoop.hive.ql.metadata.Table qlTable = new org.apache.hadoop.hive.ql.metadata.Table(table.get());
