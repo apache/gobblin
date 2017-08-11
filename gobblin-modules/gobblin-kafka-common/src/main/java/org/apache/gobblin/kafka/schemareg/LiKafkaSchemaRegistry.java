@@ -57,6 +57,8 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
   private final GenericObjectPool<HttpClient> httpClientPool;
   private final String url;
   private final Optional<Map<String, String>> namespaceOverride;
+  private final boolean switchTopicNames;
+  private String topicName;
 
   /**
    * @param props properties should contain property "kafka.schema.registry.url", and optionally
@@ -69,6 +71,12 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
 
     this.url = props.getProperty(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_URL);
     this.namespaceOverride = KafkaAvroReporterUtil.extractOverrideNamespace(props);
+
+    if (props.containsKey(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_SWITCH_NAME)) {
+      this.switchTopicNames = props.getProperty(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_SWITCH_NAME).equalsIgnoreCase("true");
+    } else {
+      this.switchTopicNames = true;
+    }
 
     int objPoolSize =
         Integer.parseInt(props.getProperty(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,
@@ -165,7 +173,12 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
    */
   @Override
   public MD5Digest register(String name, Schema schema) throws SchemaRegistryException {
-    return register(AvroUtils.switchName(schema, name));
+    if (this.switchTopicNames) {
+      return register(AvroUtils.switchName(schema, name));
+    } else {
+      this.topicName = name;
+      return register(schema);
+    }
   }
 
   /**
@@ -186,6 +199,10 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
 
     PostMethod post = new PostMethod(url);
     post.addParameter("schema", schema.toString());
+
+    if (!this.switchTopicNames) {
+      post.addParameter("name", this.topicName);
+    }
 
     HttpClient httpClient = this.borrowClient();
     try {
