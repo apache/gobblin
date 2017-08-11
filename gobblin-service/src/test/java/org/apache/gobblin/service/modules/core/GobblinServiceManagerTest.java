@@ -17,15 +17,20 @@
 
 package org.apache.gobblin.service.modules.core;
 
-import org.apache.gobblin.service.FlowId;
-import org.apache.gobblin.service.Schedule;
 import java.io.File;
+import java.net.URI;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.lib.RepositoryCache;
+import org.eclipse.jgit.transport.RefSpec;
+import org.eclipse.jgit.util.FS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -33,8 +38,10 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.linkedin.data.template.StringMap;
@@ -42,15 +49,12 @@ import com.linkedin.restli.client.RestLiResponseException;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -65,6 +69,9 @@ public class GobblinServiceManagerTest {
   private static final String SPEC_VERSION = "1";
   private static final String TOPOLOGY_SPEC_STORE_DIR = "/tmp/serviceCore/topologyTestSpecStore";
   private static final String FLOW_SPEC_STORE_DIR = "/tmp/serviceCore/flowTestSpecStore";
+  private static final String GIT_CLONE_DIR = "/tmp/serviceCore/clone";
+  private static final String GIT_REMOTE_REPO_DIR = "/tmp/serviceCore/remote";
+  private static final String GIT_LOCAL_REPO_DIR = "/tmp/serviceCore/local";
 
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
@@ -76,17 +83,10 @@ public class GobblinServiceManagerTest {
   private static final String TEST_SOURCE_NAME = "testSource";
   private static final String TEST_SINK_NAME = "testSink";
 
-  private ServiceBasedAppLauncher serviceLauncher;
-  private TopologyCatalog topologyCatalog;
-  private TopologySpec topologySpec;
-
-  private FlowCatalog flowCatalog;
-  private FlowSpec flowSpec;
-
-  private Orchestrator orchestrator;
-
   private GobblinServiceManager gobblinServiceManager;
   private FlowConfigClient flowConfigClient;
+
+  private Git gitForPush;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -107,6 +107,21 @@ public class GobblinServiceManagerTest {
         "org.apache.gobblin.service.InMemorySpecExecutorInstanceProducer");
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".specExecInstance.capabilities",
         TEST_SOURCE_NAME + ":" + TEST_SINK_NAME);
+
+    serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY, true);
+    serviceCoreProperties.put(ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_URI, GIT_REMOTE_REPO_DIR);
+    serviceCoreProperties.put(ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_DIR, GIT_LOCAL_REPO_DIR);
+    serviceCoreProperties.put(ConfigurationKeys.GIT_CONFIG_MONITOR_POLLING_INTERVAL, 5);
+
+    // Create a bare repository
+    RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(new File(GIT_REMOTE_REPO_DIR), FS.DETECTED);
+    fileKey.open(false).create(true);
+
+    this.gitForPush = Git.cloneRepository().setURI(GIT_REMOTE_REPO_DIR).setDirectory(new File(GIT_CLONE_DIR)).call();
+
+    // push an empty commit as a base for detecting changes
+    this.gitForPush.commit().setMessage("First commit").call();
+    this.gitForPush.push().setRemote("origin").setRefSpecs(new RefSpec("master")).call();
 
     this.gobblinServiceManager = new GobblinServiceManager("CoreService", "1",
         ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
@@ -245,6 +260,35 @@ public class GobblinServiceManagerTest {
     }
 
     Assert.fail("Get should have gotten a 404 error");
+  }
+
+  @Test (dependsOnMethods = "testDelete")
+  public void testGitCreate() throws Exception {
+    // push a new config file
+    File testFlowFile = new File(GIT_CLONE_DIR + "/gobblin-config/testGroup/testFlow.pull");
+    testFlowFile.getParentFile().mkdirs();
+
+    Files.write("flow.name=testFlow\nflow.group=testGroup\nparam1=value20\n", testFlowFile, Charsets.UTF_8);
+
+    Collection<Spec> specs = this.gobblinServiceManager.flowCatalog.getSpecs();
+    Assert.assertTrue(specs.size() == 0);
+
+    // add, commit, push
+    this.gitForPush.add().addFilepattern("gobblin-config/testGroup/testFlow.pull").call();
+    this.gitForPush.commit().setMessage("second commit").call();
+    this.gitForPush.push().setRemote("origin").setRefSpecs(new RefSpec("master")).call();
+
+    // polling is every 5 seconds, so wait twice as long and check
+    TimeUnit.SECONDS.sleep(10);
+
+    specs = this.gobblinServiceManager.flowCatalog.getSpecs();
+    Assert.assertTrue(specs.size() == 1);
+
+    FlowSpec spec = (FlowSpec)(specs.iterator().next());
+    Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
+    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow");
+    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
+    Assert.assertEquals(spec.getConfig().getString("param1"), "value20");
   }
 
   @Test
