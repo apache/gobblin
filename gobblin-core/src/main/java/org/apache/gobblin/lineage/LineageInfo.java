@@ -29,6 +29,7 @@ import org.apache.gobblin.configuration.State;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -38,17 +39,18 @@ import lombok.extern.slf4j.Slf4j;
  * A class to restore all lineage information from a {@link State}
  * All lineage attributes are under LINEAGE_NAME_SPACE namespace.
  *
- * For example:
+ * For example, a typical lineage attributes looks like:
  *    gobblin.lineage.K1          ---> V1
  *    gobblin.lineage.branch.3.K2 ---> V2
  *
- * K1 is dataset level attribute, K2 is branch level attribute.
+ * K1 is dataset level attribute, K2 is branch level attribute, and branch id is 3.
  */
 
 @Slf4j
 public class LineageInfo {
 
   public static final String LINEAGE_NAME_SPACE = "gobblin.lineage";
+  public static final String BRANCH_ID_METADATA_KEY = "branchId";
   private static final String DATASET_PREFIX =  LINEAGE_NAME_SPACE + ".";
   private static final String BRANCH_PREFIX = DATASET_PREFIX + "branch.";
 
@@ -68,7 +70,7 @@ public class LineageInfo {
   private LineageInfo() {
   }
 
-  private LineageInfo(String datasetUrn, String jobId, Map<String, String> lineageMetaData) {
+  private LineageInfo(String datasetUrn, String jobId, ImmutableMap<String, String> lineageMetaData) {
     Preconditions.checkArgument(datasetUrn != null);
     Preconditions.checkArgument(jobId != null);
     this.datasetUrn = datasetUrn;
@@ -82,9 +84,9 @@ public class LineageInfo {
    * @param level {@link Level#DATASET}  only load dataset level lineage attributes
    *              {@link Level#BRANCH}   only load branch level lineage attributes
    *              {@link Level#All}      load all lineage attributes
-   * @return A {@link LineageInfo} object containing all lineage attributes
+   * @return A collection of {@link LineageInfo}s per branch. When level is {@link Level#DATASET}, this list has only single element.
    */
-  public static LineageInfo load (State state, Level level) throws LineageException {
+  public static Collection<LineageInfo> load (State state, Level level) throws LineageException {
     return load(Collections.singleton(state), level);
   }
 
@@ -97,20 +99,22 @@ public class LineageInfo {
 
   /**
    * Retrieve all lineage information from different {@link State}s by {@link Level}.
-   * This requires the job id and dataset urn to exist in the state, once under job.id and dataset.urn.
-   * It also requires the key-value pair within all {@link State}s do not have conflict values at {@link Level#BRANCH}
+   * This requires the job id and dataset urn to present in the state, under job.id and dataset.urn.
+   * It also requires the key-value pair within all {@link State}s do not have conflicting values at either {@link Level#BRANCH}
    * or {@link Level#DATASET} levels; Otherwise an exception is thrown.
    *
    * @param states All states which belong to the same dataset and share the same jobId.
    * @param level {@link Level#DATASET}  only load dataset level lineage attributes
    *              {@link Level#BRANCH}   only load branch level lineage attributes
    *              {@link Level#All}      load all lineage attributes
-   * @return A {@link LineageInfo} object containing all lineage attributes
+   * @return A collection of {@link LineageInfo}s per branch. When level is {@link Level#DATASET}, this list has only single element.
+   *
    * @throws LineageException.LineageConflictAttributeException if two states have same key but not the same value.
    */
-  public static LineageInfo load (Collection<? extends State> states, Level level) throws LineageException {
+  public static Collection<LineageInfo> load (Collection<? extends State> states, Level level) throws LineageException {
     Preconditions.checkArgument(states != null && !states.isEmpty());
-    HashMap<String, String> metaData = new HashMap<>();
+    Map<String, String> datasetMetaData = new HashMap<>();
+    Map<String, Map<String, String>> branchAggregate = new HashMap<>();
 
     State anyOne = states.iterator().next();
     String jobId = anyOne.getProp(ConfigurationKeys.JOB_ID_KEY, "");
@@ -124,15 +128,23 @@ public class LineageInfo {
           String lineageValue = (String) entry.getValue();
 
           if (lineageKey.startsWith(BRANCH_PREFIX)) {
+            String branchPrefixStrip = lineageKey.substring(BRANCH_PREFIX.length());
+            String branchId = branchPrefixStrip.substring(0, branchPrefixStrip.indexOf("."));
+            String key = branchPrefixStrip.substring(branchPrefixStrip.indexOf(".") + 1);
+
             if (level == Level.BRANCH || level == Level.All) {
-              String prev = metaData.put(lineageKey.substring(BRANCH_PREFIX.length()), lineageValue);
+              if (!branchAggregate.containsKey(branchId)) {
+                branchAggregate.put(branchId, new HashMap<>());
+              }
+              Map<String, String> branchMetaData = branchAggregate.get(branchId);
+              String prev = branchMetaData.put(key, lineageValue);
               if (prev != null && !prev.equals(lineageValue)) {
                 throw new LineageException.LineageConflictAttributeException(lineageKey, prev, lineageValue);
               }
             }
           } else if (lineageKey.startsWith(DATASET_PREFIX)) {
             if (level == Level.DATASET || level == Level.All) {
-              String prev = metaData.put(lineageKey.substring(DATASET_PREFIX.length()), lineageValue);
+              String prev = datasetMetaData.put(lineageKey.substring(DATASET_PREFIX.length()), lineageValue);
               if (prev != null && !prev.equals(lineageValue)) {
                 throw new LineageException.LineageConflictAttributeException(lineageKey, prev, lineageValue);
               }
@@ -142,9 +154,19 @@ public class LineageInfo {
       }
     }
 
-    LineageInfo descriptor = new LineageInfo(urn, jobId, metaData);
+    Collection<LineageInfo> collection = Sets.newHashSet();
+    for (Map.Entry<String, Map<String, String>> branchMetaDataEntry: branchAggregate.entrySet()) {
+      String branchId = branchMetaDataEntry.getKey();
+      Map<String, String> branchMetaData = branchMetaDataEntry.getValue();
+      ImmutableMap<String, String> metaData = ImmutableMap.<String, String>builder()
+          .putAll(datasetMetaData)
+          .putAll(branchMetaData)
+          .put(BRANCH_ID_METADATA_KEY, branchId)
+          .build();
+      collection.add(new LineageInfo(urn, jobId, metaData));
+    }
 
-    return descriptor;
+    return collection;
   }
 
   public static void setDatasetLineageAttribute (State state, String key, String value) {

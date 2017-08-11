@@ -188,10 +188,12 @@ final class SafeDatasetCommit implements Callable<Void> {
     }
 
     try {
-      LineageInfo info = LineageInfo.load(states, LineageInfo.Level.All);
+      Collection<LineageInfo> branchLineages = LineageInfo.load(states, LineageInfo.Level.All);
       EventSubmitter submitter = new EventSubmitter.Builder(Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class),
           LineageInfo.LINEAGE_NAME_SPACE).build();
-      submitter.submit(info.getId(), info.getLineageMetaData());
+      for (LineageInfo info: branchLineages) {
+        submitter.submit(info.getId(), info.getLineageMetaData());
+      }
     } catch (LineageException e) {
       log.error ("Lineage event submission failed due to :" + e.toString());
     }
