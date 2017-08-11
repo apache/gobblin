@@ -19,6 +19,7 @@ package org.apache.gobblin.source.jdbc;
 
 import java.io.IOException;
 import java.sql.Blob;
+import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -1002,6 +1003,17 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     return baString;
   }
 
+  /*
+  * For Clob data, we need to use the substring function to extract the string
+  */
+  private String readClobAsString(Clob logClob) throws SQLException {
+    if (logClob == null) {
+      return StringUtils.EMPTY;
+    }
+    long length = logClob.length();
+    return logClob.getSubString(1, (int) length);
+  }
+
   /**
    * HACK: there is a bug in the MysqlExtractor where tinyint columns are always treated as ints.
    * There are MySQL jdbc driver setting (tinyInt1isBit=true and transformedBitIsBoolean=false) that
@@ -1028,6 +1040,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (isBlob(resultsetMetadata.getColumnType(i))) {
       return readBlobAsString(resultset.getBlob(i));
     }
+    if (isClob(resultsetMetadata.getColumnType(i))) {
+      return readClobAsString(resultset.getClob(i));
+    }
     if ((resultsetMetadata.getColumnType(i) == Types.BIT
          || resultsetMetadata.getColumnType(i) == Types.BOOLEAN)
         && convertBitToBoolean()) {
@@ -1038,6 +1053,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
   private static boolean isBlob(int columnType) {
     return columnType == Types.LONGVARBINARY || columnType == Types.BINARY;
+  }
+
+  private static boolean isClob(int columnType) {
+    return columnType == Types.CLOB;
   }
 
   protected static Command getCommand(String query, JdbcCommandType commandType) {
