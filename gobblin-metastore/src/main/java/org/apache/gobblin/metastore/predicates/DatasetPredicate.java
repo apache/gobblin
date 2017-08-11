@@ -19,8 +19,8 @@ package org.apache.gobblin.metastore.predicates;
 
 import java.io.IOException;
 
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryMetadata;
-import org.apache.gobblin.metastore.metadata.StateStoreEntryMetadata;
+import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 
 import com.google.common.base.Predicate;
 
@@ -33,21 +33,21 @@ public class DatasetPredicate extends StoreNamePredicate {
 
   private final String datasetUrn;
 
-  public DatasetPredicate(String storeName, String datasetUrn, Predicate<StateStoreEntryMetadata> customPredicate) {
+  public DatasetPredicate(String storeName, String datasetUrn, Predicate<StateStoreEntryManager> customPredicate) {
     super(storeName, customPredicate);
     this.datasetUrn = datasetUrn;
   }
 
   @Override
-  public boolean apply(StateStoreEntryMetadata input) {
-    if (!(input instanceof DatasetStateStoreEntryMetadata)) {
+  public boolean apply(StateStoreEntryManager input) {
+    if (!(input instanceof DatasetStateStoreEntryManager)) {
       return false;
     }
-    DatasetStateStoreEntryMetadata datasetStateStoreEntryMetadata = (DatasetStateStoreEntryMetadata) input;
+    DatasetStateStoreEntryManager datasetStateStoreEntryMetadata = (DatasetStateStoreEntryManager) input;
     try {
       return super.apply(input) && datasetStateStoreEntryMetadata.getStateStore().
-          sanitinizeDatasetStatestoreNameFromDatasetURN(getStoreName(), this.datasetUrn).
-          equals(((DatasetStateStoreEntryMetadata) input).getSanitizedDatasetUrn());
+          sanitizeDatasetStatestoreNameFromDatasetURN(getStoreName(), this.datasetUrn).
+          equals(((DatasetStateStoreEntryManager) input).getSanitizedDatasetUrn());
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
     }

@@ -17,11 +17,12 @@
 
 package org.apache.gobblin.metastore.predicates;
 
-import org.apache.gobblin.metastore.metadata.StateStoreEntryMetadata;
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 
 import com.google.common.base.Predicate;
 
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.experimental.Delegate;
 
 
@@ -31,12 +32,12 @@ import lombok.experimental.Delegate;
  * {@link org.apache.gobblin.metastore.StateStore}s can usually partially push down extensions of this class, so it
  * is recommended to use bundled {@link StateStorePredicate} extensions as much as possible.
  */
-@Data
-public class StateStorePredicate implements Predicate<StateStoreEntryMetadata> {
+@RequiredArgsConstructor
+public class StateStorePredicate implements Predicate<StateStoreEntryManager> {
 
   /**
    * An additional {@link Predicate} for filtering. This predicate is never pushed down.
    */
   @Delegate
-  private final Predicate<StateStoreEntryMetadata> customPredicate;
+  private final Predicate<StateStoreEntryManager> customPredicate;
 }

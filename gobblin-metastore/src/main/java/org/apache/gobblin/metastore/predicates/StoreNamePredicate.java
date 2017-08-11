@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.metastore.predicates;
 
-import org.apache.gobblin.metastore.metadata.StateStoreEntryMetadata;
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 
 import com.google.common.base.Predicate;
 
@@ -32,13 +32,13 @@ public class StoreNamePredicate extends StateStorePredicate {
   @Getter
   private final String storeName;
 
-  public StoreNamePredicate(String storeName, Predicate<StateStoreEntryMetadata> customPredicate) {
+  public StoreNamePredicate(String storeName, Predicate<StateStoreEntryManager> customPredicate) {
     super(customPredicate);
     this.storeName = storeName;
   }
 
   @Override
-  public boolean apply(StateStoreEntryMetadata input) {
+  public boolean apply(StateStoreEntryManager input) {
     return input.getStoreName().equals(this.storeName) && super.apply(input);
   }
 }

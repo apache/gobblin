@@ -24,7 +24,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 import org.apache.gobblin.dataset.DatasetsFinder;
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryMetadata;
+import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.DatasetPredicate;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
@@ -77,9 +77,9 @@ public class DatasetStoreDatasetFinder implements DatasetsFinder<DatasetStoreDat
 
   @Override
   public List<DatasetStoreDataset> findDatasets() throws IOException {
-    List<DatasetStateStoreEntryMetadata> entries = this.store.getMetadataForTables(this.predicate);
+    List<DatasetStateStoreEntryManager> entries = this.store.getMetadataForTables(this.predicate);
 
-    Map<DatasetStoreDataset.Key, List<DatasetStateStoreEntryMetadata>> entriesGroupedByDataset =
+    Map<DatasetStoreDataset.Key, List<DatasetStateStoreEntryManager>> entriesGroupedByDataset =
         entries.stream().collect(Collectors.groupingBy(DatasetStoreDataset.Key::new));
 
     return entriesGroupedByDataset.entrySet().stream().

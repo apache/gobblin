@@ -20,7 +20,7 @@ package org.apache.gobblin.metastore;
 import java.util.List;
 
 import org.apache.gobblin.dataset.Dataset;
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryMetadata;
+import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 
 import lombok.Data;
 
@@ -32,7 +32,7 @@ import lombok.Data;
 public class DatasetStoreDataset implements Dataset {
 
   private final Key key;
-  private final List<DatasetStateStoreEntryMetadata> datasetStateStoreMetadataEntries;
+  private final List<DatasetStateStoreEntryManager> datasetStateStoreMetadataEntries;
 
   @Override
   public String datasetURN() {
@@ -47,7 +47,7 @@ public class DatasetStoreDataset implements Dataset {
     private final String storeName;
     private final String sanitizedDatasetUrn;
 
-    public Key(DatasetStateStoreEntryMetadata metadata) {
+    public Key(DatasetStateStoreEntryManager metadata) {
       this.storeName = metadata.getStoreName();
       this.sanitizedDatasetUrn = metadata.getSanitizedDatasetUrn();
     }

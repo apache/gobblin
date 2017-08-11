@@ -24,7 +24,7 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metastore.metadata.StateStoreEntryMetadata;
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 
 
@@ -203,7 +203,7 @@ public interface StateStore<T extends State> {
    * @return A list of all {@link StateStorePredicate}s matching the predicate.
    * @throws IOException
    */
-  default List<? extends StateStoreEntryMetadata> getMetadataForTables(StateStorePredicate predicate)
+  default List<? extends StateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
       throws IOException {
     throw new UnsupportedOperationException("Operation unsupported for predicate with class " + predicate.getClass());
   }

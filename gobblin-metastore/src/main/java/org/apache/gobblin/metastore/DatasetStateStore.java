@@ -29,7 +29,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryMetadata;
+import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
@@ -56,18 +56,18 @@ public interface DatasetStateStore<T extends State> extends StateStore<T> {
   public void persistDatasetURNs(String storeName, Collection<String> datasetUrns) throws IOException;
 
   @Override
-  default List<? extends DatasetStateStoreEntryMetadata> getMetadataForTables(StateStorePredicate predicate)
+  default List<? extends DatasetStateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
       throws IOException {
     throw new UnsupportedOperationException();
   }
 
-  default String sanitinizeDatasetStatestoreNameFromDatasetURN(String storeName, String datasetURN) throws IOException {
+  default String sanitizeDatasetStatestoreNameFromDatasetURN(String storeName, String datasetURN) throws IOException {
     return datasetURN;
   }
 
   static String buildTableName(DatasetStateStore store, String storeName, String stateId, String datasetUrn) throws IOException {
     return Strings.isNullOrEmpty(datasetUrn) ? stateId + DATASET_STATE_STORE_TABLE_SUFFIX
-        : store.sanitinizeDatasetStatestoreNameFromDatasetURN(storeName,datasetUrn) + "-" + stateId + DATASET_STATE_STORE_TABLE_SUFFIX;
+        : store.sanitizeDatasetStatestoreNameFromDatasetURN(storeName,datasetUrn) + "-" + stateId + DATASET_STATE_STORE_TABLE_SUFFIX;
   }
 
   @Getter

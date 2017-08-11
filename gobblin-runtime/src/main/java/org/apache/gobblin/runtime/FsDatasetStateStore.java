@@ -32,7 +32,7 @@ import java.util.stream.Stream;
 
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
-import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryMetadata;
+import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryManager;
 import org.apache.gobblin.util.filters.HiddenFilter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -165,7 +165,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
   }
 
   @Override
-  public String sanitinizeDatasetStatestoreNameFromDatasetURN(String storeName, String datasetURN)
+  public String sanitizeDatasetStatestoreNameFromDatasetURN(String storeName, String datasetURN)
       throws IOException {
     if (this.stateStoreNameParserLoadingCache == null) {
       return datasetURN;
@@ -206,7 +206,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
 
         while (reader.next(key)) {
           String stringKey = sanitizeKeyForComparison ?
-              sanitinizeDatasetStatestoreNameFromDatasetURN(storeName, key.toString()) : key.toString();
+              sanitizeDatasetStatestoreNameFromDatasetURN(storeName, key.toString()) : key.toString();
           writable = reader.getCurrentValue(writable);
           if (stringKey.equals(stateId)) {
             if (writable instanceof JobState.DatasetState) {
@@ -347,7 +347,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
 
     String alias =
         Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-            : sanitinizeDatasetStatestoreNameFromDatasetURN(storeName, datasetUrn) + "-"
+            : sanitizeDatasetStatestoreNameFromDatasetURN(storeName, datasetUrn) + "-"
                 + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
     return get(storeName, alias, datasetUrn);
   }
@@ -365,7 +365,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     String jobId = datasetState.getJobId();
 
     datasetUrn = CharMatcher.is(':').replaceFrom(datasetUrn, '.');
-    String datasetStatestoreName = sanitinizeDatasetStatestoreNameFromDatasetURN(jobName, datasetUrn);
+    String datasetStatestoreName = sanitizeDatasetStatestoreNameFromDatasetURN(jobName, datasetUrn);
     String tableName = Strings.isNullOrEmpty(datasetUrn) ? jobId + DATASET_STATE_STORE_TABLE_SUFFIX
         : datasetStatestoreName + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
     LOGGER.info("Persisting " + tableName + " to the job state store");
@@ -401,7 +401,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
   }
 
   @Override
-  public List<FsDatasetStateStoreEntryMetadata> getMetadataForTables(StateStorePredicate predicate)
+  public List<FsDatasetStateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
       throws IOException {
 
     Stream<Path> stores = predicate instanceof StoreNamePredicate ?
@@ -426,7 +426,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     }
   }
 
-  private FsDatasetStateStoreEntryMetadata parseMetadataFromPath(FileStatus status) {
-    return new FsDatasetStateStoreEntryMetadata(status, this);
+  private FsDatasetStateStoreEntryManager parseMetadataFromPath(FileStatus status) {
+    return new FsDatasetStateStoreEntryManager(status, this);
   }
 }

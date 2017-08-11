@@ -24,10 +24,10 @@ import lombok.Getter;
 
 
 /**
- * A {@link StateStoreEntryMetadata} in a {@link DatasetStateStore}.
+ * A {@link StateStoreEntryManager} in a {@link DatasetStateStore}.
  */
 @Getter
-public abstract class DatasetStateStoreEntryMetadata<T extends State> extends StateStoreEntryMetadata<T> {
+public abstract class DatasetStateStoreEntryManager<T extends State> extends StateStoreEntryManager<T> {
 
   /**
    * The sanitized dataset urn. Sanitization usually involves a one-way function on the dataset urn, so the actual
@@ -40,12 +40,12 @@ public abstract class DatasetStateStoreEntryMetadata<T extends State> extends St
   private final String stateId;
   private final DatasetStateStore datasetStateStore;
 
-  public DatasetStateStoreEntryMetadata(String storeName, String tableName, long timestamp,
+  public DatasetStateStoreEntryManager(String storeName, String tableName, long timestamp,
       DatasetStateStore.TableNameParser tableNameParser, DatasetStateStore datasetStateStore) {
     this(storeName, tableName, timestamp, tableNameParser.getSanitizedDatasetUrn(), tableNameParser.getStateId(), datasetStateStore);
   }
 
-  public DatasetStateStoreEntryMetadata(String storeName, String tableName, long timestamp, String sanitizedDatasetUrn,
+  public DatasetStateStoreEntryManager(String storeName, String tableName, long timestamp, String sanitizedDatasetUrn,
       String stateId, DatasetStateStore datasetStateStore) {
     super(storeName, tableName, timestamp, datasetStateStore);
     this.sanitizedDatasetUrn = sanitizedDatasetUrn;

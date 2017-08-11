@@ -31,7 +31,7 @@ import lombok.Data;
  * @param <T> type of {@link State} that can be read from this entry.
  */
 @Data
-public abstract class StateStoreEntryMetadata<T extends State> {
+public abstract class StateStoreEntryManager<T extends State> {
 
   private final String storeName;
   private final String tableName;

@@ -23,11 +23,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryMetadata;
+import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.DatasetPredicate;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
-import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryMetadata;
+import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryManager;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -204,7 +204,7 @@ public class FsDatasetStateStoreTest {
     store.persistDatasetState("dataset1", new JobState.DatasetState("job2", "job2_id1"));
     store.persistDatasetState("", new JobState.DatasetState("job3", "job3_id1"));
 
-    List<FsDatasetStateStoreEntryMetadata> metadataList = store.getMetadataForTables(new StateStorePredicate(x -> true));
+    List<FsDatasetStateStoreEntryManager> metadataList = store.getMetadataForTables(new StateStorePredicate(x -> true));
 
     // 5 explicitly stored states, plus 4 current links, one per job-dataset
     Assert.assertEquals(metadataList.size(), 9);
@@ -217,10 +217,10 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(metadataList.size(), 3);
 
     metadataList = store.getMetadataForTables(new DatasetPredicate("job1", "dataset2", meta ->
-      ((DatasetStateStoreEntryMetadata) meta).getStateId().equals(DatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX)
+      ((DatasetStateStoreEntryManager) meta).getStateId().equals(DatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX)
     ));
     Assert.assertEquals(metadataList.size(), 1);
-    DatasetStateStoreEntryMetadata metadata = metadataList.get(0);
+    DatasetStateStoreEntryManager metadata = metadataList.get(0);
     Assert.assertEquals(metadata.getStoreName(), "job1");
     Assert.assertEquals(metadata.getSanitizedDatasetUrn(), "dataset2");
     Assert.assertEquals(metadata.getStateId(), DatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX);
@@ -232,7 +232,7 @@ public class FsDatasetStateStoreTest {
     metadata.delete();
     // verify it got deleted
     metadataList = store.getMetadataForTables(new DatasetPredicate("job1", "dataset2", meta ->
-        ((DatasetStateStoreEntryMetadata) meta).getStateId().equals(DatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX)
+        ((DatasetStateStoreEntryManager) meta).getStateId().equals(DatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX)
     ));
     Assert.assertTrue(metadataList.isEmpty());
   }
