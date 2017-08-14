@@ -16,3 +16,4 @@
 #
 
 key4=dir1Value4
+key2a=${key2}
