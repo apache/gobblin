@@ -15,34 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.dataset;
+package org.apache.gobblin.util.io;
 
 import java.io.IOException;
-import java.util.List;
-
-import org.apache.hadoop.fs.Path;
+import java.io.InputStream;
 
 
 /**
- * Finds {@link Dataset}s in the file system.
- *
- * <p>
- *   Concrete subclasses should have a constructor with signature
- *   ({@link org.apache.hadoop.fs.FileSystem}, {@link java.util.Properties}).
- * </p>
+ * An {@link InputStream} with empty content
  */
-public interface DatasetsFinder<T extends Dataset> {
+public class EmptyInputStream extends InputStream {
+  public static final InputStream instance = new EmptyInputStream();
 
-  /**
-   * Find all {@link Dataset}s in the file system.
-   * @return List of {@link Dataset}s in the file system.
-   * @throws IOException
-   */
-  public List<T> findDatasets() throws IOException;
-
-  /**
-   * @return The deepest common root shared by all {@link Dataset}s root paths returned by this finder.
-   */
-  @Deprecated
-  public Path commonDatasetRoot();
+  private EmptyInputStream() {}
+  @Override
+  public int read()
+      throws IOException {
+    return 0;
+  }
 }

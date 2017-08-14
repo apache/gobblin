@@ -138,8 +138,8 @@ It is also possible to set a time limit for each task. For example, to set the t
 ```
 extract.limit.enabled=true
 extract.limit.type=time #(other possible values: rate, count, pool)
-extract.limit.time.limit=15
-extract.limit.time.limit.timeunit=minutes 
+extract.limit.timeLimit=15
+extract.limit.timeLimitTimeunit=minutes
 ```
 # Metrics and Events
 

@@ -79,7 +79,7 @@ public class JobLauncherTestHelper {
     Assert.assertTrue(jobMetricContextTags.contains(ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME),
         ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME + " tag missing in job metric context tags.");
 
-    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, sanitizeJobNameForDatasetStore(jobId) + ".jst");
     DatasetState datasetState = datasetStateList.get(0);
 
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
@@ -106,7 +106,7 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, sanitizeJobNameForDatasetStore(jobId) + ".jst");
     DatasetState datasetState = datasetStateList.get(0);
 
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
@@ -151,7 +151,7 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, sanitizeJobNameForDatasetStore(jobId) + ".jst");
     Assert.assertTrue(datasetStateList.isEmpty());
   }
 
@@ -164,7 +164,7 @@ public class JobLauncherTestHelper {
       jobLauncher.launchJob(null);
     }
 
-    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, sanitizeJobNameForDatasetStore(jobId) + ".jst");
     DatasetState datasetState = datasetStateList.get(0);
 
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
@@ -239,7 +239,7 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, sanitizeJobNameForDatasetStore(jobId) + ".jst");
     JobState jobState = datasetStateList.get(0);
 
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
@@ -354,5 +354,9 @@ public class JobLauncherTestHelper {
       }
       return extractor;
     }
+  }
+
+  private String sanitizeJobNameForDatasetStore(String jobId) {
+    return jobId.replaceAll("[-/]", "_");
   }
 }

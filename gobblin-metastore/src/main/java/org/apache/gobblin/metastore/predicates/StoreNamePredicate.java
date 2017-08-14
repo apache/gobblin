@@ -15,34 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.dataset;
+package org.apache.gobblin.metastore.predicates;
 
-import java.io.IOException;
-import java.util.List;
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 
-import org.apache.hadoop.fs.Path;
+import com.google.common.base.Predicate;
+
+import lombok.Getter;
 
 
 /**
- * Finds {@link Dataset}s in the file system.
- *
- * <p>
- *   Concrete subclasses should have a constructor with signature
- *   ({@link org.apache.hadoop.fs.FileSystem}, {@link java.util.Properties}).
- * </p>
+ * A {@link StateStorePredicate} to select only entries with a specific {@link #storeName}.
  */
-public interface DatasetsFinder<T extends Dataset> {
+public class StoreNamePredicate extends StateStorePredicate {
 
-  /**
-   * Find all {@link Dataset}s in the file system.
-   * @return List of {@link Dataset}s in the file system.
-   * @throws IOException
-   */
-  public List<T> findDatasets() throws IOException;
+  @Getter
+  private final String storeName;
 
-  /**
-   * @return The deepest common root shared by all {@link Dataset}s root paths returned by this finder.
-   */
-  @Deprecated
-  public Path commonDatasetRoot();
+  public StoreNamePredicate(String storeName, Predicate<StateStoreEntryManager> customPredicate) {
+    super(customPredicate);
+    this.storeName = storeName;
+  }
+
+  @Override
+  public boolean apply(StateStoreEntryManager input) {
+    return input.getStoreName().equals(this.storeName) && super.apply(input);
+  }
 }
