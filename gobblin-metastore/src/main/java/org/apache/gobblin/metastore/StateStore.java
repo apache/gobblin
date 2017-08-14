@@ -37,6 +37,11 @@ import org.apache.gobblin.metastore.predicates.StateStorePredicate;
  *     {@link State#getId()}).
  * </p>
  *
+ * <p>
+ *   Note: Implementations of dataset store should maintain a timestamp for every state they persist. Certain utilities
+ *   will not work if this is not the case.
+ * </p>
+ *
  * @param <T> state object type
  *
  * @author Yinan Li
@@ -200,7 +205,7 @@ public interface StateStore<T extends State> {
    * Gets metadata for all tables matching the input
    * @param predicate Predicate used to filter tables. To allow state stores to push down predicates, use native extensions
    *                  of {@link StateStorePredicate}.
-   * @return A list of all {@link StateStorePredicate}s matching the predicate.
+   * @return A list of all {@link StateStoreEntryManager}s matching the predicate.
    * @throws IOException
    */
   default List<? extends StateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)

@@ -366,8 +366,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
 
     datasetUrn = CharMatcher.is(':').replaceFrom(datasetUrn, '.');
     String datasetStatestoreName = sanitizeDatasetStatestoreNameFromDatasetURN(jobName, datasetUrn);
-    String tableName = Strings.isNullOrEmpty(datasetUrn) ? jobId + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetStatestoreName + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
+    String tableName = Strings.isNullOrEmpty(datasetUrn) ? sanitizeJobId(jobId) + DATASET_STATE_STORE_TABLE_SUFFIX
+        : datasetStatestoreName + "-" + sanitizeJobId(jobId) + DATASET_STATE_STORE_TABLE_SUFFIX;
     LOGGER.info("Persisting " + tableName + " to the job state store");
     put(jobName, tableName, datasetState);
     createAlias(jobName, tableName, getAliasName(datasetStatestoreName));
@@ -379,6 +379,10 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
       LOGGER.info("Removing previous datasetUrn path: " + originalDatasetUrnPath);
       fs.delete(originalDatasetUrnPath, true);
     }
+  }
+
+  private String sanitizeJobId(String jobId) {
+    return jobId.replaceAll("[-/]", "_");
   }
 
   @Override
