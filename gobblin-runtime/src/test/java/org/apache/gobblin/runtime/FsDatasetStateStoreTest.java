@@ -17,9 +17,17 @@
 
 package org.apache.gobblin.runtime;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
+import org.apache.gobblin.metastore.predicates.DatasetPredicate;
+import org.apache.gobblin.metastore.predicates.StateStorePredicate;
+import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
+import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryManager;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -32,6 +40,8 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
+
+import com.google.common.io.Files;
 
 
 /**
@@ -169,6 +179,62 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getStartTime(), this.startTime);
     Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(datasetState.getDuration(), 1000);
+  }
+
+  @Test
+  public void testGetMetadataForTables() throws Exception {
+
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+
+    FsDatasetStateStore store = new FsDatasetStateStore(FileSystem.getLocal(new Configuration()), tmpDir.getAbsolutePath());
+
+    JobState.DatasetState dataset2State = new JobState.DatasetState("job1", "job1_id2");
+    dataset2State.setDatasetUrn("dataset2");
+    dataset2State.setId("dataset2");
+    TaskState taskState = new TaskState();
+    taskState.setJobId("job1_id2");
+    taskState.setTaskId("task123");
+    taskState.setProp("key", "value");
+    dataset2State.addTaskState(taskState);
+
+    store.persistDatasetState("dataset1", new JobState.DatasetState("job1", "job1_id1"));
+    store.persistDatasetState("dataset1", new JobState.DatasetState("job1", "job1_id2"));
+    store.persistDatasetState("dataset2", dataset2State);
+    store.persistDatasetState("dataset1", new JobState.DatasetState("job2", "job2_id1"));
+    store.persistDatasetState("", new JobState.DatasetState("job3", "job3_id1"));
+
+    List<FsDatasetStateStoreEntryManager> metadataList = store.getMetadataForTables(new StateStorePredicate(x -> true));
+
+    // 5 explicitly stored states, plus 4 current links, one per job-dataset
+    Assert.assertEquals(metadataList.size(), 9);
+
+    metadataList = store.getMetadataForTables(new StoreNamePredicate("job1", x-> true));
+    // 3 explicitly stored states, plus 2 current links, one per dataset
+    Assert.assertEquals(metadataList.size(), 5);
+
+    metadataList = store.getMetadataForTables(new DatasetPredicate("job1", "dataset1", x -> true));
+    Assert.assertEquals(metadataList.size(), 3);
+
+    metadataList = store.getMetadataForTables(new DatasetPredicate("job1", "dataset2", meta ->
+      ((DatasetStateStoreEntryManager) meta).getStateId().equals(DatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX)
+    ));
+    Assert.assertEquals(metadataList.size(), 1);
+    DatasetStateStoreEntryManager metadata = metadataList.get(0);
+    Assert.assertEquals(metadata.getStoreName(), "job1");
+    Assert.assertEquals(metadata.getSanitizedDatasetUrn(), "dataset2");
+    Assert.assertEquals(metadata.getStateId(), DatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX);
+    Assert.assertEquals(metadata.getDatasetStateStore(), store);
+
+    JobState.DatasetState readState = (JobState.DatasetState) metadata.readState();
+    TaskState readTaskState = readState.getTaskStates().get(0);
+    Assert.assertEquals(readTaskState.getProp("key"), "value");
+    metadata.delete();
+    // verify it got deleted
+    metadataList = store.getMetadataForTables(new DatasetPredicate("job1", "dataset2", meta ->
+        ((DatasetStateStoreEntryManager) meta).getStateId().equals(DatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX)
+    ));
+    Assert.assertTrue(metadataList.isEmpty());
   }
 
   @AfterClass
