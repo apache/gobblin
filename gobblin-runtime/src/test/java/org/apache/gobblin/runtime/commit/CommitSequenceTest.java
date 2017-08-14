@@ -93,7 +93,7 @@ public class CommitSequenceTest {
 
     Assert.assertTrue(this.fs.exists(new Path(ROOT_DIR, "dir1/file2")));
     Assert.assertTrue(this.fs.exists(new Path(ROOT_DIR, "dir2/file1")));
-    Assert.assertTrue(this.fs.exists(new Path(ROOT_DIR, "store/job-name/urn-job-id.jst")));
+    Assert.assertTrue(this.fs.exists(new Path(ROOT_DIR, "store/job-name/urn-job_id.jst")));
     Assert.assertTrue(this.fs.exists(new Path(ROOT_DIR, "store/job-name/urn-current.jst")));
   }
 

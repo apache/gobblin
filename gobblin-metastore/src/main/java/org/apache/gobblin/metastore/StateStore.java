@@ -24,6 +24,8 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
+import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 
 
 /**
@@ -33,6 +35,11 @@ import org.apache.gobblin.configuration.State;
  *     Each such store consists of zero or more tables, and each table
  *     stores zero or more {@link State}s keyed on the state IDs (see
  *     {@link State#getId()}).
+ * </p>
+ *
+ * <p>
+ *   Note: Implementations of dataset store should maintain a timestamp for every state they persist. Certain utilities
+ *   will not work if this is not the case.
  * </p>
  *
  * @param <T> state object type
@@ -193,4 +200,16 @@ public interface StateStore<T extends State> {
    */
   public void delete(String storeName)
       throws IOException;
+
+  /**
+   * Gets metadata for all tables matching the input
+   * @param predicate Predicate used to filter tables. To allow state stores to push down predicates, use native extensions
+   *                  of {@link StateStorePredicate}.
+   * @return A list of all {@link StateStoreEntryManager}s matching the predicate.
+   * @throws IOException
+   */
+  default List<? extends StateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
+      throws IOException {
+    throw new UnsupportedOperationException("Operation unsupported for predicate with class " + predicate.getClass());
+  }
 }
