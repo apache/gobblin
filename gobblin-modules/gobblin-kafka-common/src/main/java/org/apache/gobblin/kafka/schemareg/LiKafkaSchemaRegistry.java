@@ -31,6 +31,7 @@ import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +59,6 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
   private final String url;
   private final Optional<Map<String, String>> namespaceOverride;
   private final boolean switchTopicNames;
-  private String topicName;
 
   /**
    * @param props properties should contain property "kafka.schema.registry.url", and optionally
@@ -71,12 +71,8 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
 
     this.url = props.getProperty(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_URL);
     this.namespaceOverride = KafkaAvroReporterUtil.extractOverrideNamespace(props);
-
-    if (props.containsKey(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_SWITCH_NAME)) {
-      this.switchTopicNames = props.getProperty(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_SWITCH_NAME).equalsIgnoreCase("true");
-    } else {
-      this.switchTopicNames = true;
-    }
+    this.switchTopicNames = PropertiesUtils.getPropAsBoolean(props, KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_SWITCH_NAME,
+        KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_SWITCH_NAME_DEFAULT);
 
     int objPoolSize =
         Integer.parseInt(props.getProperty(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,
@@ -160,9 +156,10 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
 
   /**
    * Register a schema to the Kafka schema registry under the provided input name. This method will change the name
-   * of the schema to the provided name. This is useful because certain services (like Gobblin kafka adaptor and
+   * of the schema to the provided name if configured to do so. This is useful because certain services (like Gobblin kafka adaptor and
    * Camus) get the schema for a topic by querying for the latest schema with the topic name, requiring the topic
-   * name and schema name to match for all topics. This method registers the schema to the schema registry in such a
+   * name and schema name to match for all topics. If it is not configured to switch names, this is useful for the case
+   * where the Kafka topic and Avro schema names do not match. This method registers the schema to the schema registry in such a
    * way that any schema can be written to any topic.
    *
    * @param schema {@link org.apache.avro.Schema} to register.
@@ -173,11 +170,12 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
    */
   @Override
   public MD5Digest register(String name, Schema schema) throws SchemaRegistryException {
+    PostMethod post = new PostMethod(url);
     if (this.switchTopicNames) {
-      return register(AvroUtils.switchName(schema, name));
+      return register(AvroUtils.switchName(schema, name), post);
     } else {
-      this.topicName = name;
-      return register(schema);
+      post.addParameter("name", name);
+      return register(schema, post);
     }
   }
 
@@ -185,10 +183,11 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
    * Register a schema to the Kafka schema registry
    *
    * @param schema
+   * @param post
    * @return schema ID of the registered schema
    * @throws SchemaRegistryException if registration failed
    */
-  public synchronized MD5Digest register(Schema schema) throws SchemaRegistryException {
+  public synchronized MD5Digest register(Schema schema, PostMethod post) throws SchemaRegistryException {
 
     // Change namespace if override specified
     if (this.namespaceOverride.isPresent()) {
@@ -197,12 +196,7 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
 
     LOG.info("Registering schema " + schema.toString());
 
-    PostMethod post = new PostMethod(url);
     post.addParameter("schema", schema.toString());
-
-    if (!this.switchTopicNames) {
-      post.addParameter("name", this.topicName);
-    }
 
     HttpClient httpClient = this.borrowClient();
     try {
@@ -275,5 +269,4 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
 
     return schema;
   }
-
 }
