@@ -29,6 +29,7 @@ import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 
@@ -51,10 +52,19 @@ import com.google.common.util.concurrent.AbstractIdleService;
 public class JMXReportingService extends AbstractIdleService {
 
   private final MetricRegistry metricRegistry = new MetricRegistry();
+  private Map<String, MetricSet> additionalMetricSets;
   private final JmxReporter jmxReporter = JmxReporter.forRegistry(this.metricRegistry)
       .convertRatesTo(TimeUnit.SECONDS)
       .convertDurationsTo(TimeUnit.MILLISECONDS)
       .build();
+
+  public JMXReportingService() {
+    this(ImmutableMap.of());
+  }
+
+  public JMXReportingService(Map<String, MetricSet> additionalMetricSets) {
+    this.additionalMetricSets = additionalMetricSets;
+  }
 
   @Override
   protected void startUp() throws Exception {
@@ -72,6 +82,9 @@ public class JMXReportingService extends AbstractIdleService {
     registerMetricSetWithPrefix("jvm.memory", new MemoryUsageGaugeSet());
     registerMetricSetWithPrefix("jvm.threads", new ThreadStatesGaugeSet());
     this.metricRegistry.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
+    for (Map.Entry<String, MetricSet> metricSet : this.additionalMetricSets.entrySet()) {
+      registerMetricSetWithPrefix(metricSet.getKey(), metricSet.getValue());
+    }
   }
 
   private void registerMetricSetWithPrefix(String prefix, MetricSet metricSet) {

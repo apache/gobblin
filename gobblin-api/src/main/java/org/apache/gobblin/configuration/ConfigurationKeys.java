@@ -176,6 +176,11 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_CLEANUP_STAGING_DATA_PER_TASK = true;
   public static final String CLEANUP_STAGING_DATA_BY_INITIALIZER = "cleanup.staging.data.by.initializer";
 
+  public static final String QUEUED_TASK_TIME_MAX_SIZE = "taskexecutor.queued_task_time.history.max_size";
+  public static final int DEFAULT_QUEUED_TASK_TIME_MAX_SIZE = 2048;
+  public static final String QUEUED_TASK_TIME_MAX_AGE = "taskexecutor.queued_task_time.history.max_age";
+  public static final long DEFAULT_QUEUED_TASK_TIME_MAX_AGE = TimeUnit.HOURS.toMillis(1);
+
   /** Optional, for user to specified which template to use, inside .job file */
   public static final String JOB_TEMPLATE_PATH = "job.template" ;
 
