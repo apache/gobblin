@@ -79,8 +79,10 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
 
   @Override
   public void close() throws IOException {
-    writer.close();
-    this.closed = true;
+    if (!this.closed) {
+      writer.close();
+      this.closed = true;
+    }
   }
 
   @Override
