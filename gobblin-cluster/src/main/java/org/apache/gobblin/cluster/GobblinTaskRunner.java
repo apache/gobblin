@@ -81,6 +81,7 @@ import org.apache.gobblin.runtime.services.JMXReportingService;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 
 
@@ -169,11 +170,15 @@ public class GobblinTaskRunner {
 
     this.containerMetrics = buildContainerMetrics(this.config, properties, applicationName, this.taskRunnerId);
 
+    URI rootPathUri = PathUtils.getRootPath(appWorkDir).toUri();
+    Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(properties)
+        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(rootPathUri.toString()));
+
     // Register task factory for the Helix task state model
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
     taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME,
         new GobblinHelixTaskFactory(this.containerMetrics, taskExecutor, taskStateTracker, this.fs, appWorkDir,
-            config));
+            stateStoreJobConfig));
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine().registerStateModelFactory("Task", this.taskStateModelFactory);
   }
