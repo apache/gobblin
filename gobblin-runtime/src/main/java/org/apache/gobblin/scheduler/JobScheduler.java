@@ -24,12 +24,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.hadoop.fs.Path;
@@ -133,6 +135,8 @@ public class JobScheduler extends AbstractIdleService {
 
   private final Closer closer = Closer.create();
 
+  private volatile boolean cancelRequested = false;
+
   public JobScheduler(Properties properties, SchedulerService scheduler)
       throws Exception {
     this.properties = properties;
@@ -201,7 +205,7 @@ public class JobScheduler extends AbstractIdleService {
       throws Exception {
     LOG.info("Stopping the job scheduler");
     closer.close();
-
+    cancelRequested = true;
     List<JobExecutionContext> currentExecutions = this.scheduler.getScheduler().getCurrentlyExecutingJobs();
     for (JobExecutionContext jobExecutionContext : currentExecutions) {
       try {
@@ -264,6 +268,9 @@ public class JobScheduler extends AbstractIdleService {
     return new Future() {
       @Override
       public boolean cancel(boolean mayInterruptIfRunning) {
+        if (!cancelRequested) {
+          return false;
+        }
         boolean result = true;
         try {
           jobLauncher.cancelJob(jobListener);
