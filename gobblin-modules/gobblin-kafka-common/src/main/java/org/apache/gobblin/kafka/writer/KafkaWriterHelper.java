@@ -48,6 +48,7 @@ public class KafkaWriterHelper {
     setDefaultIfUnset(producerProperties, KEY_SERIALIZER_CONFIG, DEFAULT_KEY_SERIALIZER);
     setDefaultIfUnset(producerProperties, VALUE_SERIALIZER_CONFIG, DEFAULT_VALUE_SERIALIZER);
     setDefaultIfUnset(producerProperties, CLIENT_ID_CONFIG, CLIENT_ID_DEFAULT);
+    setDefaultIfUnset(producerProperties, KAFKA_SCHEMA_REGISTRY_SWITCH_NAME, KAFKA_SCHEMA_REGISTRY_SWITCH_NAME_DEFAULT);
     return producerProperties;
   }
 
