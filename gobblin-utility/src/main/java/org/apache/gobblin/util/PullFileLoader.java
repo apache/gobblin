@@ -63,6 +63,12 @@ public class PullFileLoader {
   public static final String GLOBAL_PROPS_EXTENSION = ".properties";
   public static final PathFilter GLOBAL_PROPS_PATH_FILTER = new ExtensionFilter(GLOBAL_PROPS_EXTENSION);
 
+  public static final String GLOBAL_HOCON_EXTENSION = ".configuration";
+  public static final PathFilter GLOBAL_HOCON_PATH_FILTER = new ExtensionFilter(GLOBAL_HOCON_EXTENSION);
+
+  public static final PathFilter GLOBAL_PATH_FILTER =
+      new ExtensionFilter(Lists.newArrayList(GLOBAL_PROPS_EXTENSION, GLOBAL_HOCON_EXTENSION));
+
   public static final Set<String> DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS = Sets.newHashSet("pull", "job");
   public static final Set<String> DEFAULT_HOCON_PULL_FILE_EXTENSIONS = Sets.newHashSet("json", "conf");
 
@@ -224,7 +230,7 @@ public class PullFileLoader {
    * @throws IOException
    */
   private Config findAndLoadGlobalConfigInDirectory(Path path, Config fallback) throws IOException {
-    FileStatus[] files = this.fs.listStatus(path, GLOBAL_PROPS_PATH_FILTER);
+    FileStatus[] files = this.fs.listStatus(path, GLOBAL_PATH_FILTER);
     if (files == null) {
       log.warn("Could not list files at path " + path);
       return ConfigFactory.empty();
@@ -232,7 +238,16 @@ public class PullFileLoader {
     if (files.length > 1) {
       throw new IOException("Found more than one global properties file at path " + path);
     }
-    return files.length == 1 ? loadJavaPropsWithFallback(files[0].getPath(), fallback) : fallback;
+    if (files.length == 0) {
+      return fallback;
+    }
+    if (GLOBAL_HOCON_PATH_FILTER.accept(files[0].getPath())) {
+      return loadHoconConfigWithFallback(files[0].getPath(), fallback);
+    } else if (GLOBAL_PROPS_PATH_FILTER.accept(files[0].getPath())) {
+      return loadJavaPropsWithFallback(files[0].getPath(), fallback);
+    } else {
+      throw new IllegalStateException("Unsupported global configuration file: " + files[0].getPath());
+    }
   }
 
   /**
@@ -265,6 +280,16 @@ public class PullFileLoader {
         return ConfigFactory.parseMap(ImmutableMap.of(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
             PathUtils.getPathWithoutSchemeAndAuthority(path).toString()))
             .withFallback(ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF)));
+    }
+  }
+
+  private Config loadHoconConfigWithFallback(Path path, Config fallback) throws IOException {
+    try (InputStream is = fs.open(path);
+         Reader reader = new InputStreamReader(is, Charsets.UTF_8)) {
+      return ConfigFactory.parseMap(ImmutableMap.of(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
+          PathUtils.getPathWithoutSchemeAndAuthority(path).toString()))
+          .withFallback(ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF)))
+          .withFallback(fallback);
     }
   }
 
