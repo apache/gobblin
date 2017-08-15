@@ -184,8 +184,9 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
       this.jobCatalog =
           (MutableJobCatalog) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(jobCatalogClassName),
-          ImmutableList.<Object>of(config.getConfig(
-              StringUtils.removeEnd(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX, "."))));
+          ImmutableList.<Object>of(config
+              .getConfig(StringUtils.removeEnd(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX, "."))
+              .withFallback(this.config)));
     } else {
       this.jobCatalog = null;
     }
