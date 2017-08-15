@@ -180,7 +180,9 @@ public class JobContext implements Closeable {
       stateStoreType = ConfigurationKeys.STATE_STORE_TYPE_NOOP;
     } else {
       stateStoreType = ConfigUtils
-          .getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY, ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
+          .getString(jobConfig, ConfigurationKeys.DATASET_STATE_STORE_TYPE_KEY,
+              ConfigUtils.getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY,
+                  ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
     }
 
     ClassAliasResolver<DatasetStateStore.Factory> resolver = new ClassAliasResolver<>(DatasetStateStore.Factory.class);

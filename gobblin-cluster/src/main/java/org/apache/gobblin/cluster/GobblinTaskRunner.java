@@ -60,6 +60,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
@@ -69,6 +70,7 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -79,6 +81,7 @@ import org.apache.gobblin.runtime.services.JMXReportingService;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 
 
@@ -159,18 +162,23 @@ public class GobblinTaskRunner {
     Path appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get() :
         GobblinClusterUtils.getAppWorkDirPath(this.fs, applicationName, applicationId);
 
-    List<Service> services = Lists.newArrayList(taskExecutor, taskStateTracker, new JMXReportingService());
+    List<Service> services = Lists.newArrayList(taskExecutor, taskStateTracker,
+        new JMXReportingService(ImmutableMap.of("task.executor" ,taskExecutor.getTaskExecutorQueueMetricSet())));
     services.addAll(getServices());
 
     this.serviceManager = new ServiceManager(services);
 
     this.containerMetrics = buildContainerMetrics(this.config, properties, applicationName, this.taskRunnerId);
 
+    URI rootPathUri = PathUtils.getRootPath(appWorkDir).toUri();
+    Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(properties)
+        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(rootPathUri.toString()));
+
     // Register task factory for the Helix task state model
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
     taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME,
         new GobblinHelixTaskFactory(this.containerMetrics, taskExecutor, taskStateTracker, this.fs, appWorkDir,
-            config));
+            stateStoreJobConfig));
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine().registerStateModelFactory("Task", this.taskStateModelFactory);
   }
