@@ -47,7 +47,7 @@ public class CloseOnFlushWriterWrapperTest {
 
     Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
     Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
-    Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
+    Assert.assertEquals(dummyWriters.get(0).closeCount, 0);
     Assert.assertFalse(dummyWriters.get(0).committed);
     Assert.assertTrue(dummyWriters.get(0).handlerCalled);
   }
