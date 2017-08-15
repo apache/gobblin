@@ -28,6 +28,7 @@ import com.google.common.base.Preconditions;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.FlushControlMessageHandler;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.Decorator;
 import org.apache.gobblin.util.FinalState;
@@ -78,8 +79,10 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
 
   @Override
   public void close() throws IOException {
-    writer.close();
-    this.closed = true;
+    if (!this.closed) {
+      writer.close();
+      this.closed = true;
+    }
   }
 
   @Override
@@ -126,7 +129,13 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
 
   @Override
   public ControlMessageHandler getMessageHandler() {
-    return this.writer.getMessageHandler();
+    // if close on flush is configured then create a handler that will invoke the wrapper's flush to perform close
+    // on flush operations, otherwise return the wrapped writer's handler.
+    if (this.closeOnFlush) {
+      return new FlushControlMessageHandler(this);
+    } else {
+      return this.writer.getMessageHandler();
+    }
   }
 
   /**

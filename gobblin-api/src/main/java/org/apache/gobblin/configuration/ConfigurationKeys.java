@@ -48,6 +48,10 @@ public class ConfigurationKeys {
    */
   // State store type.  References an alias or factory class name
   public static final String STATE_STORE_TYPE_KEY = "state.store.type";
+  public static final String DATASET_STATE_STORE_PREFIX = "dataset";
+  public static final String DATASET_STATE_STORE_TYPE_KEY = DATASET_STATE_STORE_PREFIX + ".state.store.type";
+  public static final String INTERMEDIATE_STATE_STORE_PREFIX = "intermediate";
+  public static final String INTERMEDIATE_STATE_STORE_TYPE_KEY = INTERMEDIATE_STATE_STORE_PREFIX + ".state.store.type";
   public static final String DEFAULT_STATE_STORE_TYPE = "fs";
   public static final String STATE_STORE_TYPE_NOOP = "noop";
 
@@ -175,6 +179,11 @@ public class ConfigurationKeys {
   public static final String CLEANUP_STAGING_DATA_PER_TASK = "cleanup.staging.data.per.task";
   public static final boolean DEFAULT_CLEANUP_STAGING_DATA_PER_TASK = true;
   public static final String CLEANUP_STAGING_DATA_BY_INITIALIZER = "cleanup.staging.data.by.initializer";
+
+  public static final String QUEUED_TASK_TIME_MAX_SIZE = "taskexecutor.queued_task_time.history.max_size";
+  public static final int DEFAULT_QUEUED_TASK_TIME_MAX_SIZE = 2048;
+  public static final String QUEUED_TASK_TIME_MAX_AGE = "taskexecutor.queued_task_time.history.max_age";
+  public static final long DEFAULT_QUEUED_TASK_TIME_MAX_AGE = TimeUnit.HOURS.toMillis(1);
 
   /** Optional, for user to specified which template to use, inside .job file */
   public static final String JOB_TEMPLATE_PATH = "job.template" ;
@@ -567,6 +576,7 @@ public class ConfigurationKeys {
    */
   public static final String TASK_STATE_COLLECTOR_INTERVAL_SECONDS = "task.state.collector.interval.secs";
   public static final int DEFAULT_TASK_STATE_COLLECTOR_INTERVAL_SECONDS = 60;
+  public static final String TASK_STATE_COLLECTOR_HANDLER_CLASS = "task.state.collector.handler.class";
 
   /**
    * Configuration properties for email settings.

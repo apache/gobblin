@@ -465,10 +465,16 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
             branchId,
             getMetadataOutputFileForBranch(anyState, branchId));
       } else {
+        String metadataFilename = getMetadataFileNameForBranch(anyState, branchId);
+        if (mdOutputPath == null || metadataFilename == null) {
+          LOG.info("Metadata filename not set for branch " + String.valueOf(branchId) + ": not publishing metadata.");
+          continue;
+        }
+
         for (String partition : partitions) {
           publishMetadata(getMergedMetadataForPartitionAndBranch(partition, branchId),
               branchId,
-              new Path(new Path(mdOutputPath, partition), getMetadataFileNameForBranch(anyState, branchId)));
+              new Path(new Path(mdOutputPath, partition), metadataFilename));
         }
       }
     }

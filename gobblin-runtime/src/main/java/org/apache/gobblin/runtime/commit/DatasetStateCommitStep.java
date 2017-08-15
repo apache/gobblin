@@ -105,8 +105,8 @@ public class DatasetStateCommitStep extends CommitStepBase {
       ClassAliasResolver<DatasetStateStore.Factory> resolver =
           new ClassAliasResolver<>(DatasetStateStore.Factory.class);
 
-      String stateStoreType = this.props.getProp(ConfigurationKeys.STATE_STORE_TYPE_KEY,
-            ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
+      String stateStoreType = this.props.getProp(ConfigurationKeys.DATASET_STATE_STORE_TYPE_KEY,
+          this.props.getProp(ConfigurationKeys.STATE_STORE_TYPE_KEY, ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
 
       try {
         DatasetStateStore.Factory stateStoreFactory =

@@ -26,6 +26,9 @@ import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.FlushControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
 
 public class CloseOnFlushWriterWrapperTest {
@@ -40,12 +43,13 @@ public class CloseOnFlushWriterWrapperTest {
     byte[] record = new byte[]{'a', 'b', 'c', 'd'};
 
     writer.writeEnvelope(new RecordEnvelope(record));
-    writer.flush();
+    writer.getMessageHandler().handleMessage(new FlushControlMessage(new FlushControlMessage.FlushReason("flush")));
 
     Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
     Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
-    Assert.assertEquals(dummyWriters.get(0).closed, false);
-    Assert.assertEquals(dummyWriters.get(0).committed, false);
+    Assert.assertEquals(dummyWriters.get(0).closeCount, 0);
+    Assert.assertFalse(dummyWriters.get(0).committed);
+    Assert.assertTrue(dummyWriters.get(0).handlerCalled);
   }
 
   @Test
@@ -59,12 +63,14 @@ public class CloseOnFlushWriterWrapperTest {
     byte[] record = new byte[]{'a', 'b', 'c', 'd'};
 
     writer.writeEnvelope(new RecordEnvelope(record));
-    writer.flush();
+    writer.getMessageHandler().handleMessage(new FlushControlMessage(new FlushControlMessage.FlushReason("flush")));
 
     Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
     Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
-    Assert.assertEquals(dummyWriters.get(0).closed, true);
-    Assert.assertEquals(dummyWriters.get(0).committed, true);
+    Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
+    Assert.assertTrue(dummyWriters.get(0).committed);
+    // handler from CloseOnFlushWriterWrapper should have been called instead
+    Assert.assertFalse(dummyWriters.get(0).handlerCalled);
   }
 
   @Test
@@ -78,23 +84,52 @@ public class CloseOnFlushWriterWrapperTest {
     byte[] record = new byte[]{'a', 'b', 'c', 'd'};
 
     writer.writeEnvelope(new RecordEnvelope(record));
-    writer.flush();
+    writer.getMessageHandler().handleMessage(new FlushControlMessage(new FlushControlMessage.FlushReason("flush")));
 
     Assert.assertEquals(dummyWriters.size(), 1);
     Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
     Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
-    Assert.assertEquals(dummyWriters.get(0).closed, true);
-    Assert.assertEquals(dummyWriters.get(0).committed, true);
+    Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
+    Assert.assertTrue(dummyWriters.get(0).committed);
+    Assert.assertFalse(dummyWriters.get(0).handlerCalled);
 
     writer.writeEnvelope(new RecordEnvelope(record));
-    writer.flush();
+    writer.getMessageHandler().handleMessage(new FlushControlMessage(new FlushControlMessage.FlushReason("flush")));
 
     Assert.assertEquals(dummyWriters.size(), 2);
     Assert.assertEquals(dummyWriters.get(1).recordsWritten(), 1);
     Assert.assertEquals(dummyWriters.get(1).flushCount, 1);
-    Assert.assertEquals(dummyWriters.get(1).closed, true);
-    Assert.assertEquals(dummyWriters.get(1).committed, true);
+    Assert.assertEquals(dummyWriters.get(1).closeCount, 1);
+    Assert.assertTrue(dummyWriters.get(1).committed);
+    Assert.assertFalse(dummyWriters.get(1).handlerCalled);
   }
+
+  @Test
+  public void testCloseAfterFlush()
+      throws IOException {
+    WorkUnitState state = new WorkUnitState();
+    state.getJobState().setProp(ConfigurationKeys.WRITER_CLOSE_ON_FLUSH_KEY, "true");
+    List<DummyWriter> dummyWriters = new ArrayList<>();
+    CloseOnFlushWriterWrapper<byte[]> writer = getCloseOnFlushWriter(dummyWriters, state);
+
+    byte[] record = new byte[]{'a', 'b', 'c', 'd'};
+
+    writer.writeEnvelope(new RecordEnvelope(record));
+    writer.getMessageHandler().handleMessage(new FlushControlMessage(new FlushControlMessage.FlushReason("flush")));
+
+    Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
+    Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
+    Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
+    Assert.assertTrue(dummyWriters.get(0).committed);
+    // handler from CloseOnFlushWriterWrapper should have been called instead
+    Assert.assertFalse(dummyWriters.get(0).handlerCalled);
+
+    writer.close();
+
+    // writer should not be closed multiple times
+    Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
+  }
+
 
   private CloseOnFlushWriterWrapper getCloseOnFlushWriter(List<DummyWriter> dummyWriters, WorkUnitState state) {
     return new CloseOnFlushWriterWrapper<>(new Supplier<DataWriter<byte[]>>() {
@@ -111,8 +146,9 @@ public class CloseOnFlushWriterWrapperTest {
     private int recordsSeen = 0;
     private byte[] lastWrittenRecord;
     private int flushCount = 0;
+    private int closeCount = 0;
     private boolean committed = false;
-    private boolean closed = false;
+    private boolean handlerCalled = false;
 
     DummyWriter() {
     }
@@ -149,7 +185,20 @@ public class CloseOnFlushWriterWrapperTest {
     @Override
     public void close()
         throws IOException {
-      this.closed = true;
+      this.closeCount++;
+    }
+
+    @Override
+    public ControlMessageHandler getMessageHandler() {
+      return new ControlMessageHandler() {
+        @Override
+        public void handleMessage(ControlMessage message) {
+          handlerCalled = true;
+          if (message instanceof FlushControlMessage) {
+            flush();
+          }
+        }
+      };
     }
 
     @Override

@@ -48,8 +48,10 @@ public class HadoopKerberosKeytabAuthenticationPlugin extends BaseIdlePluginImpl
   public static class ConfigBasedFactory implements GobblinInstancePluginFactory {
     @Override
     public GobblinInstancePlugin createPlugin(GobblinInstanceDriver instance) {
+      return createPlugin(instance.getSysConfig().getConfig());
+    }
 
-      Config sysConfig = instance.getSysConfig().getConfig();
+    public GobblinInstancePlugin createPlugin(Config sysConfig) {
       if (!sysConfig.hasPath(PluginStaticKeys.LOGIN_USER_FULL_KEY)) {
         throw new RuntimeException("Missing required sys config: " + PluginStaticKeys.LOGIN_USER_FULL_KEY);
       }
@@ -60,7 +62,7 @@ public class HadoopKerberosKeytabAuthenticationPlugin extends BaseIdlePluginImpl
       String loginUser = sysConfig.getString(PluginStaticKeys.LOGIN_USER_FULL_KEY);
       String loginUserKeytabFile = sysConfig.getString(PluginStaticKeys.LOGIN_USER_KEYTAB_FILE_FULL_KEY);
 
-      return new HadoopKerberosKeytabAuthenticationPlugin(instance, loginUser, loginUserKeytabFile);
+      return new HadoopKerberosKeytabAuthenticationPlugin(sysConfig, loginUser, loginUserKeytabFile);
     }
   }
 
@@ -75,7 +77,8 @@ public class HadoopKerberosKeytabAuthenticationPlugin extends BaseIdlePluginImpl
 
     @Override
     public GobblinInstancePlugin createPlugin(GobblinInstanceDriver instance) {
-      return new HadoopKerberosKeytabAuthenticationPlugin(instance, _loginUser, _loginUserKeytabFile);
+      return new HadoopKerberosKeytabAuthenticationPlugin(instance.getSysConfig().getConfig(), _loginUser,
+          _loginUserKeytabFile);
     }
   }
 
@@ -83,9 +86,8 @@ public class HadoopKerberosKeytabAuthenticationPlugin extends BaseIdlePluginImpl
   private final String _loginUserKeytabFile;
   private final Configuration _hadoopConf;
 
-  private HadoopKerberosKeytabAuthenticationPlugin(GobblinInstanceDriver instance, String loginUser, String loginUserKeytabFile) {
-    super(instance);
-    Config sysConfig = instance.getSysConfig().getConfig();
+  private HadoopKerberosKeytabAuthenticationPlugin(Config sysConfig, String loginUser, String loginUserKeytabFile) {
+    super(null);
 
     _loginUser = loginUser;
     _loginUserKeytabFile = loginUserKeytabFile;
@@ -108,6 +110,11 @@ public class HadoopKerberosKeytabAuthenticationPlugin extends BaseIdlePluginImpl
       throw t;
     }
 
+  }
+
+  @Override
+  protected void shutDown() throws Exception {
+    log.info("Plugin shutdown: " + this);
   }
 
   public String getLoginUser() {

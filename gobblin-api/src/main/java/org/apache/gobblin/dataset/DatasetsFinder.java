@@ -43,5 +43,6 @@ public interface DatasetsFinder<T extends Dataset> {
   /**
    * @return The deepest common root shared by all {@link Dataset}s root paths returned by this finder.
    */
+  @Deprecated
   public Path commonDatasetRoot();
 }

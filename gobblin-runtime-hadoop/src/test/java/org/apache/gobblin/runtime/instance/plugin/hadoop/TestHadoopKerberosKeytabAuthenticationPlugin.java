@@ -51,6 +51,20 @@ public class TestHadoopKerberosKeytabAuthenticationPlugin {
   }
 
   @Test
+  public void testConfigConstructor() {
+    final Config testConfig = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+        .put("hadoop-inject.hadoop.security.authentication", "simple")
+        .put("gobblin.instance.hadoop.loginUser", "foo")
+        .put("gobblin.instance.hadoop.loginUserKeytabFile", "/tmp/bar")
+        .build());
+    HadoopKerberosKeytabAuthenticationPlugin plugin = (HadoopKerberosKeytabAuthenticationPlugin)
+        (new HadoopKerberosKeytabAuthenticationPlugin.ConfigBasedFactory()).createPlugin(testConfig);
+    Assert.assertEquals(plugin.getLoginUser(), "foo");
+    Assert.assertEquals(plugin.getLoginUserKeytabFile(), "/tmp/bar");
+    Assert.assertEquals(plugin.getHadoopConf().get("hadoop.security.authentication"), "simple");
+  }
+
+  @Test
   public void testMissingOptions() {
     final Config testConfig1 = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
         .put("hadoop-inject.hadoop.security.authentication", "simple")
