@@ -33,9 +33,7 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
@@ -74,7 +72,7 @@ public class GobblinHelixJob extends BaseGobblinJob implements InterruptableJob 
               Boolean.toString(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT)))) {
         jobScheduler.runJob(jobProps, jobListener, jobLauncher);
       } else {
-        cancellable = jobScheduler.submitJob(jobProps, jobListener, jobLauncher);
+        cancellable = jobScheduler.scheduleJobImmediately(jobProps, jobListener, jobLauncher);
       }
     } catch (Throwable t) {
       throw new JobExecutionException(t);

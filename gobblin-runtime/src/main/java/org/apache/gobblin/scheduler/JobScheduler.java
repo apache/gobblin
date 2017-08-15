@@ -236,7 +236,20 @@ public class JobScheduler extends AbstractIdleService {
     }
   }
 
-  public Future submitJob(Properties jobProps, JobListener jobListener, JobLauncher jobLauncher) {
+  /**
+   * Schedule a job immediately.
+   *
+   * <p>
+   *   This method calls the Quartz scheduler to scheduler the job.
+   * </p>
+   *
+   * @param jobProps Job configuration properties
+   * @param jobListener {@link JobListener} used for callback,
+   *                    can be <em>null</em> if no callback is needed.
+   * @throws JobException when there is anything wrong
+   *                      with scheduling the job
+   */
+  public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener, JobLauncher jobLauncher) {
     Runnable runnable = new Runnable() {
       @Override
       public void run() {
@@ -248,7 +261,6 @@ public class JobScheduler extends AbstractIdleService {
       }
     };
     final Future<?> future = this.jobExecutor.submit(runnable);
-    this.submitRunnableToExecutor(runnable);
     return new Future() {
       @Override
       public boolean cancel(boolean mayInterruptIfRunning) {
