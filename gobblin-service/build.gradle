@@ -56,6 +56,7 @@ dependencies {
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
   compile externalDependency.javaxInject
+  compile externalDependency.jgit
   compile externalDependency.jodaTime
   compile externalDependency.kafka08
   compile externalDependency.log4j

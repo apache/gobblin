@@ -17,11 +17,11 @@
 
 package org.apache.gobblin.runtime.spec_store;
 
+import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 
-import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -258,7 +258,7 @@ public class FSSpecStore implements SpecStore {
     Spec spec = null;
 
     try (FSDataInputStream fis = fs.open(path);) {
-      spec = this.specSerDe.deserialize(IOUtils.toByteArray(fis));
+      spec = this.specSerDe.deserialize(ByteStreams.toByteArray(fis));
     }
 
     return spec;
