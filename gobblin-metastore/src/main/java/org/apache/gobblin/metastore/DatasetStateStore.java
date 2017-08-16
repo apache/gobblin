@@ -56,7 +56,7 @@ public interface DatasetStateStore<T extends State> extends StateStore<T> {
   public void persistDatasetURNs(String storeName, Collection<String> datasetUrns) throws IOException;
 
   @Override
-  default List<? extends DatasetStateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
+  default List<? extends DatasetStateStoreEntryManager> getEntryManagersForTables(StateStorePredicate predicate)
       throws IOException {
     throw new UnsupportedOperationException();
   }

@@ -29,6 +29,7 @@ import org.apache.gobblin.metastore.predicates.DatasetPredicate;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -54,6 +55,10 @@ public class DatasetStoreDatasetFinder implements DatasetsFinder<DatasetStoreDat
     this.predicate = buildPredicate();
   }
 
+  public DatasetStoreDatasetFinder(Properties props) throws IOException{
+    this(FileSystem.get(new Configuration()), props);
+  }
+
   private StateStorePredicate buildPredicate() {
     StateStorePredicate predicate= null;
     String storeName = null;
@@ -77,7 +82,7 @@ public class DatasetStoreDatasetFinder implements DatasetsFinder<DatasetStoreDat
 
   @Override
   public List<DatasetStoreDataset> findDatasets() throws IOException {
-    List<DatasetStateStoreEntryManager> entries = this.store.getMetadataForTables(this.predicate);
+    List<DatasetStateStoreEntryManager> entries = this.store.getEntryManagersForTables(this.predicate);
 
     Map<DatasetStoreDataset.Key, List<DatasetStateStoreEntryManager>> entriesGroupedByDataset =
         entries.stream().collect(Collectors.groupingBy(DatasetStoreDataset.Key::new));
