@@ -105,19 +105,30 @@ public class GitConfigMonitorTest {
     this.gitConfigMonitor.setActive(true);
   }
 
-  private void cleanUpDir(String dir) throws Exception {
+  private void cleanUpDir(String dir) {
     File specStoreDir = new File(dir);
-    if (specStoreDir.exists()) {
-      FileUtils.deleteDirectory(specStoreDir);
+
+    // cleanup is flaky on Travis, so retry a few times and then suppress the error if unsuccessful
+    for (int i = 0; i < 5; i++) {
+      try {
+        if (specStoreDir.exists()) {
+          FileUtils.deleteDirectory(specStoreDir);
+        }
+        // if delete succeeded then break out of loop
+        break;
+      } catch (IOException e) {
+        logger.warn("Cleanup delete directory failed for directory: " + dir, e);
+      }
     }
   }
 
   @AfterClass
-  public void cleanUp() throws Exception {
-    cleanUpDir(TEST_DIR);
+  public void cleanUp() {
     if (this.flowCatalog != null) {
       this.flowCatalog.stopAsync().awaitTerminated();
     }
+
+    cleanUpDir(TEST_DIR);
   }
 
   private String formConfigFilePath(String groupDir, String fileName) {
