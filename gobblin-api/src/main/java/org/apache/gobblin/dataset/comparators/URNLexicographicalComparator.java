@@ -15,22 +15,36 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.dataset;
+package org.apache.gobblin.dataset.comparators;
+
+import java.util.Comparator;
+
+import org.apache.gobblin.dataset.URNIdentified;
+
+import lombok.EqualsAndHashCode;
+
 
 /**
- * Interface representing a dataset.
+ * Dataset comparator that compares by dataset urn.
  */
-public interface Dataset extends URNIdentified {
+@EqualsAndHashCode
+public class URNLexicographicalComparator implements Comparator<URNIdentified> {
+  @Override
+  public int compare(URNIdentified o1, URNIdentified o2) {
+    return o1.getUrn().compareTo(o2.getUrn());
+  }
 
   /**
-   * URN for this dataset.
-   * @deprecated use {@link #getUrn()}
+   * Compare against a raw URN.
    */
-  @Deprecated
-  public String datasetURN();
+  public int compare(URNIdentified o1, String urn2) {
+    return o1.getUrn().compareTo(urn2);
+  }
 
-  @Override
-  default String getUrn() {
-    return datasetURN();
+  /**
+   * Compare against a raw URN.
+   */
+  public int compare(String urn1, URNIdentified o2) {
+    return urn1.compareTo(o2.getUrn());
   }
 }
