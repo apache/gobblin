@@ -29,7 +29,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.PullResult;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
@@ -73,6 +73,7 @@ public class GitConfigMonitor extends AbstractIdleService {
   private static final String SPEC_VERSION = "1";
   private static final int TERMINATION_TIMEOUT = 30;
   private static final int CONFIG_FILE_DEPTH = 3;
+  private static final String REMOTE_NAME = "origin";
 
   private final ScheduledExecutorService scheduledExecutor;
   private final GitRepository gitRepo;
@@ -111,6 +112,9 @@ public class GitConfigMonitor extends AbstractIdleService {
     this.pollingInterval = ConfigUtils.getInt(config, ConfigurationKeys.GIT_CONFIG_MONITOR_POLLING_INTERVAL,
         ConfigurationKeys.DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL);
 
+    String branchName = ConfigUtils.getString(config, ConfigurationKeys.GIT_CONFIG_MONITOR_BRANCH_NAME,
+        ConfigurationKeys.DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME);
+
     this.configDirPath = new Path(this.repositoryDir, this.configDir);
 
     try {
@@ -122,7 +126,7 @@ public class GitConfigMonitor extends AbstractIdleService {
     }
 
     try {
-      this.gitRepo = new GitRepository(repositoryUri, this.repositoryDir);
+      this.gitRepo = new GitRepository(repositoryUri, this.repositoryDir, branchName);
     } catch (GitAPIException | IOException e) {
       throw new RuntimeException("Could not open git repository", e);
     }
@@ -173,6 +177,7 @@ public class GitConfigMonitor extends AbstractIdleService {
   void processGitConfigChanges() throws GitAPIException, IOException {
     // if not active or if the flow catalog is not up yet then can't process config changes
     if (!isActive || !this.flowCatalog.isRunning()) {
+      log.info("GitConfigMonitor: skip poll since the JobCatalog is not yet running.");
       return;
     }
 
@@ -203,27 +208,30 @@ public class GitConfigMonitor extends AbstractIdleService {
   /**
    * Add a {@link FlowSpec} for an added, updated, or modified flow config
    * @param change
-   * @throws IOException
    */
-  private void addSpec(DiffEntry change) throws IOException {
+  private void addSpec(DiffEntry change) {
     if (checkConfigFilePath(change.getNewPath())) {
       Path configFilePath = new Path(this.repositoryDir, change.getNewPath());
-      Config flowConfig = loadConfigFileWithFlowNameOverrides(configFilePath);
 
-      this.flowCatalog.put(FlowSpec.builder()
-          .withConfig(flowConfig)
-          .withVersion(SPEC_VERSION)
-          .withDescription(SPEC_DESCRIPTION)
-          .build());
+      try {
+        Config flowConfig = loadConfigFileWithFlowNameOverrides(configFilePath);
+
+        this.flowCatalog.put(FlowSpec.builder()
+            .withConfig(flowConfig)
+            .withVersion(SPEC_VERSION)
+            .withDescription(SPEC_DESCRIPTION)
+            .build());
+      } catch (IOException e) {
+        log.warn("Could not load config file: " + configFilePath);
+      }
     }
   }
 
   /**
    * remove a {@link FlowSpec} for a deleted or renamed flow config
    * @param change
-   * @throws IOException
    */
-  private void removeSpec(DiffEntry change) throws IOException {
+  private void removeSpec(DiffEntry change) {
     if (checkConfigFilePath(change.getOldPath())) {
       Path configFilePath = new Path(this.repositoryDir, change.getOldPath());
       String flowName = Files.getNameWithoutExtension(configFilePath.getName());
@@ -292,6 +300,7 @@ public class GitConfigMonitor extends AbstractIdleService {
     private final static String CHECKPOINT_FILE_TMP = "checkpoint.tmp";
     private final String repoUri;
     private final String repoDir;
+    private final String branchName;
     private Git git;
     private String lastProcessedGitHash;
     private String latestGitHash;
@@ -300,12 +309,14 @@ public class GitConfigMonitor extends AbstractIdleService {
      * Create an object to manage the git repository stored locally at repoDir with a repository URI of repoDir
      * @param repoUri URI of repository
      * @param repoDir Directory to hold the local copy of the repository
+     * @param branchName Branch name
      * @throws GitAPIException
      * @throws IOException
      */
-    private GitRepository(String repoUri, String repoDir) throws GitAPIException, IOException {
+    private GitRepository(String repoUri, String repoDir, String branchName) throws GitAPIException, IOException {
       this.repoUri = repoUri;
       this.repoDir = repoDir;
+      this.branchName = branchName;
 
       initRepository();
     }
@@ -321,7 +332,7 @@ public class GitConfigMonitor extends AbstractIdleService {
       try {
         this.git = Git.open(repoDirFile);
 
-        String uri = this.git.getRepository().getConfig().getString("remote", "origin", "url");
+        String uri = this.git.getRepository().getConfig().getString("remote", REMOTE_NAME, "url");
 
         if (!uri.equals(this.repoUri)) {
           throw new RuntimeException("Repo at " + this.repoDir + " has uri " + uri + " instead of " + this.repoUri);
@@ -331,6 +342,7 @@ public class GitConfigMonitor extends AbstractIdleService {
         this.git = Git.cloneRepository()
             .setDirectory(repoDirFile)
             .setURI(this.repoUri)
+            .setBranch(this.branchName)
             .call();
       }
 
@@ -394,8 +406,11 @@ public class GitConfigMonitor extends AbstractIdleService {
       // get tree for last processed commit
       ObjectId oldHeadTree = git.getRepository().resolve(this.lastProcessedGitHash + "^{tree}");
 
-      // refresh to latest
-      this.git.pull().call();
+      // refresh to latest and reset hard to handle forced pushes
+      this.git.fetch().setRemote(REMOTE_NAME).call();
+      // reset hard to get a clean working set since pull --rebase may leave files around
+      this.git.reset().setMode(ResetCommand.ResetType.HARD).setRef(REMOTE_NAME + "/" + this.branchName).call();
+
       ObjectId head = this.git.getRepository().resolve("HEAD");
       ObjectId headTree = this.git.getRepository().resolve("HEAD^{tree}");
 

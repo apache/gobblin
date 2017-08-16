@@ -22,11 +22,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.lib.Repository;
@@ -42,6 +45,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 
@@ -60,8 +64,12 @@ public class GitConfigMonitorTest {
   private final File cloneDir = new File(TEST_DIR + "/clone");
   private final File configDir = new File(cloneDir, "/gobblin-config");
   private static final String TEST_FLOW_FILE = "testFlow.pull";
+  private static final String TEST_FLOW_FILE2 = "testFlow2.pull";
+  private static final String TEST_FLOW_FILE3 = "testFlow3.pull";
   private final File testGroupDir = new File(configDir, "testGroup");
   private final File testFlowFile = new File(testGroupDir, TEST_FLOW_FILE);
+  private final File testFlowFile2 = new File(testGroupDir, TEST_FLOW_FILE2);
+  private final File testFlowFile3 = new File(testGroupDir, TEST_FLOW_FILE3);
 
   private RefSpec masterRefSpec = new RefSpec("master");
   private FlowCatalog flowCatalog;
@@ -186,15 +194,113 @@ public class GitConfigMonitorTest {
   }
 
   @Test(dependsOnMethods = "testDeleteConfig")
+  public void testForcedPushConfig() throws IOException, GitAPIException, URISyntaxException {
+    // push a new config file
+    this.testGroupDir.mkdirs();
+    this.testFlowFile.createNewFile();
+    Files.write("flow.name=testFlow\nflow.group=testGroup\nparam1=value1\n", testFlowFile, Charsets.UTF_8);
+    this.testFlowFile2.createNewFile();
+    Files.write("flow.name=testFlow2\nflow.group=testGroup\nparam1=value2\n", testFlowFile2, Charsets.UTF_8);
+
+    // add, commit, push
+    this.gitForPush.add().addFilepattern(formConfigFilePath(this.testGroupDir.getName(), this.testFlowFile.getName()))
+        .call();
+    this.gitForPush.add().addFilepattern(formConfigFilePath(this.testGroupDir.getName(), this.testFlowFile2.getName()))
+        .call();
+    this.gitForPush.commit().setMessage("Fifth commit").call();
+    this.gitForPush.push().setRemote("origin").setRefSpecs(this.masterRefSpec).call();
+
+    this.gitConfigMonitor.processGitConfigChanges();
+
+    Collection<Spec> specs = this.flowCatalog.getSpecs();
+
+    Assert.assertTrue(specs.size() == 2);
+    List<Spec> specList = Lists.newArrayList(specs);
+    specList.sort(new Comparator<Spec>() {
+      @Override
+      public int compare(Spec o1, Spec o2) {
+        return o1.getUri().compareTo(o2.getUri());
+      }
+    });
+
+    FlowSpec spec = (FlowSpec)specList.get(0);
+    Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
+    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow");
+    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
+    Assert.assertEquals(spec.getConfig().getString("param1"), "value1");
+
+    spec = (FlowSpec)specList.get(1);
+    Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow2"));
+    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow2");
+    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
+    Assert.assertEquals(spec.getConfig().getString("param1"), "value2");
+
+    // go back in time to cause conflict
+    this.gitForPush.reset().setMode(ResetCommand.ResetType.HARD).setRef("HEAD~1").call();
+    this.gitForPush.push().setForce(true).setRemote("origin").setRefSpecs(this.masterRefSpec).call();
+
+    // add new files
+    this.testGroupDir.mkdirs();
+    this.testFlowFile2.createNewFile();
+    Files.write("flow.name=testFlow2\nflow.group=testGroup\nparam1=value4\n", testFlowFile2, Charsets.UTF_8);
+    this.testFlowFile3.createNewFile();
+    Files.write("flow.name=testFlow3\nflow.group=testGroup\nparam1=value5\n", testFlowFile3, Charsets.UTF_8);
+
+    // add, commit, push
+    this.gitForPush.add().addFilepattern(formConfigFilePath(this.testGroupDir.getName(), this.testFlowFile2.getName()))
+        .call();
+    this.gitForPush.add().addFilepattern(formConfigFilePath(this.testGroupDir.getName(), this.testFlowFile3.getName()))
+        .call();
+    this.gitForPush.commit().setMessage("Sixth commit").call();
+    this.gitForPush.push().setRemote("origin").setRefSpecs(this.masterRefSpec).call();
+
+    this.gitConfigMonitor.processGitConfigChanges();
+
+    specs = this.flowCatalog.getSpecs();
+
+    Assert.assertTrue(specs.size() == 2);
+
+    specList = Lists.newArrayList(specs);
+    specList.sort(new Comparator<Spec>() {
+      @Override
+      public int compare(Spec o1, Spec o2) {
+        return o1.getUri().compareTo(o2.getUri());
+      }
+    });
+
+    spec = (FlowSpec)specList.get(0);
+    Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow2"));
+    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow2");
+    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
+    Assert.assertEquals(spec.getConfig().getString("param1"), "value4");
+
+    spec = (FlowSpec)specList.get(1);
+    Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow3"));
+    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow3");
+    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
+    Assert.assertEquals(spec.getConfig().getString("param1"), "value5");
+
+    // reset for next test case
+    this.gitForPush.reset().setMode(ResetCommand.ResetType.HARD).setRef("HEAD~4").call();
+    this.gitForPush.push().setForce(true).setRemote("origin").setRefSpecs(this.masterRefSpec).call();
+
+    this.gitConfigMonitor.processGitConfigChanges();
+    specs = this.flowCatalog.getSpecs();
+
+    Assert.assertTrue(specs.size() == 0);
+  }
+
+  @Test(dependsOnMethods = "testForcedPushConfig")
   public void testPollingConfig() throws IOException, GitAPIException, URISyntaxException, InterruptedException {
     // push a new config file
+    this.testGroupDir.mkdirs();
     this.testFlowFile.createNewFile();
     Files.write("flow.name=testFlow\nflow.group=testGroup\nparam1=value20\n", testFlowFile, Charsets.UTF_8);
 
     // add, commit, push
     this.gitForPush.add().addFilepattern(formConfigFilePath(this.testGroupDir.getName(), this.testFlowFile.getName()))
         .call();
-    this.gitForPush.commit().setMessage("Fifth commit").call();
+    this.gitForPush.commit().setMessage("Seventh commit").call();
     this.gitForPush.push().setRemote("origin").setRefSpecs(this.masterRefSpec).call();
 
     Collection<Spec> specs = this.flowCatalog.getSpecs();

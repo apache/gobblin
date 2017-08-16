@@ -832,5 +832,7 @@ public class ConfigurationKeys {
   public static final String GIT_CONFIG_MONITOR_CONFIG_DIR = GIT_CONFIG_MONITOR_PREFIX + "configDirectory";
   public static final String DEFAULT_GIT_CONFIG_MONITOR_CONFIG_DIR = "gobblin-config";
   public static final String GIT_CONFIG_MONITOR_POLLING_INTERVAL = GIT_CONFIG_MONITOR_PREFIX + "pollingInterval";
+  public static final String GIT_CONFIG_MONITOR_BRANCH_NAME = GIT_CONFIG_MONITOR_PREFIX + "branchName";
+  public static final String DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME = "master";
   public static final int DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL = 60;
 }
