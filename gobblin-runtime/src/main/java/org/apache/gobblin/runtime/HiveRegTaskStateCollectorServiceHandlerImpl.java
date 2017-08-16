@@ -20,9 +20,11 @@ package org.apache.gobblin.runtime;
 import java.io.IOException;
 import java.util.Collection;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.publisher.HiveRegistrationPublisher;
 
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * A {@link TaskStateCollectorServiceHandler} implementation that execute hive registration on driver level.
@@ -31,21 +33,37 @@ import org.apache.gobblin.publisher.HiveRegistrationPublisher;
  * if a single batch of hive registration finishes within a minute, the latency can be hidden by the gap between two run
  * of {@link TaskStateCollectorService}.
  */
-
+@Slf4j
 public class HiveRegTaskStateCollectorServiceHandlerImpl implements TaskStateCollectorServiceHandler {
 
   private HiveRegistrationPublisher hiveRegHandler;
 
+  private boolean isJobProceedOnCollectorServiceFailure;
+
+  /**
+   * By default, whether {@link TaskStateCollectorServiceHandler} finishes successfully or not won't influence
+   * job's proceed.
+   */
+  private static final boolean defaultPolicyOnCollectorServiceFailure = true;
+
   public HiveRegTaskStateCollectorServiceHandlerImpl(JobState jobState){
     hiveRegHandler = new HiveRegistrationPublisher(jobState);
+    isJobProceedOnCollectorServiceFailure = jobState.contains(ConfigurationKeys.JOB_PROCEED_ON_TASK_STATE_COLLECOTR_SERVICE_FAILURE)
+        ? jobState.getPropAsBoolean(ConfigurationKeys.JOB_PROCEED_ON_TASK_STATE_COLLECOTR_SERVICE_FAILURE)
+        : defaultPolicyOnCollectorServiceFailure;
   }
 
   @Override
   public void handle(Collection<? extends WorkUnitState> taskStates) {
     try {
       this.hiveRegHandler.publishData(taskStates);
-    }catch (IOException ioe){
-      throw new RuntimeException("Hive-registration pushling of data in TaskStateCollector run into IOException:", ioe);
+    } catch (Throwable t) {
+      if (isJobProceedOnCollectorServiceFailure) {
+        log.error("Failed to commit dataset", t);
+        SafeDatasetCommit.setTaskFailureException(taskStates, t);
+      } else {
+        throw new RuntimeException("Hive Registration as the TaskStateCollectorServiceHandler failed.", t);
+      }
     }
   }
 
