@@ -98,10 +98,44 @@ public class LineageInfo {
   }
 
   /**
-   * Retrieve all lineage information from different {@link State}s by {@link Level}.
-   * This requires the job id and dataset urn to present in the state, under job.id and dataset.urn.
-   * It also requires the key-value pair within all {@link State}s do not have conflicting values at either {@link Level#BRANCH}
-   * or {@link Level#DATASET} levels; Otherwise an exception is thrown.
+   * Retrieve all lineage information from different {@link State}s.
+   * This requires the job id and dataset urn to be present in the state, under job.id and dataset.urn.
+   * A global union operation is applied to combine all <K, V> pairs from the input {@link State}s. If multiple {@link State}s
+   * share the same K, but have conflicting V, a {@link LineageException} is thrown.
+   *
+   * {@link Level} can control if a dataset level or branch level information should be used. When {@link Level#All} is
+   * specified, all levels of information will be returned; otherwise only specified level of information will be returned.
+   *
+   * For instance, assume we have below input states:
+   *    State[0]: gobblin.lineage.K1          ---> V1
+   *              gobblin.lineage.K2          ---> V2
+   *              gobblin.lineage.branch.1.K4 ---> V4
+   *    State[1]: gobblin.lineage.K2          ---> V2
+   *              gobblin.lineage.K3          ---> V3
+   *              gobblin.lineage.branch.1.K4 ---> V4
+   *              gobblin.lineage.branch.1.K5 ---> V5
+   *              gobblin.lineage.branch.2.K6 ---> V6
+   *
+   *  (1) With {@link Level#DATASET} level, the output would be:
+   *      LinieageInfo[0]:  K1 ---> V1
+   *                        K2 ---> V2
+   *                        K3 ---> V3
+   *  (2) With {@link Level#All} level, the output would be: (because there are two branches, so there are two LineageInfo)
+   *      LineageInfo[0]:   K1 ---> V1
+   *                        K2 ---> V2
+   *                        K3 ---> V3
+   *                        K4 ---> V4
+   *                        K5 ---> V5
+   *
+   *      LineageInfo[1]:   K1 ---> V1
+   *                        K2 ---> V2
+   *                        K3 ---> V3
+   *                        K6 ---> V6
+   *
+   *   (3) With {@link Level#BRANCH} level, the output would be: (only branch level information was returned)
+   *      LineageInfo[0]:   K4 ---> V4
+   *                        K5 ---> V5
+   *      LineageInfo[1]:   K6 ---> V6
    *
    * @param states All states which belong to the same dataset and share the same jobId.
    * @param level {@link Level#DATASET}  only load dataset level lineage attributes
@@ -155,18 +189,35 @@ public class LineageInfo {
     }
 
     Collection<LineageInfo> collection = Sets.newHashSet();
-    for (Map.Entry<String, Map<String, String>> branchMetaDataEntry: branchAggregate.entrySet()) {
-      String branchId = branchMetaDataEntry.getKey();
-      Map<String, String> branchMetaData = branchMetaDataEntry.getValue();
+
+    if (level == Level.DATASET) {
       ImmutableMap<String, String> metaData = ImmutableMap.<String, String>builder()
           .putAll(datasetMetaData)
-          .putAll(branchMetaData)
-          .put(BRANCH_ID_METADATA_KEY, branchId)
           .build();
       collection.add(new LineageInfo(urn, jobId, metaData));
-    }
+      return collection;
+    } else if (level == Level.BRANCH || level == Level.All){
+      if (branchAggregate.isEmpty()) {
+        if (level == Level.All) {
+          collection.add(new LineageInfo(urn, jobId, ImmutableMap.<String, String>builder().putAll(datasetMetaData).build()));
+        }
+        return collection;
+      }
+      for (Map.Entry<String, Map<String, String>> branchMetaDataEntry: branchAggregate.entrySet()) {
+        String branchId = branchMetaDataEntry.getKey();
+        Map<String, String> branchMetaData = branchMetaDataEntry.getValue();
+        ImmutableMap.Builder<String, String> metaDataBuilder = ImmutableMap.builder();
+        if (level == Level.All) {
+          metaDataBuilder.putAll(datasetMetaData);
+        }
+        metaDataBuilder.putAll(branchMetaData).put(BRANCH_ID_METADATA_KEY, branchId);
+        collection.add(new LineageInfo(urn, jobId, metaDataBuilder.build()));
+      }
 
-    return collection;
+      return collection;
+    } else {
+      throw new LineageException.LineageUnsupportedLevelException(level);
+    }
   }
 
   public static void setDatasetLineageAttribute (State state, String key, String value) {

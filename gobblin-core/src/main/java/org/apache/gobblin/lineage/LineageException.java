@@ -30,4 +30,10 @@ public class LineageException extends Exception {
       super ("Lineage has conflict value: key=" + key + " value=[1]" + oldValue + " [2]" + newValue);
     }
   }
+
+  public static class LineageUnsupportedLevelException extends LineageException {
+    public LineageUnsupportedLevelException (LineageInfo.Level level) {
+      super (level.toString() + " is not supported");
+    }
+  }
 }
