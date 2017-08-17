@@ -26,6 +26,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
@@ -919,5 +920,24 @@ public class HadoopUtils {
    */
   public static void addGobblinSite() {
     Configuration.addDefaultResource("gobblin-site.xml");
+  }
+
+  /**
+   * Get a {@link FileSystem} object for the uri specified at {@link ConfigurationKeys#SOURCE_FILEBASED_FS_URI}.
+   * @throws IOException
+   */
+  public static FileSystem getSourceFileSystem(State state) throws IOException {
+    Configuration conf = HadoopUtils.getConfFromState(state, Optional.of(ConfigurationKeys.SOURCE_FILEBASED_ENCRYPTED_CONFIG_PATH));
+    String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
+    return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
+  }
+
+  /**
+   * Get a {@link FileSystem} object for the uri specified at {@link ConfigurationKeys#WRITER_FILE_SYSTEM_URI}.
+   * @throws IOException
+   */
+  public static FileSystem getWriterFileSystem(State state, int numBranches, int branchId)
+      throws IOException {
+    return HadoopUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, numBranches, branchId), state);
   }
 }

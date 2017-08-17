@@ -18,19 +18,12 @@
 package org.apache.gobblin.dataset;
 
 /**
- * Interface representing a dataset.
+ * An object that can be identified by URN.
+ * Note the contract is that given o1, o2, then o1.equals(o2) iff o1.class.equals(o2.class) and o1.getUrn().equals(o2.getUrn())
  */
-public interface Dataset extends URNIdentified {
-
+public interface URNIdentified {
   /**
-   * URN for this dataset.
-   * @deprecated use {@link #getUrn()}
+   * URN for this object.
    */
-  @Deprecated
-  public String datasetURN();
-
-  @Override
-  default String getUrn() {
-    return datasetURN();
-  }
+  public String getUrn();
 }
