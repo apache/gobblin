@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.dataset.comparators;
 
+import java.io.Serializable;
 import java.util.Comparator;
 
 import org.apache.gobblin.dataset.URNIdentified;
@@ -28,7 +29,9 @@ import lombok.EqualsAndHashCode;
  * Dataset comparator that compares by dataset urn.
  */
 @EqualsAndHashCode
-public class URNLexicographicalComparator implements Comparator<URNIdentified> {
+public class URNLexicographicalComparator implements Comparator<URNIdentified>, Serializable {
+  private static final long serialVersionUID = 2647543651352156568L;
+
   @Override
   public int compare(URNIdentified o1, URNIdentified o2) {
     return o1.getUrn().compareTo(o2.getUrn());
