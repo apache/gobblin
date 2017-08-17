@@ -19,7 +19,7 @@ package org.apache.gobblin.dataset;
 
 /**
  * An object that can be identified by URN.
- * Note the contract is that given o1, o2, then o1.equals(o2) iff o2.class.equals(o2.class) and o1.getUrn().equals(o2.getUrn())
+ * Note the contract is that given o1, o2, then o1.equals(o2) iff o1.class.equals(o2.class) and o1.getUrn().equals(o2.getUrn())
  */
 public interface URNIdentified {
   /**
