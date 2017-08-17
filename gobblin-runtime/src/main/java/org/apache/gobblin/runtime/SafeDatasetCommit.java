@@ -33,8 +33,13 @@ import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.lineage.LineageException;
+import org.apache.gobblin.lineage.LineageInfo;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.publisher.NoopPublisher;
 import org.apache.gobblin.publisher.UnpublishedHandling;
 import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
@@ -159,6 +164,7 @@ final class SafeDatasetCommit implements Callable<Void> {
         } else if (canPersistStates) {
           persistDatasetState(datasetUrn, datasetState);
         }
+
       } catch (IOException | RuntimeException ioe) {
         log.error(String
             .format("Failed to persist dataset state for dataset %s of job %s", datasetUrn, this.jobContext.getJobId()),
@@ -167,6 +173,30 @@ final class SafeDatasetCommit implements Callable<Void> {
       }
     }
     return null;
+  }
+
+  private void submitLineageEvent(Collection<TaskState> states) {
+    if (states.size() == 0) {
+      return;
+    }
+
+    TaskState oneWorkUnitState = states.iterator().next();
+    if (oneWorkUnitState.contains(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE) && oneWorkUnitState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE).equals(
+        NoopPublisher.class.getName())) {
+      // if no publisher configured, each task should be responsible for sending lineage event.
+      return;
+    }
+
+    try {
+      Collection<LineageInfo> branchLineages = LineageInfo.load(states, LineageInfo.Level.All);
+      EventSubmitter submitter = new EventSubmitter.Builder(Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class),
+          LineageInfo.LINEAGE_NAME_SPACE).build();
+      for (LineageInfo info: branchLineages) {
+        submitter.submit(info.getId(), info.getLineageMetaData());
+      }
+    } catch (LineageException e) {
+      log.error ("Lineage event submission failed due to :" + e.toString());
+    }
   }
 
   /**
@@ -186,6 +216,7 @@ final class SafeDatasetCommit implements Callable<Void> {
 
     try {
       publisher.publish(taskStates);
+      submitLineageEvent(taskStates);
     } catch (Throwable t) {
       log.error("Failed to commit dataset", t);
       setTaskFailureException(taskStates, t);
