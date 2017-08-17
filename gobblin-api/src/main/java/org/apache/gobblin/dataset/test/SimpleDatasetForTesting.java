@@ -15,22 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.dataset;
+package org.apache.gobblin.dataset.test;
+
+import org.apache.gobblin.dataset.Dataset;
+
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+
 
 /**
- * Interface representing a dataset.
+ * A dumb {@link Dataset} used for testing.
  */
-public interface Dataset extends URNIdentified {
-
-  /**
-   * URN for this dataset.
-   * @deprecated use {@link #getUrn()}
-   */
-  @Deprecated
-  public String datasetURN();
+@AllArgsConstructor
+@EqualsAndHashCode
+public class SimpleDatasetForTesting implements Dataset {
+  private final String urn;
 
   @Override
-  default String getUrn() {
-    return datasetURN();
+  public String datasetURN() {
+    return this.urn;
   }
 }
