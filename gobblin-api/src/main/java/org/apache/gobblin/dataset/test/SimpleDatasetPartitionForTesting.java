@@ -15,22 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.dataset;
+package org.apache.gobblin.dataset.test;
+
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.PartitionableDataset;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
 
 /**
- * Interface representing a dataset.
+ * A dumb {@link org.apache.gobblin.dataset.PartitionableDataset.DatasetPartition} used for testing.
  */
-public interface Dataset extends URNIdentified {
-
-  /**
-   * URN for this dataset.
-   * @deprecated use {@link #getUrn()}
-   */
-  @Deprecated
-  public String datasetURN();
-
-  @Override
-  default String getUrn() {
-    return datasetURN();
-  }
+@Data
+@EqualsAndHashCode
+public class SimpleDatasetPartitionForTesting implements PartitionableDataset.DatasetPartition {
+  private final String urn;
+  private Dataset dataset;
 }

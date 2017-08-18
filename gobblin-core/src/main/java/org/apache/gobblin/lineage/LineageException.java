@@ -15,22 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.dataset;
+
+package org.apache.gobblin.lineage;
 
 /**
- * Interface representing a dataset.
+ * A set of exceptions used by {@link LineageInfo} when lineage information is serialized or deserialized.
  */
-public interface Dataset extends URNIdentified {
+public class LineageException extends Exception {
+  public LineageException(String message) {
+    super(message);
+  }
+  public static class LineageConflictAttributeException extends LineageException {
+    public LineageConflictAttributeException (String key, String oldValue, String newValue) {
+      super ("Lineage has conflict value: key=" + key + " value=[1]" + oldValue + " [2]" + newValue);
+    }
+  }
 
-  /**
-   * URN for this dataset.
-   * @deprecated use {@link #getUrn()}
-   */
-  @Deprecated
-  public String datasetURN();
-
-  @Override
-  default String getUrn() {
-    return datasetURN();
+  public static class LineageUnsupportedLevelException extends LineageException {
+    public LineageUnsupportedLevelException (LineageInfo.Level level) {
+      super (level.toString() + " is not supported");
+    }
   }
 }
