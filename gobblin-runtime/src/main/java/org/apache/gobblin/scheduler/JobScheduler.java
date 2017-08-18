@@ -274,8 +274,6 @@ public class JobScheduler extends AbstractIdleService {
     }
 
     if (!jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-      // A job without a cron schedule is considered a one-time job
-      jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
       // Submit the job to run
       this.jobExecutor.execute(new NonScheduledJobRunner(jobProps, jobListener));
       return;
@@ -410,6 +408,12 @@ public class JobScheduler extends AbstractIdleService {
       throws ConfigurationException, JobException, IOException {
     LOG.info("Scheduling configured jobs");
     for (Properties jobProps : loadGeneralJobConfigs()) {
+
+      if (!jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+        // A job without a cron schedule is considered a one-time job
+        jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
+      }
+
       boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
       scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
       this.listener.addToJobNameMap(jobProps);
