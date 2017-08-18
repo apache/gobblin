@@ -197,6 +197,8 @@ public class GobblinServiceManager implements ApplicationLauncher {
       this.scheduler = new GobblinServiceJobScheduler(config, this.helixManager,
           Optional.of(this.flowCatalog), Optional.of(this.topologyCatalog), this.orchestrator,
           schedulerService, Optional.of(LOGGER));
+      this.serviceLauncher.addService(schedulerService);
+      this.serviceLauncher.addService(this.scheduler);
     }
 
     // Initialize RestLI
