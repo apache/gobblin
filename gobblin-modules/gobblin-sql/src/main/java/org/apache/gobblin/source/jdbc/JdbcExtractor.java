@@ -1152,7 +1152,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
       SqlNode all = sqlParser.parseQuery();
       SqlSelect query;
-      SqlNode from;
       if (all instanceof SqlSelect) {
         query = (SqlSelect) all;
       } else if (all instanceof SqlOrderBy) {
@@ -1160,8 +1159,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       } else {
         throw new UnsupportedOperationException("The select query is type of " + all.getClass() + " which is not supported here");
       }
-      from = query.getFrom();
-      return from.getKind() == SqlKind.JOIN;
+      return query.getFrom().getKind() == SqlKind.JOIN;
     } catch (SqlParseException e) {
       return false;
     }
