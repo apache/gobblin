@@ -177,6 +177,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         Properties flowSpecProperties = ((FlowSpec) addedSpec).getConfigAsProperties();
         jobConfig.putAll(this.properties);
         jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, addedSpec.getUri().toString());
+        jobConfig.setProperty(ConfigurationKeys.JOB_GROUP_KEY,
+            ((FlowSpec) addedSpec).getConfig().getValue(ConfigurationKeys.FLOW_GROUP_KEY).toString());
         if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)
             && StringUtils.isNotBlank(flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY))) {
           jobConfig.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
