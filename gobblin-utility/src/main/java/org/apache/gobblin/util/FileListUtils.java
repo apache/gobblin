@@ -132,7 +132,7 @@ public class FileListUtils {
             files.add(status);
           }
         } else {
-          files.add(status);
+          listFilesRecursivelyHelper(fs, files, status, fileFilter, applyFilterToDirectories, includeEmptyDirectories);
         }
       }
     } else if (fileFilter.accept(fileStatus.getPath())) {
