@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.BooleanUtils;
+import org.apache.gobblin.converter.DataConversionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -416,10 +417,22 @@ public class Task implements TaskIFace {
     } else {
       RecordEnvelope record;
       // Extract, convert, and fork one source record at a time.
+      long errRecords = 0;
       while ((record = extractor.readRecordEnvelope()) != null) {
         onRecordExtract();
-        for (Object convertedRecord : converter.convertRecord(schema, record.getRecord(), this.taskState)) {
-          processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches, null);
+        try {
+          for (Object convertedRecord : converter.convertRecord(schema, record.getRecord(), this.taskState)) {
+            processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches, null);
+          }
+        } catch (Exception e) {
+          if (!(e instanceof DataConversionException) && !(e.getCause() instanceof DataConversionException)) {
+            throw new RuntimeException(e.getCause());
+          }
+          errRecords++;
+          if (errRecords > this.taskState.getPropAsLong(TaskConfigurationKeys.TASK_SKIP_ERROR_RECORDS,
+              TaskConfigurationKeys.DEFAULT_TASK_SKIP_ERROR_RECORDS)) {
+            throw new RuntimeException(e);
+          }
         }
       }
     }
