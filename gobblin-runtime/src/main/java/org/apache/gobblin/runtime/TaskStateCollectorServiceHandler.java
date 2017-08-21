@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import java.io.IOException;
 import org.apache.gobblin.configuration.WorkUnitState;
 import java.io.Closeable;
 import java.util.Collection;
@@ -32,12 +33,12 @@ public interface TaskStateCollectorServiceHandler extends Closeable {
   /**
    * Interface of handler factory.
    */
-  interface TaskStateCollectorServiceHandlerFactory{
+  interface TaskStateCollectorServiceHandlerFactory {
     TaskStateCollectorServiceHandler createHandler(JobState jobState);
   }
 
   /**
    * Execute the actions of handler.
    */
-  public void handle(Collection<? extends WorkUnitState> states)  ;
+  public void handle(Collection<? extends WorkUnitState> states) throws IOException;
 }

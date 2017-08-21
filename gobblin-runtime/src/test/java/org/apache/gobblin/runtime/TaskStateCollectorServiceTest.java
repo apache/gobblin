@@ -109,7 +109,7 @@ public class TaskStateCollectorServiceTest {
     props.setProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS, "hivereg");
     TaskStateCollectorService taskStateCollectorServiceHive = new TaskStateCollectorService(props, this.jobState, this.eventBus,
         this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID + "_prime"));
-    Assert.assertEquals(taskStateCollectorServiceHive.optionalTaskCollectorHandler.get().getClass().getName(),
+    Assert.assertEquals(taskStateCollectorServiceHive.getOptionalTaskCollectorHandler().get().getClass().getName(),
         "org.apache.gobblin.runtime.HiveRegTaskStateCollectorServiceHandlerImpl");
     taskStateCollectorServiceHive.shutDown();
     return;
