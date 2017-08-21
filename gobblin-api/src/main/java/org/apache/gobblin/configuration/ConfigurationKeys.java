@@ -579,6 +579,11 @@ public class ConfigurationKeys {
   public static final String TASK_STATE_COLLECTOR_HANDLER_CLASS = "task.state.collector.handler.class";
 
   /**
+   * Set to true so that job still proceed if TaskStateCollectorService failed.
+   */
+  public static final String JOB_PROCEED_ON_TASK_STATE_COLLECOTR_SERVICE_FAILURE = "job.proceed.onTaskStateCollectorServiceFailure";
+
+  /**
    * Configuration properties for email settings.
    */
   public static final String ALERT_EMAIL_ENABLED_KEY = "email.alert.enabled";

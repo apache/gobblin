@@ -20,9 +20,11 @@ package org.apache.gobblin.runtime;
 import java.io.IOException;
 import java.util.Collection;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.publisher.HiveRegistrationPublisher;
 
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * A {@link TaskStateCollectorServiceHandler} implementation that execute hive registration on driver level.
@@ -31,22 +33,18 @@ import org.apache.gobblin.publisher.HiveRegistrationPublisher;
  * if a single batch of hive registration finishes within a minute, the latency can be hidden by the gap between two run
  * of {@link TaskStateCollectorService}.
  */
-
+@Slf4j
 public class HiveRegTaskStateCollectorServiceHandlerImpl implements TaskStateCollectorServiceHandler {
 
   private HiveRegistrationPublisher hiveRegHandler;
 
-  public HiveRegTaskStateCollectorServiceHandlerImpl(JobState jobState){
+  public HiveRegTaskStateCollectorServiceHandlerImpl(JobState jobState) {
     hiveRegHandler = new HiveRegistrationPublisher(jobState);
   }
 
   @Override
-  public void handle(Collection<? extends WorkUnitState> taskStates) {
-    try {
-      this.hiveRegHandler.publishData(taskStates);
-    }catch (IOException ioe){
-      throw new RuntimeException("Hive-registration pushling of data in TaskStateCollector run into IOException:", ioe);
-    }
+  public void handle(Collection<? extends WorkUnitState> taskStates) throws IOException {
+    this.hiveRegHandler.publishData(taskStates);
   }
 
   @Override

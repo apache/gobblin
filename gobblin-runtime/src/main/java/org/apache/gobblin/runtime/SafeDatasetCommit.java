@@ -370,10 +370,12 @@ final class SafeDatasetCommit implements Callable<Void> {
   /**
    * Sets the {@link ConfigurationKeys#TASK_FAILURE_EXCEPTION_KEY} for each given {@link TaskState} to the given
    * {@link Throwable}.
+   *
+   * Make this method public as this exception catching routine can be reusable in other occasions as well.
    */
-  private static void setTaskFailureException(Collection<TaskState> taskStates, Throwable t) {
-    for (TaskState taskState : taskStates) {
-      taskState.setTaskFailureException(t);
+  public static void setTaskFailureException(Collection<? extends WorkUnitState> taskStates, Throwable t) {
+    for (WorkUnitState taskState : taskStates) {
+      ((TaskState) taskState).setTaskFailureException(t);
     }
   }
 
