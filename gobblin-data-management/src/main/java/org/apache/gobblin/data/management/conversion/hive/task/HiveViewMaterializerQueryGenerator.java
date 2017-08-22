@@ -17,26 +17,5 @@
 
 package org.apache.gobblin.data.management.conversion.hive.task;
 
-import org.apache.gobblin.publisher.DataPublisher;
-import org.apache.gobblin.publisher.NoopPublisher;
-import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.TaskContext;
-import org.apache.gobblin.runtime.task.TaskFactory;
-import org.apache.gobblin.runtime.task.TaskIFace;
-
-
-public class HiveTaskFactory implements TaskFactory {
-  @Override
-  public TaskIFace createTask(TaskContext taskContext) {
-    try {
-      return new Materializer(taskContext);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @Override
-  public DataPublisher createDataPublisher(JobState.DatasetState datasetState) {
-    return new NoopPublisher(datasetState);
-  }
+public class HiveViewMaterializerQueryGenerator extends HiveQueryGenerator {
 }
