@@ -226,6 +226,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
             .targetURI(this.fs.makeQualified(writeAt).toUri()).build();
         StreamCopier copier = new StreamCopier(throttledInputStream, os).withBufferSize(this.bufferSize);
 
+        log.info("File {}: Starting copy", copyableFile.getOrigin().getPath());
+
         if (isInstrumentationEnabled()) {
           copier.withCopySpeedMeter(this.copySpeedMeter);
         }
