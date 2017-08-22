@@ -18,6 +18,7 @@
 subprojects {
   plugins.withType(JavaPlugin) {
     plugins.apply('findbugs')
+    plugins.apply('checkstyle')
 
     test {
       if (project.hasProperty("printTestOutput")) {
@@ -48,6 +49,10 @@ subprojects {
       sourceSets = [sourceSets.main] // Only analyze src/java/main, not src/java/test/
       // The exclude filter file must be under "ligradle/findbugs/" for internal compatibility with ligradle FindBugs
       excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
+    }
+    checkstyle {
+      toolVersion = '7.6.1'
+      configFile = rootProject.file('config/checkstyle/checkstyle.xml')
     }
   }
 
