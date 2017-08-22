@@ -21,6 +21,7 @@ dependencies {
   compile project(":gobblin-core")
 
   compile externalDependency.calciteCore
+  compile externalDependency.postgresConnector
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
