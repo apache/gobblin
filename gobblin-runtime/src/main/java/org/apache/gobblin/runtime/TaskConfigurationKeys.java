@@ -37,4 +37,7 @@ public class TaskConfigurationKeys {
   public static final String TASK_IS_SINGLE_BRANCH_SYNCHRONOUS = "gobblin.task.is.single.branch.synchronous";
   public static final String DEFAULT_TASK_IS_SINGLE_BRANCH_SYNCHRONOUS = Boolean.toString(false);
 
+
+  public static final String TASK_SKIP_ERROR_RECORDS = "task.skip.error.records";
+  public static final long DEFAULT_TASK_SKIP_ERROR_RECORDS = 0;
 }
