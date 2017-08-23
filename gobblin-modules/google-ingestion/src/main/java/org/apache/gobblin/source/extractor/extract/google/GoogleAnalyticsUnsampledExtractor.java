@@ -35,8 +35,8 @@ import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.Retryer;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.services.analytics.Analytics;
-import com.google.api.services.analytics.model.UnsampledReport;
 import com.google.api.services.analytics.Analytics.Management.UnsampledReports.Insert;
+import com.google.api.services.analytics.model.UnsampledReport;
 import com.google.api.services.drive.Drive;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
@@ -47,22 +47,23 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import static org.apache.gobblin.retry.RetryerFactory.*;
-import static org.apache.gobblin.configuration.ConfigurationKeys.*;
-import static org.apache.gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
-import static org.apache.gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledSource.*;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.exception.NonTransientException;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.retry.RetryerFactory;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.source.extractor.filebased.CsvFileDownloader;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.writer.exception.NonTransientException;
+import org.apache.gobblin.util.retry.RetryerFactory;
+
+import static org.apache.gobblin.configuration.ConfigurationKeys.*;
+import static org.apache.gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledSource.*;
+import static org.apache.gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
+import static org.apache.gobblin.util.retry.RetryerFactory.*;
 
 /**
  * Extracts Google Analytics(GA) unsampled report data.

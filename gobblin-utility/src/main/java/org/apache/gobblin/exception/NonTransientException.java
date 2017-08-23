@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gobblin.writer.exception;
+package org.apache.gobblin.exception;
 
 /**
  * NonTransientException that shows this is a permanent failure where retry cannot solve.
