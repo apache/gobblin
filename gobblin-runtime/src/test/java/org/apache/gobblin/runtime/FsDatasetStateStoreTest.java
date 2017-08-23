@@ -43,6 +43,8 @@ import org.apache.gobblin.metastore.StateStore;
 
 import com.google.common.io.Files;
 
+import static org.junit.Assert.*;
+
 
 /**
  * Unit tests for {@link FsDatasetStateStore}.
@@ -179,6 +181,33 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getStartTime(), this.startTime);
     Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(datasetState.getDuration(), 1000);
+  }
+
+  /**
+   * Loading previous but corrupted statestore
+   *
+   * Specifically the example used here is the state store generated from previous gobblin-kafka version without
+   * changing the package name into apache-intialized.
+   *
+   * Should expect at least exception thrown.
+   * @throws IOException
+   */
+  @Test
+  public void testGetPreviousDatasetStatesByUrnsForFailure() throws IOException{
+    String JOB_NAME_FOR_INCOMPATIBLE_STATE_STORE = "test_failing_job";
+
+    FsDatasetStateStore _fsDatasetStateStore =
+        new FsDatasetStateStore(ConfigurationKeys.LOCAL_FS_URI,
+            "gobblin-runtime/src/test/resources/datasetState");
+
+    try {
+      Map<String, JobState.DatasetState> datasetStatesByUrns =
+          _fsDatasetStateStore.getLatestDatasetStatesByUrns(JOB_NAME_FOR_INCOMPATIBLE_STATE_STORE);
+
+      fail("Failed as the problem doesn't throw expected exception here.");
+    } catch (RuntimeException re){
+      return;
+    }
   }
 
   @Test

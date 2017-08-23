@@ -236,6 +236,10 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     WritableShimSerialization.addToHadoopConfiguration(deserializeConfig);
     try (@SuppressWarnings("deprecation") SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath,
         deserializeConfig)) {
+
+      if (reader.getValueClass() != JobState.class && reader.getValueClass() != JobState.DatasetState.class ){
+        throw new RuntimeException("There is a mismatch in the Class Type of state in state-store and that in runtime");
+      }
       // This is necessary for backward compatibility as existing jobs are using the JobState class
       Object writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
 
@@ -255,7 +259,6 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
         throw new IOException(e);
       }
     }
-
     return states;
   }
 
