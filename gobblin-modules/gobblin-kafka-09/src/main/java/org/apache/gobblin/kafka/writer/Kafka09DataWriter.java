@@ -26,13 +26,22 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import kafka.utils.ZkUtils;
+import kafka.admin.AdminUtils;
+import kafka.utils.ZKStringSerializer$;
 import lombok.extern.slf4j.Slf4j;
 
+import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkConnection;
+
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
 import org.apache.gobblin.writer.WriteResponse;
@@ -49,6 +58,8 @@ import org.apache.gobblin.writer.WriteResponseMapper;
 @Slf4j
 public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(Kafka09DataWriter.class);
+  
   private static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
       new WriteResponseMapper<RecordMetadata>() {
 
@@ -96,6 +107,7 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
   public Kafka09DataWriter(Producer producer, Config config)
   {
     this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
+    provisionTopic(topic,config);
     this.producer = producer;
   }
 
@@ -126,4 +138,33 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
       throws IOException {
     this.producer.flush();
   }
+  
+  private void provisionTopic(String topicName,Config config) {
+		String zooKeeperPropKey = KafkaWriterConfigurationKeys.KAFKA_TOPIC_CONFIG+KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER;
+		if(!config.hasPath(zooKeeperPropKey)){
+		    LOG.debug("Topic "+topicName+" is configured without the partition and replication");
+			return;
+		}
+	    String zookeeperConnect = config.getString(zooKeeperPropKey);
+	    int sessionTimeoutMs = 10 * 1000;
+	    int connectionTimeoutMs = 8 * 1000;
+	    // Note: You must initialize the ZkClient with ZKStringSerializer.  If you don't, then
+	    // createTopic() will only seem to work (it will return without error).  The topic will exist in
+	    // only ZooKeeper and will be returned when listing topics, but Kafka itself does not create the
+	    // topic.
+	    ZkClient zkClient = new ZkClient(zookeeperConnect,sessionTimeoutMs,connectionTimeoutMs,ZKStringSerializer$.MODULE$);
+	    // Security for Kafka was added in Kafka 0.9.0.0
+	    ZkUtils zkUtils = new ZkUtils(zkClient, new ZkConnection(zookeeperConnect), false);
+	    String partitionPropKey = KafkaWriterConfigurationKeys.KAFKA_TOPIC_CONFIG+KafkaWriterConfigurationKeys.PARTITION_COUNT;
+	    String replicationPropKey = KafkaWriterConfigurationKeys.KAFKA_TOPIC_CONFIG+KafkaWriterConfigurationKeys.REPLICATION_COUNT;
+	    int partitions = ConfigUtils.getInt(config,partitionPropKey,KafkaWriterConfigurationKeys.PARTITION_COUNT_DEFAULT);
+	    int replication = ConfigUtils.getInt(config,replicationPropKey,KafkaWriterConfigurationKeys.PARTITION_COUNT_DEFAULT);
+	    Properties topicConfig = new Properties(); 
+	  	if(AdminUtils.topicExists(zkUtils, topicName)){
+	  		LOG.debug("Topic"+topicName+" already Exists with replication: "+replication+" and partitions :"+partitions);
+	  		return;
+	  	}
+	    AdminUtils.createTopic(zkUtils, topicName, partitions, replication, topicConfig);
+	    LOG.info("Created Topic "+topicName+" with replication: "+replication+" and partitions :"+partitions);
+	}
 }

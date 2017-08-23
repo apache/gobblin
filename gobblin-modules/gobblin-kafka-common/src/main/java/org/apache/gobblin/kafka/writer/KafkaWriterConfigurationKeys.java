@@ -50,4 +50,12 @@ public class KafkaWriterConfigurationKeys {
   static final String KAFKA_SCHEMA_REGISTRY_SWITCH_NAME = "kafka.schemaRegistry.switchName";
   static final String KAFKA_SCHEMA_REGISTRY_SWITCH_NAME_DEFAULT = "true";
 
+  public static final String KAFKA_TOPIC_CONFIG = "writer.kafka.";
+  static final String TOPIC_NAME = "topic";
+  static final String CLUSTER_ZOOKEEPER = "zookeeper";
+  static final String REPLICATION_COUNT = "replicationCount";
+  static final int REPLICATION_COUNT_DEFAULT = 1;
+  static final String PARTITION_COUNT = "partitionCount";
+  static final int PARTITION_COUNT_DEFAULT = 1;
+  
 }
