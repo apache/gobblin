@@ -323,7 +323,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
               ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOGGER), Optional.of("GetFsDatasetStateStore-")))
               .executeAndGetResults();
       int maxNumberOfErrorLogs = 10;
-      IteratorExecutor.logFailures(results, LOGGER, maxNumberOfErrorLogs);
+      IteratorExecutor.logAndThrowFailures(results, LOGGER, maxNumberOfErrorLogs);
     } catch (InterruptedException e) {
       throw new IOException("Failed to get latest dataset states.", e);
     }

@@ -43,7 +43,6 @@ import org.apache.gobblin.metastore.StateStore;
 
 import com.google.common.io.Files;
 
-import static org.junit.Assert.*;
 
 
 /**
@@ -204,7 +203,7 @@ public class FsDatasetStateStoreTest {
       Map<String, JobState.DatasetState> datasetStatesByUrns =
           _fsDatasetStateStore.getLatestDatasetStatesByUrns(JOB_NAME_FOR_INCOMPATIBLE_STATE_STORE);
 
-      fail("Failed as the problem doesn't throw expected exception here.");
+      Assert.fail("Failed as the problem doesn't throw expected exception here.");
     } catch (RuntimeException re){
       return;
     }
