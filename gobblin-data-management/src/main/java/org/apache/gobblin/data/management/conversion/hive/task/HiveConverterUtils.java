@@ -134,7 +134,7 @@ public class HiveConverterUtils {
         dbName, tblName, inputDbName, inputTblName, tblLocation);
   }
 
-  public static String generateTableCopy(Schema inputAvroSchema,
+  public static String generateTableCopy(
       String inputTblName,
       String outputTblName,
       Optional<String> optionalInputDbName,
@@ -142,7 +142,6 @@ public class HiveConverterUtils {
       Optional<Map<String, String>> optionalPartitionDMLInfo,
       Optional<Boolean> optionalOverwriteTable,
       Optional<Boolean> optionalCreateIfNotExists) {
-    Preconditions.checkNotNull(inputAvroSchema);
     Preconditions.checkArgument(StringUtils.isNotBlank(inputTblName));
     Preconditions.checkArgument(StringUtils.isNotBlank(outputTblName));
 
@@ -150,8 +149,6 @@ public class HiveConverterUtils {
     String outputDbName = optionalOutputDbName.isPresent() ? optionalOutputDbName.get() : DEFAULT_DB_NAME;
     boolean shouldOverwriteTable = optionalOverwriteTable.isPresent() ? optionalOverwriteTable.get() : true;
     boolean shouldCreateIfNotExists = optionalCreateIfNotExists.isPresent() ? optionalCreateIfNotExists.get() : false;
-
-    log.debug("Input Schema: " + inputAvroSchema.toString());
 
     // Start building Hive DML
     // Refer to Hive DDL manual for explanation of clauses:

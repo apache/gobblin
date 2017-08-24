@@ -218,7 +218,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     String orcDataLocation = getOrcDataLocation();
     String orcStagingDataLocation = getOrcStagingDataLocation(orcStagingTableName);
     boolean isEvolutionEnabled = getConversionConfig().isEvolutionEnabled();
-    Pair<Optional<Table>, Optional<List<Partition>>> destinationMeta = getDestinationTableMeta(orcTableDatabase,
+    Pair<Optional<Table>, Optional<List<Partition>>> destinationMeta = HiveConverterUtils.getDestinationTableMeta(orcTableDatabase,
         orcTableName, workUnit);
     Optional<Table> destinationTableMeta = destinationMeta.getLeft();
 
@@ -666,34 +666,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       }
     }
     return replacedPartitionsDDLInfo;
-  }
-
-  private Pair<Optional<Table>, Optional<List<Partition>>> getDestinationTableMeta(String dbName,
-      String tableName, WorkUnitState state)
-      throws DataConversionException {
-
-    Optional<Table> table = Optional.<Table>absent();
-    Optional<List<Partition>> partitions = Optional.<List<Partition>>absent();
-
-    try {
-      HiveMetastoreClientPool pool = HiveMetastoreClientPool.get(state.getJobState().getProperties(),
-          Optional.fromNullable(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
-      try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
-        table = Optional.of(client.get().getTable(dbName, tableName));
-        if (table.isPresent()) {
-          org.apache.hadoop.hive.ql.metadata.Table qlTable = new org.apache.hadoop.hive.ql.metadata.Table(table.get());
-          if (HiveUtils.isPartitioned(qlTable)) {
-            partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String>absent()));
-          }
-        }
-      }
-    } catch (NoSuchObjectException e) {
-      return ImmutablePair.of(table, partitions);
-    } catch (IOException | TException e) {
-      throw new DataConversionException("Could not fetch destination table metadata", e);
-    }
-
-    return ImmutablePair.of(table, partitions);
   }
 
   private Optional<Path> getDestinationPartitionLocation(Optional<Table> table, WorkUnitState state,

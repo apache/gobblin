@@ -133,14 +133,14 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
 
     String insertInStagingTableDML =
         HiveConverterUtils
-            .generateTableCopy(conversionEntity.getHiveTable().getAvroSchema(),
+            .generateTableCopy(
                 inputTableName,
                 outputStagingTableName,
                 Optional.of(conversionEntity.getHiveTable().getDbName()),
                 Optional.of(outputDatabaseName),
                 Optional.of(partitionsDMLInfo),
-                Optional.<Boolean>absent(),
-                Optional.<Boolean>absent());
+                Optional.absent(),
+                Optional.absent());
     hiveQueries.add(insertInStagingTableDML);
     log.debug("Conversion staging DML: " + insertInStagingTableDML);
 

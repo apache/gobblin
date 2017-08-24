@@ -32,7 +32,7 @@ public class HiveMaterializer extends HiveTask {
   public HiveMaterializer(TaskContext taskContext) throws Exception {
     super(taskContext);
     if (Boolean.valueOf(this.workUnitState.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {
-      log.info("In HiveMaterializer, Ignoring Watermark workunit for {}", this.workUnitState.getProp(ConfigurationKeys.DATASET_URN_KEY));
+      log.info("HiveMaterializer, Ignoring Watermark workunit for {}", this.workUnitState.getProp(ConfigurationKeys.DATASET_URN_KEY));
       return;
     }
     if (!(workUnit.getHiveDataset() instanceof ConvertibleHiveDataset)) {
