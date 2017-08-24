@@ -17,11 +17,23 @@
 
 package org.apache.gobblin.data.management.conversion.hive.task;
 
-import java.util.Properties;
+import java.util.List;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 
 
-public abstract class HiveQueryGenerator {
-  private static final String DEFAULT_DB_NAME  = "default";
-  private static final String DEFAULT_TABLE_NAME = "default";
-  private static final Properties DEFAULT_TBL_PROPERTIES = new Properties();
+interface QueryGenerator {
+
+  /**
+   * Generates queries to extract/convert/write data
+   * @return list of queries
+   */
+  List<String> generateQueries();
+
+  /**
+   * Generates queries for publish data
+   * @return QueryBasedHivePublishEntity containing cleanup and publish queries
+   * @throws DataConversionException
+   */
+  QueryBasedHivePublishEntity generatePublishQueries() throws DataConversionException;
 }

@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.data.management.conversion.hive.task;
 
 import com.google.common.base.Optional;
@@ -5,6 +22,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -14,14 +32,17 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import org.apache.gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.copy.hive.HiveUtils;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -408,5 +429,12 @@ public class HiveConverterUtils {
     }
 
     return ImmutablePair.of(table, partitions);
+  }
+
+  public static FileSystem getSourceFs(State state) throws IOException {
+    if (state.contains(HiveSource.HIVE_SOURCE_FS_URI)) {
+      return FileSystem.get(URI.create(state.getProp(HiveSource.HIVE_SOURCE_FS_URI)), HadoopUtils.getConfFromState(state));
+    }
+    return FileSystem.get(HadoopUtils.getConfFromState(state));
   }
 }

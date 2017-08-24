@@ -29,7 +29,7 @@ public class HiveTaskFactory implements TaskFactory {
   @Override
   public TaskIFace createTask(TaskContext taskContext) {
     try {
-      return new Materializer(taskContext);
+      return new HiveTask(taskContext);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
