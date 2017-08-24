@@ -29,18 +29,19 @@ import java.util.TimeZone;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.codehaus.jackson.node.JsonNodeFactory;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
-import sun.util.calendar.ZoneInfo;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.WorkUnitState;
+import sun.util.calendar.ZoneInfo;
 
 
 /**
@@ -67,7 +68,8 @@ public class JsonElementConversionFactory {
     BOOLEAN,
     ARRAY,
     MAP,
-    ENUM
+    ENUM,
+    RECORD
   }
 
   /**
@@ -82,7 +84,8 @@ public class JsonElementConversionFactory {
    * @throws UnsupportedDateTypeException
    */
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
-      WorkUnitState state, boolean nullable) throws UnsupportedDateTypeException {
+      WorkUnitState state, boolean nullable)
+      throws UnsupportedDateTypeException, SchemaConversionException {
 
     Type type;
     try {
@@ -138,6 +141,8 @@ public class JsonElementConversionFactory {
 
       case ENUM:
         return new EnumConverter(fieldName, nullable, type.toString(), schemaNode);
+      case RECORD:
+        return new RecordConverter(fieldName, nullable, type.toString(), schemaNode, state);
 
       default:
         throw new UnsupportedDateTypeException(fieldType + " is unsupported");
@@ -437,11 +442,19 @@ public class JsonElementConversionFactory {
   public static class ArrayConverter extends ComplexConverter {
 
     public ArrayConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
-        WorkUnitState state) throws UnsupportedDateTypeException {
+        WorkUnitState state)
+        throws UnsupportedDateTypeException, SchemaConversionException {
       super(fieldName, nullable, sourceType);
-      super.setElementConverter(
-          getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("items").getAsString(),
-              schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
+      JsonElement arrayItems = schemaNode.get("dataType").getAsJsonObject().get("items");
+      if (arrayItems.isJsonPrimitive()) {
+        super.setElementConverter(
+            getConvertor(fieldName, arrayItems.getAsString(), schemaNode.get("dataType").getAsJsonObject(), state,
+                isNullable()));
+      } else if (arrayItems.isJsonObject()) {
+        String nestedType = arrayItems.getAsJsonObject().get("dataType").getAsJsonObject().get("type").getAsString();
+        super.setElementConverter(
+            getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject(), state, isNullable()));
+      }
     }
 
     @Override
@@ -471,7 +484,8 @@ public class JsonElementConversionFactory {
   public static class MapConverter extends ComplexConverter {
 
     public MapConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
-        WorkUnitState state) throws UnsupportedDateTypeException {
+        WorkUnitState state)
+        throws UnsupportedDateTypeException, SchemaConversionException {
       super(fieldName, nullable, sourceType);
       super.setElementConverter(
           getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("values").getAsString(),
@@ -498,6 +512,81 @@ public class JsonElementConversionFactory {
     public Schema schema() {
       Schema schema = Schema.createMap(getElementConverter().schema());
       schema.addProp("source.type", "map");
+      return schema;
+    }
+  }
+
+  public static class RecordConverter extends ComplexConverter {
+
+    private HashMap<String, JsonElementConverter> converters = new HashMap<>();
+    private List<Schema.Field> fields = new ArrayList<>();
+    private JsonObject _schemaNode;
+    private Schema _schema;
+
+    public RecordConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
+        WorkUnitState state)
+        throws UnsupportedDateTypeException, SchemaConversionException {
+      super(fieldName, nullable, sourceType);
+      _schemaNode = schemaNode;
+      _schema = buildRecordSchema(_schemaNode.get("dataType").getAsJsonObject().get("values").getAsJsonArray(), state);
+    }
+
+    public Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit)
+        throws SchemaConversionException {
+      List<Schema.Field> fields = new ArrayList<>();
+
+      for (JsonElement elem : schema) {
+        JsonObject map = (JsonObject) elem;
+
+        String columnName = map.has("columnName") ? map.get("columnName").getAsString() : "";
+        String comment = map.has("comment") ? map.get("comment").getAsString() : "";
+        boolean nullable = map.has("isNullable") ? map.get("isNullable").getAsBoolean() : false;
+        Schema fldSchema;
+
+        try {
+          JsonElementConversionFactory.JsonElementConverter converter = JsonElementConversionFactory
+              .getConvertor(columnName, map.get("dataType").getAsJsonObject().get("type").getAsString(), map, workUnit,
+                  nullable);
+          this.converters.put(columnName, converter);
+          fldSchema = converter.getSchema();
+        } catch (UnsupportedDateTypeException e) {
+          throw new SchemaConversionException(e);
+        }
+
+        Schema.Field fld =
+            new Schema.Field(columnName, fldSchema, comment, nullable ? JsonNodeFactory.instance.nullNode() : null);
+        fld.addProp("source.type", map.get("dataType").getAsJsonObject().get("type").getAsString());
+        fields.add(fld);
+      }
+
+      Schema avroSchema =
+          Schema.createRecord(workUnit.getExtract().getTable(), "", workUnit.getExtract().getNamespace(), false);
+      avroSchema.setFields(fields);
+
+      return avroSchema;
+    }
+
+    @Override
+    Object convertField(JsonElement value) {
+      Map<String, Object> map = new HashMap<>();
+
+      for (Map.Entry<String, JsonElement> entry : ((JsonObject) value).entrySet()) {
+        JsonElementConverter converter = this.converters.get(entry.getKey());
+        map.put(entry.getKey(), converter.convertField(entry.getValue()));
+      }
+
+      return map;
+    }
+
+    @Override
+    public org.apache.avro.Schema.Type getTargetType() {
+      return Schema.Type.RECORD;
+    }
+
+    @Override
+    public Schema schema() {
+      Schema schema = _schema;
+      schema.addProp("source.type", "record");
       return schema;
     }
   }
