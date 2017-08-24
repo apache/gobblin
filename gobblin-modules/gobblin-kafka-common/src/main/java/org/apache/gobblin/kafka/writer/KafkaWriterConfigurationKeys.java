@@ -46,7 +46,7 @@ public class KafkaWriterConfigurationKeys {
   static final String VALUE_SERIALIZER_CONFIG = "value.serializer";
   static final String DEFAULT_VALUE_SERIALIZER = "org.apache.kafka.common.serialization.ByteArraySerializer";
   static final String CLIENT_ID_CONFIG = "client.id";
-  static final String CLIENT_ID_DEFAULT = "gobblin";
+  static final String CLIENT_ID_DEFAULT = "gobblin2";
   static final String KAFKA_SCHEMA_REGISTRY_SWITCH_NAME = "kafka.schemaRegistry.switchName";
   static final String KAFKA_SCHEMA_REGISTRY_SWITCH_NAME_DEFAULT = "true";
 

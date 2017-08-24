@@ -30,7 +30,7 @@
   </filter-mapping>
 
   <listener>
-    <listener-class>gobblin.restli.throttling.ThrottlingGuiceServletConfig</listener-class>
+    <listener-class>gobblin2.restli.throttling.ThrottlingGuiceServletConfig</listener-class>
   </listener>
 
   <context-param>

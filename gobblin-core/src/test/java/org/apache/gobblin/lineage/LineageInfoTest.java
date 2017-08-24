@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.State;
+import gobblin2.configuration.State;
 
 
 public class LineageInfoTest {

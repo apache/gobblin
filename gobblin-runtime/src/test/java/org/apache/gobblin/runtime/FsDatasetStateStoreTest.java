@@ -183,16 +183,16 @@ public class FsDatasetStateStoreTest {
   }
 
   /**
-   * Loading previous but corrupted statestore
+   * Loading previous statestore without apache package name.
    *
    * Specifically the example used here is the state store generated from previous gobblin-kafka version without
    * changing the package name into apache-intialized.
    *
-   * Should expect at least exception thrown.
+   * Should pass the test even the class name doesn't match given the change in
    * @throws IOException
    */
   @Test
-  public void testGetPreviousDatasetStatesByUrnsForFailure() throws IOException{
+  public void testGetPreviousDatasetStatesByUrnsNoApache() throws IOException{
     String JOB_NAME_FOR_INCOMPATIBLE_STATE_STORE = "test_failing_job";
 
     FsDatasetStateStore _fsDatasetStateStore =
@@ -202,10 +202,8 @@ public class FsDatasetStateStoreTest {
     try {
       Map<String, JobState.DatasetState> datasetStatesByUrns =
           _fsDatasetStateStore.getLatestDatasetStatesByUrns(JOB_NAME_FOR_INCOMPATIBLE_STATE_STORE);
-
-      Assert.fail("Failed as the problem doesn't throw expected exception here.");
     } catch (RuntimeException re){
-      return;
+      Assert.fail("Loading of state store should not fail.");
     }
   }
 

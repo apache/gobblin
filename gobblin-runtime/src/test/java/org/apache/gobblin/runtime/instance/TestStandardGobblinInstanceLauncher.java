@@ -64,7 +64,7 @@ public class TestStandardGobblinInstanceLauncher {
     instanceLauncher.awaitRunning(5, TimeUnit.SECONDS);
 
     JobSpec js1 = JobSpec.builder()
-        .withConfig(ConfigFactory.parseResources("gobblin/runtime/instance/SimpleHelloWorldJob.jobconf"))
+        .withConfig(ConfigFactory.parseResources("gobblin2/runtime2/instance/SimpleHelloWorldJob.jobconf"))
         .build();
     GobblinInstanceDriver instance = instanceLauncher.getDriver();
     final JobExecutionLauncher.StandardMetrics launcherMetrics =
@@ -126,7 +126,7 @@ public class TestStandardGobblinInstanceLauncher {
     instanceLauncher.awaitRunning(5, TimeUnit.SECONDS);
 
     JobSpec js1 = JobSpec.builder()
-        .withConfig(ConfigFactory.parseResources("gobblin/runtime/instance/SimpleHelloWorldJob.jobconf"))
+        .withConfig(ConfigFactory.parseResources("gobblin2/runtime2/instance/SimpleHelloWorldJob.jobconf"))
         .build();
     final StandardGobblinInstanceDriver instance =
         (StandardGobblinInstanceDriver)instanceLauncher.getDriver();
@@ -174,7 +174,7 @@ public class TestStandardGobblinInstanceLauncher {
     instanceLauncher.awaitRunning(5, TimeUnit.SECONDS);
 
     JobSpec js1 = JobSpec.builder()
-        .withConfig(ConfigFactory.parseResources("gobblin/runtime/instance/SimpleHelloWorldJob.jobconf"))
+        .withConfig(ConfigFactory.parseResources("gobblin2/runtime2/instance/SimpleHelloWorldJob.jobconf"))
         .build();
 
     final String eventBusId = js1.getConfig().resolve().getString(GobblinTestEventBusWriter.FULL_EVENTBUSID_KEY);
@@ -232,7 +232,7 @@ public class TestStandardGobblinInstanceLauncher {
 
     JobSpec js1 = JobSpec.builder()
         .withConfig(ConfigFactory.parseMap(ImmutableMap.of("numHellos", "5")))
-        .withTemplate(new URI("resource:///gobblin/runtime/instance/SimpleHelloWorldJob.template"))
+        .withTemplate(new URI("resource:///gobblin2/runtime2/instance/SimpleHelloWorldJob.template"))
         .build();
 
     ResolvedJobSpec js1Resolved = new ResolvedJobSpec(js1);

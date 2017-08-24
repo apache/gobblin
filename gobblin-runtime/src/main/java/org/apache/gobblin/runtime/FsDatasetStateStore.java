@@ -34,6 +34,7 @@ import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
 import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryManager;
 import org.apache.gobblin.util.filters.HiddenFilter;
+import org.apache.gobblin.util.hadoop.GobblinSequenceFileReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -234,12 +235,23 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
 
     Configuration deserializeConfig = new Configuration(this.conf);
     WritableShimSerialization.addToHadoopConfiguration(deserializeConfig);
-    try (@SuppressWarnings("deprecation") SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath,
+    try (@SuppressWarnings("deprecation") GobblinSequenceFileReader reader = new GobblinSequenceFileReader(this.fs, tablePath,
         deserializeConfig)) {
 
-      if (reader.getValueClass() != JobState.class && reader.getValueClass() != JobState.DatasetState.class ){
+      /**
+       * Add this change so that all stateful flow will have back compatibility.
+       * Shim layer of state store is therefore avoided because of this change.
+       * Keep the implementation of Shim layer temporarily.
+       */
+     String className = reader.getValueClassName();
+     if (className.startsWith("gobblin")) {
+       className = "org.apache." + className;
+     }
+
+      if (!className.equals(JobState.class.getName()) && !className.equals(JobState.DatasetState.class.getName())) {
         throw new RuntimeException("There is a mismatch in the Class Type of state in state-store and that in runtime");
       }
+
       // This is necessary for backward compatibility as existing jobs are using the JobState class
       Object writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
 
