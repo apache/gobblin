@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.converter.avro;
 
+import com.google.common.base.Preconditions;
 import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -31,17 +32,28 @@ import com.google.gson.JsonObject;
 
 
 /**
- * {@link Converter} that takes an Avro schema in string format and corresponding {@link JsonObject} records and
+ * {@link Converter} that takes an Avro schema from config and corresponding {@link JsonObject} records and
  * converts them to {@link GenericRecord} using the schema
  */
-public class JsonRecordAvroSchemaToAvroConverter extends ToAvroConverterBase<String, JsonObject> {
+public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase<SI, JsonObject> {
+
+  public static final String AVRO_SCHEMA_KEY = "gobblin.converter.avroSchema";
+
+  private Schema schema;
+
+  public ToAvroConverterBase<SI, JsonObject> init(WorkUnitState workUnit) {
+    super.init(workUnit);
+    Preconditions.checkArgument(workUnit.contains(AVRO_SCHEMA_KEY));
+    this.schema = new Schema.Parser().parse(workUnit.getProp(AVRO_SCHEMA_KEY));
+    return this;
+  }
 
   /**
-   * Take an Avro schema in string format and parse it into a {@link Schema}
+   * Ignore input schema and parse in Avro schema from config
    */
   @Override
-  public Schema convertSchema(String schema, WorkUnitState workUnit) throws SchemaConversionException {
-    return new Schema.Parser().parse(schema);
+  public Schema convertSchema(SI inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+    return this.schema;
   }
 
   /**
@@ -58,28 +70,41 @@ public class JsonRecordAvroSchemaToAvroConverter extends ToAvroConverterBase<Str
     GenericRecord avroRecord = new GenericData.Record(outputSchema);
     JsonElementConversionWithAvroSchemaFactory.JsonElementConverter converter;
     for (Schema.Field field : outputSchema.getFields()) {
-      Schema.Type type = field.schema().getType();
-      if (type.equals(Schema.Type.RECORD)) {
-        avroRecord.put(field.name(), convertNestedRecord(field.schema(), inputRecord.get(field.name()).getAsJsonObject(), workUnit));
-      } else {
-        boolean nullable = false;
+      if (inputRecord.get(field.name()) == null) {
+        throw new DataConversionException("Field missing from record: " + field.name());
+      }
 
-        if (type.equals(Schema.Type.UNION)) {
-          nullable = true;
-          List<Schema> types = field.schema().getTypes();
-          if (types.size() != 2) {
-            throw new DataConversionException("Only unions of size 2 supported");
-          }
-          if (field.schema().getTypes().get(0).getType().equals(Schema.Type.NULL)) {
-            type = field.schema().getTypes().get(1).getType();
-          } else if (field.schema().getTypes().get(1).getType().equals(Schema.Type.NULL)) {
-            type = field.schema().getTypes().get(0).getType();
-          } else {
-            throw new DataConversionException("Union must contain null");
-          }
+      Schema.Type type = field.schema().getType();
+      boolean nullable = false;
+      Schema schema = field.schema();
+
+      if (type.equals(Schema.Type.UNION)) {
+        nullable = true;
+        List<Schema> types = field.schema().getTypes();
+        if (types.size() != 2) {
+          throw new DataConversionException("Unions must be size 2, and contain one null");
         }
+        if (field.schema().getTypes().get(0).getType().equals(Schema.Type.NULL)) {
+          schema = field.schema().getTypes().get(1);
+          type = schema.getType();
+        } else if (field.schema().getTypes().get(1).getType().equals(Schema.Type.NULL)) {
+          schema = field.schema().getTypes().get(0);
+          type = schema.getType();
+        } else {
+          throw new DataConversionException("Unions must be size 2, and contain one null");
+        }
+      }
+
+      if (type.equals(Schema.Type.RECORD)) {
+        if (nullable && inputRecord.get(field.name()).isJsonNull()) {
+          avroRecord.put(field.name(), null);
+        } else {
+          avroRecord.put(field.name(),
+              convertNestedRecord(schema, inputRecord.get(field.name()).getAsJsonObject(), workUnit));
+        }
+      } else {
         try {
-          converter = JsonElementConversionWithAvroSchemaFactory.getConvertor(field.name(), type.getName(), field.schema(),
+          converter = JsonElementConversionWithAvroSchemaFactory.getConvertor(field.name(), type.getName(), schema,
               workUnit, nullable);
           avroRecord.put(field.name(), converter.convert(inputRecord.get(field.name())));
         } catch (Exception e) {

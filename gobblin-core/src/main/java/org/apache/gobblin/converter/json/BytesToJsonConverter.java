@@ -16,7 +16,7 @@
  */
 package org.apache.gobblin.converter.json;
 
-import java.io.UnsupportedEncodingException;
+import com.google.common.base.Charsets;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
@@ -38,14 +38,14 @@ public class BytesToJsonConverter extends Converter<String, String, byte[], Json
   @Override
   public Iterable<JsonObject> convertRecord(String outputSchema, byte[] inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    String jsonString;
-    try {
-      jsonString = new String(inputRecord, "UTF-8");
-    } catch (UnsupportedEncodingException e) {
-      throw new DataConversionException("Error parsing record", e);
+    if (inputRecord == null) {
+      throw new DataConversionException("Input record is null");
     }
+
+    String jsonString = new String(inputRecord, Charsets.UTF_8);
     JsonParser parser = new JsonParser();
     JsonObject outputRecord = parser.parse(jsonString).getAsJsonObject();
+
     return new SingleRecordIterable<>(outputRecord);
   }
 }

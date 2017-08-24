@@ -40,12 +40,11 @@ import com.google.gson.JsonParser;
 public class JsonRecordAvroSchemaToAvroConverterTest {
   private JsonObject jsonRecord;
   private WorkUnitState state;
-  private String avroSchemaString;
 
   @BeforeClass
   public void setUp()
       throws Exception {
-    this.avroSchemaString = IOUtils.toString(this.getClass().getResourceAsStream("/converter/jsonToAvroSchema.avsc"), StandardCharsets.UTF_8);
+    String avroSchemaString = IOUtils.toString(this.getClass().getResourceAsStream("/converter/jsonToAvroSchema.avsc"), StandardCharsets.UTF_8);
 
     this.jsonRecord = new JsonParser().parse(IOUtils.toString(this.getClass().getResourceAsStream(
         "/converter/jsonToAvroRecord.json"), StandardCharsets.UTF_8)).getAsJsonObject();
@@ -53,14 +52,17 @@ public class JsonRecordAvroSchemaToAvroConverterTest {
     SourceState source = new SourceState();
     this.state = new WorkUnitState(
         source.createWorkUnit(source.createExtract(TableType.SNAPSHOT_ONLY, "test_table", "test_namespace")));
+    this.state.setProp(JsonRecordAvroSchemaToAvroConverter.AVRO_SCHEMA_KEY, avroSchemaString);
   }
 
   @Test
   public void testConverter()
       throws Exception {
-    JsonRecordAvroSchemaToAvroConverter converter = new JsonRecordAvroSchemaToAvroConverter();
+    JsonRecordAvroSchemaToAvroConverter<String> converter = new JsonRecordAvroSchemaToAvroConverter();
 
-    Schema avroSchema = converter.convertSchema(this.avroSchemaString, this.state);
+    converter.init(this.state);
+
+    Schema avroSchema = converter.convertSchema("dummy", this.state);
 
     GenericRecord record = converter.convertRecord(avroSchema, this.jsonRecord, this.state).iterator().next();
 
