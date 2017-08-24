@@ -24,6 +24,7 @@ import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +80,20 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     return new SingleRecordIterable(rec);
   }
 
+  private JsonArray parseJsonBasedOnSchema(JsonArray input, JsonArray fields)
+      throws DataConversionException {
+    JsonObject tempObject = new JsonObject();
+    tempObject.add("temp", input);
+
+    JsonArray schema = new JsonArray();
+    JsonObject schemaObj = new JsonObject();
+    schemaObj.addProperty("columnName", "temp");
+    schemaObj.add("dataType", fields.get(0).getAsJsonObject().get("dataType").getAsJsonObject());
+    schema.add(schemaObj);
+
+    return parseJsonBasedOnSchema(tempObject, schema).get("temp").getAsJsonArray();
+  }
+
   private JsonObject parseJsonBasedOnSchema(JsonObject input, JsonArray fields)
       throws DataConversionException {
     try {
@@ -105,7 +120,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
           } else if (value.isJsonArray()) {
             //value is json Array now verify if schemaElement permits this
             String arrayType = arrayType(schemaElement);
-            if (isPrimitiveArrayType(arrayType)) {
+            if (isPrimitiveType(arrayType)) {
               output.add(expectedColumnName, value);
             } else if (isArrayType(arrayType, "map")) {
               output.add(expectedColumnName, value);
@@ -126,7 +141,45 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
             }
           } else if (value.isJsonObject()) {
             if (isMapType(schemaElement)) {
-              output.add(expectedColumnName, value);
+              if (schemaObject.get("dataType").getAsJsonObject().get("values").isJsonPrimitive()) {
+                output.add(expectedColumnName, value);
+              } else if (schemaObject.get("dataType").getAsJsonObject().get("values").isJsonObject()) {
+                JsonObject mapValueSchema =
+                    schemaObject.get("dataType").getAsJsonObject().get("values").getAsJsonObject();
+
+                JsonObject map = new JsonObject();
+                for (Map.Entry<String, JsonElement> mapEntry : value.getAsJsonObject().entrySet()) {
+                  if (mapEntry.getValue().isJsonArray()) {
+                    map.add(mapEntry.getKey(), parseJsonBasedOnSchema(mapEntry.getValue().getAsJsonArray(),
+                        createJsonElementArray(mapValueSchema)));
+                  } else if(mapEntry.getValue().isJsonObject()){
+                    JsonObject tempObject = new JsonObject();
+                    tempObject.add("temp", mapEntry.getValue().getAsJsonObject());
+
+                    JsonArray schema = new JsonArray();
+                    JsonObject schemaObj = new JsonObject();
+                    schemaObj.addProperty("columnName", "temp");
+                    schemaObj.add("dataType", mapValueSchema.get("dataType").getAsJsonObject());
+                    schema.add(schemaObj);
+                    JsonObject parsed = parseJsonBasedOnSchema(tempObject, schema);
+                    map.add(mapEntry.getKey(), parsed.get("temp").getAsJsonObject());
+                  }else{
+                    JsonObject tempObject = new JsonObject();
+                    tempObject.add("temp", mapEntry.getValue().getAsJsonPrimitive());
+
+                    JsonArray schema = new JsonArray();
+                    JsonObject schemaObj = new JsonObject();
+                    schemaObj.addProperty("columnName", "temp");
+                    schemaObj.add("dataType", mapValueSchema.get("dataType").getAsJsonObject());
+                    schema.add(schemaObj);
+                    JsonObject parsed = parseJsonBasedOnSchema(tempObject, schema);
+                    map.add(mapEntry.getKey(), parsed.get("temp").getAsJsonPrimitive());
+                  }
+                }
+                output.add(expectedColumnName, map);
+              } else {
+                output.add(expectedColumnName, value);
+              }
             } else if (isRecordType(schemaElement)) {
               JsonArray schemaArray = getValuesFromDataType(schemaObject);
               output.add(expectedColumnName, parseJsonBasedOnSchema((JsonObject) value, schemaArray));
@@ -219,7 +272,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     return getDataTypeFromSchema(field).equalsIgnoreCase("record");
   }
 
-  private boolean isPrimitiveArrayType(String arrayType) {
+  private boolean isPrimitiveType(String arrayType) {
     return arrayType != null && "null boolean int long float double bytes string enum fixed"
         .contains(arrayType.toLowerCase());
   }

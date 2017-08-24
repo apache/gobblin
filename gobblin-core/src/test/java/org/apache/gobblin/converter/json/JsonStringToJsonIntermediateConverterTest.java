@@ -293,9 +293,74 @@ public class JsonStringToJsonIntermediateConverterTest {
     parseJsonObject(jsonStr, record);
   }
 
-  //TODO Record of Arrays
-  //TODO Map of Arrays
-  //TODO Map of Records
+  @Test
+  public void jsonWithMapOfRecords()
+      throws Exception {
+    String jsonStr =
+        "{\"persons\":{\"someperson\":{\"name\":\"someone\", \"age\": 11}, \"otherperson\":{\"name\":\"someoneelse\", \"age\": 12}}}";
+    String schemaStr =
+        "[{\"columnName\":\"persons\", \"dataType\": {\"type\":\"map\", \"values\":{\"dataType\":{\"type\":\"record\",\"values\":[{\"columnName\":\"name\", \"dataType\":{\"type\":\"string\"}}, {\"columnName\":\"age\", \"dataType\":{\"type\":\"int\"}}]}}}}]";
+    String expected =
+        "{\"persons\":{\"someperson\":{\"name\":\"someone\",\"age\":11},\"otherperson\":{\"name\":\"someoneelse\",\"age\":12}}}";
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    assertEquals(expected, parseJsonObject(jsonStr, record).toString());
+  }
+
+  @Test
+  public void jsonWithMapOfArray()
+      throws Exception {
+    String jsonStr = "{\"persons\":{\"someperson\":[10,20], \"otherperson\": [20,50]}}";
+    String schemaStr =
+        "[{\"columnName\":\"persons\", \"dataType\": {\"type\":\"map\", \"values\":{\"dataType\":{\"type\":\"array\",\"items\":\"int\"}}}}]";
+    String expected = "{\"persons\":{\"someperson\":[10,20],\"otherperson\":[20,50]}}";
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    assertEquals(expected, parseJsonObject(jsonStr, record).toString());
+  }
+
+  @Test
+  public void jsonWithMapOfEnum()
+      throws Exception {
+    String jsonStr = "{\"persons\":{\"someperson\":\"YES\", \"otherperson\": \"NO\"}}";
+    String schemaStr =
+        "[{\"columnName\":\"persons\", \"dataType\": {\"type\":\"map\", \"values\":{\"dataType\":{\"name\":\"choice\", \"type\":\"enum\",\"symbols\":[\"YES\",\"NO\"]}}}}]";
+    String expected = "{\"persons\":{\"someperson\":\"YES\",\"otherperson\":\"NO\"}}";
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    assertEquals(expected, parseJsonObject(jsonStr, record).toString());
+  }
+
+  @Test
+  public void jsonWithRecordContainingArray()
+      throws Exception {
+    String jsonStr = "{\"persons\":{\"someperson\":[10,20]}}";
+    String schemaStr =
+        "[{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"type\":\"array\",\"items\":\"int\"}}]}}]";
+    String expected = "{\"persons\":{\"someperson\":[10,20]}}";
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    String actual = parseJsonObject(jsonStr, record).toString();
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void jsonWithRecordContainingEnums()
+      throws Exception {
+    String jsonStr = "{\"persons\":{\"someperson\":\"YES\"}}";
+    String schemaStr =
+        "[{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"name\": \"choice\", \"type\":\"enum\",\"symbols\":[\"YES\", \"NO\"]}}]}}]";
+    String expected = "{\"persons\":{\"someperson\":\"YES\"}}";
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    String actual = parseJsonObject(jsonStr, record).toString();
+    assertEquals(expected, actual);
+  }
 
   private JsonObject buildJsonObject(String s) {
     JsonParser parser = new JsonParser();
