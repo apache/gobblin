@@ -93,6 +93,19 @@ public class JsonElementConversionFactoryTest {
     Assert.assertEquals(nullConverter.schema().toString(), "{\"type\":\"null\",\"source.type\":\"array\"}");
   }
 
+  @Test
+  public void schemaWithArrayOfEnums()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"b\", \"dataType\":{\"type\":\"array\", \"items\":{\"dataType\":{\"type\":\"enum\", \"namespace\":\"org.foo\", \"dataType\":{\"name\":\"choice\", \"symbols\":[\"YES\", \"NO\"]}}}}}";
+    String expected =
+        "{\"type\":\"array\",\"items\":{\"type\":\"enum\",\"name\":\"choice\",\"doc\":\"\",\"symbols\":[\"YES\",\"NO\"],\"source.type\":\"enum\"},\"source.type\":\"array\"}";
+    ArrayConverter arrayConverter =
+        new ArrayConverter("dummy1", true, ARRAY.toString(), buildJsonObject(schemaStr), state);
+
+    Assert.assertEquals(arrayConverter.schema().toString(), expected);
+  }
+
   private static JsonObject buildJsonObject(String jsonStr) {
     JsonParser parser = new JsonParser();
     return parser.parse(jsonStr).getAsJsonObject();

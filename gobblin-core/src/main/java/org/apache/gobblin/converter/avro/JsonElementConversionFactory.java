@@ -457,8 +457,13 @@ public class JsonElementConversionFactory {
                 isNullable()));
       } else if (arrayItems.isJsonObject()) {
         String nestedType = arrayItems.getAsJsonObject().get("dataType").getAsJsonObject().get("type").getAsString();
-        super.setElementConverter(
-            getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject(), state, isNullable()));
+        if(nestedType.equalsIgnoreCase("enum")){
+          super.setElementConverter(
+              getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject().get("dataType").getAsJsonObject(), state, isNullable()));
+        }else{
+          super.setElementConverter(
+              getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject(), state, isNullable()));
+        }
       }
     }
 
