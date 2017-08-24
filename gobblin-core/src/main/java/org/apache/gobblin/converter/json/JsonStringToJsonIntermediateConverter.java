@@ -24,12 +24,10 @@ import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
@@ -53,7 +51,8 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @return a JsonArray representation of the schema
    */
   @Override
-  public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+  public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
+      throws SchemaConversionException {
     this.unpackComplexSchemas = workUnit.getPropAsBoolean(UNPACK_COMPLEX_SCHEMAS_KEY, true);
 
     JsonParser jsonParser = new JsonParser();
@@ -76,40 +75,164 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     if (!this.unpackComplexSchemas) {
       return new SingleRecordIterable<>(inputRecord);
     }
+    JsonObject rec = parseJsonBasedOnSchema(inputRecord, outputSchema);
+    return new SingleRecordIterable(rec);
+  }
 
-    JsonObject outputRecord = new JsonObject();
+  private JsonObject parseJsonBasedOnSchema(JsonObject input, JsonArray fields)
+      throws DataConversionException {
+    try {
 
-    for (int i = 0; i < outputSchema.size(); i++) {
-      String expectedColumnName = outputSchema.get(i).getAsJsonObject().get("columnName").getAsString();
+      JsonObject output = new JsonObject();
+      for (int i = 0; i < fields.size(); i++) {
 
-      if (inputRecord.has(expectedColumnName)) {
-        //As currently org.apache.gobblin.converter.avro.JsonIntermediateToAvroConverter is not able to handle complex schema's so storing it as string
+        JsonElement schemaElement = fields.get(i);
+        JsonObject schemaObject = schemaElement.getAsJsonObject();
+        String expectedColumnName = getExpectedColumnName(schemaObject);
+        String type = getType(schemaObject);
 
-        if (inputRecord.get(expectedColumnName).isJsonArray()) {
-          outputRecord.addProperty(expectedColumnName, inputRecord.get(expectedColumnName).toString());
-        } else if (inputRecord.get(expectedColumnName).isJsonObject()) {
-          //To check if internally in an JsonObject there is multiple hierarchy
-          boolean isMultiHierarchyInsideJsonObject = false;
-          for (Map.Entry<String, JsonElement> entry : ((JsonObject) inputRecord.get(expectedColumnName)).entrySet()) {
-            if (entry.getValue().isJsonArray() || entry.getValue().isJsonObject()) {
-              isMultiHierarchyInsideJsonObject = true;
-              break;
+        if (input.has(expectedColumnName)) {
+
+          JsonElement value = input.get(expectedColumnName);
+          if (isEnumType(schemaObject)) {
+            JsonArray allowedSymbols = allowedSymbolsInEnum(schemaObject);
+            if (allowedSymbols.contains(createJsonElementArray(value).get(0))) {
+              output.add(expectedColumnName, value);
+            } else {
+              throw new DataConversionException(
+                  "Invalid symbol: " + value.getAsString() + " allowed values: " + allowedSymbols.toString());
+            }
+          } else if (value.isJsonArray()) {
+            //value is json Array now verify if schemaElement permits this
+            String arrayType = arrayType(schemaElement);
+            if (isPrimitiveArrayType(arrayType)) {
+              output.add(expectedColumnName, value);
+            } else if (isArrayType(arrayType, "map")) {
+              output.add(expectedColumnName, value);
+            } else if (isArrayType(arrayType, "record")) {
+              JsonArray tempArray = new JsonArray();
+              JsonArray valArray = value.getAsJsonArray();
+              JsonArray schemaArr = getSchemaForArrayHavingRecord(schemaObject);
+              for (int j = 0; j < schemaArr.size(); j++) {
+                tempArray.add(parseJsonBasedOnSchema((JsonObject) valArray.get(j), schemaArr));
+              }
+              output.add(expectedColumnName, tempArray);
+            } else {
+              JsonArray newArray = new JsonArray();
+              for (JsonElement v : value.getAsJsonArray()) {
+                newArray.add(parseJsonBasedOnSchema((JsonObject) v, createJsonElementArray(schemaElement)));
+              }
+              output.add(expectedColumnName, new JsonArray());
+            }
+          } else if (value.isJsonObject()) {
+            if (isMapType(schemaElement)) {
+              output.add(expectedColumnName, value);
+            } else if (isRecordType(schemaElement)) {
+              JsonArray schemaArray = getValuesFromDataType(schemaObject);
+              output.add(expectedColumnName, parseJsonBasedOnSchema((JsonObject) value, schemaArray));
+            } else {
+              output.add(expectedColumnName, JsonNull.INSTANCE);
+            }
+          } else {
+            if (type.equalsIgnoreCase("fixed")) {
+              int expectedSize = getSizeOfFixedData(schemaObject);
+              if (value.getAsString().length() == expectedSize) {
+                output.add(expectedColumnName, value);
+              } else {
+                throw new DataConversionException(
+                    "Fixed type value is not same as defined value: " + value.toString() + " expected size: "
+                        + expectedSize);
+              }
+            } else {
+              output.add(expectedColumnName, value);
             }
           }
-          if (isMultiHierarchyInsideJsonObject) {
-            outputRecord.addProperty(expectedColumnName, inputRecord.get(expectedColumnName).toString());
-          } else {
-            outputRecord.add(expectedColumnName, inputRecord.get(expectedColumnName));
-          }
-
         } else {
-          outputRecord.add(expectedColumnName, inputRecord.get(expectedColumnName));
+          output.add(expectedColumnName, JsonNull.INSTANCE);
         }
-      } else {
-        outputRecord.add(expectedColumnName, JsonNull.INSTANCE);
       }
-
+      return output;
+    } catch (Exception e) {
+      e.printStackTrace();
+      throw new DataConversionException("Unable to parse " + input.toString() + " with schema " + fields.toString());
     }
-    return new SingleRecordIterable<>(outputRecord);
+  }
+
+  private int getSizeOfFixedData(JsonObject schemaObject) {
+    return schemaObject.get("dataType").getAsJsonObject().get("size").getAsInt();
+  }
+
+  private JsonArray getSchemaForArrayHavingRecord(JsonObject schemaObject) {
+    return schemaObject.get("dataType").getAsJsonObject().get("items").getAsJsonObject().get("dataType")
+        .getAsJsonObject().get("values").getAsJsonArray();
+  }
+
+  private JsonArray allowedSymbolsInEnum(JsonObject schemaObject) {
+    return schemaObject.get("dataType").getAsJsonObject().get("symbols").getAsJsonArray();
+  }
+
+  private boolean isEnumType(JsonObject schemaObject) {
+    return getDataTypeFromSchema(schemaObject).equalsIgnoreCase("enum");
+  }
+
+  private String getDataTypeFromSchema(JsonObject schemaObject) {
+    return schemaObject.get("dataType").getAsJsonObject().get("type").getAsString();
+  }
+
+  private String getDataTypeFromSchema(JsonElement schemaElement) {
+    return schemaElement.getAsJsonObject().get("dataType").getAsJsonObject().get("type").getAsString();
+  }
+
+  private JsonArray getValuesFromDataType(JsonObject schemaObject) {
+    return schemaObject.get("dataType").getAsJsonObject().get("values").getAsJsonArray();
+  }
+
+  private JsonArray createJsonElementArray(JsonElement element) {
+    JsonArray temp = new JsonArray();
+    temp.add(element);
+    return temp;
+  }
+
+  private boolean isArrayType(String arrayType, String type) {
+    return arrayType != null && arrayType.equalsIgnoreCase(type);
+  }
+
+  private String getType(JsonObject schemaObject) {
+    if (schemaObject.has("dataType")) {
+      if (schemaObject.get("dataType").getAsJsonObject().has("type")) {
+        return getDataTypeFromSchema(schemaObject);
+      }
+      return "";
+    }
+    return "";
+  }
+
+  private String getExpectedColumnName(JsonObject schemaObject) {
+    return schemaObject.has("columnName") ? schemaObject.get("columnName").getAsString() : "";
+  }
+
+  private boolean isMapType(JsonElement field) {
+    return getDataTypeFromSchema(field).equalsIgnoreCase("map");
+  }
+
+  private boolean isRecordType(JsonElement field) {
+    return getDataTypeFromSchema(field).equalsIgnoreCase("record");
+  }
+
+  private boolean isPrimitiveArrayType(String arrayType) {
+    return arrayType != null && "null boolean int long float double bytes string enum fixed"
+        .contains(arrayType.toLowerCase());
+  }
+
+  private String arrayType(JsonElement arraySchema) {
+    String arrayType = getDataTypeFromSchema(arraySchema);
+    boolean isArray = arrayType.equalsIgnoreCase("array");
+    JsonElement arrayValues = arraySchema.getAsJsonObject().get("dataType").getAsJsonObject().get("items");
+    try {
+      return isArray ? arrayValues.getAsString() : null;
+    } catch (UnsupportedOperationException | IllegalStateException e) {
+      //values is not string and a nested json array
+      return isArray ? getDataTypeFromSchema(arrayValues.getAsJsonObject()) : null;
+    }
   }
 }
