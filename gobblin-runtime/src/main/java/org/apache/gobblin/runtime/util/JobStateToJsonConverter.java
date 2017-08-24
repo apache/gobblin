@@ -33,9 +33,8 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,9 +42,10 @@ import com.google.common.io.Closer;
 import com.google.gson.stream.JsonWriter;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.metastore.StateStore;
-import org.apache.gobblin.runtime.FsDatasetStateStore;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JobConfigurationUtils;
 
 
@@ -66,11 +66,13 @@ public class JobStateToJsonConverter {
   public JobStateToJsonConverter(Properties props, String storeUrl, boolean keepConfig) throws IOException {
     Configuration conf = new Configuration();
     JobConfigurationUtils.putPropertiesIntoConfiguration(props, conf);
-    Path storePath = new Path(storeUrl);
-    FileSystem fs = storePath.getFileSystem(conf);
-    String storeRootDir = storePath.toUri().getPath();
-    this.jobStateStore = new FsDatasetStateStore(fs, storeRootDir);
+
+    if (StringUtils.isNotBlank(storeUrl)) {
+      props.setProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, storeUrl);
+    }
+
     this.keepConfig = keepConfig;
+    this.jobStateStore = (StateStore) DatasetStateStore.buildDatasetStateStore(ConfigUtils.propertiesToConfig(props));
   }
 
   /**
@@ -154,19 +156,19 @@ public class JobStateToJsonConverter {
   @SuppressWarnings("all")
   public static void main(String[] args) throws Exception {
     Option sysConfigOption = Option.builder("sc").argName("system configuration file")
-        .desc("Gobblin system configuration file").longOpt("sysconfig").hasArgs().build();
+        .desc("Gobblin system configuration file (required if no state store URL specified)").longOpt("sysconfig").hasArg().build();
     Option storeUrlOption = Option.builder("u").argName("gobblin state store URL")
-        .desc("Gobblin state store root path URL").longOpt("storeurl").hasArgs().required().build();
-    Option jobNameOption = Option.builder("n").argName("gobblin job name").desc("Gobblin job name").longOpt("name")
-        .hasArgs().required().build();
+        .desc("Gobblin state store root path URL (required if no sysconfig specified)").longOpt("storeurl").hasArg().build();
+    Option jobNameOption = Option.builder("n").argName("gobblin job name").desc("Gobblin job name (required)").longOpt("name")
+        .hasArg().required().build();
     Option jobIdOption =
-        Option.builder("i").argName("gobblin job id").desc("Gobblin job id").longOpt("id").hasArgs().build();
+        Option.builder("i").argName("gobblin job id").desc("Gobblin job id").longOpt("id").hasArg().build();
     Option convertAllOption =
         Option.builder("a").desc("Whether to convert all past job states of the given job").longOpt("all").build();
     Option keepConfigOption =
         Option.builder("kc").desc("Whether to keep all configuration properties").longOpt("keepConfig").build();
     Option outputToFile =
-        Option.builder("t").argName("output file name").desc("Output file name").longOpt("toFile").hasArgs().build();
+        Option.builder("t").argName("output file name").desc("Output file name").longOpt("toFile").hasArg().build();
 
     Options options = new Options();
     options.addOption(sysConfigOption);
@@ -182,6 +184,12 @@ public class JobStateToJsonConverter {
       CommandLineParser parser = new DefaultParser();
       cmd = parser.parse(options, args);
     } catch (ParseException pe) {
+      HelpFormatter formatter = new HelpFormatter();
+      formatter.printHelp("JobStateToJsonConverter", options);
+      System.exit(1);
+    }
+
+    if (!cmd.hasOption(sysConfigOption.getLongOpt()) && !cmd.hasOption(storeUrlOption.getLongOpt()) ){
       HelpFormatter formatter = new HelpFormatter();
       formatter.printHelp("JobStateToJsonConverter", options);
       System.exit(1);
