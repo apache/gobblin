@@ -69,7 +69,8 @@ public class JsonElementConversionFactory {
     ARRAY,
     MAP,
     ENUM,
-    RECORD
+    RECORD,
+    NULL
   }
 
   /**
@@ -141,8 +142,12 @@ public class JsonElementConversionFactory {
 
       case ENUM:
         return new EnumConverter(fieldName, nullable, type.toString(), schemaNode);
+
       case RECORD:
         return new RecordConverter(fieldName, nullable, type.toString(), schemaNode, state);
+
+      case NULL:
+        return new NullConverter(fieldName, type.toString());
 
       default:
         throw new UnsupportedDateTypeException(fieldType + " is unsupported");
@@ -620,6 +625,23 @@ public class JsonElementConversionFactory {
       this.schema = Schema.createEnum(this.enumName, "", "", this.enumSet);
       this.schema.addProp("source.type", "enum");
       return this.schema;
+    }
+  }
+
+  public static class NullConverter extends JsonElementConverter {
+
+    public NullConverter(String fieldName, String sourceType) {
+      super(fieldName, true, sourceType);
+    }
+
+    @Override
+    Object convertField(JsonElement value) {
+      return value.getAsJsonNull();
+    }
+
+    @Override
+    public org.apache.avro.Schema.Type getTargetType() {
+      return Schema.Type.NULL;
     }
   }
 }

@@ -4,6 +4,7 @@ import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.avro.JsonElementConversionFactory.NullConverter;
 import org.apache.gobblin.converter.avro.JsonElementConversionFactory.RecordConverter;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -16,6 +17,7 @@ import com.google.gson.JsonParser;
 
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.ArrayConverter;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.ARRAY;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.NULL;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.RECORD;
 
 
@@ -31,7 +33,7 @@ public class JsonElementConversionFactoryTest {
   }
 
   @Test
-  public void schemaWithArrayOfMapsToAvro()
+  public void schemaWithArrayOfMaps()
       throws Exception {
     String schema =
         "{\"columnName\":\"b\",\"dataType\":{\"type\":\"array\", \"items\":{\"dataType\":{\"type\":\"map\", \"values\":\"string\"}}}}";
@@ -44,7 +46,7 @@ public class JsonElementConversionFactoryTest {
   }
 
   @Test
-  public void schemaWithArrayOfRecordsToAvro()
+  public void schemaWithArrayOfRecords()
       throws Exception {
     String schema =
         "{\"columnName\":\"b\", \"dataType\":{\"type\":\"array\", \"items\":{\"dataType\":{\"type\":\"record\", \"namespace\":\"org.foo\", \"values\":[{\"columnName\": \"name\", \"dataType\":{\"type\":\"string\"}},{\"columnName\": \"c\", \"dataType\":{\"type\":\"long\"}}]}}}}";
@@ -58,7 +60,7 @@ public class JsonElementConversionFactoryTest {
   }
 
   @Test
-  public void jsonWithRecord()
+  public void schemaWithRecord()
       throws DataConversionException, SchemaConversionException, UnsupportedDateTypeException {
     String schemaStr =
         "{\"columnName\":\"b\", \"dataType\":{\"type\":\"record\", \"values\":[{\"columnName\":\"c\",\"dataType\":{\"type\":\"string\"}},{\"columnName\":\"d\",\"dataType\":{\"type\":\"int\"}}]}}";
@@ -76,12 +78,19 @@ public class JsonElementConversionFactoryTest {
       throws Exception {
     String schemaStr = "{\"columnName\":\"b\", \"dataType\":{\"type\":\"array\", \"items\":\"int\"}}";
     String expected =
-        "[{\"type\":\"array\",\"items\":{\"type\":\"int\",\"source.type\":\"int\"},\"source.type\":\"array\"}]";
+        "{\"type\":\"array\",\"items\":{\"type\":\"int\",\"source.type\":\"int\"},\"source.type\":\"array\"}";
 
     ArrayConverter arrayConverter =
         new ArrayConverter("dummy1", true, ARRAY.toString(), buildJsonObject(schemaStr), state);
 
     Assert.assertEquals(arrayConverter.schema().toString(), expected);
+  }
+
+  @Test
+  public void schemaWithNullType() {
+    NullConverter nullConverter = new NullConverter("dummy1", ARRAY.toString());
+
+    Assert.assertEquals(nullConverter.schema().toString(), "{\"type\":\"null\",\"source.type\":\"array\"}");
   }
 
   private static JsonObject buildJsonObject(String jsonStr) {
