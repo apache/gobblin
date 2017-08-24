@@ -17,6 +17,7 @@ import com.google.gson.JsonParser;
 
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.ArrayConverter;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.ARRAY;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.MAP;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.NULL;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.RECORD;
 
@@ -104,6 +105,62 @@ public class JsonElementConversionFactoryTest {
         new ArrayConverter("dummy1", true, ARRAY.toString(), buildJsonObject(schemaStr), state);
 
     Assert.assertEquals(arrayConverter.schema().toString(), expected);
+  }
+
+  @Test
+  public void schemaWithMap()
+      throws Exception {
+    String schemaStr = "{\"columnName\":\"b\",\"dataType\":{\"type\":\"map\", \"values\":\"string\"}}";
+    String expected =
+        "{\"type\":\"map\",\"values\":{\"type\":\"string\",\"source.type\":\"string\"},\"source.type\":\"map\"}";
+
+    JsonElementConversionFactory.MapConverter mapConverter =
+        new JsonElementConversionFactory.MapConverter("dummy1", true, MAP.toString(), buildJsonObject(schemaStr),
+            state);
+
+    Assert.assertEquals(mapConverter.schema().toString(), expected);
+  }
+
+  @Test
+  public void schemaWithMapOfRecords()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"map\", \"values\":{\"dataType\":{\"type\":\"record\",\"values\":[{\"columnName\":\"name\", \"dataType\":{\"type\":\"string\"}}, {\"columnName\":\"age\", \"dataType\":{\"type\":\"int\"}}]}}}}";
+    String expected =
+        "{\"type\":\"map\",\"values\":{\"type\":\"record\",\"name\":\"dummy_table\",\"namespace\":\"namespace\",\"doc\":\"\",\"fields\":[{\"name\":\"name\",\"type\":{\"type\":\"string\",\"source.type\":\"string\"},\"doc\":\"\",\"source.type\":\"string\"},{\"name\":\"age\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"},\"source.type\":\"map\"}";
+    JsonElementConversionFactory.MapConverter mapConverter =
+        new JsonElementConversionFactory.MapConverter("dummy1", true, MAP.toString(), buildJsonObject(schemaStr),
+            state);
+
+    Assert.assertEquals(mapConverter.schema().toString(), expected);
+  }
+
+  @Test
+  public void schemaWithMapOfArrays()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"map\", \"values\":{\"dataType\":{\"type\":\"array\",\"items\":\"int\"}}}}";
+    String expected =
+        "{\"type\":\"map\",\"values\":{\"type\":\"array\",\"items\":{\"type\":\"int\",\"source.type\":\"int\"},\"source.type\":\"array\"},\"source.type\":\"map\"}";
+    JsonElementConversionFactory.MapConverter mapConverter =
+        new JsonElementConversionFactory.MapConverter("dummy1", true, MAP.toString(), buildJsonObject(schemaStr),
+            state);
+
+    Assert.assertEquals(mapConverter.schema().toString(), expected);
+  }
+
+  @Test
+  public void schemaWithMapOfEnum()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"map\", \"values\":{\"dataType\":{\"type\":\"enum\",\"name\":\"choice\",\"symbols\":[\"YES\",\"NO\"]}}}}";
+    String expected =
+        "{\"type\":\"map\",\"values\":{\"type\":\"enum\",\"name\":\"choice\",\"doc\":\"\",\"symbols\":[\"YES\",\"NO\"],\"source.type\":\"enum\"},\"source.type\":\"map\"}";
+    JsonElementConversionFactory.MapConverter mapConverter =
+        new JsonElementConversionFactory.MapConverter("dummy1", true, MAP.toString(), buildJsonObject(schemaStr),
+            state);
+
+    Assert.assertEquals(mapConverter.schema().toString(), expected);
   }
 
   private static JsonObject buildJsonObject(String jsonStr) {

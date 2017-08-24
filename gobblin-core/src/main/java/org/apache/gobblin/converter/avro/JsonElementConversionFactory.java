@@ -457,10 +457,11 @@ public class JsonElementConversionFactory {
                 isNullable()));
       } else if (arrayItems.isJsonObject()) {
         String nestedType = arrayItems.getAsJsonObject().get("dataType").getAsJsonObject().get("type").getAsString();
-        if(nestedType.equalsIgnoreCase("enum")){
+        if (nestedType.equalsIgnoreCase("enum")) {
           super.setElementConverter(
-              getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject().get("dataType").getAsJsonObject(), state, isNullable()));
-        }else{
+              getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject().get("dataType").getAsJsonObject(), state,
+                  isNullable()));
+        } else {
           super.setElementConverter(
               getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject(), state, isNullable()));
         }
@@ -497,9 +498,17 @@ public class JsonElementConversionFactory {
         WorkUnitState state)
         throws UnsupportedDateTypeException, SchemaConversionException {
       super(fieldName, nullable, sourceType);
-      super.setElementConverter(
-          getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("values").getAsString(),
-              schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
+      JsonElement schemaDataType = schemaNode.get("dataType");
+      JsonElement mapValues = schemaDataType.getAsJsonObject().get("values");
+      JsonObject mapValuesAsJsonObject = mapValues.getAsJsonObject();
+      String mapValueNestedType = mapValuesAsJsonObject.get("dataType").getAsJsonObject().get("type").getAsString();
+      if (mapValues.isJsonPrimitive()) {
+        super.setElementConverter(
+            getConvertor(fieldName, mapValues.getAsString(), schemaDataType.getAsJsonObject(), state, isNullable()));
+      } else {
+        super.setElementConverter(
+            getConvertor(fieldName, mapValueNestedType, mapValuesAsJsonObject, state, isNullable()));
+      }
     }
 
     @Override
