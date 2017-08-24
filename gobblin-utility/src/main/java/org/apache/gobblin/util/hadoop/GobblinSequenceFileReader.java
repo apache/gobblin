@@ -18,6 +18,7 @@
 package org.apache.gobblin.util.hadoop;
 
 import java.io.IOException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -29,6 +30,7 @@ import org.apache.hadoop.io.SequenceFile;
  * override the {@link SequenceFile.Reader {@link #getValueClassName()}} so that
  * we can handle the package name issue properly.
  */
+@Slf4j
 public class GobblinSequenceFileReader extends SequenceFile.Reader {
   public GobblinSequenceFileReader(FileSystem fs, Path file,
       Configuration conf) throws IOException {
@@ -38,7 +40,7 @@ public class GobblinSequenceFileReader extends SequenceFile.Reader {
   /** Returns the name of the value class. */
   public String getValueClassName() {
     if (super.getValueClassName().startsWith("gobblin.")) {
-      System.out.println("[We have]   " + super.getValueClassName());
+      log.info("[We have]   " + super.getValueClassName());
       return "org.apache." + super.getValueClassName();
     }
 

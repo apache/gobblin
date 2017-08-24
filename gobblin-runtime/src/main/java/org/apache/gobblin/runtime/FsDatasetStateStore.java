@@ -245,6 +245,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
        */
      String className = reader.getValueClassName();
      if (className.startsWith("gobblin")) {
+       LOGGER.warn("There's old JobState with no apache package name being read while we cast them at runtime");
        className = "org.apache." + className;
      }
 
