@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class InMemorySpecProducer implements SpecProducer<Spec>, Serializable {
   private final Map<URI, Spec> provisionedSpecs;
-  private Config config;
+  private transient Config config;
 
   private static final long serialVersionUID = 6106269076155338045L;
 
