@@ -1,0 +1,66 @@
+[
+  {
+    "columnName": "protocolv1",
+    "comment": "This is a protocol description for a fictitious network service.",
+    "dataType": {
+      "type": "record",
+      "values": [
+        {
+          "columnName": "DependencyType",
+          "dataType": {
+            "type": "enum",
+            "name": "depType",
+            "symbols": [
+              "REQUIRED",
+              "OPTIONAL"
+            ]
+          }
+        },
+        {
+          "columnName": "DependencyDetail",
+          "comment": "Details about status of a dependency.",
+          "dataType": {
+            "type": "record",
+            "values": [
+              {
+                "columnName": "name",
+                "dataType": {
+                  "type": "string"
+                },
+                "comment": "A short name of the service who's status is being reported"
+              },
+              {
+                "columnName": "descendingField",
+                "dataType": {
+                  "type": "string"
+                },
+                "comment": "A descending sort order field"
+              },
+              {
+                "columnName": "ignoredField",
+                "dataType": {
+                  "type": "string"
+                },
+                "comment": "An ignored order sort field"
+              },
+              {
+                "columnName": "status",
+                "dataType": {
+                  "type": "string"
+                },
+                "comment": "A string representing the operational status for this service"
+              },
+              {
+                "columnName": "timestamp",
+                "dataType": {
+                  "type": "string"
+                },
+                "comment": "A timestamp showing the time at which this particular dependency was compiled."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+]

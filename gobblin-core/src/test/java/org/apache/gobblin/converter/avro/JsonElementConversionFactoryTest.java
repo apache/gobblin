@@ -18,7 +18,6 @@ import com.google.gson.JsonParser;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.ArrayConverter;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.ARRAY;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.MAP;
-import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.NULL;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.RECORD;
 
 

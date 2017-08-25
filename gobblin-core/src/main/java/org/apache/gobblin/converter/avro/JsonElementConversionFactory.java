@@ -542,7 +542,6 @@ public class JsonElementConversionFactory {
   public static class RecordConverter extends ComplexConverter {
 
     private HashMap<String, JsonElementConverter> converters = new HashMap<>();
-    private List<Schema.Field> fields = new ArrayList<>();
     private JsonObject _schemaNode;
     private Schema _schema;
 

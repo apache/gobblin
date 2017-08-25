@@ -1,0 +1,34 @@
+{
+  "User": {
+    "id": 1231,
+    "username": "hewhomustnotbenamed",
+    "passwordHash": "avadakedavara",
+    "signupDate": 1503651112419,
+    "emailAddresses": [
+      {
+        "address": "vold@example.com",
+        "verified": true,
+        "dateAdded": 1503651112419,
+        "dateBounced": 1503651112419
+      }
+    ],
+    "twitterAccounts": [
+      {
+        "status": "ACTIVE",
+        "userId": 555,
+        "screenName": "hewhomustnotbenamed",
+        "oauthToken": "sdfsds",
+        "oauthTokenSecret": "dfsdsds",
+        "dateAuthorized": 1503651112419
+      }
+    ],
+    "toDoItems": [
+      {
+        "status": "HIDDEN",
+        "title": "Kill the boy",
+        "description": "AvadaKedavara",
+        "snoozeDate": 1503651112419
+      }
+    ]
+  }
+}
