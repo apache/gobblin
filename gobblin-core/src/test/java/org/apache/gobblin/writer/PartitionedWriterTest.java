@@ -23,6 +23,8 @@ import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.gobblin.ack.BasicAckableForTesting;
+import org.apache.gobblin.stream.FlushControlMessage;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -164,4 +166,39 @@ public class PartitionedWriterTest {
     }
   }
 
+  @Test
+  public void testControlMessageHandler() throws IOException {
+
+    State state = new State();
+    state.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TestPartitioner.class.getCanonicalName());
+
+    TestPartitionAwareWriterBuilder builder = new TestPartitionAwareWriterBuilder();
+
+    PartitionedDataWriter writer = new PartitionedDataWriter<String, String>(builder, state);
+
+    Assert.assertEquals(builder.actions.size(), 0);
+
+    String record1 = "abc";
+    writer.writeEnvelope(new RecordEnvelope(record1));
+
+    String record2 = "123";
+    writer.writeEnvelope(new RecordEnvelope(record2));
+
+    FlushControlMessage controlMessage = new FlushControlMessage<>(new FlushControlMessage.FlushReason("test"));
+    BasicAckableForTesting ackable = new BasicAckableForTesting();
+
+    controlMessage.addCallBack(ackable);
+    Assert.assertEquals(ackable.acked, 0);
+
+    // when the control message is cloned properly then this does not raise an error
+    writer.getMessageHandler().handleMessage(controlMessage);
+
+    // message handler does not ack since consumeRecordStream does acking for control messages
+    // this should be revisited when control message error handling is changed
+    controlMessage.ack();
+
+    Assert.assertEquals(ackable.acked, 1);
+
+    writer.close();
+  }
 }
