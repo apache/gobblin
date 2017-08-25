@@ -225,6 +225,20 @@ public class JsonElementConversionFactoryTest {
         state);
   }
 
+  @Test
+  public void schemaWithRecordOfRecord()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"name\": \"choice\", \"type\":\"record\",\"values\":[{\"columnName\":\"s\", \"dataType\":{\"type\":\"int\"}}]}}]}}";
+    String expected =
+        "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"s\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"},\"doc\":\"\",\"source.type\":\"record\"}],\"source.type\":\"record\"}";
+    JsonElementConversionFactory.RecordConverter recordConverter =
+        new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
+            state);
+
+    Assert.assertEquals(recordConverter.schema().toString(), expected);
+  }
+
   private static JsonObject buildJsonObject(String jsonStr) {
     JsonParser parser = new JsonParser();
     return parser.parse(jsonStr).getAsJsonObject();

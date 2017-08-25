@@ -583,7 +583,7 @@ public class JsonElementConversionFactory {
       }
 
       Schema avroSchema =
-          Schema.createRecord(workUnit.getExtract().getTable(), "", workUnit.getExtract().getNamespace(), false);
+          Schema.createRecord(null, "", null, false);
       avroSchema.setFields(fields);
 
       return avroSchema;
