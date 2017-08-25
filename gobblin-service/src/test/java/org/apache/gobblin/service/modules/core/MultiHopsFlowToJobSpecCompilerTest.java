@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import com.typesafe.config.Config;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
 import org.jgrapht.graph.DirectedWeightedMultigraph;
@@ -36,9 +38,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import com.typesafe.config.Config;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.spec_executorInstance.BaseServiceNodeImpl;
 import org.apache.gobblin.runtime.api.FlowEdge;

@@ -23,8 +23,6 @@ import java.net.URISyntaxException;
 import java.util.Properties;
 import javax.annotation.concurrent.NotThreadSafe;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
-
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -33,6 +31,7 @@ import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ClassAliasResolver;

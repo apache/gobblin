@@ -31,7 +31,7 @@ import lombok.Data;
  */
 public class BaseServiceNodeImpl implements ServiceNode {
 
-  public String nodeName ;
+  public String nodeName;
 
   public Config nodeConfig;
 
@@ -48,11 +48,19 @@ public class BaseServiceNodeImpl implements ServiceNode {
     this(nodeName, new Properties());
   }
 
-  public BaseServiceNodeImpl(String nodeName, Properties props){
-    this.nodeName = nodeName ;
-    if (!props.containsKey(this.NODE_SECURITY_KEY)){
+  public BaseServiceNodeImpl(String nodeName, Properties props) {
+    this.nodeName = nodeName;
+    if (!props.containsKey(this.NODE_SECURITY_KEY)) {
       props.setProperty(this.NODE_SECURITY_KEY, DEFAULT_NODE_SECURITY);
     }
     nodeConfig = ConfigUtils.propertiesToConfig(props);
+  }
+
+  /**
+   * By default each node is acceptable to use in path-finding.
+   */
+  @Override
+  public boolean isNodeValid() {
+    return true;
   }
 }

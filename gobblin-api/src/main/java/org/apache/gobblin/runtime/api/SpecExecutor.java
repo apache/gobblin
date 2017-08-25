@@ -19,7 +19,6 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.Future;
 
 import com.typesafe.config.Config;
@@ -39,8 +38,8 @@ public interface SpecExecutor {
   /** SpecExecutor config as a typesafe config object. */
   Future<Config> getConfig();
 
-  /** SpecExecutor attributes includes SpecExecutor Location and Type of it (Technology it used for data movement,
-   * like gobblin-standalone/gobblin-cluster
+  /** SpecExecutor attributes include Location of SpecExecutor and the Type of it (Technology it used for data movement,
+   * like, gobblin-standalone/gobblin-cluster
    * SpecExecutor attributes are supposed to be read-only once instantiated.
    * */
   Config getAttrs();

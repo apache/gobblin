@@ -22,11 +22,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.Future;
 
-import org.slf4j.Logger;
-
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.google.common.io.Closer;
+import org.slf4j.Logger;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.Spec;
@@ -90,7 +89,7 @@ public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
   protected void shutDown() throws Exception {
     if (_optionalCloser.isPresent()) {
       _optionalCloser.get().close();
-    }else{
+    } else {
       throw new RuntimeException("Closer initialization failed");
     }
   }

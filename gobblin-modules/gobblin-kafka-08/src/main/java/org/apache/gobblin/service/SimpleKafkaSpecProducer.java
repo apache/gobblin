@@ -22,16 +22,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.Future;
-
 import javax.annotation.concurrent.NotThreadSafe;
-
-import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import org.slf4j.Logger;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.kafka.writer.Kafka08DataWriter;

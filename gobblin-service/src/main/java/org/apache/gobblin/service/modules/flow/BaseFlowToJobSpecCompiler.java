@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.service.modules.flow;
 
-import com.typesafe.config.ConfigValueFactory;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -26,18 +24,17 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
-import lombok.Setter;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.configuration.State;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.configuration.State;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.api.Spec;
@@ -59,6 +56,7 @@ import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 
 import lombok.Getter;
+import lombok.Setter;
 
 // Provide base implementation for constructing multi-hops route.
 @Alpha

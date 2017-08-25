@@ -27,11 +27,16 @@ public interface ServiceNode {
   /**
    * @return The name of node.
    */
-  public String getNodeName();
+  String getNodeName();
 
   /**
    * @return The attributes of a {@link ServiceNode}.
    */
-  public Config getNodeConfig();
+  Config getNodeConfig();
+
+  /**
+   * @return if the node is valid to use
+   */
+  boolean isNodeValid();
 
 }

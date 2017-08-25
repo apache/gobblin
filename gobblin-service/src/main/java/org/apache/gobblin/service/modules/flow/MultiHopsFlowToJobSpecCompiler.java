@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.flow;
 
 import avro.shaded.com.google.common.annotations.VisibleForTesting;
 
-import org.apache.gobblin.service.modules.utils.DistancedNode;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -35,16 +34,16 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
-import org.jgrapht.graph.DirectedWeightedMultigraph;
-import org.slf4j.Logger;
-
 import com.google.common.base.Optional;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.service.modules.utils.DistancedNode;
+import org.apache.commons.lang3.StringUtils;
+import org.jgrapht.graph.DirectedWeightedMultigraph;
+import org.slf4j.Logger;
 import org.apache.gobblin.runtime.api.FlowEdge;
 import org.apache.gobblin.runtime.api.ServiceNode;
 import org.apache.gobblin.runtime.api.FlowSpec;

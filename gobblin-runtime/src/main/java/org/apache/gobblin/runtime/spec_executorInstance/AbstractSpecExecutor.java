@@ -23,9 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -34,6 +31,9 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.runtime.api.SpecConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.ServiceNode;
@@ -48,7 +48,7 @@ import edu.umd.cs.findbugs.annotations.SuppressWarnings;
  *
  * Normally in the implementation of {@link AbstractSpecExecutor}, it is necessary to specify:
  * {@link SpecProducer}
- * {@link gobblin.runtime.api.SpecConsumer}
+ * {@link SpecConsumer}
  * {@link Closer}
  */
 public abstract class AbstractSpecExecutor extends AbstractIdleService implements SpecExecutor {
@@ -67,6 +67,7 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
   /**
    * While AbstractSpecExecutor is up, for most producer implementations (like SimpleKafkaSpecProducer),
    * they implements {@link java.io.Closeable} which requires registration and close methods.
+   * {@link Closer} is mainly used for managing {@link SpecProducer} and {@link SpecConsumer}.
    */
   protected Optional<Closer> _optionalCloser;
 
@@ -78,7 +79,7 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
     this(config, Optional.of(env.getLog()));
   }
 
-  public AbstractSpecExecutor(Config config, Optional<Logger> log){
+  public AbstractSpecExecutor(Config config, Optional<Logger> log) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.config = config;
     this.capabilities = Maps.newHashMap();
