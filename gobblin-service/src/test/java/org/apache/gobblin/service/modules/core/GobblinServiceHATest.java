@@ -139,8 +139,8 @@ public class GobblinServiceHATest {
         "1");
     commonServiceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".uri",
         "gobblinExecutor");
-    commonServiceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".specExecutorInstanceProducer",
-        "org.apache.gobblin.service.InMemorySpecExecutorInstanceProducer");
+    commonServiceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".specExecutorInstance",
+        "gobblin.service.InMemorySpecExecutor");
     commonServiceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".specExecInstance.capabilities",
         TEST_SOURCE_NAME + ":" + TEST_SINK_NAME);
 

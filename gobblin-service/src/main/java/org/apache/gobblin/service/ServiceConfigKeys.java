@@ -18,7 +18,7 @@
 package org.apache.gobblin.service;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
+import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 import org.apache.gobblin.service.modules.topology.ConfigBasedTopologySpecFactory;
 
@@ -69,10 +69,22 @@ public class ServiceConfigKeys {
   public static final String TOPOLOGYSPEC_DESCRIPTION_KEY = "description";
   public static final String TOPOLOGYSPEC_VERSION_KEY = "version";
   public static final String TOPOLOGYSPEC_URI_KEY = "uri";
-  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER = InMemorySpecExecutorInstanceProducer.class.getCanonicalName();
-  public static final String SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY = "specExecutorInstanceProducer.class";
+
+  public static final String DEFAULT_SPEC_EXECUTOR = InMemorySpecExecutor.class.getCanonicalName();
+  public static final String SPEC_EXECUTOR_KEY = "specExecutorInstance.class";
+  public static final String EDGE_SECURITY_KEY = "edge.secured";
+
 
   // Template Catalog Keys
   public static final String TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.fullyQualifiedPath";
+
+  // Keys related to user-specified policy on route slection.
+  // Undesired connection to form an executable JobSpec.
+  // Formatted as a String list, each entry contains a string in the format of "Source1:Sink1",
+  // which indicates that data movement from source1 to sink1 should be avoided.
+  public static final String POLICY_BASED_BLOCKED_CONNECTION = GOBBLIN_SERVICE_PREFIX + "blocked.connection";
+  // Complete path of how the data movement is executed from source to sink.
+  // Formatted as a String, each hop separated by comma, from source to sink in order.
+  public static final String POLICY_BASED_DATA_MOVEMENT_PATH = GOBBLIN_SERVICE_PREFIX + "full.data.path";
 
 }

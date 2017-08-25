@@ -68,14 +68,14 @@ public class GobblinClusterConfigurationKeys {
   public static final String JOB_CONFIGURATION_MANAGER_KEY = GOBBLIN_CLUSTER_PREFIX + "job.configuration.manager";
 
   public static final String JOB_SPEC_REFRESH_INTERVAL = GOBBLIN_CLUSTER_PREFIX + "job.spec.refresh.interval";
-  public static final String SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS_KEY = GOBBLIN_CLUSTER_PREFIX + "specConsumer.class";
-  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS =
-      "org.apache.gobblin.service.SimpleKafkaSpecExecutorInstanceConsumer";
-  public static final String DEFAULT_STREAMING_SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS =
-      "org.apache.gobblin.service.StreamingKafkaSpecExecutorInstanceConsumer";
+  public static final String SPEC_CONSUMER_CLASS_KEY = GOBBLIN_CLUSTER_PREFIX + "specConsumer.class";
+  public static final String DEFAULT_SPEC_CONSUMER_CLASS =
+      "gobblin.service.SimpleKafkaSpecConsumer";
+  public static final String DEFAULT_STREAMING_SPEC_CONSUMER_CLASS =
+      "gobblin.service.StreamingKafkaSpecConsumer";
   public static final String JOB_CATALOG_KEY = GOBBLIN_CLUSTER_PREFIX + "job.catalog";
   public static final String DEFAULT_JOB_CATALOG =
-      "org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog";
+      "gobblin.runtime.job_catalog.NonObservingFSJobCatalog";
 
   public static final String STOP_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "stopTimeoutSeconds";
   public static final long DEFAULT_STOP_TIMEOUT_SECONDS = 60;

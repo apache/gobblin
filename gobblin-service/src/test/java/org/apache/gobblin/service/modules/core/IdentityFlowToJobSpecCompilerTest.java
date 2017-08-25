@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.service.modules.core;
 
+
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -39,14 +40,14 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
-
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 
 public class IdentityFlowToJobSpecCompilerTest {
   private static final Logger logger = LoggerFactory.getLogger(IdentityFlowToJobSpecCompilerTest.class);
@@ -114,14 +115,14 @@ public class IdentityFlowToJobSpecCompilerTest {
     properties.put("specStore.fs.dir", TOPOLOGY_SPEC_STORE_DIR);
     properties.put("specExecInstance.capabilities", TEST_SOURCE_NAME + ":" + TEST_SINK_NAME);
     Config config = ConfigUtils.propertiesToConfig(properties);
-    SpecExecutorInstanceProducer specExecutorInstanceProducer = new InMemorySpecExecutorInstanceProducer(config);
+    SpecExecutor specExecutorInstance = new InMemorySpecExecutor(config);
 
     TopologySpec.Builder topologySpecBuilder = TopologySpec.builder(computeTopologySpecURI(SPEC_STORE_PARENT_DIR,
         TOPOLOGY_SPEC_STORE_DIR))
         .withConfig(config)
         .withDescription(SPEC_DESCRIPTION)
         .withVersion(SPEC_VERSION)
-        .withSpecExecutorInstanceProducer(specExecutorInstanceProducer);
+        .withSpecExecutor(specExecutorInstance);
     return topologySpecBuilder.build();
   }
 
@@ -152,7 +153,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     return flowSpecBuilder.build();
   }
 
-  public URI computeTopologySpecURI(String parent, String current) {
+  public static URI computeTopologySpecURI(String parent, String current) {
     // Make sure this is relative
     return PathUtils.relativizePath(new Path(current), new Path(parent)).toUri();
   }
@@ -186,7 +187,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec();
 
     // Run compiler on flowSpec
-    Map<Spec, SpecExecutorInstanceProducer> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
+    Map<Spec, SpecExecutor> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
 
     // Assert pre-requisites
     Assert.assertNotNull(specExecutorMapping, "Expected non null mapping.");
@@ -215,7 +216,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec();
 
     // Run compiler on flowSpec
-    Map<Spec, SpecExecutorInstanceProducer> specExecutorMapping = this.compilerWithoutTemplateCalague.compileFlow(flowSpec);
+    Map<Spec, SpecExecutor> specExecutorMapping = this.compilerWithoutTemplateCalague.compileFlow(flowSpec);
 
     // Assert pre-requisites
     Assert.assertNotNull(specExecutorMapping, "Expected non null mapping.");
@@ -244,7 +245,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec(TEST_FLOW_GROUP, TEST_FLOW_NAME, "unsupportedSource", "unsupportedSink");
 
     // Run compiler on flowSpec
-    Map<Spec, SpecExecutorInstanceProducer> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
+    Map<Spec, SpecExecutor> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
 
     // Assert pre-requisites
     Assert.assertNotNull(specExecutorMapping, "Expected non null mapping.");

@@ -17,14 +17,21 @@
 
 package org.apache.gobblin.runtime.api;
 
-import java.util.List;
-import java.util.concurrent.Future;
-import org.apache.commons.lang3.tuple.Pair;
+import com.typesafe.config.Config;
 
+/**
+ * Abstraction of a Node in {@link SpecExecutor}
+ * Please don't confused by the name, 'Service' here refers to 's' in Gaas.
+ */
+public interface ServiceNode {
+  /**
+   * @return The name of node.
+   */
+  public String getNodeName();
 
-public interface SpecExecutorInstanceConsumer<V> extends SpecExecutorInstance {
-
-  /** List of newly changed {@link Spec}s for execution on {@link SpecExecutorInstance}. */
-  Future<? extends List<Pair<Verb, V>>> changedSpecs();
+  /**
+   * @return The attributes of a {@link ServiceNode}.
+   */
+  public Config getNodeConfig();
 
 }
