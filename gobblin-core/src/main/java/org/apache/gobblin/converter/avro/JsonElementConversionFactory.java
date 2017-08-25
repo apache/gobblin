@@ -465,6 +465,8 @@ public class JsonElementConversionFactory {
           super.setElementConverter(
               getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject(), state, isNullable()));
         }
+      } else if (arrayItems.isJsonArray() || arrayItems.isJsonNull()) {
+        throw new SchemaConversionException("Array types only allow values in schema as Primitive or a JsonObject");
       }
     }
 
@@ -500,14 +502,16 @@ public class JsonElementConversionFactory {
       super(fieldName, nullable, sourceType);
       JsonElement schemaDataType = schemaNode.get("dataType");
       JsonElement mapValues = schemaDataType.getAsJsonObject().get("values");
-      JsonObject mapValuesAsJsonObject = mapValues.getAsJsonObject();
-      String mapValueNestedType = mapValuesAsJsonObject.get("dataType").getAsJsonObject().get("type").getAsString();
       if (mapValues.isJsonPrimitive()) {
         super.setElementConverter(
             getConvertor(fieldName, mapValues.getAsString(), schemaDataType.getAsJsonObject(), state, isNullable()));
-      } else {
+      } else if (mapValues.isJsonObject()) {
+        JsonObject mapValuesAsJsonObject = mapValues.getAsJsonObject();
+        String mapValueNestedType = mapValuesAsJsonObject.get("dataType").getAsJsonObject().get("type").getAsString();
         super.setElementConverter(
             getConvertor(fieldName, mapValueNestedType, mapValuesAsJsonObject, state, isNullable()));
+      } else if (mapValues.isJsonArray() || mapValues.isJsonNull()) {
+        throw new SchemaConversionException("Map types only allow values in schema as Primitive or a JsonObject");
       }
     }
 

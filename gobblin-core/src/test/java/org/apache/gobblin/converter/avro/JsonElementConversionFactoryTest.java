@@ -163,6 +163,68 @@ public class JsonElementConversionFactoryTest {
     Assert.assertEquals(mapConverter.schema().toString(), expected);
   }
 
+  @Test
+  public void schemaWithRecordOfMap()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"type\":\"map\",\"values\":\"string\"}}]}}";
+    String expected =
+        "{\"type\":\"record\",\"name\":\"dummy_table\",\"namespace\":\"namespace\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"source.type\":\"string\"},\"source.type\":\"map\"},\"doc\":\"\",\"source.type\":\"map\"}],\"source.type\":\"record\"}";
+    JsonElementConversionFactory.RecordConverter recordConverter =
+        new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
+            state);
+
+    Assert.assertEquals(recordConverter.schema().toString(), expected);
+  }
+
+  @Test
+  public void schemaWithRecordOfArray()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"type\":\"array\",\"items\":\"int\"}}]}}";
+    String expected =
+        "{\"type\":\"record\",\"name\":\"dummy_table\",\"namespace\":\"namespace\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"int\",\"source.type\":\"int\"},\"source.type\":\"array\"},\"doc\":\"\",\"source.type\":\"array\"}],\"source.type\":\"record\"}";
+    JsonElementConversionFactory.RecordConverter recordConverter =
+        new RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr), state);
+
+    Assert.assertEquals(recordConverter.schema().toString(), expected);
+  }
+
+  @Test
+  public void schemaWithRecordOfEnum()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"name\": \"choice\", \"type\":\"enum\",\"symbols\":[\"YES\", \"NO\"]}}]}}";
+    String expected =
+        "{\"type\":\"record\",\"name\":\"dummy_table\",\"namespace\":\"namespace\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"enum\",\"name\":\"choice\",\"namespace\":\"\",\"doc\":\"\",\"symbols\":[\"YES\",\"NO\"],\"source.type\":\"enum\"},\"doc\":\"\",\"source.type\":\"enum\"}],\"source.type\":\"record\"}";
+    JsonElementConversionFactory.RecordConverter recordConverter =
+        new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
+            state);
+
+    Assert.assertEquals(recordConverter.schema().toString(), expected);
+  }
+
+  @Test(expected = SchemaConversionException.class)
+  public void schemaWithMapValuesAsJsonArray()
+      throws Exception {
+
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"type\":\"map\",\"values\":[\"string\"]}}]}}";
+
+    new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
+        state);
+  }
+
+  @Test(expected = SchemaConversionException.class)
+  public void schemaWithMapValuesAsJsonNull()
+      throws Exception {
+
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"type\":\"map\",\"values\":null}}]}}";
+    new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
+        state);
+  }
+
   private static JsonObject buildJsonObject(String jsonStr) {
     JsonParser parser = new JsonParser();
     return parser.parse(jsonStr).getAsJsonObject();

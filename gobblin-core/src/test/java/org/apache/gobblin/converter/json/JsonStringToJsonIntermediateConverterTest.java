@@ -255,7 +255,7 @@ public class JsonStringToJsonIntermediateConverterTest {
       throws DataConversionException {
     String jsonStr = "{\"a\":1, \"b\":\"hello\"}";
     String schemaStr =
-        "[{\"columnName\":\"a\", \"dataType\":{\"type\":\"int\"}}, {\"columnName\":\"b\", \"dataType\":{\"type\":\"fixed\", \"size\": 5}}]";
+        "[{\"columnName\":\"a\", \"dataType\":{\"type\":\"int\"}}, {\"columnName\":\"b\", \"dataType\":{\"type\":\"fixed\", \"size\": 5, \"name\":\"otp\"}}]";
     JsonObject expected = buildJsonObject("{\"a\":1, \"b\":\"hello\"}");
     JsonParser parser = new JsonParser();
     JsonArray record = parser.parse(schemaStr).getAsJsonArray();
@@ -355,6 +355,20 @@ public class JsonStringToJsonIntermediateConverterTest {
     String schemaStr =
         "[{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"name\": \"choice\", \"type\":\"enum\",\"symbols\":[\"YES\", \"NO\"]}}]}}]";
     String expected = "{\"persons\":{\"someperson\":\"YES\"}}";
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    String actual = parseJsonObject(jsonStr, record).toString();
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  public void jsonWithRecordContainingMap()
+      throws Exception {
+    String jsonStr = "{\"persons\":{\"someperson\":{\"1\":\"2\"}}}";
+    String schemaStr =
+        "[{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"type\":\"map\",\"values\":\"string\"}}]}}]";
+    String expected = "{\"persons\":{\"someperson\":{\"1\":\"2\"}}}";
     JsonParser parser = new JsonParser();
     JsonArray record = parser.parse(schemaStr).getAsJsonArray();
 
