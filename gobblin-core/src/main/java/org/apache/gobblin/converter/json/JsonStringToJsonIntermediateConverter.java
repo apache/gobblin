@@ -17,15 +17,14 @@
 
 package org.apache.gobblin.converter.json;
 
+import java.io.IOException;
+import java.util.Map;
+
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
-
-import java.io.IOException;
-import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,7 +139,24 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
             if (isPrimitiveType(arrayType)) {
               output.add(expectedColumnName, value);
             } else if (isArrayType(arrayType, "map")) {
-              output.add(expectedColumnName, value);
+              JsonElement arrayItems = schemaElement.getAsJsonObject().get("dataType").getAsJsonObject().get("items");
+              if (arrayItems.isJsonPrimitive() || arrayItems.isJsonNull()) {
+                output.add(expectedColumnName, value);
+              } else if (arrayItems.isJsonObject()) {
+                JsonArray tempArray = new JsonArray();
+                JsonArray valueArray = value.getAsJsonArray();
+                for (int index = 0; index < valueArray.size(); index++) {
+                  JsonObject tempObject = new JsonObject();
+                  tempObject.add("temp", valueArray.get(index).getAsJsonObject());
+
+                  JsonObject schemaObj = new JsonObject();
+                  schemaObj.addProperty("columnName", "temp");
+                  schemaObj.add("dataType", arrayItems.getAsJsonObject().get("dataType").getAsJsonObject());
+                  tempArray.add(parseJsonBasedOnSchema(tempObject, createJsonElementArray(schemaObj)).get("temp")
+                      .getAsJsonObject());
+                }
+                output.add(expectedColumnName, tempArray);
+              }
             } else if (isArrayType(arrayType, "record")) {
               JsonArray tempArray = new JsonArray();
               JsonArray valArray = value.getAsJsonArray();
@@ -158,18 +174,17 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
             }
           } else if (value.isJsonObject()) {
             if (isMapType(schemaElement)) {
-              if (schemaObject.get("dataType").getAsJsonObject().get("values").isJsonPrimitive()) {
+              if (getValuesSchemaElement(schemaObject).isJsonPrimitive()) {
                 output.add(expectedColumnName, value);
-              } else if (schemaObject.get("dataType").getAsJsonObject().get("values").isJsonObject()) {
-                JsonObject mapValueSchema =
-                    schemaObject.get("dataType").getAsJsonObject().get("values").getAsJsonObject();
+              } else if (getValuesSchemaElement(schemaObject).isJsonObject()) {
+                JsonObject mapValueSchema = getValuesSchemaElement(schemaObject).getAsJsonObject();
 
                 JsonObject map = new JsonObject();
                 for (Map.Entry<String, JsonElement> mapEntry : value.getAsJsonObject().entrySet()) {
                   if (mapEntry.getValue().isJsonArray()) {
                     map.add(mapEntry.getKey(), parseJsonBasedOnSchema(mapEntry.getValue().getAsJsonArray(),
                         createJsonElementArray(mapValueSchema)));
-                  } else if(mapEntry.getValue().isJsonObject()){
+                  } else if (mapEntry.getValue().isJsonObject()) {
                     JsonObject tempObject = new JsonObject();
                     tempObject.add("temp", mapEntry.getValue().getAsJsonObject());
 
@@ -228,13 +243,17 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     }
   }
 
+  private JsonElement getValuesSchemaElement(JsonObject schemaObject) {
+    return schemaObject.get("dataType").getAsJsonObject().get("values");
+  }
+
   private int getSizeOfFixedData(JsonObject schemaObject) {
     return schemaObject.get("dataType").getAsJsonObject().get("size").getAsInt();
   }
 
   private JsonArray getSchemaForArrayHavingRecord(JsonObject schemaObject) {
-    return schemaObject.get("dataType").getAsJsonObject().get("items").getAsJsonObject().get("dataType")
-        .getAsJsonObject().get("values").getAsJsonArray();
+    return getValuesSchemaElement(schemaObject.get("dataType").getAsJsonObject().get("items").getAsJsonObject())
+        .getAsJsonArray();
   }
 
   private JsonArray allowedSymbolsInEnum(JsonObject schemaObject) {
@@ -254,7 +273,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   }
 
   private JsonArray getValuesFromDataType(JsonObject schemaObject) {
-    return schemaObject.get("dataType").getAsJsonObject().get("values").getAsJsonArray();
+    return getValuesSchemaElement(schemaObject).getAsJsonArray();
   }
 
   private JsonArray createJsonElementArray(JsonElement element) {
@@ -294,7 +313,8 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
         .contains(arrayType.toLowerCase());
   }
 
-  private String arrayType(JsonElement arraySchema) {
+  private String arrayType(JsonElement arraySchema)
+      throws DataConversionException {
     String arrayType = getDataTypeFromSchema(arraySchema);
     boolean isArray = arrayType.equalsIgnoreCase("array");
     JsonElement arrayValues = arraySchema.getAsJsonObject().get("dataType").getAsJsonObject().get("items");
@@ -302,7 +322,11 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       return isArray ? arrayValues.getAsString() : null;
     } catch (UnsupportedOperationException | IllegalStateException e) {
       //values is not string and a nested json array
-      return isArray ? getDataTypeFromSchema(arrayValues.getAsJsonObject()) : null;
+      try {
+        return isArray ? getDataTypeFromSchema(arrayValues.getAsJsonObject()) : null;
+      } catch (UnsupportedOperationException | IllegalStateException ee) {
+        throw new DataConversionException("Array types only allow values as primitive, null or JsonObject");
+      }
     }
   }
 }

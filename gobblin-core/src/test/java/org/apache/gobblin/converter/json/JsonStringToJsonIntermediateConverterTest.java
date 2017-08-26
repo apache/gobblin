@@ -176,6 +176,7 @@ public class JsonStringToJsonIntermediateConverterTest {
     JsonArray record = parser.parse(schemaStr).getAsJsonArray();
 
     JsonObject result = parseJsonObject(jsonStr, record);
+
     assertEquals(expected, result);
   }
 
@@ -190,6 +191,7 @@ public class JsonStringToJsonIntermediateConverterTest {
     JsonArray record = parser.parse(schemaStr).getAsJsonArray();
 
     JsonObject result = parseJsonObject(jsonStr, record);
+
     assertEquals(expected, result);
   }
 
@@ -230,11 +232,10 @@ public class JsonStringToJsonIntermediateConverterTest {
     String jsonStr = "{\"a\":\"somename\", \"b\":[{\"d\":\"1\"},{\"d\":\"1\"}]}";
     String schemaStr =
         "[{\"columnName\":\"a\", \"dataType\":{\"type\":\"string\"}},{\"columnName\":\"b\", \"dataType\":{\"type\":\"array\", \"items\":{\"dataType\":{\"type\":\"map\", \"values\":\"string\"}}}}]";
-    buildJsonObject("{\"a\":\"somename\", \"b\":[{\"c\":\"1\", \"e\":1},{\"d\":\"1\"}]}");
+    JsonObject expected = buildJsonObject("{\"a\":\"somename\", \"b\":[{\"d\":\"1\"},{\"d\":\"1\"}]}");
+
     JsonParser parser = new JsonParser();
     JsonArray record = parser.parse(schemaStr).getAsJsonArray();
-
-    JsonObject expected = buildJsonObject("{\"a\":\"somename\", \"b\":[{\"d\":\"1\"},{\"d\":\"1\"}]}");
 
     JsonObject result = parseJsonObject(jsonStr, record);
     assertEquals(expected, result);
@@ -394,6 +395,47 @@ public class JsonStringToJsonIntermediateConverterTest {
 
     String actual = parseJsonObject(jsonStr, record).toString();
     assertEquals(expected, actual);
+  }
+
+  @Test
+  public void jsonWithArrayOfMapContainingRecord()
+      throws DataConversionException {
+    String jsonStr = "{\"a\":\"somename\", \"b\":[{\"d\":{\"age\":\"10\"}},{\"d\":{\"age\":\"1\"}}]}";
+    String schemaStr =
+        "[{\"columnName\":\"a\", \"dataType\":{\"type\":\"string\"}},{\"columnName\":\"b\", \"dataType\":{\"type\":\"array\", \"items\":{\"dataType\":{\"type\":\"map\", \"values\":{\"dataType\":{\"type\":\"record\",\"values\":[{\"columnName\":\"age\", \"dataType\":{\"type\":\"int\"}}]}}}}}}]";
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    JsonObject expected =
+        buildJsonObject("{\"a\":\"somename\", \"b\":[{\"d\":{\"age\":\"10\"}},{\"d\":{\"age\":\"1\"}}]}");
+
+    JsonObject result = parseJsonObject(jsonStr, record);
+    assertEquals(expected, result);
+  }
+
+  @Test(expected = DataConversionException.class)
+  public void jsonWithArrayOfMapContainingRecordWithWrongSchema()
+      throws DataConversionException {
+    String jsonStr = "{\"a\":\"somename\", \"b\":[{\"d\":{\"age\":\"10\"}},{\"d\":{\"age\":\"1\"}}]}";
+    String schemaStr =
+        "[{\"columnName\":\"a\", \"dataType\":{\"type\":\"string\"}},{\"columnName\":\"b\", \"dataType\":{\"type\":\"array\", \"items\":[{\"dataType\":{\"type\":\"map\", \"values\":{\"dataType\":{\"type\":\"record\",\"values\":[{\"columnName\":\"age\", \"dataType\":{\"type\":\"int\"}}]}}}}]}}]";
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    parseJsonObject(jsonStr, record);
+  }
+
+  @Test
+  public void jsonWithMapOfMap()
+      throws Exception {
+    String jsonStr = "{\"persons\":{\"someperson\":\"5\"}}";
+    String schemaStr =
+        "[{\"columnName\":\"persons\", \"dataType\": {\"type\":\"map\", \"values\":{\"dataType\":{\"type\":\"map\",\"values\":\"string\"}}}}]";
+    String expected = "{\"persons\":{\"someperson\":\"5\"}}";
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    assertEquals(expected, parseJsonObject(jsonStr, record).toString());
   }
 
   private JsonObject buildJsonObject(String s) {
