@@ -26,6 +26,9 @@ import java.util.TimeZone;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.source.workunit.Extract;
@@ -35,17 +38,12 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.source.workunit.Extract.TableType;
 
 
 /**
@@ -76,6 +74,15 @@ public class JsonIntermediateToAvroConverterTest {
     state.setProp(ConfigurationKeys.CONVERTER_AVRO_DATE_TIMEZONE, "PST");
   }
 
+  /**
+   * To test schema and record using the path to their resource file.
+   * @param schema
+   * @param record
+   * @param expectedSchema
+   * @param expectedRecord
+   * @throws SchemaConversionException
+   * @throws DataConversionException
+   */
   private void complexSchemaTest(String schema, String record, String expectedSchema, String expectedRecord)
       throws SchemaConversionException, DataConversionException {
     initResources(schema, record);

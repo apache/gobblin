@@ -13,7 +13,11 @@ import gobblin.configuration.WorkUnitState;
 
 import static org.junit.Assert.assertEquals;
 
-
+/**
+ * Unit test for {@link JsonStringToJsonIntermediateConverter}
+ *
+ * @author Tilak Patidar
+ */
 public class JsonStringToJsonIntermediateConverterTest {
 
   private static JsonStringToJsonIntermediateConverter converter;

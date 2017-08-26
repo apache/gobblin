@@ -80,6 +80,15 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     return new SingleRecordIterable(rec);
   }
 
+  /**
+   * Overloads parseJsonBasedOnSchema to support JsonArray based inputs
+   * It creates a temp JsonObject to wrap the given JsonArray so that the original
+   * method can be used.
+   * @param input
+   * @param fields
+   * @return
+   * @throws DataConversionException
+   */
   private JsonArray parseJsonBasedOnSchema(JsonArray input, JsonArray fields)
       throws DataConversionException {
     JsonObject tempObject = new JsonObject();
@@ -94,6 +103,14 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     return parseJsonBasedOnSchema(tempObject, schema).get("temp").getAsJsonArray();
   }
 
+  /**
+   * Parses a provided JsonObject input using the provided JsonArray schema into
+   * a JsonObject.
+   * @param input
+   * @param fields
+   * @return
+   * @throws DataConversionException
+   */
   private JsonObject parseJsonBasedOnSchema(JsonObject input, JsonArray fields)
       throws DataConversionException {
     try {

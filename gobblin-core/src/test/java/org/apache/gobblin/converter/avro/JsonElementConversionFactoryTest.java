@@ -20,7 +20,11 @@ import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Typ
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.MAP;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.RECORD;
 
-
+/**
+ * Unit test for {@link JsonElementConversionFactory}
+ *
+ * @author Tilak Patidar
+ */
 public class JsonElementConversionFactoryTest {
 
   private static WorkUnitState state;
@@ -238,6 +242,11 @@ public class JsonElementConversionFactoryTest {
     Assert.assertEquals(recordConverter.schema().toString(), expected);
   }
 
+  /**
+   * Build a JsonObject from a json string using a JsonParser.
+   * @param jsonStr
+   * @return
+   */
   private static JsonObject buildJsonObject(String jsonStr) {
     JsonParser parser = new JsonParser();
     return parser.parse(jsonStr).getAsJsonObject();
