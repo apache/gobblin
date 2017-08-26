@@ -31,7 +31,6 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.converter.SchemaConversionException;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -86,7 +85,7 @@ public class JsonElementConversionFactory {
    */
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
       WorkUnitState state, boolean nullable)
-      throws UnsupportedDateTypeException, SchemaConversionException {
+      throws UnsupportedDateTypeException {
 
     Type type;
     try {
@@ -448,7 +447,7 @@ public class JsonElementConversionFactory {
 
     public ArrayConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
         WorkUnitState state)
-        throws UnsupportedDateTypeException, SchemaConversionException {
+        throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
       JsonElement arrayItems = schemaNode.get("dataType").getAsJsonObject().get("items");
       if (arrayItems.isJsonPrimitive()) {
@@ -466,7 +465,7 @@ public class JsonElementConversionFactory {
               getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject(), state, isNullable()));
         }
       } else if (arrayItems.isJsonArray() || arrayItems.isJsonNull()) {
-        throw new SchemaConversionException("Array types only allow values in schema as Primitive or a JsonObject");
+        throw new UnsupportedOperationException("Array types only allow values in schema as Primitive or a JsonObject");
       }
     }
 
@@ -498,7 +497,7 @@ public class JsonElementConversionFactory {
 
     public MapConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
         WorkUnitState state)
-        throws UnsupportedDateTypeException, SchemaConversionException {
+        throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
       JsonElement schemaDataType = schemaNode.get("dataType");
       JsonElement mapValues = schemaDataType.getAsJsonObject().get("values");
@@ -511,7 +510,7 @@ public class JsonElementConversionFactory {
         super.setElementConverter(
             getConvertor(fieldName, mapValueNestedType, mapValuesAsJsonObject, state, isNullable()));
       } else if (mapValues.isJsonArray() || mapValues.isJsonNull()) {
-        throw new SchemaConversionException("Map types only allow values in schema as Primitive or a JsonObject");
+        throw new UnsupportedOperationException("Map types only allow values in schema as Primitive or a JsonObject");
       }
     }
 
@@ -547,14 +546,13 @@ public class JsonElementConversionFactory {
 
     public RecordConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
         WorkUnitState state)
-        throws UnsupportedDateTypeException, SchemaConversionException {
+        throws UnsupportedDateTypeException{
       super(fieldName, nullable, sourceType);
       _schemaNode = schemaNode;
       _schema = buildRecordSchema(_schemaNode.get("dataType").getAsJsonObject().get("values").getAsJsonArray(), state);
     }
 
-    public Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit)
-        throws SchemaConversionException {
+    public Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit){
       List<Schema.Field> fields = new ArrayList<>();
 
       for (JsonElement elem : schema) {
@@ -572,7 +570,7 @@ public class JsonElementConversionFactory {
           this.converters.put(columnName, converter);
           fldSchema = converter.getSchema();
         } catch (UnsupportedDateTypeException e) {
-          throw new SchemaConversionException(e);
+          throw new UnsupportedOperationException(e);
         }
 
         Schema.Field fld =

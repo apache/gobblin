@@ -223,7 +223,7 @@ public class JsonElementConversionFactoryTest {
     Assert.assertEquals(recordConverter.schema().toString(), expected);
   }
 
-  @Test(expected = SchemaConversionException.class)
+  @Test(expected = UnsupportedOperationException.class)
   public void schemaWithMapValuesAsJsonArray()
       throws Exception {
 
@@ -234,7 +234,7 @@ public class JsonElementConversionFactoryTest {
         state);
   }
 
-  @Test(expected = SchemaConversionException.class)
+  @Test(expected = UnsupportedOperationException.class)
   public void schemaWithMapValuesAsJsonNull()
       throws Exception {
 
