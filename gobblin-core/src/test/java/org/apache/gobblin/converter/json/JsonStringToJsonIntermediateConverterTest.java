@@ -438,6 +438,22 @@ public class JsonStringToJsonIntermediateConverterTest {
     assertEquals(expected, parseJsonObject(jsonStr, record).toString());
   }
 
+
+  @Test
+  public void jsonWithArrayOfNulls()
+      throws DataConversionException {
+    String jsonStr = "{\"b\":[null,null]}";
+    String schemaStr =
+        "[{\"columnName\":\"b\", \"dataType\":{\"type\":\"array\", \"items\":\"null\"}}]";
+    JsonObject expected = buildJsonObject("{\"b\":[null,null]}");
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    JsonObject result = parseJsonObject(jsonStr, record);
+
+    assertEquals(expected, result);
+  }
+
   private JsonObject buildJsonObject(String s) {
     JsonParser parser = new JsonParser();
     return (JsonObject) parser.parse(s);
