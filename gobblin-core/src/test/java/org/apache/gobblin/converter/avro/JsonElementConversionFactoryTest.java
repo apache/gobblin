@@ -55,7 +55,7 @@ public class JsonElementConversionFactoryTest {
     String schema =
         "{\"columnName\":\"b\", \"dataType\":{\"type\":\"array\", \"items\":{\"dataType\":{\"type\":\"record\", \"namespace\":\"org.foo\", \"values\":[{\"columnName\": \"name\", \"dataType\":{\"type\":\"string\"}},{\"columnName\": \"c\", \"dataType\":{\"type\":\"long\"}},{\"columnName\": \"cc\", \"dataType\":{\"type\":\"array\", \"items\":\"int\"}}]}}}}";
     String expected =
-        "{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"dummy_table\",\"namespace\":\"namespace\",\"doc\":\"\",\"fields\":[{\"name\":\"name\",\"type\":{\"type\":\"string\",\"source.type\":\"string\"},\"doc\":\"\",\"source.type\":\"string\"},{\"name\":\"c\",\"type\":{\"type\":\"long\",\"source.type\":\"long\"},\"doc\":\"\",\"source.type\":\"long\"},{\"name\":\"cc\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"int\",\"source.type\":\"int\"},\"source.type\":\"array\"},\"doc\":\"\",\"source.type\":\"array\"}],\"source.type\":\"record\"},\"source.type\":\"array\"}";
+        "{\"type\":\"array\",\"items\":{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"name\",\"type\":{\"type\":\"string\",\"source.type\":\"string\"},\"doc\":\"\",\"source.type\":\"string\"},{\"name\":\"c\",\"type\":{\"type\":\"long\",\"source.type\":\"long\"},\"doc\":\"\",\"source.type\":\"long\"},{\"name\":\"cc\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"int\",\"source.type\":\"int\"},\"source.type\":\"array\"},\"doc\":\"\",\"source.type\":\"array\"}],\"source.type\":\"record\"},\"source.type\":\"array\"}";
 
     ArrayConverter arrayConverter =
         new ArrayConverter("dummy1", true, ARRAY.toString(), buildJsonObject(schema), state);
@@ -69,7 +69,7 @@ public class JsonElementConversionFactoryTest {
     String schemaStr =
         "{\"columnName\":\"b\", \"dataType\":{\"type\":\"record\", \"values\":[{\"columnName\":\"c\",\"dataType\":{\"type\":\"string\"}},{\"columnName\":\"d\",\"dataType\":{\"type\":\"int\"}}]}}";
     String expected =
-        "{\"type\":\"record\",\"name\":\"dummy_table\",\"namespace\":\"namespace\",\"doc\":\"\",\"fields\":[{\"name\":\"c\",\"type\":{\"type\":\"string\",\"source.type\":\"string\"},\"doc\":\"\",\"source.type\":\"string\"},{\"name\":\"d\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"}";
+        "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"c\",\"type\":{\"type\":\"string\",\"source.type\":\"string\"},\"doc\":\"\",\"source.type\":\"string\"},{\"name\":\"d\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"}";
 
     RecordConverter recordConverter =
         new RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr), state);
@@ -130,7 +130,7 @@ public class JsonElementConversionFactoryTest {
     String schemaStr =
         "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"map\", \"values\":{\"dataType\":{\"type\":\"record\",\"values\":[{\"columnName\":\"name\", \"dataType\":{\"type\":\"string\"}}, {\"columnName\":\"age\", \"dataType\":{\"type\":\"int\"}}]}}}}";
     String expected =
-        "{\"type\":\"map\",\"values\":{\"type\":\"record\",\"name\":\"dummy_table\",\"namespace\":\"namespace\",\"doc\":\"\",\"fields\":[{\"name\":\"name\",\"type\":{\"type\":\"string\",\"source.type\":\"string\"},\"doc\":\"\",\"source.type\":\"string\"},{\"name\":\"age\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"},\"source.type\":\"map\"}";
+        "{\"type\":\"map\",\"values\":{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"name\",\"type\":{\"type\":\"string\",\"source.type\":\"string\"},\"doc\":\"\",\"source.type\":\"string\"},{\"name\":\"age\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"},\"source.type\":\"map\"}";
     JsonElementConversionFactory.MapConverter mapConverter =
         new JsonElementConversionFactory.MapConverter("dummy1", true, MAP.toString(), buildJsonObject(schemaStr),
             state);
@@ -172,7 +172,7 @@ public class JsonElementConversionFactoryTest {
     String schemaStr =
         "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"type\":\"map\",\"values\":\"string\"}}]}}";
     String expected =
-        "{\"type\":\"record\",\"name\":\"dummy_table\",\"namespace\":\"namespace\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"source.type\":\"string\"},\"source.type\":\"map\"},\"doc\":\"\",\"source.type\":\"map\"}],\"source.type\":\"record\"}";
+        "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"source.type\":\"string\"},\"source.type\":\"map\"},\"doc\":\"\",\"source.type\":\"map\"}],\"source.type\":\"record\"}";
     JsonElementConversionFactory.RecordConverter recordConverter =
         new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
             state);
@@ -186,7 +186,7 @@ public class JsonElementConversionFactoryTest {
     String schemaStr =
         "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"type\":\"array\",\"items\":\"int\"}}]}}";
     String expected =
-        "{\"type\":\"record\",\"name\":\"dummy_table\",\"namespace\":\"namespace\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"int\",\"source.type\":\"int\"},\"source.type\":\"array\"},\"doc\":\"\",\"source.type\":\"array\"}],\"source.type\":\"record\"}";
+        "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"int\",\"source.type\":\"int\"},\"source.type\":\"array\"},\"doc\":\"\",\"source.type\":\"array\"}],\"source.type\":\"record\"}";
     JsonElementConversionFactory.RecordConverter recordConverter =
         new RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr), state);
 
@@ -199,7 +199,7 @@ public class JsonElementConversionFactoryTest {
     String schemaStr =
         "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"name\": \"choice\", \"type\":\"enum\",\"symbols\":[\"YES\", \"NO\"]}}]}}";
     String expected =
-        "{\"type\":\"record\",\"name\":\"dummy_table\",\"namespace\":\"namespace\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"enum\",\"name\":\"choice\",\"namespace\":\"\",\"doc\":\"\",\"symbols\":[\"YES\",\"NO\"],\"source.type\":\"enum\"},\"doc\":\"\",\"source.type\":\"enum\"}],\"source.type\":\"record\"}";
+        "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"enum\",\"name\":\"choice\",\"doc\":\"\",\"symbols\":[\"YES\",\"NO\"],\"source.type\":\"enum\"},\"doc\":\"\",\"source.type\":\"enum\"}],\"source.type\":\"record\"}";
     JsonElementConversionFactory.RecordConverter recordConverter =
         new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
             state);
