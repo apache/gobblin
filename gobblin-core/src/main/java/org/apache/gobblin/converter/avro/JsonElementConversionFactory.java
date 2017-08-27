@@ -546,20 +546,21 @@ public class JsonElementConversionFactory {
 
     public RecordConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
         WorkUnitState state)
-        throws UnsupportedDateTypeException{
+        throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
       _schemaNode = schemaNode;
-      _schema = buildRecordSchema(_schemaNode.get("dataType").getAsJsonObject().get("values").getAsJsonArray(), state);
+      JsonObject schemaDataType = _schemaNode.get("dataType").getAsJsonObject();
+      _schema = buildRecordSchema(schemaDataType.get("values").getAsJsonArray(), state,
+          getPropOrBlankString(schemaDataType, "name"));
     }
 
-    public Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit){
+    public Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit, String name) {
       List<Schema.Field> fields = new ArrayList<>();
-
       for (JsonElement elem : schema) {
         JsonObject map = (JsonObject) elem;
 
-        String columnName = map.has("columnName") ? map.get("columnName").getAsString() : "";
-        String comment = map.has("comment") ? map.get("comment").getAsString() : "";
+        String columnName = getPropOrBlankString(map, "columnName");
+        String comment = getPropOrBlankString(map, "comment");
         boolean nullable = map.has("isNullable") ? map.get("isNullable").getAsBoolean() : false;
         Schema fldSchema;
 
@@ -579,11 +580,14 @@ public class JsonElementConversionFactory {
         fields.add(fld);
       }
 
-      Schema avroSchema =
-          Schema.createRecord(null, "", null, false);
+      Schema avroSchema = Schema.createRecord(name.isEmpty() ? null : name, "", null, false);
       avroSchema.setFields(fields);
 
       return avroSchema;
+    }
+
+    private String getPropOrBlankString(JsonObject map, String key) {
+      return map.has(key) ? map.get(key).getAsString() : "";
     }
 
     @Override

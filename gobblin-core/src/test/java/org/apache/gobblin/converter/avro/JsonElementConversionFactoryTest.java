@@ -250,7 +250,7 @@ public class JsonElementConversionFactoryTest {
     String schemaStr =
         "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"name\": \"choice\", \"type\":\"record\",\"values\":[{\"columnName\":\"s\", \"dataType\":{\"type\":\"int\"}}]}}]}}";
     String expected =
-        "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"s\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"},\"doc\":\"\",\"source.type\":\"record\"}],\"source.type\":\"record\"}";
+        "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"record\",\"name\":\"choice\",\"doc\":\"\",\"fields\":[{\"name\":\"s\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"},\"doc\":\"\",\"source.type\":\"record\"}],\"source.type\":\"record\"}";
     JsonElementConversionFactory.RecordConverter recordConverter =
         new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
             state);
