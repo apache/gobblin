@@ -61,7 +61,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
         return new JsonElementConversionWithAvroSchemaFactory.EnumConverter(fieldName, nullable, type.toString(), schemaNode);
 
       default:
-        return JsonElementConversionFactory.getConvertor(fieldName, fieldType, null, state, nullable);
+        return JsonElementConversionFactory.getConvertor(fieldName, "", fieldType, null, state, nullable);
     }
   }
 

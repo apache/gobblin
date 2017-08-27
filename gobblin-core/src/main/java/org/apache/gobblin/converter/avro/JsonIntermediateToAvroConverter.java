@@ -46,6 +46,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter.buildNamespace;
+
 
 /**
  * Converts Integra's intermediate data format to avro
@@ -72,12 +74,13 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
 
       String columnName = map.get("columnName").getAsString();
       String comment = map.has("comment") ? map.get("comment").getAsString() : "";
+      String name = map.has("name") ? map.get("name").getAsString() : null;
       boolean nullable = map.has("isNullable") ? map.get("isNullable").getAsBoolean() : false;
       Schema fldSchema;
 
       try {
         JsonElementConversionFactory.JsonElementConverter converter = JsonElementConversionFactory.getConvertor(
-            columnName, map.get("dataType").getAsJsonObject().get("type").getAsString(), map, workUnit, nullable);
+            columnName, buildNamespace(workUnit.getExtract().getNamespace(),name), map.get("dataType").getAsJsonObject().get("type").getAsString(), map, workUnit, nullable);
         this.converters.put(columnName, converter);
         fldSchema = converter.getSchema();
       } catch (UnsupportedDateTypeException e) {

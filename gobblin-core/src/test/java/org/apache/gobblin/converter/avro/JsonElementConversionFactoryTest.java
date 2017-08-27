@@ -32,9 +32,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.ArrayConverter;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter.buildNamespace;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.ARRAY;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.MAP;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.RECORD;
+
 
 /**
  * Unit test for {@link JsonElementConversionFactory}
@@ -88,7 +90,8 @@ public class JsonElementConversionFactoryTest {
         "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"c\",\"type\":{\"type\":\"string\",\"source.type\":\"string\"},\"doc\":\"\",\"source.type\":\"string\"},{\"name\":\"d\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"}";
 
     RecordConverter recordConverter =
-        new RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr), state);
+        new RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr), state,
+            buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(recordConverter.schema().toString(), expected);
   }
@@ -191,7 +194,7 @@ public class JsonElementConversionFactoryTest {
         "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"source.type\":\"string\"},\"source.type\":\"map\"},\"doc\":\"\",\"source.type\":\"map\"}],\"source.type\":\"record\"}";
     JsonElementConversionFactory.RecordConverter recordConverter =
         new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
-            state);
+            state, buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(recordConverter.schema().toString(), expected);
   }
@@ -204,7 +207,8 @@ public class JsonElementConversionFactoryTest {
     String expected =
         "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"int\",\"source.type\":\"int\"},\"source.type\":\"array\"},\"doc\":\"\",\"source.type\":\"array\"}],\"source.type\":\"record\"}";
     JsonElementConversionFactory.RecordConverter recordConverter =
-        new RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr), state);
+        new RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr), state,
+            buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(recordConverter.schema().toString(), expected);
   }
@@ -218,7 +222,7 @@ public class JsonElementConversionFactoryTest {
         "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"enum\",\"name\":\"choice\",\"doc\":\"\",\"symbols\":[\"YES\",\"NO\"],\"source.type\":\"enum\"},\"doc\":\"\",\"source.type\":\"enum\"}],\"source.type\":\"record\"}";
     JsonElementConversionFactory.RecordConverter recordConverter =
         new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
-            state);
+            state, buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(recordConverter.schema().toString(), expected);
   }
@@ -231,7 +235,7 @@ public class JsonElementConversionFactoryTest {
         "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"type\":\"map\",\"values\":[\"string\"]}}]}}";
 
     new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
-        state);
+        state, buildNamespace(state.getExtract().getNamespace(), "something"));
   }
 
   @Test(expected = UnsupportedOperationException.class)
@@ -241,7 +245,7 @@ public class JsonElementConversionFactoryTest {
     String schemaStr =
         "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"type\":\"map\",\"values\":null}}]}}";
     new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
-        state);
+        state, buildNamespace(state.getExtract().getNamespace(), "something"));
   }
 
   @Test
@@ -253,9 +257,43 @@ public class JsonElementConversionFactoryTest {
         "{\"type\":\"record\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"record\",\"name\":\"choice\",\"doc\":\"\",\"fields\":[{\"name\":\"s\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"},\"doc\":\"\",\"source.type\":\"record\"}],\"source.type\":\"record\"}";
     JsonElementConversionFactory.RecordConverter recordConverter =
         new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
-            state);
+            state, buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(recordConverter.schema().toString(), expected);
+  }
+
+  @Test
+  public void schemaWithRecordOfRecordCheckNamespace()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\", \"name\":\"myrecord\", \"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"name\": \"choice\", \"type\":\"record\",\"values\":[{\"columnName\":\"s\", \"dataType\":{\"type\":\"int\"}}]}}]}}";
+    String expected =
+        "{\"type\":\"record\",\"name\":\"myrecord\",\"namespace\":\"namespace.person\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"record\",\"name\":\"choice\",\"namespace\":\"namespace.person.myrecord\",\"doc\":\"\",\"fields\":[{\"name\":\"s\",\"type\":{\"type\":\"int\",\"source.type\":\"int\"},\"doc\":\"\",\"source.type\":\"int\"}],\"source.type\":\"record\"},\"doc\":\"\",\"source.type\":\"record\"}],\"source.type\":\"record\"}";
+
+    JsonElementConversionFactory.RecordConverter recordConverter =
+        new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
+            state, buildNamespace(state.getExtract().getNamespace(), "person"));
+    Assert.assertEquals(recordConverter.schema().toString(), expected);
+    Assert.assertEquals(recordConverter.schema().getField("someperson").schema().getNamespace(),
+        "namespace.person.myrecord");
+    Assert.assertEquals(recordConverter.schema().getNamespace(), "namespace.person");
+  }
+
+  @Test
+  public void schemaWithRecordOfEnumCheckNamespace()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"persons\", \"dataType\": {\"type\":\"record\",\"name\":\"myrecord\",\"values\":[{\"columnName\": \"someperson\", \"dataType\":{\"name\": \"choice\", \"type\":\"enum\",\"symbols\":[\"YES\", \"NO\"]}}]}}";
+    String expected =
+        "{\"type\":\"record\",\"name\":\"myrecord\",\"namespace\":\"namespace.something\",\"doc\":\"\",\"fields\":[{\"name\":\"someperson\",\"type\":{\"type\":\"enum\",\"name\":\"choice\",\"namespace\":\"namespace.something.myrecord\",\"doc\":\"\",\"symbols\":[\"YES\",\"NO\"],\"source.type\":\"enum\"},\"doc\":\"\",\"source.type\":\"enum\"}],\"source.type\":\"record\"}";
+    JsonElementConversionFactory.RecordConverter recordConverter =
+        new JsonElementConversionFactory.RecordConverter("dummy1", true, RECORD.toString(), buildJsonObject(schemaStr),
+            state, buildNamespace(state.getExtract().getNamespace(), "something"));
+
+    Assert.assertEquals(recordConverter.schema().toString(), expected);
+    Assert.assertEquals(recordConverter.schema().getField("someperson").schema().getNamespace(),
+        "namespace.something.myrecord");
+    Assert.assertEquals(recordConverter.schema().getNamespace(), "namespace.something");
   }
 
   /**

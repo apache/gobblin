@@ -76,15 +76,15 @@ public class JsonElementConversionFactory {
    * Use to create a converter for a single field from a schema.
    *
    * @param fieldName
-   * @param fieldType
-   * @param nullable
+   * @param namespace
+   *@param fieldType
    * @param schemaNode
    * @param state
-   * @return
+   * @param nullable     @return
    * @throws UnsupportedDateTypeException
    */
-  public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
-      WorkUnitState state, boolean nullable)
+  public static JsonElementConverter getConvertor(String fieldName, String namespace, String fieldType,
+      JsonObject schemaNode, WorkUnitState state, boolean nullable)
       throws UnsupportedDateTypeException {
 
     Type type;
@@ -140,10 +140,10 @@ public class JsonElementConversionFactory {
         return new MapConverter(fieldName, nullable, type.toString(), schemaNode, state);
 
       case ENUM:
-        return new EnumConverter(fieldName, nullable, type.toString(), schemaNode);
+        return new EnumConverter(fieldName, nullable, type.toString(), schemaNode, namespace);
 
       case RECORD:
-        return new RecordConverter(fieldName, nullable, type.toString(), schemaNode, state);
+        return new RecordConverter(fieldName, nullable, type.toString(), schemaNode, state, namespace);
 
       case NULL:
         return new NullConverter(fieldName, type.toString());
@@ -253,6 +253,16 @@ public class JsonElementConversionFactory {
      * @return
      */
     public abstract Schema.Type getTargetType();
+
+    protected static String buildNamespace(String namespace, String name) {
+      if (namespace == null || namespace.isEmpty()) {
+        return null;
+      }
+      if (name == null || name.isEmpty()) {
+        return null;
+      }
+      return namespace.trim() + "." + name.trim();
+    }
   }
 
   public static class StringConverter extends JsonElementConverter {
@@ -452,17 +462,17 @@ public class JsonElementConversionFactory {
       JsonElement arrayItems = schemaNode.get("dataType").getAsJsonObject().get("items");
       if (arrayItems.isJsonPrimitive()) {
         super.setElementConverter(
-            getConvertor(fieldName, arrayItems.getAsString(), schemaNode.get("dataType").getAsJsonObject(), state,
+            getConvertor(fieldName, "", arrayItems.getAsString(), schemaNode.get("dataType").getAsJsonObject(), state,
                 isNullable()));
       } else if (arrayItems.isJsonObject()) {
         String nestedType = arrayItems.getAsJsonObject().get("dataType").getAsJsonObject().get("type").getAsString();
         if (nestedType.equalsIgnoreCase("enum")) {
           super.setElementConverter(
-              getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject().get("dataType").getAsJsonObject(), state,
-                  isNullable()));
+              getConvertor(fieldName, "", nestedType, arrayItems.getAsJsonObject().get("dataType").getAsJsonObject(),
+                  state, isNullable()));
         } else {
           super.setElementConverter(
-              getConvertor(fieldName, nestedType, arrayItems.getAsJsonObject(), state, isNullable()));
+              getConvertor(fieldName, "", nestedType, arrayItems.getAsJsonObject(), state, isNullable()));
         }
       } else if (arrayItems.isJsonArray() || arrayItems.isJsonNull()) {
         throw new UnsupportedOperationException("Array types only allow values in schema as Primitive or a JsonObject");
@@ -503,12 +513,13 @@ public class JsonElementConversionFactory {
       JsonElement mapValues = schemaDataType.getAsJsonObject().get("values");
       if (mapValues.isJsonPrimitive()) {
         super.setElementConverter(
-            getConvertor(fieldName, mapValues.getAsString(), schemaDataType.getAsJsonObject(), state, isNullable()));
+            getConvertor(fieldName, "", mapValues.getAsString(), schemaDataType.getAsJsonObject(), state,
+                isNullable()));
       } else if (mapValues.isJsonObject()) {
         JsonObject mapValuesAsJsonObject = mapValues.getAsJsonObject();
         String mapValueNestedType = mapValuesAsJsonObject.get("dataType").getAsJsonObject().get("type").getAsString();
         super.setElementConverter(
-            getConvertor(fieldName, mapValueNestedType, mapValuesAsJsonObject, state, isNullable()));
+            getConvertor(fieldName, "", mapValueNestedType, mapValuesAsJsonObject, state, isNullable()));
       } else if (mapValues.isJsonArray() || mapValues.isJsonNull()) {
         throw new UnsupportedOperationException("Map types only allow values in schema as Primitive or a JsonObject");
       }
@@ -545,16 +556,16 @@ public class JsonElementConversionFactory {
     private Schema _schema;
 
     public RecordConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
-        WorkUnitState state)
+        WorkUnitState state, String namespace)
         throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
       _schemaNode = schemaNode;
       JsonObject schemaDataType = _schemaNode.get("dataType").getAsJsonObject();
       _schema = buildRecordSchema(schemaDataType.get("values").getAsJsonArray(), state,
-          getPropOrBlankString(schemaDataType, "name"));
+          getPropOrBlankString(schemaDataType, "name"), namespace);
     }
 
-    public Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit, String name) {
+    public Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit, String name, String namespace) {
       List<Schema.Field> fields = new ArrayList<>();
       for (JsonElement elem : schema) {
         JsonObject map = (JsonObject) elem;
@@ -563,11 +574,11 @@ public class JsonElementConversionFactory {
         String comment = getPropOrBlankString(map, "comment");
         boolean nullable = map.has("isNullable") ? map.get("isNullable").getAsBoolean() : false;
         Schema fldSchema;
-
+        String childNamespace = buildNamespace(namespace, name);
         try {
           JsonElementConversionFactory.JsonElementConverter converter = JsonElementConversionFactory
-              .getConvertor(columnName, map.get("dataType").getAsJsonObject().get("type").getAsString(), map, workUnit,
-                  nullable);
+              .getConvertor(columnName, childNamespace, map.get("dataType").getAsJsonObject().get("type").getAsString(),
+                  map, workUnit, nullable);
           this.converters.put(columnName, converter);
           fldSchema = converter.getSchema();
         } catch (UnsupportedDateTypeException e) {
@@ -579,8 +590,7 @@ public class JsonElementConversionFactory {
         fld.addProp("source.type", map.get("dataType").getAsJsonObject().get("type").getAsString());
         fields.add(fld);
       }
-
-      Schema avroSchema = Schema.createRecord(name.isEmpty() ? null : name, "", null, false);
+      Schema avroSchema = Schema.createRecord(name.isEmpty() ? null : name, "", namespace, false);
       avroSchema.setFields(fields);
 
       return avroSchema;
@@ -617,16 +627,19 @@ public class JsonElementConversionFactory {
 
   public static class EnumConverter extends JsonElementConverter {
     String enumName;
+    String namespace;
     List<String> enumSet = new ArrayList<>();
     Schema schema;
 
-    public EnumConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode) {
+    public EnumConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
+        String namespace) {
       super(fieldName, nullable, sourceType);
 
       for (JsonElement elem : schemaNode.get("dataType").getAsJsonObject().get("symbols").getAsJsonArray()) {
         this.enumSet.add(elem.getAsString());
       }
       this.enumName = schemaNode.get("dataType").getAsJsonObject().get("name").getAsString();
+      this.namespace = namespace;
     }
 
     @Override
@@ -641,7 +654,7 @@ public class JsonElementConversionFactory {
 
     @Override
     public Schema schema() {
-      this.schema = Schema.createEnum(this.enumName, "", "", this.enumSet);
+      this.schema = Schema.createEnum(this.enumName, "", namespace, this.enumSet);
       this.schema.addProp("source.type", "enum");
       return this.schema;
     }
