@@ -16,16 +16,21 @@
  */
 package org.apache.gobblin.runtime.util;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.stream.JsonReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.Properties;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+
 
 @Test(groups = { "gobblin.runtime" })
 public class JobStateToJsonConverterTest {
@@ -40,8 +45,33 @@ public class JobStateToJsonConverterTest {
   public void testJsonKeepConfig()
       throws IOException {
     String stateStorePath = getClass().getClassLoader().getResource(TEST_STORE).getPath();
+
     boolean keepConfig = true;
+
     JobStateToJsonConverter converter = new JobStateToJsonConverter(new Properties(), stateStorePath, keepConfig);
+
+    StringWriter stringWriter = new StringWriter();
+    converter.convert(TEST_JOB, stringWriter);
+
+    JsonObject json = new JsonParser().parse(new JsonReader(new StringReader(stringWriter.toString()))).getAsJsonObject();
+
+    Assert.assertNotNull(json.get(PROPERTIES));
+    for (JsonElement taskState: json.get(TASK_STATES).getAsJsonArray()) {
+      Assert.assertNotNull(taskState.getAsJsonObject().get(PROPERTIES));
+    }
+  }
+
+  @Test
+  public void testJsonKeepConfigWithoutStoreUrl()
+      throws IOException {
+    String stateStorePath = getClass().getClassLoader().getResource(TEST_STORE).getPath();
+    Properties properties = new Properties();
+
+    properties.setProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, stateStorePath);
+
+    boolean keepConfig = true;
+
+    JobStateToJsonConverter converter = new JobStateToJsonConverter(properties, null, keepConfig);
 
     StringWriter stringWriter = new StringWriter();
     converter.convert(TEST_JOB, stringWriter);
