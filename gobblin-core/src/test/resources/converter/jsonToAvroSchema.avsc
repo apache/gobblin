@@ -4,6 +4,10 @@
   "namespace": "org.apache.gobblin.test",
   "fields": [
     {
+      "name": "fieldToIgnore",
+      "type": "string"
+    },
+    {
       "name": "nullableField",
       "type": ["string", "null"]
     },
