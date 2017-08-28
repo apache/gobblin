@@ -221,7 +221,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     } finally {
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
       this.taskStateCollectorService.stopAsync().awaitTerminated();
-      deletePersistedWorkUnitsForJob();
+      cleanupWorkingDirectory();
     }
   }
 
@@ -352,11 +352,14 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Delete persisted {@link WorkUnit}s upon job completion.
+   * Delete persisted {@link WorkUnit}s and {@link JobState} upon job completion.
    */
-  private void deletePersistedWorkUnitsForJob() throws IOException {
+  private void cleanupWorkingDirectory() throws IOException {
     LOGGER.info("Deleting persisted work units for job " + this.jobContext.getJobId());
     stateStores.wuStateStore.delete(this.jobContext.getJobId());
+    LOGGER.info("Deleting job state file for job " + this.jobContext.getJobId());
+    Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
+    this.fs.delete(jobStateFilePath, false);
   }
 
   /**
