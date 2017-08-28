@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.converter.avro;
 
-import com.google.common.base.Preconditions;
 import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -29,6 +28,8 @@ import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.converter.ToAvroConverterBase;
 import com.google.gson.JsonObject;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 
 
 /**
@@ -37,14 +38,19 @@ import com.google.gson.JsonObject;
  */
 public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase<SI, JsonObject> {
 
+  private static final Splitter SPLITTER_ON_COMMA = Splitter.on(',').trimResults().omitEmptyStrings();
+
   public static final String AVRO_SCHEMA_KEY = "gobblin.converter.avroSchema";
+  public static final String IGNORE_FIELDS = "gobblin.converter.ignoreFields";
 
   private Schema schema;
+  private List<String> ignoreFields;
 
   public ToAvroConverterBase<SI, JsonObject> init(WorkUnitState workUnit) {
     super.init(workUnit);
     Preconditions.checkArgument(workUnit.contains(AVRO_SCHEMA_KEY));
     this.schema = new Schema.Parser().parse(workUnit.getProp(AVRO_SCHEMA_KEY));
+    this.ignoreFields = SPLITTER_ON_COMMA.splitToList(workUnit.getProp(IGNORE_FIELDS, ""));
     return this;
   }
 
@@ -70,6 +76,11 @@ public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase
     GenericRecord avroRecord = new GenericData.Record(outputSchema);
     JsonElementConversionWithAvroSchemaFactory.JsonElementConverter converter;
     for (Schema.Field field : outputSchema.getFields()) {
+
+      if (this.ignoreFields.contains(field.name())) {
+        continue;
+      }
+
       if (inputRecord.get(field.name()) == null) {
         throw new DataConversionException("Field missing from record: " + field.name());
       }
