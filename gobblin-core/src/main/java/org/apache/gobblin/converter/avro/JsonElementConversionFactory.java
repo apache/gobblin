@@ -28,6 +28,7 @@ import java.util.TimeZone;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -602,14 +603,13 @@ public class JsonElementConversionFactory {
 
     @Override
     Object convertField(JsonElement value) {
-      Map<String, Object> map = new HashMap<>();
+      GenericRecord avroRecord = new GenericData.Record(_schema);
 
       for (Map.Entry<String, JsonElement> entry : ((JsonObject) value).entrySet()) {
         JsonElementConverter converter = this.converters.get(entry.getKey());
-        map.put(entry.getKey(), converter.convertField(entry.getValue()));
+        avroRecord.put(entry.getKey(), converter.convert(entry.getValue()));
       }
-
-      return map;
+      return avroRecord;
     }
 
     @Override
