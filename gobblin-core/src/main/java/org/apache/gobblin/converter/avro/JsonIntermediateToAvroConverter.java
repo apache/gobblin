@@ -34,6 +34,8 @@ import org.apache.gobblin.converter.EmptyIterable;
 import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.converter.ToAvroConverterBase;
+import org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter;
+import org.apache.gobblin.converter.avro.JsonElementConversionFactory.UnionConverter;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -47,6 +49,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter.buildNamespace;
+import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter.JsonUtils.*;
 
 
 /**
@@ -56,7 +59,7 @@ import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Jso
  *
  */
 public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArray, JsonObject> {
-  private Map<String, JsonElementConversionFactory.JsonElementConverter> converters = new HashMap<>();
+  private Map<String, JsonElementConverter> converters = new HashMap<>();
   private static final Logger LOG = LoggerFactory.getLogger(JsonIntermediateToAvroConverter.class);
   private static final String CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED = "converter.avro.nullify.fields.enabled";
   private static final boolean DEFAULT_CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED = Boolean.FALSE;
@@ -66,37 +69,40 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
   private long numFailedConversion = 0;
 
   @Override
-  public Schema convertSchema(JsonArray schema, WorkUnitState workUnit) throws SchemaConversionException {
+  public Schema convertSchema(JsonArray schema, WorkUnitState workUnit)
+      throws SchemaConversionException {
     List<Schema.Field> fields = new ArrayList<>();
 
     for (JsonElement elem : schema) {
       JsonObject map = (JsonObject) elem;
 
-      String columnName = map.get("columnName").getAsString();
-      String comment = map.has("comment") ? map.get("comment").getAsString() : "";
-      String name = map.has("name") ? map.get("name").getAsString() : null;
-      boolean nullable = map.has("isNullable") ? map.get("isNullable").getAsBoolean() : false;
+      String columnName = getPropOrBlankString(map, "columnName");
+      String comment = getPropOrBlankString(map, "comment");
+      String tempName = getPropOrBlankString(map, "name");
+      String name = tempName.isEmpty() ? null : tempName;
+      boolean nullable = getBooleanIfExists(map, "isNullable");
       Schema fldSchema;
-      JsonElement dataTypeType = map.get("dataType").getAsJsonObject().get("type");
+      JsonArray dataTypeType = getDataTypeTypeFromSchema(map);
+      JsonElementConverter converter;
+      String sourceType;
       try {
-        if (dataTypeType.isJsonArray()) {
-          JsonElementConversionFactory.JsonElementConverter unionConverter =
-              new JsonElementConversionFactory.UnionConverter(columnName, "UNION", map, workUnit);
-          this.converters.put(columnName, unionConverter);
-          fldSchema = unionConverter.schema();
+        if (isUnionType(map)) {
+          converter = new UnionConverter(columnName, "UNION", map, workUnit);
+          sourceType = "union";
         } else {
-          JsonElementConversionFactory.JsonElementConverter converter = JsonElementConversionFactory
-              .getConvertor(columnName, buildNamespace(workUnit.getExtract().getNamespace(), name),
-                  dataTypeType.getAsString(), map, workUnit, nullable);
-          this.converters.put(columnName, converter);
-          fldSchema = converter.getSchema();
+          sourceType = getFirstType(dataTypeType).getAsString();
+          converter = JsonElementConversionFactory
+              .getConvertor(columnName, buildNamespace(workUnit.getExtract().getNamespace(), name), sourceType, map,
+                  workUnit, nullable);
         }
+        this.converters.put(columnName, converter);
+        fldSchema = converter.getSchema();
       } catch (UnsupportedDateTypeException e) {
         throw new SchemaConversionException(e);
       }
 
       Field fld = new Field(columnName, fldSchema, comment, nullable ? JsonNodeFactory.instance.nullNode() : null);
-      fld.addProp("source.type", dataTypeType.isJsonArray() ? "union" : dataTypeType.getAsString());
+      fld.addProp("source.type", sourceType);
       fields.add(fld);
     }
 

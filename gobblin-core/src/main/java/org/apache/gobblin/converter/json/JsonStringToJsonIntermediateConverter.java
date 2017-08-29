@@ -35,6 +35,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 
+import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter.JsonUtils.*;
 
 /**
  * Converts a json string to a {@link JsonObject}.
@@ -395,146 +396,166 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     return jsonArray(schemaObj);
   }
 
-  /**
-   * Fetches dataType.values from the JsonObject
-   * @param schemaObject
-   * @return
-   */
-  private JsonElement getValuesWithinDataType(JsonObject schemaObject) {
-    return getDataType(schemaObject).get("values");
-  }
-
-  /**
-   * Gets size for fixed type viz dataType.size from the JsonObject
-   * @param schemaObject
-   * @return
-   */
-  private int getSizeOfFixedData(JsonObject schemaObject) {
-    return getDataType(schemaObject).get("size").getAsInt();
-  }
-
-  /**
-   * Gets schema of record which is present within array schema.
-   * @param schemaObject
-   * @return
-   */
-  private JsonArray getSchemaForArrayHavingRecord(JsonObject schemaObject) {
-    return getValuesWithinDataType(getItems(getDataType(schemaObject)).getAsJsonObject()).getAsJsonArray();
-  }
-
-  /**
-   * Gets allowed symbols in enum from schema of enum type
-   * @param schemaObject
-   * @return
-   */
-  private JsonArray allowedSymbolsInEnum(JsonObject schemaObject) {
-    return getDataType(schemaObject).get("symbols").getAsJsonArray();
-  }
-
-  private boolean isEnumType(JsonObject schemaObject) {
-    return getDataTypeTypeFromSchema(schemaObject).get(0).getAsString().equalsIgnoreCase("enum");
-  }
-
-  /**
-   * Get dataType.type from schema
-   * @param schemaObject
-   * @return
-   */
-  private JsonArray getDataTypeTypeFromSchema(JsonObject schemaObject) {
-    JsonObject dataType = getDataType(schemaObject);
-    return dataType.has("type") ? dataType.get("type").isJsonPrimitive() ? jsonArray(dataType.get("type"))
-        : (dataType.get("type").isJsonArray() ? dataType.get("type").getAsJsonArray() : null) : null;
-  }
-
-  /**
-   * Get dataType.type from schema
-   * @param schemaElement
-   * @return
-   */
-  private JsonArray getDataTypeTypeFromSchema(JsonElement schemaElement) {
-    JsonObject dataType = getDataType(schemaElement.getAsJsonObject());
-    return dataType.has("type") ? dataType.get("type").isJsonPrimitive() ? jsonArray(dataType.get("type"))
-        : (dataType.get("type").isJsonArray() ? dataType.get("type").getAsJsonArray() : null) : null;
-  }
-
-  /**
-   * Creates a {@link JsonArray} with one {@link JsonElement}
-   * @param element
-   * @return
-   */
-  private JsonArray jsonArray(JsonElement element) {
-    JsonArray temp = new JsonArray();
-    temp.add(element);
-    return temp;
-  }
-
-  private String getColumnName(JsonObject schemaObject) {
-    return schemaObject.get("columnName").getAsString();
-  }
-
-  private boolean isMapType(JsonElement schema) {
-    return isTypeEqual(schema, "map");
-  }
-
-  private boolean isRecordType(JsonElement schema) {
-    return isTypeEqual(schema, "record");
-  }
-
-  private boolean isUnionType(JsonObject schemaObject) {
-    JsonArray type = getDataTypeTypeFromSchema(schemaObject);
-    return (type != null ? type.size() : 0) == 2;
-  }
-
-  private boolean isPrimitiveType(String arrayType) {
-    return arrayType != null && "null boolean int long float double bytes string enum fixed"
-        .contains(arrayType.toLowerCase());
-  }
-
-  private boolean isFixedType(JsonElement schema) {
-    return isTypeEqual(schema, "fixed");
-  }
-
-  private boolean isArrayType(JsonElement schema) {
-    return isTypeEqual(schema, "array");
-  }
-
-  private boolean isTypeEqual(JsonElement schema, String expectedType) {
-    JsonArray type = getDataTypeTypeFromSchema(schema);
-    return type.get(0).getAsString().equalsIgnoreCase(expectedType);
-  }
-
-  private boolean isNullType(JsonElement schemeElement) {
-    return isTypeEqual(schemeElement, "null");
-  }
-
-  /**
-   * Fetches the nested or primitive array items type from schema.
-   * @param schema
-   * @return
-   * @throws DataConversionException
-   */
-  private String arrayType(JsonElement schema)
-      throws DataConversionException {
-    if (!isArrayType(schema)) {
-      return null;
+  public static class JsonUtils {
+    /**
+     * Fetches dataType.values from the JsonObject
+     * @param schemaObject
+     * @return
+     */
+    public static JsonElement getValuesWithinDataType(JsonObject schemaObject) {
+      return getDataType(schemaObject).get("values");
     }
 
-    JsonElement arrayValues = getItems(getDataType(schema.getAsJsonObject()));
-
-    try {
-      return arrayValues.isJsonPrimitive() && arrayValues.getAsJsonPrimitive().isString() ? arrayValues.getAsString()
-          : getDataTypeTypeFromSchema(arrayValues.getAsJsonObject()).get(0).getAsString();
-    } catch (UnsupportedOperationException | IllegalStateException e) {
-      //values is not string and a nested json array
-      throw new DataConversionException("Array types only allow values as primitive, null or JsonObject");
+    /**
+     * Gets size for fixed type viz dataType.size from the JsonObject
+     * @param schemaObject
+     * @return
+     */
+    public static int getSizeOfFixedData(JsonObject schemaObject) {
+      return getDataType(schemaObject).get("size").getAsInt();
     }
-  }
 
-  private JsonElement getItems(JsonObject object) {
-    return object.get("items");
-  }
+    /**
+     * Gets schema of record which is present within array schema.
+     * @param schemaObject
+     * @return
+     */
+    public static JsonArray getSchemaForArrayHavingRecord(JsonObject schemaObject) {
+      return getValuesWithinDataType(getItems(getDataType(schemaObject)).getAsJsonObject()).getAsJsonArray();
+    }
 
-  private JsonObject getDataType(JsonObject element) {
-    return element.get("dataType").getAsJsonObject();
+    /**
+     * Gets allowed symbols in enum from schema of enum type
+     * @param schemaObject
+     * @return
+     */
+    public static JsonArray allowedSymbolsInEnum(JsonObject schemaObject) {
+      return getDataType(schemaObject).get("symbols").getAsJsonArray();
+    }
+
+    public static boolean isEnumType(JsonObject schemaObject) {
+      return getDataTypeTypeFromSchema(schemaObject).get(0).getAsString().equalsIgnoreCase("enum");
+    }
+
+    /**
+     * Get dataType.type from schema
+     * @param schemaObject
+     * @return
+     */
+    public static JsonArray getDataTypeTypeFromSchema(JsonObject schemaObject) {
+      JsonObject dataType = getDataType(schemaObject);
+      return dataType.has("type") ? dataType.get("type").isJsonPrimitive() ? jsonArray(dataType.get("type"))
+          : (dataType.get("type").isJsonArray() ? dataType.get("type").getAsJsonArray() : null) : null;
+    }
+
+    /**
+     * Get dataType.type from schema
+     * @param schemaElement
+     * @return
+     */
+    public static JsonArray getDataTypeTypeFromSchema(JsonElement schemaElement) {
+      return getDataTypeTypeFromSchema(schemaElement.getAsJsonObject());
+    }
+
+    /**
+     * Creates a {@link JsonArray} with one {@link JsonElement}
+     * @param element
+     * @return
+     */
+    public static JsonArray jsonArray(JsonElement element) {
+      JsonArray temp = new JsonArray();
+      temp.add(element);
+      return temp;
+    }
+
+    public static String getColumnName(JsonObject schemaObject) {
+      return schemaObject.get("columnName").getAsString();
+    }
+
+    public static boolean isMapType(JsonElement schema) {
+      return isTypeEqual(schema, "map");
+    }
+
+    public static boolean isRecordType(JsonElement schema) {
+      return isTypeEqual(schema, "record");
+    }
+
+    public static boolean isUnionType(JsonObject schemaObject) {
+      JsonArray type = getDataTypeTypeFromSchema(schemaObject);
+      return (type != null ? type.size() : 0) == 2;
+    }
+
+    public static boolean isPrimitiveType(String arrayType) {
+      return arrayType != null && "null boolean int long float double bytes string enum fixed"
+          .contains(arrayType.toLowerCase());
+    }
+
+    public static boolean isFixedType(JsonElement schema) {
+      return isTypeEqual(schema, "fixed");
+    }
+
+    public static boolean isArrayType(JsonElement schema) {
+      return isTypeEqual(schema, "array");
+    }
+
+    public static boolean isTypeEqual(JsonElement schema, String expectedType) {
+      JsonArray type = getDataTypeTypeFromSchema(schema);
+      return type.get(0).getAsString().equalsIgnoreCase(expectedType);
+    }
+
+    public static boolean isNullType(JsonElement schemeElement) {
+      return isTypeEqual(schemeElement, "null");
+    }
+
+    /**
+     * Fetches the nested or primitive array items type from schema.
+     * @param schema
+     * @return
+     * @throws DataConversionException
+     */
+    public static String arrayType(JsonElement schema)
+        throws DataConversionException {
+      if (!isArrayType(schema)) {
+        return null;
+      }
+
+      JsonElement arrayValues = getItems(getDataType(schema.getAsJsonObject()));
+
+      try {
+        return arrayValues.isJsonPrimitive() && arrayValues.getAsJsonPrimitive().isString() ? arrayValues.getAsString()
+            : getDataTypeTypeFromSchema(arrayValues.getAsJsonObject()).get(0).getAsString();
+      } catch (UnsupportedOperationException | IllegalStateException e) {
+        //values is not string and a nested json array
+        throw new DataConversionException("Array types only allow values as primitive, null or JsonObject");
+      }
+    }
+
+    public static JsonElement getItems(JsonObject object) {
+      return object.get("items");
+    }
+
+    public static JsonObject getDataType(JsonObject element) {
+      return element.get("dataType").getAsJsonObject();
+    }
+
+    public static String getPropOrBlankString(JsonObject map, String key) {
+      return map.has(key) ? map.get(key).getAsString() : "";
+    }
+
+    public static boolean getBooleanIfExists(JsonObject map, String key) {
+      return map.has(key) && map.get(key).getAsBoolean();
+    }
+
+    public static JsonElement getType(JsonArray jsonArray) {
+      return getFirstType(jsonArray);
+    }
+
+    public static JsonElement getFirstType(JsonArray jsonArray) {
+      return jsonArray.get(0);
+    }
+
+    public static JsonElement getSecondType(JsonArray jsonArray) {
+      return jsonArray.get(1);
+    }
   }
 }
