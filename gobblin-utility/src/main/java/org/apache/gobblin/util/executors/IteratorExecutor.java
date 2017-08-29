@@ -169,4 +169,35 @@ public class IteratorExecutor<T> {
     }
   }
 
+  /**
+   * Log failures in the output of {@link #executeAndGetResults()}, and also propagate exception to upper layer.
+   * @param results output of {@link #executeAndGetResults()}
+   * @param useLogger logger to log the messages into.
+   * @param atMost will log at most this many errors.
+   */
+  public static <T> void logAndThrowFailures(List<Either<T, ExecutionException>> results, Logger useLogger, int atMost) {
+    Logger actualLogger = useLogger == null ? log : useLogger;
+    Iterator<Either<T, ExecutionException>> it = results.iterator();
+    int printed = 0;
+    ExecutionException exc = null;
+
+    while (it.hasNext()) {
+      Either<T, ExecutionException> nextResult = it.next();
+      if (nextResult instanceof Either.Right) {
+        exc = ((Either.Right<T, ExecutionException>) nextResult).getRight();
+        actualLogger.error("Iterator executor failure.", exc);
+        printed++;
+        if (printed >= atMost) {
+          break;
+        }
+      }
+    }
+
+    /**
+     * Throw any exception that Executor ran into.
+     */
+    if (printed > 0) {
+      throw new RuntimeException(exc);
+    }
+  }
 }
