@@ -343,6 +343,8 @@ public class ReplicationConfiguration {
       else {
         Set<String> currentCopyTo = new HashSet<>();
         for (final Map.Entry<String, EndPoint> valid : validEndPoints.entrySet()) {
+
+          // Only generate copyRoute from the EndPoint that running this job.
           if (routesConfig.hasPath(valid.getKey())) {
             List<String> copyToStringsRaw = routesConfig.getStringList(valid.getKey());
             List<String> copyToStrings = new ArrayList<>();
