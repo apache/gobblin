@@ -145,6 +145,12 @@ public class HadoopUtils {
     }
   }
 
+  public static void deleteDirectories(FileSystem fs, List<String> directoriesToDelete, boolean recursive) throws IOException {
+    for (String directory : directoriesToDelete) {
+      deletePath(fs, new Path(directory), recursive);
+    }
+  }
+
   /**
    * A wrapper around {@link FileSystem#delete(Path, boolean)} that only deletes a given {@link Path} if it is present
    * on the given {@link FileSystem}.

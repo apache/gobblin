@@ -17,17 +17,24 @@
 
 package org.apache.gobblin.data.management.conversion.hive.task;
 
+import java.util.Map;
+import java.util.List;
+
+import org.apache.gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.Table;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import java.util.List;
-import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
-import org.apache.gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
@@ -39,11 +46,8 @@ import org.apache.gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.AutoReturnableObject;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.api.Table;
 
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 
@@ -56,8 +60,8 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
   private final String outputDatabaseName;
   private final String outputTableName;
   private final String outputDataLocation;
-  private final String outputStagingTableName;
-  private final String outputStagingDataLocation;
+  private final String stagingTableName;
+  private final String stagingDataLocation;
   private final List<String> sourceDataPathIdentifier;
   private final String stagingDataPartitionDirName;
   private final String stagingDataPartitionLocation;
@@ -75,19 +79,19 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
     this.hiveDataset = (ConvertibleHiveDataset) workUnit.getHiveDataset();
     this.inputDbName = hiveDataset.getDbAndTable().getDb();
     this.inputTableName = hiveDataset.getDbAndTable().getTable();
-    this.fs = HiveConverterUtils.getSourceFs(workUnitState);
+    this.fs = HiveSource.getSourceFs(workUnitState);
     this.conversionConfig = hiveDataset.getConversionConfigForFormat("sameAsSource").get();
     this.outputDatabaseName = conversionConfig.getDestinationDbName();
     this.outputTableName = conversionConfig.getDestinationTableName();
     this.outputDataLocation = HiveConverterUtils.getOutputDataLocation(conversionConfig.getDestinationDataPath());
-    this.outputStagingTableName = HiveConverterUtils.getStagingTableName(conversionConfig.getDestinationStagingTableName());
-    this.outputStagingDataLocation = HiveConverterUtils.getStagingDataLocation(conversionConfig.getDestinationDataPath(), outputStagingTableName);
+    this.stagingTableName = HiveConverterUtils.getStagingTableName(conversionConfig.getDestinationStagingTableName());
+    this.stagingDataLocation = HiveConverterUtils.getStagingDataLocation(conversionConfig.getDestinationDataPath(), stagingTableName);
     this.sourceDataPathIdentifier = conversionConfig.getSourceDataPathIdentifier();
     this.pool = HiveMetastoreClientPool.get(workUnitState.getJobState().getProperties(),
         Optional.fromNullable(workUnitState.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
     this.conversionEntity = getConversionEntity();
     this.stagingDataPartitionDirName = HiveConverterUtils.getStagingDataPartitionDirName(conversionEntity, sourceDataPathIdentifier);
-    this.stagingDataPartitionLocation = outputStagingDataLocation + Path.SEPARATOR + stagingDataPartitionDirName;
+    this.stagingDataPartitionLocation = stagingDataLocation + Path.SEPARATOR + stagingDataPartitionDirName;
     this.partitionsDDLInfo = Maps.newHashMap();
     this.partitionsDMLInfo = Maps.newHashMap();
     HiveConverterUtils.populatePartitionInfo(conversionEntity, partitionsDDLInfo, partitionsDMLInfo);
@@ -111,8 +115,8 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
         HiveConverterUtils.generateCreateDuplicateTableDDL(
             inputDbName,
             inputTableName,
-            outputStagingTableName,
-            outputStagingDataLocation,
+            stagingTableName,
+            stagingDataLocation,
             Optional.of(outputDatabaseName));
     hiveQueries.add(createStagingTableDDL);
     log.debug("Create staging table DDL:\n" + createStagingTableDDL);
@@ -121,7 +125,7 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
     if (partitionsDMLInfo.size() > 0) {
       List<String> createStagingPartitionDDL =
           HiveAvroORCQueryGenerator.generateCreatePartitionDDL(outputDatabaseName,
-              outputStagingTableName,
+              stagingTableName,
               stagingDataPartitionLocation,
               partitionsDMLInfo);
 
@@ -135,12 +139,10 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
         HiveConverterUtils
             .generateTableCopy(
                 inputTableName,
-                outputStagingTableName,
-                Optional.of(conversionEntity.getHiveTable().getDbName()),
-                Optional.of(outputDatabaseName),
-                Optional.of(partitionsDMLInfo),
-                Optional.absent(),
-                Optional.absent());
+                stagingTableName,
+                conversionEntity.getHiveTable().getDbName(),
+                outputDatabaseName,
+                Optional.of(partitionsDMLInfo));
     hiveQueries.add(insertInStagingTableDML);
     log.debug("Conversion staging DML: " + insertInStagingTableDML);
 
@@ -165,8 +167,16 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
     log.debug("Create final table DDL:\n" + createFinalTableDDL);
 
     if (partitionsDDLInfo.size() == 0) {
-      HiveConverterUtils.cleanUpNonPartitionedTable(publishDirectories, cleanupQueries, outputStagingDataLocation,
-          cleanupDirectories, outputDataLocation, outputDatabaseName, outputStagingTableName);
+      log.debug("Snapshot directory to move: " + stagingDataLocation + " to: " + outputDataLocation);
+      publishDirectories.put(stagingDataLocation, outputDataLocation);
+
+      String dropStagingTableDDL = HiveAvroORCQueryGenerator.generateDropTableDDL(outputDatabaseName, stagingTableName);
+
+      log.debug("Drop staging table DDL: " + dropStagingTableDDL);
+      cleanupQueries.add(dropStagingTableDDL);
+
+      log.debug("Staging table directory to delete: " + stagingDataLocation);
+      cleanupDirectories.add(stagingDataLocation);
     } else {
       String finalDataPartitionLocation = outputDataLocation + Path.SEPARATOR + stagingDataPartitionDirName;
       Optional<Path> destPartitionLocation =
@@ -189,13 +199,13 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
       publishQueries.addAll(createFinalPartitionDDL);
 
       String dropStagingTableDDL =
-          HiveAvroORCQueryGenerator.generateDropTableDDL(outputDatabaseName, outputStagingTableName);
+          HiveAvroORCQueryGenerator.generateDropTableDDL(outputDatabaseName, stagingTableName);
 
       log.debug("Drop staging table DDL: " + dropStagingTableDDL);
       cleanupQueries.add(dropStagingTableDDL);
 
-      log.debug("Staging table directory to delete: " + outputStagingDataLocation);
-      cleanupDirectories.add(outputStagingDataLocation);
+      log.debug("Staging table directory to delete: " + stagingDataLocation);
+      cleanupDirectories.add(stagingDataLocation);
     }
 
     publishQueries.addAll(HiveAvroORCQueryGenerator.generateDropPartitionsDDL(outputDatabaseName, outputTableName,

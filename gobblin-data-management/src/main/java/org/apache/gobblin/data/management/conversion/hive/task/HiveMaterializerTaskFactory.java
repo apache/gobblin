@@ -21,10 +21,11 @@ import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.NoopPublisher;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskIFace;
 
 
-public class HiveMaterializerTaskFactory extends HiveTaskFactory {
+public class HiveMaterializerTaskFactory implements TaskFactory {
   @Override
   public TaskIFace createTask(TaskContext taskContext) {
     try {

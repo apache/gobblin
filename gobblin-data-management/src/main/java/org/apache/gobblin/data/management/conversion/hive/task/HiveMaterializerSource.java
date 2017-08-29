@@ -18,20 +18,30 @@
 package org.apache.gobblin.data.management.conversion.hive.task;
 
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSource;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
 import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class HiveMaterializerSource extends HiveAvroToOrcSource {
+public class HiveMaterializerSource extends HiveSource {
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
+    if (!state.contains(HIVE_SOURCE_DATASET_FINDER_CLASS_KEY)) {
+      state.setProp(HIVE_SOURCE_DATASET_FINDER_CLASS_KEY, ConvertibleHiveDatasetFinder.class.getName());
+    }
+    if (!state.contains(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY)) {
+      state.setProp(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, "hive.conversion.avro");
+    }
+
     List<WorkUnit> workUnits = super.getWorkunits(state);
 
     for(WorkUnit workUnit : workUnits) {

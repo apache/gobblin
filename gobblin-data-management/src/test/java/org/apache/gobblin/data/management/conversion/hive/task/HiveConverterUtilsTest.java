@@ -42,8 +42,7 @@ public class HiveConverterUtilsTest {
         + "`" + partitionName + "`='" + partitionsDMLInfo.get(partitionName) + "' \n";
 
     String actualQuery = HiveConverterUtils.generateTableCopy(inputTableName,
-        outputTableName, Optional.of(inputDbName), Optional.of(outputDatabaseName), Optional.of(partitionsDMLInfo),
-        Optional.absent(), Optional.absent());
+        outputTableName, inputDbName, outputDatabaseName, Optional.of(partitionsDMLInfo));
     Assert.assertEquals(expectedQuery, actualQuery);
   }
 }

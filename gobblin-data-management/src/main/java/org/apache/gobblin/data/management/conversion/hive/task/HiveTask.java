@@ -17,13 +17,17 @@
 
 package org.apache.gobblin.data.management.conversion.hive.task;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
@@ -33,22 +37,21 @@ import org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSource
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.task.BaseAbstractTask;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.HiveJdbcConnector;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.hadoop.fs.FileSystem;
 
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class HiveTask extends BaseAbstractTask {
+public abstract class HiveTask extends BaseAbstractTask {
   protected final TaskContext taskContext;
   protected final WorkUnitState workUnitState;
   protected final HiveWorkUnit workUnit;
   protected final EventSubmitter eventSubmitter;
-  protected List<String> hiveExecutionQueries;
-  protected QueryBasedHivePublishEntity queryBasedHivePublishEntity;
-  protected QueryGenerator queryGenerator;
-  protected HiveJdbcConnector hiveJdbcConnector;
+  protected final List<String> hiveExecutionQueries;
   protected final QueryBasedHivePublishEntity publishEntity;
+  protected final HiveJdbcConnector hiveJdbcConnector;
 
   public HiveTask(TaskContext taskContext) {
     super(taskContext);
@@ -58,13 +61,12 @@ public class HiveTask extends BaseAbstractTask {
     this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, "gobblin.HiveTask")
         .build();
     this.hiveExecutionQueries = Lists.newArrayList();
+    this.publishEntity = new QueryBasedHivePublishEntity();
     try {
       this.hiveJdbcConnector = HiveJdbcConnector.newConnectorWithProps(this.workUnitState.getProperties());
     } catch (SQLException se) {
-      log.error("Error in creating JDBC Connector", se);
+      throw new RuntimeException("Error in creating JDBC Connector", se);
     }
-    this.queryBasedHivePublishEntity = new QueryBasedHivePublishEntity();
-    this.publishEntity = new QueryBasedHivePublishEntity();
   }
 
   /**
@@ -72,29 +74,14 @@ public class HiveTask extends BaseAbstractTask {
    * @return list of hive queries
    * @throws Exception
    */
-  public List<String> generateHiveQueries() throws Exception {
-    return Lists.newArrayList();
-  }
+  public abstract List<String> generateHiveQueries() throws Exception;
 
   /**
    * Generate publish and cleanup queries for hive datasets/partitions
    * @return QueryBasedHivePublishEntity having cleanup and publish queries
    * @throws Exception
    */
-  public QueryBasedHivePublishEntity generatePublishQueries() throws Exception {
-    return new QueryBasedHivePublishEntity();
-  }
-
-  protected void executeQueries(List<String> queries) {
-    if (null == queries || queries.size() == 0) {
-      return;
-    }
-    try {
-      this.hiveJdbcConnector.executeStatements(queries.toArray(new String[queries.size()]));
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
-    }
-  }
+  public abstract QueryBasedHivePublishEntity generatePublishQueries() throws Exception;
 
   protected void executePublishQueries(QueryBasedHivePublishEntity publishEntity) {
     Set<String> cleanUpQueries = Sets.newLinkedHashSet();
@@ -103,7 +90,7 @@ public class HiveTask extends BaseAbstractTask {
     FileSystem fs = null;
 
     try {
-      fs = HiveConverterUtils.getSourceFs(workUnitState);
+      fs = HiveSource.getSourceFs(workUnitState);
 
       if (publishEntity.getCleanupQueries() != null) {
         cleanUpQueries.addAll(publishEntity.getCleanupQueries());
@@ -118,7 +105,7 @@ public class HiveTask extends BaseAbstractTask {
         Map<String, String> publishDirectories = publishEntity.getPublishDirectories();
         try {
           for (Map.Entry<String, String> publishDir : publishDirectories.entrySet()) {
-            HiveConverterUtils.moveDirectory(fs, publishDir.getKey(), publishDir.getValue());
+            HadoopUtils.renamePath(fs, new Path(publishDir.getKey()), new Path(publishDir.getValue()), true);
           }
         } catch (Exception e) {
           log.error("error in move dir");
@@ -131,8 +118,7 @@ public class HiveTask extends BaseAbstractTask {
 
       WorkUnitState wus = this.workUnitState;
 
-      // Actual publish: Register snapshot / partition
-      executeQueries(Lists.newArrayList(publishQueries));
+      this.hiveJdbcConnector.executeStatements(publishQueries.toArray(new String[publishQueries.size()]));
 
       wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
 
@@ -144,14 +130,13 @@ public class HiveTask extends BaseAbstractTask {
     } catch (Exception e) {
       log.error("Error in HiveMaterializer generate publish queries", e);
     } finally {
-
       try {
-        executeQueries(Lists.newArrayList(cleanUpQueries));
+        this.hiveJdbcConnector.executeStatements(cleanUpQueries.toArray(new String[cleanUpQueries.size()]));
       } catch (Exception e) {
         log.error("Failed to cleanup staging entities in Hive metastore.", e);
       }
       try {
-        HiveConverterUtils.deleteDirectories(fs, directoriesToDelete);
+        HadoopUtils.deleteDirectories(fs, directoriesToDelete, true);
       } catch (Exception e) {
         log.error("Failed to cleanup staging directories.", e);
       }
@@ -161,8 +146,10 @@ public class HiveTask extends BaseAbstractTask {
   @Override
   public void run() {
     try {
-      executeQueries(generateHiveQueries());
+      List<String> queries = generateHiveQueries();
+      this.hiveJdbcConnector.executeStatements(queries.toArray(new String[queries.size()]));
     } catch (Exception e) {
+      this.workingState = WorkUnitState.WorkingState.FAILED;
       log.error("Exception in HiveTask generateHiveQueries ", e);
     }
     super.run();
@@ -173,9 +160,9 @@ public class HiveTask extends BaseAbstractTask {
     try {
       executePublishQueries(generatePublishQueries());
     } catch (Exception e) {
+      this.workingState = WorkUnitState.WorkingState.FAILED;
       log.error("Exception in HiveTask generate publish HiveQueries ", e);
     }
     super.commit();
   }
-
 }

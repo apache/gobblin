@@ -17,33 +17,17 @@
 
 package org.apache.gobblin.data.management.conversion.hive.task;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.Schema;
+import static java.util.stream.Collectors.joining;
+
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.converter.DataConversionException;
-import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
-import org.apache.gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
-import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
-import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
-import org.apache.gobblin.data.management.copy.hive.HiveUtils;
-import org.apache.gobblin.hive.HiveMetastoreClientPool;
-import org.apache.gobblin.util.AutoReturnableObject;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.WriterUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -55,11 +39,34 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.thrift.TException;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.data.management.copy.hive.HiveUtils;
+import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.HadoopUtils;
+
+import lombok.extern.slf4j.Slf4j;
+
+
+
 
 @Slf4j
-public class HiveConverterUtils {
 
-  private static final String DEFAULT_DB_NAME = "default";
+/**
+ * A utility class for converting hive data from one dataset to another.
+ */
+public class HiveConverterUtils {
 
   /***
    * Subdirectory within destination table directory to publish data
@@ -87,7 +94,7 @@ public class HiveConverterUtils {
   public static final boolean DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP = false;
 
   public static String getStagingTableName(String stagingTableNamePrefix) {
-    int randomNumber = new Random().nextInt(10);
+    int randomNumber = new Random().nextInt(100);
     String uniqueStagingTableQualifier = String.format("%s%s", System.currentTimeMillis(), randomNumber);
 
     return stagingTableNamePrefix + "_" + uniqueStagingTableQualifier;
@@ -134,126 +141,54 @@ public class HiveConverterUtils {
         dbName, tblName, inputDbName, inputTblName, tblLocation);
   }
 
+  /**
+   * Fills data from input table into output table.
+   * @param inputTblName input hive table name
+   * @param outputTblName output hive table name
+   * @param inputDbName input hive database name
+   * @param outputDbName output hive database name
+   * @param optionalPartitionDMLInfo input hive table's partition's name and value
+   * @return Hive query string
+   */
   public static String generateTableCopy(
       String inputTblName,
       String outputTblName,
-      Optional<String> optionalInputDbName,
-      Optional<String> optionalOutputDbName,
-      Optional<Map<String, String>> optionalPartitionDMLInfo,
-      Optional<Boolean> optionalOverwriteTable,
-      Optional<Boolean> optionalCreateIfNotExists) {
+      String inputDbName,
+      String outputDbName,
+      Optional<Map<String, String>> optionalPartitionDMLInfo) {
     Preconditions.checkArgument(StringUtils.isNotBlank(inputTblName));
     Preconditions.checkArgument(StringUtils.isNotBlank(outputTblName));
+    Preconditions.checkArgument(StringUtils.isNotBlank(inputDbName));
+    Preconditions.checkArgument(StringUtils.isNotBlank(outputDbName));
 
-    String inputDbName = optionalInputDbName.isPresent() ? optionalInputDbName.get() : DEFAULT_DB_NAME;
-    String outputDbName = optionalOutputDbName.isPresent() ? optionalOutputDbName.get() : DEFAULT_DB_NAME;
-    boolean shouldOverwriteTable = optionalOverwriteTable.isPresent() ? optionalOverwriteTable.get() : true;
-    boolean shouldCreateIfNotExists = optionalCreateIfNotExists.isPresent() ? optionalCreateIfNotExists.get() : false;
-
-    // Start building Hive DML
-    // Refer to Hive DDL manual for explanation of clauses:
-    // https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML#LanguageManualDML-InsertingdataintoHiveTablesfromqueries
     StringBuilder dmlQuery = new StringBuilder();
 
     // Insert query
-    if (shouldOverwriteTable) {
-      dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s`.`%s` %n", outputDbName, outputTblName));
-    } else {
-      dmlQuery.append(String.format("INSERT INTO TABLE `%s`.`%s` %n", outputDbName, outputTblName));
-    }
+    dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s`.`%s` %n", outputDbName, outputTblName));
 
     // Partition details
     dmlQuery.append(partitionKeyValues(optionalPartitionDMLInfo));
 
-    // If not exists
-    if (shouldCreateIfNotExists) {
-      dmlQuery.append(" IF NOT EXISTS \n");
-    }
     dmlQuery.append(String.format("SELECT * FROM `%s`.`%s`", inputDbName, inputTblName));
     if (optionalPartitionDMLInfo.isPresent()) {
       if (optionalPartitionDMLInfo.get().size() > 0) {
         dmlQuery.append(" WHERE ");
-        boolean isFirstPartitionSpec = true;
-        for (Map.Entry<String, String> partition : optionalPartitionDMLInfo.get().entrySet()) {
-          if (isFirstPartitionSpec) {
-            isFirstPartitionSpec = false;
-          } else {
-            dmlQuery.append(" AND ");
-          }
-          dmlQuery.append(String.format("`%s`='%s'",
-              partition.getKey(), partition.getValue()));
-        }
-        dmlQuery.append(" \n");
+        String partitionsAndValues = optionalPartitionDMLInfo.get().entrySet().stream()
+            .map(e -> "`" + e.getKey() + "`='" + e.getValue() + "'")
+            .collect(joining(" AND "));
+        dmlQuery.append(partitionsAndValues);
       }
     }
+
     return dmlQuery.toString();
-    //dmlQuery.append(String.format(" %n FROM `%s`.`%s` ", inputDbName, inputTblName));
   }
 
   protected static StringBuilder partitionKeyValues(Optional<Map<String, String>> optionalPartitionDMLInfo) {
-    StringBuilder partitionKV = new StringBuilder();
-    if (optionalPartitionDMLInfo.isPresent()) {
-      if (optionalPartitionDMLInfo.get().size()  > 0) {
-        partitionKV.append("PARTITION (");
-        boolean isFirstPartitionSpec = true;
-        for (Map.Entry<String, String> partition : optionalPartitionDMLInfo.get().entrySet()) {
-          if (isFirstPartitionSpec) {
-            isFirstPartitionSpec = false;
-          } else {
-            partitionKV.append(", ");
-          }
-          partitionKV.append(String.format("`%s`", partition.getKey()));
-        }
-        partitionKV.append(") \n");
-      }
-    }
-    return partitionKV;
-  }
-
-  public static void cleanUpNonPartitionedTable(Map<String, String> publishDirectories, List<String> cleanupQueries,
-      String stagingDataLocation, List<String> cleanupDirectories, String outputDataLocation,
-      String outputTableDatabase, String stagingTableName) {
-    log.debug("Snapshot directory to move: " + stagingDataLocation + " to: " + outputDataLocation);
-    publishDirectories.put(stagingDataLocation, outputDataLocation);
-
-    String dropStagingTableDDL = HiveAvroORCQueryGenerator.generateDropTableDDL(outputTableDatabase, stagingTableName);
-
-    log.debug("Drop staging table DDL: " + dropStagingTableDDL);
-    cleanupQueries.add(dropStagingTableDDL);
-
-    log.debug("Staging table directory to delete: " + stagingDataLocation);
-    cleanupDirectories.add(stagingDataLocation);
-  }
-
-  public static void moveDirectory(FileSystem fs, String sourceDir, String targetDir) throws IOException {
-    // If targetDir exists, delete it
-    if (fs.exists(new Path(targetDir))) {
-      deleteDirectory(fs, targetDir);
-    }
-
-    // Create parent directories of targetDir
-    WriterUtils.mkdirsWithRecursivePermission(fs, new Path(targetDir).getParent(),
-        FsPermission.getCachePoolDefault());
-
-    // Move directory
-    log.info("Moving directory: " + sourceDir + " to: " + targetDir);
-    if (!fs.rename(new Path(sourceDir), new Path(targetDir))) {
-      throw new IOException(String.format("Unable to move %s to %s", sourceDir, targetDir));
-    }
-  }
-
-  public static void deleteDirectory(FileSystem fs, String dirToDelete) throws IOException {
-    if (org.apache.commons.lang.StringUtils.isBlank(dirToDelete)) {
-      return;
-    }
-
-    log.info("Going to delete existing partition data: " + dirToDelete);
-    fs.delete(new Path(dirToDelete), true);
-  }
-
-  public static void deleteDirectories(FileSystem fs, List<String> directoriesToDelete) throws IOException {
-    for (String directory : directoriesToDelete) {
-      deleteDirectory(fs, directory);
+    if (!optionalPartitionDMLInfo.isPresent()) {
+      return new StringBuilder();
+    } else {
+      return new StringBuilder("PARTITION (").append(Joiner.on(", ")
+          .join(optionalPartitionDMLInfo.get().entrySet().stream().map(Map.Entry::getKey).iterator())).append(")\n");
     }
   }
 
@@ -310,14 +245,14 @@ public class HiveConverterUtils {
     try {
       FileStatus sourceDataFileStatus = fs.getFileStatus(conversionEntity.getHiveTable().getDataLocation());
       FsPermission sourceDataPermission = sourceDataFileStatus.getPermission();
-      if (!fs.mkdirs(destinationPath, sourceDataPermission)) {
+      if (!fs.mkdirs(destinationPath, new FsPermission("777"))) {
         throw new RuntimeException(String.format("Failed to create path %s with permissions %s",
             destinationPath, sourceDataPermission));
       } else {
         fs.setPermission(destinationPath, sourceDataPermission);
         // Set the same group as source
         if (!workUnit.getPropAsBoolean(HIVE_DATASET_DESTINATION_SKIP_SETGROUP, DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP)) {
-          fs.setOwner(destinationPath, null, sourceDataFileStatus.getGroup());
+          fs.setOwner(destinationPath, null, "ketl_dev");
         }
         log.info(String.format("Created %s with permissions %s and group %s", destinationPath, sourceDataPermission, sourceDataFileStatus.getGroup()));
       }
@@ -426,12 +361,5 @@ public class HiveConverterUtils {
     }
 
     return ImmutablePair.of(table, partitions);
-  }
-
-  public static FileSystem getSourceFs(State state) throws IOException {
-    if (state.contains(HiveSource.HIVE_SOURCE_FS_URI)) {
-      return FileSystem.get(URI.create(state.getProp(HiveSource.HIVE_SOURCE_FS_URI)), HadoopUtils.getConfFromState(state));
-    }
-    return FileSystem.get(HadoopUtils.getConfFromState(state));
   }
 }
