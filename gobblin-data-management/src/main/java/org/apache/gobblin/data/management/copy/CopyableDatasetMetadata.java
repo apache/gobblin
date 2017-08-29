@@ -22,8 +22,9 @@ import lombok.Getter;
 import lombok.ToString;
 
 import com.google.gson.Gson;
+import lombok.extern.slf4j.Slf4j;
 
-
+@Slf4j
 /**
  * A {@link CopyableDataset} that is used to serialize into state objects. The class exists because custom
  * implementations of {@link CopyableDataset} may contain additional fields that should not be serialized.
@@ -57,7 +58,18 @@ public class CopyableDatasetMetadata {
    * @return a new instance of {@link CopyableDatasetMetadata}
    */
   public static CopyableDatasetMetadata deserialize(String serialized) {
-    return GSON.fromJson(serialized, CopyableDatasetMetadata.class);
+    return GSON.fromJson(getSerializedWithNewPackage(serialized), CopyableDatasetMetadata.class);
   }
 
+  /**
+   * Converts package name in serialized string to new name
+   * This is temporary change and should get removed after all the states are switched from old to new package name.
+   * @param serialized serialized string possibly having old package names
+   * @return
+   */
+  private static String getSerializedWithNewPackage(String serialized) {
+    serialized = serialized.replace("\"gobblin.data.management.", "\"org.apache.gobblin.data.management.");
+    log.info("Serialized updated copy entity: " + serialized);
+    return serialized;
+  }
 }
