@@ -17,11 +17,9 @@
 
 package org.apache.gobblin.service.modules.flow;
 
-import java.util.Properties;
+import com.typesafe.config.Config;
 
 import org.jgrapht.graph.DefaultWeightedEdge;
-
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.FlowEdge;
 import org.apache.gobblin.runtime.api.ServiceNode;
@@ -38,12 +36,15 @@ import lombok.Getter;
  *
  * Each edge has a {@FlowEdgeProp} which is used to evaluate a edge.
  *
- * The {@link LoadBasedFlowEdgeImpl} exposes additional interface to get/set load to edge directly.
+ * The {@link LoadBasedFlowEdgeImpl} exposes interface to getLoad of an edge directly.
+ * In terms of implementation details,
  * Load of edge is equivalent to weight defined in {@link DefaultWeightedEdge}.
  * Since {@link #getWeight()} method is protected, {@link #getEdgeLoad()} will return the load.
- * It is preferable to use {@link org.jgrapht.graph.DirectedWeightedMultigraph#setEdgeWeight(Object, double)}
- * as the setter, since weight modification is semantically issued by entities who has access to
- * {@link org.jgrapht.graph.DirectedWeightedMultigraph} object.
+ *
+ * There's no setLoad, which is logically supposed to happen by invoking
+ * {@link org.jgrapht.graph.DirectedWeightedMultigraph#setEdgeWeight(Object, double)}.
+ *
+
  */
 @Alpha
 public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEdge {
@@ -54,10 +55,10 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
   @Getter
   private SpecExecutor specExecutorInstance;
 
-  private final FlowEdgeProps _flowEdgeProps;
+  private final FlowEdgeProps flowEdgeProps;
 
   /**
-   * {@link #edgeSecurity}'s value comes from {@link FlowEdgeProps} initially
+   * {@link #edgeSecurity}'s initial value comes from {@link FlowEdgeProps},
    * and can be overrided by {@link #setEdgeSecurity(boolean)} and
    * {@link org.jgrapht.graph.DirectedWeightedMultigraph#setEdgeWeight(Object, double)} method afterwards.
    */
@@ -66,30 +67,30 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
 
   public LoadBasedFlowEdgeImpl(ServiceNode sourceNode, ServiceNode targetNode,
       FlowEdgeProps flowEdgeProps, SpecExecutor specExecutorInstance) {
-    this.sourceNode = sourceNode ;
-    this.targetNode = targetNode ;
-    this._flowEdgeProps = flowEdgeProps;
+    this.sourceNode = sourceNode;
+    this.targetNode = targetNode;
+    this.flowEdgeProps = flowEdgeProps;
     this.specExecutorInstance = specExecutorInstance;
     this.edgeSecurity = flowEdgeProps.getInitialEdgeSafety();
   }
 
   public LoadBasedFlowEdgeImpl(ServiceNode sourceNode, ServiceNode targetNode,
-      SpecExecutor specExecutor){
-    this(sourceNode, targetNode, new FlowEdgeProps(ConfigUtils.configToProperties(specExecutor.getAttrs())),
+      SpecExecutor specExecutor) {
+    this(sourceNode, targetNode, new FlowEdgeProps(specExecutor.getAttrs()),
         specExecutor);
   }
 
-  public double getEdgeLoad(){
+  public double getEdgeLoad() {
     return getWeight();
   }
 
   @Override
-  public String getEdgeIdentity(){
+  public String getEdgeIdentity() {
     return this.calculateEdgeIdentity(this.sourceNode, this.targetNode, this.specExecutorInstance);
   }
 
   /**
-   * Since {@link #_flowEdgeProps} is supposed to be read-only once instantiated, set method here
+   * Since {@link #flowEdgeProps} is supposed to be read-only once instantiated, set method here
    * will overwrite the value in {@link #edgeSecurity}.
    */
   public void setEdgeSecurity(boolean security) {
@@ -97,15 +98,15 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
   }
 
   @Override
-  public Properties getEdgeProperties() {
-    return this._flowEdgeProps.getProperties();
+  public Config getEdgeProperties() {
+    return this.flowEdgeProps.getConfig();
   }
 
   @Override
   /**
    * Naive implementation for here.
    */
-  public boolean isEdgeValid() {
+  public boolean isEdgeEnabled() {
     return this.edgeSecurity;
   }
 

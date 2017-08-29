@@ -60,33 +60,23 @@ import lombok.Setter;
 
 // Provide base implementation for constructing multi-hops route.
 @Alpha
-public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
+public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
 
-  // The following two maps are required to be update in atomic, ideally.
-  // Since {@link SpecCompiler} is an {@link SpecCatalogListener}, it is expected that anyS Spec change should be reflected
+  // Since {@link SpecCompiler} is an {@link SpecCatalogListener}, it is expected that any Spec change should be reflected
   // to these data structures.
   @Getter
   @Setter
   protected final Map<URI, TopologySpec> topologySpecMap;
-  /**
-   * Mapping between {@link SpecExecutor}'s URI and
-   * the corresponding {@link SpecExecutor}'s reference to its {@link SpecProducer}, which would be used to construct
-   * output of FlowCompiler.
-   * This map is constructed mainly for querying purpose.
-   */
-  @Getter
-  @Setter
-  protected final Map<URI, SpecExecutor> specExecutorMap;
 
 
   /**
    * Mapping between each FlowEdge and a list of applicable Templates.
-   * Compiler should obtain this Map info from {@link org.apache.gobblin.service.modules.orchestration.Orchestrator} or even higher level,
+   * Compiler should obtain this Map info from higher level component.
    * since {@link TopologySpec} doesn't contain Templates.
    * Key: EdgeIdentifier from {@link org.apache.gobblin.runtime.api.FlowEdge#getEdgeIdentity()}
    * Value: List of template URI.
    */
-  // TODO: Define how template info are instantiated.
+  // TODO: Define how template info are instantiated. ETL-6217
   @Getter
   @Setter
   protected final Map<String, List<URI>> edgeTemplateMap;
@@ -132,11 +122,11 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
     }
 
     this.topologySpecMap = Maps.newConcurrentMap();
-    this.specExecutorMap = Maps.newConcurrentMap();
     this.edgeTemplateMap = Maps.newConcurrentMap();
     this.config = config;
 
     /***
+     * ETL-5996
      * For multi-tenancy, the following needs to be added:
      * 1. Change singular templateCatalog to Map<URI, JobCatalogWithTemplates> to support multiple templateCatalogs
      * 2. Pick templateCatalog from JobCatalogWithTemplates based on URI, and try to resolve JobSpec using that
@@ -160,14 +150,11 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
   @Override
   public synchronized void onAddSpec(Spec addedSpec) {
     topologySpecMap.put(addedSpec.getUri(), (TopologySpec) addedSpec);
-    specExecutorMap.put(((TopologySpec) addedSpec).getSpecExecutor().getUri(),
-        ((TopologySpec) addedSpec).getSpecExecutor());
   }
 
   @Override
   public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
     if (topologySpecMap.containsKey(deletedSpecURI)) {
-      specExecutorMap.remove(topologySpecMap.get(deletedSpecURI).getSpecExecutor().getUri());
       topologySpecMap.remove(deletedSpecURI);
     }
   }
@@ -175,8 +162,6 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
   @Override
   public synchronized void onUpdateSpec(Spec updatedSpec) {
     topologySpecMap.put(updatedSpec.getUri(), (TopologySpec) updatedSpec);
-    specExecutorMap.put(((TopologySpec) updatedSpec).getSpecExecutor().getUri(),
-        ((TopologySpec) updatedSpec).getSpecExecutor());
   }
 
   @Nonnull
@@ -266,7 +251,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler{
    * Ideally each edge has its own eligible template repository(Based on {@link SpecExecutor})
    * to pick templates from.
    *
-   * This function is to transfrom from all mixed templates ({@link #templateCatalog})
+   * This function is to transform from all mixed templates ({@link #templateCatalog})
    * into categorized {@link #edgeTemplateMap}.
    *
    */

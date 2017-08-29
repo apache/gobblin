@@ -27,6 +27,7 @@ import com.typesafe.config.Config;
 /**
  * Defines a representation of JobSpec-Executor in GaaS.
  * A triplet of <Technology, location, communication mechanism> uniquely defines an object of SpecExecutor.
+ * e.g. <Lumos, Holdem, Rest> represents a Executor that moves data by Lumos, running on Holdem can be reached by Rest.
  */
 public interface SpecExecutor {
   /** An URI identifying the SpecExecutor. */

@@ -70,12 +70,12 @@ public class GobblinClusterConfigurationKeys {
   public static final String JOB_SPEC_REFRESH_INTERVAL = GOBBLIN_CLUSTER_PREFIX + "job.spec.refresh.interval";
   public static final String SPEC_CONSUMER_CLASS_KEY = GOBBLIN_CLUSTER_PREFIX + "specConsumer.class";
   public static final String DEFAULT_SPEC_CONSUMER_CLASS =
-      "gobblin.service.SimpleKafkaSpecConsumer";
+      "org.apache.gobblin.service.SimpleKafkaSpecConsumer";
   public static final String DEFAULT_STREAMING_SPEC_CONSUMER_CLASS =
-      "gobblin.service.StreamingKafkaSpecConsumer";
+      "org.apache.gobblin.service.StreamingKafkaSpecConsumer";
   public static final String JOB_CATALOG_KEY = GOBBLIN_CLUSTER_PREFIX + "job.catalog";
   public static final String DEFAULT_JOB_CATALOG =
-      "gobblin.runtime.job_catalog.NonObservingFSJobCatalog";
+      "org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog";
 
   public static final String STOP_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "stopTimeoutSeconds";
   public static final long DEFAULT_STOP_TIMEOUT_SECONDS = 60;

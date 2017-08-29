@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.runtime.api;
 
-import java.util.Properties;
+import com.typesafe.config.Config;
 
 
 /**
@@ -42,12 +42,12 @@ public interface FlowEdge {
    * Edge Properties are supposed to be read-only.
    * @return
    */
-  Properties getEdgeProperties();
+  Config getEdgeProperties();
 
   /**
    * @return If a edge should be considered as part of flow spec compilation result,
    * based on all boolean-based properties like safety.
    */
-  boolean isEdgeValid();
+  boolean isEdgeEnabled();
 
 }

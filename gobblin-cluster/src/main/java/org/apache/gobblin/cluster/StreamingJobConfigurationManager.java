@@ -56,7 +56,7 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
   private final ExecutorService fetchJobSpecExecutor;
 
-  private final SpecConsumer _specConsumer;
+  private final SpecConsumer specConsumer;
 
   private final long stopTimeoutSeconds;
 
@@ -80,7 +80,7 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
       ClassAliasResolver<SpecConsumer> aliasResolver =
           new ClassAliasResolver<>(SpecConsumer.class);
 
-      this._specConsumer = (SpecConsumer) GobblinConstructorUtils.invokeFirstConstructor(
+      this.specConsumer = (SpecConsumer) GobblinConstructorUtils.invokeFirstConstructor(
           Class.forName(aliasResolver.resolve(specExecutorInstanceConsumerClassName)),
           ImmutableList.<Object>of(config, jobCatalog),
           ImmutableList.<Object>of(config));
@@ -96,8 +96,8 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
     LOGGER.info("Starting the " + StreamingJobConfigurationManager.class.getSimpleName());
 
     // if the instance consumer is a service then need to start it to consume job specs
-    if (this._specConsumer instanceof Service) {
-      ((Service) this._specConsumer).startAsync().awaitRunning();
+    if (this.specConsumer instanceof Service) {
+      ((Service) this.specConsumer).startAsync().awaitRunning();
     }
 
     // submit command to fetch job specs
@@ -120,7 +120,7 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
   private void fetchJobSpecs() throws ExecutionException, InterruptedException {
     List<Pair<SpecExecutor.Verb, Spec>> changesSpecs =
-        (List<Pair<SpecExecutor.Verb, Spec>>) this._specConsumer.changedSpecs().get();
+        (List<Pair<SpecExecutor.Verb, Spec>>) this.specConsumer.changedSpecs().get();
 
     // propagate thread interruption so that caller will exit from loop
     if (Thread.interrupted()) {
@@ -147,8 +147,8 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
   @Override
   protected void shutDown() throws Exception {
-    if (this._specConsumer instanceof Service) {
-      ((Service) this._specConsumer).stopAsync().awaitTerminated(this.stopTimeoutSeconds,
+    if (this.specConsumer instanceof Service) {
+      ((Service) this.specConsumer).stopAsync().awaitTerminated(this.stopTimeoutSeconds,
           TimeUnit.SECONDS);
     }
 

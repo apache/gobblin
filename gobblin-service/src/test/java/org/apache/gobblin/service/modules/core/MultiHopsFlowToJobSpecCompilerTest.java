@@ -52,6 +52,9 @@ import org.apache.gobblin.service.modules.flow.MultiHopsFlowToJobSpecCompiler;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
+import static org.apache.gobblin.service.modules.utils.findPathUtils.*;
+
+
 // All unit tests here will be with templateCatelogue.
 public class MultiHopsFlowToJobSpecCompilerTest {
   private static final Logger logger = LoggerFactory.getLogger(MultiHopsFlowToJobSpecCompilerTest.class);
@@ -197,8 +200,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
 
     // Best route: Src - B(1) - C(0.1) - sink (0.2)
     this.compilerWithTemplateCalague.compileFlow(flowSpec);
-    List<FlowEdge> edgeList = this.compilerWithTemplateCalague.dijkstraBasedPathFindingHelper
-        (vertexSource, vertexSink);
+    List<FlowEdge> edgeList = dijkstraBasedPathFindingHelper(vertexSource, vertexSink, weightedGraph);
 
     FlowEdge src2b = weightedGraph.getEdge(vertexSource, vertexHopB);
     FlowEdge b2C = weightedGraph.getEdge(vertexHopB, vertexHopC);

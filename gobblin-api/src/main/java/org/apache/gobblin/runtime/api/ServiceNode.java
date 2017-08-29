@@ -21,7 +21,7 @@ import com.typesafe.config.Config;
 
 /**
  * Abstraction of a Node in {@link SpecExecutor}
- * Please don't confused by the name, 'Service' here refers to 's' in Gaas.
+ * 'Service' here refers to 'Service' in GaaS and it is not necessary related to a Service interface.
  */
 public interface ServiceNode {
   /**

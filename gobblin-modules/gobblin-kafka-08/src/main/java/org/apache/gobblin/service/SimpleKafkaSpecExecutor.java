@@ -25,8 +25,8 @@ import java.util.concurrent.Future;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.google.common.io.Closer;
-import org.slf4j.Logger;
 
+import org.slf4j.Logger;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.util.CompletedFuture;
@@ -43,46 +43,46 @@ public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
   public static final String SPEC_KAFKA_TOPICS_KEY = "spec.kafka.topics";
 
   // Executor Instance
-  protected final URI _specExecutorInstanceUri;
+  protected final URI specExecutorInstanceUri;
 
   protected static final String VERB_KEY = "Verb";
 
-  private SpecProducer<Spec> _specProducer;
+  private SpecProducer<Spec> specProducer;
 
-  private SpecConsumer<Spec> _specConsumer;
+  private SpecConsumer<Spec> specConsumer;
 
   public SimpleKafkaSpecExecutor(Config config, Optional<Logger> log) {
     super(config, log);
     try {
-      _specExecutorInstanceUri = new URI(ConfigUtils.getString(config, ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,
+      specExecutorInstanceUri = new URI(ConfigUtils.getString(config, ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,
           "NA"));
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
     }
-    _specProducer = new SimpleKafkaSpecProducer(config, log);
-    _specConsumer = new SimpleKafkaSpecConsumer(config, log);
+    specProducer = new SimpleKafkaSpecProducer(config, log);
+    specConsumer = new SimpleKafkaSpecConsumer(config, log);
   }
 
   @Override
   public Future<? extends SpecProducer> getProducer() {
-    return null;
+    return new CompletedFuture<>(this.specProducer, null);
   }
 
   @Override
   public URI getUri() {
-    return _specExecutorInstanceUri;
+    return specExecutorInstanceUri;
   }
 
   @Override
   public Future<String> getDescription() {
-    return new CompletedFuture<>("SimpleSpecExecutorInstance with URI: " + _specExecutorInstanceUri, null);
+    return new CompletedFuture<>("SimpleSpecExecutorInstance with URI: " + specExecutorInstanceUri, null);
   }
 
   @Override
   protected void startUp() throws Exception {
     _optionalCloser = Optional.of(Closer.create());
-    _specProducer = _optionalCloser.get().register((SimpleKafkaSpecProducer) _specProducer);
-    _specConsumer = _optionalCloser.get().register((SimpleKafkaSpecConsumer) _specConsumer);
+    specProducer = _optionalCloser.get().register((SimpleKafkaSpecProducer) specProducer);
+    specConsumer = _optionalCloser.get().register((SimpleKafkaSpecConsumer) specConsumer);
   }
 
   @Override

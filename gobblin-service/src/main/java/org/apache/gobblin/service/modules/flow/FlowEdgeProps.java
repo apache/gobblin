@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.service.modules.flow;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigObject;
 import java.io.Serializable;
 import java.util.Properties;
 
@@ -27,25 +30,29 @@ import lombok.extern.slf4j.Slf4j;
 
 @Data
 @Slf4j
-public class FlowEdgeProps implements Serializable{
+public class FlowEdgeProps implements Serializable {
 
   private static final long serialVersionUID = 221008706467320994L;
 
-  private Properties properties;
+  protected Config config;
 
-  private static final double DEFAULT_EDGE_LOAD = 1.0;
-  private static final boolean DEFAULT_EDGE_SAFETY = true;
+  protected static final double DEFAULT_EDGE_LOAD = 1.0;
+  protected static final boolean DEFAULT_EDGE_SAFETY = true;
 
-  public FlowEdgeProps(Properties props){
-    this.properties = props;
+  public FlowEdgeProps(Config config) {
+    this.config = config;
+  }
+
+  public FlowEdgeProps() {
+    this(ConfigFactory.empty());
   }
 
   /**
    * When initializing an edge, load and security value from properties will be used
    * but could be overriden afterwards.
    */
-  public boolean getInitialEdgeSafety(){
-    return  properties.containsKey(EDGE_SECURITY_KEY) ?
-        Boolean.parseBoolean(properties.getProperty(EDGE_SECURITY_KEY)) : DEFAULT_EDGE_SAFETY;
+  public boolean getInitialEdgeSafety() {
+    return
+        config.hasPath(EDGE_SECURITY_KEY) ? config.getBoolean(EDGE_SECURITY_KEY) : DEFAULT_EDGE_SAFETY;
   }
 }

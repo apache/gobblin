@@ -32,6 +32,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.runtime.api.SpecConsumer;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -55,7 +56,6 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
 
   private static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
   private static final Splitter SPLIT_BY_COLON = Splitter.on(":").omitEmptyStrings().trimResults();
-  private static final String ATTRS_PATH_IN_CONFIG = "executorAttrs";
 
   protected final transient Logger log;
 
@@ -117,9 +117,9 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
    */
   @Override
   public Config getAttrs() {
-    Preconditions.checkArgument(this.config.hasPath(ATTRS_PATH_IN_CONFIG),
+    Preconditions.checkArgument(this.config.hasPath(ServiceConfigKeys.ATTRS_PATH_IN_CONFIG),
         "Input configuration doesn't contains SpecExecutor Attributes path.");
-    return this.config.getConfig(ATTRS_PATH_IN_CONFIG);
+    return this.config.getConfig(ServiceConfigKeys.ATTRS_PATH_IN_CONFIG);
   }
 
 

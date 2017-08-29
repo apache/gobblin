@@ -18,9 +18,6 @@
 package org.apache.gobblin.service;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
-import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
-import org.apache.gobblin.service.modules.topology.ConfigBasedTopologySpecFactory;
 
 @Alpha
 public class ServiceConfigKeys {
@@ -50,7 +47,11 @@ public class ServiceConfigKeys {
 
   // Flow Compiler Keys
   public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowCompiler.class";
-  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS = IdentityFlowToJobSpecCompiler.class.getCanonicalName();
+  /**
+   * Directly use canonical class name here to avoid introducing additional dependency here.
+   */
+  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS =
+      "org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler";
 
   // Flow specific Keys
   public static final String FLOW_SOURCE_IDENTIFIER_KEY = "gobblin.flow.sourceIdentifier";
@@ -61,7 +62,8 @@ public class ServiceConfigKeys {
 
   // Topology Factory Keys (for overall factory)
   public static final String TOPOLOGY_FACTORY_PREFIX = "topologySpecFactory.";
-  public static final String DEFAULT_TOPOLOGY_SPEC_FACTORY = ConfigBasedTopologySpecFactory.class.getCanonicalName();
+  public static final String DEFAULT_TOPOLOGY_SPEC_FACTORY =
+      "org.apache.gobblin.service.modules.topology.ConfigBasedTopologySpecFactory";
   public static final String TOPOLOGYSPEC_FACTORY_KEY = TOPOLOGY_FACTORY_PREFIX + "class";
   public static final String TOPOLOGY_FACTORY_TOPOLOGY_NAMES_KEY = TOPOLOGY_FACTORY_PREFIX + "topologyNames";
 
@@ -70,7 +72,8 @@ public class ServiceConfigKeys {
   public static final String TOPOLOGYSPEC_VERSION_KEY = "version";
   public static final String TOPOLOGYSPEC_URI_KEY = "uri";
 
-  public static final String DEFAULT_SPEC_EXECUTOR = InMemorySpecExecutor.class.getCanonicalName();
+  public static final String DEFAULT_SPEC_EXECUTOR =
+      "org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor";
   public static final String SPEC_EXECUTOR_KEY = "specExecutorInstance.class";
   public static final String EDGE_SECURITY_KEY = "edge.secured";
 
@@ -82,9 +85,10 @@ public class ServiceConfigKeys {
   // Undesired connection to form an executable JobSpec.
   // Formatted as a String list, each entry contains a string in the format of "Source1:Sink1",
   // which indicates that data movement from source1 to sink1 should be avoided.
-  public static final String POLICY_BASED_BLOCKED_CONNECTION = GOBBLIN_SERVICE_PREFIX + "blocked.connection";
+  public static final String POLICY_BASED_BLOCKED_CONNECTION = GOBBLIN_SERVICE_PREFIX + "blockedConnection";
   // Complete path of how the data movement is executed from source to sink.
   // Formatted as a String, each hop separated by comma, from source to sink in order.
-  public static final String POLICY_BASED_DATA_MOVEMENT_PATH = GOBBLIN_SERVICE_PREFIX + "full.data.path";
+  public static final String POLICY_BASED_DATA_MOVEMENT_PATH = GOBBLIN_SERVICE_PREFIX + "fullDataPath";
 
+  public static final String ATTRS_PATH_IN_CONFIG = "executorAttrs";
 }
