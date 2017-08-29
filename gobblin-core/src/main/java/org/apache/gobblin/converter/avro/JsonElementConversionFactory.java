@@ -40,6 +40,7 @@ import org.joda.time.format.DateTimeFormatter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import sun.util.calendar.ZoneInfo;
 
@@ -70,7 +71,8 @@ public class JsonElementConversionFactory {
     MAP,
     ENUM,
     RECORD,
-    NULL
+    NULL,
+    UNION
   }
 
   /**
@@ -148,6 +150,9 @@ public class JsonElementConversionFactory {
 
       case NULL:
         return new NullConverter(fieldName, type.toString());
+
+      case UNION:
+        return new UnionConverter(fieldName, type.toString(), schemaNode, state);
 
       default:
         throw new UnsupportedDateTypeException(fieldType + " is unsupported");
@@ -576,19 +581,25 @@ public class JsonElementConversionFactory {
         boolean nullable = map.has("isNullable") ? map.get("isNullable").getAsBoolean() : false;
         Schema fldSchema;
         String childNamespace = buildNamespace(namespace, name);
+        JsonElement dataTypeType = map.get("dataType").getAsJsonObject().get("type");
         try {
-          JsonElementConversionFactory.JsonElementConverter converter = JsonElementConversionFactory
-              .getConvertor(columnName, childNamespace, map.get("dataType").getAsJsonObject().get("type").getAsString(),
-                  map, workUnit, nullable);
-          this.converters.put(columnName, converter);
-          fldSchema = converter.getSchema();
+          if (dataTypeType.isJsonArray()) {
+            JsonElementConverter unionConverter = new UnionConverter(columnName, "UNION", map, workUnit);
+            this.converters.put(columnName, unionConverter);
+            fldSchema = unionConverter.schema();
+          } else {
+            JsonElementConversionFactory.JsonElementConverter converter = JsonElementConversionFactory
+                .getConvertor(columnName, childNamespace, dataTypeType.getAsString(), map, workUnit, nullable);
+            this.converters.put(columnName, converter);
+            fldSchema = converter.getSchema();
+          }
         } catch (UnsupportedDateTypeException e) {
           throw new UnsupportedOperationException(e);
         }
 
         Schema.Field fld =
             new Schema.Field(columnName, fldSchema, comment, nullable ? JsonNodeFactory.instance.nullNode() : null);
-        fld.addProp("source.type", map.get("dataType").getAsJsonObject().get("type").getAsString());
+        fld.addProp("source.type", dataTypeType.isJsonArray() ? "union" : dataTypeType.getAsString());
         fields.add(fld);
       }
       Schema avroSchema = Schema.createRecord(name.isEmpty() ? null : name, "", namespace, false);
@@ -635,10 +646,11 @@ public class JsonElementConversionFactory {
         String namespace) {
       super(fieldName, nullable, sourceType);
 
-      for (JsonElement elem : schemaNode.get("dataType").getAsJsonObject().get("symbols").getAsJsonArray()) {
+      JsonObject dataType = schemaNode.get("dataType").getAsJsonObject();
+      for (JsonElement elem : dataType.get("symbols").getAsJsonArray()) {
         this.enumSet.add(elem.getAsString());
       }
-      this.enumName = schemaNode.get("dataType").getAsJsonObject().get("name").getAsString();
+      this.enumName = dataType.has("name") ? dataType.get("name").getAsString() : null;
       this.namespace = namespace;
     }
 
@@ -674,6 +686,104 @@ public class JsonElementConversionFactory {
     @Override
     public org.apache.avro.Schema.Type getTargetType() {
       return Schema.Type.NULL;
+    }
+  }
+
+  public static class UnionConverter extends JsonElementConverter {
+    private final Schema firstSchema;
+    private final Schema secondSchema;
+    private final JsonElementConverter firstConverter;
+    private final JsonElementConverter secondConverter;
+
+    public UnionConverter(String fieldName, String sourceType, JsonObject schemaNode, WorkUnitState state) {
+      super(fieldName, schemaNode.has("isNullable") && schemaNode.get("isNullable").getAsBoolean(), sourceType);
+      JsonArray types = buildUnionSchema(schemaNode);
+      String columnName = schemaNode.has("columnName") ? schemaNode.get("columnName").getAsString() : "";
+      boolean nullable = schemaNode.has("isNullable") && schemaNode.get("isNullable").getAsBoolean();
+      JsonElement firstType = types.get(0).getAsJsonObject().get("dataType").getAsJsonObject().get("type");
+      JsonElement secondType = types.get(1).getAsJsonObject().get("dataType").getAsJsonObject().get("type");
+      if (firstType.isJsonPrimitive()) {
+        try {
+          firstConverter = JsonElementConversionFactory
+              .getConvertor(columnName, null, firstType.getAsString(), types.get(0).getAsJsonObject(), state, nullable);
+          firstSchema = firstConverter.schema();
+        } catch (UnsupportedDateTypeException e) {
+          throw new UnsupportedOperationException(e);
+        }
+      } else if (firstType.isJsonObject()) {
+        try {
+          firstConverter = JsonElementConversionFactory.getConvertor(columnName, null,
+              firstType.getAsJsonObject().get("dataType").getAsJsonObject().get("type").getAsString(),
+              types.get(0).getAsJsonObject(), state, nullable);
+          firstSchema = firstConverter.schema();
+        } catch (UnsupportedDateTypeException e) {
+          throw new UnsupportedOperationException(e);
+        }
+      } else {
+        throw new UnsupportedOperationException("Unexpected data type in UNION type " + firstType.toString());
+      }
+      if (secondType.isJsonPrimitive()) {
+        try {
+          secondConverter = JsonElementConversionFactory
+              .getConvertor(columnName, null, secondType.getAsString(), types.get(1).getAsJsonObject(), state,
+                  nullable);
+          secondSchema = secondConverter.schema();
+        } catch (UnsupportedDateTypeException e) {
+          throw new UnsupportedOperationException(e);
+        }
+      } else if (secondType.isJsonObject()) {
+        try {
+          secondConverter = JsonElementConversionFactory.getConvertor(columnName, null,
+              secondType.getAsJsonObject().get("dataType").getAsJsonObject().get("type").getAsString(),
+              types.get(1).getAsJsonObject(), state, nullable);
+          secondSchema = secondConverter.schema();
+        } catch (UnsupportedDateTypeException e) {
+          throw new UnsupportedOperationException(e);
+        }
+      } else {
+        throw new UnsupportedOperationException("Unexpected data type in UNION type " + firstType.toString());
+      }
+    }
+
+    private JsonArray buildUnionSchema(JsonElement schemaElement) {
+      JsonElement otherSchema = new JsonParser().parse(schemaElement.toString());
+      JsonArray dataType =
+          schemaElement.getAsJsonObject().get("dataType").getAsJsonObject().get("type").getAsJsonArray();
+      JsonElement firstType = dataType.get(0);
+      JsonElement secondType = dataType.get(1);
+      if (firstType.isJsonObject()) {
+        schemaElement.getAsJsonObject().add("dataType", firstType.getAsJsonObject().get("dataType").getAsJsonObject());
+      } else {
+        schemaElement.getAsJsonObject().get("dataType").getAsJsonObject().add("type", firstType.getAsJsonPrimitive());
+      }
+      if (secondType.isJsonObject()) {
+        otherSchema.getAsJsonObject().add("dataType", secondType.getAsJsonObject().get("dataType").getAsJsonObject());
+      } else {
+        otherSchema.getAsJsonObject().get("dataType").getAsJsonObject().add("type", secondType.getAsJsonPrimitive());
+      }
+      JsonArray unionSchema = new JsonArray();
+      unionSchema.add(schemaElement.getAsJsonObject());
+      unionSchema.add(otherSchema.getAsJsonObject());
+      return unionSchema;
+    }
+
+    @Override
+    Object convertField(JsonElement value) {
+      try {
+        return firstConverter.convert(value);
+      } catch (Exception e) {
+        return secondConverter.convert(value);
+      }
+    }
+
+    @Override
+    public Schema.Type getTargetType() {
+      return Schema.Type.UNION;
+    }
+
+    @Override
+    protected Schema schema() {
+      return Schema.createUnion(firstSchema, secondSchema);
     }
   }
 }

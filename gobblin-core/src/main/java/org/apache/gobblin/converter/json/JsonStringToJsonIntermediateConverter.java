@@ -113,12 +113,21 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
         JsonElement schemaElement = schema.get(i);
         JsonObject schemaObject = schemaElement.getAsJsonObject();
         String expectedColumnName = getColumnName(schemaObject);
-        String dataType = getDataTypeTypeFromSchema(schemaObject);
+        JsonArray dataType = getDataTypeTypeFromSchema(schemaObject);
 
         if (record.has(expectedColumnName)) {
 
           JsonElement value = record.get(expectedColumnName);
-          if (isEnumType(schemaObject)) {
+          if (isUnionType(schemaObject)) {
+            JsonArray unionSchema = buildUnionSchema(schemaElement);
+            JsonObject firstTypeSchema = unionSchema.get(0).getAsJsonObject();
+            JsonObject secondTypeSchema = unionSchema.get(1).getAsJsonObject();
+            try {
+              output.add(expectedColumnName, unwrapTemp(wrapAndProcess(value, firstTypeSchema)));
+            } catch (Exception e) {
+              output.add(expectedColumnName, unwrapTemp(wrapAndProcess(value, secondTypeSchema)));
+            }
+          } else if (isEnumType(schemaObject)) {
             JsonElement parseEnumType = parseEnumType(schemaElement, value);
             output.add(expectedColumnName, parseEnumType);
           } else if (value.isJsonArray()) {
@@ -140,6 +149,27 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       e.printStackTrace();
       throw new DataConversionException("Unable to parse " + record.toString() + " with schema " + schema.toString());
     }
+  }
+
+  private JsonArray buildUnionSchema(JsonElement schemaElement) {
+    JsonElement otherSchema = new JsonParser().parse(schemaElement.toString());
+    JsonArray dataType = getDataTypeTypeFromSchema(schemaElement);
+    JsonElement firstType = dataType.get(0);
+    JsonElement secondType = dataType.get(1);
+    if (firstType.isJsonObject()) {
+      schemaElement.getAsJsonObject().add("dataType", firstType.getAsJsonObject().get("dataType").getAsJsonObject());
+    } else {
+      schemaElement.getAsJsonObject().get("dataType").getAsJsonObject().add("type", firstType.getAsJsonPrimitive());
+    }
+    if (secondType.isJsonObject()) {
+      otherSchema.getAsJsonObject().add("dataType", secondType.getAsJsonObject().get("dataType").getAsJsonObject());
+    } else {
+      otherSchema.getAsJsonObject().get("dataType").getAsJsonObject().add("type", secondType.getAsJsonPrimitive());
+    }
+    JsonArray unionSchema = new JsonArray();
+    unionSchema.add(schemaElement.getAsJsonObject().get("dataType").getAsJsonObject());
+    unionSchema.add(otherSchema.getAsJsonObject().get("dataType").getAsJsonObject());
+    return unionSchema;
   }
 
   /**
@@ -255,8 +285,16 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @return
    * @throws DataConversionException
    */
-  private JsonElement parsePrimitiveType(JsonObject schemaObject, String dataType, JsonElement value)
+  private JsonElement parsePrimitiveType(JsonObject schemaObject, JsonArray dataType, JsonElement value)
       throws DataConversionException {
+    if (isNullType(schemaObject) && value.isJsonNull()) {
+      return JsonNull.INSTANCE;
+    }
+    if ((isNullType(schemaObject) && !value.isJsonNull()) || (!isNullType(schemaObject) && value.isJsonNull())) {
+      throw new DataConversionException(
+          "Type mismatch for " + value.toString() + " of type " + getDataTypeTypeFromSchema(schemaObject).toString());
+    }
+
     if (isFixedType(schemaObject)) {
       int expectedSize = getSizeOfFixedData(schemaObject);
       if (value.getAsString().length() == expectedSize) {
@@ -307,6 +345,23 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    */
   private JsonArray unwrapTempAsArray(JsonObject object) {
     return object.get(TEMP_COLUMN_NAME).getAsJsonArray();
+  }
+
+  private JsonElement unwrapTemp(JsonObject jsonObject) {
+    JsonElement element = jsonObject.get(TEMP_COLUMN_NAME);
+    if (element.isJsonArray()) {
+      return element.getAsJsonArray();
+    }
+    if (element.isJsonPrimitive()) {
+      return element.getAsJsonPrimitive();
+    }
+    if (element.isJsonObject()) {
+      return element.getAsJsonObject();
+    }
+    if (element.isJsonNull()) {
+      return element.getAsJsonNull();
+    }
+    return null;
   }
 
   /**
@@ -377,7 +432,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   }
 
   private boolean isEnumType(JsonObject schemaObject) {
-    return getDataTypeTypeFromSchema(schemaObject).equalsIgnoreCase("enum");
+    return getDataTypeTypeFromSchema(schemaObject).get(0).getAsString().equalsIgnoreCase("enum");
   }
 
   /**
@@ -385,8 +440,10 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @param schemaObject
    * @return
    */
-  private String getDataTypeTypeFromSchema(JsonObject schemaObject) {
-    return getDataType(schemaObject).get("type").getAsString();
+  private JsonArray getDataTypeTypeFromSchema(JsonObject schemaObject) {
+    JsonObject dataType = getDataType(schemaObject);
+    return dataType.has("type") ? dataType.get("type").isJsonPrimitive() ? jsonArray(dataType.get("type"))
+        : (dataType.get("type").isJsonArray() ? dataType.get("type").getAsJsonArray() : null) : null;
   }
 
   /**
@@ -394,8 +451,10 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @param schemaElement
    * @return
    */
-  private String getDataTypeTypeFromSchema(JsonElement schemaElement) {
-    return getDataType(schemaElement.getAsJsonObject()).get("type").getAsString();
+  private JsonArray getDataTypeTypeFromSchema(JsonElement schemaElement) {
+    JsonObject dataType = getDataType(schemaElement.getAsJsonObject());
+    return dataType.has("type") ? dataType.get("type").isJsonPrimitive() ? jsonArray(dataType.get("type"))
+        : (dataType.get("type").isJsonArray() ? dataType.get("type").getAsJsonArray() : null) : null;
   }
 
   /**
@@ -421,6 +480,11 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     return isTypeEqual(schema, "record");
   }
 
+  private boolean isUnionType(JsonObject schemaObject) {
+    JsonArray type = getDataTypeTypeFromSchema(schemaObject);
+    return (type != null ? type.size() : 0) == 2;
+  }
+
   private boolean isPrimitiveType(String arrayType) {
     return arrayType != null && "null boolean int long float double bytes string enum fixed"
         .contains(arrayType.toLowerCase());
@@ -435,8 +499,12 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   }
 
   private boolean isTypeEqual(JsonElement schema, String expectedType) {
-    String type = getDataTypeTypeFromSchema(schema);
-    return type.equalsIgnoreCase(expectedType);
+    JsonArray type = getDataTypeTypeFromSchema(schema);
+    return type.get(0).getAsString().equalsIgnoreCase(expectedType);
+  }
+
+  private boolean isNullType(JsonElement schemeElement) {
+    return isTypeEqual(schemeElement, "null");
   }
 
   /**
@@ -455,7 +523,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
 
     try {
       return arrayValues.isJsonPrimitive() && arrayValues.getAsJsonPrimitive().isString() ? arrayValues.getAsString()
-          : getDataTypeTypeFromSchema(arrayValues.getAsJsonObject());
+          : getDataTypeTypeFromSchema(arrayValues.getAsJsonObject()).get(0).getAsString();
     } catch (UnsupportedOperationException | IllegalStateException e) {
       //values is not string and a nested json array
       throw new DataConversionException("Array types only allow values as primitive, null or JsonObject");

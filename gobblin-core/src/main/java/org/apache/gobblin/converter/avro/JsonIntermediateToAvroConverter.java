@@ -77,18 +77,26 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
       String name = map.has("name") ? map.get("name").getAsString() : null;
       boolean nullable = map.has("isNullable") ? map.get("isNullable").getAsBoolean() : false;
       Schema fldSchema;
-
+      JsonElement dataTypeType = map.get("dataType").getAsJsonObject().get("type");
       try {
-        JsonElementConversionFactory.JsonElementConverter converter = JsonElementConversionFactory.getConvertor(
-            columnName, buildNamespace(workUnit.getExtract().getNamespace(),name), map.get("dataType").getAsJsonObject().get("type").getAsString(), map, workUnit, nullable);
-        this.converters.put(columnName, converter);
-        fldSchema = converter.getSchema();
+        if (dataTypeType.isJsonArray()) {
+          JsonElementConversionFactory.JsonElementConverter unionConverter =
+              new JsonElementConversionFactory.UnionConverter(columnName, "UNION", map, workUnit);
+          this.converters.put(columnName, unionConverter);
+          fldSchema = unionConverter.schema();
+        } else {
+          JsonElementConversionFactory.JsonElementConverter converter = JsonElementConversionFactory
+              .getConvertor(columnName, buildNamespace(workUnit.getExtract().getNamespace(), name),
+                  dataTypeType.getAsString(), map, workUnit, nullable);
+          this.converters.put(columnName, converter);
+          fldSchema = converter.getSchema();
+        }
       } catch (UnsupportedDateTypeException e) {
         throw new SchemaConversionException(e);
       }
 
       Field fld = new Field(columnName, fldSchema, comment, nullable ? JsonNodeFactory.instance.nullNode() : null);
-      fld.addProp("source.type", map.get("dataType").getAsJsonObject().get("type").getAsString());
+      fld.addProp("source.type", dataTypeType.isJsonArray() ? "union" : dataTypeType.getAsString());
       fields.add(fld);
     }
 

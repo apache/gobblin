@@ -36,6 +36,7 @@ import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Jso
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.ARRAY;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.MAP;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.RECORD;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.UNION;
 
 
 /**
@@ -294,6 +295,32 @@ public class JsonElementConversionFactoryTest {
     Assert.assertEquals(recordConverter.schema().getField("someperson").schema().getNamespace(),
         "namespace.something.myrecord");
     Assert.assertEquals(recordConverter.schema().getNamespace(), "namespace.something");
+  }
+
+  @Test
+  public void schemaWithUnion()
+      throws Exception {
+    String schemaStr = "{\"columnName\":\"b\", \"dataType\":{\"type\": [\"null\", \"string\"]}}";
+    String expected = "[{\"type\":\"null\",\"source.type\":\"null\"},{\"type\":\"string\",\"source.type\":\"string\"}]";
+
+    JsonElementConversionFactory.UnionConverter unionConverter =
+        new JsonElementConversionFactory.UnionConverter("dummy1", UNION.toString(), buildJsonObject(schemaStr), state);
+
+    Assert.assertEquals(unionConverter.schema().toString(), expected);
+  }
+
+  @Test
+  public void schemaWithComplexUnion()
+      throws Exception {
+    String schemaStr =
+        "{\"columnName\":\"b\", \"dataType\":{\"type\":[\"null\",{\"dataType\":{\"type\":\"enum\",\"name\":\"someenum\",\"symbols\":[\"HELL\",\"BELLS\"]}}]}}";
+    String expected =
+        "[{\"type\":\"null\",\"source.type\":\"null\"},{\"type\":\"enum\",\"name\":\"someenum\",\"doc\":\"\",\"symbols\":[\"HELL\",\"BELLS\"],\"source.type\":\"enum\"}]";
+
+    JsonElementConversionFactory.UnionConverter unionConverter =
+        new JsonElementConversionFactory.UnionConverter("dummy1", UNION.toString(), buildJsonObject(schemaStr), state);
+
+    Assert.assertEquals(unionConverter.schema().toString(), expected);
   }
 
   /**

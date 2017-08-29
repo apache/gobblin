@@ -438,13 +438,11 @@ public class JsonStringToJsonIntermediateConverterTest {
     assertEquals(expected, parseJsonObject(jsonStr, record).toString());
   }
 
-
   @Test
   public void jsonWithArrayOfNulls()
       throws DataConversionException {
     String jsonStr = "{\"b\":[null,null]}";
-    String schemaStr =
-        "[{\"columnName\":\"b\", \"dataType\":{\"type\":\"array\", \"items\":\"null\"}}]";
+    String schemaStr = "[{\"columnName\":\"b\", \"dataType\":{\"type\":\"array\", \"items\":\"null\"}}]";
     JsonObject expected = buildJsonObject("{\"b\":[null,null]}");
     JsonParser parser = new JsonParser();
     JsonArray record = parser.parse(schemaStr).getAsJsonArray();
@@ -452,6 +450,39 @@ public class JsonStringToJsonIntermediateConverterTest {
     JsonObject result = parseJsonObject(jsonStr, record);
 
     assertEquals(expected, result);
+  }
+
+  @Test
+  public void jsonWithUnionType()
+      throws DataConversionException {
+    String jsonStr = "{\"b\": \"hello\"}";
+    String schemaStr = "[{\"columnName\":\"b\", \"dataType\":{\"type\": [\"null\", \"string\"]}}]";
+    JsonObject expected = buildJsonObject("{\"b\":\"hello\"}");
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    JsonObject result = parseJsonObject(jsonStr, record);
+
+    assertEquals(expected, result);
+  }
+
+  @Test
+  public void jsonWithUnionNullAndEnums()
+      throws DataConversionException {
+    String jsonStr = "{\"a\":\"somename\", \"b\":\"HELL\"}";
+    String jsonStr1 = "{\"a\":\"somename\", \"b\":null}";
+    String schemaStr =
+        "[{\"columnName\":\"a\", \"dataType\":{\"type\":\"string\"}},{\"columnName\":\"b\", \"dataType\":{\"type\":[\"null\",{\"dataType\":{\"type\":\"enum\",\"symbols\":[\"HELL\",\"BELLS\"]}}]}}]";
+    JsonObject expected = buildJsonObject("{\"a\":\"somename\", \"b\":\"HELL\"}");
+    JsonObject expected1 = buildJsonObject("{\"a\":\"somename\", \"b\":null}");
+    JsonParser parser = new JsonParser();
+    JsonArray record = parser.parse(schemaStr).getAsJsonArray();
+
+    JsonObject result = parseJsonObject(jsonStr, record);
+    JsonObject result1 = parseJsonObject(jsonStr1, record);
+
+    assertEquals(expected, result);
+    assertEquals(expected1, result1);
   }
 
   private JsonObject buildJsonObject(String s) {
