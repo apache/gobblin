@@ -39,7 +39,7 @@ public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInst
     implements SpecExecutorInstanceProducer<Spec>, Closeable {
 
   // Session Id for GaaS User
-  private String sessionId;
+  private String _sessionId;
 
 
   public AzkabanSpecExecutorInstanceProducer(Config config, Optional<Logger> log) {
@@ -51,7 +51,7 @@ public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInst
       String azkabanPassword = getAzkabanPassword(config);
       String azkabanServerUrl = config.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
 
-      sessionId = AzkabanAjaxAPIClient.authenticateAndGetSessionId(azkabanUsername, azkabanPassword, azkabanServerUrl);
+      _sessionId = AzkabanAjaxAPIClient.authenticateAndGetSessionId(azkabanUsername, azkabanPassword, azkabanServerUrl);
     } catch (IOException | EncoderException e) {
       throw new RuntimeException("Could not authenticate with Azkaban", e);
     }
@@ -82,37 +82,46 @@ public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInst
   @Override
   public Future<?> addSpec(Spec addedSpec) {
     // If project already exists, execute it
-
-    // If project does not already exists, create and execute it
-    AzkabanProjectConfig azkabanProjectConfig = new AzkabanProjectConfig((JobSpec) addedSpec);
     try {
-      _log.info("Setting up your Azkaban Project for: " + azkabanProjectConfig.getAzkabanProjectName());
+      AzkabanProjectConfig azkabanProjectConfig = new AzkabanProjectConfig((JobSpec) addedSpec);
+      boolean azkabanProjectExists = AzkabanJobHelper.isAzkabanJobPresent(_sessionId, azkabanProjectConfig);
 
-      // Deleted project also returns true if-project-exists check, so optimistically first create the project
-      // .. (it will create project if it was never created or deleted), if project exists it will fail with
-      // .. appropriate exception message, catch that and run in replace project mode if force overwrite is
-      // .. specified
-      try {
-        createNewAzkabanProject(sessionId, azkabanProjectConfig);
-      } catch (IOException e) {
-        if ("Project already exists.".equalsIgnoreCase(e.getMessage())) {
-          if (ConfigUtils.getBoolean(((JobSpec) addedSpec).getConfig(),
-              ServiceAzkabanConfigKeys.AZKABAN_PROJECT_OVERWRITE_IF_EXISTS_KEY, false)) {
-            _log.info("Project already exists for this Spec, but force overwrite specified");
-            updateExistingAzkabanProject(sessionId, azkabanProjectConfig);
+      // If project does not already exists, create and execute it
+      if (azkabanProjectExists) {
+        _log.info("Executing Azkaban Project: " + azkabanProjectConfig.getAzkabanProjectName());
+        AzkabanJobHelper.executeJob(_sessionId, AzkabanJobHelper.getProjectId(_sessionId, azkabanProjectConfig),
+            azkabanProjectConfig);
+      } else {
+        _log.info("Setting up Azkaban Project: " + azkabanProjectConfig.getAzkabanProjectName());
+
+        // Deleted project also returns true if-project-exists check, so optimistically first create the project
+        // .. (it will create project if it was never created or deleted), if project exists it will fail with
+        // .. appropriate exception message, catch that and run in replace project mode if force overwrite is
+        // .. specified
+        try {
+          createNewAzkabanProject(_sessionId, azkabanProjectConfig);
+        } catch (IOException e) {
+          if ("Project already exists.".equalsIgnoreCase(e.getMessage())) {
+            if (ConfigUtils.getBoolean(((JobSpec) addedSpec).getConfig(),
+                ServiceAzkabanConfigKeys.AZKABAN_PROJECT_OVERWRITE_IF_EXISTS_KEY, false)) {
+              _log.info("Project already exists for this Spec, but force overwrite specified");
+              updateExistingAzkabanProject(_sessionId, azkabanProjectConfig);
+            } else {
+              _log.info(String.format("Azkaban project already exists: " + "%smanager?project=%s",
+                  azkabanProjectConfig.getAzkabanServerUrl(), azkabanProjectConfig.getAzkabanProjectName()));
+            }
           } else {
-            _log.info(String.format("Azkaban project already exists: " + "%smanager?project=%s",
-                azkabanProjectConfig.getAzkabanServerUrl(), azkabanProjectConfig.getAzkabanProjectName()));
+            throw e;
           }
-        } else {
-          throw e;
         }
       }
+
+
     } catch (IOException e) {
       throw new RuntimeException("Issue in setting up Azkaban project.", e);
     }
 
-    return null;
+    return new CompletedFuture<>(_config, null);
   }
 
   @Override
@@ -121,7 +130,7 @@ public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInst
     AzkabanProjectConfig azkabanProjectConfig = new AzkabanProjectConfig((JobSpec) updatedSpec);
 
     try {
-      updateExistingAzkabanProject(sessionId, azkabanProjectConfig);
+      updateExistingAzkabanProject(_sessionId, azkabanProjectConfig);
     } catch (IOException e) {
       throw new RuntimeException("Issue in setting up Azkaban project.", e);
     }

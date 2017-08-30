@@ -46,6 +46,13 @@ import com.google.common.collect.Lists;
 @Slf4j
 public class AzkabanJobHelper {
 
+  /***
+   * Checks if an Azkaban project exists by name.
+   * @param sessionId Session Id.
+   * @param azkabanProjectConfig Azkaban Project Config that contains project name.
+   * @return true if project exists else false.
+   * @throws IOException
+   */
   public static boolean isAzkabanJobPresent(String sessionId, AzkabanProjectConfig azkabanProjectConfig)
       throws IOException {
     log.info("Checking if Azkaban project: " + azkabanProjectConfig.getAzkabanProjectName() + " exists");
@@ -74,6 +81,13 @@ public class AzkabanJobHelper {
     }
   }
 
+  /***
+   * Get Project Id by an Azkaban Project Name.
+   * @param sessionId Session Id.
+   * @param azkabanProjectConfig Azkaban Project Config that contains project Name.
+   * @return Project Id.
+   * @throws IOException
+   */
   public static String getProjectId(String sessionId, AzkabanProjectConfig azkabanProjectConfig)
       throws IOException {
     log.info("Getting project Id for project: " + azkabanProjectConfig.getAzkabanProjectName());
@@ -83,6 +97,14 @@ public class AzkabanJobHelper {
     return projectId;
   }
 
+  /***
+   * Create project on Azkaban based on Azkaban config. This includes preparing the zip file and uploading it to
+   * Azkaban, setting permissions and schedule.
+   * @param sessionId Session Id.
+   * @param azkabanProjectConfig Azkaban Project Config.
+   * @return Project Id.
+   * @throws IOException
+   */
   public static String createAzkabanJob(String sessionId, AzkabanProjectConfig azkabanProjectConfig)
       throws IOException {
     log.info("Creating Azkaban project for: " + azkabanProjectConfig.getAzkabanProjectName());
@@ -98,6 +120,15 @@ public class AzkabanJobHelper {
     return projectId;
   }
 
+  /***
+   * Replace project on Azkaban based on Azkaban config. This includes preparing the zip file and uploading it to
+   * Azkaban, setting permissions and schedule.
+   * @param sessionId Session Id.
+   * @param azkabanProjectId Project Id.
+   * @param azkabanProjectConfig Azkaban Project Config.
+   * @return Project Id.
+   * @throws IOException
+   */
   public static String replaceAzkabanJob(String sessionId, String azkabanProjectId,
       AzkabanProjectConfig azkabanProjectConfig) throws IOException {
     log.info("Replacing zip for Azkaban project: " + azkabanProjectConfig.getAzkabanProjectName());
@@ -113,6 +144,13 @@ public class AzkabanJobHelper {
     return projectId;
   }
 
+  /***
+   * Schedule an already created Azkaban project.
+   * @param sessionId Session Id.
+   * @param azkabanProjectId Project Id.
+   * @param azkabanProjectConfig Azkaban Project Config that contains schedule information.
+   * @throws IOException
+   */
   public static void scheduleJob(String sessionId, String azkabanProjectId,
       AzkabanProjectConfig azkabanProjectConfig)
       throws IOException {
@@ -120,6 +158,13 @@ public class AzkabanJobHelper {
     AzkabanAjaxAPIClient.scheduleAzkabanProject(sessionId, azkabanProjectId, azkabanProjectConfig);
   }
 
+  /***
+   * Change the schedule of an already created Azkaban project.
+   * @param sessionId Session Id.
+   * @param azkabanProjectId Project Id.
+   * @param azkabanProjectConfig Azkaban Project Config that contains schedule information.
+   * @throws IOException
+   */
   public static void changeJobSchedule(String sessionId, String azkabanProjectId,
       AzkabanProjectConfig azkabanProjectConfig)
       throws IOException {
@@ -127,7 +172,28 @@ public class AzkabanJobHelper {
     AzkabanAjaxAPIClient.scheduleAzkabanProject(sessionId, azkabanProjectId, azkabanProjectConfig);
   }
 
-  public static String createAzkabanJobZip(AzkabanProjectConfig azkabanProjectConfig)
+  /***
+   * Execute an already created Azkaban project.
+   * @param sessionId Session Id.
+   * @param azkabanProjectId Project Id.
+   * @param azkabanProjectConfig Azkaban Project Config that contains schedule information.
+   * @throws IOException
+   */
+  public static void executeJob(String sessionId, String azkabanProjectId,
+      AzkabanProjectConfig azkabanProjectConfig)
+      throws IOException {
+    log.info("Executing Azkaban project: " + azkabanProjectConfig.getAzkabanProjectName());
+    AzkabanAjaxAPIClient.executeAzkabanProject(sessionId, azkabanProjectId, azkabanProjectConfig);
+  }
+
+  /***
+   * Create Azkaban project zip file.
+   * @param azkabanProjectConfig Azkaban Project Config that contains information about what to include in
+   *                             zip file.
+   * @return Zip file path.
+   * @throws IOException
+   */
+  private static String createAzkabanJobZip(AzkabanProjectConfig azkabanProjectConfig)
       throws IOException {
     log.info("Creating Azkaban job zip file for project: " + azkabanProjectConfig.getAzkabanProjectName());
     String workDir = azkabanProjectConfig.getWorkDir();
@@ -153,7 +219,7 @@ public class AzkabanJobHelper {
           jobJarFile = downloadAzkabanJobJar(workDir, jobJarUrl);
           filesToAdd.add(jobJarFile);
         } catch (IOException e) {
-          if(failIfJarNotFound) {
+          if (failIfJarNotFound) {
             throw e;
           }
           log.warn("Could not download: " + jobJarFile);
