@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.concurrent.Future;
 
 import org.apache.commons.codec.EncoderException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
@@ -47,13 +48,21 @@ public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInst
     try {
       // Initialize Azkaban client / producer and cache credentials
       String azkabanUsername = config.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
-      String azkabanPassword = config.getString(ServiceAzkabanConfigKeys.AZKABAN_PASSWORD_KEY);
+      String azkabanPassword = getAzkabanPassword(config);
       String azkabanServerUrl = config.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
 
       sessionId = AzkabanAjaxAPIClient.authenticateAndGetSessionId(azkabanUsername, azkabanPassword, azkabanServerUrl);
     } catch (IOException | EncoderException e) {
       throw new RuntimeException("Could not authenticate with Azkaban", e);
     }
+  }
+
+  private String getAzkabanPassword(Config config) {
+    if (StringUtils.isNotBlank(System.getProperty(ServiceAzkabanConfigKeys.AZKABAN_PASSWORD_SYSTEM_KEY))) {
+      return System.getProperty(ServiceAzkabanConfigKeys.AZKABAN_PASSWORD_SYSTEM_KEY);
+    }
+
+    return ConfigUtils.getString(config, ServiceAzkabanConfigKeys.AZKABAN_PASSWORD_KEY, StringUtils.EMPTY);
   }
 
   public AzkabanSpecExecutorInstanceProducer(Config config, Logger log) {
