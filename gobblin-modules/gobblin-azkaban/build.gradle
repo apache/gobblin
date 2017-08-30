@@ -41,6 +41,9 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.hadoopYarnApi
   compile externalDependency.findBugsAnnotations
+
+  testCompile externalDependency.mockito
+  testCompile externalDependency.powermock
 }
 
 test {

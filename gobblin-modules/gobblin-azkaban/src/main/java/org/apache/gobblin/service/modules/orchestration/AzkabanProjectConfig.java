@@ -24,6 +24,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -76,8 +77,14 @@ public class AzkabanProjectConfig {
     this.azkabanZipJarNames = Optional.ofNullable(ConfigUtils.getStringList(config, ServiceAzkabanConfigKeys.AZKABAN_PROJECT_ZIP_JAR_NAMES_KEY));
     this.azkabanZipJarUrlTemplate = Optional.ofNullable(ConfigUtils.getString(config, ServiceAzkabanConfigKeys.AZKABAN_PROJECT_ZIP_JAR_URL_TEMPLATE_KEY, null));
     this.azkabanZipJarVersion = Optional.ofNullable(ConfigUtils.getString(config, ServiceAzkabanConfigKeys.AZKABAN_PROJECT_ZIP_JAR_VERSION_KEY, null));
-    this.azkabanZipAdditionalFiles = Optional.ofNullable(
-        ConfigUtils.getStringList(config, ServiceAzkabanConfigKeys.AZKABAN_PROJECT_ZIP_ADDITIONAL_FILE_URLS_KEY));
+    if (config.hasPath(ServiceAzkabanConfigKeys.AZKABAN_PROJECT_ZIP_ADDITIONAL_FILE_URLS_KEY) &&
+        StringUtils.isNotBlank(config.getString(ServiceAzkabanConfigKeys.AZKABAN_PROJECT_ZIP_ADDITIONAL_FILE_URLS_KEY))) {
+      this.azkabanZipAdditionalFiles = Optional.ofNullable(
+          ConfigUtils.getStringList(config, ServiceAzkabanConfigKeys.AZKABAN_PROJECT_ZIP_ADDITIONAL_FILE_URLS_KEY));
+    } else {
+      this.azkabanZipAdditionalFiles = Optional.empty();
+    }
+
     this.failIfJarNotFound = ConfigUtils.getBoolean(config, ServiceAzkabanConfigKeys.AZKABAN_PROJECT_ZIP_FAIL_IF_JARNOTFOUND_KEY, false);
   }
 

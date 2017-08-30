@@ -51,6 +51,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.TrustStrategy;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.google.gson.JsonElement;
@@ -345,14 +346,16 @@ public class AzkabanAjaxAPIClient {
     return postRequest;
   }
 
-  private static Map<String, String> executeGetRequest(HttpGet getRequest) throws IOException {
+  @VisibleForTesting
+  protected static Map<String, String> executeGetRequest(HttpGet getRequest) throws IOException {
     // Make the call, get response
     @Cleanup CloseableHttpClient httpClient = getHttpClient();
     HttpResponse response = httpClient.execute(getRequest);
     return handleResponse(response);
   }
 
-  private static Map<String, String> executePostRequest(HttpPost postRequest) throws IOException {
+  @VisibleForTesting
+  protected static Map<String, String> executePostRequest(HttpPost postRequest) throws IOException {
     // Make the call, get response
     @Cleanup CloseableHttpClient httpClient = getHttpClient();
     HttpResponse response = httpClient.execute(postRequest);
