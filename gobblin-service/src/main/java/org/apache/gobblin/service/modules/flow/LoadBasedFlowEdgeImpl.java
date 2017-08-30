@@ -34,17 +34,16 @@ import lombok.Getter;
  * It is expected that {@link org.jgrapht.graph.DirectedWeightedMultigraph#getAllEdges(Object, Object)}
  * can return multiple edges with the same pair of source and destination but different SpecExecutor.
  *
- * Each edge has a {@FlowEdgeProp} which is used to evaluate a edge.
+ * Each edge has a {@FlowEdgeProp} which contains mutable and immutable properties.
+ * The {@link LoadBasedFlowEdgeImpl} exposes two mutable properties: Load and Security.
  *
- * The {@link LoadBasedFlowEdgeImpl} exposes interface to getLoad of an edge directly.
- * In terms of implementation details,
- * Load of edge is equivalent to weight defined in {@link DefaultWeightedEdge}.
+ * Load of an edge is equivalent to weight defined in {@link DefaultWeightedEdge}.
  * Since {@link #getWeight()} method is protected, {@link #getEdgeLoad()} will return the load.
- *
  * There's no setLoad, which is logically supposed to happen by invoking
  * {@link org.jgrapht.graph.DirectedWeightedMultigraph#setEdgeWeight(Object, double)}.
  *
-
+ * Security of an edge describes if an edge is secure to be part of data movement path at current stage.
+ *
  */
 @Alpha
 public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEdge {
@@ -55,15 +54,16 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
   @Getter
   private SpecExecutor specExecutorInstance;
 
-  private final FlowEdgeProps flowEdgeProps;
-
   /**
-   * {@link #edgeSecurity}'s initial value comes from {@link FlowEdgeProps},
-   * and can be overrided by {@link #setEdgeSecurity(boolean)} and
-   * {@link org.jgrapht.graph.DirectedWeightedMultigraph#setEdgeWeight(Object, double)} method afterwards.
+   * Contains both read-only and mutable attributes of properties of an edge.
+   * Mutable properties in{@link FlowEdgeProps} expose their Setter & Getter
+   * thru. either the {@link FlowEdgeProps}
+   * or graph-level api, e.g. {@link org.jgrapht.graph.DirectedWeightedMultigraph#setEdgeWeight(Object, double)}
+   *
+   * Typical mutable properties of an edge includes:
+   * Load(Weight), Security.
    */
-  private boolean edgeSecurity;
-
+  private final FlowEdgeProps flowEdgeProps;
 
   public LoadBasedFlowEdgeImpl(ServiceNode sourceNode, ServiceNode targetNode,
       FlowEdgeProps flowEdgeProps, SpecExecutor specExecutorInstance) {
@@ -71,7 +71,6 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
     this.targetNode = targetNode;
     this.flowEdgeProps = flowEdgeProps;
     this.specExecutorInstance = specExecutorInstance;
-    this.edgeSecurity = flowEdgeProps.getInitialEdgeSafety();
   }
 
   public LoadBasedFlowEdgeImpl(ServiceNode sourceNode, ServiceNode targetNode,
@@ -80,21 +79,32 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
         specExecutor);
   }
 
+  // Load: Directly using {@link DefaultWeightedEdge}'s weight field.
+  /**
+   * Load:
+   * Initialization: super's default constructor
+   * Getter: {@link #getEdgeLoad()}} thru. {@link DefaultWeightedEdge}'s {@link #getWeight()}.
+   * Setter:Thru. {@link org.jgrapht.graph.DirectedWeightedMultigraph#setEdgeWeight(Object, double)}
+   */
   public double getEdgeLoad() {
     return getWeight();
   }
 
+  // Security: Get/Set thru. FlowEdgeProps
+  /**
+   * Initialization\Getter\Setter: By {@link FlowEdgeProps}
+   */
+  public boolean getIsEdgeSecure() {
+    return flowEdgeProps.isEdgeSecure();
+  }
+  public void setIsEdgeSecure(boolean isEdgeSecure) {
+    this.flowEdgeProps.setEdgeSecure(isEdgeSecure);
+  }
+
+
   @Override
   public String getEdgeIdentity() {
     return this.calculateEdgeIdentity(this.sourceNode, this.targetNode, this.specExecutorInstance);
-  }
-
-  /**
-   * Since {@link #flowEdgeProps} is supposed to be read-only once instantiated, set method here
-   * will overwrite the value in {@link #edgeSecurity}.
-   */
-  public void setEdgeSecurity(boolean security) {
-    this.edgeSecurity = security;
   }
 
   @Override
@@ -104,11 +114,12 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
 
   @Override
   /**
-   * Naive implementation for here.
+   * Naive rule: If edge is secure, then it is qualified to be considered in path-finding.
    */
   public boolean isEdgeEnabled() {
-    return this.edgeSecurity;
+    return this.flowEdgeProps.isEdgeSecure();
   }
+
 
   /**
    * A naive implementation of edge identity calculation.

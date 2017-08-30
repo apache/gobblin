@@ -17,8 +17,13 @@
 
 package org.apache.gobblin.runtime.spec_executorInstance;
 
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
+import java.net.URI;
+import java.util.Properties;
 import java.util.concurrent.Future;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
@@ -53,6 +58,16 @@ public class InMemorySpecExecutor extends AbstractSpecExecutor {
   public InMemorySpecExecutor(Config config, Optional<Logger> log) {
     super(config, log);
     inMemorySpecProducer = new InMemorySpecProducer(config);
+  }
+
+  /**
+   * A creator that create a SpecExecutor only specifying URI for uniqueness.
+   * @param uri
+   */
+  public static SpecExecutor createDummySpecExecutor(URI uri) {
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, uri.toString());
+    return new InMemorySpecExecutor(ConfigFactory.parseProperties(properties));
   }
 
   @Override

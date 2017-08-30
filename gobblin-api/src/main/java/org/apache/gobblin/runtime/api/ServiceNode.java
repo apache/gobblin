@@ -26,17 +26,18 @@ import com.typesafe.config.Config;
 public interface ServiceNode {
   /**
    * @return The name of node.
+   * It should be the identifier of a {@link ServiceNode}.
    */
   String getNodeName();
 
   /**
    * @return The attributes of a {@link ServiceNode}.
    */
-  Config getNodeConfig();
+  Config getNodeProps();
 
   /**
    * @return if the node is valid to use
    */
-  boolean isNodeValid();
+  boolean isNodeEnabled();
 
 }

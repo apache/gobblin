@@ -42,8 +42,6 @@ import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
   public static final String SPEC_KAFKA_TOPICS_KEY = "spec.kafka.topics";
 
-  // Executor Instance
-  protected final URI specExecutorInstanceUri;
 
   protected static final String VERB_KEY = "Verb";
 
@@ -53,12 +51,6 @@ public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
 
   public SimpleKafkaSpecExecutor(Config config, Optional<Logger> log) {
     super(config, log);
-    try {
-      specExecutorInstanceUri = new URI(ConfigUtils.getString(config, ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,
-          "NA"));
-    } catch (URISyntaxException e) {
-      throw new RuntimeException(e);
-    }
     specProducer = new SimpleKafkaSpecProducer(config, log);
     specConsumer = new SimpleKafkaSpecConsumer(config, log);
   }
@@ -69,28 +61,23 @@ public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
   }
 
   @Override
-  public URI getUri() {
-    return specExecutorInstanceUri;
-  }
-
-  @Override
   public Future<String> getDescription() {
     return new CompletedFuture<>("SimpleSpecExecutorInstance with URI: " + specExecutorInstanceUri, null);
   }
 
   @Override
   protected void startUp() throws Exception {
-    _optionalCloser = Optional.of(Closer.create());
-    specProducer = _optionalCloser.get().register((SimpleKafkaSpecProducer) specProducer);
-    specConsumer = _optionalCloser.get().register((SimpleKafkaSpecConsumer) specConsumer);
+    optionalCloser = Optional.of(Closer.create());
+    specProducer = optionalCloser.get().register((SimpleKafkaSpecProducer) specProducer);
+    specConsumer = optionalCloser.get().register((SimpleKafkaSpecConsumer) specConsumer);
   }
 
   @Override
   protected void shutDown() throws Exception {
-    if (_optionalCloser.isPresent()) {
-      _optionalCloser.get().close();
+    if (optionalCloser.isPresent()) {
+      optionalCloser.get().close();
     } else {
-      throw new RuntimeException("Closer initialization failed");
+      log.warn("There's no Closer existed in " + this.getClass().getName());
     }
   }
 

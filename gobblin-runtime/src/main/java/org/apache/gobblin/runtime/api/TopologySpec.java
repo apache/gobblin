@@ -80,10 +80,9 @@ public class TopologySpec implements Configurable, Spec {
   transient SpecExecutor specExecutorInstance;
 
   /**
-   * @return A {@link SpecExecutor}'s instance defined by <Technology, Location, Communication Mechanism> that
-   * defines part of data movement topology.
+   * @return A {@link SpecExecutor}'s instance defined by <Technology, Location, Communication Mechanism>
    */
-  public SpecExecutor getSpecExecutor() {
+  public synchronized SpecExecutor getSpecExecutor() {
     if (null == specExecutorInstance) {
       String specExecutorClass = DEFAULT_SPEC_EXECUTOR_INSTANCE;
       if (config.hasPath(SPEC_EXECUTOR_INSTANCE_KEY)) {

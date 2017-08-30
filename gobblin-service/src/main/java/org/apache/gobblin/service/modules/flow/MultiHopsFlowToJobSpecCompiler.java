@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.flow;
 
+import com.google.common.base.Splitter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -27,12 +28,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
 import com.typesafe.config.Config;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import org.apache.gobblin.service.modules.policy.ServicePolicy;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.jgrapht.graph.DirectedWeightedMultigraph;
 import org.slf4j.Logger;
 import org.apache.gobblin.runtime.api.FlowEdge;
@@ -52,23 +54,24 @@ import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import static org.apache.gobblin.service.ServiceConfigKeys.*;
 import static org.apache.gobblin.service.modules.utils.findPathUtils.*;
 
 // Users are capable to inject hints/prioritization into route selection, in two forms:
 // 1. PolicyBasedBlockedConnection: Define some undesired routes
 // 2. Specified a complete path. FlowCompiler is responsible to verify if the path given is valid.
 
-// TODO: Flow monitoring, injecting weight for flowEdge:https://jira01.corp.linkedin.com:8443/browse/ETL-6213
+// TODO: Flow monitoring, injecting weight for flowEdge:ETL-6213
 @Slf4j
 public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
+
+  private static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
 
   @Getter
   private DirectedWeightedMultigraph<ServiceNode, FlowEdge> weightedGraph =
       new DirectedWeightedMultigraph<>(LoadBasedFlowEdgeImpl.class);
 
-  //Contains the user-specified connection that are not desired to appear in data movement path.
-  //It can be used for avoiding known expensive or undesired data movement.
-  public Optional<Multimap<String, String>> optionalPolicyBasedBlockedConnection;
+  ServicePolicy servicePolicy;
 
   // Contains user-specified complete path of how the data movement is executed from source to sink.
   private Optional<String> optionalUserSpecifiedPath;
@@ -85,15 +88,36 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
 
   public MultiHopsFlowToJobSpecCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
-    Multimap<String, String> policyBasedBlockedConnection = ArrayListMultimap.create();
+    String policyClassName = config.hasPath(SERVICE_POLICY_NAME)
+        ? config.getString(SERVICE_POLICY_NAME) : ServiceConfigKeys.DEFAULT_SERVICE_POLICY;
+    ClassAliasResolver<ServicePolicy> classResolver =
+        new ClassAliasResolver<>(ServicePolicy.class);
+    try {
+      servicePolicy = classResolver.resolveClass(policyClassName).newInstance();
+    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+      throw new RuntimeException("Error happen when resolving class for :" + policyClassName, e);
+    }
+
     if (config.hasPath(ServiceConfigKeys.POLICY_BASED_BLOCKED_CONNECTION) &&
         config.getStringList(ServiceConfigKeys.POLICY_BASED_BLOCKED_CONNECTION).size() > 0) {
-      for (String sourceSinkPair:config.getStringList(ServiceConfigKeys.POLICY_BASED_BLOCKED_CONNECTION)) {
-        policyBasedBlockedConnection.put(sourceSinkPair.split(":")[0], sourceSinkPair.split(":")[1]);
+      try {
+        for (String sourceSinkPair : config.getStringList(ServiceConfigKeys.POLICY_BASED_BLOCKED_CONNECTION)) {
+          BaseServiceNodeImpl source = new BaseServiceNodeImpl(sourceSinkPair.split(":")[0]);
+          BaseServiceNodeImpl sink = new BaseServiceNodeImpl(sourceSinkPair.split(":")[1]);
+          URI specExecutorURI = new URI(sourceSinkPair.split(":")[2]);
+          servicePolicy.addFlowEdge(new LoadBasedFlowEdgeImpl(source, sink,
+              InMemorySpecExecutor.createDummySpecExecutor(specExecutorURI)));
+        }
+      } catch (URISyntaxException e) {
+        this.log.warn("Constructing of FlowEdge in ServicePolicy Failed");
       }
-      this.optionalPolicyBasedBlockedConnection = Optional.of(policyBasedBlockedConnection);
-    } else {
-      this.optionalPolicyBasedBlockedConnection = Optional.absent();
+    }
+
+    if (config.hasPath(ServiceConfigKeys.POLICY_BASED_BLOCKED_NODES) &&
+        config.getStringList(ServiceConfigKeys.POLICY_BASED_BLOCKED_NODES).size() > 0) {
+      for (String blacklistedNode: SPLIT_BY_COMMA.splitToList(config.getString(ServiceConfigKeys.POLICY_BASED_BLOCKED_NODES))){
+        servicePolicy.addServiceNode(new BaseServiceNodeImpl(blacklistedNode));
+      }
     }
 
     if (config.hasPath(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH) &&
@@ -124,24 +148,12 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       weightGraphGenerateHelper(topologySpec);
     }
 
-    // Filter out connection appearing in {@link optionalPolicyBasedBlockedConnection}
-    if (optionalPolicyBasedBlockedConnection.isPresent()) {
-      for (Map.Entry<String, String> singleBlacklistEntry:optionalPolicyBasedBlockedConnection.get().entries()) {
-        ServiceNode blockedNodeSrc = new BaseServiceNodeImpl(singleBlacklistEntry.getKey());
-        ServiceNode blockedNodeDst = new BaseServiceNodeImpl(singleBlacklistEntry.getValue());
-        if (weightedGraph.containsEdge(blockedNodeSrc, blockedNodeDst)) {
-          weightedGraph.removeAllEdges(blockedNodeSrc, blockedNodeDst);
-          vertexSafeDeletionAttempt(blockedNodeSrc, weightedGraph);
-          vertexSafeDeletionAttempt(blockedNodeDst, weightedGraph);
-        }
+    // Filter out connection appearing in servicePolicy.
+    servicePolicy.populateBlackListedEdges(this.weightedGraph);
+    if (servicePolicy.getBlacklistedEdges().size() > 0 ) {
+      for (FlowEdge toDeletedEdge : servicePolicy.getBlacklistedEdges()) {
+        weightedGraph.removeEdge(toDeletedEdge);
       }
-    }
-  }
-
-  private void vertexSafeDeletionAttempt(ServiceNode node, DirectedWeightedMultigraph weightedGraph) {
-    if (weightedGraph.inDegreeOf(node) == 0 && weightedGraph.outDegreeOf(node) == 0) {
-      log.info("Node " + node.getNodeName() + " has no connection with it therefore delete it.");
-      weightedGraph.removeVertex(node);
     }
   }
 

@@ -37,9 +37,7 @@ public interface FlowEdge {
   String getEdgeIdentity();
 
   /**
-   * There could be multiple edge properties besides typical ones like load, security, etc.
-   * Normally it is categorized into numerical value props and boolean value props.
-   * Edge Properties are supposed to be read-only.
+   * Return read-only Edge Properties .
    * @return
    */
   Config getEdgeProperties();

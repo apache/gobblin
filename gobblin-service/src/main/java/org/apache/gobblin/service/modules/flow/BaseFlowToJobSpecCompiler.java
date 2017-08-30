@@ -203,7 +203,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
    * @param flowSpec
    * @return
    */
-  protected JobSpec jobSpecGenerator(FlowSpec flowSpec){
+  protected JobSpec jobSpecGenerator(FlowSpec flowSpec) {
     JobSpec jobSpec;
     JobSpec.Builder jobSpecBuilder = JobSpec.builder(flowSpec.getUri())
         .withConfig(flowSpec.getConfig())

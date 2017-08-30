@@ -33,6 +33,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.runtime.api.SpecConsumer;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.util.ConfigUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -43,6 +44,7 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.util.CompletedFuture;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
+
 
 /**
  * An abstract implementation of SpecExecutor without specifying communication mechanism.
@@ -59,7 +61,10 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
 
   protected final transient Logger log;
 
-  @SuppressWarnings(justification="No bug", value="SE_BAD_FIELD")
+  // Executor Instance identifier
+  protected final URI specExecutorInstanceUri;
+
+  @SuppressWarnings(justification = "No bug", value = "SE_BAD_FIELD")
   protected final Config config;
 
   protected final Map<ServiceNode, ServiceNode> capabilities;
@@ -69,9 +74,9 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
    * they implements {@link java.io.Closeable} which requires registration and close methods.
    * {@link Closer} is mainly used for managing {@link SpecProducer} and {@link SpecConsumer}.
    */
-  protected Optional<Closer> _optionalCloser;
+  protected Optional<Closer> optionalCloser;
 
-  public AbstractSpecExecutor(Config config){
+  public AbstractSpecExecutor(Config config) {
     this(config, Optional.<Logger>absent());
   }
 
@@ -80,6 +85,23 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
   }
 
   public AbstractSpecExecutor(Config config, Optional<Logger> log) {
+
+    /**
+     * Since URI is regarded as the unique identifier for {@link SpecExecutor}(Used in equals method)
+     * it is dangerous to use default URI.
+     */
+    if (!config.hasPath(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY)) {
+      if (log.isPresent()) {
+        log.get().warn("The SpecExecutor doesn't specify URI, using the default one.");
+      }
+    }
+
+    try {
+      specExecutorInstanceUri =
+          new URI(ConfigUtils.getString(config, ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, "NA"));
+    } catch (URISyntaxException e) {
+      throw new RuntimeException(e);
+    }
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.config = config;
     this.capabilities = Maps.newHashMap();
@@ -88,25 +110,18 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
       List<String> capabilities = SPLIT_BY_COMMA.splitToList(capabilitiesStr);
       for (String capability : capabilities) {
         List<String> currentCapability = SPLIT_BY_COLON.splitToList(capability);
-        Preconditions.checkArgument(currentCapability.size() == 2, "Only one source:destination pair is supported "
-            + "per capability, found: " + currentCapability);
-        this.capabilities.put(new BaseServiceNodeImpl(currentCapability.get(0)), new BaseServiceNodeImpl(currentCapability.get(1)));
+        Preconditions.checkArgument(currentCapability.size() == 2,
+            "Only one source:destination pair is supported " + "per capability, found: " + currentCapability);
+        this.capabilities.put(new BaseServiceNodeImpl(currentCapability.get(0)),
+            new BaseServiceNodeImpl(currentCapability.get(1)));
       }
     }
-    _optionalCloser = Optional.absent();
+    optionalCloser = Optional.absent();
   }
 
-  /**
-   * A default URI of a AbstractSpecExecutor is from its corresponding class Name.
-   * In the inherited class the result of getName() would be BaseClass$DerivedClass.
-   */
   @Override
   public URI getUri() {
-    try {
-      return new URI(this.getClass().getName());
-    } catch (URISyntaxException e) {
-      throw new RuntimeException(e);
-    }
+    return specExecutorInstanceUri;
   }
 
   /**
@@ -122,7 +137,6 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
     return this.config.getConfig(ServiceConfigKeys.ATTRS_PATH_IN_CONFIG);
   }
 
-
   @Override
   public Future<Config> getConfig() {
     return new CompletedFuture(this.config, null);
@@ -131,6 +145,29 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
   @Override
   public Future<? extends Map<ServiceNode, ServiceNode>> getCapabilities() {
     return new CompletedFuture(this.capabilities, null);
+  }
+
+  /**
+   * Two {@link SpecExecutor}s with the same {@link #specExecutorInstanceUri}
+   * should be considered as the same {@link SpecExecutor}.
+   */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    AbstractSpecExecutor that = (AbstractSpecExecutor) o;
+
+    return specExecutorInstanceUri.equals(that.specExecutorInstanceUri);
+  }
+
+  @Override
+  public int hashCode() {
+    return specExecutorInstanceUri.hashCode();
   }
 
   /**

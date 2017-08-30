@@ -18,27 +18,38 @@ package org.apache.gobblin.runtime.spec_executorInstance;
 
 import java.util.Properties;
 
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
+import lombok.Setter;
 import org.apache.gobblin.runtime.api.ServiceNode;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
-import lombok.Data;
+import lombok.Getter;
 
-@Data
 /**
  * A base implementation for {@link ServiceNode} with default secured setting.
  */
 public class BaseServiceNodeImpl implements ServiceNode {
 
+  @Getter
   public String nodeName;
 
-  public Config nodeConfig;
+  /**
+   * Contains read-only properties of an {@link ServiceNode}
+   */
+  @Getter
+  public Config nodeProps;
 
-  public static final String NODE_SECURITY_KEY = "node.secured";
-
-  // True means node is secure.
-  private static final String DEFAULT_NODE_SECURITY = "true";
+  /**
+   * One of mutable properties of Node.
+   * Initialization: Obtained from {@link ServiceConfigKeys}.
+   * Getter/Setter: Simply thur. {@link BaseServiceNodeImpl}.
+   */
+  @Getter
+  @Setter
+  private boolean isNodeSecure;
 
   /**
    * For nodes missing configuration
@@ -49,18 +60,41 @@ public class BaseServiceNodeImpl implements ServiceNode {
   }
 
   public BaseServiceNodeImpl(String nodeName, Properties props) {
+    Preconditions.checkNotNull(nodeName);
     this.nodeName = nodeName;
-    if (!props.containsKey(this.NODE_SECURITY_KEY)) {
-      props.setProperty(this.NODE_SECURITY_KEY, DEFAULT_NODE_SECURITY);
-    }
-    nodeConfig = ConfigUtils.propertiesToConfig(props);
+    isNodeSecure = Boolean.parseBoolean
+        (props.getProperty(ServiceConfigKeys.NODE_SECURITY_KEY, ServiceConfigKeys.DEFAULT_NODE_SECURITY));
+    nodeProps = ConfigUtils.propertiesToConfig(props);
   }
 
   /**
    * By default each node is acceptable to use in path-finding.
    */
   @Override
-  public boolean isNodeValid() {
+  public boolean isNodeEnabled() {
     return true;
+  }
+
+  /**
+   * The comparison between two nodes should involve the configuration.
+   * Node name is the identifier for the node.
+   * */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    BaseServiceNodeImpl that = (BaseServiceNodeImpl) o;
+
+    return nodeName.equals(that.nodeName);
+  }
+
+  @Override
+  public int hashCode() {
+    return nodeName.hashCode();
   }
 }

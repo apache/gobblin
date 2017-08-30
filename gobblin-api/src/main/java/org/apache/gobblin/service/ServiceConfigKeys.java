@@ -81,14 +81,27 @@ public class ServiceConfigKeys {
   // Template Catalog Keys
   public static final String TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.fullyQualifiedPath";
 
-  // Keys related to user-specified policy on route slection.
+  // Keys related to user-specified policy on route selection.
   // Undesired connection to form an executable JobSpec.
-  // Formatted as a String list, each entry contains a string in the format of "Source1:Sink1",
-  // which indicates that data movement from source1 to sink1 should be avoided.
-  public static final String POLICY_BASED_BLOCKED_CONNECTION = GOBBLIN_SERVICE_PREFIX + "blockedConnection";
+  // Formatted as a String list, each entry contains a string in the format of "Source1:Sink1:URI",
+  // which indicates that data movement from source1 to sink1 with specific URI of specExecutor should be avoided.
+  public static final String POLICY_BASED_BLOCKED_CONNECTION = GOBBLIN_SERVICE_PREFIX + "blockedConnections";
+
+  // Comma separated list of nodes that is blacklisted. Names put here will become the nodeName which is the ID of a serviceNode.
+  public static final String POLICY_BASED_BLOCKED_NODES = GOBBLIN_SERVICE_PREFIX + "blockedNodes";
   // Complete path of how the data movement is executed from source to sink.
   // Formatted as a String, each hop separated by comma, from source to sink in order.
   public static final String POLICY_BASED_DATA_MOVEMENT_PATH = GOBBLIN_SERVICE_PREFIX + "fullDataPath";
 
   public static final String ATTRS_PATH_IN_CONFIG = "executorAttrs";
+
+  // Gobblin Service Graph Representation Topology related Keys
+  public static final String NODE_SECURITY_KEY = "node.secured";
+  // True means node is by default secure.
+  public static final String DEFAULT_NODE_SECURITY = "true";
+
+
+  // Policy related configuration Keys
+  public static final String DEFAULT_SERVICE_POLICY = "static";
+  public static final String SERVICE_POLICY_NAME = GOBBLIN_SERVICE_PREFIX + "servicePolicy";
 }

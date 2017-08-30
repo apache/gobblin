@@ -26,21 +26,30 @@ import java.util.Properties;
 import static org.apache.gobblin.service.ServiceConfigKeys.*;
 
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-@Data
 @Slf4j
-public class FlowEdgeProps implements Serializable {
+public class FlowEdgeProps {
+  protected static final boolean DEFAULT_EDGE_SAFETY = true;
 
-  private static final long serialVersionUID = 221008706467320994L;
-
+  /**
+   * Contains read-only properties that users want to package in.
+   */
+  @Getter
   protected Config config;
 
-  protected static final double DEFAULT_EDGE_LOAD = 1.0;
-  protected static final boolean DEFAULT_EDGE_SAFETY = true;
+  /**
+   * One of the mutable properties of an edge.
+   */
+  @Getter
+  @Setter
+  private boolean isEdgeSecure;
 
   public FlowEdgeProps(Config config) {
     this.config = config;
+    isEdgeSecure = getInitialEdgeSafety();
   }
 
   public FlowEdgeProps() {
@@ -51,7 +60,7 @@ public class FlowEdgeProps implements Serializable {
    * When initializing an edge, load and security value from properties will be used
    * but could be overriden afterwards.
    */
-  public boolean getInitialEdgeSafety() {
+  private boolean getInitialEdgeSafety() {
     return
         config.hasPath(EDGE_SECURITY_KEY) ? config.getBoolean(EDGE_SECURITY_KEY) : DEFAULT_EDGE_SAFETY;
   }
