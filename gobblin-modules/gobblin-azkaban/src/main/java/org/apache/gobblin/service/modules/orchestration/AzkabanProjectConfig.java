@@ -39,8 +39,6 @@ import com.typesafe.config.ConfigFactory;
  * Class to hold Azkaban project specific configs
  */
 public class AzkabanProjectConfig {
-  private static final String DEFAULT_AZKABAN_PROJECT_CONFIG_FILE = "default-service-azkaban.conf";
-
   private final String azkabanServerUrl;
 
   private final String azkabanProjectName;
@@ -60,7 +58,7 @@ public class AzkabanProjectConfig {
   public AzkabanProjectConfig(JobSpec jobSpec) {
     // Extract config objects
     this.jobSpec = jobSpec;
-    Config defaultConfig = ConfigFactory.load(DEFAULT_AZKABAN_PROJECT_CONFIG_FILE);
+    Config defaultConfig = ConfigFactory.load(ServiceAzkabanConfigKeys.DEFAULT_AZKABAN_PROJECT_CONFIG_FILE);
     Config config  = jobSpec.getConfig().withFallback(defaultConfig);
 
     // Azkaban Infrastructure

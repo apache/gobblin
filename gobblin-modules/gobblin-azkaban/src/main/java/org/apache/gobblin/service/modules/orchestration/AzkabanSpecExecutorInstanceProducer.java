@@ -47,9 +47,9 @@ public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInst
 
     try {
       // Initialize Azkaban client / producer and cache credentials
-      String azkabanUsername = config.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
-      String azkabanPassword = getAzkabanPassword(config);
-      String azkabanServerUrl = config.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
+      String azkabanUsername = _config.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
+      String azkabanPassword = getAzkabanPassword(_config);
+      String azkabanServerUrl = _config.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
 
       _sessionId = AzkabanAjaxAPIClient.authenticateAndGetSessionId(azkabanUsername, azkabanPassword, azkabanServerUrl);
     } catch (IOException | EncoderException e) {

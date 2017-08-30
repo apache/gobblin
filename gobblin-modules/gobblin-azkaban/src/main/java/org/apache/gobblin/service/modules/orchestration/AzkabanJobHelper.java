@@ -263,7 +263,13 @@ public class AzkabanJobHelper {
     // Determine final zip file path
     String zipFilePath = String.format("%s/%s", directory, zipFilename);
     File zipFile = new File(zipFilePath);
-    zipFile.delete();
+    if (zipFile.exists()) {
+      if (zipFile.delete()) {
+        log.info("Zipfile existed and was deleted: " + zipFilePath);
+      } else {
+        log.warn("Zipfile exists but was not deleted: " + zipFilePath);
+      }
+    }
 
     // Create and add files to zip file
     addFilesToZip(zipFile, filesToAdd);
@@ -271,6 +277,9 @@ public class AzkabanJobHelper {
     return zipFilePath;
   }
 
+  @edu.umd.cs.findbugs.annotations.SuppressWarnings(
+      value = "OBL_UNSATISFIED_OBLIGATION",
+      justification = "Lombok construct of @Cleanup is handing this, but not detected by FindBugs")
   private static void addFilesToZip(File zipFile, List<File> filesToAdd) throws IOException {
     try {
       @Cleanup
@@ -300,7 +309,13 @@ public class AzkabanJobHelper {
     // Determine final config file path
     String jobFilePath = String.format("%s/%s.job", workDir, flowName);
     File jobFile = new File(jobFilePath);
-    jobFile.delete();
+    if (jobFile.exists()) {
+      if (jobFile.delete()) {
+        log.info("JobFile existed and was deleted: " + jobFilePath);
+      } else {
+        log.warn("JobFile exists but was not deleted: " + jobFilePath);
+      }
+    }
 
     StringBuilder propertyFileContent = new StringBuilder();
     for (Map.Entry entry : azkabanProjectConfig.getJobSpec().getConfigAsProperties().entrySet()) {
@@ -313,6 +328,9 @@ public class AzkabanJobHelper {
     return new File[] {jobFile};
   }
 
+  @edu.umd.cs.findbugs.annotations.SuppressWarnings(
+      value = "OBL_UNSATISFIED_OBLIGATION",
+      justification = "Lombok construct of @Cleanup is handing this, but not detected by FindBugs")
   private static File downloadAzkabanJobJar(String workDir, String jobJarUrl)
       throws IOException {
     // Determine final jar file path
@@ -320,7 +338,13 @@ public class AzkabanJobHelper {
     String jobJarName = jobJarUrlParts[jobJarUrlParts.length-1];
     String jobJarFilePath = String.format("%s/%s", workDir, jobJarName);
     File jobJarFile = new File(jobJarFilePath);
-    jobJarFile.delete();
+    if (jobJarFile.exists()) {
+      if (jobJarFile.delete()) {
+      log.info("JobJarFilePath existed and was deleted: " + jobJarFilePath);
+    } else {
+        log.warn("JobJarFilePath exists but was not deleted: " + jobJarFilePath);
+      }
+    }
 
     // Create work directory if not already exists
     FileUtils.forceMkdir(new File(workDir));

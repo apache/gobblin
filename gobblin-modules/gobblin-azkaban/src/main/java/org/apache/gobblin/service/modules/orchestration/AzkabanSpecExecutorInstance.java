@@ -35,6 +35,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 
 public class AzkabanSpecExecutorInstance extends AbstractIdleService implements SpecExecutorInstance {
@@ -48,7 +49,8 @@ public class AzkabanSpecExecutorInstance extends AbstractIdleService implements 
   protected final Map<String, String> _capabilities;
 
   public AzkabanSpecExecutorInstance(Config config, Optional<Logger> log) {
-    _config = config;
+    Config defaultConfig = ConfigFactory.load(ServiceAzkabanConfigKeys.DEFAULT_AZKABAN_PROJECT_CONFIG_FILE);
+    _config = config.withFallback(defaultConfig);
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     try {
       _specExecutorInstanceUri = new URI(ConfigUtils.getString(config, ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,

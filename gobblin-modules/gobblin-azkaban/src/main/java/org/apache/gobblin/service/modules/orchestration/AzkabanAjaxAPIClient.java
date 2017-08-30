@@ -308,7 +308,7 @@ public class AzkabanAjaxAPIClient {
       throws IOException {
     Map<String, String> params = Maps.newHashMap();
     params.put("ajax", "executeFlow");
-    params.put("projectName", azkabanProjectConfig.getAzkabanProjectName());
+    params.put("project", azkabanProjectConfig.getAzkabanProjectName());
     params.put("flow", azkabanProjectConfig.getAzkabanProjectFlowName());
 
     executePostRequest(preparePostRequest(azkabanProjectConfig.getAzkabanServerUrl() + "/executor", sessionId, params));
@@ -454,6 +454,9 @@ public class AzkabanAjaxAPIClient {
    * @param delayMinutes If current time is within window, then additional delay for bootstrapping if desired
    * @return Scheduled time string of the format hh,mm,a,z
    */
+  @edu.umd.cs.findbugs.annotations.SuppressWarnings(
+      value = "DMI_RANDOM_USED_ONLY_ONCE",
+      justification = "As expected for randomization")
   public static String getScheduledTimeInAzkabanFormat(int windowStartHour, int windowEndHour, int delayMinutes) {
     // Validate
     if (windowStartHour < 0 || windowEndHour > 23 || windowStartHour >= windowEndHour) {

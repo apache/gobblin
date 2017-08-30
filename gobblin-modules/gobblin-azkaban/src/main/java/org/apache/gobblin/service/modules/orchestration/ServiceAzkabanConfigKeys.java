@@ -37,5 +37,6 @@ public class ServiceAzkabanConfigKeys {
 
   // Azkaban System Environment
   public static final String AZKABAN_PASSWORD_SYSTEM_KEY = "GOBBLIN_SERVICE_AZKABAN_PASSWORD";
+  public static final String DEFAULT_AZKABAN_PROJECT_CONFIG_FILE = "default-service-azkaban.conf";
 }
 
