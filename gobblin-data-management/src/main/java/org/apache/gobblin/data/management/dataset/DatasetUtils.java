@@ -28,6 +28,8 @@ import org.apache.hadoop.fs.PathFilter;
 
 import com.google.common.collect.Lists;
 
+import org.apache.gobblin.dataset.IterableDatasetFinder;
+import org.apache.gobblin.dataset.IterableDatasetFinderImpl;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.CopyableFileFilter;
 import org.apache.gobblin.dataset.DatasetsFinder;
@@ -88,6 +90,13 @@ public class DatasetUtils {
     } catch (ReflectiveOperationException exception) {
       throw new IOException(exception);
     }
+  }
+
+  public static <T extends org.apache.gobblin.dataset.Dataset> IterableDatasetFinder<T> instantiateIterableDatasetFinder(
+      Properties props, FileSystem fs, String default_class, Object... additionalArgs) throws IOException {
+    DatasetsFinder<T> datasetsFinder = instantiateDatasetFinder(props, fs, default_class, additionalArgs);
+    return datasetsFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<T>) datasetsFinder
+        : new IterableDatasetFinderImpl<>(datasetsFinder);
   }
 
   /**

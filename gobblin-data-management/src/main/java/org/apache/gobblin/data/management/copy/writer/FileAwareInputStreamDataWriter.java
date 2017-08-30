@@ -206,6 +206,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       log.info(String.format("Recovering persisted file %s to %s.", persistedFile.get().getPath(), writeAt));
       this.fs.rename(persistedFile.get().getPath(), writeAt);
     } else {
+      // Copy empty directories
+      if (copyableFile.getFileStatus().isDirectory()) {
+        this.fs.mkdirs(writeAt);
+        return;
+      }
 
       OutputStream os =
           this.fs.create(writeAt, true, this.fs.getConf().getInt("io.file.buffer.size", 4096), replication, blockSize);
@@ -220,6 +225,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
             .sourceURI(copyableFile.getOrigin().getPath().makeQualified(defaultFS.getUri(), defaultFS.getWorkingDirectory()).toUri())
             .targetURI(this.fs.makeQualified(writeAt).toUri()).build();
         StreamCopier copier = new StreamCopier(throttledInputStream, os).withBufferSize(this.bufferSize);
+
+        log.info("File {}: Starting copy", copyableFile.getOrigin().getPath());
 
         if (isInstrumentationEnabled()) {
           copier.withCopySpeedMeter(this.copySpeedMeter);

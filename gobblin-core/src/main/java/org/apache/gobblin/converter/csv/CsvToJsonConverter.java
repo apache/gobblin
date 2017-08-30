@@ -55,41 +55,39 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
    * Takes in a record with format String and splits the data based on SOURCE_SCHEMA_DELIMITER
    * Uses the inputSchema and the split record to convert the record to a JsonObject
    * @return a JsonObject representing the record
-   * @throws IOException
+   * @throws DataConversionException
    */
   @Override
   public Iterable<JsonObject> convertRecord(JsonArray outputSchema, String inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    String strDelimiter = workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER);
-    if (Strings.isNullOrEmpty(strDelimiter)) {
-      throw new IllegalArgumentException("Delimiter cannot be empty");
-    }
-    InputStreamCSVReader reader = new InputStreamCSVReader(inputRecord, strDelimiter.charAt(0),
-        workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR,
-            ConfigurationKeys.DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR).charAt(0));
-    List<String> recordSplit;
     try {
+      String strDelimiter = workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER);
+      if (Strings.isNullOrEmpty(strDelimiter)) {
+        throw new IllegalArgumentException("Delimiter cannot be empty");
+      }
+      InputStreamCSVReader reader = new InputStreamCSVReader(inputRecord, strDelimiter.charAt(0),
+          workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR, ConfigurationKeys.DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR).charAt(0));
+      List<String> recordSplit;
       recordSplit = Lists.newArrayList(reader.splitRecord());
-    } catch (IOException e) {
+      JsonObject outputRecord = new JsonObject();
+
+      for (int i = 0; i < outputSchema.size(); i++) {
+        if (i < recordSplit.size()) {
+          if (recordSplit.get(i) == null) {
+            outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
+          } else if (recordSplit.get(i).isEmpty() || recordSplit.get(i).toLowerCase().equals(NULL)) {
+            outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
+          } else {
+            outputRecord.addProperty(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), recordSplit.get(i));
+          }
+        } else {
+          outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
+        }
+      }
+
+      return new SingleRecordIterable<>(outputRecord);
+    } catch (Exception e) {
       throw new DataConversionException(e);
     }
-    JsonObject outputRecord = new JsonObject();
-
-    for (int i = 0; i < outputSchema.size(); i++) {
-      if (i < recordSplit.size()) {
-        if (recordSplit.get(i) == null) {
-          outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
-        } else if (recordSplit.get(i).isEmpty() || recordSplit.get(i).toLowerCase().equals(NULL)) {
-          outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
-        } else {
-          outputRecord.addProperty(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(),
-              recordSplit.get(i));
-        }
-      } else {
-        outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
-      }
-    }
-
-    return new SingleRecordIterable<>(outputRecord);
   }
 }

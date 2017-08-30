@@ -120,7 +120,7 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
 
     for (CopyableFile.Builder builder : this.helper.getCopyableFilesFromPaths(diffPathSet.filesToCopy, this.helper.getConfiguration(),
         Optional.<Partition> absent())) {
-      copyEntities.add(builder.fileSet(fileSet).build());
+      copyEntities.add(builder.fileSet(fileSet).datasetOutputPath(desiredTargetLocation.location.toString()).build());
     }
 
     multiTimer.close();

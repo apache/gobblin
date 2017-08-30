@@ -59,7 +59,7 @@ public class CloseableFsCopySource extends CopySource {
   @Override
   protected FileSystem getSourceFileSystem(State state)
       throws IOException {
-    return this.closer.register(super.getSourceFileSystem(state));
+    return this.closer.register(HadoopUtils.getSourceFileSystem(state));
   }
 
   @Override

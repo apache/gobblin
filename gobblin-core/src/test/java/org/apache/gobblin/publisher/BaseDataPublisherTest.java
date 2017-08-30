@@ -198,6 +198,38 @@ public class BaseDataPublisherTest {
   }
 
   @Test
+  public void testNoOutputWhenDisabledWithPartitions()
+      throws IOException {
+
+    File publishPath = Files.createTempDir();
+
+    State s = buildDefaultState(1);
+    s.removeProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR);
+    s.removeProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_FILE);
+    s.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, publishPath.getAbsolutePath());
+
+    WorkUnitState wuState = new WorkUnitState();
+    addStateToWorkunit(s, wuState);
+
+    wuState.setProp(ConfigurationKeys.WRITER_METADATA_KEY, "abcdefg");
+
+    FsWriterMetrics metrics1 = buildWriterMetrics("foo1.json", "1-2-3-4", 0, 10);
+    FsWriterMetrics metrics2 = buildWriterMetrics("foo1.json", "5-6-7-8",10, 20);
+    wuState.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY, "1-2-3-4");
+    wuState.setProp(FsDataWriter.FS_WRITER_METRICS_KEY, metrics1.toJson());
+    wuState.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + "_0", "1-2-3-4");
+    wuState.setProp(FsDataWriter.FS_WRITER_METRICS_KEY + " _0", metrics2.toJson());
+    wuState.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + "_1", "5-6-7-8");
+    wuState.setProp(FsDataWriter.FS_WRITER_METRICS_KEY + " _1", metrics2.toJson());
+
+    BaseDataPublisher publisher = new BaseDataPublisher(s);
+    publisher.publishMetadata(Collections.singletonList(wuState));
+
+    String[] filesInPublishDir = publishPath.list();
+    Assert.assertEquals(0, filesInPublishDir.length, "Expected 0 files to be output to publish path");
+  }
+
+  @Test
   public void testMergesExistingMetadata() throws IOException {
     File publishPath = Files.createTempDir();
     try {

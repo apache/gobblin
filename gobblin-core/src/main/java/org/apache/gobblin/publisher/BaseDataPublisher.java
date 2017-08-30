@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.gobblin.lineage.LineageInfo;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -97,6 +98,9 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
   protected final Set<Path> publisherOutputDirs = Sets.newHashSet();
+
+  public static final String PUBLISH_OUTOUT = "publish.output";
+
   /* Each partition in each branch may have separate metadata. The metadata mergers are responsible
    * for aggregating this information from all workunits so it can be published.
    */
@@ -328,6 +332,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         if (!replaceFinalOutputDir) {
           addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, state, branchId, parallelRunner);
           writerOutputPathsMoved.add(writerOutputDir);
+          addPublisherLineageInfo(state, branchId, publisherOutputDir.toString());
           return;
         }
 
@@ -342,7 +347,12 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
       movePath(parallelRunner, state, writerOutputDir, publisherOutputDir, branchId);
       writerOutputPathsMoved.add(writerOutputDir);
+      addPublisherLineageInfo(state, branchId, publisherOutputDir.toString());
     }
+  }
+
+  protected void addPublisherLineageInfo(WorkUnitState state, int branchId, String output) {
+    LineageInfo.setBranchLineageAttribute(state, branchId, PUBLISH_OUTOUT, output);
   }
 
   /**
@@ -465,10 +475,16 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
             branchId,
             getMetadataOutputFileForBranch(anyState, branchId));
       } else {
+        String metadataFilename = getMetadataFileNameForBranch(anyState, branchId);
+        if (mdOutputPath == null || metadataFilename == null) {
+          LOG.info("Metadata filename not set for branch " + String.valueOf(branchId) + ": not publishing metadata.");
+          continue;
+        }
+
         for (String partition : partitions) {
           publishMetadata(getMergedMetadataForPartitionAndBranch(partition, branchId),
               branchId,
-              new Path(new Path(mdOutputPath, partition), getMetadataFileNameForBranch(anyState, branchId)));
+              new Path(new Path(mdOutputPath, partition), metadataFilename));
         }
       }
     }

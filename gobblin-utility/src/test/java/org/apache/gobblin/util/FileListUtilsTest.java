@@ -146,4 +146,108 @@ public class FileListUtilsTest {
     }
   }
 
+  public void testListAllFiles () throws IOException {
+    FileSystem localFs = FileSystem.getLocal(new Configuration());
+    Path baseDir = new Path(FILE_UTILS_TEST_DIR, "listAllFiles");
+    System.out.println (baseDir);
+    try {
+      if (localFs.exists(baseDir)) {
+        localFs.delete(baseDir, true);
+      }
+      localFs.mkdirs(baseDir);
+
+      // Empty root directory
+      List<FileStatus> testFiles = FileListUtils.listFilesRecursively(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      Assert.assertTrue(testFiles.size() == 0);
+
+      // With two avro files (1.avro, 2.avro)
+      Path file1 = new Path(baseDir, "1.avro");
+      localFs.create(file1);
+      Path file2 = new Path(baseDir, "2.avro");
+      localFs.create(file2);
+      testFiles = FileListUtils.listFilesRecursively(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      Assert.assertTrue(testFiles.size() == 2);
+
+      // With an avro schema file (part.avsc)
+      Path avsc = new Path(baseDir, "part.avsc");
+      localFs.create(avsc);
+      testFiles = FileListUtils.listFilesRecursively(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      Assert.assertTrue(testFiles.size() == 3);
+      testFiles = FileListUtils.listFilesRecursively(localFs, baseDir, (path)->path.getName().endsWith(".avro"));
+      Assert.assertTrue(testFiles.size() == 2);
+
+      // A complicated hierarchy
+      // baseDir ____ 1.avro
+      //        |____ 2.avro
+      //        |____ part.avsc
+      //        |____ subDir ____ 3.avro
+      //                    |____ subDir2 ____ 4.avro
+      //                                 |____ part2.avsc
+      Path subDir = new Path(baseDir, "subDir");
+      localFs.mkdirs(subDir);
+      Path file3 = new Path(subDir, "3.avro");
+      localFs.create(file3);
+      Path subDir2 = new Path(subDir, "subDir2");
+      localFs.mkdirs(subDir2);
+      Path file4 = new Path(subDir2, "4.avro");
+      localFs.create(file4);
+      Path avsc2 = new Path(subDir2, "part2.avsc");
+      localFs.create(avsc2);
+
+      testFiles = FileListUtils.listFilesRecursively(localFs, baseDir, (path)->path.getName().endsWith(".avro"));
+      Assert.assertTrue(testFiles.size() == 4);
+      testFiles = FileListUtils.listFilesRecursively(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER);
+      Assert.assertTrue(testFiles.size() == 6);
+    } finally {
+      localFs.delete(baseDir, true);
+    }
+  }
+
+  public void testListFilesToCopyAtPath() throws IOException {
+    FileSystem localFs = FileSystem.getLocal(new Configuration());
+    Path baseDir = new Path(FILE_UTILS_TEST_DIR, "fileListTestDir4");
+    try {
+      if (localFs.exists(baseDir)) {
+        localFs.delete(baseDir, true);
+      }
+      localFs.mkdirs(baseDir);
+
+      // Empty root directory
+      List<FileStatus> testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER, true);
+      Assert.assertEquals(testFiles.size(), 1);
+      Assert.assertEquals(testFiles.get(0).getPath().getName(), baseDir.getName());
+
+      // With an empty sub directory
+      Path subDir = new Path(baseDir, "subDir");
+      localFs.mkdirs(subDir);
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER, true);
+      Assert.assertEquals(testFiles.size(), 1);
+      Assert.assertEquals(testFiles.get(0).getPath().getName(), subDir.getName());
+
+      // Disable include empty directories
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER, false);
+      Assert.assertEquals(testFiles.size(), 0);
+
+      // With file subDir/tes1
+      Path test1Path = new Path(subDir, TEST_FILE_NAME1);
+      localFs.create(test1Path);
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER, true);
+      Assert.assertEquals(testFiles.size(), 1);
+      Assert.assertEquals(testFiles.get(0).getPath().getName(), test1Path.getName());
+
+      // With file subDir/test2
+      Path test2Path = new Path(subDir, TEST_FILE_NAME2);
+      localFs.create(test2Path);
+      testFiles = FileListUtils.listFilesToCopyAtPath(localFs, baseDir, FileListUtils.NO_OP_PATH_FILTER, true);
+      Assert.assertEquals(testFiles.size(), 2);
+      Set<String> fileNames = Sets.newHashSet();
+      for (FileStatus testFileStatus : testFiles) {
+        fileNames.add(testFileStatus.getPath().getName());
+      }
+      Assert.assertTrue(fileNames.contains(TEST_FILE_NAME1) && fileNames.contains(TEST_FILE_NAME2));
+    } finally {
+      localFs.delete(baseDir, true);
+    }
+  }
+
 }

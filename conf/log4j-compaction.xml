@@ -36,7 +36,7 @@
     </layout>
   </appender>
 
-  <logger name="gobblin.compaction" additivity="false">
+  <logger name="org.apache.gobblin.compaction" additivity="false">
     <level value="info" />
     <appender-ref ref="console" />
   </logger>

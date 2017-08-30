@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import com.google.common.base.Predicate;
-import org.apache.gobblin.metastore.FsStateStore;
-import org.apache.gobblin.metastore.StateStore;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -27,6 +24,9 @@ import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,9 +35,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Queues;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractScheduledService;
+import com.google.common.base.Predicate;
+import com.google.common.io.Closer;
+import com.google.common.base.Optional;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.metastore.StateStore;
 
 
 /**
@@ -48,6 +54,7 @@ import org.apache.gobblin.util.ParallelRunner;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class TaskStateCollectorService extends AbstractScheduledService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TaskStateCollectorService.class);
@@ -66,6 +73,23 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
   private final Path outputTaskStateDir;
 
+  /**
+   * Add a cloesable action to run after each existence-checking of task state file.
+   * A typical example to plug here is hive registration:
+   * We do hive registration everytime there are available taskStates deserialized from storage, on the driver level.
+   */
+  @Getter
+  private final Optional<TaskStateCollectorServiceHandler> optionalTaskCollectorHandler;
+  private final Closer handlerCloser = Closer.create();
+
+  private boolean isJobProceedOnCollectorServiceFailure;
+
+  /**
+   * By default, whether {@link TaskStateCollectorService} finishes successfully or not won't influence
+   * job's proceed.
+   */
+  private static final boolean defaultPolicyOnCollectorServiceFailure = true;
+
   public TaskStateCollectorService(Properties jobProps, JobState jobState, EventBus eventBus,
       StateStore<TaskState> taskStateStore, Path outputTaskStateDir) {
     this.jobState = jobState;
@@ -79,6 +103,25 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     this.outputTaskStatesCollectorIntervalSeconds =
         Integer.parseInt(jobProps.getProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_INTERVAL_SECONDS,
             Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_COLLECTOR_INTERVAL_SECONDS)));
+
+    if (!StringUtils.isBlank(jobProps.getProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS))) {
+      String handlerTypeName = jobProps.getProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS);
+      try {
+        ClassAliasResolver<TaskStateCollectorServiceHandler.TaskStateCollectorServiceHandlerFactory> aliasResolver =
+            new ClassAliasResolver<>(TaskStateCollectorServiceHandler.TaskStateCollectorServiceHandlerFactory.class);
+        TaskStateCollectorServiceHandler.TaskStateCollectorServiceHandlerFactory handlerFactory =
+            aliasResolver.resolveClass(handlerTypeName).newInstance();
+        optionalTaskCollectorHandler = Optional.of(handlerCloser.register(handlerFactory.createHandler(this.jobState)));
+      } catch (ReflectiveOperationException rfe) {
+        throw new RuntimeException("Could not construct TaskCollectorHandler " + handlerTypeName, rfe);
+      }
+    } else {
+      optionalTaskCollectorHandler = Optional.absent();
+    }
+
+    isJobProceedOnCollectorServiceFailure =
+        jobState.getPropAsBoolean(ConfigurationKeys.JOB_PROCEED_ON_TASK_STATE_COLLECOTR_SERVICE_FAILURE,
+            defaultPolicyOnCollectorServiceFailure);
   }
 
   @Override
@@ -105,6 +148,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       runOneIteration();
     } finally {
       super.shutDown();
+      this.handlerCloser.close();
     }
   }
 
@@ -158,6 +202,23 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     for (TaskState taskState : taskStateQueue) {
       taskState.setJobState(this.jobState);
       this.jobState.addTaskState(taskState);
+    }
+
+    // Finish any addtional steps defined in handler on driver level.
+    // Currently implemented handler for Hive registration only.
+    if (optionalTaskCollectorHandler.isPresent()) {
+      LOGGER.info("Execute Pipelined TaskStateCollectorService Handler for " + taskStateQueue.size() + " tasks");
+
+      try {
+        optionalTaskCollectorHandler.get().handle(taskStateQueue);
+      } catch (Throwable t) {
+        if (isJobProceedOnCollectorServiceFailure) {
+          log.error("Failed to commit dataset while job proceeds", t);
+          SafeDatasetCommit.setTaskFailureException(taskStateQueue, t);
+        } else {
+          throw new RuntimeException("Hive Registration as the TaskStateCollectorServiceHandler failed.", t);
+        }
+      }
     }
 
     // Notify the listeners for the completion of the tasks

@@ -24,10 +24,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.hadoop.fs.Path;
@@ -131,6 +135,8 @@ public class JobScheduler extends AbstractIdleService {
 
   private final Closer closer = Closer.create();
 
+  private volatile boolean cancelRequested = false;
+
   public JobScheduler(Properties properties, SchedulerService scheduler)
       throws Exception {
     this.properties = properties;
@@ -199,10 +205,14 @@ public class JobScheduler extends AbstractIdleService {
       throws Exception {
     LOG.info("Stopping the job scheduler");
     closer.close();
-
+    cancelRequested = true;
     List<JobExecutionContext> currentExecutions = this.scheduler.getScheduler().getCurrentlyExecutingJobs();
     for (JobExecutionContext jobExecutionContext : currentExecutions) {
-      this.scheduler.getScheduler().interrupt(jobExecutionContext.getFireInstanceId());
+      try {
+        this.scheduler.getScheduler().interrupt(jobExecutionContext.getFireInstanceId());
+      } catch (UnableToInterruptJobException e) {
+        LOG.error("Failed to cancel job " + jobExecutionContext.getJobDetail().getKey(), e);
+      }
     }
 
     ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
@@ -228,6 +238,72 @@ public class JobScheduler extends AbstractIdleService {
     } catch (JobException | RuntimeException exc) {
       LOG.error("Could not schedule job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "Unknown job"), exc);
     }
+  }
+
+  /**
+   * Schedule a job immediately.
+   *
+   * <p>
+   *   This method calls the Quartz scheduler to scheduler the job.
+   * </p>
+   *
+   * @param jobProps Job configuration properties
+   * @param jobListener {@link JobListener} used for callback,
+   *                    can be <em>null</em> if no callback is needed.
+   * @throws JobException when there is anything wrong
+   *                      with scheduling the job
+   */
+  public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener, JobLauncher jobLauncher) {
+    Runnable runnable = new Runnable() {
+      @Override
+      public void run() {
+        try {
+          runJob(jobProps, jobListener, jobLauncher);
+        } catch (JobException je) {
+          LOG.error("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
+        }
+      }
+    };
+    final Future<?> future = this.jobExecutor.submit(runnable);
+    return new Future() {
+      @Override
+      public boolean cancel(boolean mayInterruptIfRunning) {
+        if (!cancelRequested) {
+          return false;
+        }
+        boolean result = true;
+        try {
+          jobLauncher.cancelJob(jobListener);
+        } catch (JobException e) {
+          LOG.error("Failed to cancel job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+          result = false;
+        }
+        if (mayInterruptIfRunning) {
+          result &= future.cancel(true);
+        }
+        return result;
+      }
+
+      @Override
+      public boolean isCancelled() {
+        return future.isCancelled();
+      }
+
+      @Override
+      public boolean isDone() {
+        return future.isDone();
+      }
+
+      @Override
+      public Object get() throws InterruptedException, ExecutionException {
+        return future.get();
+      }
+
+      @Override
+      public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        return future.get(timeout, unit);
+      }
+    };
   }
 
   /**

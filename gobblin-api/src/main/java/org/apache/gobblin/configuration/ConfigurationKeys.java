@@ -48,6 +48,10 @@ public class ConfigurationKeys {
    */
   // State store type.  References an alias or factory class name
   public static final String STATE_STORE_TYPE_KEY = "state.store.type";
+  public static final String DATASET_STATE_STORE_PREFIX = "dataset";
+  public static final String DATASET_STATE_STORE_TYPE_KEY = DATASET_STATE_STORE_PREFIX + ".state.store.type";
+  public static final String INTERMEDIATE_STATE_STORE_PREFIX = "intermediate";
+  public static final String INTERMEDIATE_STATE_STORE_TYPE_KEY = INTERMEDIATE_STATE_STORE_PREFIX + ".state.store.type";
   public static final String DEFAULT_STATE_STORE_TYPE = "fs";
   public static final String STATE_STORE_TYPE_NOOP = "noop";
 
@@ -175,6 +179,11 @@ public class ConfigurationKeys {
   public static final String CLEANUP_STAGING_DATA_PER_TASK = "cleanup.staging.data.per.task";
   public static final boolean DEFAULT_CLEANUP_STAGING_DATA_PER_TASK = true;
   public static final String CLEANUP_STAGING_DATA_BY_INITIALIZER = "cleanup.staging.data.by.initializer";
+
+  public static final String QUEUED_TASK_TIME_MAX_SIZE = "taskexecutor.queued_task_time.history.max_size";
+  public static final int DEFAULT_QUEUED_TASK_TIME_MAX_SIZE = 2048;
+  public static final String QUEUED_TASK_TIME_MAX_AGE = "taskexecutor.queued_task_time.history.max_age";
+  public static final long DEFAULT_QUEUED_TASK_TIME_MAX_AGE = TimeUnit.HOURS.toMillis(1);
 
   /** Optional, for user to specified which template to use, inside .job file */
   public static final String JOB_TEMPLATE_PATH = "job.template" ;
@@ -567,6 +576,12 @@ public class ConfigurationKeys {
    */
   public static final String TASK_STATE_COLLECTOR_INTERVAL_SECONDS = "task.state.collector.interval.secs";
   public static final int DEFAULT_TASK_STATE_COLLECTOR_INTERVAL_SECONDS = 60;
+  public static final String TASK_STATE_COLLECTOR_HANDLER_CLASS = "task.state.collector.handler.class";
+
+  /**
+   * Set to true so that job still proceed if TaskStateCollectorService failed.
+   */
+  public static final String JOB_PROCEED_ON_TASK_STATE_COLLECOTR_SERVICE_FAILURE = "job.proceed.onTaskStateCollectorServiceFailure";
 
   /**
    * Configuration properties for email settings.
@@ -821,4 +836,18 @@ public class ConfigurationKeys {
    * Configuration related to ConfigStore based copy/retention
    */
   public static final String CONFIG_BASED_PREFIX = "gobblin.configBased";
+
+  /**
+   * Configuration related to the git flow config monitoring service
+   */
+  public static final String GIT_CONFIG_MONITOR_PREFIX = "gitConfigMonitor.";
+  public static final String GIT_CONFIG_MONITOR_REPO_URI = GIT_CONFIG_MONITOR_PREFIX + "repositoryUri";
+  public static final String GIT_CONFIG_MONITOR_REPO_DIR = GIT_CONFIG_MONITOR_PREFIX + "repositoryDirectory";
+  public static final String DEFAULT_GIT_CONFIG_MONITOR_REPO_DIR = "git-flow-config";
+  public static final String GIT_CONFIG_MONITOR_CONFIG_DIR = GIT_CONFIG_MONITOR_PREFIX + "configDirectory";
+  public static final String DEFAULT_GIT_CONFIG_MONITOR_CONFIG_DIR = "gobblin-config";
+  public static final String GIT_CONFIG_MONITOR_POLLING_INTERVAL = GIT_CONFIG_MONITOR_PREFIX + "pollingInterval";
+  public static final String GIT_CONFIG_MONITOR_BRANCH_NAME = GIT_CONFIG_MONITOR_PREFIX + "branchName";
+  public static final String DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME = "master";
+  public static final int DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL = 60;
 }

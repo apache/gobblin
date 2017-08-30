@@ -1,0 +1,13 @@
+{"nullableField": null,
+  "longField": 1234,
+  "arrayField": ["arr1", "arr2", "arr3"],
+  "mapField": {
+    "map1":"test1",
+    "map2":"test2",
+    "map3":"test3"
+  },
+  "nestedRecords": {
+    "nestedField": "test",
+    "nestedField2": "test2"
+  }
+}

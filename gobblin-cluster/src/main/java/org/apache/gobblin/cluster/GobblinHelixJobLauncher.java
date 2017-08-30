@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -144,7 +145,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     jobConfig = ConfigUtils.propertiesToConfig(jobProps);
 
-    this.stateStores = new StateStores(jobConfig, appWorkDir,
+    Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
+        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
+            new URI(appWorkDir.toUri().getScheme(), null, appWorkDir.toUri().getHost(),
+                appWorkDir.toUri().getPort(), null, null, null).toString()));
+
+    this.stateStores = new StateStores(stateStoreJobConfig, appWorkDir,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
         GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
 
@@ -215,7 +221,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     } finally {
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
       this.taskStateCollectorService.stopAsync().awaitTerminated();
-      deletePersistedWorkUnitsForJob();
+      cleanupWorkingDirectory();
     }
   }
 
@@ -346,11 +352,14 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Delete persisted {@link WorkUnit}s upon job completion.
+   * Delete persisted {@link WorkUnit}s and {@link JobState} upon job completion.
    */
-  private void deletePersistedWorkUnitsForJob() throws IOException {
+  private void cleanupWorkingDirectory() throws IOException {
     LOGGER.info("Deleting persisted work units for job " + this.jobContext.getJobId());
     stateStores.wuStateStore.delete(this.jobContext.getJobId());
+    LOGGER.info("Deleting job state file for job " + this.jobContext.getJobId());
+    Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
+    this.fs.delete(jobStateFilePath, false);
   }
 
   /**

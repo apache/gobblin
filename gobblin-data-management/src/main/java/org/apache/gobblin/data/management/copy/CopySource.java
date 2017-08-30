@@ -145,8 +145,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       DeprecationUtils.renameDeprecatedKeys(state, CopyConfiguration.MAX_COPY_PREFIX + "." + CopyResourcePool.ENTITIES_KEY,
           Lists.newArrayList(MAX_FILES_COPIED_KEY));
 
-      final FileSystem sourceFs = getSourceFileSystem(state);
-      final FileSystem targetFs = getTargetFileSystem(state);
+      final FileSystem sourceFs = HadoopUtils.getSourceFileSystem(state);
+      final FileSystem targetFs = HadoopUtils.getWriterFileSystem(state, 1, 0);
       state.setProp(SlaEventKeys.SOURCE_URI, sourceFs.getUri());
       state.setProp(SlaEventKeys.DESTINATION_URI, targetFs.getUri());
 
@@ -325,7 +325,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
     if (CopyableFile.class.isAssignableFrom(copyEntityClass)) {
       CopyableFile copyEntity = (CopyableFile) deserializeCopyEntity(state);
-      return extractorForCopyableFile(getSourceFileSystem(state), copyEntity, state);
+      return extractorForCopyableFile(HadoopUtils.getSourceFileSystem(state), copyEntity, state);
     }
     return new EmptyExtractor<>("empty");
   }
@@ -339,6 +339,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public void shutdown(SourceState state) {
   }
 
+  /**
+   * @deprecated use {@link HadoopUtils#getSourceFileSystem(State)}.
+   */
+  @Deprecated
   protected FileSystem getSourceFileSystem(State state)
       throws IOException {
     Configuration conf = HadoopUtils.getConfFromState(state, Optional.of(ConfigurationKeys.SOURCE_FILEBASED_ENCRYPTED_CONFIG_PATH));
@@ -346,6 +350,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
 
+  /**
+   * @deprecated use {@link HadoopUtils#getWriterFileSystem(State, int, int)}.
+   */
+  @Deprecated
   private static FileSystem getTargetFileSystem(State state)
       throws IOException {
     return HadoopUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);

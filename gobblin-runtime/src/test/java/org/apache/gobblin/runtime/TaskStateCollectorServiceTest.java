@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
@@ -71,6 +72,7 @@ public class TaskStateCollectorServiceTest {
 
     this.taskStateStore = new FsStateStore<>(this.localFs, this.outputTaskStateDir.toUri().getPath(), TaskState.class);
 
+
     this.taskStateCollectorService = new TaskStateCollectorService(new Properties(), this.jobState, this.eventBus,
         this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID));
 
@@ -99,6 +101,18 @@ public class TaskStateCollectorServiceTest {
     Assert.assertEquals(this.taskStateMap.get(TASK_ID_0).getTaskId(), TASK_ID_0);
     Assert.assertEquals(this.taskStateMap.get(TASK_ID_1).getJobId(), JOB_ID);
     Assert.assertEquals(this.taskStateMap.get(TASK_ID_1).getTaskId(), TASK_ID_1);
+  }
+
+  @Test
+  public void testHandlerResolution() throws Exception{
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS, "hivereg");
+    TaskStateCollectorService taskStateCollectorServiceHive = new TaskStateCollectorService(props, this.jobState, this.eventBus,
+        this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID + "_prime"));
+    Assert.assertEquals(taskStateCollectorServiceHive.getOptionalTaskCollectorHandler().get().getClass().getName(),
+        "org.apache.gobblin.runtime.HiveRegTaskStateCollectorServiceHandlerImpl");
+    taskStateCollectorServiceHive.shutDown();
+    return;
   }
 
   @AfterClass

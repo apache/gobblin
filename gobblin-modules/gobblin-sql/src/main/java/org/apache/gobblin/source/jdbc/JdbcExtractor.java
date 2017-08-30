@@ -19,6 +19,7 @@ package org.apache.gobblin.source.jdbc;
 
 import java.io.IOException;
 import java.sql.Blob;
+import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -38,6 +39,7 @@ import java.util.Map;
 
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOrderBy;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
@@ -1002,6 +1004,17 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     return baString;
   }
 
+  /*
+  * For Clob data, we need to use the substring function to extract the string
+  */
+  private String readClobAsString(Clob logClob) throws SQLException {
+    if (logClob == null) {
+      return StringUtils.EMPTY;
+    }
+    long length = logClob.length();
+    return logClob.getSubString(1, (int) length);
+  }
+
   /**
    * HACK: there is a bug in the MysqlExtractor where tinyint columns are always treated as ints.
    * There are MySQL jdbc driver setting (tinyInt1isBit=true and transformedBitIsBoolean=false) that
@@ -1028,6 +1041,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (isBlob(resultsetMetadata.getColumnType(i))) {
       return readBlobAsString(resultset.getBlob(i));
     }
+    if (isClob(resultsetMetadata.getColumnType(i))) {
+      return readClobAsString(resultset.getClob(i));
+    }
     if ((resultsetMetadata.getColumnType(i) == Types.BIT
          || resultsetMetadata.getColumnType(i) == Types.BOOLEAN)
         && convertBitToBoolean()) {
@@ -1038,6 +1054,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
   private static boolean isBlob(int columnType) {
     return columnType == Types.LONGVARBINARY || columnType == Types.BINARY;
+  }
+
+  private static boolean isClob(int columnType) {
+    return columnType == Types.CLOB;
   }
 
   protected static Command getCommand(String query, JdbcCommandType commandType) {
@@ -1148,9 +1168,17 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     SqlParser sqlParser = SqlParser.create(selectQuery);
     try {
-      SqlSelect sqlSelect = (SqlSelect)sqlParser.parseQuery();
-      SqlNode node = sqlSelect.getFrom();
-      return node.getKind() == SqlKind.JOIN;
+
+      SqlNode all = sqlParser.parseQuery();
+      SqlSelect query;
+      if (all instanceof SqlSelect) {
+        query = (SqlSelect) all;
+      } else if (all instanceof SqlOrderBy) {
+        query = (SqlSelect) ((SqlOrderBy) all).query;
+      } else {
+        throw new UnsupportedOperationException("The select query is type of " + all.getClass() + " which is not supported here");
+      }
+      return query.getFrom().getKind() == SqlKind.JOIN;
     } catch (SqlParseException e) {
       return false;
     }

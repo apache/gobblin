@@ -17,6 +17,8 @@
 package org.apache.gobblin.runtime.util;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.StateStore;
@@ -26,6 +28,8 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.Path;
+
+import java.util.Map;
 
 /**
  * state stores used for storing work units and task states
@@ -46,8 +50,9 @@ public class StateStores {
    */
   public StateStores(Config config, Path taskStoreBase, String taskStoreTable, Path workUnitStoreBase,
       String workUnitStoreTable) {
-    String stateStoreType = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_TYPE_KEY,
-        ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
+    String stateStoreType = ConfigUtils.getString(config, ConfigurationKeys.INTERMEDIATE_STATE_STORE_TYPE_KEY,
+        ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_TYPE_KEY,
+            ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
 
     ClassAliasResolver<StateStore.Factory> resolver =
         new ClassAliasResolver<>(StateStore.Factory.class);
@@ -65,22 +70,27 @@ public class StateStores {
 
     // Override properties to configure the WorkUnit and MultiWorkUnit StateStores with the appropriate root/db location
     Path inputWorkUnitDir = new Path(workUnitStoreBase, workUnitStoreTable);
-    Config wuStateStoreConfig = config
-        .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
-            ConfigValueFactory.fromAnyRef(inputWorkUnitDir.toString()))
-        .withValue(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
-            ConfigValueFactory.fromAnyRef(workUnitStoreTable));
+    Config wuStateStoreConfig = getStateStoreConfig(config, inputWorkUnitDir.toString(), workUnitStoreTable);
 
     // Override properties to place the TaskState StateStore at the appropriate location
     Path taskStateOutputDir = new Path(taskStoreBase, taskStoreTable);
-    Config taskStateStoreConfig = config
-        .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
-            ConfigValueFactory.fromAnyRef(taskStateOutputDir.toString()))
-        .withValue(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
-            ConfigValueFactory.fromAnyRef(taskStoreTable));
+    Config taskStateStoreConfig = getStateStoreConfig(config, taskStateOutputDir.toString(), taskStoreTable);
 
     taskStateStore = stateStoreFactory.createStateStore(taskStateStoreConfig, TaskState.class);
     wuStateStore = stateStoreFactory.createStateStore(wuStateStoreConfig, WorkUnit.class);
     mwuStateStore = stateStoreFactory.createStateStore(wuStateStoreConfig, MultiWorkUnit.class);
+  }
+
+  private static Config getStateStoreConfig(Config config, String rootDir, String dbTableKey) {
+    Config fallbackConfig = ConfigFactory.empty()
+            .withFallback(config)
+            .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(rootDir))
+            .withValue(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, ConfigValueFactory.fromAnyRef(dbTableKey));
+    Config scopedConfig = ConfigFactory.empty();
+    for (Map.Entry<String, ConfigValue> entry : config.withOnlyPath(ConfigurationKeys.INTERMEDIATE_STATE_STORE_PREFIX).entrySet()) {
+      scopedConfig.withValue(entry.getKey().substring(ConfigurationKeys.INTERMEDIATE_STATE_STORE_PREFIX.length()),
+              entry.getValue());
+    }
+    return scopedConfig.withFallback(fallbackConfig);
   }
 }

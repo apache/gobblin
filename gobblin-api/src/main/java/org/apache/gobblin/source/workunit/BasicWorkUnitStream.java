@@ -28,7 +28,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
 import lombok.Getter;
-import lombok.Setter;
 
 
 /**
@@ -120,9 +119,7 @@ public class BasicWorkUnitStream implements WorkUnitStream {
   public static class Builder {
     private Iterator<WorkUnit> workUnits;
     private List<WorkUnit> workUnitList;
-    @Setter
     private boolean finiteStream = true;
-    @Setter
     private boolean safeToMaterialize = false;
 
 
@@ -134,6 +131,16 @@ public class BasicWorkUnitStream implements WorkUnitStream {
       this.workUnitList = workUnits;
       this.safeToMaterialize = true;
       this.finiteStream = true;
+    }
+
+    public Builder setFiniteStream(boolean finiteStream) {
+      this.finiteStream = finiteStream;
+      return this;
+    }
+
+    public Builder setSafeToMaterialize(boolean safeToMaterialize) {
+      this.safeToMaterialize = safeToMaterialize;
+      return this;
     }
 
     public WorkUnitStream build() {

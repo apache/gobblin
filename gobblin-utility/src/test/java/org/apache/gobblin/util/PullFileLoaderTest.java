@@ -159,20 +159,22 @@ public class PullFileLoaderTest {
     pullFile = loader.loadPullFile(path, ConfigUtils.propertiesToConfig(sysProps), true);
     Assert.assertEquals(pullFile.getString("key1"), "jobValue1,jobValue2,jobValue3");
     Assert.assertEquals(pullFile.getString("key2"), "jobValue2");
+    Assert.assertEquals(pullFile.getString("key2a"), "jobValue2");
     Assert.assertEquals(pullFile.getString("key3"), "rootValue3");
     Assert.assertEquals(pullFile.getString("key4"), "dir1Value4");
     Assert.assertEquals(pullFile.getString(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), path.toString());
-    Assert.assertEquals(pullFile.entrySet().size(), 5);
+    Assert.assertEquals(pullFile.entrySet().size(), 6);
 
     path = new Path(this.basePath, "dir1/job.conf");
     pullFile = loader.loadPullFile(path, ConfigFactory.empty(), true);
     Assert.assertEquals(pullFile.getString("key1"), "jobValue1,jobValue2,jobValue3");
     Assert.assertEquals(pullFile.getString("key2"), "dir1Value4");
+    Assert.assertEquals(pullFile.getString("key2a"), "dir1Value4");
     Assert.assertEquals(pullFile.getString("key3"), "rootValue3");
     Assert.assertEquals(pullFile.getString("key4"), "dir1Value4");
     Assert.assertEquals(pullFile.getString("key10"), "jobValue2");
     Assert.assertEquals(pullFile.getString(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), path.toString());
-    Assert.assertEquals(pullFile.entrySet().size(), 6);
+    Assert.assertEquals(pullFile.entrySet().size(), 7);
   }
 
   @Test
@@ -198,20 +200,22 @@ public class PullFileLoaderTest {
     pullFile = pullFileFromPath(configs, path);
     Assert.assertEquals(pullFile.getString("key1"), "jobValue1,jobValue2,jobValue3");
     Assert.assertEquals(pullFile.getString("key2"), "jobValue2");
+    Assert.assertEquals(pullFile.getString("key2a"), "jobValue2");
     Assert.assertEquals(pullFile.getString("key3"), "rootValue3");
     Assert.assertEquals(pullFile.getString("key4"), "dir1Value4");
     Assert.assertEquals(pullFile.getString(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), path.toString());
-    Assert.assertEquals(pullFile.entrySet().size(), 5);
+    Assert.assertEquals(pullFile.entrySet().size(), 6);
 
     path = new Path(this.basePath, "dir1/job.conf");
     pullFile = pullFileFromPath(configs, path);
     Assert.assertEquals(pullFile.getString("key1"), "jobValue1,jobValue2,jobValue3");
     Assert.assertEquals(pullFile.getString("key2"), "dir1Value4");
+    Assert.assertEquals(pullFile.getString("key2a"), "dir1Value4");
     Assert.assertEquals(pullFile.getString("key3"), "rootValue3");
     Assert.assertEquals(pullFile.getString("key4"), "dir1Value4");
     Assert.assertEquals(pullFile.getString("key10"), "jobValue2");
     Assert.assertEquals(pullFile.getString(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), path.toString());
-    Assert.assertEquals(pullFile.entrySet().size(), 6);
+    Assert.assertEquals(pullFile.entrySet().size(), 7);
   }
 
 

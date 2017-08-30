@@ -20,9 +20,17 @@ package org.apache.gobblin.dataset;
 /**
  * Interface representing a dataset.
  */
-public interface Dataset {
+public interface Dataset extends URNIdentified {
+
   /**
-   * Deepest {@link org.apache.hadoop.fs.Path} that contains all files in the dataset.
+   * URN for this dataset.
+   * @deprecated use {@link #getUrn()}
    */
+  @Deprecated
   public String datasetURN();
+
+  @Override
+  default String getUrn() {
+    return datasetURN();
+  }
 }
