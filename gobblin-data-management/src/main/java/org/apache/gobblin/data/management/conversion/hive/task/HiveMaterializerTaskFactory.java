@@ -24,7 +24,11 @@ import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskIFace;
 
-
+/**
+ * A {@link TaskFactory} that runs a {@link HiveMaterializer} task.
+ * This factory is intended to publish data in the task directly, and
+ * uses a {@link NoopPublisher}.
+ */
 public class HiveMaterializerTaskFactory implements TaskFactory {
   @Override
   public TaskIFace createTask(TaskContext taskContext) {

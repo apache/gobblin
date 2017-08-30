@@ -31,6 +31,10 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+
+/**
+ * A simple HiveSource for {@link HiveMaterializer}.
+ */
 public class HiveMaterializerSource extends HiveSource {
 
   @Override

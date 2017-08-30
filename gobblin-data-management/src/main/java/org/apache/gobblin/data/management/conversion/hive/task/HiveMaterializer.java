@@ -19,15 +19,17 @@ package org.apache.gobblin.data.management.conversion.hive.task;
 
 import java.util.List;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
-import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
 import org.apache.gobblin.runtime.TaskContext;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+
+/**
+ * A simple {@link HiveTask} for Hive view materialization.
+ */
 public class HiveMaterializer extends HiveTask {
 
   private final QueryGenerator queryGenerator;
@@ -35,10 +37,6 @@ public class HiveMaterializer extends HiveTask {
   public HiveMaterializer(TaskContext taskContext) throws Exception {
     super(taskContext);
     this.queryGenerator = new HiveMaterializerQueryGenerator(this.workUnitState);
-    if (Boolean.valueOf(this.workUnitState.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {
-      log.info("HiveMaterializer, Ignoring Watermark workunit for {}", this.workUnitState.getProp(ConfigurationKeys.DATASET_URN_KEY));
-      return;
-    }
     if (!(workUnit.getHiveDataset() instanceof ConvertibleHiveDataset)) {
       throw new IllegalStateException("HiveConvertExtractor is only compatible with ConvertibleHiveDataset");
     }

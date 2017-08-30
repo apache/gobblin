@@ -22,6 +22,9 @@ import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 
 
+/**
+ * An interface for generating queries.
+ */
 interface QueryGenerator {
 
   /**

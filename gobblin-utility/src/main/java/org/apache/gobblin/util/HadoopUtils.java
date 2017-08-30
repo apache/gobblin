@@ -145,6 +145,9 @@ public class HadoopUtils {
     }
   }
 
+  /**
+   * Calls deletePath() on each directory in the given list of directories to delete.
+   */
   public static void deleteDirectories(FileSystem fs, List<String> directoriesToDelete, boolean recursive) throws IOException {
     for (String directory : directoriesToDelete) {
       deletePath(fs, new Path(directory), recursive);

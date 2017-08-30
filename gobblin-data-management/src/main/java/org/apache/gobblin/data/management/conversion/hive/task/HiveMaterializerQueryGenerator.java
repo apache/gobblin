@@ -50,7 +50,9 @@ import org.apache.gobblin.util.AutoReturnableObject;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-
+/**
+ * A simple query generator for {@link HiveMaterializer}.
+ */
 public class HiveMaterializerQueryGenerator implements QueryGenerator {
   private final FileSystem fs;
   private final ConvertibleHiveDataset.ConversionConfig conversionConfig;
@@ -96,9 +98,14 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
     this.partitionsDMLInfo = Maps.newHashMap();
     HiveConverterUtils.populatePartitionInfo(conversionEntity, partitionsDDLInfo, partitionsDMLInfo);
     this.destinationTableMeta = HiveConverterUtils.getDestinationTableMeta(outputDatabaseName,
-        outputTableName, workUnitState).getLeft();
+        outputTableName, workUnitState.getProperties()).getLeft();
   }
 
+  /**
+   * Returns hive queries to be run as a part of a hive task.
+   * This does not include publish queries.
+   * @return
+   */
   @Override
   public List<String> generateQueries() {
 
@@ -121,18 +128,12 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
     hiveQueries.add(createStagingTableDDL);
     log.debug("Create staging table DDL:\n" + createStagingTableDDL);
 
-    // Create DDL statement for partition
-    if (partitionsDMLInfo.size() > 0) {
-      List<String> createStagingPartitionDDL =
-          HiveAvroORCQueryGenerator.generateCreatePartitionDDL(outputDatabaseName,
-              stagingTableName,
-              stagingDataPartitionLocation,
-              partitionsDMLInfo);
-
-      hiveQueries.addAll(createStagingPartitionDDL);
-      log.debug("Create staging partition DDL: " + createStagingPartitionDDL);
-    }
-
+    /*
+     * Setting partition mode to 'nonstrict' is needed to improve readability of the code.
+     * If we do not set dynamic partition mode to nonstrict, we will have to write partition values also,
+     * and because hive considers partition as a virtual column, we also have to write each of the column
+     * name in the query (in place of *) to match source and target columns.
+     */
     hiveQueries.add("SET hive.exec.dynamic.partition.mode=nonstrict");
 
     String insertInStagingTableDML =
@@ -146,12 +147,17 @@ public class HiveMaterializerQueryGenerator implements QueryGenerator {
     hiveQueries.add(insertInStagingTableDML);
     log.debug("Conversion staging DML: " + insertInStagingTableDML);
 
-    log.info("Conversion Query {}",  hiveQueries);
+    log.info("Conversion Queries {}\n",  hiveQueries);
 
     EventWorkunitUtils.setEndDDLBuildTimeMetadata(workUnit, System.currentTimeMillis());
     return hiveQueries;
   }
 
+  /**
+   * Retuens a QueryBasedHivePublishEntity which includes publish level queries and cleanup commands.
+   * @return QueryBasedHivePublishEntity
+   * @throws DataConversionException
+   */
   public QueryBasedHivePublishEntity generatePublishQueries() throws DataConversionException {
 
     QueryBasedHivePublishEntity publishEntity = new QueryBasedHivePublishEntity();

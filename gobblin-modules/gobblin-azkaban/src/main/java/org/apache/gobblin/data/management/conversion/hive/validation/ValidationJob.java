@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.conversion.hive.validation;
 import org.apache.gobblin.config.client.ConfigClient;
 import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils;
 import org.apache.gobblin.util.PathUtils;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -45,18 +46,15 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.log4j.Logger;
-import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 import org.slf4j.LoggerFactory;
 
@@ -374,7 +372,7 @@ public class ValidationJob extends AbstractJob {
           String orcTableName = conversionConfig.getDestinationTableName();
           String orcTableDatabase = conversionConfig.getDestinationDbName();
           Pair<Optional<org.apache.hadoop.hive.metastore.api.Table>, Optional<List<Partition>>> destinationMeta =
-              getDestinationTableMeta(orcTableDatabase, orcTableName, this.props);
+              HiveConverterUtils.getDestinationTableMeta(orcTableDatabase, orcTableName, this.props);
 
           // Generate validation queries
           final List<String> validationQueries =
@@ -433,7 +431,7 @@ public class ValidationJob extends AbstractJob {
         String orcTableName = conversionConfig.getDestinationTableName();
         String orcTableDatabase = conversionConfig.getDestinationDbName();
         Pair<Optional<org.apache.hadoop.hive.metastore.api.Table>, Optional<List<Partition>>> destinationMeta =
-            getDestinationTableMeta(orcTableDatabase, orcTableName, this.props);
+            HiveConverterUtils.getDestinationTableMeta(orcTableDatabase, orcTableName, this.props);
 
         // Validate each partition
         for (final Partition sourcePartition : sourcePartitions) {
@@ -703,31 +701,6 @@ public class ValidationJob extends AbstractJob {
     Preconditions.checkNotNull(dateString, "Unable to get partition date");
     DateFormat dateFormat = new SimpleDateFormat(DATE_FORMAT);
     return dateFormat.parse(dateString).getTime();
-  }
-
-  private Pair<Optional<org.apache.hadoop.hive.metastore.api.Table>, Optional<List<Partition>>> getDestinationTableMeta(String dbName, String tableName,
-      Properties props) {
-
-    Optional<org.apache.hadoop.hive.metastore.api.Table> table = Optional.absent();
-    Optional<List<Partition>> partitions = Optional.absent();
-
-    try {
-      try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
-        table = Optional.of(client.get().getTable(dbName, tableName));
-        if (table.isPresent()) {
-          org.apache.hadoop.hive.ql.metadata.Table qlTable = new org.apache.hadoop.hive.ql.metadata.Table(table.get());
-          if (HiveUtils.isPartitioned(qlTable)) {
-            partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String> absent()));
-          }
-        }
-      }
-    } catch (NoSuchObjectException e) {
-      return ImmutablePair.of(table, partitions);
-    } catch (IOException | TException e) {
-      throw new RuntimeException("Could not fetch destination table metadata", e);
-    }
-
-    return ImmutablePair.of(table, partitions);
   }
 }
 

@@ -44,6 +44,13 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+
+/**
+ * An abstract Task that runs a hive job.
+ * it runs hive queries.
+ * Implementation classes should implement abstract methods generateHiveQueries() and generatePublishQueries()
+ * which creates extract/write level queries and publish level queries respectively.
+ */
 public abstract class HiveTask extends BaseAbstractTask {
   protected final TaskContext taskContext;
   protected final WorkUnitState workUnitState;
@@ -107,7 +114,10 @@ public abstract class HiveTask extends BaseAbstractTask {
           for (Map.Entry<String, String> publishDir : publishDirectories.entrySet()) {
             HadoopUtils.renamePath(fs, new Path(publishDir.getKey()), new Path(publishDir.getValue()), true);
           }
-        } catch (Exception e) {
+        } catch (RuntimeException re) {
+          throw re;
+        }
+        catch (Exception e) {
           log.error("error in move dir");
         }
       }
@@ -127,18 +137,18 @@ public abstract class HiveTask extends BaseAbstractTask {
               HiveSource.DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS)).createFromState(wus);
 
       watermarker.setActualHighWatermark(wus);
+    } catch (RuntimeException re) {
+      throw re;
     } catch (Exception e) {
       log.error("Error in HiveMaterializer generate publish queries", e);
     } finally {
       try {
         this.hiveJdbcConnector.executeStatements(cleanUpQueries.toArray(new String[cleanUpQueries.size()]));
-      } catch (Exception e) {
-        log.error("Failed to cleanup staging entities in Hive metastore.", e);
-      }
-      try {
         HadoopUtils.deleteDirectories(fs, directoriesToDelete, true);
+      } catch(RuntimeException re) {
+        throw re;
       } catch (Exception e) {
-        log.error("Failed to cleanup staging directories.", e);
+        log.error("Failed to cleanup staging entities.", e);
       }
     }
   }
@@ -148,21 +158,21 @@ public abstract class HiveTask extends BaseAbstractTask {
     try {
       List<String> queries = generateHiveQueries();
       this.hiveJdbcConnector.executeStatements(queries.toArray(new String[queries.size()]));
+      super.run();
     } catch (Exception e) {
       this.workingState = WorkUnitState.WorkingState.FAILED;
       log.error("Exception in HiveTask generateHiveQueries ", e);
     }
-    super.run();
   }
 
   @Override
   public void commit() {
     try {
       executePublishQueries(generatePublishQueries());
+      super.commit();
     } catch (Exception e) {
       this.workingState = WorkUnitState.WorkingState.FAILED;
       log.error("Exception in HiveTask generate publish HiveQueries ", e);
     }
-    super.commit();
   }
 }

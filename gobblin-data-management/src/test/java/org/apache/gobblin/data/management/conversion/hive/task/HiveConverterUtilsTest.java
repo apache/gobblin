@@ -17,12 +17,13 @@
 
 package org.apache.gobblin.data.management.conversion.hive.task;
 
-import com.google.common.base.Optional;
 import java.util.Map;
+
 import org.junit.Test;
 import org.testng.Assert;
 import org.testng.collections.Maps;
 
+import com.google.common.base.Optional;
 
 public class HiveConverterUtilsTest {
   private final String inputDbName = "testdb";
@@ -39,7 +40,7 @@ public class HiveConverterUtilsTest {
     partitionsDMLInfo.put(partitionName, partitionValue);
     String expectedQuery = "INSERT OVERWRITE TABLE `" + outputDatabaseName + "`.`" + outputTableName + "` \n"
         + "PARTITION (`" + partitionName + "`) \n" + "SELECT * FROM `" + inputDbName + "`.`" + inputTableName + "` WHERE "
-        + "`" + partitionName + "`='" + partitionsDMLInfo.get(partitionName) + "' \n";
+        + "`" + partitionName + "`='" + partitionsDMLInfo.get(partitionName) + "'";
 
     String actualQuery = HiveConverterUtils.generateTableCopy(inputTableName,
         outputTableName, inputDbName, outputDatabaseName, Optional.of(partitionsDMLInfo));

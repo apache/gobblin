@@ -18,10 +18,10 @@
 package org.apache.gobblin.data.management.conversion.hive.task;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 import static java.util.stream.Collectors.joining;
 
@@ -45,21 +45,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 
-import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
-import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.copy.hive.HiveUtils;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.AutoReturnableObject;
-import org.apache.gobblin.util.HadoopUtils;
 
 import lombok.extern.slf4j.Slf4j;
-
-
-
 
 @Slf4j
 
@@ -188,10 +182,16 @@ public class HiveConverterUtils {
       return new StringBuilder();
     } else {
       return new StringBuilder("PARTITION (").append(Joiner.on(", ")
-          .join(optionalPartitionDMLInfo.get().entrySet().stream().map(Map.Entry::getKey).iterator())).append(")\n");
+          .join(optionalPartitionDMLInfo.get().entrySet().stream().map(e -> "`" + e.getKey() + "`").iterator())).append(") \n");
     }
   }
 
+  /**
+   * It fills partitionsDDLInfo and partitionsDMLInfo with the partition information
+   * @param conversionEntity conversion entity to
+   * @param partitionsDDLInfo partition type information, to be filled by this method
+   * @param partitionsDMLInfo partition key-value pair, to be filled by this method
+   */
   public static void populatePartitionInfo(QueryBasedHiveConversionEntity conversionEntity, Map<String, String> partitionsDDLInfo,
       Map<String, String> partitionsDMLInfo) {
 
@@ -228,6 +228,13 @@ public class HiveConverterUtils {
     }
   }
 
+  /**
+   * Creates a staging directory with the permission as in source directory.
+   * @param fs filesystem object
+   * @param destination staging directory location
+   * @param conversionEntity conversion entity used to get source directory permissions
+   * @param workUnit workunit
+   */
   public static void createStagingDirectory(FileSystem fs, String destination, QueryBasedHiveConversionEntity conversionEntity,
       WorkUnitState workUnit) {
     /*
@@ -245,14 +252,14 @@ public class HiveConverterUtils {
     try {
       FileStatus sourceDataFileStatus = fs.getFileStatus(conversionEntity.getHiveTable().getDataLocation());
       FsPermission sourceDataPermission = sourceDataFileStatus.getPermission();
-      if (!fs.mkdirs(destinationPath, new FsPermission("777"))) {
+      if (!fs.mkdirs(destinationPath, sourceDataPermission)) {
         throw new RuntimeException(String.format("Failed to create path %s with permissions %s",
             destinationPath, sourceDataPermission));
       } else {
         fs.setPermission(destinationPath, sourceDataPermission);
         // Set the same group as source
         if (!workUnit.getPropAsBoolean(HIVE_DATASET_DESTINATION_SKIP_SETGROUP, DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP)) {
-          fs.setOwner(destinationPath, null, "ketl_dev");
+          fs.setOwner(destinationPath, null, sourceDataFileStatus.getGroup());
         }
         log.info(String.format("Created %s with permissions %s and group %s", destinationPath, sourceDataPermission, sourceDataFileStatus.getGroup()));
       }
@@ -288,6 +295,14 @@ public class HiveConverterUtils {
     }
   }
 
+  /**
+   * Returns the partition data location of a given table and partition
+   * @param table Hive table
+   * @param state workunit state
+   * @param partitionName partition name
+   * @return partition data location
+   * @throws DataConversionException
+   */
   public static Optional<Path> getDestinationPartitionLocation(Optional<Table> table, WorkUnitState state,
       String partitionName)
       throws DataConversionException {
@@ -335,16 +350,23 @@ public class HiveConverterUtils {
     return StringUtils.join(Arrays.asList(outputDataPartitionLocation, timeStamp), '/');
   }
 
+  /**
+   * Returns a pair of Hive table and its partitions
+   * @param dbName db name
+   * @param tableName table name
+   * @param props properties
+   * @return a pair of Hive table and its partitions
+   * @throws DataConversionException
+   */
   public static Pair<Optional<Table>, Optional<List<Partition>>> getDestinationTableMeta(String dbName,
-      String tableName, WorkUnitState state)
-      throws DataConversionException {
+      String tableName, Properties props) {
 
     Optional<Table> table = Optional.<Table>absent();
     Optional<List<Partition>> partitions = Optional.<List<Partition>>absent();
 
     try {
-      HiveMetastoreClientPool pool = HiveMetastoreClientPool.get(state.getJobState().getProperties(),
-          Optional.fromNullable(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
+      HiveMetastoreClientPool pool = HiveMetastoreClientPool.get(props,
+          Optional.fromNullable(props.getProperty(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
       try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
         table = Optional.of(client.get().getTable(dbName, tableName));
         if (table.isPresent()) {
@@ -357,7 +379,7 @@ public class HiveConverterUtils {
     } catch (NoSuchObjectException e) {
       return ImmutablePair.of(table, partitions);
     } catch (IOException | TException e) {
-      throw new DataConversionException("Could not fetch destination table metadata", e);
+      throw new RuntimeException("Could not fetch destination table metadata", e);
     }
 
     return ImmutablePair.of(table, partitions);
