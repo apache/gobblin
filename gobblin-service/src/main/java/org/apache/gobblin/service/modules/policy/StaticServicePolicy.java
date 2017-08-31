@@ -17,9 +17,11 @@
 
 package org.apache.gobblin.service.modules.policy;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.google.common.base.Preconditions;
@@ -49,16 +51,16 @@ public class StaticServicePolicy implements ServicePolicy {
   @Getter
   Set<FlowEdge> blacklistedEdges;
 
-  Collection<ServiceNode> serviceNodes;
-  Collection<FlowEdge> flowEdges;
+  List<ServiceNode> serviceNodes;
+  List<FlowEdge> flowEdges;
 
   public StaticServicePolicy() {
-    serviceNodes = Collections.EMPTY_LIST;
-    flowEdges = Collections.EMPTY_LIST;
+    serviceNodes = new ArrayList<>();
+    flowEdges = new ArrayList<>();
     blacklistedEdges = new HashSet<>();
   }
 
-  public StaticServicePolicy(Collection<ServiceNode> serviceNodes, Collection<FlowEdge> flowEdges) {
+  public StaticServicePolicy(List<ServiceNode> serviceNodes, List<FlowEdge> flowEdges) {
     Preconditions.checkNotNull(serviceNodes);
     Preconditions.checkNotNull(flowEdges);
     blacklistedEdges = new HashSet<>();

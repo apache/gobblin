@@ -71,42 +71,41 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   private DirectedWeightedMultigraph<ServiceNode, FlowEdge> weightedGraph =
       new DirectedWeightedMultigraph<>(LoadBasedFlowEdgeImpl.class);
 
-  ServicePolicy servicePolicy;
+  public ServicePolicy servicePolicy;
 
   // Contains user-specified complete path of how the data movement is executed from source to sink.
   private Optional<String> optionalUserSpecifiedPath;
 
   private FlowEdgeProps defaultFlowEdgeProps = new FlowEdgeProps();
 
-  public MultiHopsFlowToJobSpecCompiler(Config config){
+  public MultiHopsFlowToJobSpecCompiler(Config config) {
     this(config, Optional.absent(), true);
   }
 
-  public MultiHopsFlowToJobSpecCompiler(Config config, Optional<Logger> log){
+  public MultiHopsFlowToJobSpecCompiler(Config config, Optional<Logger> log) {
     this(config, log, true);
   }
 
   public MultiHopsFlowToJobSpecCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
-    String policyClassName = config.hasPath(SERVICE_POLICY_NAME)
-        ? config.getString(SERVICE_POLICY_NAME) : ServiceConfigKeys.DEFAULT_SERVICE_POLICY;
-    ClassAliasResolver<ServicePolicy> classResolver =
-        new ClassAliasResolver<>(ServicePolicy.class);
+    String policyClassName = config.hasPath(SERVICE_POLICY_NAME) ? config.getString(SERVICE_POLICY_NAME)
+        : ServiceConfigKeys.DEFAULT_SERVICE_POLICY;
+    ClassAliasResolver<ServicePolicy> classResolver = new ClassAliasResolver<>(ServicePolicy.class);
     try {
       servicePolicy = classResolver.resolveClass(policyClassName).newInstance();
     } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
       throw new RuntimeException("Error happen when resolving class for :" + policyClassName, e);
     }
 
-    if (config.hasPath(ServiceConfigKeys.POLICY_BASED_BLOCKED_CONNECTION) &&
-        config.getStringList(ServiceConfigKeys.POLICY_BASED_BLOCKED_CONNECTION).size() > 0) {
+    if (config.hasPath(ServiceConfigKeys.POLICY_BASED_BLOCKED_CONNECTION)
+        && config.getStringList(ServiceConfigKeys.POLICY_BASED_BLOCKED_CONNECTION).size() > 0) {
       try {
         for (String sourceSinkPair : config.getStringList(ServiceConfigKeys.POLICY_BASED_BLOCKED_CONNECTION)) {
           BaseServiceNodeImpl source = new BaseServiceNodeImpl(sourceSinkPair.split(":")[0]);
           BaseServiceNodeImpl sink = new BaseServiceNodeImpl(sourceSinkPair.split(":")[1]);
           URI specExecutorURI = new URI(sourceSinkPair.split(":")[2]);
-          servicePolicy.addFlowEdge(new LoadBasedFlowEdgeImpl(source, sink,
-              InMemorySpecExecutor.createDummySpecExecutor(specExecutorURI)));
+          servicePolicy.addFlowEdge(
+              new LoadBasedFlowEdgeImpl(source, sink, InMemorySpecExecutor.createDummySpecExecutor(specExecutorURI)));
         }
       } catch (URISyntaxException e) {
         this.log.warn("Constructing of FlowEdge in ServicePolicy Failed");
@@ -114,14 +113,15 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     }
 
     if (config.hasPath(ServiceConfigKeys.POLICY_BASED_BLOCKED_NODES) &&
-        config.getStringList(ServiceConfigKeys.POLICY_BASED_BLOCKED_NODES).size() > 0) {
-      for (String blacklistedNode: SPLIT_BY_COMMA.splitToList(config.getString(ServiceConfigKeys.POLICY_BASED_BLOCKED_NODES))){
+        StringUtils.isNotBlank(config.getString(ServiceConfigKeys.POLICY_BASED_BLOCKED_NODES))) {
+      for (String blacklistedNode : SPLIT_BY_COMMA.splitToList(
+          config.getString(ServiceConfigKeys.POLICY_BASED_BLOCKED_NODES))) {
         servicePolicy.addServiceNode(new BaseServiceNodeImpl(blacklistedNode));
       }
     }
 
-    if (config.hasPath(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH) &&
-        StringUtils.isNotBlank(config.getString(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH))) {
+    if (config.hasPath(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH) && StringUtils.isNotBlank(
+        config.getString(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH))) {
       optionalUserSpecifiedPath = Optional.of(config.getString(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH));
     } else {
       optionalUserSpecifiedPath = Optional.absent();
@@ -144,13 +144,14 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
    *
    */
   private void inMemoryWeightGraphGenerator() {
-    for( TopologySpec topologySpec : topologySpecMap.values()) {
+    for (TopologySpec topologySpec : topologySpecMap.values()) {
       weightGraphGenerateHelper(topologySpec);
     }
 
     // Filter out connection appearing in servicePolicy.
+    // This is where servicePolicy is enforced.
     servicePolicy.populateBlackListedEdges(this.weightedGraph);
-    if (servicePolicy.getBlacklistedEdges().size() > 0 ) {
+    if (servicePolicy.getBlacklistedEdges().size() > 0) {
       for (FlowEdge toDeletedEdge : servicePolicy.getBlacklistedEdges()) {
         weightedGraph.removeEdge(toDeletedEdge);
       }
@@ -183,12 +184,12 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
         new BaseServiceNodeImpl(flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY));
 
     List<FlowEdge> resultEdgePath = dijkstraBasedPathFindingHelper(sourceNode, targetNode, this.weightedGraph);
-    for (int i = 0 ; i < resultEdgePath.size() - 1 ; i ++ ) {
+    for (int i = 0; i < resultEdgePath.size() - 1; i++) {
       FlowEdge tmpFlowEdge = resultEdgePath.get(i);
-      ServiceNode edgeSrcNode = ((LoadBasedFlowEdgeImpl)tmpFlowEdge).getSourceNode();
-      ServiceNode edgeTgtNode = ((LoadBasedFlowEdgeImpl)tmpFlowEdge).getTargetNode();
+      ServiceNode edgeSrcNode = ((LoadBasedFlowEdgeImpl) tmpFlowEdge).getSourceNode();
+      ServiceNode edgeTgtNode = ((LoadBasedFlowEdgeImpl) tmpFlowEdge).getTargetNode();
       specExecutorInstanceMap.put(jobSpecGenerator(edgeSrcNode, edgeTgtNode, flowSpec),
-          ((LoadBasedFlowEdgeImpl)(resultEdgePath.get(i))).getSpecExecutorInstance());
+          ((LoadBasedFlowEdgeImpl) (resultEdgePath.get(i))).getSpecExecutorInstance());
     }
   }
 
@@ -197,11 +198,10 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
    */
   @Override
   protected void populateEdgeTemplateMap() {
-    for (FlowEdge flowEdge:this.weightedGraph.edgeSet()) {
-      edgeTemplateMap.put(flowEdge.getEdgeIdentity(),
-          templateCatalog.get().
-              getAllTemplates().
-              stream().map(jobTemplate -> jobTemplate.getUri()).collect(Collectors.toList()));
+    for (FlowEdge flowEdge : this.weightedGraph.edgeSet()) {
+      edgeTemplateMap.put(flowEdge.getEdgeIdentity(), templateCatalog.get().
+          getAllTemplates().
+          stream().map(jobTemplate -> jobTemplate.getUri()).collect(Collectors.toList()));
     }
   }
 
@@ -210,13 +210,13 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   private boolean userSpecifiedPathVerificator(Map<Spec, SpecExecutor> specExecutorInstanceMap, FlowSpec flowSpec) {
     Map<Spec, SpecExecutor> tmpSpecExecutorInstanceMap = new HashMap<>();
     List<String> userSpecfiedPath = Arrays.asList(optionalUserSpecifiedPath.get().split(","));
-    for (int i = 0 ; i < userSpecfiedPath.size() - 1 ; i ++ ) {
+    for (int i = 0; i < userSpecfiedPath.size() - 1; i++) {
       ServiceNode sourceNode = new BaseServiceNodeImpl(userSpecfiedPath.get(i));
-      ServiceNode targetNode = new BaseServiceNodeImpl(userSpecfiedPath.get(i+1));
-      if (weightedGraph.containsVertex(sourceNode) && weightedGraph.containsVertex(targetNode) &&
-          weightedGraph.containsEdge(sourceNode, targetNode)) {
+      ServiceNode targetNode = new BaseServiceNodeImpl(userSpecfiedPath.get(i + 1));
+      if (weightedGraph.containsVertex(sourceNode) && weightedGraph.containsVertex(targetNode)
+          && weightedGraph.containsEdge(sourceNode, targetNode)) {
         tmpSpecExecutorInstanceMap.put(jobSpecGenerator(sourceNode, targetNode, flowSpec),
-            (((LoadBasedFlowEdgeImpl)weightedGraph.getEdge(sourceNode, targetNode)).getSpecExecutorInstance()));
+            (((LoadBasedFlowEdgeImpl) weightedGraph.getEdge(sourceNode, targetNode)).getSpecExecutorInstance()));
       } else {
         log.error("User Specified Path is invalid");
         return false;
@@ -229,13 +229,12 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   // Helper function for transform TopologySpecMap into a weightedDirectedGraph.
   private void weightGraphGenerateHelper(TopologySpec topologySpec) {
     try {
-      Map<ServiceNode, ServiceNode> capabilities =
-          topologySpec.getSpecExecutor().getCapabilities().get();
+      Map<ServiceNode, ServiceNode> capabilities = topologySpec.getSpecExecutor().getCapabilities().get();
       for (Map.Entry<ServiceNode, ServiceNode> capability : capabilities.entrySet()) {
 
         BaseServiceNodeImpl sourceNode = new BaseServiceNodeImpl(capability.getKey().getNodeName());
         BaseServiceNodeImpl targetNode = new BaseServiceNodeImpl(capability.getValue().getNodeName());
-        // TODO: Make it generic
+
         if (!weightedGraph.containsVertex(sourceNode)) {
           weightedGraph.addVertex(sourceNode);
         }
@@ -243,8 +242,8 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
           weightedGraph.addVertex(targetNode);
         }
 
-        FlowEdge flowEdge = new LoadBasedFlowEdgeImpl
-            (sourceNode, targetNode, defaultFlowEdgeProps, topologySpec.getSpecExecutor());
+        FlowEdge flowEdge =
+            new LoadBasedFlowEdgeImpl(sourceNode, targetNode, defaultFlowEdgeProps, topologySpec.getSpecExecutor());
 
         // In Multi-Graph if flowEdge existed, just skip it.
         if (!weightedGraph.containsEdge(flowEdge)) {
@@ -260,15 +259,15 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   /**
    * Generate JobSpec based on the #templateURI that user specified.
    */
-  private JobSpec jobSpecGenerator(ServiceNode sourceNode, ServiceNode targetNode,
-      FlowEdge flowEdge, URI templateURI, FlowSpec flowSpec) {
+  private JobSpec jobSpecGenerator(ServiceNode sourceNode, ServiceNode targetNode, FlowEdge flowEdge, URI templateURI,
+      FlowSpec flowSpec) {
     JobSpec jobSpec;
     JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSpecURIGenerator(flowSpec, sourceNode, targetNode))
         .withConfig(flowSpec.getConfig())
         .withDescription(flowSpec.getDescription())
         .withVersion(flowSpec.getVersion());
-    if (edgeTemplateMap.containsKey(flowEdge.getEdgeIdentity())
-        && edgeTemplateMap.get(flowEdge.getEdgeIdentity()).contains(templateURI)) {
+    if (edgeTemplateMap.containsKey(flowEdge.getEdgeIdentity()) && edgeTemplateMap.get(flowEdge.getEdgeIdentity())
+        .contains(templateURI)) {
       jobSpecBuilder.withTemplate(templateURI);
       try {
         jobSpec = new ResolvedJobSpec(jobSpecBuilder.build(), templateCatalog.get());
@@ -290,9 +289,9 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
    */
   private JobSpec jobSpecGenerator(ServiceNode sourceNode, ServiceNode targetNode, FlowSpec flowSpec) {
     FlowEdge flowEdge = weightedGraph.getAllEdges(sourceNode, targetNode).iterator().next();
-    URI firstTemplateURI = (edgeTemplateMap!=null && edgeTemplateMap.containsKey(flowEdge.getEdgeIdentity())) ?
-        edgeTemplateMap.get(flowEdge.getEdgeIdentity()).get(0)
-        : jobSpecGenerator(flowSpec).getUri();
+    URI firstTemplateURI =
+        (edgeTemplateMap != null && edgeTemplateMap.containsKey(flowEdge.getEdgeIdentity())) ? edgeTemplateMap.get(
+            flowEdge.getEdgeIdentity()).get(0) : jobSpecGenerator(flowSpec).getUri();
     return this.jobSpecGenerator(sourceNode, targetNode, flowEdge, firstTemplateURI, flowSpec);
   }
 
@@ -304,7 +303,8 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       return new URI(flowSpec.getUri().getScheme(), flowSpec.getUri().getAuthority(),
           "/" + sourceNode.getNodeName() + "-" + targetNode.getNodeName(), null);
     } catch (URISyntaxException e) {
-      log.error("URI construction failed when jobSpec from " + sourceNode.getNodeName() + " to " + targetNode.getNodeName());
+      log.error(
+          "URI construction failed when jobSpec from " + sourceNode.getNodeName() + " to " + targetNode.getNodeName());
       throw new RuntimeException();
     }
   }

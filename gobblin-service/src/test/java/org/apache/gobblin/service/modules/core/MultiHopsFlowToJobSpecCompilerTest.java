@@ -32,6 +32,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
 import org.jgrapht.graph.DirectedWeightedMultigraph;
 import org.jgrapht.graph.WeightedMultigraph;
+import org.junit.After;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -110,6 +111,7 @@ public class MultiHopsFlowToJobSpecCompilerTest {
     // Initialize compiler with common useful properties
     String testPath = TEST_SOURCE_NAME + "," + TEST_HOP_NAME_A + "," + TEST_HOP_NAME_B + "," + TEST_SINK_NAME;
     compilerWithTemplateCatalogProperties.setProperty(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH, testPath);
+
     this.compilerWithTemplateCalague = new MultiHopsFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(compilerWithTemplateCatalogProperties));
 
     vertexSource = new BaseServiceNodeImpl(TEST_SOURCE_NAME);
@@ -177,6 +179,36 @@ public class MultiHopsFlowToJobSpecCompilerTest {
   @Test
   public void testUserSpecifiedPathCompilation(){
     // TODO
+  }
+
+  @Test
+  public void testServicePolicy(){
+    // Initialize compiler with some blacklist properties
+    Properties properties = new Properties();
+    properties.setProperty(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, TEST_TEMPLATE_CATALOG_URI);
+    String testPath = TEST_SOURCE_NAME + "," + TEST_HOP_NAME_A + "," + TEST_HOP_NAME_B + "," + TEST_SINK_NAME;
+    properties.setProperty(ServiceConfigKeys.POLICY_BASED_DATA_MOVEMENT_PATH, testPath);
+    properties.setProperty(ServiceConfigKeys.POLICY_BASED_BLOCKED_NODES,
+        "testHopA");
+    MultiHopsFlowToJobSpecCompiler compiler = new MultiHopsFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(properties));
+
+
+    FlowSpec flowSpec = initFlowSpec();
+    TopologySpec topologySpec = initTopologySpec(TOPOLOGY_SPEC_STORE_DIR, TEST_SOURCE_NAME, TEST_HOP_NAME_A, TEST_HOP_NAME_B, TEST_SINK_NAME);
+    compiler.onAddSpec(topologySpec);
+
+    // invocation of compileFlow trigger the weighedGraph construction
+    compiler.compileFlow(flowSpec);
+
+    compiler.servicePolicy.populateBlackListedEdges(compiler.getWeightedGraph());
+    Assert.assertEquals(compiler.servicePolicy.getBlacklistedEdges().size(), 2);
+
+    FlowEdge edgeSrc2A = new LoadBasedFlowEdgeImpl(vertexSource, vertexHopA, topologySpec.getSpecExecutor());
+    FlowEdge edgeA2B = new LoadBasedFlowEdgeImpl(vertexHopA, vertexHopB, topologySpec.getSpecExecutor());
+
+    Assert.assertTrue(compiler.servicePolicy.getBlacklistedEdges().contains(edgeSrc2A));
+    Assert.assertTrue(compiler.servicePolicy.getBlacklistedEdges().contains(edgeA2B));
+
   }
 
   @Test (dependsOnMethods = "testWeightedGraphConstruction")
