@@ -44,6 +44,7 @@ import org.apache.gobblin.metastore.StateStore;
 import com.google.common.io.Files;
 
 
+
 /**
  * Unit tests for {@link FsDatasetStateStore}.
  *
@@ -179,6 +180,31 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getStartTime(), this.startTime);
     Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(datasetState.getDuration(), 1000);
+  }
+
+  /**
+   * Loading previous statestore without apache package name.
+   *
+   * Specifically the example used here is the state store generated from previous gobblin-kafka version without
+   * changing the package name into apache-intialized.
+   *
+   * Should pass the test even the class name doesn't match given the change in
+   * @throws IOException
+   */
+  @Test
+  public void testGetPreviousDatasetStatesByUrnsNoApache() throws IOException{
+    String JOB_NAME_FOR_INCOMPATIBLE_STATE_STORE = "test_failing_job";
+
+    FsDatasetStateStore _fsDatasetStateStore =
+        new FsDatasetStateStore(ConfigurationKeys.LOCAL_FS_URI,
+            "gobblin-runtime/src/test/resources/datasetState");
+
+    try {
+      Map<String, JobState.DatasetState> datasetStatesByUrns =
+          _fsDatasetStateStore.getLatestDatasetStatesByUrns(JOB_NAME_FOR_INCOMPATIBLE_STATE_STORE);
+    } catch (RuntimeException re){
+      Assert.fail("Loading of state store should not fail.");
+    }
   }
 
   @Test

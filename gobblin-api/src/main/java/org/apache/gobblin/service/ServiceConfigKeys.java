@@ -104,4 +104,6 @@ public class ServiceConfigKeys {
   // Policy related configuration Keys
   public static final String DEFAULT_SERVICE_POLICY = "static";
   public static final String SERVICE_POLICY_NAME = GOBBLIN_SERVICE_PREFIX + "servicePolicy";
+  // Logging
+  public static final String GOBBLIN_SERVICE_LOG4J_CONFIGURATION_FILE = "log4j-service.properties";
 }

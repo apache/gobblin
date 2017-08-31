@@ -49,6 +49,7 @@ import com.google.gson.reflect.TypeToken;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode
+@lombok.extern.slf4j.Slf4j
 public class CopyEntity implements HasGuid {
 
   public static final Gson GSON = GsonInterfaceAdapter.getGson(Object.class);
@@ -95,7 +96,7 @@ public class CopyEntity implements HasGuid {
    * @return a new instance of {@link CopyEntity}
    */
   public static CopyEntity deserialize(String serialized) {
-    return GSON.fromJson(serialized, CopyEntity.class);
+    return GSON.fromJson(getSerializedWithNewPackage(serialized), CopyEntity.class);
   }
 
   /**
@@ -106,7 +107,19 @@ public class CopyEntity implements HasGuid {
    * @return a new {@link List} of {@link CopyEntity}s
    */
   public static List<CopyEntity> deserializeList(String serialized) {
-    return GSON.fromJson(serialized, new TypeToken<List<CopyEntity>>() {}.getType());
+    return GSON.fromJson(getSerializedWithNewPackage(serialized), new TypeToken<List<CopyEntity>>() {}.getType());
+  }
+
+  /**
+   * Converts package name in serialized string to new name.
+   * This is temporary change and should get removed after all the states are switched from old to new package name.
+   * @param serialized serialized string possibly having old package names
+   * @return
+   */
+  public static String getSerializedWithNewPackage(String serialized) {
+    serialized = serialized.replace("\"gobblin.data.management.", "\"org.apache.gobblin.data.management.");
+    log.info("Serialized updated copy entity: " + serialized);
+    return serialized;
   }
 
   @Override

@@ -19,13 +19,12 @@ package org.apache.gobblin.metastore;
 
 import static org.apache.gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
 
-import com.google.common.base.Predicate;
-import org.apache.gobblin.util.HadoopUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.gobblin.util.hadoop.GobblinSequenceFileReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -34,13 +33,15 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.DefaultCodec;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.WritableShimSerialization;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.google.common.base.Predicate;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.util.WritableShimSerialization;
 
 
 /**
@@ -225,7 +226,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     Closer closer = Closer.create();
     try {
       @SuppressWarnings("deprecation")
-      SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
+      GobblinSequenceFileReader reader = closer.register(new GobblinSequenceFileReader(this.fs, tablePath, this.conf));
       try {
         Text key = new Text();
         T state = this.stateClass.newInstance();
@@ -260,7 +261,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     Closer closer = Closer.create();
     try {
       @SuppressWarnings("deprecation")
-      SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
+      GobblinSequenceFileReader reader = closer.register(new GobblinSequenceFileReader(this.fs, tablePath, this.conf));
       try {
         Text key = new Text();
         T state = this.stateClass.newInstance();
