@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import avro.shaded.com.google.common.annotations.VisibleForTesting;
 
 @Slf4j
-public class findPathUtils {
+public class FindPathUtils {
   // Since Author{autumnust@gmail.com} couldn't find the proper way to conduct Library provided by JGraphT
   // on the customized-edge Graph, here is the raw implementation of Dijkstra algorithm for finding shortest path.
 

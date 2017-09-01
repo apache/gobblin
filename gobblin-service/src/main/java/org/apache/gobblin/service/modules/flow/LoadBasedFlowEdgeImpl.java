@@ -47,12 +47,20 @@ import lombok.Getter;
  */
 @Alpha
 public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEdge {
+
+  /**
+   * In our cases {@link LoadBasedFlowEdgeImpl} is not likely to be serialized.
+   * While as it extends {@link DefaultWeightedEdge} for best practice we made all fields transient,
+   * and specify serialVersionUID.
+   */
+  private static final long serialVersionUID = 1L;
+
   @Getter
-  private ServiceNode sourceNode;
+  private transient ServiceNode sourceNode;
   @Getter
-  private ServiceNode targetNode;
+  private transient ServiceNode targetNode;
   @Getter
-  private SpecExecutor specExecutorInstance;
+  private transient SpecExecutor specExecutorInstance;
 
   /**
    * Contains both read-only and mutable attributes of properties of an edge.
@@ -63,7 +71,7 @@ public class LoadBasedFlowEdgeImpl extends DefaultWeightedEdge implements FlowEd
    * Typical mutable properties of an edge includes:
    * Load(Weight), Security.
    */
-  private final FlowEdgeProps flowEdgeProps;
+  private final transient FlowEdgeProps flowEdgeProps;
 
   public LoadBasedFlowEdgeImpl(ServiceNode sourceNode, ServiceNode targetNode,
       FlowEdgeProps flowEdgeProps, SpecExecutor specExecutorInstance) {

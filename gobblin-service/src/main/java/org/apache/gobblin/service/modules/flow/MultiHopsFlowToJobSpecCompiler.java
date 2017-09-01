@@ -55,7 +55,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.gobblin.service.ServiceConfigKeys.*;
-import static org.apache.gobblin.service.modules.utils.findPathUtils.*;
+import static org.apache.gobblin.service.modules.utils.FindPathUtils.*;
 
 // Users are capable to inject hints/prioritization into route selection, in two forms:
 // 1. PolicyBasedBlockedConnection: Define some undesired routes

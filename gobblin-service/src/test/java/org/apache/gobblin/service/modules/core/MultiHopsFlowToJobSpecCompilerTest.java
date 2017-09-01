@@ -32,7 +32,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
 import org.jgrapht.graph.DirectedWeightedMultigraph;
 import org.jgrapht.graph.WeightedMultigraph;
-import org.junit.After;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -53,7 +52,7 @@ import org.apache.gobblin.service.modules.flow.MultiHopsFlowToJobSpecCompiler;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
-import static org.apache.gobblin.service.modules.utils.findPathUtils.*;
+import static org.apache.gobblin.service.modules.utils.FindPathUtils.*;
 
 
 // All unit tests here will be with templateCatelogue.
