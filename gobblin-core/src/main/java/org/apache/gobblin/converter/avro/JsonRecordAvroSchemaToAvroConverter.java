@@ -40,8 +40,8 @@ public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase
 
   private static final Splitter SPLITTER_ON_COMMA = Splitter.on(',').trimResults().omitEmptyStrings();
 
-  public static final String AVRO_SCHEMA_KEY = "gobblin.converter.avroSchema";
-  public static final String IGNORE_FIELDS = "gobblin.converter.ignoreFields";
+  public static final String AVRO_SCHEMA_KEY = "converter.avroSchema";
+  public static final String IGNORE_FIELDS = "converter.ignoreFields";
 
   private Schema schema;
   private List<String> ignoreFields;
