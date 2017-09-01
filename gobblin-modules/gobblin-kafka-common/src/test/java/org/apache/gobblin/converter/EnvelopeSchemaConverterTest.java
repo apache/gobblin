@@ -17,6 +17,11 @@
 
 package org.apache.gobblin.converter;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.util.Utf8;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
@@ -34,16 +39,16 @@ import static org.mockito.Mockito.when;
  */
 @Test(groups = {"gobblin.converter"})
 public class EnvelopeSchemaConverterTest {
-
+  public static final String TEST_SCHEMA_STR =
+      "{ \"type\":\"record\", \"name\":\"TestRecord\", \"namespace\":\"org.apache.gobblin.test\", \"fields\":[ { \"name\":\"metadata\", \"type\":{ \"type\":\"map\", \"values\":\"string\" }, \"doc\":\"record metadata.\" }, { \"name\":\"key\", \"type\":\"bytes\", \"doc\":\"serialized key.\" }, { \"name\":\"payload\", \"type\":\"bytes\", \"doc\":\"serialized payload data.\" }, { \"name\":\"nestedRecord1\", \"type\":{ \"type\":\"record\", \"name\":\"NestedRecord1\", \"namespace\":\"org.apache.gobblin.test\", \"fields\":[ { \"name\":\"time\", \"type\":\"long\", \"doc\":\"a time stamp.\" }, { \"name\":\"id\", \"type\":\"string\", \"doc\":\"ID of the record.\" } ] }, \"doc\":\"nested record 1\" } ] }";
   public static final String SCHEMA_KEY = "testKey";
 
-  private GenericRecord mockInputRecord = mock(GenericRecord.class);
   private GenericRecord mockOutputRecord = mock(GenericRecord.class);
   public static Schema mockSchema = mock(Schema.class);
 
   class EnvelopeSchemaConverterForTest extends EnvelopeSchemaConverter {
     @Override
-    public byte[] getPayload(GenericRecord inputRecord, String payloadFieldName) {
+    public byte[] getPayload(GenericRecord inputRecord, String payloadFieldName) throws DataConversionException {
       return null;
     }
 
@@ -56,18 +61,24 @@ public class EnvelopeSchemaConverterTest {
 
   @Test
   public void convertRecordTest() throws Exception {
-    when(mockInputRecord.get("payloadSchemaId")).thenReturn(SCHEMA_KEY);
+    Schema inputSchema = new Schema.Parser().parse(TEST_SCHEMA_STR);
+    GenericRecord inputRecord = new GenericData.Record(inputSchema);
+    Map<Object, Object> metadata = new HashMap<>();
+    metadata.put(new Utf8("payloadSchemaId"), SCHEMA_KEY);
+    inputRecord.put("metadata", metadata);
+
     when(mockOutputRecord.getSchema()).thenReturn(mockSchema);
 
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "testEvent");
+    workUnitState.setProp(EnvelopeSchemaConverter.PAYLOAD_SCHEMA_ID_FIELD, "metadata.payloadSchemaId");
     workUnitState.setProp("kafka.schema.registry.url", "testUrl");
     workUnitState.setProp(KafkaSchemaRegistryFactory.KAFKA_SCHEMA_REGISTRY_FACTORY_CLASS,
         KafkaAvroSchemaRegistryForTest.Factory.class.getName());
 
     EnvelopeSchemaConverterForTest converter = new EnvelopeSchemaConverterForTest();
     converter.init(workUnitState);
-    GenericRecord output = converter.convertRecord(null, mockInputRecord, workUnitState).iterator().next();
+    GenericRecord output = converter.convertRecord(null, inputRecord, workUnitState).iterator().next();
     Assert.assertEquals(output, mockOutputRecord);
   }
 }

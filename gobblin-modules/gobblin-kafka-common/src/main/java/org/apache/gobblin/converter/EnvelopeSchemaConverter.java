@@ -28,6 +28,7 @@ import org.apache.gobblin.converter.filter.AvroSchemaFieldRemover;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.util.AvroFlattener;
 import org.apache.gobblin.util.AvroUtils;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -112,8 +113,14 @@ public class EnvelopeSchemaConverter extends Converter<Schema, String, GenericRe
           workUnit.getProp(PAYLOAD_SCHEMA_ID_FIELD) : DEFAULT_PAYLOAD_SCHEMA_ID_FIELD;
       String payloadField = workUnit.contains(PAYLOAD_FIELD) ?
           workUnit.getProp(PAYLOAD_FIELD) : DEFAULT_PAYLOAD_FIELD;
-      String schemaKey = String.valueOf(inputRecord.get(schemaIdField));
+
+      Optional<Object> schemaIdValue = AvroUtils.getFieldValue(inputRecord, schemaIdField);
+      if (!schemaIdValue.isPresent()) {
+        throw new DataConversionException("Schema id with key " + schemaIdField + " not found in the record");
+      }
+      String schemaKey = String.valueOf(schemaIdValue.get());
       Schema payloadSchema = (Schema) this.registry.getSchemaByKey(schemaKey);
+
       byte[] payload = getPayload(inputRecord, payloadField);
       GenericRecord outputRecord = deserializePayload(payload, payloadSchema);
       if (this.fieldRemover.isPresent()) {
@@ -128,8 +135,13 @@ public class EnvelopeSchemaConverter extends Converter<Schema, String, GenericRe
   /**
    * Get payload field from GenericRecord and convert to byte array
    */
-  public byte[] getPayload(GenericRecord inputRecord, String payloadFieldName) {
-    ByteBuffer bb = (ByteBuffer) inputRecord.get(payloadFieldName);
+  public byte[] getPayload(GenericRecord inputRecord, String payloadFieldName) throws DataConversionException {
+    Optional<Object> payloadValue = AvroUtils.getFieldValue(inputRecord, payloadFieldName);
+    if (!payloadValue.isPresent()) {
+      throw new DataConversionException("Payload with key " + payloadFieldName + " not found in the record");
+    }
+
+    ByteBuffer bb = (ByteBuffer) payloadValue.get();
     byte[] payloadBytes;
     if (bb.hasArray()) {
       payloadBytes = bb.array();
@@ -138,6 +150,7 @@ public class EnvelopeSchemaConverter extends Converter<Schema, String, GenericRe
       bb.get(payloadBytes);
     }
     String hexString = new String(payloadBytes, StandardCharsets.UTF_8);
+
     return DatatypeConverter.parseHexBinary(hexString);
   }
 
