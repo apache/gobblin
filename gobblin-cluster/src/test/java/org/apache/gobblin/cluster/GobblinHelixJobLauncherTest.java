@@ -17,17 +17,22 @@
 
 package org.apache.gobblin.cluster;
 
-import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.util.ClassAliasResolver;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.avro.Schema;
 import org.apache.curator.test.TestingServer;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.runtime.JobContext;
+import org.apache.gobblin.runtime.listeners.AbstractJobListener;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -55,6 +60,8 @@ import org.apache.gobblin.runtime.FsDatasetStateStore;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.util.ConfigUtils;
+
+import lombok.Getter;
 
 
 /**
@@ -86,6 +93,10 @@ public class GobblinHelixJobLauncherTest {
   private File jobOutputFile;
 
   private GobblinHelixJobLauncher gobblinHelixJobLauncher;
+
+  private GobblinHelixJobLauncher gobblinHelixJobLauncher1;
+
+  private GobblinHelixJobLauncher gobblinHelixJobLauncher2;
 
   private GobblinTaskRunner gobblinTaskRunner;
 
@@ -150,8 +161,22 @@ public class GobblinHelixJobLauncherTest {
     TestHelper.createSourceJsonFile(sourceJsonFile);
     properties.setProperty(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, sourceJsonFile.getAbsolutePath());
 
+    ConcurrentHashMap<String, Boolean> runningMap = new ConcurrentHashMap<>();
+
+    // Normal job launcher
+    properties.setProperty(ConfigurationKeys.JOB_ID_KEY, "job_" + this.jobName + "_1504201348470");
     this.gobblinHelixJobLauncher = this.closer.register(
-        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of()));
+        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap));
+
+    // Job launcher(1) to test parallel job running
+    properties.setProperty(ConfigurationKeys.JOB_ID_KEY, "job_" + this.jobName + "_1504201348471");
+    this.gobblinHelixJobLauncher1 = this.closer.register(
+        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap));
+
+    // Job launcher(2) to test parallel job running
+    properties.setProperty(ConfigurationKeys.JOB_ID_KEY, "job_" + this.jobName + "_1504201348472");
+    this.gobblinHelixJobLauncher2 = this.closer.register(
+        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap));
 
     this.gobblinTaskRunner =
         new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_HELIX_INSTANCE_NAME,
@@ -194,6 +219,51 @@ public class GobblinHelixJobLauncherTest {
 
     Assert.assertEquals(datasetState.getTaskStates().size(), 1);
     Assert.assertEquals(datasetState.getTaskStates().get(0).getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+  }
+
+  private static class SuspendJobListener extends AbstractJobListener {
+    @Getter
+    private AtomicInteger completes = new AtomicInteger();
+    private CountDownLatch stg1;
+    private CountDownLatch stg2;
+    public SuspendJobListener (CountDownLatch stg1, CountDownLatch stg2) {
+      this.stg1 = stg1;
+      this.stg2 = stg2;
+    }
+
+    @Override
+    public void onJobStart (JobContext jobContext) throws Exception {
+      stg1.countDown();
+      stg2.await();
+    }
+
+    @Override
+    public void onJobCompletion(JobContext jobContext) throws Exception {
+      completes.addAndGet(1);
+    }
+  }
+
+  public void testLaunchMultipleJobs() throws JobException, IOException, InterruptedException {
+    CountDownLatch stg1 = new CountDownLatch(1);
+    CountDownLatch stg2 = new CountDownLatch(1);
+    CountDownLatch stg3 = new CountDownLatch(1);
+    SuspendJobListener testListener = new SuspendJobListener(stg1, stg2);
+    (new Thread(() -> {
+      try {
+        GobblinHelixJobLauncherTest.this.gobblinHelixJobLauncher1.launchJob(testListener);
+        stg3.countDown();
+      } catch (JobException e) {
+      }
+    })).start();
+
+    // Wait for the first job to start
+    stg1.await();
+    // When first job is in the middle of running, launch the second job (which should do NOOP because previous job is still running)
+    this.gobblinHelixJobLauncher2.launchJob(testListener);
+    stg2.countDown();
+    // Wait for the first job to finish
+    stg3.await();
+    Assert.assertEquals(testListener.getCompletes().get() == 1, true);
   }
 
   @AfterClass

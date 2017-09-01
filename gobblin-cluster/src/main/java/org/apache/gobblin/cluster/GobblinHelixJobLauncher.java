@@ -23,7 +23,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -58,7 +61,6 @@ import org.apache.gobblin.runtime.ExecutionModel;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.Task;
-import org.apache.gobblin.runtime.TaskConfigurationKeys;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateCollectorService;
 import org.apache.gobblin.runtime.util.StateStores;
@@ -69,6 +71,8 @@ import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.SerializationUtils;
+
+import javax.annotation.Nullable;
 
 
 /**
@@ -119,17 +123,18 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private volatile boolean jobSubmitted = false;
   private volatile boolean jobComplete = false;
+  private final ConcurrentHashMap<String, Boolean> runningMap;
   private final StateStores stateStores;
   private final Config jobConfig;
 
   public GobblinHelixJobLauncher(Properties jobProps, final HelixManager helixManager, Path appWorkDir,
-      List<? extends Tag<?>> metadataTags)
+      List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap)
       throws Exception {
     super(jobProps, addAdditionalMetadataTags(jobProps, metadataTags));
 
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
-
+    this.runningMap = runningMap;
     this.appWorkDir = appWorkDir;
     this.inputWorkUnitDir = new Path(appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
     this.outputTaskStateDir = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME +
@@ -285,6 +290,29 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     // Put the job into the queue
     this.helixTaskDriver.enqueueJob(this.jobContext.getJobName(), this.jobContext.getJobId(), jobConfigBuilder);
 
+  }
+
+  public void launchJob(@Nullable JobListener jobListener)
+      throws JobException {
+    boolean isLaunched = false;
+    this.runningMap.putIfAbsent(this.jobContext.getJobName(), false);
+    try {
+      if (this.runningMap.replace(this.jobContext.getJobName(), false, true)) {
+        LOGGER.info ("Job {} will be executed, add into running map.", this.jobContext.getJobId());
+        isLaunched = true;
+        super.launchJob(jobListener);
+      } else {
+        LOGGER.warn ("Job {} will not be executed because other jobs are still running.", this.jobContext.getJobId());
+      }
+    } finally {
+      if (isLaunched) {
+        if (this.runningMap.replace(this.jobContext.getJobName(), true, false)) {
+          LOGGER.info ("Job {} is done, remove from running map.", this.jobContext.getJobId());
+        } else {
+          throw new IllegalStateException("A launched job should have running state equal to true in the running map.");
+        }
+      }
+    }
   }
 
   /**
