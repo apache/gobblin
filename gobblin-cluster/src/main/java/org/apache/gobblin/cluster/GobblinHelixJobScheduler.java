@@ -22,7 +22,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 
@@ -61,12 +61,14 @@ public class GobblinHelixJobScheduler extends JobScheduler {
   static final String HELIX_MANAGER_KEY = "helixManager";
   static final String APPLICATION_WORK_DIR_KEY = "applicationWorkDir";
   static final String METADATA_TAGS = "metadataTags";
+  static final String JOB_RUNNING_MAP = "jobRunningMap";
 
   private final Properties properties;
   private final HelixManager helixManager;
   private final EventBus eventBus;
   private final Path appWorkDir;
   private final List<? extends Tag<?>> metadataTags;
+  private final ConcurrentHashMap<String, Boolean> jobRunningMap;
   private final MutableJobCatalog jobCatalog;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
@@ -76,7 +78,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
     this.properties = properties;
     this.helixManager = helixManager;
     this.eventBus = eventBus;
-
+    this.jobRunningMap = new ConcurrentHashMap<>();
     this.appWorkDir = appWorkDir;
     this.metadataTags = metadataTags;
     this.jobCatalog = jobCatalog;
@@ -94,7 +96,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
     additionalJobDataMap.put(HELIX_MANAGER_KEY, this.helixManager);
     additionalJobDataMap.put(APPLICATION_WORK_DIR_KEY, this.appWorkDir);
     additionalJobDataMap.put(METADATA_TAGS, this.metadataTags);
-
+    additionalJobDataMap.put(JOB_RUNNING_MAP, this.jobRunningMap);
     try {
       scheduleJob(jobProps, jobListener, additionalJobDataMap, GobblinHelixJob.class);
     } catch (Exception e) {
@@ -118,7 +120,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
 
   private GobblinHelixJobLauncher buildGobblinHelixJobLauncher(Properties jobProps)
       throws Exception {
-    return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir, this.metadataTags);
+    return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
   }
 
   @Subscribe
