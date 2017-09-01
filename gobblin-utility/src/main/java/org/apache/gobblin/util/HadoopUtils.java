@@ -45,6 +45,7 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
+import org.apache.hadoop.fs.Trash;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Writable;
@@ -147,10 +148,15 @@ public class HadoopUtils {
 
   /**
    * Calls deletePath() on each directory in the given list of directories to delete.
+   * If moveToTrash is set, it will be moved to trash according to the file system trash policy.
    */
-  public static void deleteDirectories(FileSystem fs, List<String> directoriesToDelete, boolean recursive) throws IOException {
+  public static void deleteDirectories(FileSystem fs, List<String> directoriesToDelete, boolean recursive, boolean moveToTrash) throws IOException {
     for (String directory : directoriesToDelete) {
-      deletePath(fs, new Path(directory), recursive);
+      if (moveToTrash) {
+        moveToTrash(fs, new Path(directory));
+      } else {
+        deletePath(fs, new Path(directory), recursive);
+      }
     }
   }
 
@@ -177,6 +183,16 @@ public class HadoopUtils {
     }
   }
 
+  /**
+   * Moves the object to the filesystem trash according to the file system policy.
+   * @param fs FileSystem object
+   * @param path Path to the object to be moved to trash.
+   * @throws IOException
+   */
+  public static void moveToTrash(FileSystem fs, Path path) throws IOException {
+    Trash trash = new Trash(fs, new Configuration());
+    trash.moveToTrash(path);
+  }
   /**
    * Renames a src {@link Path} on fs {@link FileSystem} to a dst {@link Path}. If fs is a {@link LocalFileSystem} and
    * src is a directory then {@link File#renameTo} is called directly to avoid a directory rename race condition where
@@ -220,10 +236,7 @@ public class HadoopUtils {
     }
     if (fs.exists(newName)) {
       if (overwrite) {
-        if (!fs.delete(newName, true)) {
-          throw new IOException(
-              String.format("Failed to delete %s while renaming %s to %s", newName, oldName, newName));
-        }
+        HadoopUtils.moveToTrash(fs, newName);
       } else {
         throw new FileAlreadyExistsException(
             String.format("Failed to rename %s to %s: dst already exists", oldName, newName));

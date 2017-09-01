@@ -144,7 +144,7 @@ public abstract class HiveTask extends BaseAbstractTask {
     } finally {
       try {
         this.hiveJdbcConnector.executeStatements(cleanUpQueries.toArray(new String[cleanUpQueries.size()]));
-        HadoopUtils.deleteDirectories(fs, directoriesToDelete, true);
+        HadoopUtils.deleteDirectories(fs, directoriesToDelete, true, true);
       } catch(RuntimeException re) {
         throw re;
       } catch (Exception e) {
