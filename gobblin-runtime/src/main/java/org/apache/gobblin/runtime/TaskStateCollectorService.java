@@ -172,7 +172,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       }});
 
     if (taskStateNames == null || taskStateNames.size() == 0) {
-      LOGGER.warn("No output task state files found in " + this.outputTaskStateDir);
+      LOGGER.debug("No output task state files found in " + this.outputTaskStateDir);
       return;
     }
 
