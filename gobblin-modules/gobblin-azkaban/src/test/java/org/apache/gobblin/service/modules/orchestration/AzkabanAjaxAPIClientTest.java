@@ -34,13 +34,9 @@ public class AzkabanAjaxAPIClientTest {
   @Test
   public void testCurrentTimeWithinWindow()
       throws ParseException {
-    // Current hour
-    Calendar now = Calendar.getInstance();
-    int currentHour = now.get(Calendar.HOUR_OF_DAY);
-
     // Generate a window encapsulating the current time
-    int windowStartInHours = currentHour < 2 ? 24 + (currentHour - 2) : currentHour - 2;
-    int windowEndInHours = (currentHour + 3) % 24;
+    int windowStartInHours = 2;
+    int windowEndInHours = 5;
     int delayInMinutes = 0;
 
     // Get computed scheduled time
