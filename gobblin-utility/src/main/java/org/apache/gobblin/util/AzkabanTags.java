@@ -37,7 +37,11 @@ public class AzkabanTags {
       .put("azkaban.flow.flowid", "azkabanFlowId")
       .put("azkaban.job.id", "azkabanJobId")
       .put("azkaban.flow.execid", "azkabanExecId")
-      .put("azkaban.link.execution.url", "azkabanURL").build();
+      .put("azkaban.link.execution.url", "azkabanURL")
+      .put("azkaban.link.workflow.url", "azkabanFlowURL")
+      .put("azkaban.link.job.url", "azkabanJobURL")
+      .put("azkaban.link.jobexec.url", "azkabanJobExecURL")
+      .build();
 
   /**
    * Uses {@link #getAzkabanTags(Configuration)} with default Hadoop {@link Configuration}
