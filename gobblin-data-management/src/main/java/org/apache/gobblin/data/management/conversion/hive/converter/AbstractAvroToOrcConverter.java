@@ -32,6 +32,7 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -137,13 +138,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
   public static final String HIVE_DATASET_DESTINATION_SKIP_SETGROUP = "hive.dataset.destination.skip.setGroup";
   public static final boolean DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP = false;
 
-  /**
-   * If the property is set to true then partition dir is overwritten,
-   * else a new time-stamped partition dir is created to avoid breaking in-flight queries
-   * Check org.apache.gobblin.data.management.retention.Avro2OrcStaleDatasetCleaner to clean stale directories
-   */
-  public static final String HIVE_DATASET_PARTITION_OVERWRITE = "hive.dataset.partition.overwrite";
-  public static final boolean DEFAULT_HIVE_DATASET_PARTITION_OVERWRITE = true;
 
   /**
    * If set to true, a set format DDL will be separate from add partition DDL
@@ -224,8 +218,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     String orcDataLocation = getOrcDataLocation();
     String orcStagingDataLocation = getOrcStagingDataLocation(orcStagingTableName);
     boolean isEvolutionEnabled = getConversionConfig().isEvolutionEnabled();
-    Pair<Optional<Table>, Optional<List<Partition>>> destinationMeta = getDestinationTableMeta(orcTableDatabase,
-        orcTableName, workUnit);
+    Pair<Optional<Table>, Optional<List<Partition>>> destinationMeta = HiveConverterUtils.getDestinationTableMeta(orcTableDatabase,
+        orcTableName, workUnit.getProperties());
     Optional<Table> destinationTableMeta = destinationMeta.getLeft();
 
     // Optional
@@ -263,7 +257,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     // Populate optional partition info
     Map<String, String> partitionsDDLInfo = Maps.newHashMap();
     Map<String, String> partitionsDMLInfo = Maps.newHashMap();
-    populatePartitionInfo(conversionEntity, partitionsDDLInfo, partitionsDMLInfo);
+    HiveConverterUtils.populatePartitionInfo(conversionEntity, partitionsDDLInfo, partitionsDMLInfo);
 
     /*
      * Create ORC data location with the same permissions as Avro data
@@ -334,7 +328,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     log.debug("Create staging table DDL: " + createStagingTableDDL);
 
     // Create DDL statement for partition
-    String orcStagingDataPartitionDirName = getOrcStagingDataPartitionDirName(conversionEntity, sourceDataPathIdentifier);
+    String orcStagingDataPartitionDirName = HiveConverterUtils.getStagingDataPartitionDirName(conversionEntity, sourceDataPathIdentifier);
     String orcStagingDataPartitionLocation = orcStagingDataLocation + Path.SEPARATOR + orcStagingDataPartitionDirName;
     if (partitionsDMLInfo.size() > 0) {
       List<String> createStagingPartitionDDL =
@@ -476,7 +470,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       Optional<Path> destPartitionLocation = getDestinationPartitionLocation(destinationTableMeta, workUnit,
           conversionEntity.getHivePartition().get().getName());
       orcFinalDataPartitionLocation =
-          updatePartitionLocation(orcFinalDataPartitionLocation, workUnit, destPartitionLocation);
+          HiveConverterUtils.updatePartitionLocation(orcFinalDataPartitionLocation, workUnit, destPartitionLocation);
       log.info(
           "Partition directory to move: " + orcStagingDataPartitionLocation + " to: " + orcFinalDataPartitionLocation);
       publishDirectories.put(orcStagingDataPartitionLocation, orcFinalDataPartitionLocation);
@@ -607,32 +601,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     return stagingTableNamePrefix + "_" + uniqueStagingTableQualifier;
   }
 
-  /***
-   * Get the ORC partition directory name of the format: [hourly_][daily_]<partitionSpec1>[partitionSpec ..]
-   * @param conversionEntity Conversion entity.
-   * @param sourceDataPathIdentifier Hints to look in source partition location to prefix the partition dir name
-   *                               such as hourly or daily.
-   * @return Partition directory name.
-   */
-  private String getOrcStagingDataPartitionDirName(QueryBasedHiveConversionEntity conversionEntity,
-      List<String> sourceDataPathIdentifier) {
 
-    if (conversionEntity.getHivePartition().isPresent()) {
-      StringBuilder dirNamePrefix = new StringBuilder();
-      String sourceHivePartitionLocation = conversionEntity.getHivePartition().get().getDataLocation().toString();
-      if (null != sourceDataPathIdentifier && null != sourceHivePartitionLocation) {
-        for (String hint : sourceDataPathIdentifier) {
-          if (sourceHivePartitionLocation.toLowerCase().contains(hint.toLowerCase())) {
-            dirNamePrefix.append(hint.toLowerCase()).append("_");
-          }
-        }
-      }
-
-      return dirNamePrefix + conversionEntity.getHivePartition().get().getName();
-    } else {
-      return StringUtils.EMPTY;
-    }
-  }
 
   /***
    * Get the ORC final table location of format: <ORC final table location>/final
@@ -697,88 +666,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       }
     }
     return replacedPartitionsDDLInfo;
-  }
-
-  private void populatePartitionInfo(QueryBasedHiveConversionEntity conversionEntity, Map<String, String> partitionsDDLInfo,
-      Map<String, String> partitionsDMLInfo) {
-    String partitionsInfoString = null;
-    String partitionsTypeString = null;
-
-    if (conversionEntity.getHivePartition().isPresent()) {
-      partitionsInfoString = conversionEntity.getHivePartition().get().getName();
-      partitionsTypeString = conversionEntity.getHivePartition().get().getSchema().getProperty("partition_columns.types");
-    }
-
-    if (StringUtils.isNotBlank(partitionsInfoString) || StringUtils.isNotBlank(partitionsTypeString)) {
-      if (StringUtils.isBlank(partitionsInfoString) || StringUtils.isBlank(partitionsTypeString)) {
-        throw new IllegalArgumentException("Both partitions info and partitions must be present, if one is specified");
-      }
-      List<String> pInfo = Splitter.on(HIVE_PARTITIONS_INFO).omitEmptyStrings().trimResults().splitToList(partitionsInfoString);
-      List<String> pType = Splitter.on(HIVE_PARTITIONS_TYPE).omitEmptyStrings().trimResults().splitToList(partitionsTypeString);
-      log.debug("PartitionsInfoString: " + partitionsInfoString);
-      log.debug("PartitionsTypeString: " + partitionsTypeString);
-
-      if (pInfo.size() != pType.size()) {
-        throw new IllegalArgumentException("partitions info and partitions type list should of same size");
-      }
-      for (int i = 0; i < pInfo.size(); i++) {
-        List<String> partitionInfoParts = Splitter.on("=").omitEmptyStrings().trimResults().splitToList(pInfo.get(i));
-        String partitionType = pType.get(i);
-        if (partitionInfoParts.size() != 2) {
-          throw new IllegalArgumentException(
-              String.format("Partition details should be of the format partitionName=partitionValue. Recieved: %s", pInfo.get(i)));
-        }
-        partitionsDDLInfo.put(partitionInfoParts.get(0), partitionType);
-        partitionsDMLInfo.put(partitionInfoParts.get(0), partitionInfoParts.get(1));
-      }
-    }
-  }
-
-  private Pair<Optional<Table>, Optional<List<Partition>>> getDestinationTableMeta(String dbName,
-      String tableName, WorkUnitState state)
-      throws DataConversionException {
-
-    Optional<Table> table = Optional.<Table>absent();
-    Optional<List<Partition>> partitions = Optional.<List<Partition>>absent();
-
-    try {
-      HiveMetastoreClientPool pool = HiveMetastoreClientPool.get(state.getJobState().getProperties(),
-          Optional.fromNullable(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
-      try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
-        table = Optional.of(client.get().getTable(dbName, tableName));
-        if (table.isPresent()) {
-          org.apache.hadoop.hive.ql.metadata.Table qlTable = new org.apache.hadoop.hive.ql.metadata.Table(table.get());
-          if (HiveUtils.isPartitioned(qlTable)) {
-            partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String>absent()));
-          }
-        }
-      }
-    } catch (NoSuchObjectException e) {
-      return ImmutablePair.of(table, partitions);
-    } catch (IOException | TException e) {
-      throw new DataConversionException("Could not fetch destination table metadata", e);
-    }
-
-    return ImmutablePair.of(table, partitions);
-  }
-
-  /**
-   * If partition already exists then new partition location will be a separate time stamp dir
-   * If partition location is /a/b/c/<oldTimeStamp> then new partition location is /a/b/c/<currentTimeStamp>
-   * If partition location is /a/b/c/ then new partition location is /a/b/c/<currentTimeStamp>
-   **/
-  private String updatePartitionLocation(String orcDataPartitionLocation, WorkUnitState workUnitState,
-      Optional<Path> destPartitionLocation)
-      throws DataConversionException {
-
-    if (workUnitState.getPropAsBoolean(HIVE_DATASET_PARTITION_OVERWRITE, DEFAULT_HIVE_DATASET_PARTITION_OVERWRITE)) {
-      return orcDataPartitionLocation;
-    }
-    if (!destPartitionLocation.isPresent()) {
-      return orcDataPartitionLocation;
-    }
-    long timeStamp = System.currentTimeMillis();
-    return StringUtils.join(Arrays.asList(orcDataPartitionLocation, timeStamp), '/');
   }
 
   private Optional<Path> getDestinationPartitionLocation(Optional<Table> table, WorkUnitState state,
