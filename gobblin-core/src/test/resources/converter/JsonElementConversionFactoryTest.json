@@ -175,13 +175,11 @@
           "dataType": {
             "type": "enum",
             "namespace": "org.foo",
-            "dataType": {
               "name": "choice",
               "symbols": [
                 "YES",
                 "NO"
               ]
-            }
           }
         }
       }
