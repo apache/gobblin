@@ -445,8 +445,19 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
      */
     public static JsonArray getDataTypeTypeFromSchema(JsonObject schemaObject) {
       JsonObject dataType = getDataType(schemaObject);
-      return dataType.has("type") ? dataType.get("type").isJsonPrimitive() ? jsonArray(dataType.get("type"))
-          : (dataType.get("type").isJsonArray() ? dataType.get("type").getAsJsonArray() : null) : null;
+      if (dataType.has("type")) {
+        if (dataType.get("type").isJsonPrimitive()) {
+          return jsonArray(dataType.get("type"));
+        } else {
+          if (dataType.get("type").isJsonArray()) {
+            return dataType.get("type").getAsJsonArray();
+          } else {
+            return null;
+          }
+        }
+      } else {
+        return null;
+      }
     }
 
     /**
