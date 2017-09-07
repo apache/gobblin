@@ -160,6 +160,12 @@ public class JsonElementConversionFactory {
     }
   }
 
+  public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
+      WorkUnitState state, boolean nullable)
+      throws UnsupportedDateTypeException {
+    return getConvertor(fieldName, null, fieldType, schemaNode, state, nullable);
+  }
+
   private static DateTimeZone getTimeZone(String id) {
     DateTimeZone zone;
     try {
