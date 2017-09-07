@@ -458,6 +458,44 @@ public class JsonElementConversionFactory {
     public JsonElementConverter getElementConverter() {
       return this.elementConverter;
     }
+
+    protected void processNestedItems(String fieldName, JsonObject schemaNode, WorkUnitState state,
+        JsonElement arrayItems)
+        throws UnsupportedDateTypeException {
+      if (arrayItems.isJsonPrimitive()) {
+        this.setElementConverter(
+            getConvertor(fieldName, "", arrayItems.getAsString(), getDataType(schemaNode), state, isNullable()));
+      } else if (arrayItems.isJsonObject()) {
+        String nestedType = getType(getDataTypeTypeFromSchema(arrayItems)).getAsString();
+        JsonObject asJsonObject = arrayItems.getAsJsonObject();
+        this.setElementConverter(getConvertor(fieldName, "", nestedType, asJsonObject, state, isNullable()));
+      } else if (arrayItems.isJsonArray() || arrayItems.isJsonNull()) {
+        throw new UnsupportedOperationException("Array types only allow values in schema as Primitive or a JsonObject");
+      }
+    }
+
+    @Override
+    Object convertField(JsonElement value) {
+      List<Object> list = new ArrayList<>();
+
+      for (JsonElement elem : (JsonArray) value) {
+        list.add(getElementConverter().convertField(elem));
+      }
+
+      return new GenericData.Array<>(schema(), list);
+    }
+
+    @Override
+    public org.apache.avro.Schema.Type getTargetType() {
+      return Schema.Type.ARRAY;
+    }
+
+    @Override
+    public Schema schema() {
+      Schema schema = Schema.createArray(getElementConverter().schema());
+      schema.addProp("source.type", "array");
+      return schema;
+    }
   }
 
   public static class ArrayConverter extends ComplexConverter {
@@ -466,18 +504,8 @@ public class JsonElementConversionFactory {
         WorkUnitState state)
         throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
-      JsonElement arrayItems = getItems(getDataType(schemaNode));
-      if (arrayItems.isJsonPrimitive()) {
-        super.setElementConverter(
-            getConvertor(fieldName, "", arrayItems.getAsString(), getDataType(schemaNode), state, isNullable()));
-      } else if (arrayItems.isJsonObject()) {
-        String nestedType = getType(getDataTypeTypeFromSchema(arrayItems)).getAsString();
-        JsonObject asJsonObject = arrayItems.getAsJsonObject();
-        JsonObject newSchema = isEnumType(asJsonObject) ? getDataType(asJsonObject) : asJsonObject;
-        super.setElementConverter(getConvertor(fieldName, "", nestedType, newSchema, state, isNullable()));
-      } else if (arrayItems.isJsonArray() || arrayItems.isJsonNull()) {
-        throw new UnsupportedOperationException("Array types only allow values in schema as Primitive or a JsonObject");
-      }
+      JsonElement arrayItems = getItemsWithinDataType(getDataType(schemaNode));
+      processNestedItems(fieldName, schemaNode, state, arrayItems);
     }
 
     @Override
@@ -510,20 +538,8 @@ public class JsonElementConversionFactory {
         WorkUnitState state)
         throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
-      JsonElement schemaDataType = getDataType(schemaNode);
       JsonElement mapValues = getValuesWithinDataType(schemaNode);
-      if (mapValues.isJsonPrimitive()) {
-        super.setElementConverter(
-            getConvertor(fieldName, "", mapValues.getAsString(), schemaDataType.getAsJsonObject(), state,
-                isNullable()));
-      } else if (mapValues.isJsonObject()) {
-        JsonObject mapValuesAsJsonObject = mapValues.getAsJsonObject();
-        String mapValueNestedType = getType(getDataTypeTypeFromSchema(mapValuesAsJsonObject)).getAsString();
-        super.setElementConverter(
-            getConvertor(fieldName, "", mapValueNestedType, mapValuesAsJsonObject, state, isNullable()));
-      } else if (mapValues.isJsonArray() || mapValues.isJsonNull()) {
-        throw new UnsupportedOperationException("Map types only allow values in schema as Primitive or a JsonObject");
-      }
+      processNestedItems(fieldName, schemaNode, state, mapValues);
     }
 
     @Override
