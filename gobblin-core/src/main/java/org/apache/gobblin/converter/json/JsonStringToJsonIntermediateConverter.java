@@ -125,7 +125,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
             JsonObject secondTypeSchema = getSecondType(unionSchema).getAsJsonObject();
             try {
               output.add(expectedColumnName, unwrapTemp(wrapAndProcess(value, firstTypeSchema)));
-            } catch (Exception e) {
+            } catch (DataConversionException e) {
               output.add(expectedColumnName, unwrapTemp(wrapAndProcess(value, secondTypeSchema)));
             }
           } else if (isEnumType(schemaObject)) {

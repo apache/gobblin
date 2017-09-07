@@ -22,8 +22,8 @@ import java.util.Map;
 
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -42,6 +42,7 @@ import static org.junit.Assert.assertEquals;
  *
  * @author Tilak Patidar
  */
+@Test(groups = {"gobblin.converter"})
 public class JsonStringToJsonIntermediateConverterTest {
 
   private static JsonStringToJsonIntermediateConverter converter;
@@ -81,7 +82,7 @@ public class JsonStringToJsonIntermediateConverterTest {
     }
   }
 
-  @Test(expected = DataConversionException.class)
+  @Test(expectedExceptions = DataConversionException.class)
   public void jsonWithInvalidEnumEntry()
       throws DataConversionException {
     String jsonStr = "{\"a\":\"somename\", \"b\":\"TROLL\"}";
@@ -89,9 +90,10 @@ public class JsonStringToJsonIntermediateConverterTest {
         "    [{\"columnName\":\"a\", \"dataType\":{\"type\":\"string\"}},{\"columnName\":\"b\", \"dataType\":{\"type\":\"enum\", \"symbols\":[\"HELL\",\"BELLS\"]}}]";
 
     parseJsonObject(buildJsonObject(jsonStr), buildJsonArray(schemaStr));
+
   }
 
-  @Test(expected = DataConversionException.class)
+  @Test(expectedExceptions = DataConversionException.class)
   public void jsonWithArrayOfMapContainingRecordWithWrongSchema()
       throws DataConversionException {
     String jsonStr = "{\"a\":\"somename\", \"b\":[{\"d\":{\"age\":\"10\"}},{\"d\":{\"age\":\"1\"}}]}";

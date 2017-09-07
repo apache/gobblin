@@ -28,11 +28,9 @@ import org.apache.gobblin.converter.avro.JsonElementConversionFactory.NullConver
 import org.apache.gobblin.converter.avro.JsonElementConversionFactory.RecordConverter;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -56,14 +54,12 @@ import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Uni
  *
  * @author Tilak Patidar
  */
+@Test(groups = {"gobblin.converter"})
 public class JsonElementConversionFactoryTest {
 
   private static WorkUnitState state;
   private static JsonObject testData;
   private static JsonParser jsonParser = new JsonParser();
-
-  @Rule
-  public TestName name = new TestName();
 
   @BeforeClass
   public static void setUp() {
@@ -81,8 +77,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithArrayOfMaps()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithArrayOfMaps";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     ArrayConverter converter = new ArrayConverter("dummy", true, ARRAY.toString(), schema, state);
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
@@ -91,8 +88,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithArrayOfRecords()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithArrayOfRecords";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     ArrayConverter converter = new ArrayConverter("dummy1", true, ARRAY.toString(), schema, state);
 
@@ -102,8 +100,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithRecord()
       throws DataConversionException, SchemaConversionException, UnsupportedDateTypeException {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithRecord";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
@@ -114,8 +113,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithArrayOfInts()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithArrayOfInts";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     ArrayConverter converter = new ArrayConverter("dummy1", true, ARRAY.toString(), schema, state);
 
@@ -135,8 +135,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithArrayOfEnums()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithArrayOfEnums";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     ArrayConverter converter = new ArrayConverter("dummy1", true, ARRAY.toString(), schema, state);
 
@@ -146,8 +147,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithMap()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithMap";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     MapConverter converter = new MapConverter("dummy1", true, MAP.toString(), schema, state);
 
@@ -157,8 +159,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithMapOfRecords()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithMapOfRecords";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     MapConverter converter = new MapConverter("dummy1", true, MAP.toString(), schema, state);
 
@@ -168,8 +171,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithMapOfArrays()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithMapOfArrays";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     MapConverter converter = new MapConverter("dummy1", true, MAP.toString(), schema, state);
 
@@ -179,8 +183,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithMapOfEnum()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithMapOfEnum";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     MapConverter converter = new MapConverter("dummy1", true, MAP.toString(), schema, state);
 
@@ -190,8 +195,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithRecordOfMap()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithRecordOfMap";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
@@ -202,8 +208,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithRecordOfArray()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithRecordOfArray";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
@@ -214,8 +221,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithRecordOfEnum()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithRecordOfEnum";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
@@ -223,19 +231,21 @@ public class JsonElementConversionFactoryTest {
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
 
-  @Test(expected = UnsupportedOperationException.class)
+  @Test(expectedExceptions = UnsupportedOperationException.class)
   public void schemaWithMapValuesAsJsonArray()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
+    String testName = "schemaWithMapValuesAsJsonArray";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
 
     new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
   }
 
-  @Test(expected = UnsupportedOperationException.class)
+  @Test(expectedExceptions = UnsupportedOperationException.class)
   public void schemaWithMapValuesAsJsonNull()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
+    String testName = "schemaWithMapValuesAsJsonNull";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
 
     new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
@@ -244,8 +254,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithRecordOfRecord()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithRecordOfRecord";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
@@ -256,8 +267,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithRecordOfRecordCheckNamespace()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithRecordOfRecordCheckNamespace";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
         buildNamespace(state.getExtract().getNamespace(), "person"));
@@ -269,8 +281,9 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithRecordOfEnumCheckNamespace()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonObject expected = getExpectedSchema().getAsJsonObject();
+    String testName = "schemaWithRecordOfEnumCheckNamespace";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
     RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
@@ -284,8 +297,10 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithUnion()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonArray expected = getExpectedSchema().getAsJsonArray();
+    String testName = "schemaWithUnion";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
+    ;
 
     UnionConverter converter = new UnionConverter("dummy1", UNION.toString(), schema, state);
 
@@ -295,8 +310,10 @@ public class JsonElementConversionFactoryTest {
   @Test
   public void schemaWithComplexUnion()
       throws Exception {
-    JsonObject schema = getSchemaData().getAsJsonObject();
-    JsonArray expected = getExpectedSchema().getAsJsonArray();
+    String testName = "schemaWithComplexUnion";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
+    ;
 
     UnionConverter converter = new UnionConverter("dummy1", UNION.toString(), schema, state);
 
@@ -307,11 +324,11 @@ public class JsonElementConversionFactoryTest {
     return jsonParser.parse(converter.schema().toString());
   }
 
-  private JsonElement getExpectedSchema() {
-    return testData.get(name.getMethodName()).getAsJsonArray().get(1);
+  private JsonElement getExpectedSchema(String methodName) {
+    return testData.get(methodName).getAsJsonArray().get(1);
   }
 
-  private JsonElement getSchemaData() {
-    return testData.get(name.getMethodName()).getAsJsonArray().get(0);
+  private JsonElement getSchemaData(String methodName) {
+    return testData.get(methodName).getAsJsonArray().get(0);
   }
 }
