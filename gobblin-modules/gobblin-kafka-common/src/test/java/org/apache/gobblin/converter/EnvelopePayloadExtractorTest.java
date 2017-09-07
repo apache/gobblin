@@ -18,23 +18,16 @@
 package org.apache.gobblin.converter;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
 import org.apache.avro.file.DataFileReader;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.util.Utf8;
 import org.apache.commons.io.FileUtils;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
-import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
@@ -48,10 +41,10 @@ import static org.mockito.Mockito.when;
 
 
 /**
- * Unit test for {@link EnvelopePayloadConverter}.
+ * Unit test for {@link EnvelopePayloadExtractor}.
  */
 @Test(groups = {"gobblin.converter"})
-public class EnvelopePayloadConverterTest {
+public class EnvelopePayloadExtractorTest {
   private static final KafkaSchemaRegistry mockRegistry = mock(KafkaSchemaRegistry.class);
 
   @Test
@@ -73,9 +66,9 @@ public class EnvelopePayloadConverterTest {
     workUnitState.setProp(EnvelopeSchemaConverter.PAYLOAD_SCHEMA_TOPIC, "test");
     workUnitState.setProp(EnvelopeSchemaConverter.PAYLOAD_SCHEMA_ID_FIELD, "metadata.payloadSchemaId");
     workUnitState.setProp(EnvelopeSchemaConverter.KAFKA_REGISTRY_FACTORY,
-        EnvelopePayloadConverterTest.MockKafkaAvroSchemaRegistryFactory.class.getName());
+        EnvelopePayloadExtractorTest.MockKafkaAvroSchemaRegistryFactory.class.getName());
 
-    EnvelopePayloadConverter converter = new EnvelopePayloadConverter();
+    EnvelopePayloadExtractor converter = new EnvelopePayloadExtractor();
     converter.init(workUnitState);
 
     Schema outputSchema = converter.convertSchema(inputSchema, workUnitState);

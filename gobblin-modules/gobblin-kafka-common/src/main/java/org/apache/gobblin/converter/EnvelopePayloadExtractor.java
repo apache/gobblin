@@ -30,7 +30,7 @@ import org.apache.avro.generic.GenericRecord;
  * Output schema: schema obtained from schema registry using key provided in input record's {@link #PAYLOAD_SCHEMA_ID_FIELD}
  * Output record: record corresponding to output schema obtained from input record's {@link #PAYLOAD_FIELD} as bytes
  */
-public class EnvelopePayloadConverter extends EnvelopeSchemaConverter<GenericRecord> {
+public class EnvelopePayloadExtractor extends EnvelopeSchemaConverter<GenericRecord> {
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     try {

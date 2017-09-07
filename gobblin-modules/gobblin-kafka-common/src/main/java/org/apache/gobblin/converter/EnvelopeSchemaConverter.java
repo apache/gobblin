@@ -58,9 +58,6 @@ public abstract class EnvelopeSchemaConverter<P> extends Converter<Schema, Schem
   protected GenericDatumReader<P> latestPayloadReader;
   protected KafkaSchemaRegistry registry;
 
-  /** Cache the payload schema with schema id as its cache key */
-  protected LoadingCache<String, Schema> schemaCache;
-
   @Override
   public EnvelopeSchemaConverter init(WorkUnitState workUnit) {
     super.init(workUnit);
@@ -82,14 +79,6 @@ public abstract class EnvelopeSchemaConverter<P> extends Converter<Schema, Schem
     } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
       throw new RuntimeException(e);
     }
-
-    schemaCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Schema>() {
-      @Override
-      public Schema load(String key)
-          throws Exception {
-        return (Schema) registry.getSchemaByKey(key);
-      }
-    });
     return this;
   }
 
@@ -106,7 +95,7 @@ public abstract class EnvelopeSchemaConverter<P> extends Converter<Schema, Schem
       throw new Exception("Schema id with key " + payloadSchemaIdField + " not found in the record");
     }
     String schemaKey = String.valueOf(schemaIdValue.get());
-    return schemaCache.get(schemaKey);
+    return (Schema) registry.getSchemaByKey(schemaKey);
   }
 
   /**
@@ -122,8 +111,7 @@ public abstract class EnvelopeSchemaConverter<P> extends Converter<Schema, Schem
     } else {
       byte[] payloadBytes = new byte[bb.remaining()];
       bb.get(payloadBytes);
-      String hexString = new String(payloadBytes, StandardCharsets.UTF_8);
-      return DatatypeConverter.parseHexBinary(hexString);
+      return payloadBytes;
     }
   }
 
