@@ -19,6 +19,7 @@ package org.apache.gobblin.compaction.verify;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import org.apache.gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -28,11 +29,12 @@ import org.apache.gobblin.util.recordcount.IngestionRecordCountProvider;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -54,7 +56,10 @@ public class InputRecordCountHelper {
   private final RecordCountProvider inputRecordCountProvider;
   private final String AVRO = "avro";
 
+  @Deprecated
   public final static String RECORD_COUNT_FILE = "_record_count";
+
+  public final static String STATE_FILE = "_state_file";
 
   /**
    * Constructor
@@ -87,31 +92,92 @@ public class InputRecordCountHelper {
 
   /**
    * Read record count from a specific directory.
-   * File name is {@link InputRecordCountHelper#RECORD_COUNT_FILE}
+   * File name is {@link InputRecordCountHelper#STATE_FILE}
    * @param fs  file system in use
    * @param dir directory where a record file will be read
    * @return record count
    */
   public static long readRecordCount (FileSystem fs, Path dir) throws IOException {
-    if (!fs.exists(new Path(dir, RECORD_COUNT_FILE))) {
-      return 0;
+
+    State state = new State();
+    if (fs.exists(new Path(dir, STATE_FILE))) {
+      try (FSDataInputStream inputStream = fs.open(new Path(dir, STATE_FILE))) {
+        state.readFields(inputStream);
+      }
     }
 
-    try (BufferedReader br = new BufferedReader(new InputStreamReader(fs.open (new Path (dir, RECORD_COUNT_FILE)), Charsets.UTF_8))) {
-      long count = Long.parseLong(br.readLine());
-      return count;
+    if (!state.contains(CompactionSlaEventHelper.RECORD_COUNT_TOTAL)) {
+      if (fs.exists(new Path (dir, RECORD_COUNT_FILE))){
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(fs.open (new Path (dir, RECORD_COUNT_FILE)), Charsets.UTF_8))) {
+          long count = Long.parseLong(br.readLine());
+          return count;
+        }
+      } else {
+        return 0;
+      }
+    } else {
+      return Long.parseLong(state.getProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL));
     }
   }
 
   /**
    * Write record count to a specific directory.
-   * File name is {@link InputRecordCountHelper#RECORD_COUNT_FILE}
+   * File name is {@link InputRecordCountHelper#STATE_FILE}
    * @param fs file system in use
    * @param dir directory where a record file will be saved
    */
   public static void writeRecordCount (FileSystem fs, Path dir, long count) throws IOException {
-    try (FSDataOutputStream outputFileStream = fs.create(new Path(dir, RECORD_COUNT_FILE))) {
-      outputFileStream.writeBytes(Long.toString(count));
+
+    State state = new State();
+    if (fs.exists(new Path(dir, STATE_FILE))) {
+      try (FSDataInputStream inputStream = fs.open(new Path(dir, STATE_FILE))) {
+        state.readFields(inputStream);
+      }
+    }
+
+    state.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, count);
+    try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(new Path(dir, STATE_FILE)))) {
+      state.write(dataOutputStream);
+    }
+  }
+
+  /**
+   * Read execution count from a specific directory.
+   * File name is {@link InputRecordCountHelper#STATE_FILE}
+   * @param fs  file system in use
+   * @param dir directory where a record file will be read
+   * @return record count
+   */
+  public static long readExecutionCount (FileSystem fs, Path dir) throws IOException {
+
+    State state = new State();
+    if (fs.exists(new Path(dir, STATE_FILE))) {
+      try (FSDataInputStream inputStream = fs.open(new Path(dir, STATE_FILE))) {
+        state.readFields(inputStream);
+      }
+    }
+ 
+    return Long.parseLong(state.getProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, "0"));
+  }
+
+  /**
+   * Write execution count to a specific directory.
+   * File name is {@link InputRecordCountHelper#STATE_FILE}
+   * @param fs file system in use
+   * @param dir directory where a record file will be saved
+   */
+  public static void writeExecutionCount (FileSystem fs, Path dir, long count) throws IOException {
+
+    State state = new State();
+    if (fs.exists(new Path(dir, STATE_FILE))) {
+      try (FSDataInputStream inputStream = fs.open(new Path(dir, STATE_FILE))) {
+        state.readFields(inputStream);
+      }
+    }
+
+    state.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, count);
+    try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(new Path(dir, STATE_FILE)))) {
+      state.write(dataOutputStream);
     }
   }
 

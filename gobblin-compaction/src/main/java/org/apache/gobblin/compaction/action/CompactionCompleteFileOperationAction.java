@@ -88,7 +88,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       // calculation is based on the input file names.
       long newTotalRecords = 0;
       long oldTotalRecords = InputRecordCountHelper.readRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()));
-
+      long executeCount = InputRecordCountHelper.readExecutionCount (helper.getFs(), new Path (result.getDstAbsoluteDir()));
       if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
                 MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
@@ -126,15 +126,18 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         newTotalRecords = counter.getValue();
       }
 
+      InputRecordCountHelper.writeRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()), newTotalRecords);
+      InputRecordCountHelper.writeExecutionCount (helper.getFs(), new Path (result.getDstAbsoluteDir()), executeCount + 1);
+      log.info("Updating record count from {} to {} in {} [{}]", oldTotalRecords, newTotalRecords, dstPath, executeCount + 1);
+
       // submit events for record count
       if (eventSubmitter != null) {
         Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(),
-            CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
+            CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords),
+            CompactionSlaEventHelper.PREV_RECORD_COUNT_TOTAL, Long.toString(oldTotalRecords),
+            CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executeCount + 1));
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_RECORD_COUNT_EVENT, eventMetadataMap);
       }
-
-      InputRecordCountHelper.writeRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()), newTotalRecords);
-      log.info("Updating record count from {} to {} in {} ", oldTotalRecords, newTotalRecords, dstPath);
     }
   }
 
