@@ -207,7 +207,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     if (isPrimitiveType(arrayType)) {
       return value;
     } else if (isMapType(nestedType)) {
-      JsonElement arrayItems = getItems(getDataType(schemaObject));
+      JsonElement arrayItems = getItemsWithinDataType(getDataType(schemaObject));
       if (arrayItems.isJsonPrimitive() || arrayItems.isJsonNull()) {
         return value;
       } else if (arrayItems.isJsonObject()) {
@@ -421,7 +421,8 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
      * @return
      */
     public static JsonArray getSchemaForArrayHavingRecord(JsonObject schemaObject) {
-      return getValuesWithinDataType(getItems(getDataType(schemaObject)).getAsJsonObject()).getAsJsonArray();
+      return getValuesWithinDataType(getItemsWithinDataType(getDataType(schemaObject)).getAsJsonObject())
+          .getAsJsonArray();
     }
 
     /**
@@ -519,7 +520,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
         return null;
       }
 
-      JsonElement arrayValues = getItems(getDataType(schema.getAsJsonObject()));
+      JsonElement arrayValues = getItemsWithinDataType(getDataType(schema.getAsJsonObject()));
 
       try {
         return arrayValues.isJsonPrimitive() && arrayValues.getAsJsonPrimitive().isString() ? arrayValues.getAsString()
@@ -530,7 +531,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       }
     }
 
-    public static JsonElement getItems(JsonObject object) {
+    public static JsonElement getItemsWithinDataType(JsonObject object) {
       return object.get("items");
     }
 
