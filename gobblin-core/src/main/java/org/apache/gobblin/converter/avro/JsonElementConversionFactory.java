@@ -31,20 +31,26 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.EmptyIterable;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import lombok.extern.java.Log;
 import sun.util.calendar.ZoneInfo;
 
 import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter.JsonUtils.*;
+
 
 /**
  * <p>
@@ -572,22 +578,41 @@ public class JsonElementConversionFactory {
     }
   }
 
+  @Log
   public static class RecordConverter extends ComplexConverter {
-
+    private static final Logger LOG = LoggerFactory.getLogger(JsonIntermediateToAvroConverter.class);
     private HashMap<String, JsonElementConverter> converters = new HashMap<>();
     private JsonObject _schemaNode;
     private Schema _schema;
+    private long numFailedConversion = 0;
+    private State workUnit;
 
     public RecordConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
         WorkUnitState state, String namespace)
         throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
+      workUnit = state;
       _schemaNode = schemaNode;
       _schema = buildRecordSchema(getValuesWithinDataType(_schemaNode).getAsJsonArray(), state,
           getPropOrBlankString(getDataType(_schemaNode), "name"), namespace);
     }
 
-    public Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit, String name, String namespace) {
+    public RecordConverter(String fieldName, boolean nullable, String sourceType, JsonArray schemaNodeArray,
+        WorkUnitState state, String namespace)
+        throws UnsupportedDateTypeException {
+      super(fieldName, nullable, sourceType);
+      workUnit = state;
+      JsonObject schemaObj = new JsonObject();
+      JsonObject dataTypeObj = new JsonObject();
+      dataTypeObj.add("values", schemaNodeArray);
+      dataTypeObj.addProperty("name", state.getExtract().getTable());
+      schemaObj.add("dataType", dataTypeObj);
+      _schemaNode = schemaObj;
+      _schema = buildRecordSchema(getValuesWithinDataType(_schemaNode).getAsJsonArray(), state,
+          getPropOrBlankString(getDataType(_schemaNode), "name"), namespace);
+    }
+
+    private Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit, String name, String namespace) {
       List<Schema.Field> fields = new ArrayList<>();
       for (JsonElement elem : schema) {
         JsonObject map = (JsonObject) elem;
@@ -623,10 +648,21 @@ public class JsonElementConversionFactory {
     @Override
     Object convertField(JsonElement value) {
       GenericRecord avroRecord = new GenericData.Record(_schema);
-
+      long maxFailedConversions = this.workUnit.getPropAsLong(ConfigurationKeys.CONVERTER_AVRO_MAX_CONVERSION_FAILURES,
+          ConfigurationKeys.DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES);
       for (Map.Entry<String, JsonElement> entry : ((JsonObject) value).entrySet()) {
-        JsonElementConverter converter = this.converters.get(entry.getKey());
-        avroRecord.put(entry.getKey(), converter.convert(entry.getValue()));
+        try {
+          avroRecord.put(entry.getKey(), this.converters.get(entry.getKey()).convert(entry.getValue()));
+        } catch (Exception e) {
+          this.numFailedConversion++;
+          if (this.numFailedConversion < maxFailedConversions) {
+            LOG.error("Dropping record " + value + " because it cannot be converted to Avro", e);
+            return new EmptyIterable<>();
+          }
+          throw new RuntimeException(
+              "Unable to convert field:" + entry.getKey() + " for value:" + entry.getValue() + " for record: " + value,
+              e);
+        }
       }
       return avroRecord;
     }

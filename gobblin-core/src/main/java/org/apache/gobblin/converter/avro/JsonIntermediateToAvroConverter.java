@@ -18,38 +18,25 @@
 package org.apache.gobblin.converter.avro;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import org.apache.avro.Schema;
-import org.apache.avro.Schema.Field;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
-import org.apache.gobblin.converter.EmptyIterable;
 import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.converter.ToAvroConverterBase;
-import org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter;
-import org.apache.gobblin.converter.avro.JsonElementConversionFactory.UnionConverter;
+import org.apache.gobblin.converter.avro.JsonElementConversionFactory.RecordConverter;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.codehaus.jackson.node.JsonNodeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
-import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter.buildNamespace;
-import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter.JsonUtils.*;
 
 
 /**
@@ -59,88 +46,37 @@ import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConv
  *
  */
 public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArray, JsonObject> {
-  private Map<String, JsonElementConverter> converters = new HashMap<>();
   private static final Logger LOG = LoggerFactory.getLogger(JsonIntermediateToAvroConverter.class);
   private static final String CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED = "converter.avro.nullify.fields.enabled";
   private static final boolean DEFAULT_CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED = Boolean.FALSE;
   private static final String CONVERTER_AVRO_NULLIFY_FIELDS_ORIGINAL_SCHEMA_PATH =
       "converter.avro.nullify.fields.original.schema.path";
 
-  private long numFailedConversion = 0;
+  private RecordConverter recordConverter;
 
   @Override
   public Schema convertSchema(JsonArray schema, WorkUnitState workUnit)
       throws SchemaConversionException {
-    List<Schema.Field> fields = new ArrayList<>();
-
-    for (JsonElement elem : schema) {
-      JsonObject map = (JsonObject) elem;
-
-      String columnName = getPropOrBlankString(map, "columnName");
-      String comment = getPropOrBlankString(map, "comment");
-      String tempName = getPropOrBlankString(map, "name");
-      String name = tempName.isEmpty() ? null : tempName;
-      boolean nullable = getBooleanIfExists(map, "isNullable");
-      Schema fldSchema;
-      JsonArray dataTypeType = getDataTypeTypeFromSchema(map);
-      JsonElementConverter converter;
-      String sourceType;
-      try {
-        if (isUnionType(map)) {
-          converter = new UnionConverter(columnName, "UNION", map, workUnit);
-          sourceType = "union";
-        } else {
-          sourceType = getFirstType(dataTypeType).getAsString();
-          converter = JsonElementConversionFactory
-              .getConvertor(columnName, buildNamespace(workUnit.getExtract().getNamespace(), name), sourceType, map,
-                  workUnit, nullable);
-        }
-        this.converters.put(columnName, converter);
-        fldSchema = converter.getSchema();
-      } catch (UnsupportedDateTypeException e) {
-        throw new SchemaConversionException(e);
-      }
-
-      Field fld = new Field(columnName, fldSchema, comment, nullable ? JsonNodeFactory.instance.nullNode() : null);
-      fld.addProp("source.type", sourceType);
-      fields.add(fld);
+    try {
+      recordConverter =
+          new RecordConverter(workUnit.getExtract().getTable(), false, "", schema, workUnit,
+              workUnit.getExtract().getNamespace());
+    } catch (UnsupportedDateTypeException e) {
+      throw new SchemaConversionException(e);
     }
-
-    Schema avroSchema =
-        Schema.createRecord(workUnit.getExtract().getTable(), "", workUnit.getExtract().getNamespace(), false);
-    avroSchema.setFields(fields);
-
-    if (workUnit.getPropAsBoolean(CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED,
-        DEFAULT_CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED)) {
-      return this.generateSchemaWithNullifiedField(workUnit, avroSchema);
+    Schema recordSchema = recordConverter.schema();
+    if (workUnit
+        .getPropAsBoolean(CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED, DEFAULT_CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED)) {
+      return this.generateSchemaWithNullifiedField(workUnit, recordSchema);
     }
-
-    return avroSchema;
+    return recordSchema;
   }
 
   @Override
   public Iterable<GenericRecord> convertRecord(Schema outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
 
-    GenericRecord avroRecord = new GenericData.Record(outputSchema);
-    long maxFailedConversions = workUnit.getPropAsLong(ConfigurationKeys.CONVERTER_AVRO_MAX_CONVERSION_FAILURES,
-        ConfigurationKeys.DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES);
-
-    for (Map.Entry<String, JsonElement> entry : inputRecord.entrySet()) {
-      try {
-        avroRecord.put(entry.getKey(), this.converters.get(entry.getKey()).convert(entry.getValue()));
-      } catch (Exception e) {
-        this.numFailedConversion++;
-        if (this.numFailedConversion < maxFailedConversions) {
-          LOG.error("Dropping record " + inputRecord + " because it cannot be converted to Avro", e);
-          return new EmptyIterable<>();
-        }
-        throw new DataConversionException("Unable to convert field:" + entry.getKey() + " for value:" + entry.getValue()
-            + " for record: " + inputRecord, e);
-      }
-    }
-
-    return new SingleRecordIterable<>(avroRecord);
+    return new SingleRecordIterable<>((GenericRecord) recordConverter.convert(inputRecord));
   }
 
   /**

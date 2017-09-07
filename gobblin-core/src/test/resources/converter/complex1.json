@@ -487,7 +487,8 @@
         "doc": "This is a user record in a fictitious to-do-list management app. It supports arbitrary grouping and nesting of items, and allows you to add items by email or by tweeting.\n\nNote this app doesn't actually exist. The schema is just a demo for [Avrodoc](https://github.com/ept/avrodoc)!",
         "source.type": "record"
       }
-    ]
+    ],
+    "source.type": "record"
   },
   "expectedRecord": {
     "User": {

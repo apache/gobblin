@@ -168,7 +168,8 @@
         "doc": "This is a protocol description for a fictitious network service.",
         "source.type": "record"
       }
-    ]
+    ],
+    "source.type": "record"
   },
   "expectedRecord": {
     "protocolv1": {
