@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "SimpleRecord",
+  "namespace": "org.apache.gobblin.test",
+  "fields": [
+    {
+      "name": "created",
+      "type": "long",
+      "doc": "a time stamp."
+    },
+    {
+      "name": "id",
+      "type": "string",
+      "doc": "ID of the record."
+    }
+  ]
+}

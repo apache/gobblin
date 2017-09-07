@@ -1,165 +1,145 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.gobblin.converter;
 
-import com.google.common.base.Optional;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.converter.filter.AvroProjectionConverter;
-import org.apache.gobblin.converter.filter.AvroSchemaFieldRemover;
-import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
-import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
-import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
-import org.apache.gobblin.util.AvroFlattener;
-import org.apache.gobblin.util.AvroUtils;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ExecutionException;
-import javax.xml.bind.DatatypeConverter;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
+import org.apache.gobblin.util.AvroUtils;
+
+import com.google.common.base.Optional;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
+import javax.xml.bind.DatatypeConverter;
+
 
 /**
- * A converter for extracting schema/records from an envelope schema.
- * Input schema: envelope schema - must have fields payloadSchemaId (the schema registry key of the output
- *               schema) and payload (byte data for output record)
- * Input record: record corresponding to input schema
- * Output schema: schema obtained from schema registry using key provided in input record's {@link #PAYLOAD_SCHEMA_ID_FIELD}
- * Output record: record corresponding to output schema obtained from input record's {@link #PAYLOAD_FIELD} as bytes
+ * Base class for an envelope schema converter using {@link KafkaSchemaRegistry}
  */
-public class EnvelopeSchemaConverter extends Converter<Schema, String, GenericRecord, GenericRecord> {
+public abstract class EnvelopeSchemaConverter<P> extends Converter<Schema, Schema, GenericRecord, GenericRecord> {
+  public static final String PAYLOAD_SCHEMA_ID_FIELD = "converter.envelopeSchemaConverter.schemaIdField";
+  public static final String PAYLOAD_FIELD = "converter.envelopeSchemaConverter.payloadField";
+  public static final String PAYLOAD_SCHEMA_TOPIC = "converter.envelopeSchemaConverter.payloadSchemaTopic";
+  public static final String KAFKA_REGISTRY_FACTORY = "converter.envelopeSchemaConverter.kafkaRegistryFactory";
 
-  public static final String PAYLOAD_SCHEMA_ID_FIELD = "EnvelopeSchemaConverter.schemaIdField";
-  public static final String PAYLOAD_FIELD = "EnvelopeSchemaConverter.payloadField";
-  public static final String DEFAULT_PAYLOAD_SCHEMA_ID_FIELD ="payloadSchemaId";
   public static final String DEFAULT_PAYLOAD_FIELD = "payload";
-  public static final String DEFAULT_KAFKA_SCHEMA_REGISTRY_FACTORY_CLASS = "org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory";
+  public static final String DEFAULT_PAYLOAD_SCHEMA_ID_FIELD = "payloadSchemaId";
+  public static final String DEFAULT_KAFKA_SCHEMA_REGISTRY_FACTORY_CLASS =
+      "org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory";
 
-  private Optional<AvroSchemaFieldRemover> fieldRemover;
-  private KafkaSchemaRegistry registry;
-  private DecoderFactory decoderFactory;
-  private LoadingCache<Schema, GenericDatumReader<GenericRecord>> readers;
+  protected String payloadSchemaIdField;
+  protected String payloadField;
+  protected String payloadSchemaTopic;
+  protected GenericDatumReader<P> latestPayloadReader;
+  protected KafkaSchemaRegistry registry;
 
-  /**
-   * To remove certain fields from the Avro schema or records of a topic/table, set property
-   * {topic/table name}.remove.fields={comma-separated, fully qualified field names} in workUnit.
-   */
+  /** Cache the payload schema with schema id as its cache key */
+  protected LoadingCache<String, Schema> schemaCache;
+
   @Override
   public EnvelopeSchemaConverter init(WorkUnitState workUnit) {
-    if (workUnit.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY)) {
-      String removeFieldsPropName = workUnit.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY) + AvroProjectionConverter.REMOVE_FIELDS;
-      if (workUnit.contains(removeFieldsPropName)) {
-        this.fieldRemover = Optional.of(new AvroSchemaFieldRemover(workUnit.getProp(removeFieldsPropName)));
-      } else {
-        this.fieldRemover = Optional.absent();
-      }
+    super.init(workUnit);
+
+    payloadSchemaIdField = workUnit.getProp(PAYLOAD_SCHEMA_ID_FIELD, DEFAULT_PAYLOAD_SCHEMA_ID_FIELD);
+    payloadField = workUnit.getProp(PAYLOAD_FIELD, DEFAULT_PAYLOAD_FIELD);
+
+    // Get the schema specific topic to fetch the schema in the registry
+    if (!workUnit.contains(PAYLOAD_SCHEMA_TOPIC)) {
+      throw new RuntimeException("Configuration not found: " + PAYLOAD_SCHEMA_TOPIC);
     }
-    String registryFactoryField = workUnit.contains(KafkaSchemaRegistryFactory.KAFKA_SCHEMA_REGISTRY_FACTORY_CLASS) ?
-        workUnit.getProp(KafkaSchemaRegistryFactory.KAFKA_SCHEMA_REGISTRY_FACTORY_CLASS) : DEFAULT_KAFKA_SCHEMA_REGISTRY_FACTORY_CLASS;
+    payloadSchemaTopic = workUnit.getProp(PAYLOAD_SCHEMA_TOPIC);
+
+    String registryFactoryField = workUnit.getProp(KAFKA_REGISTRY_FACTORY, DEFAULT_KAFKA_SCHEMA_REGISTRY_FACTORY_CLASS);
     try {
-      KafkaSchemaRegistryFactory registryFactory = ((Class<? extends KafkaSchemaRegistryFactory>) Class.forName(registryFactoryField)).newInstance();
-      this.registry = registryFactory.create(workUnit.getProperties());
+      KafkaSchemaRegistryFactory registryFactory =
+          ((Class<? extends KafkaSchemaRegistryFactory>) Class.forName(registryFactoryField)).newInstance();
+      registry = registryFactory.create(workUnit.getProperties());
     } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
-      return null;
+      throw new RuntimeException(e);
     }
-    this.decoderFactory = DecoderFactory.get();
-    this.readers = CacheBuilder.newBuilder().build(new CacheLoader<Schema, GenericDatumReader<GenericRecord>>() {
+
+    schemaCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Schema>() {
       @Override
-      public GenericDatumReader<GenericRecord> load(final Schema key) throws Exception {
-        return new GenericDatumReader<>(key);
+      public Schema load(String key)
+          throws Exception {
+        return (Schema) registry.getSchemaByKey(key);
       }
     });
     return this;
   }
 
   /**
-   * Do nothing, actual schema must be obtained from records.
+   * Get the payload schema
+   *
+   * @param inputRecord the input record which has the payload
+   * @return the schema of the payload
    */
-  @Override
-  public String convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return EnvelopeSchemaConverter.class.getName();
-  }
-
-  /**
-   * Get actual schema from registry and deserialize payload using it.
-   */
-  @Override
-  public Iterable<GenericRecord> convertRecord(String outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
-      throws DataConversionException {
-    try {
-      String schemaIdField = workUnit.contains(PAYLOAD_SCHEMA_ID_FIELD) ?
-          workUnit.getProp(PAYLOAD_SCHEMA_ID_FIELD) : DEFAULT_PAYLOAD_SCHEMA_ID_FIELD;
-      String payloadField = workUnit.contains(PAYLOAD_FIELD) ?
-          workUnit.getProp(PAYLOAD_FIELD) : DEFAULT_PAYLOAD_FIELD;
-
-      Optional<Object> schemaIdValue = AvroUtils.getFieldValue(inputRecord, schemaIdField);
-      if (!schemaIdValue.isPresent()) {
-        throw new DataConversionException("Schema id with key " + schemaIdField + " not found in the record");
-      }
-      String schemaKey = String.valueOf(schemaIdValue.get());
-      Schema payloadSchema = (Schema) this.registry.getSchemaByKey(schemaKey);
-
-      byte[] payload = getPayload(inputRecord, payloadField);
-      GenericRecord outputRecord = deserializePayload(payload, payloadSchema);
-      if (this.fieldRemover.isPresent()) {
-        payloadSchema = this.fieldRemover.get().removeFields(payloadSchema);
-      }
-      return new SingleRecordIterable<>(AvroUtils.convertRecordSchema(outputRecord, payloadSchema));
-    } catch (IOException | SchemaRegistryException | ExecutionException e) {
-      throw new DataConversionException(e);
+  protected Schema getPayloadSchema(GenericRecord inputRecord)
+      throws Exception {
+    Optional<Object> schemaIdValue = AvroUtils.getFieldValue(inputRecord, payloadSchemaIdField);
+    if (!schemaIdValue.isPresent()) {
+      throw new Exception("Schema id with key " + payloadSchemaIdField + " not found in the record");
     }
+    String schemaKey = String.valueOf(schemaIdValue.get());
+    return schemaCache.get(schemaKey);
   }
 
   /**
-   * Get payload field from GenericRecord and convert to byte array
+   * Get payload field and convert to byte array
+   *
+   * @param inputRecord the input record which has the payload
+   * @return the byte array of the payload in the input record
    */
-  public byte[] getPayload(GenericRecord inputRecord, String payloadFieldName) throws DataConversionException {
-    Optional<Object> payloadValue = AvroUtils.getFieldValue(inputRecord, payloadFieldName);
+  protected byte[] getPayloadBytes(GenericRecord inputRecord) throws Exception {
+    Optional<Object> payloadValue = AvroUtils.getFieldValue(inputRecord, payloadField);
     if (!payloadValue.isPresent()) {
-      throw new DataConversionException("Payload with key " + payloadFieldName + " not found in the record");
+      throw new Exception("Payload with key " + payloadField + " not found in the record");
     }
 
     ByteBuffer bb = (ByteBuffer) payloadValue.get();
-    byte[] payloadBytes;
     if (bb.hasArray()) {
-      payloadBytes = bb.array();
+      return bb.array();
     } else {
-      payloadBytes = new byte[bb.remaining()];
+      byte[] payloadBytes = new byte[bb.remaining()];
       bb.get(payloadBytes);
+      String hexString = new String(payloadBytes, StandardCharsets.UTF_8);
+      return DatatypeConverter.parseHexBinary(hexString);
     }
-    String hexString = new String(payloadBytes, StandardCharsets.UTF_8);
+  }
 
-    return DatatypeConverter.parseHexBinary(hexString);
+  protected Schema fetchLatestPayloadSchema() throws Exception {
+    Schema latestPayloadSchema = (Schema)registry.getLatestSchemaByTopic(payloadSchemaTopic);
+    latestPayloadReader = new GenericDatumReader<>(latestPayloadSchema);
+    return latestPayloadSchema;
   }
 
   /**
-   * Deserialize payload using payload schema
+   * Convert the payload in the input record to a schema'ed object of the latest schema
+   *
+   * @param inputRecord the input record
+   * @return the schema'ed payload object
    */
-  public GenericRecord deserializePayload(byte[] payload, Schema payloadSchema) throws IOException, ExecutionException {
-    Decoder decoder = this.decoderFactory.binaryDecoder(payload, null);
-    GenericDatumReader<GenericRecord> reader = this.readers.get(payloadSchema);
-    return reader.read(null, decoder);
+  protected P upConvertPayload(GenericRecord inputRecord) throws DataConversionException {
+    try {
+      Schema payloadSchema = getPayloadSchema(inputRecord);
+      // Set writer schema
+      latestPayloadReader.setSchema(payloadSchema);
+
+      byte[] payloadBytes = getPayloadBytes(inputRecord);
+      Decoder decoder = DecoderFactory.get().binaryDecoder(payloadBytes, null);
+
+      // 'latestPayloadReader.read' will convert the record from 'payloadSchema' to the latest payload schema
+      return latestPayloadReader.read(null, decoder);
+    } catch (Exception e) {
+      throw new DataConversionException(e);
+    }
   }
 }
