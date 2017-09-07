@@ -121,8 +121,8 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
           JsonElement value = record.get(expectedColumnName);
           if (isUnionType(schemaObject)) {
             JsonArray unionSchema = buildUnionSchema(schemaElement);
-            JsonObject firstTypeSchema = unionSchema.get(0).getAsJsonObject();
-            JsonObject secondTypeSchema = unionSchema.get(1).getAsJsonObject();
+            JsonObject firstTypeSchema = getFirstType(unionSchema).getAsJsonObject();
+            JsonObject secondTypeSchema = getSecondType(unionSchema).getAsJsonObject();
             try {
               output.add(expectedColumnName, unwrapTemp(wrapAndProcess(value, firstTypeSchema)));
             } catch (Exception e) {
@@ -155,8 +155,8 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   private JsonArray buildUnionSchema(JsonElement schemaElement) {
     JsonElement otherSchema = new JsonParser().parse(schemaElement.toString());
     JsonArray dataType = getDataTypeTypeFromSchema(schemaElement);
-    JsonElement firstType = dataType.get(0);
-    JsonElement secondType = dataType.get(1);
+    JsonElement firstType = getFirstType(dataType);
+    JsonElement secondType = getSecondType(dataType);
     if (firstType.isJsonObject()) {
       schemaElement.getAsJsonObject().add("dataType", firstType.getAsJsonObject().get("dataType").getAsJsonObject());
     } else {
