@@ -595,15 +595,8 @@ public class JsonElementConversionFactory {
         JsonElementConverter converter;
         String sourceType;
         try {
-          if (isUnionType(map)) {
-            converter = new UnionConverter(columnName, "UNION", map, workUnit);
-            sourceType = "union";
-          } else {
-            converter =
-                getConvertor(columnName, childNamespace, getFirstType(dataTypeType).getAsString(), map, workUnit,
-                    nullable);
-            sourceType = dataTypeType.getAsString();
-          }
+          sourceType = dataTypeType.size() == 2 ? "union" : getFirstType(dataTypeType).getAsString();
+          converter = getConvertor(columnName, childNamespace, sourceType, map, workUnit, nullable);
           this.converters.put(columnName, converter);
           fldSchema = converter.schema();
         } catch (UnsupportedDateTypeException e) {
