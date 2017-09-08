@@ -91,20 +91,61 @@ public class InputRecordCountHelper {
   }
 
   /**
-   * Read record count from a specific directory.
-   * File name is {@link InputRecordCountHelper#STATE_FILE}
-   * @param fs  file system in use
-   * @param dir directory where a record file will be read
-   * @return record count
+   * Load compaction state file
    */
-  public static long readRecordCount (FileSystem fs, Path dir) throws IOException {
+  public State loadState (Path dir) throws IOException {
+    return loadState(this.fs, dir);
+  }
 
+  private static State loadState (FileSystem fs, Path dir) throws IOException {
     State state = new State();
     if (fs.exists(new Path(dir, STATE_FILE))) {
       try (FSDataInputStream inputStream = fs.open(new Path(dir, STATE_FILE))) {
         state.readFields(inputStream);
       }
     }
+    return state;
+  }
+
+  /**
+   * Save compaction state file
+   */
+  public void saveState (Path dir, State state) throws IOException {
+    saveState(this.fs, dir, state);
+  }
+
+  private static void saveState (FileSystem fs, Path dir, State state) throws IOException {
+    Path tmpFile = new Path(dir, STATE_FILE + ".tmp");
+    Path newFile = new Path(dir, STATE_FILE);
+    fs.delete(tmpFile, false);
+    fs.delete(newFile, false);
+    try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(new Path(dir, STATE_FILE + ".tmp")))) {
+      state.write(dataOutputStream);
+    }
+
+    fs.rename(tmpFile, newFile);
+  }
+
+  /**
+   * Read record count from a specific directory.
+   * File name is {@link InputRecordCountHelper#STATE_FILE}
+   * @param dir directory where a state file is located
+   * @return record count
+   */
+  public long readRecordCount (Path dir) throws IOException {
+    return readRecordCount(this.fs, dir);
+  }
+
+  /**
+   * Read record count from a specific directory.
+   * File name is {@link InputRecordCountHelper#STATE_FILE}
+   * @param fs  file system in use
+   * @param dir directory where a state file is located
+   * @return record count
+   */
+  @Deprecated
+  public static long readRecordCount (FileSystem fs, Path dir) throws IOException {
+    State state = loadState(fs, dir);
 
     if (!state.contains(CompactionSlaEventHelper.RECORD_COUNT_TOTAL)) {
       if (fs.exists(new Path (dir, RECORD_COUNT_FILE))){
@@ -121,64 +162,27 @@ public class InputRecordCountHelper {
   }
 
   /**
-   * Write record count to a specific directory.
-   * File name is {@link InputRecordCountHelper#STATE_FILE}
-   * @param fs file system in use
-   * @param dir directory where a record file will be saved
-   */
-  public static void writeRecordCount (FileSystem fs, Path dir, long count) throws IOException {
-
-    State state = new State();
-    if (fs.exists(new Path(dir, STATE_FILE))) {
-      try (FSDataInputStream inputStream = fs.open(new Path(dir, STATE_FILE))) {
-        state.readFields(inputStream);
-      }
-    }
-
-    state.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, count);
-    try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(new Path(dir, STATE_FILE)))) {
-      state.write(dataOutputStream);
-    }
-  }
-
-  /**
    * Read execution count from a specific directory.
    * File name is {@link InputRecordCountHelper#STATE_FILE}
-   * @param fs  file system in use
-   * @param dir directory where a record file will be read
+   * @param dir directory where a state file is located
    * @return record count
    */
-  public static long readExecutionCount (FileSystem fs, Path dir) throws IOException {
-
-    State state = new State();
-    if (fs.exists(new Path(dir, STATE_FILE))) {
-      try (FSDataInputStream inputStream = fs.open(new Path(dir, STATE_FILE))) {
-        state.readFields(inputStream);
-      }
-    }
- 
+  public long readExecutionCount (Path dir) throws IOException {
+    State state = loadState(fs, dir);
     return Long.parseLong(state.getProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, "0"));
   }
 
   /**
-   * Write execution count to a specific directory.
-   * File name is {@link InputRecordCountHelper#STATE_FILE}
+   * Write record count to a specific directory.
+   * File name is {@link InputRecordCountHelper#RECORD_COUNT_FILE}
    * @param fs file system in use
-   * @param dir directory where a record file will be saved
+   * @param dir directory where a record file is located
    */
-  public static void writeExecutionCount (FileSystem fs, Path dir, long count) throws IOException {
-
-    State state = new State();
-    if (fs.exists(new Path(dir, STATE_FILE))) {
-      try (FSDataInputStream inputStream = fs.open(new Path(dir, STATE_FILE))) {
-        state.readFields(inputStream);
-      }
-    }
-
-    state.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, count);
-    try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(new Path(dir, STATE_FILE)))) {
-      state.write(dataOutputStream);
-    }
+  @Deprecated
+  public static void writeRecordCount (FileSystem fs, Path dir, long count) throws IOException {
+     State state = loadState(fs, dir);
+     state.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, count);
+     saveState(fs, dir, state);
   }
 
   protected FileSystem getSourceFileSystem (State state)

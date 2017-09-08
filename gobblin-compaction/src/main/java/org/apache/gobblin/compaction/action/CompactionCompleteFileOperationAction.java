@@ -87,8 +87,8 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       // We are not getting record count from map-reduce counter because in next run, the threshold (delta record)
       // calculation is based on the input file names.
       long newTotalRecords = 0;
-      long oldTotalRecords = InputRecordCountHelper.readRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()));
-      long executeCount = InputRecordCountHelper.readExecutionCount (helper.getFs(), new Path (result.getDstAbsoluteDir()));
+      long oldTotalRecords = helper.readRecordCount(new Path (result.getDstAbsoluteDir()));
+      long executeCount = helper.readExecutionCount (new Path (result.getDstAbsoluteDir()));
       if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
                 MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
@@ -126,8 +126,11 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         newTotalRecords = counter.getValue();
       }
 
-      InputRecordCountHelper.writeRecordCount (helper.getFs(), new Path (result.getDstAbsoluteDir()), newTotalRecords);
-      InputRecordCountHelper.writeExecutionCount (helper.getFs(), new Path (result.getDstAbsoluteDir()), executeCount + 1);
+      State compactState = helper.loadState(new Path (result.getDstAbsoluteDir()));
+      compactState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
+      compactState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executeCount + 1));
+      helper.saveState(new Path (result.getDstAbsoluteDir()), compactState);
+
       log.info("Updating record count from {} to {} in {} [{}]", oldTotalRecords, newTotalRecords, dstPath, executeCount + 1);
 
       // submit events for record count
