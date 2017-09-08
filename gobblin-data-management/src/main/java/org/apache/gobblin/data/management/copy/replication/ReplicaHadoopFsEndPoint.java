@@ -46,7 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
-  public static final String WATERMARK_FILE = "_metadata";
+  public static final String WATERMARK_FILE = ".metadata";
   public static final String LATEST_TIMESTAMP = "latestTimestamp";
 
   @Getter
