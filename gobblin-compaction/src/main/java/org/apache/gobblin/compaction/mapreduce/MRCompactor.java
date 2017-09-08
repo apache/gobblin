@@ -25,6 +25,7 @@ import static org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner.Statu
 import static org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner.Status.COMMITTED;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
+import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -255,6 +257,8 @@ public class MRCompactor implements Compactor {
   public static final String COMPACTION_TRACKING_EVENTS_NAMESPACE = COMPACTION_PREFIX + "tracking.events";
 
   public static final String COMPACTION_INPUT_PATH_TIME = COMPACTION_PREFIX + "input.path.time";
+  public static final String COMPACTION_FILE_EXTENSION =
+      COMPACTION_PREFIX + "extension";
 
   private static final long COMPACTION_JOB_WAIT_INTERVAL_SECONDS = 10;
   private static final Map<Dataset, Job> RUNNING_MR_JOBS = Maps.newConcurrentMap();

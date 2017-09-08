@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gobblin.retry;
+package org.apache.gobblin.util.retry;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +31,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import org.apache.gobblin.writer.exception.NonTransientException;
+import org.apache.gobblin.exception.NonTransientException;
 
 /**
  * Factory class that builds Retryer.

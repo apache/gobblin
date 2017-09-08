@@ -34,11 +34,17 @@ import com.google.api.services.analytics.Analytics.Management.UnsampledReports.G
 import com.google.api.services.analytics.model.UnsampledReport;
 import com.google.api.services.analytics.model.UnsampledReport.DriveDownloadDetails;
 
-import static org.apache.gobblin.retry.RetryerFactory.*;
-import static org.apache.gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledExtractor.*;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.exception.NonTransientException;
 import org.apache.gobblin.source.extractor.Extractor;
-import org.apache.gobblin.writer.exception.NonTransientException;
+
+import static org.apache.gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledExtractor.DOWNLOAD_TYPE_GOOGLE_DRIVE;
+import static org.apache.gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledExtractor.POLL_RETRY_PREFIX;
+import static org.apache.gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledExtractor.ReportCreationStatus;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
+import static org.mockito.Mockito.*;
+
 
 @Test(groups = { "gobblin.source.extractor.google" })
 public class GoogleAnalyticsUnsampledExtractorTest {

@@ -37,12 +37,12 @@ import com.google.common.base.Predicate;
 
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.exception.NonTransientException;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.FinalState;
-import org.apache.gobblin.writer.exception.NonTransientException;
 
 /**
  * Retry writer follows decorator pattern that retries on inner writer's failure.
