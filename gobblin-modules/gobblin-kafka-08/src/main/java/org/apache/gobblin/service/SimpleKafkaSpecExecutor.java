@@ -47,12 +47,17 @@ public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
 
   private SpecProducer<Spec> specProducer;
 
-  private SpecConsumer<Spec> specConsumer;
-
   public SimpleKafkaSpecExecutor(Config config, Optional<Logger> log) {
     super(config, log);
     specProducer = new SimpleKafkaSpecProducer(config, log);
-    specConsumer = new SimpleKafkaSpecConsumer(config, log);
+  }
+
+  /**
+   * Constructor with no logging, necessary for simple use case.
+   * @param config
+   */
+  public SimpleKafkaSpecExecutor(Config config) {
+    this(config, Optional.absent());
   }
 
   @Override
@@ -69,7 +74,6 @@ public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
   protected void startUp() throws Exception {
     optionalCloser = Optional.of(Closer.create());
     specProducer = optionalCloser.get().register((SimpleKafkaSpecProducer) specProducer);
-    specConsumer = optionalCloser.get().register((SimpleKafkaSpecConsumer) specConsumer);
   }
 
   @Override

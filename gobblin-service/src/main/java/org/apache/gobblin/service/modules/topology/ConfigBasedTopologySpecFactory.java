@@ -71,7 +71,7 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
 
     for (String topologyName : topologyNames) {
       Preconditions.checkArgument(_config.hasPath(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX + topologyName),
-          "Config does not contain Topology Factory descriptor for Topology" + topologyName);
+          "Config does not contain Topology Factory descriptor for Topology " + topologyName);
       Config topologyConfig = _config.getConfig(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX + topologyName);
       String description = ConfigUtils.getString(topologyConfig, ServiceConfigKeys.TOPOLOGYSPEC_DESCRIPTION_KEY, "NA");
       String version = ConfigUtils.getString(topologyConfig, ServiceConfigKeys.TOPOLOGYSPEC_VERSION_KEY, "-1");

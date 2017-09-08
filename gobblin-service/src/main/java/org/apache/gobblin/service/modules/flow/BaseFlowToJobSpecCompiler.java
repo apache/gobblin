@@ -142,7 +142,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
         this.templateCatalog = Optional.absent();
       }
     } catch (IOException e) {
-      throw new RuntimeException("Could not initialize IdentityFlowToJobSpecCompiler because of "
+      throw new RuntimeException("Could not initialize FlowCompiler because of "
           + "TemplateCatalog initialization failure", e);
     }
   }

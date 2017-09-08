@@ -130,7 +130,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
 
   @Override
   public Map<Spec, SpecExecutor> compileFlow(Spec spec) {
-    // A Map from JobSpec to SpexExecutor
+    // A Map from JobSpec to SpexExecutor, as the output of Flow Compiler.
     Map<Spec, SpecExecutor> specExecutorInstanceMap = Maps.newLinkedHashMap();
     findPath(specExecutorInstanceMap, spec);
     return specExecutorInstanceMap;
@@ -184,7 +184,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
         new BaseServiceNodeImpl(flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY));
 
     List<FlowEdge> resultEdgePath = dijkstraBasedPathFindingHelper(sourceNode, targetNode, this.weightedGraph);
-    for (int i = 0; i < resultEdgePath.size() - 1; i++) {
+    for (int i = 0; i < resultEdgePath.size() ; i++) {
       FlowEdge tmpFlowEdge = resultEdgePath.get(i);
       ServiceNode edgeSrcNode = ((LoadBasedFlowEdgeImpl) tmpFlowEdge).getSourceNode();
       ServiceNode edgeTgtNode = ((LoadBasedFlowEdgeImpl) tmpFlowEdge).getTargetNode();
@@ -198,10 +198,12 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
    */
   @Override
   protected void populateEdgeTemplateMap() {
-    for (FlowEdge flowEdge : this.weightedGraph.edgeSet()) {
-      edgeTemplateMap.put(flowEdge.getEdgeIdentity(), templateCatalog.get().
-          getAllTemplates().
-          stream().map(jobTemplate -> jobTemplate.getUri()).collect(Collectors.toList()));
+    if (templateCatalog.isPresent()) {
+      for (FlowEdge flowEdge : this.weightedGraph.edgeSet()) {
+        edgeTemplateMap.put(flowEdge.getEdgeIdentity(), templateCatalog.get().
+            getAllTemplates().
+            stream().map(jobTemplate -> jobTemplate.getUri()).collect(Collectors.toList()));
+      }
     }
   }
 
