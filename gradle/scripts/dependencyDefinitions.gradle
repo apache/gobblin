@@ -174,7 +174,8 @@ ext.externalDependency = [
     "log4j": [
         "log4j:log4j:" + log4jVersion,
         "log4j:apache-log4j-extras:" + log4jVersion
-    ]
+    ],
+    "postgresConnector": "org.postgresql:postgresql:42.1.4"
 ]
 
 if (!isDefaultEnvironment)
