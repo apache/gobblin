@@ -1,0 +1,22 @@
+{
+  "int": [
+    {
+      "temp": 5
+    }
+  ],
+  "float": [
+    {
+      "temp": 5.0
+    }
+  ],
+  "boolean": [
+    {
+      "temp": true
+    }
+  ],
+  "string": [
+    {
+      "temp": "somestring"
+    }
+  ]
+}

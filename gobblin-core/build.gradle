@@ -57,6 +57,7 @@ dependencies {
   compile externalDependency.oltu
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
+  compile externalDependency.parquet
 
   runtime externalDependency.protobuf
 

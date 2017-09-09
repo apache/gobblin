@@ -1,0 +1,45 @@
+{
+  "simplePrimitiveTypes": {
+    "record": {
+      "a": 5,
+      "b": 5.0,
+      "c": 8.0,
+      "d": true,
+      "e": "somestring"
+    },
+    "schema": [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "int"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "float"
+        }
+      },
+      {
+        "columnName": "c",
+        "dataType": {
+          "type": "double"
+        }
+      },
+      {
+        "columnName": "d",
+        "dataType": {
+          "type": "boolean"
+        }
+      },
+      {
+        "columnName": "e",
+        "dataType": {
+          "type": "string"
+        }
+      }
+    ],
+    "expectedRecord": "a: 5;b: 5.0;c: 8.0;d: true;e: somestring;",
+    "expectedSchema":"message test_table{;required int32 a;;required float b;;required double c;;required boolean d;;required binary e;;};"
+  }
+}
