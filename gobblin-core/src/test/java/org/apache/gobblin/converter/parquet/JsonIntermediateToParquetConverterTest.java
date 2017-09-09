@@ -29,16 +29,17 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
-import parquet.example.data.simple.SimpleGroup;
 import parquet.schema.MessageType;
 
 import static org.testng.Assert.assertEquals;
+
 
 @Test(groups = {"gobblin.converter"})
 public class JsonIntermediateToParquetConverterTest {
   private static final String RESOURCE_PATH = "/converter/parquet/JsonIntermediateToParquetConverter.json";
   private static JsonObject testCases;
   private static WorkUnitState workUnit;
+  private static JsonIntermediateToParquetConverter parquetConverter;
 
   @BeforeClass
   public static void setUp() {
@@ -57,11 +58,25 @@ public class JsonIntermediateToParquetConverterTest {
   @Test
   public void testPrimitiveTypes()
       throws Exception {
-    JsonIntermediateToParquetConverter parquetConverter = new JsonIntermediateToParquetConverter();
     JsonObject test = testCases.get("simplePrimitiveTypes").getAsJsonObject();
+    parquetConverter = new JsonIntermediateToParquetConverter();
 
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
-    SimpleGroup record =
+    ParquetGroup record =
+        parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
+
+    assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
+    assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
+  }
+
+  @Test
+  public void testArrayType()
+      throws Exception {
+    JsonObject test = testCases.get("array").getAsJsonObject();
+    parquetConverter = new JsonIntermediateToParquetConverter();
+
+    MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
+    ParquetGroup record =
         parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
 
     assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());

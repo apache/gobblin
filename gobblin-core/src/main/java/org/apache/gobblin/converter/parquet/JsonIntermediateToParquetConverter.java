@@ -33,18 +33,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import parquet.example.data.simple.BinaryValue;
-import parquet.example.data.simple.BooleanValue;
-import parquet.example.data.simple.DoubleValue;
-import parquet.example.data.simple.FloatValue;
-import parquet.example.data.simple.IntegerValue;
-import parquet.example.data.simple.LongValue;
-import parquet.example.data.simple.SimpleGroup;
 import parquet.schema.MessageType;
 import parquet.schema.Type;
 
 
-public class JsonIntermediateToParquetConverter extends Converter<JsonArray, MessageType, JsonObject, SimpleGroup> {
+public class JsonIntermediateToParquetConverter extends Converter<JsonArray, MessageType, JsonObject, ParquetGroup> {
   private HashMap<String, JsonElementConverter> converters = new HashMap<>();
 
   @Override
@@ -73,40 +66,13 @@ public class JsonIntermediateToParquetConverter extends Converter<JsonArray, Mes
   }
 
   @Override
-  public Iterable<SimpleGroup> convertRecord(MessageType outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
+  public Iterable<ParquetGroup> convertRecord(MessageType outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    SimpleGroup r1 = new SimpleGroup(outputSchema);
-    for (Map.Entry<String, JsonElementConverter> entry : this.converters.entrySet()) {
-      JsonElementConverter converter = entry.getValue();
-      addBasedOnType(inputRecord, r1, entry, converter);
+    ParquetGroup r1 = new ParquetGroup(outputSchema);
+    for (Map.Entry<String, JsonElement> entry : inputRecord.entrySet()) {
+      JsonElementConverter converter = this.converters.get(entry.getKey());
+      r1.add(entry.getKey(), converter.convert(entry.getValue()));
     }
     return new SingleRecordIterable<>(r1);
-  }
-
-  private void addBasedOnType(JsonObject inputRecord, SimpleGroup r1, Map.Entry<String, JsonElementConverter> entry,
-      JsonElementConverter converter) {
-    JsonElement value = inputRecord.get(entry.getKey());
-    Object result = converter.convert(value);
-    switch (converter.getSourceType()) {
-      case INT:
-        r1.add(entry.getKey(), ((IntegerValue) result).getInteger());
-        break;
-      case FLOAT:
-        r1.add(entry.getKey(), ((FloatValue) result).getFloat());
-        break;
-      case DOUBLE:
-        r1.add(entry.getKey(), ((DoubleValue) result).getDouble());
-        break;
-      case LONG:
-        r1.add(entry.getKey(), ((LongValue) result).getLong());
-        break;
-      case BOOLEAN:
-        r1.add(entry.getKey(), ((BooleanValue) result).getBoolean());
-        break;
-      case STRING:
-        r1.add(entry.getKey(), ((BinaryValue) result).getString());
-        break;
-      default:
-    }
   }
 }
