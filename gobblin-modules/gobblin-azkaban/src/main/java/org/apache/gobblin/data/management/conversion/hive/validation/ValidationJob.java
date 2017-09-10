@@ -594,7 +594,7 @@ public class ValidationJob extends AbstractJob {
         }
       }
     } catch (SQLException e) {
-      throw new RuntimeException(e);
+      log.warn("Execution failed for query set " + queries.toString(), e);
     } finally {
       try {
         closer.close();
