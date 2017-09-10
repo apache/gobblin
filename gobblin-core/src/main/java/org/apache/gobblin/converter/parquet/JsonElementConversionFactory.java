@@ -62,7 +62,7 @@ import static parquet.schema.Type.Repetition.REQUIRED;
  */
 public class JsonElementConversionFactory {
   public enum Type {
-    STRING, INT, LONG, FLOAT, DOUBLE, BOOLEAN, ARRAY, ENUM, RECORD
+    STRING, INT, LONG, FLOAT, DOUBLE, BOOLEAN, ARRAY, ENUM, RECORD, MAP
   }
 
   private static HashMap<Type, PrimitiveTypeName> typeMap = new HashMap<>();
@@ -124,6 +124,9 @@ public class JsonElementConversionFactory {
 
       case RECORD:
         return new RecordConverter(fieldName, nullable, schemaNode, state);
+
+      case MAP:
+        return new MapConverter(fieldName, nullable, schemaNode, state);
 
       default:
         throw new UnsupportedOperationException(fieldType + " is unsupported");
@@ -451,7 +454,7 @@ public class JsonElementConversionFactory {
       this.elementSchema = getElementSchema();
       this.state = state;
       JsonElementConverter converter =
-          getConvertor("", getElementTypeSource().toString(), elementSchema, state, false, false);
+          getConvertor(ARRAY_KEY, getElementTypeSource().toString(), elementSchema, state, isNullable(), true);
       super.setElementConverter(converter);
     }
 
@@ -473,9 +476,7 @@ public class JsonElementConversionFactory {
     @Override
     public GroupType schema() {
       List<parquet.schema.Type> fields = new ArrayList<>();
-      JsonElementConverter converter =
-          getConvertor(ARRAY_KEY, getElementTypeSource().toString(), elementSchema, state, isNullable(), true);
-      fields.add(0, converter.schema());
+      fields.add(0, getElementConverter().schema());
       return new GroupType(optionalOrRequired(), getName(), fields);
     }
   }
@@ -588,6 +589,67 @@ public class JsonElementConversionFactory {
         default:
           throw new RuntimeException("Unsupported Record type");
       }
+    }
+  }
+
+  public static class MapConverter extends ComplexConverterForUniformElementTypes {
+
+    private static final String SOURCE_SCHEMA_ITEMS_KEY = "values";
+    private static final String MAP_KEY = "map";
+    private final JsonObject elementSchema;
+    private final WorkUnitState state;
+
+    public MapConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state) {
+      super(fieldName, nullable, schemaNode, SOURCE_SCHEMA_ITEMS_KEY, false);
+      this.elementSchema = getElementSchema();
+      this.state = state;
+    }
+
+    @Override
+    Object convertField(JsonElement value) {
+      ParquetGroup mapGroup = new ParquetGroup(schema());
+      JsonElementConverter converter = getElementConverter();
+      JsonObject map = (JsonObject) value;
+
+      for (Map.Entry<String, JsonElement> entry : map.entrySet()) {
+        ParquetGroup entrySet = (ParquetGroup) mapGroup.addGroup("map");
+        entrySet.add("key", entry.getKey());
+        entrySet.add("value", converter.convert(entry.getValue()));
+      }
+
+      return mapGroup;
+    }
+
+    @Override
+    public Type getSourceType() {
+      return MAP;
+    }
+
+    @Override
+    public GroupType schema() {
+      JsonElementConverter elementConverter = getElementConverter();
+      JsonElementConverter keyConverter = getKeyConverter();
+      GroupType mapGroup =
+          Types.repeatedGroup().addFields(keyConverter.schema(), elementConverter.schema()).named(MAP_KEY)
+              .asGroupType();
+      switch (optionalOrRequired()) {
+        case OPTIONAL:
+          return Types.optionalGroup().addFields(mapGroup).named(getName()).asGroupType();
+        case REQUIRED:
+          return Types.requiredGroup().addFields(mapGroup).named(getName()).asGroupType();
+        default:
+          return null;
+      }
+    }
+
+    @Override
+    public JsonElementConverter getElementConverter() {
+      Type type = getElementTypeSource();
+      return getConvertor("value", type.toString(), getElementSchema(), state, false, false);
+    }
+
+    public JsonElementConverter getKeyConverter() {
+      return getConvertor("key", STRING.toString(), getElementSchema(), state, false, false);
     }
   }
 }

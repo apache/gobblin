@@ -123,6 +123,20 @@ public class JsonIntermediateToParquetConverterTest {
     assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
     assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
   }
+
+  @Test
+  public void testMapType()
+      throws Exception {
+    JsonObject test = testCases.get("map").getAsJsonObject();
+    parquetConverter = new JsonIntermediateToParquetConverter();
+
+    MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
+    ParquetGroup record =
+        parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
+
+    assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
+    assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
+  }
   private void assertEqualsIgnoreSpaces(String actual, String expected) {
     assertEquals(actual.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""),
         expected.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""));

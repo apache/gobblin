@@ -183,5 +183,25 @@
     ],
     "expectedRecord": "some_record ; name:me ; age:22 ; some_array ; item:3 ; item:4 ; item:5 ;",
     "expectedSchema": "message test_table {  ; required group some_record {  ; required binary name (UTF8) ;  ; required int64 age ;  ; required group some_array {  ; repeated int32 item ; ; } ; } ;  } ; "
+  },
+  "map": {
+    "schema": [
+      {
+        "columnName": "cityToCountry",
+        "dataType": {
+          "type": "map",
+          "values": "string"
+        }
+      }
+    ],
+    "record": {
+      "cityToCountry":{
+        "ny": "US",
+        "london": "UK",
+        "delhi": "India"
+      }
+    },
+    "expectedRecord": "cityToCountry; map; key:ny;value:US; map; key:london;value:UK; map; key:delhi;value:India;",
+    "expectedSchema": "message test_table {  ;   required groupcityToCountry {  ;  repeated group map {  ;   required binary key (UTF8) ;   ;   required binary value (UTF8) ;   ;  } ;  } ;  } ;"
   }
 }
