@@ -128,22 +128,67 @@
     "expectedSchema": "message test_table{ ; required group somearray{ ;  required int32 0 ;  ;  required int32 1 ;  ;  required int32 2 ;  ; } ;  required group somearray1 { ;  required int64 0  ;  ;  required int 64 1 ;  ;  required int 64 2  ;  ;  } ;  required group somearray 2 { ;  required float 0  ;  ;  required float 1  ;  ;  required float 2 ;  ; } ; requiredgroupsomearray3{ ; required double 0 ;  ; required double 1 ;  ; required double 2 ;  ; } ; requiredgroupsomearray4{ ; required boolean 0 ;  ; required boolean 1 ;  ; required boolean 2 ;  ; } ; requiredgroupsomearray5{ ; required binary0 ;  ; required binary1 ;  ; required binary2 ;  ; } ; } ; "
   },
   "enum": {
-    "record":{
-      "some_enum":"HELLO"
+    "record": {
+      "some_enum": "HELLO"
     },
-    "schema":[
+    "schema": [
       {
         "columnName": "some_enum",
         "dataType": {
           "type": "enum",
-          "symbols":[
+          "symbols": [
             "HELLO",
             "WORLD"
           ]
         }
       }
     ],
-    "expectedRecord":"some_enum : HELLO ;",
+    "expectedRecord": "some_enum : HELLO ;",
     "expectedSchema": "message test_table { ; required binary some_enum ;; } ;"
+  },
+  "record": {
+    "record": {
+      "some_record": {
+        "name": "me",
+        "age": 22,
+        "some_array": [
+          3,
+          4,
+          5
+        ]
+      }
+    },
+    "schema": [
+      {
+        "columnName": "some_record",
+        "dataType": {
+          "type": "record",
+          "fields": [
+            {
+              "columnName": "name",
+              "dataType": {
+                "type": "string"
+              }
+            },
+            {
+              "columnName": "age",
+              "dataType": {
+                "type": "long"
+              }
+            },
+            {
+              "columnName": "some_array",
+              "length": 3,
+              "dataType": {
+                "type": "array",
+                "items": "int"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "expectedRecord": "some_record ; name:me ; age:22 ; some_array ; 0:3 ; 1:4 ; 2:5 ;",
+    "expectedSchema": "message test_table {  ; message some_record {  ; required binaryname ;  ; required int64 age ;  ; required group some_array {  ; required int32 0 ;  ; required int32 1 ;  ; required int32 2 ;  ; } ; } ;  ; } ; "
   }
 }

@@ -110,6 +110,19 @@ public class JsonIntermediateToParquetConverterTest {
     parquetConverter.convertRecord(schema, jsonRecord, workUnit).iterator().next();
   }
 
+  @Test
+  public void testRecordType()
+      throws Exception {
+    JsonObject test = testCases.get("record").getAsJsonObject();
+    parquetConverter = new JsonIntermediateToParquetConverter();
+
+    MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
+    ParquetGroup record =
+        parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
+
+    assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
+    assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
+  }
   private void assertEqualsIgnoreSpaces(String actual, String expected) {
     assertEquals(actual.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""),
         expected.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""));
