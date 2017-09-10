@@ -42,6 +42,7 @@ import parquet.schema.MessageType;
 import parquet.schema.PrimitiveType;
 import parquet.schema.PrimitiveType.PrimitiveTypeName;
 
+import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.CHILD;
 import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.Type.*;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
@@ -500,22 +501,30 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class RecordConverter extends ComplexConverter{
+  public static class RecordConverter extends ComplexConverter {
 
     private final HashMap<String, JsonElementConverter> converters;
     private final GroupType schema;
+    private final RecordType recordType;
+    public enum RecordType {
+      ROOT, CHILD
+      }
 
-    public RecordConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state){
+    public RecordConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state) {
+      this(fieldName, nullable, schemaNode, state, CHILD);
+    }
+
+    public RecordConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state, RecordType recordType) {
       super(fieldName, nullable);
-      converters = new HashMap<>();
-      schema = buildSchema(schemaNode.get("dataType").getAsJsonObject().get("fields").getAsJsonArray(), state);
-
+      this.converters = new HashMap<>();
+      this.recordType = recordType;
+      this.schema = buildSchema(schemaNode.get("dataType").getAsJsonObject().get("fields").getAsJsonArray(), state);
     }
 
     @Override
     Object convertField(JsonElement value) {
       ParquetGroup r1 = new ParquetGroup(schema);
-      JsonObject inputRecord =value.getAsJsonObject();
+      JsonObject inputRecord = value.getAsJsonObject();
       for (Map.Entry<String, JsonElement> entry : inputRecord.entrySet()) {
         JsonElementConverter converter = this.converters.get(entry.getKey());
         r1.add(entry.getKey(), converter.convert(entry.getValue()));
@@ -529,7 +538,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public GroupType schema(){
+    public GroupType schema() {
       return schema;
     }
 
@@ -553,7 +562,14 @@ public class JsonElementConversionFactory {
         parquetTypes.add(schemaType);
       }
       String docName = getName();
-      return new MessageType(docName, parquetTypes);
+      switch (recordType){
+        case ROOT:
+          return new MessageType(docName, parquetTypes);
+        case CHILD:
+          return new GroupType(repetitionType(), docName, parquetTypes);
+        default:
+          throw new RuntimeException("Unsupported Record type");
+      }
     }
   }
 }

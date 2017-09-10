@@ -28,6 +28,8 @@ import com.google.gson.JsonObject;
 
 import parquet.schema.MessageType;
 
+import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.ROOT;
+
 
 public class JsonIntermediateToParquetConverter extends Converter<JsonArray, MessageType, JsonObject, ParquetGroup> {
   private RecordConverter recordConverter;
@@ -41,7 +43,7 @@ public class JsonIntermediateToParquetConverter extends Converter<JsonArray, Mes
     dataType.addProperty("type", "record");
     dataType.add("fields", inputSchema);
     temp.add("dataType", dataType);
-    recordConverter = new RecordConverter(fieldName, false, temp, workUnit);
+    recordConverter = new RecordConverter(fieldName, false, temp, workUnit, ROOT);
     return (MessageType) recordConverter.schema();
   }
 
