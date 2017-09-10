@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.converter.avro.UnsupportedDateTypeException;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -41,9 +40,11 @@ import parquet.schema.GroupType;
 import parquet.schema.MessageType;
 import parquet.schema.PrimitiveType;
 import parquet.schema.PrimitiveType.PrimitiveTypeName;
+import parquet.schema.Types;
 
 import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.CHILD;
 import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.Type.*;
+import static parquet.schema.OriginalType.UTF8;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
@@ -84,17 +85,15 @@ public class JsonElementConversionFactory {
    * @param schemaNode
    * @param state
    * @return
-   * @throws UnsupportedDateTypeException
    */
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
-      WorkUnitState state, boolean nullable)
-      throws UnsupportedDateTypeException {
+      WorkUnitState state, boolean nullable) {
     Type type;
 
     try {
       type = valueOf(fieldType.toUpperCase());
     } catch (IllegalArgumentException e) {
-      throw new UnsupportedDateTypeException(fieldType + " is unsupported");
+      throw new UnsupportedOperationException(fieldType + " is unsupported");
     }
 
     switch (type) {
@@ -126,7 +125,7 @@ public class JsonElementConversionFactory {
         return new RecordConverter(fieldName, nullable, schemaNode, state);
 
       default:
-        throw new UnsupportedDateTypeException(fieldType + " is unsupported");
+        throw new UnsupportedOperationException(fieldType + " is unsupported");
     }
   }
 
@@ -416,18 +415,31 @@ public class JsonElementConversionFactory {
     public Type getSourceType() {
       return STRING;
     }
+
+    @Override
+    public parquet.schema.Type schema() {
+      switch (repetitionType()) {
+        case OPTIONAL:
+          return Types.optional(BINARY).as(UTF8).named(getName());
+        case REQUIRED:
+          return Types.required(BINARY).as(UTF8).named(getName());
+        default:
+          throw new RuntimeException("Unsupported Repetition type");
+      }
+    }
   }
 
   public static class ArrayConverter extends ComplexConverterForUniformElementTypes {
     private final int len;
     private final JsonObject elementSchema;
     private static final String ITEM_KEY = "items";
+    private final WorkUnitState state;
 
-    public ArrayConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state)
-        throws UnsupportedDateTypeException {
+    public ArrayConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state){
       super(fieldName, nullable, schemaNode, ITEM_KEY);
-      len = schemaNode.get("length").getAsInt();
-      elementSchema = getElementSchema();
+      this.len = schemaNode.get("length").getAsInt();
+      this.elementSchema = getElementSchema();
+      this.state = state;
       JsonElementConverter converter = getConvertor("", getElementTypeSource().toString(), elementSchema, state, false);
       super.setElementConverter(converter);
     }
@@ -453,7 +465,9 @@ public class JsonElementConversionFactory {
     public GroupType schema() {
       List<parquet.schema.Type> fields = new ArrayList<>();
       for (int i = 0; i < len; i++) {
-        fields.add(i, new PrimitiveType(repetitionType(), getElementTypeParquet(), String.valueOf(i)));
+        JsonElementConverter converter =
+            getConvertor("" + i, getElementTypeSource().toString(), elementSchema, state, isNullable());
+        fields.add(converter.schema());
       }
       return new GroupType(repetitionType(), getName(), fields);
     }
@@ -463,8 +477,7 @@ public class JsonElementConversionFactory {
     private final JsonObject elementSchema;
     private final HashSet<String> symbols = new HashSet<>();
 
-    public EnumConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state)
-        throws UnsupportedDateTypeException {
+    public EnumConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state) {
       super(fieldName, nullable);
       elementSchema = getElementSchema();
       JsonArray symbolsArray = schemaNode.get("dataType").getAsJsonObject().get("symbols").getAsJsonArray();
@@ -506,15 +519,17 @@ public class JsonElementConversionFactory {
     private final HashMap<String, JsonElementConverter> converters;
     private final GroupType schema;
     private final RecordType recordType;
+
     public enum RecordType {
       ROOT, CHILD
-      }
+    }
 
     public RecordConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state) {
       this(fieldName, nullable, schemaNode, state, CHILD);
     }
 
-    public RecordConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state, RecordType recordType) {
+    public RecordConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state,
+        RecordType recordType) {
       super(fieldName, nullable);
       this.converters = new HashMap<>();
       this.recordType = recordType;
@@ -550,19 +565,14 @@ public class JsonElementConversionFactory {
         String columnName = map.get("columnName").getAsString();
         String dataType = map.get("dataType").getAsJsonObject().get("type").getAsString();
         boolean nullable = map.has("isNullable") && map.get("isNullable").getAsBoolean();
-        parquet.schema.Type schemaType;
-        try {
-          JsonElementConverter convertor =
-              JsonElementConversionFactory.getConvertor(columnName, dataType, map, workUnit, nullable);
-          schemaType = convertor.schema();
-          this.converters.put(columnName, convertor);
-        } catch (UnsupportedDateTypeException e) {
-          throw new RuntimeException(e);
-        }
+        JsonElementConverter convertor =
+            JsonElementConversionFactory.getConvertor(columnName, dataType, map, workUnit, nullable);
+        parquet.schema.Type schemaType = convertor.schema();
+        this.converters.put(columnName, convertor);
         parquetTypes.add(schemaType);
       }
       String docName = getName();
-      switch (recordType){
+      switch (recordType) {
         case ROOT:
           return new MessageType(docName, parquetTypes);
         case CHILD:
