@@ -83,6 +83,33 @@ public class JsonIntermediateToParquetConverterTest {
     assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
   }
 
+  @Test
+  public void testEnumType()
+      throws Exception {
+    JsonObject test = testCases.get("enum").getAsJsonObject();
+    parquetConverter = new JsonIntermediateToParquetConverter();
+
+    MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
+    ParquetGroup record =
+        parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
+
+    assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
+    assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
+  }
+
+  @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Symbol .* does not belong to set \\[.*?\\]")
+  public void testEnumTypeBelongsToEnumSet()
+      throws Exception {
+    JsonObject test = testCases.get("enum").getAsJsonObject();
+    parquetConverter = new JsonIntermediateToParquetConverter();
+
+    MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
+    JsonObject jsonRecord = test.get("record").getAsJsonObject();
+    jsonRecord.addProperty("some_enum", "HELL");
+
+    parquetConverter.convertRecord(schema, jsonRecord, workUnit).iterator().next();
+  }
+
   private void assertEqualsIgnoreSpaces(String actual, String expected) {
     assertEquals(actual.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""),
         expected.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""));

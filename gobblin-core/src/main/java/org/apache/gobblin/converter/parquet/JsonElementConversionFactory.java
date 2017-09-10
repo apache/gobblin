@@ -18,6 +18,7 @@ package org.apache.gobblin.converter.parquet;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -114,6 +115,9 @@ public class JsonElementConversionFactory {
 
       case ARRAY:
         return new ArrayConverter(fieldName, nullable, schemaNode, state);
+
+      case ENUM:
+        return new EnumConverter(fieldName, nullable, schemaNode, state);
 
       default:
         throw new UnsupportedDateTypeException(fieldType + " is unsupported");
@@ -220,6 +224,59 @@ public class JsonElementConversionFactory {
     @Override
     public PrimitiveTypeName getTargetType() {
       throw new UnsupportedOperationException("Complex types does not support PrimitiveTypeName");
+    }
+  }
+
+  public static abstract class ComplexConverterForUniformElementTypes extends ComplexConverter {
+    private JsonElementConverter elementConverter;
+    private PrimitiveTypeName elementPrimitiveName;
+    private Type elementSourceType;
+
+    public ComplexConverterForUniformElementTypes(String fieldName, boolean nullable, JsonObject schemaNode,
+        String itemKey) {
+      super(fieldName, nullable);
+      this.elementPrimitiveName = getPrimitiveTypeInParquet(schemaNode, itemKey);
+      this.elementSourceType = getPrimitiveTypeInSource(schemaNode, itemKey);
+    }
+
+    protected void setElementConverter(JsonElementConverter elementConverter) {
+      this.elementConverter = elementConverter;
+    }
+
+    public JsonElementConverter getElementConverter() {
+      return this.elementConverter;
+    }
+
+    @Override
+    public PrimitiveTypeName getTargetType() {
+      throw new UnsupportedOperationException("Complex types does not support PrimitiveTypeName");
+    }
+
+    private PrimitiveTypeName getPrimitiveTypeInParquet(JsonObject schemaNode, String itemKey) {
+      return typeMap.get(getPrimitiveTypeInSource(schemaNode, itemKey));
+    }
+
+    private Type getPrimitiveTypeInSource(JsonObject schemaNode, String itemKey) {
+      String type = schemaNode.get("dataType").getAsJsonObject().get(itemKey).getAsString().toUpperCase();
+      return Type.valueOf(type);
+    }
+
+    public PrimitiveTypeName getElementTypeParquet() {
+      return elementPrimitiveName;
+    }
+
+    public Type getElementTypeSource() {
+      return elementSourceType;
+    }
+
+    protected JsonObject getElementSchema() {
+      String typeOfElement = getElementTypeSource().toString();
+      JsonObject temp = new JsonObject();
+      JsonObject dataType = new JsonObject();
+      temp.addProperty("columnName", "temp");
+      dataType.addProperty("type", typeOfElement);
+      temp.add("dataType", dataType);
+      return temp;
     }
   }
 
@@ -355,20 +412,17 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class ArrayConverter extends ComplexConverter {
+  public static class ArrayConverter extends ComplexConverterForUniformElementTypes {
     private final int len;
-    private final PrimitiveTypeName arrayTypeParquet;
-    private final Type arrayTypeSource;
     private final JsonObject elementSchema;
+    private static final String ITEM_KEY = "items";
 
     public ArrayConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state)
         throws UnsupportedDateTypeException {
-      super(fieldName, nullable);
+      super(fieldName, nullable, schemaNode, ITEM_KEY);
       len = schemaNode.get("length").getAsInt();
-      arrayTypeParquet = getPrimitiveTypeInParquet(schemaNode);
-      arrayTypeSource = getPrimitiveTypeInSource(schemaNode);
       elementSchema = getElementSchema();
-      JsonElementConverter converter = getConvertor("", arrayTypeSource.toString(), elementSchema, state, false);
+      JsonElementConverter converter = getConvertor("", getElementTypeSource().toString(), elementSchema, state, false);
       super.setElementConverter(converter);
     }
 
@@ -376,20 +430,12 @@ public class JsonElementConversionFactory {
     Object convertField(JsonElement value) {
       ParquetGroup array = new ParquetGroup(schema());
       int index = 0;
+      JsonElementConverter converter = getElementConverter();
       for (JsonElement elem : (JsonArray) value) {
-        JsonElementConverter converter = getElementConverter();
         array.add(index, (Primitive) converter.convert(elem));
         index++;
       }
       return array;
-    }
-
-    public PrimitiveTypeName getElementTypeParquet() {
-      return arrayTypeParquet;
-    }
-
-    public Type getElementTypeSource() {
-      return arrayTypeSource;
     }
 
     @Override
@@ -405,24 +451,47 @@ public class JsonElementConversionFactory {
       }
       return new GroupType(repetitionType(), getName(), fields);
     }
+  }
 
-    private PrimitiveTypeName getPrimitiveTypeInParquet(JsonObject schemaNode) {
-      return typeMap.get(getPrimitiveTypeInSource(schemaNode));
-    }
+  public static class EnumConverter extends ComplexConverter {
+    private final JsonObject elementSchema;
+    private final HashSet<String> symbols = new HashSet<>();
 
-    private Type getPrimitiveTypeInSource(JsonObject schemaNode) {
-      String type = schemaNode.get("dataType").getAsJsonObject().get("items").getAsString().toUpperCase();
-      return Type.valueOf(type);
+    public EnumConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state)
+        throws UnsupportedDateTypeException {
+      super(fieldName, nullable);
+      elementSchema = getElementSchema();
+      JsonArray symbolsArray = schemaNode.get("dataType").getAsJsonObject().get("symbols").getAsJsonArray();
+      symbolsArray.forEach(e -> symbols.add(e.getAsString()));
+      JsonElementConverter converter = getConvertor(getName(), STRING.toString(), elementSchema, state, isNullable());
+      super.setElementConverter(converter);
     }
 
     private JsonObject getElementSchema() {
-      String typeOfElement = getElementTypeSource().toString();
       JsonObject temp = new JsonObject();
       JsonObject dataType = new JsonObject();
+      dataType.addProperty("type", "string");
       temp.addProperty("columnName", "temp");
-      dataType.addProperty("type", typeOfElement);
       temp.add("dataType", dataType);
       return temp;
+    }
+
+    @Override
+    Object convertField(JsonElement value) {
+      if (symbols.contains(value.getAsString()) || isNullable()) {
+        return this.getElementConverter().convert(value);
+      }
+      throw new RuntimeException("Symbol " + value.getAsString() + " does not belong to set " + symbols.toString());
+    }
+
+    @Override
+    public Type getSourceType() {
+      return ENUM;
+    }
+
+    @Override
+    public parquet.schema.Type schema() {
+      return this.getElementConverter().schema();
     }
   }
 }
