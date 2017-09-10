@@ -77,7 +77,6 @@
     "schema": [
       {
         "columnName": "somearray",
-        "length": 3,
         "dataType": {
           "type": "array",
           "items": "int"
@@ -85,7 +84,6 @@
       },
       {
         "columnName": "somearray1",
-        "length": 3,
         "dataType": {
           "type": "array",
           "items": "long"
@@ -93,7 +91,6 @@
       },
       {
         "columnName": "somearray2",
-        "length": 3,
         "dataType": {
           "type": "array",
           "items": "float"
@@ -101,7 +98,6 @@
       },
       {
         "columnName": "somearray3",
-        "length": 3,
         "dataType": {
           "type": "array",
           "items": "double"
@@ -109,7 +105,6 @@
       },
       {
         "columnName": "somearray4",
-        "length": 3,
         "dataType": {
           "type": "array",
           "items": "boolean"
@@ -117,15 +112,14 @@
       },
       {
         "columnName": "somearray5",
-        "length": 2,
         "dataType": {
           "type": "array",
           "items": "string"
         }
       }
     ],
-    "expectedRecord": "somearray ; 0:1 ; 1:2 ; 2:3 ; somearray1 ; 0:1 ; 1:2 ; 2:3 ; somearray2 ; 0:1.0 ; 1:2.0 ; 2:3.0 ; somearray3 ; 0:1.0 ; 1:2.0 ; 2:3.0 ; somearray4 ; 0:true ; 1:false ; 2:true ; somearray5 ; 0:hello ; 1:world ; ",
-    "expectedSchema": "message test_table{ ; required group somearray{ ;  required int32 0 ;  ;  required int32 1 ;  ;  required int32 2 ;  ; } ;  required group somearray1 { ;  required int64 0  ;  ;  required int 64 1 ;  ;  required int 64 2  ;  ;  } ;  required group somearray 2 { ;  required float 0  ;  ;  required float 1  ;  ;  required float 2 ;  ; } ; required group somearray3{ ; required double 0 ;  ; required double 1 ;  ; required double 2 ;  ; } ; required group somearray4{ ; required boolean 0 ;  ; required boolean 1 ;  ; required boolean 2 ;  ; } ; required group somearray5{ ; required binary 0 (UTF8) ;  ; required binary 1 (UTF8) ;   ; } ; } ; "
+    "expectedRecord": "somearray ;  item:1 ;  item:2 ;  item:3 ; somearray1 ;  item:1 ;  item:2 ;  item:3 ; somearray2 ;  item:1.0 ;  item:2.0 ;  item:3.0 ; somearray3 ;  item:1.0 ;  item:2.0 ;  item:3.0 ; somearray4 ;  item:true ;  item:false ;  item:true ; somearray5 ;  item:hello ;  item:world ; ",
+    "expectedSchema": "message test_table {  ;  required group somearray {  ; repeated int32 item ;  ; } ;  required groupsomearray1 {  ; repeated int64 item ;  ; } ;  required groupsomearray2 {  ; repeated float item ;  ; } ;  required groupsomearray3 {  ; repeated double item ;  ; } ;  required groupsomearray4 {  ; repeated boolean item ;  ; } ;  required groupsomearray5 {  ; repeated binary item(UTF8) ;  ; } ; } ; "
   },
   "enum": {
     "record": {
@@ -178,7 +172,6 @@
             },
             {
               "columnName": "some_array",
-              "length": 3,
               "dataType": {
                 "type": "array",
                 "items": "int"
@@ -188,7 +181,7 @@
         }
       }
     ],
-    "expectedRecord": "some_record ; name:me ; age:22 ; some_array ; 0:3 ; 1:4 ; 2:5 ;",
-    "expectedSchema": "message test_table {  ; required group some_record {  ; required binary name (UTF8) ;  ; required int64 age ;  ; required group some_array {  ; required int32 0 ;  ; required int32 1 ;  ; required int32 2 ;  ; } ; } ;  } ; "
+    "expectedRecord": "some_record ; name:me ; age:22 ; some_array ; item:3 ; item:4 ; item:5 ;",
+    "expectedSchema": "message test_table {  ; required group some_record {  ; required binary name (UTF8) ;  ; required int64 age ;  ; required group some_array {  ; repeated int32 item ; ; } ; } ;  } ; "
   }
 }
