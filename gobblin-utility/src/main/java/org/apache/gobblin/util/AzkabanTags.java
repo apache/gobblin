@@ -37,7 +37,11 @@ public class AzkabanTags {
       .put("azkaban.flow.flowid", "azkabanFlowId")
       .put("azkaban.job.id", "azkabanJobId")
       .put("azkaban.flow.execid", "azkabanExecId")
-      .put("azkaban.link.execution.url", "azkabanURL").build();
+      .put("azkaban.link.execution.url", "azkabanURL")
+      .put("azkaban.link.workflow.url", "azkabanFlowURL")
+      .put("azkaban.link.job.url", "azkabanJobURL")
+      .put("azkaban.link.jobexec.url", "azkabanJobExecURL")
+      .build();
 
   /**
    * Uses {@link #getAzkabanTags(Configuration)} with default Hadoop {@link Configuration}
@@ -48,6 +52,14 @@ public class AzkabanTags {
 
   /**
    * Gets all useful Azkaban runtime properties required by metrics as a {@link Map}.
+   * Below metrics will be fetched if available:
+   * - azkabanFlowId : name of Azkaban flow
+   * - azkabanFlowURL : URL of Azkaban flow
+   * - azkabanURL : URL of Azkaban flow execution
+   * - azkabanExecId : ID of flow execution
+   * - azkabanJobId : name of Azkaban job
+   * - azkabanJobURL : URL of Azkaban job
+   * - azkabanJobExecURL : URL of Azkaban job execution
    *
    * @param conf Hadoop Configuration that contains the properties. Keys of {@link #PROPERTIES_TO_TAGS_MAP} lists out
    * all the properties to look for in {@link Configuration}.
