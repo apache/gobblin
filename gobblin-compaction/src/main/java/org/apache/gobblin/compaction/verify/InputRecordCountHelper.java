@@ -118,11 +118,12 @@ public class InputRecordCountHelper {
     Path tmpFile = new Path(dir, STATE_FILE + ".tmp");
     Path newFile = new Path(dir, STATE_FILE);
     fs.delete(tmpFile, false);
-    fs.delete(newFile, false);
     try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(new Path(dir, STATE_FILE + ".tmp")))) {
       state.write(dataOutputStream);
     }
 
+    // Caution: We are deleting right before renaming because rename doesn't support atomic overwrite options from FileSystem API.
+    fs.delete(newFile, false);
     fs.rename(tmpFile, newFile);
   }
 
