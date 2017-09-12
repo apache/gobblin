@@ -18,18 +18,20 @@
 package org.apache.gobblin.converter;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -41,15 +43,14 @@ import static org.mockito.Mockito.when;
 
 
 /**
- * Unit test for {@link EnvelopePayloadExtractor}.
+ * Unit test for {@link EnvelopePayloadConverter}
  */
-@Test(groups = {"gobblin.converter"})
-public class EnvelopePayloadExtractorTest {
+public class EnvelopePayloadConverterTest {
   private static final KafkaSchemaRegistry mockRegistry = mock(KafkaSchemaRegistry.class);
 
   @Test
   public void testConverter()
-      throws Exception {
+      throws IOException, DataConversionException, SchemaRegistryException {
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/envelope.avsc"));
     GenericDatumReader<GenericRecord> datumReader = new GenericDatumReader<>(inputSchema);
 
@@ -65,22 +66,21 @@ public class EnvelopePayloadExtractorTest {
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.setProp(BaseEnvelopeSchemaConverter.PAYLOAD_SCHEMA_TOPIC, "test");
     workUnitState.setProp(BaseEnvelopeSchemaConverter.PAYLOAD_SCHEMA_ID_FIELD, "metadata.payloadSchemaId");
-    workUnitState.setProp(BaseEnvelopeSchemaConverter.KAFKA_REGISTRY_FACTORY,
-        EnvelopePayloadExtractorTest.MockKafkaAvroSchemaRegistryFactory.class.getName());
+    workUnitState
+        .setProp(BaseEnvelopeSchemaConverter.KAFKA_REGISTRY_FACTORY, MockKafkaAvroSchemaRegistryFactory.class.getName());
 
-    EnvelopePayloadExtractor converter = new EnvelopePayloadExtractor();
+    EnvelopePayloadConverter converter = new EnvelopePayloadConverter();
     converter.init(workUnitState);
 
     Schema outputSchema = converter.convertSchema(inputSchema, workUnitState);
-    Assert.assertTrue(outputSchema.equals(latestPayloadSchema));
-
     List<GenericRecord> outputRecords = new ArrayList<>();
     Iterables.addAll(outputRecords, converter.convertRecord(outputSchema, inputRecord, workUnitState));
     Assert.assertTrue(outputRecords.size() == 1);
 
-    GenericRecord payload = outputRecords.get(0);
-    // While making the test envelope avro input record, its nestedRecord was intentionally set to the deserialized payload
-    GenericRecord expectedPayload = (GenericRecord) inputRecord.get("nestedRecord");
+    GenericRecord outputRecord = outputRecords.get(0);
+    GenericRecord payload = (GenericRecord) outputRecord.get("payload");
+    // While making the test envelope avro record, its nestedRecord was intentionally set to the deserialized payload
+    GenericRecord expectedPayload = (GenericRecord) outputRecord.get("nestedRecord");
 
     Schema payloadSchema = payload.getSchema();
     Schema expectedPayloadSchema = expectedPayload.getSchema();

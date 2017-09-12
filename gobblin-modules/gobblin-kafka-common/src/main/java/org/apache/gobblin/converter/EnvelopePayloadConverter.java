@@ -43,7 +43,7 @@ import org.apache.gobblin.configuration.WorkUnitState;
  * will throw an exception and the job fail
  */
 
-public class EnvelopePayloadDeserializer extends BaseEnvelopeSchemaConverter<GenericRecord> {
+public class EnvelopePayloadConverter extends BaseEnvelopeSchemaConverter<GenericRecord> {
   public static final String DECORATED_PAYLOAD_DOC = "Decorated payload data";
 
   @Override
