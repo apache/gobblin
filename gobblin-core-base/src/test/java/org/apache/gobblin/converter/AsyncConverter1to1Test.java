@@ -54,7 +54,7 @@ public class AsyncConverter1to1Test {
 
     RecordStreamWithMetadata<String, String> stream =
         new RecordStreamWithMetadata<>(Flowable.range(0, 5).map(i -> i.toString()).map(RecordEnvelope::new),
-            new GlobalMetadata<>("schema"));
+            GlobalMetadata.<String>builder().schema("schema").build());
 
     Set<String> outputRecords = Sets.newConcurrentHashSet();
 
@@ -109,7 +109,7 @@ public class AsyncConverter1to1Test {
 
     RecordStreamWithMetadata<String, String> stream =
         new RecordStreamWithMetadata<>(Flowable.just("0", MyAsyncConverter1to1.FAIL, "1").map(RecordEnvelope::new),
-            new GlobalMetadata<>("schema"));
+            GlobalMetadata.<String>builder().schema("schema").build());
 
     Set<String> outputRecords = Sets.newConcurrentHashSet();
 

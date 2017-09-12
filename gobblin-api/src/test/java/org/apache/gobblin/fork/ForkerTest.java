@@ -50,7 +50,7 @@ public class ForkerTest {
     MyFlowable<StreamEntity<byte[]>> flowable = new MyFlowable<>();
 
     RecordStreamWithMetadata<byte[], String> stream =
-        new RecordStreamWithMetadata<>(flowable, new GlobalMetadata<>("schema"));
+        new RecordStreamWithMetadata<>(flowable, GlobalMetadata.<String>builder().schema("schema").build());
 
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, "3");

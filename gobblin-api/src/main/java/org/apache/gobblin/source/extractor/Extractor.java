@@ -129,7 +129,7 @@ public interface Extractor<S, D> extends Closeable {
       }
     });
     recordStream = recordStream.doFinally(this::close);
-    return new RecordStreamWithMetadata<>(recordStream, new GlobalMetadata<>(schema));
+    return new RecordStreamWithMetadata<>(recordStream, GlobalMetadata.<S>builder().schema(schema).build());
   }
 
 }

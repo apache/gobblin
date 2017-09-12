@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -183,13 +184,15 @@ public class Task implements TaskIFace {
     this.converter = closer.register(new MultiConverter(converters));
 
     // can't have both record stream processors and converter lists configured
-    if (!this.recordStreamProcessors.isEmpty() && !converters.isEmpty()) {
+    try {
+      Preconditions.checkState(this.recordStreamProcessors.isEmpty() || converters.isEmpty(),
+          "Converters cannot be specified when RecordStreamProcessors are specified");
+    } catch (IllegalStateException e) {
       try {
         closer.close();
       } catch (Throwable t) {
         LOG.error("Failed to close all open resources", t);
       }
-
       throw new TaskInstantiationException("Converters cannot be specified when RecordStreamProcessors are specified");
     }
 

@@ -19,6 +19,8 @@ package org.apache.gobblin.converter;
 
 import java.util.concurrent.CompletableFuture;
 
+import com.google.common.base.Optional;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -92,7 +94,8 @@ public abstract class AsyncConverter1to1<SI, SO, DI, DO> extends Converter<SI, S
                 throw new IllegalStateException("Expected ControlMessage or RecordEnvelope.");
               }
             }, false, maxConcurrentAsyncConversions);
-    return inputStream.withRecordStream(outputStream, new GlobalMetadata<SO>(outputSchema));
+    return inputStream.withRecordStream(outputStream, GlobalMetadata.<SI, SO>builderWithInput(inputStream.getGlobalMetadata(),
+        Optional.of(outputSchema)).build());
   }
 
   @RequiredArgsConstructor

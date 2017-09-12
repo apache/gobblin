@@ -49,7 +49,7 @@ public class RecordStreamWithMetadata<D, S> {
    */
   @Deprecated
   public <DO, SO> RecordStreamWithMetadata<DO, SO> withRecordStream(Flowable<StreamEntity<DO>> newRecordStream, SO newSchema) {
-    return new RecordStreamWithMetadata<>(newRecordStream, new GlobalMetadata<SO>(newSchema));
+    return new RecordStreamWithMetadata<>(newRecordStream, GlobalMetadata.<SO>builder().schema(newSchema).build());
   }
 
   /**

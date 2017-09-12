@@ -191,7 +191,8 @@ public abstract class InstrumentedExtractorBase<S, D>
       }
     });
     recordStream = recordStream.doFinally(this::close);
-    return new RecordStreamWithMetadata<>(recordStream, new GlobalMetadata<S>(schema));
+    return new RecordStreamWithMetadata<>(recordStream, GlobalMetadata.<S>builder().schema(schema).build());
+
   }
 
   /**

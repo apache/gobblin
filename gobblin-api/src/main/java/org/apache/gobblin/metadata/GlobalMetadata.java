@@ -20,7 +20,11 @@ import org.apache.gobblin.fork.CopyHelper;
 import org.apache.gobblin.fork.CopyNotSupportedException;
 import org.apache.gobblin.fork.Copyable;
 
+import com.google.common.base.Optional;
+
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
@@ -29,8 +33,9 @@ import lombok.Getter;
  * Global metadata
  * @param <S> schema type
  */
-@AllArgsConstructor
+@AllArgsConstructor(access=AccessLevel.PRIVATE)
 @EqualsAndHashCode
+@Builder
 public class GlobalMetadata<S> implements Copyable<GlobalMetadata<S>> {
   @Getter
   private S schema;
@@ -42,5 +47,23 @@ public class GlobalMetadata<S> implements Copyable<GlobalMetadata<S>> {
     }
 
     throw new CopyNotSupportedException("Type is not copyable: " + schema.getClass().getName());
+  }
+
+  /**
+   * Builder that takes in an input {@GlobalMetadata} to use as a base.
+   * @param inputMetadata input metadata
+   * @param outputSchema output schema to set in the builder
+   * @param <SI> input schema type
+   * @param <SO> output schema type
+   * @return builder
+   */
+  public static <SI, SO> GlobalMetadataBuilder<SO> builderWithInput(GlobalMetadata<SI> inputMetadata, Optional<SO> outputSchema) {
+    GlobalMetadataBuilder<SO> builder = (GlobalMetadataBuilder<SO>) builder();
+
+    if (outputSchema.isPresent()) {
+      builder.schema(outputSchema.get());
+    }
+
+    return builder;
   }
 }

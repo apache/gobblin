@@ -44,7 +44,7 @@ public class ConverterTest {
 
     RecordStreamWithMetadata<Integer, String> stream =
         new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(0)),
-            new GlobalMetadata<>("schema")).mapRecords(r -> {
+            GlobalMetadata.<String>builder().schema("schema").build()).mapRecords(r -> {
           r.addCallBack(ackable);
           return r;
         });
@@ -63,7 +63,7 @@ public class ConverterTest {
 
     RecordStreamWithMetadata<Integer, String> stream =
         new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(1)),
-            new GlobalMetadata<>("schema")).mapRecords(r -> {
+            GlobalMetadata.<String>builder().schema("schema").build()).mapRecords(r -> {
           r.addCallBack(ackable);
           return r;
         });
@@ -85,7 +85,7 @@ public class ConverterTest {
 
     RecordStreamWithMetadata<Integer, String> stream =
         new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(2)),
-            new GlobalMetadata<>("schema")).mapRecords(r -> {
+            GlobalMetadata.<String>builder().schema("schema").build()).mapRecords(r -> {
           r.addCallBack(ackable);
           return r;
         });
@@ -110,7 +110,7 @@ public class ConverterTest {
 
     RecordStreamWithMetadata<Integer, String> stream =
         new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(1), new MyControlMessage<>()),
-            new GlobalMetadata<>("schema")).mapRecords(r -> {
+            GlobalMetadata.<String>builder().schema("schema").build()).mapRecords(r -> {
           r.addCallBack(ackable);
           return r;
         });

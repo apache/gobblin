@@ -36,6 +36,8 @@ import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.util.FinalState;
 
+import com.google.common.base.Optional;
+
 import io.reactivex.Flowable;
 
 
@@ -125,22 +127,24 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
   public RecordStreamWithMetadata<DO, SO> processStream(RecordStreamWithMetadata<DI, SI> inputStream,
       WorkUnitState workUnitState) throws SchemaConversionException {
     init(workUnitState);
-    this.outputGlobalMetadata =
-        new GlobalMetadata<SO>(convertSchema(inputStream.getGlobalMetadata().getSchema(), workUnitState));
+    this.outputGlobalMetadata = GlobalMetadata.<SI, SO>builderWithInput(inputStream.getGlobalMetadata(),
+        Optional.of(convertSchema(inputStream.getGlobalMetadata().getSchema(), workUnitState))).build();
     Flowable<StreamEntity<DO>> outputStream =
         inputStream.getRecordStream()
             .flatMap(in -> {
               if (in instanceof ControlMessage) {
                 ControlMessage out = (ControlMessage) in;
+
+                getMessageHandler().handleMessage((ControlMessage) in);
+
                 // update the output schema with the new input schema from the MetadataUpdateControlMessage
                 if (in instanceof MetadataUpdateControlMessage) {
-                  this.outputGlobalMetadata =
-                      new GlobalMetadata<SO>(convertSchema((SI)((MetadataUpdateControlMessage) in).getGlobalMetadata()
-                                      .getSchema(), workUnitState));
+                  this.outputGlobalMetadata = GlobalMetadata.<SI, SO>builderWithInput(inputStream.getGlobalMetadata(),
+                      Optional.of(convertSchema((SI)((MetadataUpdateControlMessage) in).getGlobalMetadata()
+                          .getSchema(), workUnitState))).build();
                   out = new MetadataUpdateControlMessage<SO, DO>(this.outputGlobalMetadata);
                 }
 
-                getMessageHandler().handleMessage((ControlMessage) in);
                 return Flowable.just(((ControlMessage<DO>) out));
               } else if (in instanceof RecordEnvelope) {
                 RecordEnvelope<DI> recordEnvelope = (RecordEnvelope<DI>) in;

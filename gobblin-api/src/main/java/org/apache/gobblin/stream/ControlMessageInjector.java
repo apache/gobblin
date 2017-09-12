@@ -50,7 +50,7 @@ public abstract class ControlMessageInjector<SI, DI> implements Closeable,
    * @param workUnitState a {@link WorkUnitState} object carrying configuration properties
    * @return an initialized {@link ControlMessageInjector} instance
    */
-  public ControlMessageInjector<SI, DI> init(WorkUnitState workUnitState) {
+  protected ControlMessageInjector<SI, DI> init(WorkUnitState workUnitState) {
     return this;
   }
 
@@ -63,7 +63,7 @@ public abstract class ControlMessageInjector<SI, DI> implements Closeable,
    * @param inputGlobalMetadata the global metadata for input messages
    * @param workUnitState
    */
-  public void setInputGlobalMetadata(GlobalMetadata<SI> inputGlobalMetadata, WorkUnitState workUnitState) {
+  protected void setInputGlobalMetadata(GlobalMetadata<SI> inputGlobalMetadata, WorkUnitState workUnitState) {
     this.inputGlobalMetadata = inputGlobalMetadata;
   }
 
@@ -73,7 +73,7 @@ public abstract class ControlMessageInjector<SI, DI> implements Closeable,
    * @param workUnitState
    * @return The {@link ControlMessage}s to inject before the record
    */
-  public abstract Iterable<ControlMessage<DI>> injectControlMessagesBefore(RecordEnvelope<DI> inputRecordEnvelope,
+  protected abstract Iterable<ControlMessage<DI>> injectControlMessagesBefore(RecordEnvelope<DI> inputRecordEnvelope,
       WorkUnitState workUnitState);
 
   /**
@@ -82,7 +82,7 @@ public abstract class ControlMessageInjector<SI, DI> implements Closeable,
    * @param workUnitState
    * @return The {@link ControlMessage}s to inject after the record
    */
-  public abstract Iterable<ControlMessage<DI>> injectControlMessagesAfter(RecordEnvelope<DI> inputRecordEnvelope,
+  protected abstract Iterable<ControlMessage<DI>> injectControlMessagesAfter(RecordEnvelope<DI> inputRecordEnvelope,
       WorkUnitState workUnitState);
 
   /**
@@ -148,7 +148,7 @@ public abstract class ControlMessageInjector<SI, DI> implements Closeable,
   /**
    * @return {@link ControlMessageHandler} to call for each {@link ControlMessage} received.
    */
-  public ControlMessageHandler getMessageHandler() {
+  protected ControlMessageHandler getMessageHandler() {
     return ControlMessageHandler.NOOP;
   }
 }
