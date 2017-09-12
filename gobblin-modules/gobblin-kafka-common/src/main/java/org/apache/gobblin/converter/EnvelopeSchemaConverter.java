@@ -47,7 +47,10 @@ import org.apache.avro.io.DecoderFactory;
  * Input record: record corresponding to input schema
  * Output schema: schema obtained from schema registry using key provided in input record's {@link #PAYLOAD_SCHEMA_ID_FIELD}
  * Output record: record corresponding to output schema obtained from input record's {@link #PAYLOAD_FIELD} as bytes
+ *
+ * @deprecated use {@link EnvelopePayloadExtractingConverter}
  */
+@Deprecated
 public class EnvelopeSchemaConverter extends Converter<Schema, String, GenericRecord, GenericRecord> {
 
   public static final String PAYLOAD_SCHEMA_ID_FIELD = "EnvelopeSchemaConverter.schemaIdField";
