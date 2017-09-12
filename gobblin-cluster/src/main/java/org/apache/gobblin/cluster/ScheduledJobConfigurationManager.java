@@ -27,24 +27,23 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecExecutorInstance;
-import org.apache.gobblin.runtime.api.SpecExecutorInstanceConsumer;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.runtime.api.SpecConsumer;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 
 
 @Alpha
@@ -59,9 +58,9 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
 
   private final ScheduledExecutorService fetchJobSpecExecutor;
 
-  private final SpecExecutorInstanceConsumer specExecutorInstanceConsumer;
+  private final SpecConsumer _specConsumer;
 
-  private final ClassAliasResolver<SpecExecutorInstanceConsumer> aliasResolver;
+  private final ClassAliasResolver<SpecConsumer> aliasResolver;
 
   public ScheduledJobConfigurationManager(EventBus eventBus, Config config) {
     super(eventBus, config);
@@ -73,17 +72,17 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
     this.fetchJobSpecExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("FetchJobSpecExecutor")));
 
-    this.aliasResolver = new ClassAliasResolver<>(SpecExecutorInstanceConsumer.class);
+    this.aliasResolver = new ClassAliasResolver<>(SpecConsumer.class);
     try {
-      String specExecutorInstanceConsumerClassName = GobblinClusterConfigurationKeys.DEFAULT_SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS;
-      if (config.hasPath(GobblinClusterConfigurationKeys.SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS_KEY)) {
-        specExecutorInstanceConsumerClassName = config.getString(GobblinClusterConfigurationKeys.SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS_KEY);
+      String specConsumerClassName = GobblinClusterConfigurationKeys.DEFAULT_SPEC_CONSUMER_CLASS;
+      if (config.hasPath(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY)) {
+        specConsumerClassName = config.getString(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY);
       }
-      LOGGER.info("Using SpecExecutorInstanceConsumer ClassNameclass name/alias " + specExecutorInstanceConsumerClassName);
-      this.specExecutorInstanceConsumer = (SpecExecutorInstanceConsumer) ConstructorUtils
-          .invokeConstructor(Class.forName(this.aliasResolver.resolve( specExecutorInstanceConsumerClassName)), config);
+      LOGGER.info("Using SpecConsumer ClassNameclass name/alias " + specConsumerClassName);
+      this._specConsumer = (SpecConsumer) ConstructorUtils
+          .invokeConstructor(Class.forName(this.aliasResolver.resolve(specConsumerClassName)), config);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-          | ClassNotFoundException e) {
+        | ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
   }
@@ -116,25 +115,25 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
    * @throws InterruptedException
    */
   private void fetchJobSpecs() throws ExecutionException, InterruptedException {
-    List<Pair<SpecExecutorInstance.Verb, Spec>> changesSpecs =
-        (List<Pair<SpecExecutorInstance.Verb, Spec>>) this.specExecutorInstanceConsumer.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, Spec>> changesSpecs =
+        (List<Pair<SpecExecutor.Verb, Spec>>) this._specConsumer.changedSpecs().get();
 
-    for (Pair<SpecExecutorInstance.Verb, Spec> entry : changesSpecs) {
+    for (Pair<SpecExecutor.Verb, Spec> entry : changesSpecs) {
 
-      SpecExecutorInstance.Verb verb = entry.getKey();
-      if (verb.equals(SpecExecutorInstance.Verb.ADD)) {
+      SpecExecutor.Verb verb = entry.getKey();
+      if (verb.equals(SpecExecutor.Verb.ADD)) {
 
         // Handle addition
         JobSpec jobSpec = (JobSpec) entry.getValue();
         postNewJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
         jobSpecs.put(entry.getValue().getUri(), (JobSpec) entry.getValue());
-      } else if (verb.equals(SpecExecutorInstanceConsumer.Verb.UPDATE)) {
+      } else if (verb.equals(SpecExecutor.Verb.UPDATE)) {
 
         // Handle update
         JobSpec jobSpec = (JobSpec) entry.getValue();
         postUpdateJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
         jobSpecs.put(entry.getValue().getUri(), (JobSpec) entry.getValue());
-      } else if (verb.equals(SpecExecutorInstanceConsumer.Verb.DELETE)) {
+      } else if (verb.equals(SpecExecutor.Verb.DELETE)) {
 
         // Handle delete
         Spec anonymousSpec = (Spec) entry.getValue();

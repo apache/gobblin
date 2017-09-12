@@ -35,6 +35,7 @@ dependencies {
   compile externalDependency.jasypt
   compile externalDependency.lombok
   compile externalDependency.metricsCore
+  compile externalDependency.guavaretrying
   compile externalDependency.guice
   compile externalDependency.typesafeConfig
   compile externalDependency.commonsPool

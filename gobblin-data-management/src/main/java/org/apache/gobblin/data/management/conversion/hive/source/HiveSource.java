@@ -427,7 +427,7 @@ public class HiveSource implements Source {
   public void shutdown(SourceState state) {
   }
 
-  private static FileSystem getSourceFs(State state) throws IOException {
+  public static FileSystem getSourceFs(State state) throws IOException {
     if (state.contains(HIVE_SOURCE_FS_URI)) {
       return FileSystem.get(URI.create(state.getProp(HIVE_SOURCE_FS_URI)), HadoopUtils.getConfFromState(state));
     }

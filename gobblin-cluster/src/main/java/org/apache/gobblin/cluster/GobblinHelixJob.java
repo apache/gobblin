@@ -19,6 +19,7 @@ package org.apache.gobblin.cluster;
 
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +56,7 @@ public class GobblinHelixJob extends BaseGobblinJob implements InterruptableJob 
   @Override
   public void executeImpl(JobExecutionContext context) throws JobExecutionException {
     JobDataMap dataMap = context.getJobDetail().getJobDataMap();
-
+    ConcurrentHashMap runningMap = (ConcurrentHashMap)dataMap.get(GobblinHelixJobScheduler.JOB_RUNNING_MAP);
     final JobScheduler jobScheduler = (JobScheduler) dataMap.get(JobScheduler.JOB_SCHEDULER_KEY);
     // the properties may get mutated during job execution and the scheduler reuses it for the next round of scheduling,
     // so clone it
@@ -67,7 +68,7 @@ public class GobblinHelixJob extends BaseGobblinJob implements InterruptableJob 
     List<? extends Tag<?>> eventMetadata = (List<? extends Tag<?>>) dataMap.get(GobblinHelixJobScheduler.METADATA_TAGS);
 
     try {
-      final JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, helixManager, appWorkDir, eventMetadata);
+      final JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, helixManager, appWorkDir, eventMetadata, runningMap);
       if (Boolean.valueOf(jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD,
               Boolean.toString(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT)))) {
         jobScheduler.runJob(jobProps, jobListener, jobLauncher);

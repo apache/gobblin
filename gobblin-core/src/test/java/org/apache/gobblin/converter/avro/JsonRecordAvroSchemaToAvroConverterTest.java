@@ -53,12 +53,13 @@ public class JsonRecordAvroSchemaToAvroConverterTest {
     this.state = new WorkUnitState(
         source.createWorkUnit(source.createExtract(TableType.SNAPSHOT_ONLY, "test_table", "test_namespace")));
     this.state.setProp(JsonRecordAvroSchemaToAvroConverter.AVRO_SCHEMA_KEY, avroSchemaString);
+    this.state.setProp(JsonRecordAvroSchemaToAvroConverter.IGNORE_FIELDS, "fieldToIgnore");
   }
 
   @Test
   public void testConverter()
       throws Exception {
-    JsonRecordAvroSchemaToAvroConverter<String> converter = new JsonRecordAvroSchemaToAvroConverter();
+    JsonRecordAvroSchemaToAvroConverter<String> converter = new JsonRecordAvroSchemaToAvroConverter<>();
 
     converter.init(this.state);
 
@@ -66,6 +67,7 @@ public class JsonRecordAvroSchemaToAvroConverterTest {
 
     GenericRecord record = converter.convertRecord(avroSchema, this.jsonRecord, this.state).iterator().next();
 
+    Assert.assertEquals(record.get("fieldToIgnore"), null);
     Assert.assertEquals(record.get("nullableField"), null);
     Assert.assertEquals(record.get("longField"), 1234L);
 

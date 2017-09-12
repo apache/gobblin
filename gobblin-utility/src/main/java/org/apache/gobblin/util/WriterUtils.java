@@ -28,10 +28,14 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.token.Token;
+import org.apache.log4j.Logger;
 
+import com.github.rholder.retry.Retryer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,6 +43,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.retry.RetryerFactory;
 
 
 /**
@@ -46,8 +51,11 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  */
 @Slf4j
 public class WriterUtils {
+  private static final Logger LOG = Logger.getLogger(WriterUtils.class);
 
   public static final String WRITER_ENCRYPTED_CONFIG_PATH = ConfigurationKeys.WRITER_PREFIX + ".encrypted";
+
+  public static final Config NO_RETRY_CONFIG = ConfigFactory.empty();
 
   /**
    * TABLENAME should be used for jobs that pull from multiple tables/topics and intend to write the records
@@ -247,15 +255,38 @@ public class WriterUtils {
    * @param perm The permission to be set
    * @throws IOException if failing to create dir or set permission.
    */
-  public static void mkdirsWithRecursivePermission(FileSystem fs, Path path, FsPermission perm) throws IOException {
+  public static void mkdirsWithRecursivePermission(final FileSystem fs, final Path path, FsPermission perm) throws IOException {
+    mkdirsWithRecursivePermissionWithRetry(fs, path, perm, NO_RETRY_CONFIG);
+  }
+
+  public static void mkdirsWithRecursivePermissionWithRetry(final FileSystem fs, final Path path, FsPermission perm, Config retrierConfig) throws IOException {
+
     if (fs.exists(path)) {
       return;
     }
+
     if (path.getParent() != null && !fs.exists(path.getParent())) {
-      mkdirsWithRecursivePermission(fs, path.getParent(), perm);
+      mkdirsWithRecursivePermissionWithRetry(fs, path.getParent(), perm, retrierConfig);
     }
+
     if (!fs.mkdirs(path, perm)) {
       throw new IOException(String.format("Unable to mkdir %s with permission %s", path, perm));
+    }
+
+    if (retrierConfig != NO_RETRY_CONFIG) {
+      //Wait until file is not there as it can happen the file fail to exist right away on eventual consistent fs like Amazon S3
+      Retryer<Void> retryer = RetryerFactory.newInstance(retrierConfig);
+
+      try {
+        retryer.call(() -> {
+          if (!fs.exists(path)) {
+            throw new IOException("Path " + path + " does not exist however it should. Will wait more.");
+          }
+          return null;
+        });
+      } catch (Exception e) {
+        throw new IOException("Path " + path + "does not exist however it should. Giving up..."+ e);
+      }
     }
 
     // Double check permission, since fs.mkdirs() may not guarantee to set the permission correctly

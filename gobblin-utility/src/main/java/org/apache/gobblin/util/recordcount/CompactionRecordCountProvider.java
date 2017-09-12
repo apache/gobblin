@@ -20,11 +20,10 @@ package org.apache.gobblin.util.recordcount;
 import java.util.Random;
 import java.util.regex.Pattern;
 
+import org.apache.gobblin.util.RecordCountProvider;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
-
-import org.apache.gobblin.util.RecordCountProvider;
 
 
 /**
@@ -46,6 +45,13 @@ public class CompactionRecordCountProvider extends RecordCountProvider {
    * Construct the file name as {filenamePrefix}{recordCount}.{SystemCurrentTimeInMills}.{RandomInteger}{SUFFIX}.
    */
   public static String constructFileName(String filenamePrefix, long recordCount) {
+    return constructFileName(filenamePrefix, SUFFIX, recordCount);
+  }
+
+  /**
+   * Construct the file name as {filenamePrefix}{recordCount}.{SystemCurrentTimeInMills}.{RandomInteger}{extension}.
+   */
+  public static String constructFileName(String filenamePrefix, String extension, long recordCount) {
     Preconditions.checkArgument(
         filenamePrefix.equals(M_OUTPUT_FILE_PREFIX) || filenamePrefix.equals(MR_OUTPUT_FILE_PREFIX),
         String.format("%s is not a supported prefix, which should be %s, or %s.", filenamePrefix, M_OUTPUT_FILE_PREFIX,
@@ -57,9 +63,10 @@ public class CompactionRecordCountProvider extends RecordCountProvider {
     sb.append(Long.toString(System.currentTimeMillis()));
     sb.append(SEPARATOR);
     sb.append(Integer.toString(RANDOM.nextInt(Integer.MAX_VALUE)));
-    sb.append(SUFFIX);
+    sb.append(extension);
     return sb.toString();
   }
+
 
   /**
    * Get the record count through filename.
@@ -81,12 +88,11 @@ public class CompactionRecordCountProvider extends RecordCountProvider {
    * This method currently supports converting the given {@link Path} from {@link IngestionRecordCountProvider}.
    * The converted {@link Path} will start with {@link #M_OUTPUT_FILE_PREFIX}.
    */
-  @Override
-  public Path convertPath(Path path, RecordCountProvider src) {
+  public Path convertPath(Path path, String extension, RecordCountProvider src) {
     if (this.getClass().equals(src.getClass())) {
       return path;
     } else if (src.getClass().equals(IngestionRecordCountProvider.class)) {
-      String newFileName = constructFileName(M_OUTPUT_FILE_PREFIX, src.getRecordCount(path));
+      String newFileName = constructFileName(M_OUTPUT_FILE_PREFIX, extension, src.getRecordCount(path));
       return new Path(path.getParent(), newFileName);
     } else {
       throw getNotImplementedException(src);

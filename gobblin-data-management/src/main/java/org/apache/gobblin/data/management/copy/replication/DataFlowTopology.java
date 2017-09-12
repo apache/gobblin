@@ -36,6 +36,16 @@ import lombok.AllArgsConstructor;;
  */
 
 @Data
+/**
+ * Some explanation combined with the example in configStore:
+ *
+ * {@link DataFlowTopology} is the whole block specified in,
+ * say {@link ReplicationConfiguration#DEFAULT_DATA_FLOW_TOPOLOGIES_PULLMODE}, normally call this topology.
+ *
+ * {@link #dataFlowPaths} is representing a line like: tarock:[source,holdem]
+ *
+ * From {@link #dataFlowPaths} we can have a list of {@link CopyRoute}.
+ */
 public class DataFlowTopology {
 
   private List<DataFlowPath> dataFlowPaths = new ArrayList<>();

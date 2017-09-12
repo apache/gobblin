@@ -52,8 +52,8 @@ public class TimestampDataPublisher extends BaseDataPublisher {
       Set<Path> writerOutputPathsMoved) throws IOException {
     Path publisherOutputDir = getPublisherOutputDir(state, branchId);
     if (!this.publisherFileSystemByBranches.get(branchId).exists(publisherOutputDir)) {
-      WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputDir, this.permissions.get(branchId));
+      WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
+          publisherOutputDir, this.permissions.get(branchId), this.retrierConfig);
     }
     super.publishData(state, branchId, publishSingleTaskData, writerOutputPathsMoved);
   }
@@ -74,8 +74,8 @@ public class TimestampDataPublisher extends BaseDataPublisher {
     Path newDst = new Path(new Path(outputDir, getDbTableName(schemaName)), timestamp);
 
     if (!this.publisherFileSystemByBranches.get(branchId).exists(newDst)) {
-      WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId),
-          newDst.getParent(), this.permissions.get(branchId));
+      WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
+          newDst.getParent(), this.permissions.get(branchId), this.retrierConfig);
     }
 
     super.movePath(parallelRunner, state, src, newDst, branchId);

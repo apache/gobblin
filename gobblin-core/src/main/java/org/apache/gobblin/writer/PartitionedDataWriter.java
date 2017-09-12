@@ -45,6 +45,7 @@ import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.FinalState;
 import org.apache.gobblin.writer.partitioner.WriterPartitioner;
@@ -330,9 +331,14 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   private class PartitionDataWriterMessageHandler implements ControlMessageHandler {
     @Override
     public void handleMessage(ControlMessage message) {
+      StreamEntity.ForkCloner cloner = message.forkCloner();
+
       for (DataWriter writer : PartitionedDataWriter.this.partitionWriters.asMap().values()) {
-        writer.getMessageHandler().handleMessage((ControlMessage) message.getSingleClone());
+        ControlMessage cloned = (ControlMessage) cloner.getClone();
+        writer.getMessageHandler().handleMessage(cloned);
       }
+
+      cloner.close();
     }
   }
 }

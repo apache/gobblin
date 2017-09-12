@@ -27,7 +27,7 @@
 					<value>true</value>
 				</property>
 			</configuration>
-			<main-class>gobblin.runtime.local.CliLocalJobLauncher</main-class>
+			<main-class>org.apache.gobblin.runtime.local.CliLocalJobLauncher</main-class>
 			<arg>--jobconfig</arg>
 			<arg>${nameNode}/path/to/jobconfig.properties</arg>
 			<arg>--sysconfig</arg>
