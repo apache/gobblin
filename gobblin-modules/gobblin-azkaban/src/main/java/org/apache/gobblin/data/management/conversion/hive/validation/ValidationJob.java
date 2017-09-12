@@ -391,7 +391,7 @@ public class ValidationJob extends AbstractJob {
               log.debug(String.format("Going to execute queries: %s for format: %s", dataValidationQueries, format));
               List<Long> rowDataValidatedCount = ValidationJob.this.getValidationOutputFromHive(dataValidationQueries);
               // Validate and populate report
-              validateAndPopulateReport(hiveDataset.getTable().getCompleteName(), updateTime, rowCounts, rowDataValidatedCount.get(0));
+              validateAndPopulateReport(hiveDataset.getTable().getCompleteName(), updateTime, rowCounts, rowDataValidatedCount);
 
               return null;
             }
@@ -460,7 +460,7 @@ public class ValidationJob extends AbstractJob {
                   List<Long> rowDataValidatedCount = ValidationJob.this.getValidationOutputFromHive(dataValidationQueries);
 
                   // Validate and populate report
-                  validateAndPopulateReport(sourcePartition.getCompleteName(), updateTime, rowCounts, rowDataValidatedCount.get(0));
+                  validateAndPopulateReport(sourcePartition.getCompleteName(), updateTime, rowCounts, rowDataValidatedCount);
 
                   return null;
                 }
@@ -606,8 +606,13 @@ public class ValidationJob extends AbstractJob {
     return rowCounts;
   }
 
-  private void validateAndPopulateReport(String datasetIdentifier, long conversionInstance, List<Long> rowCounts, Long rowDataValidatedCount) {
+  private void validateAndPopulateReport(String datasetIdentifier, long conversionInstance, List<Long> rowCounts, List<Long> rowDataValidatedCount) {
     if (null == rowCounts || rowCounts.size() == 0) {
+      this.warnConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance), "No conversion details found");
+      this.eventSubmitter.submit(EventConstants.VALIDATION_NOOP_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
+      return;
+    }
+    if (null == rowDataValidatedCount || rowDataValidatedCount.size() == 0) {
       this.warnConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance), "No conversion details found");
       this.eventSubmitter.submit(EventConstants.VALIDATION_NOOP_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
       return;
@@ -642,7 +647,7 @@ public class ValidationJob extends AbstractJob {
     }
 
     // Data count validation
-    if (rowCountCached == rowDataValidatedCount) {
+    if (rowCountCached == rowDataValidatedCount.get(0)) {
       this.dataValidationSuccessful.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
           "Common rows matched expected value. Expected: " + rowCountCached + " Found: " + rowDataValidatedCount);
     } else {
