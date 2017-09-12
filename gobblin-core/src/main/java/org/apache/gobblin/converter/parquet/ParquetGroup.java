@@ -33,8 +33,19 @@ import parquet.example.data.simple.Primitive;
 import parquet.io.api.Binary;
 import parquet.io.api.RecordConsumer;
 import parquet.schema.GroupType;
+import parquet.schema.PrimitiveType;
 
 
+/**
+ * Custom Implementation of {@link Group} to support adding any {@link PrimitiveType} and {@link GroupType}
+ * without their specific type.
+ * Adding a {@link Group} to {@link parquet.example.data.simple.SimpleGroup} using
+ * {@link parquet.example.data.simple.SimpleGroup#addGroup(String)} results in a new
+ * group on which you have to add {@link PrimitiveType} using the API.
+ * This implementation allows adding {@link Group} by passing it to the add method.
+ *
+ * @author tilakpatidar
+ */
 public class ParquetGroup extends Group {
 
   private final GroupType schema;
@@ -205,6 +216,11 @@ public class ParquetGroup extends Group {
     ((Primitive) this.getValue(field, index)).writeValue(recordConsumer);
   }
 
+  /**
+   * Add any object of {@link PrimitiveType} or {@link Group} type with a String key.
+   * @param key
+   * @param object
+   */
   public void add(String key, Object object) {
     int fieldIndex = getIndex(key);
     if (object.getClass() == ParquetGroup.class) {
@@ -218,6 +234,11 @@ public class ParquetGroup extends Group {
     return getType().getFieldIndex(key);
   }
 
+  /**
+   * Add a {@link Group} given a String key.
+   * @param key
+   * @param object
+   */
   private void addGroup(String key, Group object) {
     int fieldIndex = getIndex(key);
     this.schema.getType(fieldIndex).asGroupType();

@@ -31,6 +31,10 @@ import parquet.schema.MessageType;
 import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.ROOT;
 
 
+/**
+ * A converter to Convert JsonIntermediate to Parquet
+ * @author tilakpatidar
+ */
 public class JsonIntermediateToParquetConverter extends Converter<JsonArray, MessageType, JsonObject, ParquetGroup> {
   private RecordConverter recordConverter;
 

@@ -84,7 +84,7 @@ public class JsonElementConversionFactory {
    * @param schemaNode
    * @param state
    * @param nullable
-   * @param repeated
+   * @param repeated - Is the {@link parquet.schema.Type} repeated in the parent {@link parquet.example.data.Group}
    * @return
    */
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
@@ -171,6 +171,10 @@ public class JsonElementConversionFactory {
       return this.nullable;
     }
 
+    /**
+     * Returns a {@link PrimitiveType} schema
+     * @return
+     */
     protected parquet.schema.Type schema() {
       return new PrimitiveType(repeated ? REPEATED : optionalOrRequired(), getTargetType(), getName());
     }
@@ -217,11 +221,18 @@ public class JsonElementConversionFactory {
       return isNullable() ? OPTIONAL : REQUIRED;
     }
 
+    /**
+     * Is Parquet type repeated in the {@link parquet.example.data.Group}
+     * @return
+     */
     protected boolean isRepeated() {
       return this.repeated;
     }
   }
 
+  /**
+   * For converting Complex data types like ARRAY, ENUM, MAP etc.
+   */
   public static abstract class ComplexConverter extends JsonElementConverter {
     private JsonElementConverter elementConverter;
 
@@ -229,6 +240,10 @@ public class JsonElementConversionFactory {
       super(fieldName, nullable, repeated);
     }
 
+    /**
+     * Set a {@link JsonElementConverter} for the elements present within Complex data types.
+     * @param elementConverter
+     */
     protected void setElementConverter(JsonElementConverter elementConverter) {
       this.elementConverter = elementConverter;
     }
@@ -243,6 +258,9 @@ public class JsonElementConversionFactory {
     }
   }
 
+  /**
+   * For converting complex types which compose same element type.
+   */
   public static abstract class ComplexConverterForUniformElementTypes extends ComplexConverter {
     private JsonElementConverter elementConverter;
     private PrimitiveTypeName elementPrimitiveName;
@@ -255,6 +273,10 @@ public class JsonElementConversionFactory {
       this.elementSourceType = getPrimitiveTypeInSource(schemaNode, itemKey);
     }
 
+    /**
+     * Set a {@link JsonElementConverter} for the elements present within Complex data types.
+     * @param elementConverter
+     */
     protected void setElementConverter(JsonElementConverter elementConverter) {
       this.elementConverter = elementConverter;
     }
@@ -268,10 +290,22 @@ public class JsonElementConversionFactory {
       throw new UnsupportedOperationException("Complex types does not support PrimitiveTypeName");
     }
 
+    /**
+     * {@link PrimitiveTypeName} of the elements composed within complex type.
+     * @param schemaNode
+     * @param itemKey
+     * @return
+     */
     private PrimitiveTypeName getPrimitiveTypeInParquet(JsonObject schemaNode, String itemKey) {
       return typeMap.get(getPrimitiveTypeInSource(schemaNode, itemKey));
     }
 
+    /**
+     * {@link Type} of the elements composed within complex type.
+     * @param schemaNode
+     * @param itemKey
+     * @return
+     */
     private Type getPrimitiveTypeInSource(JsonObject schemaNode, String itemKey) {
       String type = schemaNode.get("dataType").getAsJsonObject().get(itemKey).getAsString().toUpperCase();
       return Type.valueOf(type);
@@ -285,6 +319,10 @@ public class JsonElementConversionFactory {
       return elementSourceType;
     }
 
+    /**
+     * Prepare a temp schema object of composed elements for passing to element converters.
+     * @return
+     */
     protected JsonObject getElementSchema() {
       String typeOfElement = getElementTypeSource().toString();
       JsonObject temp = new JsonObject();
