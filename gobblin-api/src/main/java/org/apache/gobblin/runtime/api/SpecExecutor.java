@@ -23,29 +23,37 @@ import java.util.concurrent.Future;
 
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.annotation.Alpha;
-
 
 /**
- * Defines a SpecExecutorInstance (typically a standalone instance, cluster or Azkaban deployment)
- * that can execute a {@link Spec}.
+ * Defines a representation of JobSpec-Executor in GaaS.
+ * A triplet of <Technology, location, communication mechanism> uniquely defines an object of SpecExecutor.
+ * e.g. <Lumos, Holdem, Rest> represents a Executor that moves data by Lumos, running on Holdem can be reached by Rest.
  */
-@Alpha
-public interface SpecExecutorInstance {
-  /** An URI identifying the SpecExecutorInstance. */
+public interface SpecExecutor {
+  /** An URI identifying the SpecExecutor. */
   URI getUri();
 
-  /** Human-readable description of the SpecExecutorInstance .*/
+  /** Human-readable description of the SpecExecutor .*/
   Future<String> getDescription();
 
-  /** SpecExecutorInstance config as a typesafe config object. */
+  /** SpecExecutor config as a typesafe config object. */
   Future<Config> getConfig();
 
-  /** Health of SpecExecutorInstance. */
+  /** SpecExecutor attributes include Location of SpecExecutor and the Type of it (Technology it used for data movement,
+   * like, gobblin-standalone/gobblin-cluster
+   * SpecExecutor attributes are supposed to be read-only once instantiated.
+   * */
+  Config getAttrs();
+
+  /** Health of SpecExecutor. */
   Future<String> getHealth();
 
-  /** Source : Destination processing capabilities of SpecExecutorInstance. */
-  Future<? extends Map<String, String>> getCapabilities();
+  /** Source : Destination processing capabilities of SpecExecutor. */
+  Future<? extends Map<ServiceNode, ServiceNode>> getCapabilities();
+
+  /** A communication socket for generating spec to assigned physical executors, paired with
+   * a consumer on the physical executor side. */
+  Future<? extends SpecProducer> getProducer();
 
   public static enum Verb {
     ADD(1, "add"),

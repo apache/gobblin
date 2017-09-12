@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -35,33 +34,33 @@ import org.testng.annotations.Test;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
 import org.apache.gobblin.metrics.reporter.KafkaTestBase;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecExecutorInstance;
 import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.WriteResponse;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+
 import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
-public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
+public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
 
-  public static final String TOPIC = StreamingKafkaSpecExecutorInstanceTest.class.getSimpleName();
+  public static final String TOPIC = StreamingKafkaSpecExecutorTest.class.getSimpleName();
 
   private Closer _closer;
   private Properties _properties;
-  private SimpleKafkaSpecExecutorInstanceProducer _seip;
-  private StreamingKafkaSpecExecutorInstanceConsumer _seic;
+  private SimpleKafkaSpecProducer _seip;
+  private StreamingKafkaSpecConsumer _seic;
   private NonObservingFSJobCatalog _jobCatalog;
   private String _kafkaBrokers;
-  private static final String _TEST_DIR_PATH = "/tmp/StreamingKafkaSpecExecutorInstanceTest";
+  private static final String _TEST_DIR_PATH = "/tmp/StreamingKafkaSpecExecutorTest";
   private static final String _JOBS_DIR_PATH = _TEST_DIR_PATH + "/jobs";
 
-  public StreamingKafkaSpecExecutorInstanceTest()
+  public StreamingKafkaSpecExecutorTest()
       throws InterruptedException, RuntimeException {
     super(TOPIC);
     _kafkaBrokers = "localhost:" + kafkaPort;
@@ -94,13 +93,13 @@ public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
 
     // Properties for Consumer
     _properties.setProperty("jobSpecMonitor.kafka.zookeeper.connect", zkConnect);
-    _properties.setProperty(SimpleKafkaSpecExecutorInstanceProducer.SPEC_KAFKA_TOPICS_KEY, TOPIC);
+    _properties.setProperty(SimpleKafkaSpecExecutor.SPEC_KAFKA_TOPICS_KEY, TOPIC);
     _properties.setProperty("gobblin.cluster.jobconf.fullyQualifiedPath", _JOBS_DIR_PATH);
 
     Config config = ConfigUtils.propertiesToConfig(_properties);
 
     // SEI Producer
-    _seip = _closer.register(new SimpleKafkaSpecExecutorInstanceProducer(config));
+    _seip = _closer.register(new SimpleKafkaSpecProducer(config));
 
     String addedSpecUriString = "/foo/bar/addedSpec";
     Spec spec = initJobSpec(addedSpecUriString);
@@ -111,14 +110,14 @@ public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
     _jobCatalog.startAsync().awaitRunning();
 
     // SEI Consumer
-    _seic = _closer.register(new StreamingKafkaSpecExecutorInstanceConsumer(config, _jobCatalog));
+    _seic = _closer.register(new StreamingKafkaSpecConsumer(config, _jobCatalog));
     _seic.startAsync().awaitRunning();
 
-    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
-    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.ADD), "Verb did not match");
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.ADD), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(addedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
@@ -131,11 +130,11 @@ public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
     WriteResponse writeResponse = (WriteResponse) _seip.updateSpec(spec).get();
     log.info("WriteResponse: " + writeResponse);
 
-    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
-    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.UPDATE), "Verb did not match");
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.UPDATE), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(updatedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
@@ -147,11 +146,11 @@ public class StreamingKafkaSpecExecutorInstanceTest extends KafkaTestBase {
     WriteResponse writeResponse = (WriteResponse) _seip.deleteSpec(new URI(deletedSpecUriString)).get();
     log.info("WriteResponse: " + writeResponse);
 
-    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
-    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.DELETE), "Verb did not match");
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.DELETE), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(deletedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }

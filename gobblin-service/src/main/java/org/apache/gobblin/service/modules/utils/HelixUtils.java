@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service;
+package org.apache.gobblin.service.modules.utils;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.UUID;

@@ -32,11 +32,12 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+
 
 
 @Alpha
@@ -45,7 +46,7 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
   private static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
   private final Config _config;
   private final Logger _log;
-  private final ClassAliasResolver<SpecExecutorInstanceProducer> _aliasResolver;
+  private final ClassAliasResolver<SpecExecutor> _aliasResolver;
 
   public ConfigBasedTopologySpecFactory(Config config) {
     this(config, Optional.<Logger>absent());
@@ -55,7 +56,7 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
     Preconditions.checkNotNull(config, "Config should not be null");
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     _config = config;
-    _aliasResolver = new ClassAliasResolver<>(SpecExecutorInstanceProducer.class);
+    _aliasResolver = new ClassAliasResolver<>(SpecExecutor.class);
   }
 
   @Override
@@ -70,21 +71,21 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
 
     for (String topologyName : topologyNames) {
       Preconditions.checkArgument(_config.hasPath(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX + topologyName),
-          "Config does not contain Topology Factory descriptor for Topology" + topologyName);
+          "Config does not contain Topology Factory descriptor for Topology " + topologyName);
       Config topologyConfig = _config.getConfig(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX + topologyName);
       String description = ConfigUtils.getString(topologyConfig, ServiceConfigKeys.TOPOLOGYSPEC_DESCRIPTION_KEY, "NA");
       String version = ConfigUtils.getString(topologyConfig, ServiceConfigKeys.TOPOLOGYSPEC_VERSION_KEY, "-1");
 
-      String specExecutorInstanceProducerClass = ServiceConfigKeys.DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER;
-      if (topologyConfig.hasPath(ServiceConfigKeys.SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY)) {
-        specExecutorInstanceProducerClass = topologyConfig.getString(ServiceConfigKeys.SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY);
+      String specExecutorClass = ServiceConfigKeys.DEFAULT_SPEC_EXECUTOR;
+      if (topologyConfig.hasPath(ServiceConfigKeys.SPEC_EXECUTOR_KEY)) {
+        specExecutorClass = topologyConfig.getString(ServiceConfigKeys.SPEC_EXECUTOR_KEY);
       }
-      SpecExecutorInstanceProducer specExecutorInstanceProducer;
+      SpecExecutor specExecutor;
       try {
-        _log.info("Using SpecExecutorInstanceProducer class name/alias " + specExecutorInstanceProducerClass);
-        specExecutorInstanceProducer = (SpecExecutorInstanceProducer) ConstructorUtils
+        _log.info("Using SpecProducer class name/alias " + specExecutorClass);
+        specExecutor = (SpecExecutor) ConstructorUtils
             .invokeConstructor(Class.forName(_aliasResolver
-                .resolve(specExecutorInstanceProducerClass)), topologyConfig);
+                .resolve(specExecutorClass)), topologyConfig);
       } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
           | ClassNotFoundException e) {
         throw new RuntimeException(e);
@@ -95,7 +96,7 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
           .withConfig(topologyConfig)
           .withDescription(description)
           .withVersion(version)
-          .withSpecExecutorInstanceProducer(specExecutorInstanceProducer);
+          .withSpecExecutor(specExecutor);
       topologySpecs.add(topologySpecBuilder.build());
     }
 

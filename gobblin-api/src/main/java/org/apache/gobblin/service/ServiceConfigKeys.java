@@ -18,9 +18,6 @@
 package org.apache.gobblin.service;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
-import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
-import org.apache.gobblin.service.modules.topology.ConfigBasedTopologySpecFactory;
 
 @Alpha
 public class ServiceConfigKeys {
@@ -50,7 +47,11 @@ public class ServiceConfigKeys {
 
   // Flow Compiler Keys
   public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowCompiler.class";
-  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS = IdentityFlowToJobSpecCompiler.class.getCanonicalName();
+  /**
+   * Directly use canonical class name here to avoid introducing additional dependency here.
+   */
+  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS =
+      "org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler";
 
   // Flow specific Keys
   public static final String FLOW_SOURCE_IDENTIFIER_KEY = "gobblin.flow.sourceIdentifier";
@@ -61,7 +62,8 @@ public class ServiceConfigKeys {
 
   // Topology Factory Keys (for overall factory)
   public static final String TOPOLOGY_FACTORY_PREFIX = "topologySpecFactory.";
-  public static final String DEFAULT_TOPOLOGY_SPEC_FACTORY = ConfigBasedTopologySpecFactory.class.getCanonicalName();
+  public static final String DEFAULT_TOPOLOGY_SPEC_FACTORY =
+      "org.apache.gobblin.service.modules.topology.ConfigBasedTopologySpecFactory";
   public static final String TOPOLOGYSPEC_FACTORY_KEY = TOPOLOGY_FACTORY_PREFIX + "class";
   public static final String TOPOLOGY_FACTORY_TOPOLOGY_NAMES_KEY = TOPOLOGY_FACTORY_PREFIX + "topologyNames";
 
@@ -69,12 +71,39 @@ public class ServiceConfigKeys {
   public static final String TOPOLOGYSPEC_DESCRIPTION_KEY = "description";
   public static final String TOPOLOGYSPEC_VERSION_KEY = "version";
   public static final String TOPOLOGYSPEC_URI_KEY = "uri";
-  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER = InMemorySpecExecutorInstanceProducer.class.getCanonicalName();
-  public static final String SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY = "specExecutorInstanceProducer.class";
+
+  public static final String DEFAULT_SPEC_EXECUTOR =
+      "org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor";
+  public static final String SPEC_EXECUTOR_KEY = "specExecutorInstance.class";
+  public static final String EDGE_SECURITY_KEY = "edge.secured";
+
 
   // Template Catalog Keys
   public static final String TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.fullyQualifiedPath";
 
+  // Keys related to user-specified policy on route selection.
+  // Undesired connection to form an executable JobSpec.
+  // Formatted as a String list, each entry contains a string in the format of "Source1:Sink1:URI",
+  // which indicates that data movement from source1 to sink1 with specific URI of specExecutor should be avoided.
+  public static final String POLICY_BASED_BLOCKED_CONNECTION = GOBBLIN_SERVICE_PREFIX + "blockedConnections";
+
+  // Comma separated list of nodes that is blacklisted. Names put here will become the nodeName which is the ID of a serviceNode.
+  public static final String POLICY_BASED_BLOCKED_NODES = GOBBLIN_SERVICE_PREFIX + "blockedNodes";
+  // Complete path of how the data movement is executed from source to sink.
+  // Formatted as a String, each hop separated by comma, from source to sink in order.
+  public static final String POLICY_BASED_DATA_MOVEMENT_PATH = GOBBLIN_SERVICE_PREFIX + "fullDataPath";
+
+  public static final String ATTRS_PATH_IN_CONFIG = "executorAttrs";
+
+  // Gobblin Service Graph Representation Topology related Keys
+  public static final String NODE_SECURITY_KEY = "node.secured";
+  // True means node is by default secure.
+  public static final String DEFAULT_NODE_SECURITY = "true";
+
+
+  // Policy related configuration Keys
+  public static final String DEFAULT_SERVICE_POLICY = "static";
+  public static final String SERVICE_POLICY_NAME = GOBBLIN_SERVICE_PREFIX + "servicePolicy";
   // Logging
   public static final String GOBBLIN_SERVICE_LOG4J_CONFIGURATION_FILE = "log4j-service.properties";
 }

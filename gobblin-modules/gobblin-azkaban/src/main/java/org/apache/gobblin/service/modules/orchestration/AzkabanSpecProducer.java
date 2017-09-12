@@ -26,7 +26,7 @@ import org.apache.commons.codec.EncoderException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
+import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.util.CompletedFuture;
 import org.apache.gobblin.util.ConfigUtils;
 import org.slf4j.Logger;
@@ -34,17 +34,17 @@ import org.slf4j.Logger;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
 
-public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInstance
-    implements SpecExecutorInstanceProducer<Spec>, Closeable {
+@Slf4j
+public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
 
   // Session Id for GaaS User
   private String _sessionId;
+  private Config _config;
 
-
-  public AzkabanSpecExecutorInstanceProducer(Config config, Optional<Logger> log) {
-    super(config, log);
-
+  public AzkabanSpecProducer(Config config, Optional<Logger> log) {
+    this._config = config;
     try {
       // Initialize Azkaban client / producer and cache credentials
       String azkabanUsername = _config.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
@@ -65,12 +65,12 @@ public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInst
     return ConfigUtils.getString(config, ServiceAzkabanConfigKeys.AZKABAN_PASSWORD_KEY, StringUtils.EMPTY);
   }
 
-  public AzkabanSpecExecutorInstanceProducer(Config config, Logger log) {
+  public AzkabanSpecProducer(Config config, Logger log) {
     this(config, Optional.of(log));
   }
 
   /** Constructor with no logging */
-  public AzkabanSpecExecutorInstanceProducer(Config config) {
+  public AzkabanSpecProducer(Config config) {
     this(config, Optional.<Logger>absent());
   }
 
@@ -88,11 +88,11 @@ public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInst
 
       // If project does not already exists, create and execute it
       if (azkabanProjectExists) {
-        _log.info("Executing Azkaban Project: " + azkabanProjectConfig.getAzkabanProjectName());
+        log.info("Executing Azkaban Project: " + azkabanProjectConfig.getAzkabanProjectName());
         AzkabanJobHelper.executeJob(_sessionId, AzkabanJobHelper.getProjectId(_sessionId, azkabanProjectConfig),
             azkabanProjectConfig);
       } else {
-        _log.info("Setting up Azkaban Project: " + azkabanProjectConfig.getAzkabanProjectName());
+        log.info("Setting up Azkaban Project: " + azkabanProjectConfig.getAzkabanProjectName());
 
         // Deleted project also returns true if-project-exists check, so optimistically first create the project
         // .. (it will create project if it was never created or deleted), if project exists it will fail with
@@ -104,10 +104,10 @@ public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInst
           if ("Project already exists.".equalsIgnoreCase(e.getMessage())) {
             if (ConfigUtils.getBoolean(((JobSpec) addedSpec).getConfig(),
                 ServiceAzkabanConfigKeys.AZKABAN_PROJECT_OVERWRITE_IF_EXISTS_KEY, false)) {
-              _log.info("Project already exists for this Spec, but force overwrite specified");
+              log.info("Project already exists for this Spec, but force overwrite specified");
               updateExistingAzkabanProject(_sessionId, azkabanProjectConfig);
             } else {
-              _log.info(String.format("Azkaban project already exists: " + "%smanager?project=%s",
+              log.info(String.format("Azkaban project already exists: " + "%smanager?project=%s",
                   azkabanProjectConfig.getAzkabanServerUrl(), azkabanProjectConfig.getAzkabanProjectName()));
             }
           } else {
@@ -156,12 +156,12 @@ public class AzkabanSpecExecutorInstanceProducer extends AzkabanSpecExecutorInst
     // Schedule Azkaban Job
     AzkabanJobHelper.scheduleJob(sessionId, azkabanProjectId, azkabanProjectConfig);
 
-    _log.info(String.format("Azkaban project created: %smanager?project=%s",
+    log.info(String.format("Azkaban project created: %smanager?project=%s",
         azkabanProjectConfig.getAzkabanServerUrl(), azkabanProjectConfig.getAzkabanProjectName()));
   }
 
   private void updateExistingAzkabanProject(String sessionId, AzkabanProjectConfig azkabanProjectConfig) throws IOException {
-    _log.info(String.format("Updating project: %smanager?project=%s", azkabanProjectConfig.getAzkabanServerUrl(),
+    log.info(String.format("Updating project: %smanager?project=%s", azkabanProjectConfig.getAzkabanServerUrl(),
         azkabanProjectConfig.getAzkabanProjectName()));
 
     // Get project Id

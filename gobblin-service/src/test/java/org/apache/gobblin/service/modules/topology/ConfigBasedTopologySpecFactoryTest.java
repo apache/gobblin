@@ -54,8 +54,8 @@ public class ConfigBasedTopologySpecFactoryTest {
     properties.put(topology1Prefix + ServiceConfigKeys.TOPOLOGYSPEC_DESCRIPTION_KEY, "Topology for cluster");
     properties.put(topology1Prefix + ServiceConfigKeys.TOPOLOGYSPEC_VERSION_KEY, "1");
     properties.put(topology1Prefix + ServiceConfigKeys.TOPOLOGYSPEC_URI_KEY, "/mySpecs/" + topology1);
-    properties.put(topology1Prefix + ServiceConfigKeys.SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY,
-        ServiceConfigKeys.DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER);
+    properties.put(topology1Prefix + ServiceConfigKeys.SPEC_EXECUTOR_KEY,
+        ServiceConfigKeys.DEFAULT_SPEC_EXECUTOR);
     properties.put(topology1Prefix + ConfigurationKeys.SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY, "salesforce:nosql");
 
     // Topology Azkaban1 properties
@@ -63,8 +63,8 @@ public class ConfigBasedTopologySpecFactoryTest {
     properties.put(topology2Prefix + ServiceConfigKeys.TOPOLOGYSPEC_DESCRIPTION_KEY, "Topology for Azkaban");
     properties.put(topology2Prefix + ServiceConfigKeys.TOPOLOGYSPEC_VERSION_KEY, "2");
     properties.put(topology2Prefix + ServiceConfigKeys.TOPOLOGYSPEC_URI_KEY, "/mySpecs/" + topology2);
-    properties.put(topology2Prefix + ServiceConfigKeys.SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY,
-        ServiceConfigKeys.DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER);
+    properties.put(topology2Prefix + ServiceConfigKeys.SPEC_EXECUTOR_KEY,
+        ServiceConfigKeys.DEFAULT_SPEC_EXECUTOR);
     properties.put(topology2Prefix + ConfigurationKeys.SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY, "nosql:hdfs");
 
     _config = ConfigUtils.propertiesToConfig(properties);

@@ -17,28 +17,19 @@
 
 package org.apache.gobblin.runtime.api;
 
-import java.net.URI;
 import java.util.List;
 import java.util.concurrent.Future;
-
-import org.apache.gobblin.annotation.Alpha;
+import org.apache.commons.lang3.tuple.Pair;
 
 
 /**
- * Defines a SpecExecutorInstanceProducer to produce jobs to {@link SpecExecutorInstance}
- * that can execute a {@link Spec}.
+ * A communication socket (receiving side for this class)
+ * for each {@link SpecExecutor} to receive spec to execute from Orchestrator.
+ * Implementation of this interface should specify communication channel (e.g. Kafka, REST, etc.)
  */
-@Alpha
-public interface SpecExecutorInstanceProducer<V> extends SpecExecutorInstance {
-  /** Add a {@link Spec} for execution on {@link SpecExecutorInstance}. */
-  Future<?> addSpec(V addedSpec);
+public interface SpecConsumer<V>  {
 
-  /** Update a {@link Spec} being executed on {@link SpecExecutorInstance}. */
-  Future<?> updateSpec(V updatedSpec);
+  /** List of newly changed {@link Spec}s for execution on {@link SpecExecutor}. */
+  Future<? extends List<Pair<SpecExecutor.Verb, V>>> changedSpecs();
 
-  /** Delete a {@link Spec} being executed on {@link SpecExecutorInstance}. */
-  Future<?> deleteSpec(URI deletedSpecURI);
-
-  /** List all {@link Spec} being executed on {@link SpecExecutorInstance}. */
-  Future<? extends List<V>> listSpecs();
 }

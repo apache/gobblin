@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service;
 
-import org.apache.gobblin.util.ConfigUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -28,37 +27,40 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.google.common.util.concurrent.AbstractIdleService;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecExecutorInstanceConsumer;
+import org.apache.gobblin.runtime.api.SpecConsumer;
 import org.apache.gobblin.runtime.job_monitor.AvroJobSpecKafkaJobMonitor;
 import org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor;
 import org.apache.gobblin.runtime.std.DefaultJobCatalogListenerImpl;
 import org.apache.gobblin.util.CompletedFuture;
+import org.apache.gobblin.util.ConfigUtils;
+import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.*;
 
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 /**
- * SpecExecutorInstanceConsumer that consumes from kafka in a streaming manner
+ * SpecConsumer that consumes from kafka in a streaming manner
+ * Implemented {@link AbstractIdleService} for starting up and shutting down.
  */
-public class StreamingKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExecutorInstance
-    implements SpecExecutorInstanceConsumer<Spec>, Closeable {
+public class StreamingKafkaSpecConsumer extends AbstractIdleService implements SpecConsumer<Spec>, Closeable {
   public static final String SPEC_STREAMING_BLOCKING_QUEUE_SIZE = "spec.StreamingBlockingQueueSize";
   private static final int DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE = 100;
   private final AvroJobSpecKafkaJobMonitor _jobMonitor;
   private final BlockingQueue<ImmutablePair<Verb, Spec>> _jobSpecQueue;
 
-  public StreamingKafkaSpecExecutorInstanceConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
-    super(config, log);
+  public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
     String topic = config.getString(SPEC_KAFKA_TOPICS_KEY);
     Config defaults = ConfigFactory.parseMap(ImmutableMap.of(AvroJobSpecKafkaJobMonitor.TOPIC_KEY, topic,
         KafkaJobMonitor.KAFKA_AUTO_OFFSET_RESET_KEY, KafkaJobMonitor.KAFKA_AUTO_OFFSET_RESET_SMALLEST));
@@ -77,12 +79,12 @@ public class StreamingKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecE
     jobCatalog.addListener(new JobSpecListener());
   }
 
-  public StreamingKafkaSpecExecutorInstanceConsumer(Config config, MutableJobCatalog jobCatalog, Logger log) {
+  public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Logger log) {
     this(config, jobCatalog, Optional.of(log));
   }
 
   /** Constructor with no logging */
-  public StreamingKafkaSpecExecutorInstanceConsumer(Config config, MutableJobCatalog jobCatalog) {
+  public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog) {
     this(config, jobCatalog, Optional.<Logger>absent());
   }
 
@@ -127,11 +129,11 @@ public class StreamingKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecE
 
   /**
    * JobCatalog listener that puts messages into a blocking queue for consumption by changedSpecs method of
-   * {@link StreamingKafkaSpecExecutorInstanceConsumer}
+   * {@link StreamingKafkaSpecConsumer}
    */
   protected class JobSpecListener extends DefaultJobCatalogListenerImpl {
     public JobSpecListener() {
-      super(StreamingKafkaSpecExecutorInstanceConsumer.this._log);
+      super(StreamingKafkaSpecConsumer.this.log);
     }
 
     @Override public void onAddJob(JobSpec addedJob) {
