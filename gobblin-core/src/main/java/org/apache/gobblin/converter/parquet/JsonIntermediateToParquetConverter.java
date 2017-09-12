@@ -45,7 +45,7 @@ public class JsonIntermediateToParquetConverter extends Converter<JsonArray, Mes
     JsonObject temp = new JsonObject();
     JsonObject dataType = new JsonObject();
     dataType.addProperty("type", "record");
-    dataType.add("fields", inputSchema);
+    dataType.add("values", inputSchema);
     temp.add("dataType", dataType);
     recordConverter = new RecordConverter(fieldName, false, temp, workUnit, ROOT);
     return (MessageType) recordConverter.schema();

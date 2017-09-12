@@ -580,7 +580,7 @@ public class JsonElementConversionFactory {
       super(fieldName, nullable, false);
       this.converters = new HashMap<>();
       this.recordType = recordType;
-      this.schema = buildSchema(schemaNode.get("dataType").getAsJsonObject().get("fields").getAsJsonArray(), state);
+      this.schema = buildSchema(schemaNode.get("dataType").getAsJsonObject().get("values").getAsJsonArray(), state);
     }
 
     @Override

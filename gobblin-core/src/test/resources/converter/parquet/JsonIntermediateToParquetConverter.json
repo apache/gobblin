@@ -157,7 +157,7 @@
         "columnName": "some_record",
         "dataType": {
           "type": "record",
-          "fields": [
+          "values": [
             {
               "columnName": "name",
               "dataType": {
