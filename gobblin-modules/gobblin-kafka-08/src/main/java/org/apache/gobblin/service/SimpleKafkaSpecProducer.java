@@ -22,70 +22,71 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.Future;
-
 import javax.annotation.concurrent.NotThreadSafe;
-
-import org.apache.avro.mapred.AvroJob;
-import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import org.slf4j.Logger;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.kafka.writer.Kafka08DataWriter;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
 import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.WriteCallback;
+import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.*;
 
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @NotThreadSafe
-public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExecutorInstance
-    implements SpecExecutorInstanceProducer<Spec>, Closeable  {
+public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
   // Producer
   protected Kafka08DataWriter<byte[]> _kafka08Producer;
   private final AvroSerializer<AvroJobSpec> _serializer;
+  private Config _config;
 
-  public SimpleKafkaSpecExecutorInstanceProducer(Config config, Optional<Logger> log) {
-    super(config, log);
+  public SimpleKafkaSpecProducer(Config config, Optional<Logger> log) {
 
     try {
       _serializer = new AvroBinarySerializer<>(AvroJobSpec.SCHEMA$, new FixedSchemaVersionWriter());
+      _config = config;
     } catch (IOException e) {
       throw new RuntimeException("Could not create AvroBinarySerializer", e);
     }
   }
 
-  public SimpleKafkaSpecExecutorInstanceProducer(Config config, Logger log) {
+  public SimpleKafkaSpecProducer(Config config, Logger log) {
     this(config, Optional.of(log));
   }
 
   /** Constructor with no logging */
-  public SimpleKafkaSpecExecutorInstanceProducer(Config config) {
+  public SimpleKafkaSpecProducer(Config config) {
     this(config, Optional.<Logger>absent());
   }
 
   @Override
   public Future<?> addSpec(Spec addedSpec) {
-    AvroJobSpec avroJobSpec = convertToAvroJobSpec(addedSpec, Verb.ADD);
+    AvroJobSpec avroJobSpec = convertToAvroJobSpec(addedSpec, SpecExecutor.Verb.ADD);
 
-    _log.info("Adding Spec: " + addedSpec + " using Kafka.");
+    log.info("Adding Spec: " + addedSpec + " using Kafka.");
 
     return getKafka08Producer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }
 
   @Override
   public Future<?> updateSpec(Spec updatedSpec) {
-    AvroJobSpec avroJobSpec = convertToAvroJobSpec(updatedSpec, Verb.UPDATE);
+    AvroJobSpec avroJobSpec = convertToAvroJobSpec(updatedSpec, SpecExecutor.Verb.UPDATE);
 
-    _log.info("Updating Spec: " + updatedSpec + " using Kafka.");
+    log.info("Updating Spec: " + updatedSpec + " using Kafka.");
 
     return getKafka08Producer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }
@@ -96,7 +97,7 @@ public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExec
     AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
         .setMetadata(ImmutableMap.of(VERB_KEY, Verb.DELETE.name())).build();
 
-    _log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
+    log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
 
     return getKafka08Producer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }
@@ -108,7 +109,7 @@ public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExec
 
   @Override
   public void close() throws IOException {
-     _kafka08Producer.close();
+    _kafka08Producer.close();
   }
 
   private Kafka08DataWriter<byte[]> getKafka08Producer() {

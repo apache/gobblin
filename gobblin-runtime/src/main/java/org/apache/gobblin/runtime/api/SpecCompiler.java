@@ -24,16 +24,16 @@ import org.apache.gobblin.instrumented.Instrumentable;
 
 /***
  * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
- * and the mapping to {@link SpecExecutorInstance} that they can be run on.
+ * and the mapping to {@link SpecExecutor} that they can be run on.
  */
 public interface SpecCompiler extends SpecCatalogListener, Instrumentable {
   /***
    * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
-   * and the mapping to {@link SpecExecutorInstance} that they can be run on.
+   * and the mapping to {@link SpecExecutor} that they can be run on.
    * @param spec {@link Spec} to compile.
-   * @return Map of materialized physical {@link Spec} and {@link SpecExecutorInstance}.
+   * @return Map of materialized physical {@link Spec} and {@link SpecExecutor}.
    */
-  Map<Spec, SpecExecutorInstanceProducer> compileFlow(Spec spec);
+  Map<Spec, SpecExecutor> compileFlow(Spec spec);
 
   /***
    * Map of {@link Spec} URI and {@link TopologySpec} the {@link SpecCompiler}

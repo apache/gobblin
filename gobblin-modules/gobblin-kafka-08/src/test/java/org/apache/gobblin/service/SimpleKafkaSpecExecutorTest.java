@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.io.Closer;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
@@ -30,29 +30,29 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
-import com.google.common.io.Closer;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
 import org.apache.gobblin.metrics.reporter.KafkaTestBase;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecExecutorInstance;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.WriteResponse;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class SimpleKafkaSpecExecutorInstanceTest extends KafkaTestBase {
+public class SimpleKafkaSpecExecutorTest extends KafkaTestBase {
 
-  public static final String TOPIC = SimpleKafkaSpecExecutorInstanceTest.class.getSimpleName();
+  public static final String TOPIC = SimpleKafkaSpecExecutorTest.class.getSimpleName();
 
   private Closer _closer;
   private Properties _properties;
-  private SimpleKafkaSpecExecutorInstanceProducer _seip;
-  private SimpleKafkaSpecExecutorInstanceConsumer _seic;
+  private SimpleKafkaSpecProducer _seip;
+  private SimpleKafkaSpecConsumer _seic;
   private String _kafkaBrokers;
 
-  public SimpleKafkaSpecExecutorInstanceTest()
+  public SimpleKafkaSpecExecutorTest()
       throws InterruptedException, RuntimeException {
     super(TOPIC);
     _kafkaBrokers = "localhost:" + kafkaPort;
@@ -71,10 +71,10 @@ public class SimpleKafkaSpecExecutorInstanceTest extends KafkaTestBase {
 
     // Properties for Consumer
     _properties.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
-    _properties.setProperty(SimpleKafkaSpecExecutorInstanceProducer.SPEC_KAFKA_TOPICS_KEY, TOPIC);
+    _properties.setProperty(SimpleKafkaSpecExecutor.SPEC_KAFKA_TOPICS_KEY, TOPIC);
 
     // SEI Producer
-    _seip = _closer.register(new SimpleKafkaSpecExecutorInstanceProducer(ConfigUtils.propertiesToConfig(_properties)));
+    _seip = _closer.register(new SimpleKafkaSpecProducer(ConfigUtils.propertiesToConfig(_properties)));
 
     String addedSpecUriString = "/foo/bar/addedSpec";
     Spec spec = initJobSpec(addedSpecUriString);
@@ -87,13 +87,13 @@ public class SimpleKafkaSpecExecutorInstanceTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    _seic = _closer.register(new SimpleKafkaSpecExecutorInstanceConsumer(ConfigUtils.propertiesToConfig(_properties)));
+    _seic = _closer.register(new SimpleKafkaSpecConsumer(ConfigUtils.propertiesToConfig(_properties)));
 
-    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
-    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.ADD), "Verb did not match");
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.ADD), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(addedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
@@ -111,11 +111,11 @@ public class SimpleKafkaSpecExecutorInstanceTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
-    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.UPDATE), "Verb did not match");
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.UPDATE), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(updatedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
@@ -132,21 +132,21 @@ public class SimpleKafkaSpecExecutorInstanceTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
-    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.DELETE), "Verb did not match");
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.DELETE), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(deletedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
   @Test (dependsOnMethods = "testDeleteSpec")
   public void testResetConsumption() throws Exception {
-    SimpleKafkaSpecExecutorInstanceConsumer seic = _closer
-        .register(new SimpleKafkaSpecExecutorInstanceConsumer(ConfigUtils.propertiesToConfig(_properties)));
+    SimpleKafkaSpecConsumer seic = _closer
+        .register(new SimpleKafkaSpecConsumer(ConfigUtils.propertiesToConfig(_properties)));
 
-    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = seic.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 3, "Consumption was reset, we should see all events");
   }
 

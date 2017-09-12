@@ -22,12 +22,8 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
-import lombok.Getter;
-import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.slf4j.Logger;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
@@ -40,10 +36,8 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
-
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecCompiler;
-import org.apache.gobblin.runtime.api.SpecExecutorInstanceProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
@@ -54,6 +48,13 @@ import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.slf4j.LoggerFactory;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.configuration.State;
+import org.slf4j.Logger;
+
+import lombok.Getter;
 
 
 /**
@@ -179,7 +180,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   public void orchestrate(Spec spec) throws Exception {
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
-      Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = specCompiler.compileFlow(spec);
+      Map<Spec, SpecExecutor> specExecutorInstanceMap = specCompiler.compileFlow(spec);
 
       if (specExecutorInstanceMap.isEmpty()) {
         _log.warn("Cannot determine an executor to run on for Spec: " + spec);
@@ -187,18 +188,18 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       }
 
       // Schedule all compiled JobSpecs on their respective Executor
-      for (Map.Entry<Spec, SpecExecutorInstanceProducer> specsToExecute : specExecutorInstanceMap.entrySet()) {
+      for (Map.Entry<Spec, SpecExecutor> specsToExecute : specExecutorInstanceMap.entrySet()) {
         // Run this spec on selected executor
-        SpecExecutorInstanceProducer producer = null;
+        SpecProducer producer = null;
         try {
-          producer = specsToExecute.getValue();
+          producer = specsToExecute.getValue().getProducer().get();
           Spec jobSpec = specsToExecute.getKey();
 
           _log.info(String.format("Going to orchestrate JobSpc: %s on Executor: %s", jobSpec, producer));
           producer.addSpec(jobSpec);
         } catch(Exception e) {
           _log.error("Cannot successfully setup spec: " + specsToExecute.getKey() + " on executor: " + producer +
-            " for flow: " + spec, e);
+              " for flow: " + spec, e);
         }
       }
     } else {
@@ -221,7 +222,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   @Override
-  public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
+  public List<Tag<?>> generateTags(State state) {
     return Collections.emptyList();
   }
 

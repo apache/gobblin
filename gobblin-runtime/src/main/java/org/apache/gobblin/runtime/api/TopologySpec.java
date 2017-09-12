@@ -25,26 +25,25 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-import org.apache.commons.lang3.reflect.ConstructorUtils;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
 
 /**
- * Data model representation that describes a topology ie. a {@link SpecExecutorInstance} and its
+ * Data model representation that describes a topology ie. a {@link SpecExecutor} and its
  * capabilities tuple .
  *
  */
@@ -53,8 +52,8 @@ import org.apache.gobblin.util.ConfigUtils;
 @AllArgsConstructor
 @NotThreadSafe
 public class TopologySpec implements Configurable, Spec {
-  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER = InMemorySpecExecutorInstanceProducer.class.getCanonicalName();
-  public static final String SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY = "specExecutorInstanceProducer.class";
+  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE = InMemorySpecExecutor.class.getCanonicalName();
+  public static final String SPEC_EXECUTOR_INSTANCE_KEY = "specExecutorInstance.class";
 
   private static final long serialVersionUID = 6106269076155338046L;
 
@@ -78,26 +77,29 @@ public class TopologySpec implements Configurable, Spec {
 
   /** Underlying executor instance such as Gobblin cluster or Azkaban */
   @SuppressWarnings(justification="Initialization handled by getter", value="SE_TRANSIENT_FIELD_NOT_RESTORED")
-  transient SpecExecutorInstanceProducer specExecutorInstanceProducer;
+  transient SpecExecutor specExecutorInstance;
 
-  public SpecExecutorInstanceProducer getSpecExecutorInstanceProducer() {
-    if (null == specExecutorInstanceProducer) {
-      String specExecutorInstanceProducerClass = DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER;
-      if (config.hasPath(SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY)) {
-        specExecutorInstanceProducerClass = config.getString(SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY);
+  /**
+   * @return A {@link SpecExecutor}'s instance defined by <Technology, Location, Communication Mechanism>
+   */
+  public synchronized SpecExecutor getSpecExecutor() {
+    if (null == specExecutorInstance) {
+      String specExecutorClass = DEFAULT_SPEC_EXECUTOR_INSTANCE;
+      if (config.hasPath(SPEC_EXECUTOR_INSTANCE_KEY)) {
+        specExecutorClass = config.getString(SPEC_EXECUTOR_INSTANCE_KEY);
       }
       try {
-        ClassAliasResolver<SpecExecutorInstanceProducer> _aliasResolver =
-            new ClassAliasResolver<>(SpecExecutorInstanceProducer.class);
-        specExecutorInstanceProducer = (SpecExecutorInstanceProducer) ConstructorUtils
+        ClassAliasResolver<SpecExecutor> _aliasResolver =
+            new ClassAliasResolver<>(SpecExecutor.class);
+        specExecutorInstance = (SpecExecutor) ConstructorUtils
             .invokeConstructor(Class.forName(_aliasResolver
-                .resolve(specExecutorInstanceProducerClass)), config);
+                .resolve(specExecutorClass)), config);
       } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
           | ClassNotFoundException e) {
         throw new RuntimeException(e);
       }
     }
-    return specExecutorInstanceProducer;
+    return specExecutorInstance;
   }
 
   public static TopologySpec.Builder builder(URI topologySpecUri) {
@@ -164,7 +166,7 @@ public class TopologySpec implements Configurable, Spec {
     private String version = "1";
     private Optional<String> description = Optional.absent();
     private Optional<URI> topologyCatalogURI = Optional.absent();
-    private Optional<SpecExecutorInstanceProducer> specExecutorInstanceProducer = Optional.absent();
+    private Optional<SpecExecutor> specExecutorInstance = Optional.absent();
 
     public Builder(URI topologySpecUri) {
       Preconditions.checkNotNull(topologySpecUri);
@@ -189,9 +191,9 @@ public class TopologySpec implements Configurable, Spec {
     public TopologySpec build() {
       Preconditions.checkNotNull(this.uri);
       Preconditions.checkNotNull(this.version);
+      return new TopologySpec(getURI(), getVersion(), getDescription(), getConfig(), getConfigAsProperties(),
+          getSpecExceutorInstance());
 
-      return new TopologySpec(getURI(), getVersion(), getDescription(), getConfig(),
-          getConfigAsProperties(), getSpecExceutorInstanceProducer());
     }
 
     /** The scheme and authority of the topology catalog URI are used to generate TopologySpec URIs from
@@ -314,17 +316,17 @@ public class TopologySpec implements Configurable, Spec {
       return this;
     }
 
-    public SpecExecutorInstanceProducer getSpecExceutorInstanceProducer() {
-      if (!this.specExecutorInstanceProducer.isPresent()) {
-        // TODO: Try to init SpecExecutorInstanceProducer from config if not initialized via builder.
-        throw new RuntimeException("SpecExecutorInstanceProducer not initialized.");
+    public SpecExecutor getSpecExceutorInstance() {
+      if (!this.specExecutorInstance.isPresent()) {
+        // TODO: Try to init SpecProducer from config if not initialized via builder.
+        throw new RuntimeException("SpecExecutor not initialized.");
       }
-      return this.specExecutorInstanceProducer.get();
+      return this.specExecutorInstance.get();
     }
 
-    public TopologySpec.Builder withSpecExecutorInstanceProducer(SpecExecutorInstanceProducer specExecutorInstanceProducer) {
-      Preconditions.checkNotNull(specExecutorInstanceProducer);
-      this.specExecutorInstanceProducer = Optional.of(specExecutorInstanceProducer);
+    public TopologySpec.Builder withSpecExecutor(SpecExecutor specExecutor) {
+      Preconditions.checkNotNull(specExecutor);
+      this.specExecutorInstance = Optional.of(specExecutor);
       return this;
     }
   }
