@@ -32,6 +32,7 @@ import org.apache.gobblin.commit.CommitSequence;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.lineage.LineageException;
@@ -188,11 +189,16 @@ final class SafeDatasetCommit implements Callable<Void> {
     }
 
     try {
-      Collection<LineageInfo> branchLineages = LineageInfo.load(states, LineageInfo.Level.All);
-      EventSubmitter submitter = new EventSubmitter.Builder(Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class),
-          LineageInfo.LINEAGE_NAME_SPACE).build();
-      for (LineageInfo info: branchLineages) {
-        submitter.submit(info.getId(), info.getLineageMetaData());
+      // Aggregate states by lineage.dataset.urn, in case datasetUrn may be set to empty so that all task states falls into one empty dataset.
+      // FixMe: once all dataset.urn attribues are set properly, we don't need this aggregation.
+      Collection<Collection<State>> datasetStates = LineageInfo.aggregateByDatasetUrn(states).values();
+      for (Collection<State> dataState: datasetStates) {
+        Collection<LineageInfo> branchLineages = LineageInfo.load(dataState, LineageInfo.Level.All);
+        EventSubmitter submitter = new EventSubmitter.Builder(Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class),
+            LineageInfo.LINEAGE_NAME_SPACE).build();
+        for (LineageInfo info: branchLineages) {
+          submitter.submit(info.getId(), info.getLineageMetaData());
+        }
       }
     } catch (LineageException e) {
       log.error ("Lineage event submission failed due to :" + e.toString());
