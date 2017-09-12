@@ -1,0 +1,46 @@
+{
+      "type": "record",
+      "name": "EnvelopeRecord",
+      "namespace": "org.apache.gobblin.test",
+      "fields": [
+        {
+          "name": "metadata",
+          "type": {
+            "type": "map",
+            "values": "string"
+          },
+          "doc": "record metadata."
+        },
+        {
+          "name": "key",
+          "type": "bytes",
+          "doc": "serialized key."
+        },
+        {
+          "name": "payload",
+          "type": "bytes",
+          "doc": "serialized payload data."
+        },
+    {
+      "name": "nestedRecord",
+      "type": {
+        "type": "record",
+        "name": "SimpleRecord",
+        "namespace": "org.apache.gobblin.test",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "doc": "ID of the record."
+          },
+          {
+            "name": "created",
+            "type": "long",
+            "doc": "a time stamp."
+          }
+        ]
+      },
+      "doc": "nested record"
+    }
+  ]
+}

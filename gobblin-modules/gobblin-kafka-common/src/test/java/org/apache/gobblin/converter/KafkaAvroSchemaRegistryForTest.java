@@ -25,7 +25,10 @@ import org.apache.avro.Schema;
 
 /**
  * Override some methods of {@link KafkaAvroSchemaRegistry} for use in {@link EnvelopeSchemaConverterTest}
+ *
+ * @deprecated Checkout {@link EnvelopePayloadExtractingConverterTest} for how to mock a {@link KafkaSchemaRegistry}
  */
+@Deprecated
 public class KafkaAvroSchemaRegistryForTest extends KafkaAvroSchemaRegistry {
   public static class Factory implements KafkaSchemaRegistryFactory {
     public Factory() {}
