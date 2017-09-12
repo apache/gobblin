@@ -18,28 +18,45 @@
 package org.apache.gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Collection;
+import java.util.Properties;
+import org.apache.gobblin.data.management.version.TimestampedDatasetStateStoreVersion;
+import org.apache.gobblin.data.management.version.finder.TimestampedDatasetStateStoreVersionFinder;
+import org.apache.gobblin.data.management.version.finder.VersionFinder;
 import org.apache.gobblin.metastore.DatasetStoreDataset;
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
-import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FileSystem;
+import lombok.Data;
 
 
 /**
  * A cleanable {@link DatasetStoreDataset}
  */
-public class CleanableDatasetStoreDataset extends DatasetStoreDataset implements CleanableDataset {
+@Data
+public class CleanableDatasetStoreDataset extends ModificationTimeDataset {
 
-  public CleanableDatasetStoreDataset(DatasetStoreDataset.Key key, List<DatasetStateStoreEntryManager> entries) {
-    super(key, entries);
+  private final DatasetStoreDataset store;
+  private final VersionFinder<TimestampedDatasetStateStoreVersion> versionFinder;
+
+  public CleanableDatasetStoreDataset(FileSystem fs, Properties props, DatasetStoreDataset store) throws IOException {
+    super(fs, props, null);
+    this.store = store;
+    this.versionFinder = new TimestampedDatasetStateStoreVersionFinder();
   }
 
-  public void clean() throws IOException {
-    for (DatasetStateStoreEntryManager stateStoreEntry : this.getDatasetStateStoreMetadataEntries()) {
-      stateStoreEntry.delete();
+  @Override
+  protected void cleanImpl(Collection deletableVersions) throws IOException {
+    for (Object version : deletableVersions) {
+      ((TimestampedDatasetStateStoreVersion) version).getEntry().delete();
     }
   }
 
-  public Path datasetRoot() {
-    return null;
+  @Override
+  public String datasetURN() {
+    return this.store.datasetURN();
+  }
+
+  @Override
+  public VersionFinder<? extends TimestampedDatasetStateStoreVersion> getVersionFinder() {
+    return this.versionFinder;
   }
 }

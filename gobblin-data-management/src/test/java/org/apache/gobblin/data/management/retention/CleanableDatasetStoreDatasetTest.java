@@ -23,8 +23,10 @@ import java.util.List;
 import java.util.Properties;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDatasetStoreDataset;
 import org.apache.gobblin.data.management.retention.dataset.finder.CleanableDatasetStoreDatasetFinder;
-import org.apache.gobblin.metastore.DatasetStoreDataset;
+import org.apache.gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
+import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.runtime.FsDatasetStateStore;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.hadoop.conf.Configuration;
@@ -55,13 +57,14 @@ public class CleanableDatasetStoreDatasetTest {
     Properties props = new Properties();
 
     props.setProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, tmpDir.getAbsolutePath());
+    props.setProperty(TimeBasedRetentionPolicy.RETENTION_MINUTES_KEY, "0");
 
     CleanableDatasetStoreDatasetFinder datasetFinder = new CleanableDatasetStoreDatasetFinder(fs, props);
-    List<DatasetStoreDataset> datasets = datasetFinder.findDatasets();
+    List<Dataset> datasets = datasetFinder.findDatasets();
 
-    for (DatasetStoreDataset dataset : datasets) {
+    for (Dataset dataset : datasets) {
       ((CleanableDataset) dataset).clean();
-      File jobDir = new File(tmpDir.getAbsolutePath(), dataset.getKey().getStoreName());
+      File jobDir = new File(tmpDir.getAbsolutePath(), ((CleanableDatasetStoreDataset) dataset).getStore().getKey().getStoreName());
       Assert.assertEquals(jobDir.list().length, 1);
     }
   }
