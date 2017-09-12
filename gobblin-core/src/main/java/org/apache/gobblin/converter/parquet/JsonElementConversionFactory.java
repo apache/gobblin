@@ -65,17 +65,6 @@ public class JsonElementConversionFactory {
     STRING, INT, LONG, FLOAT, DOUBLE, BOOLEAN, ARRAY, ENUM, RECORD, MAP
   }
 
-  private static HashMap<Type, PrimitiveTypeName> typeMap = new HashMap<>();
-
-  static {
-    typeMap.put(INT, INT32);
-    typeMap.put(LONG, INT64);
-    typeMap.put(FLOAT, PrimitiveTypeName.FLOAT);
-    typeMap.put(DOUBLE, PrimitiveTypeName.DOUBLE);
-    typeMap.put(BOOLEAN, PrimitiveTypeName.BOOLEAN);
-    typeMap.put(STRING, BINARY);
-  }
-
   /**
    * Use to create a converter for a single field from a schema.
    *
@@ -144,7 +133,20 @@ public class JsonElementConversionFactory {
     private final boolean repeated;
 
     /**
-     *
+     * HashMap to convert {@link Type} to {@link PrimitiveTypeName}
+     */
+    protected final static HashMap<Type, PrimitiveTypeName> typeMap = new HashMap<>();
+
+    static {
+      typeMap.put(INT, INT32);
+      typeMap.put(LONG, INT64);
+      typeMap.put(FLOAT, PrimitiveTypeName.FLOAT);
+      typeMap.put(DOUBLE, PrimitiveTypeName.DOUBLE);
+      typeMap.put(BOOLEAN, PrimitiveTypeName.BOOLEAN);
+      typeMap.put(STRING, BINARY);
+    }
+
+    /**
      * @param fieldName
      * @param nullable
      * @param repeated
