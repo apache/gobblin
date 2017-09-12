@@ -487,12 +487,10 @@ public class JsonElementConversionFactory {
     public static final String ARRAY_KEY = "item";
     private static final String SOURCE_SCHEMA_ITEMS_KEY = "items";
     private final JsonObject elementSchema;
-    private final WorkUnitState state;
 
     public ArrayConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state) {
       super(fieldName, nullable, schemaNode, SOURCE_SCHEMA_ITEMS_KEY, true);
       this.elementSchema = getElementSchema();
-      this.state = state;
       JsonElementConverter converter =
           getConvertor(ARRAY_KEY, getElementTypeSource().toString(), elementSchema, state, isNullable(), true);
       super.setElementConverter(converter);
