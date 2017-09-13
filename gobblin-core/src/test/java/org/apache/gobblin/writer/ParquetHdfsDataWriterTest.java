@@ -36,7 +36,7 @@ import parquet.schema.MessageType;
 import parquet.tools.read.SimpleReadSupport;
 import parquet.tools.read.SimpleRecord;
 
-
+@Test(groups = {"gobblin.writer"})
 public class ParquetHdfsDataWriterTest {
 
   private MessageType schema;
