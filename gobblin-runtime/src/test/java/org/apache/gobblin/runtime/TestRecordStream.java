@@ -446,6 +446,7 @@ public class TestRecordStream {
   static class SchemaChangeDetectionInjector extends ControlMessageInjector<String, String> {
     private List<String> records = new ArrayList<>();
     private List<ControlMessage<String>> messages = new ArrayList<>();
+    private GlobalMetadata<String> globalMetadata;
 
     public Iterable<String> convertRecord(String outputSchema, String inputRecord, WorkUnitState workUnitState)
         throws DataConversionException {
@@ -456,11 +457,16 @@ public class TestRecordStream {
     }
 
     @Override
+    protected void setInputGlobalMetadata(GlobalMetadata<String> inputGlobalMetadata, WorkUnitState workUnitState) {
+      this.globalMetadata = inputGlobalMetadata;
+    }
+
+    @Override
     public Iterable<ControlMessage<String>> injectControlMessagesBefore(RecordEnvelope<String> inputRecordEnvelope,
         WorkUnitState workUnitState) {
       String recordSchema = inputRecordEnvelope.getRecord().split(":")[0];
 
-      if (!recordSchema.equals(getInputGlobalMetadata().getSchema())) {
+      if (!recordSchema.equals(this.globalMetadata.getSchema())) {
         return new SingleRecordIterable<>(new MetadataUpdateControlMessage<>(
             GlobalMetadata.<String>builder().schema(recordSchema).build()));
       }

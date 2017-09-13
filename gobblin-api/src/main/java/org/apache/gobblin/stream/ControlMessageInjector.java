@@ -40,10 +40,6 @@ import lombok.Setter;
 public abstract class ControlMessageInjector<SI, DI> implements Closeable,
         RecordStreamProcessor<SI, SI, DI, DI> {
 
-  @Setter(AccessLevel.PROTECTED)
-  @Getter(AccessLevel.PROTECTED)
-  private GlobalMetadata<SI> inputGlobalMetadata;
-
   /**
    * Initialize this {@link ControlMessageInjector}.
    *
@@ -59,12 +55,12 @@ public abstract class ControlMessageInjector<SI, DI> implements Closeable,
   }
 
   /**
-   * Set the global metadata of the input messages
+   * Set the global metadata of the input messages. The base implementation is empty and should be overridden by
+   * the subclasses that need to store the input {@link GlobalMetadata}
    * @param inputGlobalMetadata the global metadata for input messages
    * @param workUnitState
    */
   protected void setInputGlobalMetadata(GlobalMetadata<SI> inputGlobalMetadata, WorkUnitState workUnitState) {
-    this.inputGlobalMetadata = inputGlobalMetadata;
   }
 
   /**
@@ -102,16 +98,12 @@ public abstract class ControlMessageInjector<SI, DI> implements Closeable,
         inputStream.getRecordStream()
             .flatMap(in -> {
               if (in instanceof ControlMessage) {
-                ControlMessage out = (ControlMessage) in;
                 if (in instanceof MetadataUpdateControlMessage) {
-                  setInputGlobalMetadata(((MetadataUpdateControlMessage) in).getGlobalMetadata(),
-                      workUnitState);
-                  out = new MetadataUpdateControlMessage<SI, DI>(this.inputGlobalMetadata);
+                  setInputGlobalMetadata(((MetadataUpdateControlMessage) in).getGlobalMetadata(), workUnitState);
                 }
 
                 getMessageHandler().handleMessage((ControlMessage) in);
-                return Flowable.just(((ControlMessage<DI>) out));
-
+                return Flowable.just(in);
               } else if (in instanceof RecordEnvelope) {
                 RecordEnvelope<DI> recordEnvelope = (RecordEnvelope<DI>) in;
                 Iterable<ControlMessage<DI>> injectedBeforeIterable =
@@ -142,7 +134,7 @@ public abstract class ControlMessageInjector<SI, DI> implements Closeable,
               }
             }, 1);
     outputStream = outputStream.doOnComplete(this::close);
-    return inputStream.withRecordStream(outputStream, this.inputGlobalMetadata);
+    return inputStream.withRecordStream(outputStream, inputStream.getGlobalMetadata());
   }
 
   /**
