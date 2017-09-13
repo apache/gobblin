@@ -26,6 +26,7 @@ import org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordC
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import parquet.example.data.Group;
 import parquet.schema.MessageType;
 
 import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.ROOT;
@@ -35,7 +36,7 @@ import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.
  * A converter to Convert JsonIntermediate to Parquet
  * @author tilakpatidar
  */
-public class JsonIntermediateToParquetConverter extends Converter<JsonArray, MessageType, JsonObject, ParquetGroup> {
+public class JsonIntermediateToParquetConverter extends Converter<JsonArray, MessageType, JsonObject, Group> {
   private RecordConverter recordConverter;
 
   @Override
@@ -52,8 +53,8 @@ public class JsonIntermediateToParquetConverter extends Converter<JsonArray, Mes
   }
 
   @Override
-  public Iterable<ParquetGroup> convertRecord(MessageType outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
+  public Iterable<Group> convertRecord(MessageType outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    return new SingleRecordIterable<>((ParquetGroup) recordConverter.convert(inputRecord));
+    return new SingleRecordIterable<>((Group) recordConverter.convert(inputRecord));
   }
 }

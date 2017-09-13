@@ -29,6 +29,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
+import parquet.example.data.Group;
 import parquet.schema.MessageType;
 
 import static org.testng.Assert.assertEquals;
@@ -62,7 +63,7 @@ public class JsonIntermediateToParquetConverterTest {
     parquetConverter = new JsonIntermediateToParquetConverter();
 
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
-    ParquetGroup record =
+    Group record =
         parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
 
     assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
@@ -76,7 +77,7 @@ public class JsonIntermediateToParquetConverterTest {
     parquetConverter = new JsonIntermediateToParquetConverter();
 
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
-    ParquetGroup record =
+    Group record =
         parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
 
     assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
@@ -90,7 +91,7 @@ public class JsonIntermediateToParquetConverterTest {
     parquetConverter = new JsonIntermediateToParquetConverter();
 
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
-    ParquetGroup record =
+    Group record =
         parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
 
     assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
@@ -117,7 +118,7 @@ public class JsonIntermediateToParquetConverterTest {
     parquetConverter = new JsonIntermediateToParquetConverter();
 
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
-    ParquetGroup record =
+    Group record =
         parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
 
     assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
@@ -131,7 +132,7 @@ public class JsonIntermediateToParquetConverterTest {
     parquetConverter = new JsonIntermediateToParquetConverter();
 
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
-    ParquetGroup record =
+    Group record =
         parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
 
     assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
