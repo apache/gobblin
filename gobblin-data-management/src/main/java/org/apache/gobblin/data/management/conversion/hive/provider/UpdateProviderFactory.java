@@ -73,7 +73,7 @@ public class UpdateProviderFactory {
     if (uri == null) {
       return FileSystem.get(HadoopUtils.getConfFromProperties(properties));
     }
-    log.info(UpdateProviderFactory.class.getSimpleName() + " using file system URI {}", uri);
+    log.info("Using file system URI {}", uri);
     return FileSystem.get(URI.create(uri), HadoopUtils.getConfFromProperties(properties));
   }
 }
