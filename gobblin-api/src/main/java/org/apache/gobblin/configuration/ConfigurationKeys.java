@@ -344,6 +344,7 @@ public class ConfigurationKeys {
   public static final String WRITER_PARQUET_DICTIONARY_PAGE_SIZE = WRITER_PREFIX + ".parquet.dictionary.page.size";
   public static final String WRITER_PARQUET_DICTIONARY = WRITER_PREFIX + ".parquet.dictionary";
   public static final String WRITER_PARQUET_VALIDATE = WRITER_PREFIX + ".parquet.validate";
+  public static final String WRITER_PARQUET_VERSION = WRITER_PREFIX + ".parquet.version";
 
 
   // Internal use only - used to send metadata to publisher
