@@ -27,9 +27,6 @@ import org.apache.gobblin.records.RecordStreamProcessor;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 
 import io.reactivex.Flowable;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
 
 /**
  * A {@link RecordStreamProcessor} that inspects an input record and outputs control messages before, after, or around
