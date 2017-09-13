@@ -17,6 +17,14 @@
 
 package org.apache.gobblin.writer;
 
+import parquet.example.data.Group;
+import parquet.example.data.simple.SimpleGroup;
+import parquet.schema.MessageType;
+import parquet.schema.OriginalType;
+import parquet.schema.PrimitiveType;
+import parquet.schema.Types;
+
+
 /**
  * Test constants.
  *
@@ -25,15 +33,11 @@ package org.apache.gobblin.writer;
 public class TestConstants {
 
   // Test Avro schema
-  public static final String AVRO_SCHEMA = "{\"namespace\": \"example.avro\",\n" +
-      " \"type\": \"record\",\n" +
-      " \"name\": \"User\",\n" +
-      " \"fields\": [\n" +
-      "     {\"name\": \"name\", \"type\": \"string\"},\n" +
-      "     {\"name\": \"favorite_number\",  \"type\": \"int\"},\n" +
-      "     {\"name\": \"favorite_color\", \"type\": \"string\"}\n" +
-      " ]\n" +
-      "}";
+  public static final String AVRO_SCHEMA =
+      "{\"namespace\": \"example.avro\",\n" + " \"type\": \"record\",\n" + " \"name\": \"User\",\n" + " \"fields\": [\n"
+          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
+          + "     {\"name\": \"favorite_number\",  \"type\": \"int\"},\n"
+          + "     {\"name\": \"favorite_color\", \"type\": \"string\"}\n" + " ]\n" + "}";
 
   // Test Avro data in json format
   public static final String[] JSON_RECORDS =
@@ -60,4 +64,21 @@ public class TestConstants {
   public static final String TEST_EXTRACT_TABLE = "TestTable";
 
   public static final String TEST_EXTRACT_PULL_TYPE = "FULL";
+
+  public static final MessageType PARQUET_SCHEMA = Types.buildMessage()
+      .addFields(Types.required(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8).named("name"),
+          Types.optional(PrimitiveType.PrimitiveTypeName.INT32).named("age")).named("User");
+
+  public static final Group PARQUET_RECORD_1 = new SimpleGroup(PARQUET_SCHEMA);
+
+  public static final Group PARQUET_RECORD_2 = new SimpleGroup(PARQUET_SCHEMA);
+
+  public static final String PARQUET_TEST_FILENAME = "test.parquet";
+
+  static {
+    PARQUET_RECORD_1.add("name", "tilak");
+    PARQUET_RECORD_1.add("age", 22);
+    PARQUET_RECORD_2.add("name", "other");
+    PARQUET_RECORD_2.add("age", 22);
+  }
 }
