@@ -41,6 +41,7 @@ import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckerBuilderFactory
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckerBuilderFactory;
+import org.apache.gobblin.records.RecordStreamProcessor;
 import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.extractor.Extractor;
@@ -229,6 +230,62 @@ public class TaskContext {
     }
 
     return converters;
+  }
+
+  /**
+   * Get the list of pre-fork {@link RecordStreamProcessor}s.
+   *
+   * @return list (possibly empty) of {@link RecordStreamProcessor}s
+   */
+  public List<RecordStreamProcessor<?, ?, ?, ?>> getRecordStreamProcessors() {
+    return getRecordStreamProcessors(-1, this.taskState);
+  }
+
+  /**
+   * Get the list of post-fork {@link RecordStreamProcessor}s for a given branch.
+   *
+   * @param index branch index
+   * @param forkTaskState a {@link TaskState} instance specific to the fork identified by the branch index
+   * @return list (possibly empty) of {@link RecordStreamProcessor}s
+   */
+  @SuppressWarnings("unchecked")
+  public List<RecordStreamProcessor<?, ?, ?, ?>> getRecordStreamProcessors(int index, TaskState forkTaskState) {
+    String streamProcessorClassKey =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.RECORD_STREAM_PROCESSOR_CLASSES_KEY, index);
+
+    if (!this.taskState.contains(streamProcessorClassKey)) {
+      return Collections.emptyList();
+    }
+
+    if (index >= 0) {
+      forkTaskState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
+    }
+
+    List<RecordStreamProcessor<?, ?, ?, ?>> streamProcessors = Lists.newArrayList();
+    for (String streamProcessorClass : Splitter.on(",").omitEmptyStrings().trimResults()
+        .split(this.taskState.getProp(streamProcessorClassKey))) {
+      try {
+        RecordStreamProcessor<?, ?, ?, ?> streamProcessor =
+            RecordStreamProcessor.class.cast(Class.forName(streamProcessorClass).newInstance());
+
+        if (streamProcessor instanceof Converter) {
+          InstrumentedConverterDecorator instrumentedConverter =
+              new InstrumentedConverterDecorator<>((Converter)streamProcessor);
+          instrumentedConverter.init(forkTaskState);
+          streamProcessors.add(instrumentedConverter);
+        } else {
+          streamProcessors.add(streamProcessor);
+        }
+      } catch (ClassNotFoundException cnfe) {
+        throw new RuntimeException(cnfe);
+      } catch (InstantiationException ie) {
+        throw new RuntimeException(ie);
+      } catch (IllegalAccessException iae) {
+        throw new RuntimeException(iae);
+      }
+    }
+
+    return streamProcessors;
   }
 
   /**

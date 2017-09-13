@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 
 import org.apache.gobblin.ack.BasicAckableForTesting;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -42,7 +43,8 @@ public class ConverterTest {
     BasicAckableForTesting ackable = new BasicAckableForTesting();
 
     RecordStreamWithMetadata<Integer, String> stream =
-        new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(0)), "schema").mapRecords(r -> {
+        new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(0)),
+            GlobalMetadata.<String>builder().schema("schema").build()).mapRecords(r -> {
           r.addCallBack(ackable);
           return r;
         });
@@ -60,7 +62,8 @@ public class ConverterTest {
     BasicAckableForTesting ackable = new BasicAckableForTesting();
 
     RecordStreamWithMetadata<Integer, String> stream =
-        new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(1)), "schema").mapRecords(r -> {
+        new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(1)),
+            GlobalMetadata.<String>builder().schema("schema").build()).mapRecords(r -> {
           r.addCallBack(ackable);
           return r;
         });
@@ -81,7 +84,8 @@ public class ConverterTest {
     BasicAckableForTesting ackable = new BasicAckableForTesting();
 
     RecordStreamWithMetadata<Integer, String> stream =
-        new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(2)), "schema").mapRecords(r -> {
+        new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(2)),
+            GlobalMetadata.<String>builder().schema("schema").build()).mapRecords(r -> {
           r.addCallBack(ackable);
           return r;
         });
@@ -105,7 +109,8 @@ public class ConverterTest {
     BasicAckableForTesting ackable = new BasicAckableForTesting();
 
     RecordStreamWithMetadata<Integer, String> stream =
-        new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(1), new MyControlMessage<>()), "schema").mapRecords(r -> {
+        new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(1), new MyControlMessage<>()),
+            GlobalMetadata.<String>builder().schema("schema").build()).mapRecords(r -> {
           r.addCallBack(ackable);
           return r;
         });

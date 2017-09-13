@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,12 +30,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.BooleanUtils;
-import org.apache.gobblin.converter.DataConversionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -43,14 +44,13 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import lombok.NoArgsConstructor;
-
 import org.apache.gobblin.Constructs;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.fork.CopyHelper;
 import org.apache.gobblin.fork.CopyNotSupportedException;
 import org.apache.gobblin.fork.Copyable;
@@ -64,6 +64,7 @@ import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.SingleTaskDataPublisher;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import org.apache.gobblin.records.RecordStreamProcessor;
 import org.apache.gobblin.runtime.fork.AsynchronousFork;
 import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.gobblin.runtime.fork.SynchronousFork;
@@ -71,18 +72,13 @@ import org.apache.gobblin.runtime.task.TaskIFace;
 import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
-import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.source.extractor.StreamingExtractor;
 import org.apache.gobblin.state.ConstructState;
+import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.writer.AcknowledgableWatermark;
-import org.apache.gobblin.writer.DataWriter;
-import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
-import org.apache.gobblin.writer.MultiWriterWatermarkManager;
-import org.apache.gobblin.writer.TrackerBasedWatermarkManager;
-import org.apache.gobblin.writer.WatermarkAwareWriter;
-import org.apache.gobblin.writer.WatermarkManager;
-import org.apache.gobblin.writer.WatermarkStorage;
+import org.apache.gobblin.writer.*;
+
+import lombok.NoArgsConstructor;
 
 
 /**
@@ -139,6 +135,7 @@ public class Task implements TaskIFace {
   private final Optional<WatermarkManager> watermarkManager;
   private final Optional<FineGrainedWatermarkTracker> watermarkTracker;
   private final Optional<WatermarkStorage> watermarkStorage;
+  private final List<RecordStreamProcessor<?,?,?,?>> recordStreamProcessors;
 
   private final Closer closer;
 
@@ -173,7 +170,32 @@ public class Task implements TaskIFace {
     this.extractor =
         closer.register(new InstrumentedExtractorDecorator<>(this.taskState, this.taskContext.getExtractor()));
 
-    this.converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
+    this.recordStreamProcessors = this.taskContext.getRecordStreamProcessors();
+
+    // add record stream processors to closer if they are closeable
+    for (RecordStreamProcessor r: recordStreamProcessors) {
+      if (r instanceof Closeable) {
+        this.closer.register((Closeable)r);
+      }
+    }
+
+    List<Converter<?,?,?,?>> converters = this.taskContext.getConverters();
+
+    this.converter = closer.register(new MultiConverter(converters));
+
+    // can't have both record stream processors and converter lists configured
+    try {
+      Preconditions.checkState(this.recordStreamProcessors.isEmpty() || converters.isEmpty(),
+          "Converters cannot be specified when RecordStreamProcessors are specified");
+    } catch (IllegalStateException e) {
+      try {
+        closer.close();
+      } catch (Throwable t) {
+        LOG.error("Failed to close all open resources", t);
+      }
+      throw new TaskInstantiationException("Converters cannot be specified when RecordStreamProcessors are specified");
+    }
+
     try {
       this.rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
     } catch (Exception e) {
@@ -314,7 +336,7 @@ public class Task implements TaskIFace {
         runSynchronousModel();
       } else {
         new StreamModelTaskRunner(this, this.taskState, this.closer, this.taskContext, this.extractor,
-            this.converter, this.rowChecker, this.taskExecutor, this.taskMode, this.shutdownRequested,
+            this.converter, this.recordStreamProcessors, this.rowChecker, this.taskExecutor, this.taskMode, this.shutdownRequested,
             this.watermarkTracker, this.watermarkManager, this.watermarkStorage, this.forks, this.watermarkingStrategy).run();
       }
 

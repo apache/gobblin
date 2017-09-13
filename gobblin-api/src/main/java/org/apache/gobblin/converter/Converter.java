@@ -25,14 +25,18 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.initializer.ConverterInitializer;
 import org.apache.gobblin.converter.initializer.NoopConverterInitializer;
+import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.records.RecordStreamProcessor;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.stream.MetadataUpdateControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.util.FinalState;
+
+import com.google.common.base.Optional;
 
 import io.reactivex.Flowable;
 
@@ -55,6 +59,9 @@ import io.reactivex.Flowable;
  * @param <DO> output data type
  */
 public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState, RecordStreamProcessor<SI, SO, DI, DO> {
+  // Metadata containing the output schema. This may be changed when a MetadataUpdateControlMessage is received.
+  private GlobalMetadata<SO> outputGlobalMetadata;
+
   /**
    * Initialize this {@link Converter}.
    *
@@ -120,16 +127,30 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
   public RecordStreamWithMetadata<DO, SO> processStream(RecordStreamWithMetadata<DI, SI> inputStream,
       WorkUnitState workUnitState) throws SchemaConversionException {
     init(workUnitState);
-    SO outputSchema = convertSchema(inputStream.getSchema(), workUnitState);
+    this.outputGlobalMetadata = GlobalMetadata.<SI, SO>builderWithInput(inputStream.getGlobalMetadata(),
+        Optional.of(convertSchema(inputStream.getGlobalMetadata().getSchema(), workUnitState))).build();
     Flowable<StreamEntity<DO>> outputStream =
         inputStream.getRecordStream()
             .flatMap(in -> {
               if (in instanceof ControlMessage) {
+                ControlMessage out = (ControlMessage) in;
+
                 getMessageHandler().handleMessage((ControlMessage) in);
-                return Flowable.just(((ControlMessage<DO>) in));
+
+                // update the output schema with the new input schema from the MetadataUpdateControlMessage
+                if (in instanceof MetadataUpdateControlMessage) {
+                  this.outputGlobalMetadata = GlobalMetadata.<SI, SO>builderWithInput(
+                      ((MetadataUpdateControlMessage) in).getGlobalMetadata(),
+                      Optional.of(convertSchema((SI)((MetadataUpdateControlMessage) in).getGlobalMetadata()
+                          .getSchema(), workUnitState))).build();
+                  out = new MetadataUpdateControlMessage<SO, DO>(this.outputGlobalMetadata);
+                }
+
+                return Flowable.just(((ControlMessage<DO>) out));
               } else if (in instanceof RecordEnvelope) {
                 RecordEnvelope<DI> recordEnvelope = (RecordEnvelope<DI>) in;
-                Iterator<DO> convertedIterable = convertRecord(outputSchema, recordEnvelope.getRecord(), workUnitState).iterator();
+                Iterator<DO> convertedIterable = convertRecord(this.outputGlobalMetadata.getSchema(),
+                    recordEnvelope.getRecord(), workUnitState).iterator();
 
                 if (!convertedIterable.hasNext()) {
                   // if the iterable is empty, ack the record, return an empty flowable
@@ -153,7 +174,7 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
               }
             }, 1);
     outputStream = outputStream.doOnComplete(this::close);
-    return inputStream.withRecordStream(outputStream, outputSchema);
+    return inputStream.withRecordStream(outputStream, this.outputGlobalMetadata);
   }
 
   /**

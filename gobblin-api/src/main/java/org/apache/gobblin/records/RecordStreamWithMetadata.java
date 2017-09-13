@@ -19,6 +19,7 @@ package org.apache.gobblin.records;
 
 import java.util.function.Function;
 
+import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.stream.StreamEntity;
 
@@ -34,20 +35,29 @@ import lombok.Data;
 @Data
 public class RecordStreamWithMetadata<D, S> {
   private final Flowable<StreamEntity<D>> recordStream;
-  private final S schema;
+  private final GlobalMetadata<S> globalMetadata;
 
   /**
    * @return a new {@link RecordStreamWithMetadata} with a different {@link #recordStream} but same schema.
    */
   public <DO> RecordStreamWithMetadata<DO, S> withRecordStream(Flowable<StreamEntity<DO>> newRecordStream) {
-    return withRecordStream(newRecordStream, this.schema);
+    return withRecordStream(newRecordStream, this.globalMetadata);
   }
 
   /**
-   * @return a new {@link RecordStreamWithMetadata} with a different {@link #recordStream} and {@link #schema}.
+   * @return a new {@link RecordStreamWithMetadata} with a different {@link #recordStream} and {@link #globalMetadata}.
    */
+  @Deprecated
   public <DO, SO> RecordStreamWithMetadata<DO, SO> withRecordStream(Flowable<StreamEntity<DO>> newRecordStream, SO newSchema) {
-    return new RecordStreamWithMetadata<>(newRecordStream, newSchema);
+    return new RecordStreamWithMetadata<>(newRecordStream, GlobalMetadata.<SO>builder().schema(newSchema).build());
+  }
+
+  /**
+   * @return a new {@link RecordStreamWithMetadata} with a different {@link #recordStream} and {@link #globalMetadata}.
+   */
+  public <DO, SO> RecordStreamWithMetadata<DO, SO> withRecordStream(Flowable<StreamEntity<DO>> newRecordStream,
+      GlobalMetadata<SO> newGlobalMetadata) {
+    return new RecordStreamWithMetadata<>(newRecordStream, newGlobalMetadata);
   }
 
   /**
@@ -56,7 +66,7 @@ public class RecordStreamWithMetadata<D, S> {
    */
   public <DO> RecordStreamWithMetadata<DO, S>
       mapStream(Function<? super Flowable<StreamEntity<D>>, ? extends Flowable<StreamEntity<DO>>> transform) {
-    return new RecordStreamWithMetadata<>(transform.apply(this.recordStream), this.schema);
+    return new RecordStreamWithMetadata<>(transform.apply(this.recordStream), this.globalMetadata);
   }
 
   /**

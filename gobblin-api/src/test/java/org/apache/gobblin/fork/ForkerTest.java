@@ -32,6 +32,7 @@ import com.google.common.collect.Lists;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 import org.apache.gobblin.runtime.BasicTestControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -48,7 +49,8 @@ public class ForkerTest {
     Forker forker = new Forker();
     MyFlowable<StreamEntity<byte[]>> flowable = new MyFlowable<>();
 
-    RecordStreamWithMetadata<byte[], String> stream = new RecordStreamWithMetadata<>(flowable, "schema");
+    RecordStreamWithMetadata<byte[], String> stream =
+        new RecordStreamWithMetadata<>(flowable, GlobalMetadata.<String>builder().schema("schema").build());
 
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, "3");

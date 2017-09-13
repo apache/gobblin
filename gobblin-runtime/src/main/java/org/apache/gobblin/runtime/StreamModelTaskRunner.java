@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +33,7 @@ import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.fork.ForkOperator;
 import org.apache.gobblin.fork.Forker;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import org.apache.gobblin.records.RecordStreamProcessor;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.gobblin.source.extractor.Extractor;
@@ -61,6 +63,7 @@ public class StreamModelTaskRunner {
   private final TaskContext taskContext;
   private final Extractor extractor;
   private final Converter converter;
+  private final List<RecordStreamProcessor<?,?,?,?>> recordStreamProcessors;
   private final RowLevelPolicyChecker rowChecker;
   private final TaskExecutor taskExecutor;
   private final ExecutionModel taskMode;
@@ -102,13 +105,21 @@ public class StreamModelTaskRunner {
         return r;
       });
     }
-    if (this.converter instanceof MultiConverter) {
-      // if multiconverter, unpack it
-      for (Converter cverter : ((MultiConverter) this.converter).getConverters()) {
-        stream = cverter.processStream(stream, this.taskState);
+
+    // Use the recordStreamProcessor list if it is configured. This list can contain both all RecordStreamProcessor types
+    if (!this.recordStreamProcessors.isEmpty()) {
+      for (RecordStreamProcessor streamProcessor : this.recordStreamProcessors) {
+        stream = streamProcessor.processStream(stream, this.taskState);
       }
     } else {
-      stream = this.converter.processStream(stream, this.taskState);
+      if (this.converter instanceof MultiConverter) {
+        // if multiconverter, unpack it
+        for (Converter cverter : ((MultiConverter) this.converter).getConverters()) {
+          stream = cverter.processStream(stream, this.taskState);
+        }
+      } else {
+        stream = this.converter.processStream(stream, this.taskState);
+      }
     }
     stream = this.rowChecker.processStream(stream, this.taskState);
 
@@ -124,7 +135,7 @@ public class StreamModelTaskRunner {
         if (isForkAsync) {
           forkedStream = forkedStream.mapStream(f -> f.observeOn(Schedulers.from(this.taskExecutor.getForkExecutor()), false, bufferSize));
         }
-        Fork fork = new Fork(this.taskContext, forkedStream.getSchema(), forkedStreams.getForkedStreams().size(), fidx, this.taskMode);
+        Fork fork = new Fork(this.taskContext, forkedStream.getGlobalMetadata().getSchema(), forkedStreams.getForkedStreams().size(), fidx, this.taskMode);
         fork.consumeRecordStream(forkedStream);
         this.forks.put(Optional.of(fork), Optional.of(Futures.immediateFuture(null)));
         this.task.configureStreamingFork(fork, this.watermarkingStrategy);
