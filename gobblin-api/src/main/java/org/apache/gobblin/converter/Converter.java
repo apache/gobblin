@@ -139,7 +139,8 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
 
                 // update the output schema with the new input schema from the MetadataUpdateControlMessage
                 if (in instanceof MetadataUpdateControlMessage) {
-                  this.outputGlobalMetadata = GlobalMetadata.<SI, SO>builderWithInput(inputStream.getGlobalMetadata(),
+                  this.outputGlobalMetadata = GlobalMetadata.<SI, SO>builderWithInput(
+                      ((MetadataUpdateControlMessage) in).getGlobalMetadata(),
                       Optional.of(convertSchema((SI)((MetadataUpdateControlMessage) in).getGlobalMetadata()
                           .getSchema(), workUnitState))).build();
                   out = new MetadataUpdateControlMessage<SO, DO>(this.outputGlobalMetadata);
