@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.lineage;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,7 +49,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class LineageInfo {
-
+  public static final String LINEAGE_DATASET_URN = "lineage.dataset.urn";
   public static final String LINEAGE_NAME_SPACE = "gobblin.lineage";
   public static final String BRANCH_ID_METADATA_KEY = "branchId";
   private static final String DATASET_PREFIX =  LINEAGE_NAME_SPACE + ".";
@@ -226,6 +227,17 @@ public class LineageInfo {
 
   public static void setBranchLineageAttribute (State state, int branchId, String key, String value) {
     state.setProp(BRANCH_PREFIX + Joiner.on(".").join(branchId, key), value);
+  }
+
+  public static Map<String, Collection<State>> aggregateByDatasetUrn (Collection<? extends State> states) {
+    Map<String, Collection<State>> datasetStates = new HashMap<>();
+    for (State state: states) {
+      String urn = state.getProp(LINEAGE_DATASET_URN, state.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN));
+      datasetStates.putIfAbsent(urn, new ArrayList<>());
+      Collection<State> datasetState = datasetStates.get(urn);
+      datasetState.add(state);
+    }
+    return datasetStates;
   }
 
   public final String getId() {
