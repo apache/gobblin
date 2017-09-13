@@ -18,7 +18,10 @@ package org.apache.gobblin.data.management.conversion.hive.provider;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
 import java.util.Properties;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
 
@@ -33,17 +36,20 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * A factory class to create {@link HiveUnitUpdateProvider}s
  */
 @Alpha
+@Slf4j
 public class UpdateProviderFactory {
 
   private static final String OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_CLASS_KEY = "hive.unit.updateProvider.class";
   private static final String DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_CLASS = HdfsBasedUpdateProvider.class
       .getName();
 
+  static final String UPDATE_PROVIDER_FS_URI = "hive.unit.updateProvider.fs.uri";
+
   public static HiveUnitUpdateProvider create(State state) {
     try {
       return (HiveUnitUpdateProvider) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(state.getProp(
           OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_CLASS_KEY, DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_CLASS)),
-          ImmutableList.<Object>of(FileSystem.get(HadoopUtils.getConfFromState(state))), ImmutableList.of());
+          ImmutableList.<Object>of(getFileSystem(state.getProperties())), ImmutableList.of());
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException | IOException e) {
       throw new RuntimeException(e);
@@ -55,10 +61,19 @@ public class UpdateProviderFactory {
       return (HiveUnitUpdateProvider) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(properties
               .getProperty(
               OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_CLASS_KEY, DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_CLASS)),
-          ImmutableList.<Object>of(FileSystem.get(HadoopUtils.getConfFromProperties(properties))), ImmutableList.of());
+          ImmutableList.<Object>of(getFileSystem(properties)), ImmutableList.of());
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException | IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private static FileSystem getFileSystem(Properties properties) throws IOException {
+    String uri = properties.getProperty(UPDATE_PROVIDER_FS_URI);
+    if (uri == null) {
+      return FileSystem.get(HadoopUtils.getConfFromProperties(properties));
+    }
+    log.info("Using file system URI {}", uri);
+    return FileSystem.get(URI.create(uri), HadoopUtils.getConfFromProperties(properties));
   }
 }
