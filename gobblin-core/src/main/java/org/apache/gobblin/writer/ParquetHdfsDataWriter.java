@@ -32,7 +32,12 @@ import parquet.hadoop.example.GroupWriteSupport;
 import parquet.hadoop.metadata.CompressionCodecName;
 import parquet.schema.MessageType;
 
+import static org.apache.gobblin.configuration.ConfigurationKeys.*;
 import static parquet.column.ParquetProperties.WriterVersion.PARQUET_1_0;
+import static parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
+import static parquet.hadoop.ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED;
+import static parquet.hadoop.ParquetWriter.DEFAULT_IS_VALIDATING_ENABLED;
+import static parquet.hadoop.ParquetWriter.DEFAULT_PAGE_SIZE;
 
 
 /**
@@ -50,40 +55,20 @@ public class ParquetHdfsDataWriter extends FsDataWriter<Group> {
   private final ParquetWriter<Group> writer;
   protected final AtomicLong count = new AtomicLong(0);
   private final long pageSize;
-  private final long dictionaryPageSize;
+  private final long dictPageSize;
   private final boolean enableDictionary;
   private final boolean validate;
-  private final ParquetProperties.WriterVersion writerVersion;
 
-  public ParquetHdfsDataWriter(FsDataWriterBuilder<MessageType, Group> builder, State properties)
+  public ParquetHdfsDataWriter(FsDataWriterBuilder<MessageType, Group> builder, State state)
       throws IOException {
-    super(builder, properties);
-    schema = builder.getSchema();
-    GroupWriteSupport support = new GroupWriteSupport();
-    Configuration conf = new Configuration();
-    GroupWriteSupport.setSchema(schema, conf);
-
-    String codecName = Optional.ofNullable(this.properties.getProp(ForkOperatorUtils
-        .getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, this.numBranches, this.branchId)))
-        .orElse(CompressionCodecName.SNAPPY.toString());
-    CompressionCodecName codec = CompressionCodecName.valueOf(codecName.toUpperCase());
-    this.pageSize = properties.getPropAsLong(ForkOperatorUtils
-            .getPropertyNameForBranch(ConfigurationKeys.WRITER_PARQUET_PAGE_SIZE, this.numBranches, this.branchId),
-        ParquetWriter.DEFAULT_PAGE_SIZE);
-    this.dictionaryPageSize = properties.getPropAsLong(ForkOperatorUtils
-        .getPropertyNameForBranch(ConfigurationKeys.WRITER_PARQUET_DICTIONARY_PAGE_SIZE, this.numBranches,
-            this.branchId), ParquetWriter.DEFAULT_BLOCK_SIZE);
-    this.enableDictionary = properties.getPropAsBoolean(ForkOperatorUtils
-            .getPropertyNameForBranch(ConfigurationKeys.WRITER_PARQUET_DICTIONARY, this.numBranches, this.branchId),
-        ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED);
-    this.validate = properties.getPropAsBoolean(ForkOperatorUtils
-            .getPropertyNameForBranch(ConfigurationKeys.WRITER_PARQUET_VALIDATE, this.numBranches, this.branchId),
-        ParquetWriter.DEFAULT_IS_VALIDATING_ENABLED);
-    this.writerVersion = ParquetProperties.WriterVersion.fromString(properties.getProp(ForkOperatorUtils
-            .getPropertyNameForBranch(ConfigurationKeys.WRITER_PARQUET_VERSION, this.numBranches, this.branchId),
-        PARQUET_1_0.toString()));
-    this.writer = new ParquetWriter<>(this.stagingFile, support, codec, (int) this.blockSize, (int) this.pageSize,
-        (int) this.dictionaryPageSize, this.enableDictionary, this.validate, PARQUET_1_0, conf);
+    super(builder, state);
+    this.schema = builder.getSchema();
+    this.pageSize = state.getPropAsLong(getProperty(WRITER_PARQUET_PAGE_SIZE), DEFAULT_PAGE_SIZE);
+    this.dictPageSize = state.getPropAsLong(getProperty(WRITER_PARQUET_DICTIONARY_PAGE_SIZE), DEFAULT_BLOCK_SIZE);
+    this.enableDictionary =
+        state.getPropAsBoolean(getProperty(WRITER_PARQUET_DICTIONARY), DEFAULT_IS_DICTIONARY_ENABLED);
+    this.validate = state.getPropAsBoolean(getProperty(WRITER_PARQUET_VALIDATE), DEFAULT_IS_VALIDATING_ENABLED);
+    this.writer = buildParquetWriter();
   }
 
   @Override
@@ -107,5 +92,27 @@ public class ParquetHdfsDataWriter extends FsDataWriter<Group> {
       throws IOException {
     this.writer.close();
     super.close();
+  }
+
+  private ParquetWriter<Group> buildParquetWriter()
+      throws IOException {
+    CompressionCodecName codec = getCodecFromConfig();
+    GroupWriteSupport support = new GroupWriteSupport();
+    Configuration conf = new Configuration();
+    GroupWriteSupport.setSchema(this.schema, conf);
+    ParquetProperties.WriterVersion writerVersion = ParquetProperties.WriterVersion
+        .fromString(this.properties.getProp(getProperty(WRITER_PARQUET_VERSION), PARQUET_1_0.toString()));
+    return new ParquetWriter<>(this.stagingFile, support, codec, (int) this.blockSize, (int) this.pageSize,
+        (int) this.dictPageSize, this.enableDictionary, this.validate, writerVersion, conf);
+  }
+
+  private CompressionCodecName getCodecFromConfig() {
+    String codecValue = Optional.ofNullable(this.properties.getProp(getProperty(WRITER_CODEC_TYPE)))
+        .orElse(CompressionCodecName.SNAPPY.toString());
+    return CompressionCodecName.valueOf(codecValue.toUpperCase());
+  }
+
+  private String getProperty(String key) {
+    return ForkOperatorUtils.getPropertyNameForBranch(key, this.numBranches, this.branchId);
   }
 }

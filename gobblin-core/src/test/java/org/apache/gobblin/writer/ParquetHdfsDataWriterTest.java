@@ -51,19 +51,26 @@ public class ParquetHdfsDataWriterTest {
     File stagingDir = new File(TestConstants.TEST_STAGING_DIR);
     File outputDir = new File(TestConstants.TEST_OUTPUT_DIR);
     if (!stagingDir.exists()) {
-      stagingDir.mkdirs();
+      boolean mkdirs = stagingDir.mkdirs();
+      assert mkdirs;
     }
     if (!outputDir.exists()) {
-      outputDir.mkdirs();
+      boolean mkdirs = outputDir.mkdirs();
+      assert mkdirs;
     }
-
     this.schema = TestConstants.PARQUET_SCHEMA;
+    this.filePath = getFilePath();
+    this.properties = createStateWithConfig();
+    this.writer = getParquetDataWriterBuilder().build();
+  }
 
-    this.filePath =
-        TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" + TestConstants.TEST_EXTRACT_TABLE + "/"
-            + TestConstants.TEST_EXTRACT_ID + "_" + TestConstants.TEST_EXTRACT_PULL_TYPE;
+  private String getFilePath() {
+    return TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" + TestConstants.TEST_EXTRACT_TABLE + "/"
+        + TestConstants.TEST_EXTRACT_ID + "_" + TestConstants.TEST_EXTRACT_PULL_TYPE;
+  }
 
-    this.properties = new State();
+  private State createStateWithConfig() {
+    State properties = new State();
     properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE);
     properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, TestConstants.TEST_FS_URI);
     properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR, TestConstants.TEST_STAGING_DIR);
@@ -74,33 +81,20 @@ public class ParquetHdfsDataWriterTest {
     properties.setProp(ConfigurationKeys.WRITER_PARQUET_DICTIONARY_PAGE_SIZE, 1024);
     properties.setProp(ConfigurationKeys.WRITER_PARQUET_PAGE_SIZE, 1024);
     properties.setProp(ConfigurationKeys.WRITER_PARQUET_VALIDATE, true);
+    return properties;
+  }
 
-    // Build a writer to write test records
+  private ParquetDataWriterBuilder getParquetDataWriterBuilder() {
     ParquetDataWriterBuilder writerBuilder = new ParquetDataWriterBuilder();
     writerBuilder.destination = Destination.of(Destination.DestinationType.HDFS, properties);
     writerBuilder.writerId = TestConstants.TEST_WRITER_ID;
     writerBuilder.schema = this.schema;
     writerBuilder.format = WriterOutputFormat.PARQUET;
-    this.writer = writerBuilder.build();
+    return writerBuilder;
   }
 
-  @Test
-  public void testWrite()
-      throws Exception {
-    Group record1 = TestConstants.PARQUET_RECORD_1;
-    Group record2 = TestConstants.PARQUET_RECORD_2;
-
-    this.writer.write(record1);
-    Assert.assertEquals(this.writer.recordsWritten(), 1);
-    this.writer.write(record2);
-    Assert.assertEquals(this.writer.recordsWritten(), 2);
-
-    this.writer.close();
-    this.writer.commit();
-
-    File outputFile =
-        new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath, TestConstants.PARQUET_TEST_FILENAME);
-
+  private List<SimpleRecord> readParquetFiles(File outputFile)
+      throws IOException {
     ParquetReader<SimpleRecord> reader = null;
     List<SimpleRecord> records = new ArrayList<>();
     try {
@@ -113,17 +107,40 @@ public class ParquetHdfsDataWriterTest {
         try {
           reader.close();
         } catch (Exception ex) {
+          System.out.println(ex.getMessage());
         }
       }
     }
+    return records;
+  }
 
+  @Test
+  public void testWrite()
+      throws Exception {
+    long firstWrite;
+    long secondWrite;
+    List<SimpleRecord> records;
+    Group record1 = TestConstants.PARQUET_RECORD_1;
+    Group record2 = TestConstants.PARQUET_RECORD_2;
+    String filePath = TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath;
+    File outputFile = new File(filePath, TestConstants.PARQUET_TEST_FILENAME);
+
+    this.writer.write(record1);
+    firstWrite = this.writer.recordsWritten();
+    this.writer.write(record2);
+    secondWrite = this.writer.recordsWritten();
+    this.writer.close();
+    this.writer.commit();
+    records = readParquetFiles(outputFile);
     SimpleRecord resultRecord1 = records.get(0);
     SimpleRecord resultRecord2 = records.get(1);
+
+    Assert.assertEquals(firstWrite, 1);
+    Assert.assertEquals(secondWrite, 2);
     Assert.assertEquals(resultRecord1.getValues().get(0).getName(), "name");
     Assert.assertEquals(resultRecord1.getValues().get(0).getValue(), "tilak");
     Assert.assertEquals(resultRecord1.getValues().get(1).getName(), "age");
     Assert.assertEquals(resultRecord1.getValues().get(1).getValue(), 22);
-
     Assert.assertEquals(resultRecord2.getValues().get(0).getName(), "name");
     Assert.assertEquals(resultRecord2.getValues().get(0).getValue(), "other");
     Assert.assertEquals(resultRecord2.getValues().get(1).getName(), "age");
