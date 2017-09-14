@@ -20,9 +20,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -31,10 +33,13 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import parquet.example.data.Group;
+import parquet.example.data.simple.convert.GroupRecordConverter;
 import parquet.hadoop.ParquetReader;
+import parquet.hadoop.api.InitContext;
+import parquet.hadoop.api.ReadSupport;
+import parquet.io.api.RecordMaterializer;
 import parquet.schema.MessageType;
-import parquet.tools.read.SimpleReadSupport;
-import parquet.tools.read.SimpleRecord;
+
 
 @Test(groups = {"gobblin.writer"})
 public class ParquetHdfsDataWriterTest {
@@ -93,13 +98,13 @@ public class ParquetHdfsDataWriterTest {
     return writerBuilder;
   }
 
-  private List<SimpleRecord> readParquetFiles(File outputFile)
+  private List<Group> readParquetFiles(File outputFile)
       throws IOException {
-    ParquetReader<SimpleRecord> reader = null;
-    List<SimpleRecord> records = new ArrayList<>();
+    ParquetReader<Group> reader = null;
+    List<Group> records = new ArrayList<>();
     try {
       reader = new ParquetReader<>(new Path(outputFile.toString()), new SimpleReadSupport());
-      for (SimpleRecord value = reader.read(); value != null; value = reader.read()) {
+      for (Group value = reader.read(); value != null; value = reader.read()) {
         records.add(value);
       }
     } finally {
@@ -119,7 +124,7 @@ public class ParquetHdfsDataWriterTest {
       throws Exception {
     long firstWrite;
     long secondWrite;
-    List<SimpleRecord> records;
+    List<Group> records;
     Group record1 = TestConstants.PARQUET_RECORD_1;
     Group record2 = TestConstants.PARQUET_RECORD_2;
     String filePath = TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath;
@@ -132,19 +137,15 @@ public class ParquetHdfsDataWriterTest {
     this.writer.close();
     this.writer.commit();
     records = readParquetFiles(outputFile);
-    SimpleRecord resultRecord1 = records.get(0);
-    SimpleRecord resultRecord2 = records.get(1);
+    Group resultRecord1 = records.get(0);
+    Group resultRecord2 = records.get(1);
 
     Assert.assertEquals(firstWrite, 1);
     Assert.assertEquals(secondWrite, 2);
-    Assert.assertEquals(resultRecord1.getValues().get(0).getName(), "name");
-    Assert.assertEquals(resultRecord1.getValues().get(0).getValue(), "tilak");
-    Assert.assertEquals(resultRecord1.getValues().get(1).getName(), "age");
-    Assert.assertEquals(resultRecord1.getValues().get(1).getValue(), 22);
-    Assert.assertEquals(resultRecord2.getValues().get(0).getName(), "name");
-    Assert.assertEquals(resultRecord2.getValues().get(0).getValue(), "other");
-    Assert.assertEquals(resultRecord2.getValues().get(1).getName(), "age");
-    Assert.assertEquals(resultRecord2.getValues().get(1).getValue(), 22);
+    Assert.assertEquals(resultRecord1.getString("name", 0), "tilak");
+    Assert.assertEquals(resultRecord1.getInteger("age", 0), 22);
+    Assert.assertEquals(resultRecord2.getString("name", 0), "other");
+    Assert.assertEquals(resultRecord2.getInteger("age", 0), 22);
   }
 
   @AfterClass
@@ -154,6 +155,19 @@ public class ParquetHdfsDataWriterTest {
     File testRootDir = new File(TestConstants.TEST_ROOT_DIR);
     if (testRootDir.exists()) {
       FileUtil.fullyDelete(testRootDir);
+    }
+  }
+
+  class SimpleReadSupport extends ReadSupport<Group> {
+    @Override
+    public RecordMaterializer<Group> prepareForRead(Configuration conf, Map<String, String> metaData,
+        MessageType schema, ReadContext context) {
+      return new GroupRecordConverter(schema);
+    }
+
+    @Override
+    public ReadContext init(InitContext context) {
+      return new ReadContext(context.getFileSchema());
     }
   }
 }
