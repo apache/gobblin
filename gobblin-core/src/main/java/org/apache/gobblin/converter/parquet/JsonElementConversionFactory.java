@@ -28,6 +28,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import parquet.example.data.Group;
 import parquet.example.data.simple.BinaryValue;
 import parquet.example.data.simple.BooleanValue;
 import parquet.example.data.simple.DoubleValue;
@@ -39,10 +40,11 @@ import parquet.schema.GroupType;
 import parquet.schema.MessageType;
 import parquet.schema.PrimitiveType;
 import parquet.schema.PrimitiveType.PrimitiveTypeName;
+import parquet.schema.Type;
 import parquet.schema.Types;
 
 import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.CHILD;
-import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.Type.*;
+import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.SourceType.*;
 import static parquet.schema.OriginalType.UTF8;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
@@ -61,7 +63,7 @@ import static parquet.schema.Type.Repetition.REQUIRED;
  *
  */
 public class JsonElementConversionFactory {
-  public enum Type {
+  public enum SourceType {
     STRING, INT, LONG, FLOAT, DOUBLE, BOOLEAN, ARRAY, ENUM, RECORD, MAP
   }
 
@@ -73,12 +75,12 @@ public class JsonElementConversionFactory {
    * @param schemaNode
    * @param state
    * @param nullable
-   * @param repeated - Is the {@link parquet.schema.Type} repeated in the parent {@link parquet.example.data.Group}
+   * @param repeated - Is the {@link Type} repeated in the parent {@link Group}
    * @return
    */
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
       WorkUnitState state, boolean nullable, boolean repeated) {
-    Type type;
+    SourceType type;
 
     try {
       type = valueOf(fieldType.toUpperCase());
@@ -133,9 +135,9 @@ public class JsonElementConversionFactory {
     private final boolean repeated;
 
     /**
-     * HashMap to convert {@link Type} to {@link PrimitiveTypeName}
+     * HashMap to convert {@link SourceType} to {@link PrimitiveTypeName}
      */
-    protected final static HashMap<Type, PrimitiveTypeName> typeMap = new HashMap<>();
+    protected final static HashMap<SourceType, PrimitiveTypeName> typeMap = new HashMap<>();
 
     static {
       typeMap.put(INT, INT32);
@@ -177,7 +179,7 @@ public class JsonElementConversionFactory {
      * Returns a {@link PrimitiveType} schema
      * @return
      */
-    protected parquet.schema.Type schema() {
+    protected Type schema() {
       return new PrimitiveType(repeated ? REPEATED : optionalOrRequired(), getTargetType(), getName());
     }
 
@@ -213,18 +215,18 @@ public class JsonElementConversionFactory {
      * Returns the source type
      * @return
      */
-    public abstract Type getSourceType();
+    public abstract SourceType getSourceType();
 
     /**
      * Parquet RepetitionType Optional or Required
      * @return
      */
-    protected parquet.schema.Type.Repetition optionalOrRequired() {
+    protected Type.Repetition optionalOrRequired() {
       return isNullable() ? OPTIONAL : REQUIRED;
     }
 
     /**
-     * Is Parquet type repeated in the {@link parquet.example.data.Group}
+     * Is Parquet type repeated in the {@link Group}
      * @return
      */
     protected boolean isRepeated() {
@@ -266,7 +268,7 @@ public class JsonElementConversionFactory {
   public static abstract class ComplexConverterForUniformElementTypes extends ComplexConverter {
     private JsonElementConverter elementConverter;
     private PrimitiveTypeName elementPrimitiveName;
-    private Type elementSourceType;
+    private SourceType elementSourceType;
 
     public ComplexConverterForUniformElementTypes(String fieldName, boolean nullable, JsonObject schemaNode,
         String itemKey, boolean repeated) {
@@ -303,21 +305,21 @@ public class JsonElementConversionFactory {
     }
 
     /**
-     * {@link Type} of the elements composed within complex type.
+     * {@link SourceType} of the elements composed within complex type.
      * @param schemaNode
      * @param itemKey
      * @return
      */
-    private Type getPrimitiveTypeInSource(JsonObject schemaNode, String itemKey) {
+    private SourceType getPrimitiveTypeInSource(JsonObject schemaNode, String itemKey) {
       String type = schemaNode.get("dataType").getAsJsonObject().get(itemKey).getAsString().toUpperCase();
-      return Type.valueOf(type);
+      return SourceType.valueOf(type);
     }
 
     public PrimitiveTypeName getElementTypeParquet() {
       return elementPrimitiveName;
     }
 
-    public Type getElementTypeSource() {
+    public SourceType getElementTypeSource() {
       return elementSourceType;
     }
 
@@ -353,7 +355,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Type getSourceType() {
+    public SourceType getSourceType() {
       return INT;
     }
   }
@@ -375,7 +377,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Type getSourceType() {
+    public SourceType getSourceType() {
       return LONG;
     }
   }
@@ -397,7 +399,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Type getSourceType() {
+    public SourceType getSourceType() {
       return FLOAT;
     }
   }
@@ -419,7 +421,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Type getSourceType() {
+    public SourceType getSourceType() {
       return DOUBLE;
     }
   }
@@ -441,7 +443,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Type getSourceType() {
+    public SourceType getSourceType() {
       return BOOLEAN;
     }
   }
@@ -463,12 +465,12 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Type getSourceType() {
+    public SourceType getSourceType() {
       return STRING;
     }
 
     @Override
-    public parquet.schema.Type schema() {
+    public Type schema() {
       if (isRepeated()) {
         return Types.repeated(BINARY).as(UTF8).named(getName());
       }
@@ -507,13 +509,13 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Type getSourceType() {
+    public SourceType getSourceType() {
       return ARRAY;
     }
 
     @Override
     public GroupType schema() {
-      List<parquet.schema.Type> fields = new ArrayList<>();
+      List<Type> fields = new ArrayList<>();
       fields.add(0, getElementConverter().schema());
       return new GroupType(optionalOrRequired(), getName(), fields);
     }
@@ -551,12 +553,12 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Type getSourceType() {
+    public SourceType getSourceType() {
       return ENUM;
     }
 
     @Override
-    public parquet.schema.Type schema() {
+    public Type schema() {
       return this.getElementConverter().schema();
     }
   }
@@ -595,7 +597,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Type getSourceType() {
+    public SourceType getSourceType() {
       return RECORD;
     }
 
@@ -605,7 +607,7 @@ public class JsonElementConversionFactory {
     }
 
     private GroupType buildSchema(JsonArray inputSchema, WorkUnitState workUnit) {
-      List<parquet.schema.Type> parquetTypes = new ArrayList<>();
+      List<Type> parquetTypes = new ArrayList<>();
       for (JsonElement element : inputSchema) {
         JsonObject map = (JsonObject) element;
 
@@ -614,7 +616,7 @@ public class JsonElementConversionFactory {
         boolean nullable = map.has("isNullable") && map.get("isNullable").getAsBoolean();
         JsonElementConverter convertor =
             JsonElementConversionFactory.getConvertor(columnName, dataType, map, workUnit, nullable, false);
-        parquet.schema.Type schemaType = convertor.schema();
+        Type schemaType = convertor.schema();
         this.converters.put(columnName, convertor);
         parquetTypes.add(schemaType);
       }
@@ -659,7 +661,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Type getSourceType() {
+    public SourceType getSourceType() {
       return MAP;
     }
 
@@ -682,7 +684,7 @@ public class JsonElementConversionFactory {
 
     @Override
     public JsonElementConverter getElementConverter() {
-      Type type = getElementTypeSource();
+      SourceType type = getElementTypeSource();
       return getConvertor("value", type.toString(), getElementSchema(), state, false, false);
     }
 
