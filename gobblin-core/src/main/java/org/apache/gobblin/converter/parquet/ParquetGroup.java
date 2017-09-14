@@ -37,13 +37,8 @@ import parquet.schema.PrimitiveType;
 
 
 /**
- * Custom Implementation of {@link Group} to support adding any {@link PrimitiveType} and {@link GroupType}
- * without their specific type.
- * Adding a {@link Group} to {@link parquet.example.data.simple.SimpleGroup} using
- * {@link parquet.example.data.simple.SimpleGroup#addGroup(String)} results in a new
- * group on which you have to add {@link PrimitiveType} using the API.
- * This implementation allows adding {@link Group} by passing it to the add method.
- *
+ * Custom Implementation of {@link Group} to support adding {@link Object} of type {@link Primitive} or {@link Group}.
+ * Also provides methods to add {@link Primitive} and {@link Group} with {@link String} key if index is not known.
  * @author tilakpatidar
  */
 public class ParquetGroup extends Group {
