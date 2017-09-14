@@ -19,6 +19,7 @@ package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
@@ -38,27 +39,33 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.fork.IdentityForkOperator;
+import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.publisher.TaskPublisher;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.RecordStreamProcessor;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.ControlMessageInjector;
 import org.apache.gobblin.stream.FlushControlMessage;
+import org.apache.gobblin.stream.MetadataUpdateControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.DataWriterBuilder;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.*;
 import io.reactivex.Flowable;
 import lombok.AllArgsConstructor;
-import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.*;
 
 
 /**
@@ -107,6 +114,97 @@ public class TestRecordStream {
 
     Assert.assertEquals(writer.records, Lists.newArrayList("a", "b"));
     Assert.assertEquals(writer.messages, Lists.newArrayList("flush called", "flush called"));
+  }
+
+  /**
+   * Test of metadata update control messages that signal the converters to change schemas
+   * @throws Exception
+   */
+  @Test
+  public void testMetadataUpdateControlMessages() throws Exception {
+
+    MyExtractor extractor = new MyExtractor(new StreamEntity[]{new RecordEnvelope<>("a"),
+        new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("Schema1").build()), new RecordEnvelope<>("b"),
+            new MetadataUpdateControlMessage(GlobalMetadata.<String>builder().schema("Schema2").build())});
+    SchemaAppendConverter converter = new SchemaAppendConverter();
+    MyDataWriter writer = new MyDataWriter();
+
+    Task task = setupTask(extractor, writer, converter);
+
+    task.run();
+    task.commit();
+    Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
+
+    Assert.assertEquals(converter.records, Lists.newArrayList("a:schema", "b:Schema1"));
+    Assert.assertEquals(converter.messages,
+        Lists.newArrayList(new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("Schema1").build()),
+            new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("Schema2").build())));
+
+    Assert.assertEquals(writer.records, Lists.newArrayList("a:schema", "b:Schema1"));
+    Assert.assertEquals(writer.messages, Lists.newArrayList(new MetadataUpdateControlMessage<>(
+        GlobalMetadata.<String>builder().schema("Schema1").build()),
+        new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("Schema2").build())));
+  }
+
+  /**
+   * Test with the converter configured in the list of {@link RecordStreamProcessor}s.
+   * @throws Exception
+   */
+  @Test
+  public void testMetadataUpdateWithStreamProcessors() throws Exception {
+
+    MyExtractor extractor = new MyExtractor(new StreamEntity[]{new RecordEnvelope<>("a"),
+        new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("Schema1").build()), new RecordEnvelope<>("b"),
+        new MetadataUpdateControlMessage(GlobalMetadata.<String>builder().schema("Schema2").build())});
+    SchemaAppendConverter converter = new SchemaAppendConverter();
+    MyDataWriter writer = new MyDataWriter();
+
+    Task task = setupTask(extractor, writer, Collections.EMPTY_LIST, Lists.newArrayList(converter));
+
+    task.run();
+    task.commit();
+    Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
+
+    Assert.assertEquals(converter.records, Lists.newArrayList("a:schema", "b:Schema1"));
+    Assert.assertEquals(converter.messages,
+        Lists.newArrayList(new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("Schema1").build()),
+            new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("Schema2").build())));
+
+    Assert.assertEquals(writer.records, Lists.newArrayList("a:schema", "b:Schema1"));
+    Assert.assertEquals(writer.messages, Lists.newArrayList(new MetadataUpdateControlMessage<>(
+        GlobalMetadata.<String>builder().schema("Schema1").build()),
+        new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("Schema2").build())));
+  }
+
+  /**
+   * Test the injection of {@link ControlMessage}s
+   * @throws Exception
+   */
+  @Test
+  public void testInjectedControlMessages() throws Exception {
+
+    MyExtractor extractor = new MyExtractor(new StreamEntity[]{new RecordEnvelope<>("schema:a"),
+        new RecordEnvelope<>("schema:b"), new RecordEnvelope<>("schema1:c"), new RecordEnvelope<>("schema2:d")});
+    SchemaChangeDetectionInjector injector = new SchemaChangeDetectionInjector();
+    SchemaAppendConverter converter = new SchemaAppendConverter();
+    MyDataWriter writer = new MyDataWriter();
+
+    Task task = setupTask(extractor, writer, Collections.EMPTY_LIST,
+        Lists.newArrayList(injector, converter));
+
+    task.run();
+    task.commit();
+    Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
+
+    Assert.assertEquals(converter.records, Lists.newArrayList("a:schema", "b:schema", "c:schema1", "d:schema2"));
+    Assert.assertEquals(converter.messages,
+        Lists.newArrayList(new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("schema1").build()),
+            new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("schema2").build())));
+
+    Assert.assertEquals(writer.records, Lists.newArrayList("a:schema", "b:schema", "c:schema1", "d:schema2"));
+    Assert.assertEquals(writer.messages, Lists.newArrayList(new MetadataUpdateControlMessage<>(
+        GlobalMetadata.<String>builder().schema("schema1").build()),
+        new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("schema2").build())));
   }
 
   @Test
@@ -178,6 +276,11 @@ public class TestRecordStream {
   }
 
   private Task setupTask(Extractor extractor, DataWriterBuilder writer, Converter converter) throws Exception {
+    return setupTask(extractor, writer, Lists.newArrayList(converter), Collections.EMPTY_LIST);
+  }
+
+  private Task setupTask(Extractor extractor, DataWriterBuilder writer, List<Converter<?,?,?,?>> converters,
+      List<RecordStreamProcessor<?,?,?,?>> recordStreamProcessors) throws Exception {
     // Create a TaskState
     TaskState taskState = getEmptyTestTaskState("testRetryTaskId");
     taskState.setProp(ConfigurationKeys.TASK_SYNCHRONOUS_EXECUTION_MODEL_KEY, false);
@@ -186,7 +289,8 @@ public class TestRecordStream {
     when(mockTaskContext.getExtractor()).thenReturn(extractor);
     when(mockTaskContext.getForkOperator()).thenReturn(new IdentityForkOperator());
     when(mockTaskContext.getTaskState()).thenReturn(taskState);
-    when(mockTaskContext.getConverters()).thenReturn(Lists.newArrayList(converter));
+    when(mockTaskContext.getConverters()).thenReturn(converters);
+    when(mockTaskContext.getRecordStreamProcessors()).thenReturn(recordStreamProcessors);
     when(mockTaskContext.getTaskLevelPolicyChecker(any(TaskState.class), anyInt()))
         .thenReturn(mock(TaskLevelPolicyChecker.class));
     when(mockTaskContext.getRowLevelPolicyChecker()).
@@ -241,7 +345,8 @@ public class TestRecordStream {
 
     @Override
     public RecordStreamWithMetadata<String, String> recordStream(AtomicBoolean shutdownRequest) throws IOException {
-      return new RecordStreamWithMetadata<>(Flowable.fromArray(this.stream), "schema");
+      return new RecordStreamWithMetadata<>(Flowable.fromArray(this.stream),
+          GlobalMetadata.<String>builder().schema("schema").build());
     }
   }
 
@@ -298,6 +403,81 @@ public class TestRecordStream {
         throws DataConversionException {
       records.add(inputRecord);
       return Lists.newArrayList(inputRecord);
+    }
+
+    @Override
+    public ControlMessageHandler getMessageHandler() {
+      return messages::add;
+    }
+  }
+
+
+  /**
+   * Converter that appends the output schema string to the record string
+   */
+  static class SchemaAppendConverter extends Converter<String, String, String, String> {
+    private List<String> records = new ArrayList<>();
+    private List<ControlMessage<String>> messages = new ArrayList<>();
+
+    @Override
+    public String convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+      return inputSchema;
+    }
+
+    @Override
+    public Iterable<String> convertRecord(String outputSchema, String inputRecord, WorkUnitState workUnit)
+        throws DataConversionException {
+      String inputWithoutSchema = inputRecord.substring(inputRecord.indexOf(":") + 1);
+      String outputRecord = inputWithoutSchema + ":" + outputSchema;
+      records.add(outputRecord);
+      return Lists.newArrayList(outputRecord);
+    }
+
+    @Override
+    public ControlMessageHandler getMessageHandler() {
+      return messages::add;
+    }
+  }
+
+  /**
+   * Input to this {@link RecordStreamProcessor} is a string of the form "schema:value".
+   * It will inject a {@link MetadataUpdateControlMessage} when a schema change is detected.
+   */
+  static class SchemaChangeDetectionInjector extends ControlMessageInjector<String, String> {
+    private List<String> records = new ArrayList<>();
+    private List<ControlMessage<String>> messages = new ArrayList<>();
+    private GlobalMetadata<String> globalMetadata;
+
+    public Iterable<String> convertRecord(String outputSchema, String inputRecord, WorkUnitState workUnitState)
+        throws DataConversionException {
+
+      String outputRecord = inputRecord.split(":")[1];
+      records.add(outputRecord);
+      return Lists.newArrayList(outputRecord);
+    }
+
+    @Override
+    protected void setInputGlobalMetadata(GlobalMetadata<String> inputGlobalMetadata, WorkUnitState workUnitState) {
+      this.globalMetadata = inputGlobalMetadata;
+    }
+
+    @Override
+    public Iterable<ControlMessage<String>> injectControlMessagesBefore(RecordEnvelope<String> inputRecordEnvelope,
+        WorkUnitState workUnitState) {
+      String recordSchema = inputRecordEnvelope.getRecord().split(":")[0];
+
+      if (!recordSchema.equals(this.globalMetadata.getSchema())) {
+        return new SingleRecordIterable<>(new MetadataUpdateControlMessage<>(
+            GlobalMetadata.<String>builder().schema(recordSchema).build()));
+      }
+
+      return null;
+    }
+
+    @Override
+    public Iterable<ControlMessage<String>> injectControlMessagesAfter(RecordEnvelope<String> inputRecordEnvelope,
+        WorkUnitState workUnitState) {
+      return null;
     }
 
     @Override

@@ -21,6 +21,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.stream.StreamEntity;
@@ -128,7 +129,7 @@ public interface Extractor<S, D> extends Closeable {
       }
     });
     recordStream = recordStream.doFinally(this::close);
-    return new RecordStreamWithMetadata<>(recordStream, schema);
+    return new RecordStreamWithMetadata<>(recordStream, GlobalMetadata.<S>builder().schema(schema).build());
   }
 
 }

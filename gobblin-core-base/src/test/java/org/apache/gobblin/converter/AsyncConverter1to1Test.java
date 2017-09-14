@@ -31,6 +31,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ExponentialBackoff;
@@ -52,7 +53,8 @@ public class AsyncConverter1to1Test {
     workUnitState.setProp(AsyncConverter1to1.MAX_CONCURRENT_ASYNC_CONVERSIONS_KEY, 3);
 
     RecordStreamWithMetadata<String, String> stream =
-        new RecordStreamWithMetadata<>(Flowable.range(0, 5).map(i -> i.toString()).map(RecordEnvelope::new), "schema");
+        new RecordStreamWithMetadata<>(Flowable.range(0, 5).map(i -> i.toString()).map(RecordEnvelope::new),
+            GlobalMetadata.<String>builder().schema("schema").build());
 
     Set<String> outputRecords = Sets.newConcurrentHashSet();
 
@@ -106,7 +108,8 @@ public class AsyncConverter1to1Test {
     workUnitState.setProp(AsyncConverter1to1.MAX_CONCURRENT_ASYNC_CONVERSIONS_KEY, 3);
 
     RecordStreamWithMetadata<String, String> stream =
-        new RecordStreamWithMetadata<>(Flowable.just("0", MyAsyncConverter1to1.FAIL, "1").map(RecordEnvelope::new), "schema");
+        new RecordStreamWithMetadata<>(Flowable.just("0", MyAsyncConverter1to1.FAIL, "1").map(RecordEnvelope::new),
+            GlobalMetadata.<String>builder().schema("schema").build());
 
     Set<String> outputRecords = Sets.newConcurrentHashSet();
 

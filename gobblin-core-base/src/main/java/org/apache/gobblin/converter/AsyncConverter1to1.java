@@ -19,9 +19,12 @@ package org.apache.gobblin.converter;
 
 import java.util.concurrent.CompletableFuture;
 
+import com.google.common.base.Optional;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -64,12 +67,20 @@ public abstract class AsyncConverter1to1<SI, SO, DI, DO> extends Converter<SI, S
   protected abstract CompletableFuture<DO> convertRecordAsync(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException;
 
+  /**
+   * Return a {@link RecordStreamWithMetadata} with the appropriate modifications.
+   * @param inputStream
+   * @param workUnitState
+   * @return
+   * @throws SchemaConversionException
+   * @implNote this processStream does not handle {@link org.apache.gobblin.stream.MetadataUpdateControlMessage}s
+   */
   @Override
   public RecordStreamWithMetadata<DO, SO> processStream(RecordStreamWithMetadata<DI, SI> inputStream,
       WorkUnitState workUnitState) throws SchemaConversionException {
     int maxConcurrentAsyncConversions = workUnitState.getPropAsInt(MAX_CONCURRENT_ASYNC_CONVERSIONS_KEY,
         DEFAULT_MAX_CONCURRENT_ASYNC_CONVERSIONS);
-    SO outputSchema = convertSchema(inputStream.getSchema(), workUnitState);
+    SO outputSchema = convertSchema(inputStream.getGlobalMetadata().getSchema(), workUnitState);
     Flowable<StreamEntity<DO>> outputStream =
         inputStream.getRecordStream()
             .flatMapSingle(in -> {
@@ -83,7 +94,8 @@ public abstract class AsyncConverter1to1<SI, SO, DI, DO> extends Converter<SI, S
                 throw new IllegalStateException("Expected ControlMessage or RecordEnvelope.");
               }
             }, false, maxConcurrentAsyncConversions);
-    return inputStream.withRecordStream(outputStream, outputSchema);
+    return inputStream.withRecordStream(outputStream, GlobalMetadata.<SI, SO>builderWithInput(inputStream.getGlobalMetadata(),
+        Optional.of(outputSchema)).build());
   }
 
   @RequiredArgsConstructor
