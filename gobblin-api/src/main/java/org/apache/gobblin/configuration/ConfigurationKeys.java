@@ -772,6 +772,14 @@ public class ConfigurationKeys {
    */
   public static final String AZKABAN_EXECUTION_TIME_RANGE = "azkaban.execution.time.range";
   public static final String AZKABAN_EXECUTION_DAYS_LIST = "azkaban.execution.days.list";
+  public static final String AZKABAN_PROJECT_NAME = "azkaban.flow.projectname";
+  public static final String AZKABAN_FLOW_ID = "azkaban.flow.flowid";
+  public static final String AZKABAN_JOB_ID = "azkaban.job.id";
+  public static final String AZKABAN_EXEC_ID = "azkaban.flow.execid";
+  public static final String AZKABAN_URL = "azkaban.link.execution.url";
+  public static final String AZKABAN_FLOW_URL = "azkaban.link.workflow.url";
+  public static final String AZKABAN_JOB_URL = "azkaban.link.job.url";
+  public static final String AZKABAN_JOB_EXEC_URL = "azkaban.link.jobexec.url";
 
   /**
    * Hive registration properties

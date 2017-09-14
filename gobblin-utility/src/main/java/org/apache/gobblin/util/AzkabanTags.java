@@ -21,6 +21,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.conf.Configuration;
 
 import com.google.common.collect.ImmutableMap;
@@ -33,14 +34,14 @@ import com.google.common.collect.Maps;
 public class AzkabanTags {
 
   public static final ImmutableMap<String, String> PROPERTIES_TO_TAGS_MAP = new ImmutableMap.Builder<String, String>()
-      .put("azkaban.flow.projectname", "azkabanProjectName")
-      .put("azkaban.flow.flowid", "azkabanFlowId")
-      .put("azkaban.job.id", "azkabanJobId")
-      .put("azkaban.flow.execid", "azkabanExecId")
-      .put("azkaban.link.execution.url", "azkabanURL")
-      .put("azkaban.link.workflow.url", "azkabanFlowURL")
-      .put("azkaban.link.job.url", "azkabanJobURL")
-      .put("azkaban.link.jobexec.url", "azkabanJobExecURL")
+      .put(ConfigurationKeys.AZKABAN_PROJECT_NAME, "azkabanProjectName")
+      .put(ConfigurationKeys.AZKABAN_FLOW_ID, "azkabanFlowId")
+      .put(ConfigurationKeys.AZKABAN_JOB_ID, "azkabanJobId")
+      .put(ConfigurationKeys.AZKABAN_EXEC_ID, "azkabanExecId")
+      .put(ConfigurationKeys.AZKABAN_URL, "azkabanURL")
+      .put(ConfigurationKeys.AZKABAN_FLOW_URL, "azkabanFlowURL")
+      .put(ConfigurationKeys.AZKABAN_JOB_URL, "azkabanJobURL")
+      .put(ConfigurationKeys.AZKABAN_JOB_EXEC_URL, "azkabanJobExecURL")
       .build();
 
   /**
