@@ -34,6 +34,9 @@ import parquet.io.api.Binary;
 import parquet.io.api.RecordConsumer;
 import parquet.schema.GroupType;
 import parquet.schema.PrimitiveType;
+import parquet.schema.Type;
+
+import static parquet.schema.Type.Repetition.REPEATED;
 
 
 /**
@@ -44,7 +47,7 @@ import parquet.schema.PrimitiveType;
 public class ParquetGroup extends Group {
 
   private final GroupType schema;
-  private final List[] data;
+  private final List<Object>[] data;
 
   public ParquetGroup(GroupType schema) {
     this.schema = schema;
@@ -66,7 +69,7 @@ public class ParquetGroup extends Group {
 
     while (true) {
       String name;
-      List values;
+      List<Object> values;
       do {
         do {
           if (!i$.hasNext()) {
@@ -104,7 +107,7 @@ public class ParquetGroup extends Group {
   }
 
   private Object getValue(int fieldIndex, int index) {
-    List list;
+    List<Object> list;
     try {
       list = this.data[fieldIndex];
     } catch (IndexOutOfBoundsException var6) {
@@ -122,9 +125,9 @@ public class ParquetGroup extends Group {
   }
 
   public void add(int fieldIndex, Primitive value) {
-    parquet.schema.Type type = this.schema.getType(fieldIndex);
-    List list = this.data[fieldIndex];
-    if (!type.isRepetition(parquet.schema.Type.Repetition.REPEATED) && !list.isEmpty()) {
+    Type type = this.schema.getType(fieldIndex);
+    List<Object> list = this.data[fieldIndex];
+    if (!type.isRepetition(REPEATED) && !list.isEmpty()) {
       throw new IllegalStateException(
           "field " + fieldIndex + " (" + type.getName() + ") can not have more than one value: " + list);
     } else {
@@ -133,7 +136,7 @@ public class ParquetGroup extends Group {
   }
 
   public int getFieldRepetitionCount(int fieldIndex) {
-    List list = this.data[fieldIndex];
+    List<Object> list = this.data[fieldIndex];
     return list == null ? 0 : list.size();
   }
 
