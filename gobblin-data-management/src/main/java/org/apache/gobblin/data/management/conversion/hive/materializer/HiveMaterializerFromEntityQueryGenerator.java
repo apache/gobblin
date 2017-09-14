@@ -166,9 +166,8 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
       log.debug("Staging table directory to delete: " + stagingDataLocation);
       cleanupDirectories.add(stagingDataLocation);
 
-      publishQueries.addAll(HiveAvroORCQueryGenerator.generateDropPartitionsDDL(outputDatabaseName, outputTableName,
-          AbstractAvroToOrcConverter.getDropPartitionsDDLInfo(conversionEntity)));
-    }
+    publishQueries.addAll(HiveAvroORCQueryGenerator.generateDropPartitionsDDL(outputDatabaseName, outputTableName,
+        AbstractAvroToOrcConverter.getDropPartitionsDDLInfo(conversionEntity)));
 
     log.info("Publish partition entity: " + publishEntity);
     return publishEntity;
