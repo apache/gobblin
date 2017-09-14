@@ -28,6 +28,7 @@ import static java.util.stream.Collectors.joining;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.gobblin.data.management.conversion.hive.entities.HiveProcessingEntity;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -43,16 +44,18 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
-import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.copy.hive.HiveUtils;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.AutoReturnableObject;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -61,6 +64,19 @@ import lombok.extern.slf4j.Slf4j;
  * A utility class for converting hive data from one dataset to another.
  */
 public class HiveConverterUtils {
+
+  @AllArgsConstructor
+  @Getter
+  public static enum StorageFormat {
+    TEXT_FILE("TEXTFILE"),
+    SEQUENCE_FILE("SEQUENCEFILE"),
+    ORC("ORC"),
+    PARQUET("PARQUET"),
+    AVRO("AVRO"),
+    RC_FILE("RCFILE");
+
+    private final String hiveName;
+  }
 
   /***
    * Subdirectory within destination table directory to publish data
@@ -136,6 +152,44 @@ public class HiveConverterUtils {
   }
 
   /**
+   * Generates a CTAS statement to dump the contents of a table / partition into a new table.
+   * @param outputDbAndTable output db and table where contents should be written.
+   * @param sourceEntity source table / partition.
+   * @param partitionDMLInfo map of partition values.
+   * @param storageFormat format of output table.
+   * @param outputTableLocation location where files of output table should be written.
+   */
+  public static String generateStagingCTASStatementFromSelectStar(HiveDatasetFinder.DbAndTable outputDbAndTable,
+      HiveDatasetFinder.DbAndTable sourceEntity, Map<String, String> partitionDMLInfo,
+      StorageFormat storageFormat, String outputTableLocation) {
+    StringBuilder sourceQueryBuilder = new StringBuilder("SELECT * FROM `").append(sourceEntity.getDb())
+        .append("`.`").append(sourceEntity.getTable()).append("`");
+    if (partitionDMLInfo != null && !partitionDMLInfo.isEmpty()) {
+      sourceQueryBuilder.append(" WHERE ");
+      sourceQueryBuilder.append(partitionDMLInfo.entrySet().stream()
+          .map(e -> "`" + e.getKey() + "`='" + e.getValue() + "'")
+          .collect(joining(" AND ")));
+    }
+    return generateStagingCTASStatement(outputDbAndTable, sourceQueryBuilder.toString(), storageFormat, outputTableLocation);
+  }
+
+  /**
+   * Generates a CTAS statement to dump the results of a query into a new table.
+   * @param outputDbAndTable output db and table where contents should be written.
+   * @param sourceQuery query to materialize.
+   * @param storageFormat format of output table.
+   * @param outputTableLocation location where files of output table should be written.
+   */
+  public static String generateStagingCTASStatement(HiveDatasetFinder.DbAndTable outputDbAndTable,
+      String sourceQuery, StorageFormat storageFormat, String outputTableLocation) {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(outputDbAndTable.getDb()) &&
+        !Strings.isNullOrEmpty(outputDbAndTable.getTable()), "Invalid output db and table " + outputDbAndTable);
+
+    return String.format("CREATE TEMPORARY TABLE `%s`.`%s` STORED AS %s LOCATION '%s' AS %s", outputDbAndTable.getDb(),
+        outputDbAndTable.getTable(), storageFormat.getHiveName(), outputTableLocation, sourceQuery);
+  }
+
+  /**
    * Fills data from input table into output table.
    * @param inputTblName input hive table name
    * @param outputTblName output hive table name
@@ -160,8 +214,10 @@ public class HiveConverterUtils {
     // Insert query
     dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s`.`%s` %n", outputDbName, outputTblName));
 
-    // Partition details
-    dmlQuery.append(partitionKeyValues(optionalPartitionDMLInfo));
+    if (optionalPartitionDMLInfo.isPresent() && optionalPartitionDMLInfo.get().size() > 0) {
+      // Partition details
+      dmlQuery.append(partitionKeyValues(optionalPartitionDMLInfo));
+    }
 
     dmlQuery.append(String.format("SELECT * FROM `%s`.`%s`", inputDbName, inputTblName));
     if (optionalPartitionDMLInfo.isPresent()) {
@@ -192,15 +248,15 @@ public class HiveConverterUtils {
    * @param partitionsDDLInfo partition type information, to be filled by this method
    * @param partitionsDMLInfo partition key-value pair, to be filled by this method
    */
-  public static void populatePartitionInfo(QueryBasedHiveConversionEntity conversionEntity, Map<String, String> partitionsDDLInfo,
+  public static void populatePartitionInfo(HiveProcessingEntity conversionEntity, Map<String, String> partitionsDDLInfo,
       Map<String, String> partitionsDMLInfo) {
 
     String partitionsInfoString = null;
     String partitionsTypeString = null;
 
-    if (conversionEntity.getHivePartition().isPresent()) {
-      partitionsInfoString = conversionEntity.getHivePartition().get().getName();
-      partitionsTypeString = conversionEntity.getHivePartition().get().getSchema().getProperty("partition_columns.types");
+    if (conversionEntity.getPartition().isPresent()) {
+      partitionsInfoString = conversionEntity.getPartition().get().getName();
+      partitionsTypeString = conversionEntity.getPartition().get().getSchema().getProperty("partition_columns.types");
     }
 
     if (StringUtils.isNotBlank(partitionsInfoString) || StringUtils.isNotBlank(partitionsTypeString)) {
@@ -235,7 +291,7 @@ public class HiveConverterUtils {
    * @param conversionEntity conversion entity used to get source directory permissions
    * @param workUnit workunit
    */
-  public static void createStagingDirectory(FileSystem fs, String destination, QueryBasedHiveConversionEntity conversionEntity,
+  public static void createStagingDirectory(FileSystem fs, String destination, HiveProcessingEntity conversionEntity,
       WorkUnitState workUnit) {
     /*
      * Create staging data location with the same permissions as source data location
@@ -250,18 +306,26 @@ public class HiveConverterUtils {
      */
     Path destinationPath = new Path(destination);
     try {
-      FileStatus sourceDataFileStatus = fs.getFileStatus(conversionEntity.getHiveTable().getDataLocation());
-      FsPermission sourceDataPermission = sourceDataFileStatus.getPermission();
-      if (!fs.mkdirs(destinationPath, sourceDataPermission)) {
-        throw new RuntimeException(String.format("Failed to create path %s with permissions %s",
-            destinationPath, sourceDataPermission));
+      FsPermission permission;
+      String group = null;
+      if (conversionEntity.getTable().getDataLocation() != null) {
+        FileStatus sourceDataFileStatus = fs.getFileStatus(conversionEntity.getTable().getDataLocation());
+        permission = sourceDataFileStatus.getPermission();
+        group = sourceDataFileStatus.getGroup();
       } else {
-        fs.setPermission(destinationPath, sourceDataPermission);
+        permission = FsPermission.getDefault();
+      }
+
+      if (!fs.mkdirs(destinationPath, permission)) {
+        throw new RuntimeException(String.format("Failed to create path %s with permissions %s",
+            destinationPath, permission));
+      } else {
+        fs.setPermission(destinationPath, permission);
         // Set the same group as source
-        if (!workUnit.getPropAsBoolean(HIVE_DATASET_DESTINATION_SKIP_SETGROUP, DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP)) {
-          fs.setOwner(destinationPath, null, sourceDataFileStatus.getGroup());
+        if (group != null && !workUnit.getPropAsBoolean(HIVE_DATASET_DESTINATION_SKIP_SETGROUP, DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP)) {
+          fs.setOwner(destinationPath, null, group);
         }
-        log.info(String.format("Created %s with permissions %s and group %s", destinationPath, sourceDataPermission, sourceDataFileStatus.getGroup()));
+        log.info(String.format("Created %s with permissions %s and group %s", destinationPath, permission, group));
       }
     } catch (IOException e) {
       Throwables.propagate(e);
@@ -275,12 +339,12 @@ public class HiveConverterUtils {
    *                               such as hourly or daily.
    * @return Partition directory name.
    */
-  public static String getStagingDataPartitionDirName(QueryBasedHiveConversionEntity conversionEntity,
+  public static String getStagingDataPartitionDirName(HiveProcessingEntity conversionEntity,
       List<String> sourceDataPathIdentifier) {
 
-    if (conversionEntity.getHivePartition().isPresent()) {
+    if (conversionEntity.getPartition().isPresent()) {
       StringBuilder dirNamePrefix = new StringBuilder();
-      String sourceHivePartitionLocation = conversionEntity.getHivePartition().get().getDataLocation().toString();
+      String sourceHivePartitionLocation = conversionEntity.getPartition().get().getDataLocation().toString();
       if (null != sourceDataPathIdentifier && null != sourceHivePartitionLocation) {
         for (String hint : sourceDataPathIdentifier) {
           if (sourceHivePartitionLocation.toLowerCase().contains(hint.toLowerCase())) {
@@ -289,7 +353,7 @@ public class HiveConverterUtils {
         }
       }
 
-      return dirNamePrefix + conversionEntity.getHivePartition().get().getName();
+      return dirNamePrefix + conversionEntity.getPartition().get().getName();
     } else {
       return StringUtils.EMPTY;
     }

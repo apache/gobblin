@@ -15,28 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.conversion.hive.task;
+package org.apache.gobblin.data.management.conversion.hive.entities;
 
-import java.util.List;
-import org.apache.gobblin.converter.DataConversionException;
-import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
+import org.apache.hadoop.hive.ql.metadata.Table;
 
 
 /**
- * An interface for generating queries.
+ * A {@link StageableTableMetadata} intended where the target table is the same as the reference table. Intended to
+ * replace the original table.
  */
-public interface QueryGenerator {
+public class ReplaceTableStageableTableMetadata extends TableLikeStageableTableMetadata {
 
-  /**
-   * Generates queries to extract/convert/write data
-   * @return list of queries
-   */
-  List<String> generateQueries();
+  public ReplaceTableStageableTableMetadata(Table referenceTable) {
+    super(referenceTable, referenceTable.getDbName(), referenceTable.getTableName(), referenceTable.getDataLocation().toString());
+  }
 
-  /**
-   * Generates queries for publish data
-   * @return QueryBasedHivePublishEntity containing cleanup and publish queries
-   * @throws DataConversionException
-   */
-  QueryBasedHivePublishEntity generatePublishQueries() throws DataConversionException;
 }
