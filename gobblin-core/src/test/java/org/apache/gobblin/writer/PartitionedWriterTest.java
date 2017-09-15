@@ -184,7 +184,7 @@ public class PartitionedWriterTest {
     String record2 = "123";
     writer.writeEnvelope(new RecordEnvelope(record2));
 
-    FlushControlMessage controlMessage = new FlushControlMessage<>(new FlushControlMessage.FlushReason("test"));
+    FlushControlMessage controlMessage = FlushControlMessage.builder().build();
     BasicAckableForTesting ackable = new BasicAckableForTesting();
 
     controlMessage.addCallBack(ackable);

@@ -128,7 +128,7 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
       WorkUnitState workUnitState) throws SchemaConversionException {
     init(workUnitState);
     this.outputGlobalMetadata = GlobalMetadata.<SI, SO>builderWithInput(inputStream.getGlobalMetadata(),
-        Optional.of(convertSchema(inputStream.getGlobalMetadata().getSchema(), workUnitState))).build();
+        Optional.fromNullable(convertSchema(inputStream.getGlobalMetadata().getSchema(), workUnitState))).build();
     Flowable<StreamEntity<DO>> outputStream =
         inputStream.getRecordStream()
             .flatMap(in -> {
@@ -141,7 +141,7 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
                 if (in instanceof MetadataUpdateControlMessage) {
                   this.outputGlobalMetadata = GlobalMetadata.<SI, SO>builderWithInput(
                       ((MetadataUpdateControlMessage) in).getGlobalMetadata(),
-                      Optional.of(convertSchema((SI)((MetadataUpdateControlMessage) in).getGlobalMetadata()
+                      Optional.fromNullable(convertSchema((SI)((MetadataUpdateControlMessage) in).getGlobalMetadata()
                           .getSchema(), workUnitState))).build();
                   out = new MetadataUpdateControlMessage<SO, DO>(this.outputGlobalMetadata);
                 }
