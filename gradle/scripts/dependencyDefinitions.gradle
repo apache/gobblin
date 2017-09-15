@@ -166,7 +166,6 @@ ext.externalDependency = [
     "opencsv": "com.opencsv:opencsv:3.8",
     "hadoopAdl" : "org.apache.hadoop:hadoop-azure-datalake:3.0.0-alpha2",
     'parquet': 'com.twitter:parquet-hadoop-bundle:1.5.0',
-    "parquetTools": 'com.twitter:parquet-tools:1.6.0',
     'reactivex': 'io.reactivex.rxjava2:rxjava:2.1.0',
     "slf4j": [
         "org.slf4j:slf4j-api:" + slf4jVersion,
