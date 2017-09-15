@@ -437,7 +437,9 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       if (tablesWithFailedTasks.contains(entry.getKey())) {
         log.info("Resetting low watermark to {} because previous run failed.", entry.getValue());
         result.put(entry.getKey(), entry.getValue());
-      } else if (tablesWithNoUpdatesOnPreviousRun.contains(entry.getKey())) {
+      } else if (tablesWithNoUpdatesOnPreviousRun.contains(entry.getKey())
+          && state.getPropAsBoolean(ConfigurationKeys.SOURCE_QUERYBASED_RESET_EMPTY_PARTITION_WATERMARK,
+          ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_RESET_EMPTY_PARTITION_WATERMARK)) {
         log.info("Resetting low watermakr to {} because previous run processed no data.", entry.getValue());
         result.put(entry.getKey(), entry.getValue());
       } else {

@@ -483,6 +483,10 @@ public class ConfigurationKeys {
       "source.querybased.promoteUnsignedIntToBigInt";
   public static final boolean DEFAULT_SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT = false;
 
+  public static final String SOURCE_QUERYBASED_RESET_EMPTY_PARTITION_WATERMARK =
+      "source.querybased.resetEmptyPartitionWatermark";
+  public static final boolean DEFAULT_SOURCE_QUERYBASED_RESET_EMPTY_PARTITION_WATERMARK = true;
+
   public static final String ENABLE_DELIMITED_IDENTIFIER = "enable.delimited.identifier";
   public static final boolean DEFAULT_ENABLE_DELIMITED_IDENTIFIER = false;
 
