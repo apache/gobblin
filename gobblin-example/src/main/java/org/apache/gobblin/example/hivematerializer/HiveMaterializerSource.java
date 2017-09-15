@@ -72,13 +72,13 @@ public class HiveMaterializerSource implements Source<Object, Object> {
       if (state.contains(COPY_TABLE_KEY)) {
         HiveDataset dataset = getHiveDataset(state.getProp(COPY_TABLE_KEY), fs, state);
         WorkUnit workUnit = HiveMaterializer.tableCopyWorkUnit(dataset,
-            new StageableTableMetadata(config.getConfig(HIVE_MATERIALIZER_SOURCE_PREFIX), dataset.getTable()));
+            new StageableTableMetadata(config.getConfig(HIVE_MATERIALIZER_SOURCE_PREFIX), dataset.getTable()), null);
         HiveTask.disableHiveWatermarker(workUnit);
         return Lists.newArrayList(workUnit);
       } else if (state.contains(MATERIALIZE_VIEW)) {
         HiveDataset dataset = getHiveDataset(state.getProp(MATERIALIZE_VIEW), fs, state);
         WorkUnit workUnit = HiveMaterializer.viewMaterializationWorkUnit(dataset, getOutputStorageFormat(state),
-            new StageableTableMetadata(config.getConfig(HIVE_MATERIALIZER_SOURCE_PREFIX), dataset.getTable()));
+            new StageableTableMetadata(config.getConfig(HIVE_MATERIALIZER_SOURCE_PREFIX), dataset.getTable()), null);
         HiveTask.disableHiveWatermarker(workUnit);
         return Lists.newArrayList(workUnit);
       } else if (state.contains(MATERIALIZE_QUERY)) {

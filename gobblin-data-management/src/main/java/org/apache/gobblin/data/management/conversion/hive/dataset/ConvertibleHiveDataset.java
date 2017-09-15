@@ -166,6 +166,38 @@ public class ConvertibleHiveDataset extends HiveDataset {
       this.destinationViewName = Optional.fromNullable(resolveTemplate(ConfigUtils.getString(config, DESTINATION_VIEW_KEY, null), table));
       this.updateViewAlwaysEnabled = ConfigUtils.getBoolean(config, UPDATE_VIEW_ALWAYS_ENABLED, true);
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      if (!super.equals(o)) {
+        return false;
+      }
+
+      ConversionConfig that = (ConversionConfig) o;
+
+      if (isUpdateViewAlwaysEnabled() != that.isUpdateViewAlwaysEnabled()) {
+        return false;
+      }
+      if (!getDestinationFormat().equals(that.getDestinationFormat())) {
+        return false;
+      }
+      return getDestinationViewName().equals(that.getDestinationViewName());
+    }
+
+    @Override
+    public int hashCode() {
+      int result = super.hashCode();
+      result = 31 * result + getDestinationFormat().hashCode();
+      result = 31 * result + getDestinationViewName().hashCode();
+      result = 31 * result + (isUpdateViewAlwaysEnabled() ? 1 : 0);
+      return result;
+    }
   }
 
 }

@@ -33,6 +33,9 @@ import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
+import com.google.common.base.Strings;
+
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -52,10 +55,14 @@ public class HiveMaterializer extends HiveTask {
    * @param dataset {@link HiveDataset} for the source table.
    * @param destinationTable {@link StageableTableMetadata} specifying staging and target tables metadata.
    */
-  public static HiveWorkUnit tableCopyWorkUnit(HiveDataset dataset, StageableTableMetadata destinationTable) {
+  public static HiveWorkUnit tableCopyWorkUnit(HiveDataset dataset, StageableTableMetadata destinationTable,
+      @Nullable String partitionName) {
     HiveWorkUnit workUnit = new HiveWorkUnit(dataset);
     workUnit.setProp(MATERIALIZER_MODE_KEY, MaterializerMode.TABLE_COPY.name());
     workUnit.setProp(STAGEABLE_TABLE_METADATA_KEY, HiveSource.GENERICS_AWARE_GSON.toJson(destinationTable));
+    if (!Strings.isNullOrEmpty(partitionName)) {
+      workUnit.setPartitionName(partitionName);
+    }
     TaskUtils.setTaskFactoryClass(workUnit, HiveMaterializerTaskFactory.class);
     return workUnit;
   }
@@ -67,11 +74,14 @@ public class HiveMaterializer extends HiveTask {
    * @param destinationTable {@link StageableTableMetadata} specifying staging and target tables metadata.
    */
   public static HiveWorkUnit viewMaterializationWorkUnit(HiveDataset dataset, HiveConverterUtils.StorageFormat storageFormat,
-      StageableTableMetadata destinationTable) {
+      StageableTableMetadata destinationTable, @Nullable String partitionName) {
     HiveWorkUnit workUnit = new HiveWorkUnit(dataset);
     workUnit.setProp(MATERIALIZER_MODE_KEY, MaterializerMode.TABLE_MATERIALIZATION.name());
     workUnit.setProp(STORAGE_FORMAT_KEY, storageFormat.name());
     workUnit.setProp(STAGEABLE_TABLE_METADATA_KEY, HiveSource.GENERICS_AWARE_GSON.toJson(destinationTable));
+    if (!Strings.isNullOrEmpty(partitionName)) {
+      workUnit.setPartitionName(partitionName);
+    }
     TaskUtils.setTaskFactoryClass(workUnit, HiveMaterializerTaskFactory.class);
     return workUnit;
   }

@@ -36,7 +36,7 @@ public class MaterializeTableQueryGenerator extends HiveMaterializerFromEntityQu
   private final HiveConverterUtils.StorageFormat storageFormat;
 
   public MaterializeTableQueryGenerator(WorkUnitState workUnitState) throws IOException {
-    super(workUnitState);
+    super(workUnitState, false);
 
     this.storageFormat = HiveConverterUtils.StorageFormat.valueOf(workUnitState.getProp(HiveMaterializer.STORAGE_FORMAT_KEY));
   }
@@ -47,6 +47,6 @@ public class MaterializeTableQueryGenerator extends HiveMaterializerFromEntityQu
         new HiveDatasetFinder.DbAndTable(this.outputDatabaseName, this.stagingTableName),
         new HiveDatasetFinder.DbAndTable(this.inputDbName, this.inputTableName),
         this.partitionsDMLInfo, this.storageFormat,
-        this.partitionsDMLInfo.isEmpty() ? this.stagingDataLocation : this.stagingDataPartitionLocation));
+        this.stagingDataLocation));
   }
 }

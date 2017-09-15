@@ -62,8 +62,10 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
   protected final Map<String, String> partitionsDMLInfo;
   protected final HiveProcessingEntity conversionEntity;
   protected final Table sourceTable;
+  protected final boolean supportTargetPartitioning;
 
-  public HiveMaterializerFromEntityQueryGenerator(WorkUnitState workUnitState) throws IOException {
+  public HiveMaterializerFromEntityQueryGenerator(WorkUnitState workUnitState, boolean supportTargetPartitioning)
+      throws IOException {
     super(workUnitState);
 
 
@@ -82,6 +84,7 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
     this.partitionsDDLInfo = Maps.newHashMap();
     this.partitionsDMLInfo = Maps.newHashMap();
     HiveConverterUtils.populatePartitionInfo(conversionEntity, partitionsDDLInfo, partitionsDMLInfo);
+    this.supportTargetPartitioning = supportTargetPartitioning;
   }
 
   private HiveProcessingEntity getConversionEntity(HiveWorkUnit hiveWorkUnit) throws IOException, TException,
@@ -95,7 +98,7 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
       Table table = new Table(client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable()));
 
       Partition partition = null;
-      if (hiveWorkUnit.getPartitionName().isPresent() && hiveWorkUnit.getPartitionSchemaUrl().isPresent()) {
+      if (hiveWorkUnit.getPartitionName().isPresent()) {
         partition = new Partition(table, client.get()
             .getPartition(dbAndTable.getDb(), dbAndTable.getTable(), hiveWorkUnit.getPartitionName().get()));
       }
@@ -122,7 +125,7 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
     publishQueries.add(createFinalTableDDL);
     log.debug("Create final table DDL:\n" + createFinalTableDDL);
 
-    if (partitionsDDLInfo.size() == 0) {
+    if (!this.supportTargetPartitioning || partitionsDDLInfo.size() == 0) {
       log.debug("Snapshot directory to move: " + stagingDataLocation + " to: " + outputDataLocation);
       publishDirectories.put(stagingDataLocation, outputDataLocation);
 
@@ -162,10 +165,10 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
 
       log.debug("Staging table directory to delete: " + stagingDataLocation);
       cleanupDirectories.add(stagingDataLocation);
-    }
 
-    publishQueries.addAll(HiveAvroORCQueryGenerator.generateDropPartitionsDDL(outputDatabaseName, outputTableName,
-        AbstractAvroToOrcConverter.getDropPartitionsDDLInfo(conversionEntity)));
+      publishQueries.addAll(HiveAvroORCQueryGenerator.generateDropPartitionsDDL(outputDatabaseName, outputTableName,
+          AbstractAvroToOrcConverter.getDropPartitionsDDLInfo(conversionEntity)));
+    }
 
     log.info("Publish partition entity: " + publishEntity);
     return publishEntity;

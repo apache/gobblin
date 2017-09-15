@@ -39,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CopyTableQueryGenerator extends HiveMaterializerFromEntityQueryGenerator {
 
   public CopyTableQueryGenerator(WorkUnitState workUnitState) throws IOException {
-    super(workUnitState);
+    super(workUnitState, true);
   }
 
   /**

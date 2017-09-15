@@ -54,6 +54,7 @@ dependencies {
   testCompile externalDependency.joptSimple
   testCompile externalDependency.hamcrest
   testCompile externalDependency.testng
+  testCompile externalDependency.hiveJdbc
 
   testRuntime project(":gobblin-modules:gobblin-crypto-provider") // for GPG
 }
