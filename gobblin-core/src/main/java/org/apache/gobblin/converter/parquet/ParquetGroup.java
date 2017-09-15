@@ -47,7 +47,7 @@ import static parquet.schema.Type.Repetition.REPEATED;
 public class ParquetGroup extends Group {
 
   private final GroupType schema;
-  //data indexed by fieldIndex of the schema
+  //each item represents data of a field, which is indexed by the fieldIndex of the schema
   private final List<Object>[] data;
 
   public ParquetGroup(GroupType schema) {
