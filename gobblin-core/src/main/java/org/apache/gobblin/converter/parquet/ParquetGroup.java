@@ -17,7 +17,6 @@
 package org.apache.gobblin.converter.parquet;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import parquet.example.data.Group;
@@ -66,24 +65,9 @@ public class ParquetGroup extends Group {
   public String toString(String indent) {
     StringBuilder result = new StringBuilder();
     int i = 0;
-    Iterator<parquet.schema.Type> i$ = this.schema.getFields().iterator();
-
-    while (true) {
-      String name;
-      List<Object> values;
-      do {
-        do {
-          if (!i$.hasNext()) {
-            return result.toString();
-          }
-
-          parquet.schema.Type field = i$.next();
-          name = field.getName();
-          values = this.data[i];
-          ++i;
-        } while (values == null);
-      } while (values.size() <= 0);
-
+    for (Type field : this.schema.getFields()) {
+      String name = field.getName();
+      List<Object> values = this.data[i];
       for (Object value : values) {
         result.append(indent).append(name);
         if (value == null) {
@@ -94,7 +78,9 @@ public class ParquetGroup extends Group {
           result.append(": ").append(value.toString()).append("\n");
         }
       }
+      i++;
     }
+    return result.toString();
   }
 
   public Group addGroup(int fieldIndex) {
