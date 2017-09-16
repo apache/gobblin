@@ -45,6 +45,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   private final static Logger log = LoggerFactory.getLogger(JsonStringToJsonIntermediateConverter.class);
 
   private static final String UNPACK_COMPLEX_SCHEMAS_KEY = "gobblin.converter.jsonStringToJsonIntermediate.unpackComplexSchemas";
+  public static final boolean DEFAULT_UNPACK_COMPLEX_SCHEMAS_KEY = Boolean.TRUE;
 
   private boolean unpackComplexSchemas;
 
@@ -57,7 +58,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   @Override
   public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
-    this.unpackComplexSchemas = workUnit.getPropAsBoolean(UNPACK_COMPLEX_SCHEMAS_KEY, true);
+    this.unpackComplexSchemas = workUnit.getPropAsBoolean(UNPACK_COMPLEX_SCHEMAS_KEY, DEFAULT_UNPACK_COMPLEX_SCHEMAS_KEY);
 
     JsonParser jsonParser = new JsonParser();
     log.info("Schema: " + inputSchema);
