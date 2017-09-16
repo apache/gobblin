@@ -33,7 +33,6 @@ import parquet.hadoop.metadata.CompressionCodecName;
 import parquet.schema.MessageType;
 
 import static org.apache.gobblin.configuration.ConfigurationKeys.*;
-import static parquet.column.ParquetProperties.WriterVersion.PARQUET_1_0;
 import static parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
 import static parquet.hadoop.ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED;
 import static parquet.hadoop.ParquetWriter.DEFAULT_IS_VALIDATING_ENABLED;
@@ -58,6 +57,7 @@ public class ParquetHdfsDataWriter extends FsDataWriter<Group> {
   private final long dictPageSize;
   private final boolean enableDictionary;
   private final boolean validate;
+  public static final String DEFAULT_PARQUET_WRITER = "v1";
 
   public ParquetHdfsDataWriter(FsDataWriterBuilder<MessageType, Group> builder, State state)
       throws IOException {
@@ -101,7 +101,7 @@ public class ParquetHdfsDataWriter extends FsDataWriter<Group> {
     Configuration conf = new Configuration();
     GroupWriteSupport.setSchema(this.schema, conf);
     ParquetProperties.WriterVersion writerVersion = ParquetProperties.WriterVersion
-        .fromString(this.properties.getProp(getProperty(WRITER_PARQUET_VERSION), PARQUET_1_0.toString()));
+        .fromString(this.properties.getProp(getProperty(WRITER_PARQUET_VERSION), DEFAULT_PARQUET_WRITER));
     return new ParquetWriter<>(this.stagingFile, support, codec, (int) this.blockSize, (int) this.pageSize,
         (int) this.dictPageSize, this.enableDictionary, this.validate, writerVersion, conf);
   }
