@@ -341,6 +341,9 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
+  public static final String WRITER_CLOSE_ON_METADATA_UPDATE = WRITER_PREFIX + ".closeOnMetadataUpdate";
+  public static final boolean DEFAULT_CLOSE_ON_METADATA_UPDATE = true;
+
 
   // Internal use only - used to send metadata to publisher
   public static final String WRITER_METADATA_KEY = WRITER_PREFIX + "._internal.metadata";

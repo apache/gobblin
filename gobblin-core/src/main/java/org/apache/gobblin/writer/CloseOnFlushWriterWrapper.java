@@ -31,6 +31,7 @@ import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.records.FlushControlMessageHandler;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.stream.FlushControlMessage;
+import org.apache.gobblin.stream.MetadataUpdateControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.Decorator;
 import org.apache.gobblin.util.FinalState;
@@ -51,6 +52,7 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
   // is the close functionality enabled?
   private final boolean closeOnFlush;
   private final ControlMessageHandler controlMessageHandler;
+  private final boolean closeOnMetadataUpdate;
 
   public CloseOnFlushWriterWrapper(Supplier<DataWriter<D>> writerSupplier, State state) {
     Preconditions.checkNotNull(state, "State is required.");
@@ -65,6 +67,8 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
         ConfigurationKeys.DEFAULT_WRITER_CLOSE_ON_FLUSH);
 
     this.controlMessageHandler = new CloseOnFlushWriterMessageHandler();
+    this.closeOnMetadataUpdate = this.state.getPropAsBoolean(ConfigurationKeys.WRITER_CLOSE_ON_METADATA_UPDATE,
+        ConfigurationKeys.DEFAULT_CLOSE_ON_METADATA_UPDATE);
   }
 
   @Override
@@ -168,9 +172,10 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
       underlyingHandler.handleMessage(message);
 
       // Handle close after flush logic. The file is closed if requested by the flush or the configuration.
-      if (message instanceof FlushControlMessage &&
+      if ((message instanceof FlushControlMessage &&
           (CloseOnFlushWriterWrapper.this.closeOnFlush ||
-              ((FlushControlMessage) message).getFlushType() == FlushControlMessage.FlushType.FLUSH_AND_CLOSE)) {
+              ((FlushControlMessage) message).getFlushType() == FlushControlMessage.FlushType.FLUSH_AND_CLOSE)) ||
+          (message instanceof MetadataUpdateControlMessage && CloseOnFlushWriterWrapper.this.closeOnMetadataUpdate)) {
         try {
           // avoid flushing again
           if (underlyingHandler instanceof FlushControlMessageHandler) {

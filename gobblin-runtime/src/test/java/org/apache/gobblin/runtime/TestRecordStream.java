@@ -200,20 +200,12 @@ public class TestRecordStream {
     Assert.assertEquals(converter.records, Lists.newArrayList("a:schema", "b:schema", "c:schema1", "d:schema2"));
     Assert.assertEquals(converter.messages,
         Lists.newArrayList(new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("schema1").build()),
-            FlushControlMessage.builder().flushReason("Schema change")
-                .flushType(FlushControlMessage.FlushType.FLUSH_AND_CLOSE).build(),
-            new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("schema2").build()),
-            FlushControlMessage.builder().flushReason("Schema change")
-                .flushType(FlushControlMessage.FlushType.FLUSH_AND_CLOSE).build()));
+            new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("schema2").build())));
 
     Assert.assertEquals(writer.records, Lists.newArrayList("a:schema", "b:schema", "c:schema1", "d:schema2"));
     Assert.assertEquals(writer.messages, Lists.newArrayList(new MetadataUpdateControlMessage<>(
         GlobalMetadata.<String>builder().schema("schema1").build()),
-        FlushControlMessage.builder().flushReason("Schema change")
-            .flushType(FlushControlMessage.FlushType.FLUSH_AND_CLOSE).build(),
-        new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("schema2").build()),
-        FlushControlMessage.builder().flushReason("Schema change")
-            .flushType(FlushControlMessage.FlushType.FLUSH_AND_CLOSE).build()));
+        new MetadataUpdateControlMessage<>(GlobalMetadata.<String>builder().schema("schema2").build())));
   }
 
   @Test
@@ -479,9 +471,7 @@ public class TestRecordStream {
 
       if (!recordSchema.equals(this.globalMetadata.getSchema())) {
         return Lists.newArrayList(new MetadataUpdateControlMessage<>(
-            GlobalMetadata.<String>builder().schema(recordSchema).build()),
-            FlushControlMessage.<String>builder().flushReason("Schema change")
-                .flushType(FlushControlMessage.FlushType.FLUSH_AND_CLOSE).build());
+            GlobalMetadata.<String>builder().schema(recordSchema).build()));
       }
 
       return null;
