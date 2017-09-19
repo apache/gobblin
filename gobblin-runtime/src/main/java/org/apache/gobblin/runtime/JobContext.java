@@ -109,6 +109,14 @@ public class JobContext implements Closeable {
   private final boolean parallelizeCommit;
   private final int parallelCommits;
 
+  // Were WRITER_STAGING_DIR and WRITER_OUTPUT_DIR provided
+  @Getter
+  protected final Boolean writerStagingDirSet;
+  @Getter
+  protected final Boolean writerOutputDirSet;
+  @Getter
+  protected final Boolean jobIdSet;
+
   @Getter
   private final DeliverySemantics semantics;
 
@@ -131,6 +139,7 @@ public class JobContext implements Closeable {
     this.jobName = JobState.getJobNameFromProps(jobProps);
     this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)
         : JobLauncherUtils.newJobId(this.jobName);
+    jobIdSet = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY);
     this.jobSequence = Long.toString(Id.Job.parse(this.jobId).getSequence());
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId);
 
@@ -146,6 +155,9 @@ public class JobContext implements Closeable {
     this.jobState =
         new JobState(jobPropsState, this.datasetStateStore.getLatestDatasetStatesByUrns(this.jobName), this.jobName,
             this.jobId);
+
+    writerStagingDirSet = this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR);
+    writerOutputDirSet = this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR);
 
     setTaskStagingAndOutputDirs();
 

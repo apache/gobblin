@@ -45,6 +45,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.fs.Trash;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -181,6 +182,21 @@ public class HadoopUtils {
       } else {
         break;
       }
+    }
+  }
+
+  /**
+   * Delete files according to the regular expression provided
+   * @param fs Filesystem object
+   * @param path base path
+   * @param regex regular expression to select files to delete
+   * @throws IOException
+   */
+  public static void deletePathByRegex(FileSystem fs, final Path path, final String regex) throws IOException {
+    FileStatus[] statusList = fs.listStatus(path, path1 -> path1.getName().matches(regex));
+
+    for (final FileStatus oldJobFile : statusList) {
+      HadoopUtils.deletePath(fs, oldJobFile.getPath(), true);
     }
   }
 
