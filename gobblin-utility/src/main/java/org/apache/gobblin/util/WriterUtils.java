@@ -57,12 +57,15 @@ public class WriterUtils {
 
   public static final Config NO_RETRY_CONFIG = ConfigFactory.empty();
 
-  /**
-   * TABLENAME should be used for jobs that pull from multiple tables/topics and intend to write the records
-   * in each table/topic to a separate folder. Otherwise, DEFAULT can be used.
-   */
   public enum WriterFilePathType {
+    /** Write records into db/table folders */
+    DB_TABLE,
+    /**
+     * TABLENAME should be used for jobs that pull from multiple tables/topics and intend to write the records
+     * in each table/topic to a separate folder.
+     */
     TABLENAME,
+    /** Write records into the output file decided by {@link org.apache.gobblin.source.workunit.Extract}*/
     DEFAULT
   }
 
@@ -156,6 +159,8 @@ public class WriterUtils {
     }
 
     switch (getWriterFilePathType(state)) {
+      case DB_TABLE:
+        return getDbTableWriterFilePath(state);
       case TABLENAME:
         return WriterUtils.getTableNameWriterFilePath(state);
       default:
@@ -167,6 +172,19 @@ public class WriterUtils {
     String pathTypeStr =
         state.getProp(ConfigurationKeys.WRITER_FILE_PATH_TYPE, ConfigurationKeys.DEFAULT_WRITER_FILE_PATH_TYPE);
     return WriterFilePathType.valueOf(pathTypeStr.toUpperCase());
+  }
+
+  /**
+   * Creates {@link Path} for case {@link WriterFilePathType#DB_TABLE} with configurations
+   * {@link ConfigurationKeys#EXTRACT_NAMESPACE_NAME_KEY} and {@link ConfigurationKeys#EXTRACT_TABLE_NAME_KEY}
+   * @param state
+   * @return a path
+   */
+  public static Path getDbTableWriterFilePath(State state) {
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY));
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY));
+    return new Path(state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY) + Path.SEPARATOR + state
+        .getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY));
   }
 
   /**
