@@ -25,7 +25,9 @@ import com.google.common.base.Optional;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
 import org.apache.gobblin.config.ConfigBuilder;
@@ -68,7 +70,6 @@ import org.apache.gobblin.util.request_allocation.ResourcePool;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -77,6 +78,7 @@ import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -152,6 +154,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
         long timeOutInMinute = this.state.getPropAsLong(CompactionVerifier.COMPACTION_VERIFICATION_TIMEOUT_MINUTES, 30);
         long iterationCountLimit = this.state.getPropAsLong(CompactionVerifier.COMPACTION_VERIFICATION_ITERATION_COUNT_LIMIT, Integer.MAX_VALUE);
         long iteration = 0;
+        Map<String, String> failedReasonMap = null;
         while (datasets.size() > 0 && iteration++ < iterationCountLimit) {
           Iterator<Callable<VerifiedDataset>> verifierIterator =
                   Iterators.transform (datasets.iterator(), new Function<Dataset, Callable<VerifiedDataset>>() {
@@ -165,22 +168,24 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
                   ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("Verifier-compaction-dataset-pool-%d")));
 
           List<Dataset> failedDatasets = Lists.newArrayList();
+          failedReasonMap = Maps.newHashMap();
 
           List<Either<VerifiedDataset, ExecutionException>> futures = executor.executeAndGetResults();
           for (Either<VerifiedDataset, ExecutionException> either: futures) {
             if (either instanceof Either.Right) {
               ExecutionException exc = ((Either.Right<VerifiedDataset, ExecutionException>) either).getRight();
               DatasetVerificationException dve = (DatasetVerificationException) exc.getCause();
-              log.error ("Verification raised an exception:" + ExceptionUtils.getStackTrace(dve.cause));
               failedDatasets.add(dve.dataset);
+              failedReasonMap.put(dve.dataset.getUrn(), ExceptionUtils.getFullStackTrace(dve.cause));
             } else {
               VerifiedDataset vd = ((Either.Left<VerifiedDataset, ExecutionException>) either).getLeft();
               if (!vd.verifiedResult.allVerificationPassed) {
                 if (vd.verifiedResult.shouldRetry) {
-                  log.error ("Dataset {} verification has failure but should retry", vd.dataset.datasetURN());
+                  log.debug ("Dataset {} verification has failure but should retry", vd.dataset.datasetURN());
                   failedDatasets.add(vd.dataset);
+                  failedReasonMap.put(vd.dataset.getUrn(), vd.verifiedResult.failedReason);
                 } else {
-                  log.error ("Dataset {} verification has failure but no need to retry", vd.dataset.datasetURN());
+                  log.debug ("Dataset {} verification has failure but no need to retry", vd.dataset.datasetURN());
                 }
               }
             }
@@ -196,7 +201,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
           for (Dataset dataset: datasets) {
             log.info ("{} is timed out and give up the verification, adding a failed task", dataset.datasetURN());
             // create failed task for these failed datasets
-            this.workUnitIterator.addWorkUnit (createWorkUnitForFailure(dataset));
+            this.workUnitIterator.addWorkUnit (createWorkUnitForFailure(dataset, failedReasonMap.get(dataset.getUrn())));
           }
         }
 
@@ -272,6 +277,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   private static class VerifiedResult {
     private boolean allVerificationPassed;
     private boolean shouldRetry;
+    private String failedReason;
   }
 
   @AllArgsConstructor
@@ -299,10 +305,13 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     public VerifiedResult verify (Dataset dataset) throws Exception {
       boolean verificationPassed = true;
       boolean shouldRetry = true;
+      String failedReason = "";
       if (verifiers != null) {
         for (CompactionVerifier verifier : verifiers) {
-          if (!verifier.verify (dataset)) {
+          CompactionVerifier.Result rst = verifier.verify (dataset);
+          if (!rst.isSuccessful()) {
             verificationPassed = false;
+            failedReason = rst.getFailureReason();
             // Not all verification should be retried. Below are verifications which
             // doesn't need retry. If any of then failed, we simply skip this dataset.
             if (!verifier.isRetriable()) {
@@ -313,7 +322,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
         }
       }
 
-      return new VerifiedResult(verificationPassed, shouldRetry);
+      return new VerifiedResult(verificationPassed, shouldRetry, failedReason);
     }
   }
 
@@ -396,6 +405,14 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
 
   protected WorkUnit createWorkUnitForFailure (Dataset dataset) throws IOException {
     WorkUnit workUnit = new FailedTask.FailedWorkUnit();
+    TaskUtils.setTaskFactoryClass(workUnit, CompactionFailedTask.CompactionFailedTaskFactory.class);
+    suite.save (dataset, workUnit);
+    return workUnit;
+  }
+
+  protected WorkUnit createWorkUnitForFailure (Dataset dataset, String reason) throws IOException {
+    WorkUnit workUnit = new FailedTask.FailedWorkUnit();
+    workUnit.setProp(CompactionVerifier.COMPACTION_VERIFICATION_FAIL_REASON, reason);
     TaskUtils.setTaskFactoryClass(workUnit, CompactionFailedTask.CompactionFailedTaskFactory.class);
     suite.save (dataset, workUnit);
     return workUnit;

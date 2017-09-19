@@ -18,6 +18,8 @@
 package org.apache.gobblin.compaction.verify;
 
 import com.google.common.base.Splitter;
+
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.compaction.audit.AuditCountClient;
 import org.apache.gobblin.compaction.audit.AuditCountClientFactory;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
@@ -112,10 +114,10 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
    * @param dataset Dataset needs to be verified
    * @return If verification is succeeded
    */
-  public boolean verify (FileSystemDataset dataset) {
+  public Result verify (FileSystemDataset dataset) {
     if (auditCountClient == null) {
       log.debug("No audit count client specified, skipped");
-      return true;
+      return new Result(true, "");
     }
 
     CompactionPathParser.CompactionParserResult result = new CompactionPathParser(this.state).parse(dataset);
@@ -125,16 +127,16 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
     try {
       Map<String, Long> countsByTier = auditCountClient.fetch (datasetName, startTime.getMillis(), endTime.getMillis());
       for (String tier: referenceTiers) {
-        if (passed (datasetName, countsByTier, tier)) {
-          return true;
+        Result rst = passed (datasetName, countsByTier, tier);
+        if (rst.isSuccessful()) {
+          return new Result(true, "");
         }
       }
     } catch (IOException e) {
-      log.error(e.toString());
+      return new Result(false, ExceptionUtils.getFullStackTrace(e));
     }
 
-    log.warn ("Audit count verification failed for {} between {} and {}", datasetName, startTime, endTime);
-    return false;
+    return new Result(false, String.format("%s data is not complete between %s and %s", datasetName, startTime, endTime));
   }
 
   /**
@@ -144,31 +146,27 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
    * @param referenceTier the tiers we wants to compare against
    * @return If any of (gobblin/refenence) >= threshold, return true, else return false
    */
-  private boolean passed (String datasetName, Map<String, Long> countsByTier, String referenceTier) {
+  private Result passed (String datasetName, Map<String, Long> countsByTier, String referenceTier) {
     if (!countsByTier.containsKey(this.gobblinTier)) {
-      log.error (String
-              .format("Failed to get audit count for topic %s, tier %s", datasetName, this.gobblinTier));
-      return false;
+      return new Result(false, String.format("Failed to get audit count for topic %s, tier %s", datasetName, this.gobblinTier));
     }
     if (!countsByTier.containsKey(referenceTier)) {
-      log.error (String.format("Failed to get audit count for topic %s, tier %s", datasetName, referenceTier));
-      return false;
+      return new Result(false, String.format("Failed to get audit count for topic %s, tier %s", datasetName, referenceTier));
     }
 
     long refCount = countsByTier.get(referenceTier);
     long gobblinCount = countsByTier.get(this.gobblinTier);
 
     if ((double) gobblinCount / (double) refCount < this.threshold) {
-      log.warn (String.format("Verification failed for %s : gobblin count = %d, %s count = %d (%f)",
-              datasetName, gobblinCount, referenceTier, refCount, (double) gobblinCount / (double) refCount));
-      return false;
+      return new Result (false, String.format("%s failed for %s : gobblin count = %d, %s count = %d (%f < threshold %f)",
+              this.getName(), datasetName, gobblinCount, referenceTier, refCount, (double) gobblinCount / (double) refCount, this.threshold));
     }
 
-    return true;
+    return new Result(true, "");
   }
 
   public String getName() {
-    return this.getClass().getName() + "(" + this.auditCountClient.getClass().getName() + ")";
+    return this.getClass().getName();
   }
 
   private static class EmptyAuditCountClientFactory implements AuditCountClientFactory {
