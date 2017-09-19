@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.compaction.suite.CompactionSuite;
 import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
+import org.apache.gobblin.compaction.verify.CompactionVerifier;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.runtime.TaskContext;
@@ -35,17 +36,19 @@ import org.apache.gobblin.runtime.task.TaskIFace;
 public class CompactionFailedTask extends FailedTask {
   protected final CompactionSuite suite;
   protected final Dataset dataset;
+  protected final String failedReason;
 
   public CompactionFailedTask (TaskContext taskContext) {
     super(taskContext);
     this.suite = CompactionSuiteUtils.getCompactionSuiteFactory (taskContext.getTaskState()).
         createSuite(taskContext.getTaskState());
     this.dataset = this.suite.load(taskContext.getTaskState());
+    this.failedReason = taskContext.getTaskState().getProp(CompactionVerifier.COMPACTION_VERIFICATION_FAIL_REASON);
   }
 
   @Override
   public void run() {
-    log.error ("Compaction job for " + dataset.datasetURN() + " is failed. Please take a look");
+    log.error ("Compaction job for " + dataset.datasetURN() + " is failed because of {}", failedReason);
     this.workingState = WorkUnitState.WorkingState.FAILED;
   }
 

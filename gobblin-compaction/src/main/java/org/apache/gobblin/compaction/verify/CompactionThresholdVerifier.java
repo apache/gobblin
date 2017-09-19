@@ -19,6 +19,8 @@ package org.apache.gobblin.compaction.verify;
 
 
 import com.google.common.collect.Lists;
+
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnRatio;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
@@ -36,7 +38,6 @@ import java.util.Map;
  */
 @Slf4j
 public class CompactionThresholdVerifier implements CompactionVerifier<FileSystemDataset> {
-  public final static String COMPACTION_VERIFIER_THRESHOLD = "compaction-verifier-threshold";
   private final State state;
 
   /**
@@ -59,7 +60,7 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
    *
    * @return true iff the difference exceeds the threshold or this is the first time compaction
    */
-  public boolean verify (FileSystemDataset dataset) {
+  public Result verify (FileSystemDataset dataset) {
 
     Map<String, Double> thresholdMap = RecompactionConditionBasedOnRatio.
             getDatasetRegexAndRecompactThreshold (state.getProp(MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET,
@@ -68,32 +69,32 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
     CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
 
     double threshold = RecompactionConditionBasedOnRatio.getRatioThresholdByDatasetName (result.getDatasetName(), thresholdMap);
-    log.info ("Threshold is {} for dataset {}", threshold, result.getDatasetName());
+    log.debug ("Threshold is {} for dataset {}", threshold, result.getDatasetName());
 
     InputRecordCountHelper helper = new InputRecordCountHelper(state);
     try {
       double newRecords = helper.calculateRecordCount (Lists.newArrayList(new Path(dataset.datasetURN())));
       double oldRecords = helper.readRecordCount (new Path(result.getDstAbsoluteDir()));
 
-      log.info ("Dataset {} : previous records {}, current records {}", dataset.datasetURN(), oldRecords, newRecords);
       if (oldRecords == 0) {
-        return true;
+        return new Result(true, "");
       }
       if ((newRecords - oldRecords) / oldRecords > threshold) {
-        log.info ("Dataset {} records exceeded the threshold {}", dataset.datasetURN(), threshold);
-        return true;
+        log.debug ("Dataset {} records exceeded the threshold {}", dataset.datasetURN(), threshold);
+        return new Result(true, "");
       }
+
+      return new Result(false, String.format("%s is failed for dataset %s. Prev=%f, Cur=%f, not reaching to threshold %f", this.getName(), result.getDatasetName(), oldRecords, newRecords, threshold));
     } catch (IOException e) {
-      log.error(e.toString());
+      return new Result(false, ExceptionUtils.getFullStackTrace(e));
     }
-    return false;
   }
 
   /**
    * Get compaction threshold verifier name
    */
   public String getName() {
-    return COMPACTION_VERIFIER_THRESHOLD;
+    return this.getClass().getName();
   }
 
   public boolean isRetriable () {
