@@ -202,7 +202,7 @@ public class JsonElementConversionFactory {
   }
 
   /**
-   * For converting complex types which compose same element type.
+   * A ComplexConverter whose elements are of the same type
    */
   public static abstract class ComplexConverterForUniformElementTypes extends ComplexConverter {
     private DataType elementDataType;
