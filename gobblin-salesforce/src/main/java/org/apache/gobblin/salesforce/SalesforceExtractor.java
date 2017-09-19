@@ -91,7 +91,7 @@ import lombok.extern.slf4j.Slf4j;
 public class SalesforceExtractor extends RestApiExtractor {
 
   private static final String SOQL_RESOURCE = "/queryAll";
-  private static final String SALESFORCE_TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'.000Z'";
+  public static final String SALESFORCE_TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'.000Z'";
   private static final String SALESFORCE_DATE_FORMAT = "yyyy-MM-dd";
   private static final String SALESFORCE_HOUR_FORMAT = "HH";
   private static final String SALESFORCE_SOAP_AUTH_SERVICE = "/services/Soap/u";
