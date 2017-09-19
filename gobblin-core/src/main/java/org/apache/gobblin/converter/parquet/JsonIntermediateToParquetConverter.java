@@ -43,23 +43,10 @@ public class JsonIntermediateToParquetConverter extends Converter<JsonArray, Mes
   public MessageType convertSchema(JsonArray inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
     String fieldName = workUnit.getExtract().getTable();
-    JsonObject temp = buildSourceRecordSchema(inputSchema);
-    recordConverter = new RecordConverter(fieldName, false, temp, workUnit, ROOT);
+    JsonSchema jsonSchema = new JsonSchema(inputSchema);
+    jsonSchema.setColumnName(fieldName);
+    recordConverter = new RecordConverter(jsonSchema, workUnit, ROOT);
     return (MessageType) recordConverter.schema();
-  }
-
-  /**
-   * Wraps the source.schema JsonArray into a Record like schema.
-   * @param inputSchema
-   * @return
-   */
-  private JsonObject buildSourceRecordSchema(JsonArray inputSchema) {
-    JsonObject temp = new JsonObject();
-    JsonObject dataType = new JsonObject();
-    dataType.addProperty("type", "record");
-    dataType.add("values", inputSchema);
-    temp.add("dataType", dataType);
-    return temp;
   }
 
   @Override
