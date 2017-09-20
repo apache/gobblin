@@ -39,7 +39,6 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
-import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.fork.IdentityForkOperator;
 import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.publisher.TaskPublisher;
@@ -47,6 +46,7 @@ import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.FlushControlMessageHandler;
 import org.apache.gobblin.records.RecordStreamProcessor;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 import org.apache.gobblin.source.extractor.Extractor;
@@ -97,8 +97,8 @@ public class TestRecordStream {
   @Test
   public void testFlushControlMessages() throws Exception {
     MyExtractor extractor = new MyExtractor(new StreamEntity[]{new RecordEnvelope<>("a"),
-        new FlushControlMessage(new FlushControlMessage.FlushReason("flush1")), new RecordEnvelope<>("b"),
-        new FlushControlMessage(new FlushControlMessage.FlushReason("flush2"))});
+        FlushControlMessage.builder().flushReason("flush1").build(), new RecordEnvelope<>("b"),
+        FlushControlMessage.builder().flushReason("flush2").build()});
     MyConverter converter = new MyConverter();
     MyFlushDataWriter writer = new MyFlushDataWriter();
 
@@ -109,11 +109,12 @@ public class TestRecordStream {
     Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
 
     Assert.assertEquals(converter.records, Lists.newArrayList("a", "b"));
-    Assert.assertEquals(converter.messages, Lists.newArrayList(new FlushControlMessage(new FlushControlMessage.FlushReason("flush1")),
-        new FlushControlMessage(new FlushControlMessage.FlushReason("flush2"))));
+    Assert.assertEquals(converter.messages, Lists.newArrayList(
+        FlushControlMessage.builder().flushReason("flush1").build(),
+        FlushControlMessage.builder().flushReason("flush2").build()));
 
     Assert.assertEquals(writer.records, Lists.newArrayList("a", "b"));
-    Assert.assertEquals(writer.messages, Lists.newArrayList("flush called", "flush called"));
+    Assert.assertEquals(writer.flush_messages, Lists.newArrayList("flush called", "flush called"));
   }
 
   /**
@@ -187,7 +188,7 @@ public class TestRecordStream {
         new RecordEnvelope<>("schema:b"), new RecordEnvelope<>("schema1:c"), new RecordEnvelope<>("schema2:d")});
     SchemaChangeDetectionInjector injector = new SchemaChangeDetectionInjector();
     SchemaAppendConverter converter = new SchemaAppendConverter();
-    MyDataWriter writer = new MyDataWriter();
+    MyDataWriter writer = new MyDataWriterWithSchemaCheck();
 
     Task task = setupTask(extractor, writer, Collections.EMPTY_LIST,
         Lists.newArrayList(injector, converter));
@@ -351,8 +352,9 @@ public class TestRecordStream {
   }
 
   static class MyDataWriter extends DataWriterBuilder<String, String> implements DataWriter<String> {
-    private List<String> records = new ArrayList<>();
-    private List<ControlMessage<String>> messages = new ArrayList<>();
+    protected List<String> records = new ArrayList<>();
+    protected List<ControlMessage<String>> messages = new ArrayList<>();
+    protected String writerSchema;
 
     @Override
     public void write(String record) throws IOException {
@@ -382,6 +384,7 @@ public class TestRecordStream {
 
     @Override
     public DataWriter<String> build() throws IOException {
+      this.writerSchema = this.schema;
       return this;
     }
 
@@ -467,7 +470,7 @@ public class TestRecordStream {
       String recordSchema = inputRecordEnvelope.getRecord().split(":")[0];
 
       if (!recordSchema.equals(this.globalMetadata.getSchema())) {
-        return new SingleRecordIterable<>(new MetadataUpdateControlMessage<>(
+        return Lists.newArrayList(new MetadataUpdateControlMessage<>(
             GlobalMetadata.<String>builder().schema(recordSchema).build()));
       }
 
@@ -486,43 +489,26 @@ public class TestRecordStream {
     }
   }
 
-  static class MyFlushDataWriter extends DataWriterBuilder<String, String> implements DataWriter<String> {
-    private List<String> records = new ArrayList<>();
-    private List<String> messages = new ArrayList<>();
+  static class MyFlushDataWriter extends MyDataWriter {
+    private List<String> flush_messages = new ArrayList<>();
 
     @Override
-    public void write(String record) throws IOException {
-      this.records.add(record);
+    public ControlMessageHandler getMessageHandler() {
+      return new FlushControlMessageHandler(this);
     }
-
-    @Override
-    public void commit() throws IOException {}
-
-    @Override
-    public void cleanup() throws IOException {}
-
-    @Override
-    public long recordsWritten() {
-      return 0;
-    }
-
-    @Override
-    public long bytesWritten() throws IOException {
-      return 0;
-    }
-
-    @Override
-    public DataWriter<String> build() throws IOException {
-      return this;
-    }
-
-    @Override
-    public void close() throws IOException {}
 
     @Override
     public void flush() throws IOException {
-      messages.add("flush called");
+      flush_messages.add("flush called");
     }
   }
 
+  static class MyDataWriterWithSchemaCheck extends MyDataWriter {
+    @Override
+    public void write(String record) throws IOException {
+      super.write(record);
+
+      Assert.assertEquals(this.writerSchema, record.split(":")[1]);
+    }
+  }
 }
