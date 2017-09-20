@@ -18,7 +18,10 @@
 package org.apache.gobblin.publisher;
 
 import java.io.IOException;
+import java.util.Set;
 
+import org.apache.gobblin.lineage.LineageInfo;
+import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 
@@ -63,6 +66,17 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
             this.permissions.get(branchId), this.retrierConfig);
 
       movePath(parallelRunner, workUnitState, status.getPath(), outputPath, branchId);
+    }
+  }
+
+  @Override
+  protected void publishData(WorkUnitState state, int branchId, boolean publishSingleTaskData, Set<Path> writerOutputPathsMoved) throws IOException {
+    super.publishData(state, branchId, publishSingleTaskData, writerOutputPathsMoved);
+    if (publishSingleTaskData) {
+      // Add lineage event for destination. Make sure all workunits belongs to the same dataset has exactly the same value
+      Path publisherOutputDir = getPublisherOutputDir(state, branchId);
+      String timePrefix = state.getProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX, "");
+      LineageInfo.setBranchLineageAttribute(state, branchId, PUBLISH_OUTOUT, new Path(publisherOutputDir, timePrefix).toString());
     }
   }
 }
