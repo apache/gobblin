@@ -342,6 +342,7 @@ public class ConfigurationKeys {
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
 
+
   // Internal use only - used to send metadata to publisher
   public static final String WRITER_METADATA_KEY = WRITER_PREFIX + "._internal.metadata";
   public static final String WRITER_PARTITION_PATH_KEY = WRITER_PREFIX + "._internal.partition.path";
@@ -354,9 +355,6 @@ public class ConfigurationKeys {
   public static final String WRITER_BYTES_WRITTEN = WRITER_PREFIX + ".bytes.written";
   public static final String WRITER_EARLIEST_TIMESTAMP = WRITER_PREFIX + ".earliest.timestamp";
   public static final String WRITER_AVERAGE_TIMESTAMP = WRITER_PREFIX + ".average.timestamp";
-  // Used internally to enable closing of the writer on flush
-  public static final String WRITER_CLOSE_ON_FLUSH_KEY = WRITER_PREFIX + ".closeOnFlush";
-  public static final boolean DEFAULT_WRITER_CLOSE_ON_FLUSH = false;
 
   /**
    * Configuration properties used by the quality checker.

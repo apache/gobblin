@@ -95,7 +95,7 @@ public abstract class AsyncConverter1to1<SI, SO, DI, DO> extends Converter<SI, S
               }
             }, false, maxConcurrentAsyncConversions);
     return inputStream.withRecordStream(outputStream, GlobalMetadata.<SI, SO>builderWithInput(inputStream.getGlobalMetadata(),
-        Optional.of(outputSchema)).build());
+        Optional.fromNullable(outputSchema)).build());
   }
 
   @RequiredArgsConstructor
