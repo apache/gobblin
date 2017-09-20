@@ -58,6 +58,7 @@ public abstract class HiveTask extends BaseAbstractTask {
   private static final String USE_WATERMARKER_KEY = "internal.hiveTask.useWatermarker";
   private static final String ADD_FILES = "internal.hiveTask.addFiles";
   private static final String ADD_JARS = "internal.hiveTask.addJars";
+  private static final String SETUP_QUERIES = "internal.hiveTask.setupQueries";
 
   /**
    * Disable Hive watermarker. This is necessary when there is no concrete source table where watermark can be inferred.
@@ -74,6 +75,10 @@ public abstract class HiveTask extends BaseAbstractTask {
     state.setProp(ADD_JARS, state.getProp(ADD_JARS, "") + "," + jar);
   }
 
+  public static void addSetupQuery(State state, String query) {
+    state.setProp(SETUP_QUERIES, state.getProp(SETUP_QUERIES, "") + ";" + query);
+  }
+
   protected final TaskContext taskContext;
   protected final WorkUnitState workUnitState;
   protected final HiveWorkUnit workUnit;
@@ -84,6 +89,7 @@ public abstract class HiveTask extends BaseAbstractTask {
 
   private final List<String> addFiles;
   private final List<String> addJars;
+  private final List<String> setupQueries;
 
   public HiveTask(TaskContext taskContext) {
     super(taskContext);
@@ -102,6 +108,7 @@ public abstract class HiveTask extends BaseAbstractTask {
 
     this.addFiles = this.workUnitState.getPropAsList(ADD_FILES, "");
     this.addJars = this.workUnitState.getPropAsList(ADD_JARS, "");
+    this.setupQueries = Splitter.on(";").trimResults().omitEmptyStrings().splitToList(this.workUnitState.getProp(SETUP_QUERIES, ""));
   }
 
   /**
@@ -186,6 +193,7 @@ public abstract class HiveTask extends BaseAbstractTask {
 
       this.hiveJdbcConnector.executeStatements(Lists.transform(this.addFiles, file -> "ADD FILE " + file).toArray(new String[]{}));
       this.hiveJdbcConnector.executeStatements(Lists.transform(this.addJars, file -> "ADD JAR " + file).toArray(new String[]{}));
+      this.hiveJdbcConnector.executeStatements(this.setupQueries.toArray(new String[]{}));
       this.hiveJdbcConnector.executeStatements(queries.toArray(new String[queries.size()]));
       super.run();
     } catch (Exception e) {

@@ -50,6 +50,8 @@ public class CopyTableQueryGenerator extends HiveMaterializerFromEntityQueryGene
   @Override
   public List<String> generateQueries() {
 
+    ensureParentOfStagingPathExists();
+
     List<String> hiveQueries = Lists.newArrayList();
     /*
      * Setting partition mode to 'nonstrict' is needed to improve readability of the code.
