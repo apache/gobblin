@@ -58,8 +58,12 @@ public class WriterUtils {
   public static final Config NO_RETRY_CONFIG = ConfigFactory.empty();
 
   public enum WriterFilePathType {
-    /** Write records into db/table folders */
-    DB_TABLE,
+    /**
+     * Write records into namespace/table folder. If namespace has multiple components, each component will be
+     * a folder in the path. For example: the write file path for namespace 'org.apache.gobblin' and table 'tableName'
+     * will be 'org/apache/gobblin/tableName'
+     */
+    NAMESPACE_TABLE,
     /**
      * TABLENAME should be used for jobs that pull from multiple tables/topics and intend to write the records
      * in each table/topic to a separate folder.
@@ -159,8 +163,8 @@ public class WriterUtils {
     }
 
     switch (getWriterFilePathType(state)) {
-      case DB_TABLE:
-        return getDbTableWriterFilePath(state);
+      case NAMESPACE_TABLE:
+        return getNamespaceTableWriterFilePath(state);
       case TABLENAME:
         return WriterUtils.getTableNameWriterFilePath(state);
       default:
@@ -175,16 +179,17 @@ public class WriterUtils {
   }
 
   /**
-   * Creates {@link Path} for case {@link WriterFilePathType#DB_TABLE} with configurations
+   * Creates {@link Path} for case {@link WriterFilePathType#NAMESPACE_TABLE} with configurations
    * {@link ConfigurationKeys#EXTRACT_NAMESPACE_NAME_KEY} and {@link ConfigurationKeys#EXTRACT_TABLE_NAME_KEY}
    * @param state
    * @return a path
    */
-  public static Path getDbTableWriterFilePath(State state) {
+  public static Path getNamespaceTableWriterFilePath(State state) {
     Preconditions.checkArgument(state.contains(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY));
     Preconditions.checkArgument(state.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY));
-    return new Path(state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY) + Path.SEPARATOR + state
-        .getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY));
+
+    String namespace = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY).replaceAll("\\.", Path.SEPARATOR);
+    return new Path( namespace + Path.SEPARATOR + state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY));
   }
 
   /**

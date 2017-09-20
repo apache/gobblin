@@ -82,7 +82,6 @@ public class WorkUnit extends State {
 
     if (extract != null) {
       this.extract = extract;
-      super.addAll(extract);
     } else {
       this.extract = new Extract(null, null, null, null);
     }
@@ -303,6 +302,20 @@ public class WorkUnit extends State {
   @Deprecated
   public long getLowWaterMark() {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
+  }
+
+  @Override
+  public boolean contains(String key) {
+    return super.contains(key) || this.extract.contains(key);
+  }
+
+  @Override
+  public String getProp(String key) {
+    String value = super.getProp(key);
+    if (value == null) {
+      value = this.extract.getProp(key);
+    }
+    return value;
   }
 
   /**

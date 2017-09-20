@@ -93,9 +93,7 @@ public class WriterUtilsTest {
 
   @Test
   public void testGetWriterFilePath() {
-    final String namespace = "dbNamespace";
-    final String table = "tableName";
-    Extract extract = new Extract(TableType.SNAPSHOT_ONLY, namespace, table);
+    Extract extract = new Extract(TableType.SNAPSHOT_ONLY, "org.apache.gobblin.dbNamespace", "tableName");
     WorkUnit state = WorkUnit.create(extract);
 
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, TEST_WRITER_FILE_PATH);
@@ -107,10 +105,11 @@ public class WriterUtilsTest {
     state.removeProp(ConfigurationKeys.WRITER_FILE_PATH);
 
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH_TYPE, "tablename");
-    Assert.assertEquals(WriterUtils.getWriterFilePath(state, 0, 0), new Path(table));
+    Assert.assertEquals(WriterUtils.getWriterFilePath(state, 0, 0), new Path("tableName"));
 
-    state.setProp(ConfigurationKeys.WRITER_FILE_PATH_TYPE, "db_table");
-    Assert.assertEquals(WriterUtils.getWriterFilePath(state, 0, 0), new Path(namespace + "/" + table));
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH_TYPE, "namespace_table");
+    Assert.assertEquals(WriterUtils.getWriterFilePath(state, 0, 0),
+        new Path("org/apache/gobblin/dbNamespace/tableName"));
   }
 
   @Test
