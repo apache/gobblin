@@ -58,7 +58,7 @@ public class CloseOnFlushWriterWrapperTest {
   public void testCloseOnFlushEnabled()
       throws IOException {
     WorkUnitState state = new WorkUnitState();
-    state.getJobState().setProp(ConfigurationKeys.WRITER_CLOSE_ON_FLUSH_KEY, "true");
+    state.getJobState().setProp(CloseOnFlushWriterWrapper.WRITER_CLOSE_ON_FLUSH_KEY, "true");
     List<DummyWriter> dummyWriters = new ArrayList<>();
     CloseOnFlushWriterWrapper<byte[]> writer = getCloseOnFlushWriter(dummyWriters, state);
 
@@ -78,7 +78,7 @@ public class CloseOnFlushWriterWrapperTest {
   public void testWriteAfterFlush()
       throws IOException {
     WorkUnitState state = new WorkUnitState();
-    state.getJobState().setProp(ConfigurationKeys.WRITER_CLOSE_ON_FLUSH_KEY, "true");
+    state.getJobState().setProp(CloseOnFlushWriterWrapper.WRITER_CLOSE_ON_FLUSH_KEY, "true");
     List<DummyWriter> dummyWriters = new ArrayList<>();
     CloseOnFlushWriterWrapper<byte[]> writer = getCloseOnFlushWriter(dummyWriters, state);
 
@@ -109,7 +109,7 @@ public class CloseOnFlushWriterWrapperTest {
   public void testCloseAfterFlush()
       throws IOException {
     WorkUnitState state = new WorkUnitState();
-    state.getJobState().setProp(ConfigurationKeys.WRITER_CLOSE_ON_FLUSH_KEY, "true");
+    state.getJobState().setProp(CloseOnFlushWriterWrapper.WRITER_CLOSE_ON_FLUSH_KEY, "true");
     List<DummyWriter> dummyWriters = new ArrayList<>();
     CloseOnFlushWriterWrapper<byte[]> writer = getCloseOnFlushWriter(dummyWriters, state);
 

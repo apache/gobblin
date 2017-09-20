@@ -43,6 +43,13 @@ import org.apache.gobblin.util.FinalState;
  * @param <D>
  */
 public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements Decorator, FinalState, Retriable {
+  // Used internally to enable closing of the writer on flush
+  public static final String WRITER_CLOSE_ON_FLUSH_KEY = ConfigurationKeys.WRITER_PREFIX + ".closeOnFlush";
+  public static final boolean DEFAULT_WRITER_CLOSE_ON_FLUSH = false;
+
+  public static final String WRITER_CLOSE_ON_METADATA_UPDATE = ConfigurationKeys.WRITER_PREFIX + ".closeOnMetadataUpdate";
+  public static final boolean DEFAULT_CLOSE_ON_METADATA_UPDATE = true;
+
   private static final Logger LOG = LoggerFactory.getLogger(CloseOnFlushWriterWrapper.class);
 
   private final State state;
@@ -63,12 +70,12 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
     this.writer = writerSupplier.get();
     this.closed = false;
 
-    this.closeOnFlush = this.state.getPropAsBoolean(ConfigurationKeys.WRITER_CLOSE_ON_FLUSH_KEY,
-        ConfigurationKeys.DEFAULT_WRITER_CLOSE_ON_FLUSH);
+    this.closeOnFlush = this.state.getPropAsBoolean(WRITER_CLOSE_ON_FLUSH_KEY,
+        DEFAULT_WRITER_CLOSE_ON_FLUSH);
 
     this.controlMessageHandler = new CloseOnFlushWriterMessageHandler();
-    this.closeOnMetadataUpdate = this.state.getPropAsBoolean(ConfigurationKeys.WRITER_CLOSE_ON_METADATA_UPDATE,
-        ConfigurationKeys.DEFAULT_CLOSE_ON_METADATA_UPDATE);
+    this.closeOnMetadataUpdate = this.state.getPropAsBoolean(WRITER_CLOSE_ON_METADATA_UPDATE,
+        DEFAULT_CLOSE_ON_METADATA_UPDATE);
   }
 
   @Override
