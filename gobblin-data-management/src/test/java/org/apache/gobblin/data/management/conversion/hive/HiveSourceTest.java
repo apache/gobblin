@@ -66,7 +66,7 @@ public class HiveSourceTest {
 
     SourceState testState = getTestState(dbName);
 
-    this.hiveMetastoreTestUtils.createTestTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
+    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
 
     List<WorkUnit> workUnits = hiveSource.getWorkunits(testState);
 
@@ -92,7 +92,7 @@ public class HiveSourceTest {
 
     SourceState testState = getTestState(dbName);
 
-    Table tbl = this.hiveMetastoreTestUtils.createTestTable(dbName, tableName, tableSdLoc, Optional.of("field"));
+    Table tbl = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, tableSdLoc, Optional.of("field"));
 
     this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of("f1"), (int) System.currentTimeMillis());
 
@@ -126,8 +126,8 @@ public class HiveSourceTest {
 
     this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
-    this.hiveMetastoreTestUtils.createTestTable(dbName, tableName1, tableSdLoc1, Optional.<String> absent());
-    this.hiveMetastoreTestUtils.createTestTable(dbName, tableName2, tableSdLoc2, Optional.<String> absent(), true);
+    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName1, tableSdLoc1, Optional.<String> absent());
+    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName2, tableSdLoc2, Optional.<String> absent(), true);
 
     List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
 

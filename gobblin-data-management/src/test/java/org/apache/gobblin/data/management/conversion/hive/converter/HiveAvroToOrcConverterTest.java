@@ -68,7 +68,7 @@ public class HiveAvroToOrcConverterTest {
 
     this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
-    Table table = this.hiveMetastoreTestUtils.createTestTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
+    Table table = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
     Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir, "recordWithinRecordWithinRecord_nested.json");
     WorkUnitState wus = ConversionHiveTestUtils.createWus(dbName, tableName, 0);
 
@@ -120,7 +120,7 @@ public class HiveAvroToOrcConverterTest {
 
     this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
-    Table table = this.hiveMetastoreTestUtils.createTestTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
+    Table table = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
     Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir, "recordWithinRecordWithinRecord_nested.json");
     WorkUnitState wus = ConversionHiveTestUtils.createWus(dbName, tableName, 0);
     wus.getJobState().setProp("orc.table.flatten.schema", "false");

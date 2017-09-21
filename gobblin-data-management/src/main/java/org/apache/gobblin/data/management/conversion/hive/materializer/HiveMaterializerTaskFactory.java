@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.conversion.hive.task;
+package org.apache.gobblin.data.management.conversion.hive.materializer;
 
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.NoopPublisher;

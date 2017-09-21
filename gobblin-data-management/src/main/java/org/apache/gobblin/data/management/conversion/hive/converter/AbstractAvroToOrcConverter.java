@@ -17,7 +17,6 @@
 package org.apache.gobblin.data.management.conversion.hive.converter;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -30,8 +29,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.gobblin.data.management.conversion.hive.entities.HiveProcessingEntity;
 import org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -65,7 +64,6 @@ import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiv
 import org.apache.gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import org.apache.gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
-import org.apache.gobblin.data.management.copy.hive.HiveUtils;
 import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
@@ -198,7 +196,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     Preconditions.checkNotNull(outputAvroSchema, "Avro schema must not be null");
     Preconditions.checkNotNull(conversionEntity, "Conversion entity must not be null");
     Preconditions.checkNotNull(workUnit, "Workunit state must not be null");
-    Preconditions.checkNotNull(conversionEntity.getHiveTable(), "Hive table within conversion entity must not be null");
+    Preconditions.checkNotNull(conversionEntity.getTable(), "Hive table within conversion entity must not be null");
 
     EventWorkunitUtils.setBeginDDLBuildTimeMetadata(workUnit, System.currentTimeMillis());
 
@@ -209,7 +207,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
 
     // Avro table name and location
-    String avroTableName = conversionEntity.getHiveTable().getTableName();
+    String avroTableName = conversionEntity.getTable().getTableName();
 
     // ORC table name and location
     String orcTableName = getConversionConfig().getDestinationTableName();
@@ -271,7 +269,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
      * Upon testing, this did not work
      */
     try {
-      FileStatus sourceDataFileStatus = this.fs.getFileStatus(conversionEntity.getHiveTable().getDataLocation());
+      FileStatus sourceDataFileStatus = this.fs.getFileStatus(conversionEntity.getTable().getDataLocation());
       FsPermission sourceDataPermission = sourceDataFileStatus.getPermission();
       if (!this.fs.mkdirs(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission)) {
         throw new RuntimeException(String.format("Failed to create path %s with permissions %s", new Path(
@@ -297,10 +295,10 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
     // Set hive runtime properties for tracking
     conversionEntity.getQueries().add(String.format("SET %s=%s", GOBBLIN_DATASET_URN_KEY,
-        conversionEntity.getHiveTable().getCompleteName()));
-    if (conversionEntity.getHivePartition().isPresent()) {
+        conversionEntity.getTable().getCompleteName()));
+    if (conversionEntity.getPartition().isPresent()) {
       conversionEntity.getQueries().add(String.format("SET %s=%s", GOBBLIN_PARTITION_NAME_KEY,
-          conversionEntity.getHivePartition().get().getCompleteName()));
+          conversionEntity.getPartition().get().getCompleteName()));
     }
     conversionEntity.getQueries().add(String
         .format("SET %s=%s", GOBBLIN_WORKUNIT_CREATE_TIME_KEY,
@@ -348,7 +346,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 outputAvroSchema,
                 avroTableName,
                 orcStagingTableName,
-                Optional.of(conversionEntity.getHiveTable().getDbName()),
+                Optional.of(conversionEntity.getTable().getDbName()),
                 Optional.of(orcTableDatabase),
                 Optional.of(partitionsDMLInfo),
                 Optional.<Boolean>absent(),
@@ -468,7 +466,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       // Move: orcStagingDataPartitionLocation to: orcFinalDataPartitionLocation
       String orcFinalDataPartitionLocation = orcDataLocation + Path.SEPARATOR + orcStagingDataPartitionDirName;
       Optional<Path> destPartitionLocation = getDestinationPartitionLocation(destinationTableMeta, workUnit,
-          conversionEntity.getHivePartition().get().getName());
+          conversionEntity.getPartition().get().getName());
       orcFinalDataPartitionLocation =
           HiveConverterUtils.updatePartitionLocation(orcFinalDataPartitionLocation, workUnit, destPartitionLocation);
       log.info(
@@ -626,12 +624,12 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
 
   @VisibleForTesting
-  public static List<Map<String, String>> getDropPartitionsDDLInfo(QueryBasedHiveConversionEntity conversionEntity) {
-    if (!conversionEntity.getHivePartition().isPresent()) {
+  public static List<Map<String, String>> getDropPartitionsDDLInfo(HiveProcessingEntity conversionEntity) {
+    if (!conversionEntity.getPartition().isPresent()) {
       return Collections.emptyList();
     }
 
-    return getDropPartitionsDDLInfo(conversionEntity.getHivePartition().get());
+    return getDropPartitionsDDLInfo(conversionEntity.getPartition().get());
 
   }
 

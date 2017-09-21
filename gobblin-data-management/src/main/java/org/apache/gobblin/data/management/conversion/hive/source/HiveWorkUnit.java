@@ -20,6 +20,7 @@ import java.lang.reflect.Type;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 
 import com.google.common.base.Optional;
@@ -29,6 +30,7 @@ import com.google.gson.Gson;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.copy.hive.HiveDataset;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.hadoop.hive.ql.metadata.Partition;
 
 
 /**
@@ -68,6 +70,16 @@ public class HiveWorkUnit extends WorkUnit {
   public HiveWorkUnit(HiveDataset hiveDataset) {
     super();
     setHiveDataset(hiveDataset);
+    if (hiveDataset.getTable().getTableType() != TableType.VIRTUAL_VIEW) {
+      setTableLocation(hiveDataset.getTable().getSd().getLocation());
+    }
+  }
+
+  public HiveWorkUnit(HiveDataset hiveDataset, Partition partition) {
+    this(hiveDataset);
+    setPartitionName(partition.getName());
+    setPartitionLocation(partition.getLocation());
+    setPartitionKeys(partition.getTable().getPartitionKeys());
   }
 
   /**

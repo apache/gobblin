@@ -18,13 +18,6 @@ package org.apache.gobblin.data.management.conversion.hive.entities;
 
 import java.util.List;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
@@ -34,6 +27,15 @@ import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.source.extractor.Extractor;
+
+import org.apache.hadoop.hive.ql.metadata.Partition;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 
 
 /**
@@ -54,7 +56,7 @@ import org.apache.gobblin.source.extractor.Extractor;
 @ToString
 @EqualsAndHashCode
 @Getter
-public class QueryBasedHiveConversionEntity {
+public class QueryBasedHiveConversionEntity extends HiveProcessingEntity {
 
   private final ConvertibleHiveDataset convertibleHiveDataset;
   private final SchemaAwareHiveTable hiveTable;
@@ -71,9 +73,11 @@ public class QueryBasedHiveConversionEntity {
 
   public QueryBasedHiveConversionEntity(ConvertibleHiveDataset convertibleHiveDataset, SchemaAwareHiveTable hiveTable,
       Optional<SchemaAwareHivePartition> hivePartition) {
+    super(convertibleHiveDataset, hiveTable, Optional.fromNullable(hivePartition.orNull()));
     this.convertibleHiveDataset = convertibleHiveDataset;
     this.hiveTable = hiveTable;
     this.hivePartition = hivePartition;
     this.queries = Lists.newArrayList();
   }
+
 }

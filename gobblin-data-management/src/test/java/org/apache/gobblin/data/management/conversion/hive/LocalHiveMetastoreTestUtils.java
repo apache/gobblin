@@ -37,6 +37,7 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.thrift.TException;
 
 import com.google.common.base.Optional;
@@ -93,12 +94,12 @@ public class LocalHiveMetastoreTestUtils {
     }
   }
 
-  public Table createTestTable(String dbName, String tableName, String tableSdLoc, Optional<String> partitionFieldName)
+  public Table createTestAvroTable(String dbName, String tableName, String tableSdLoc, Optional<String> partitionFieldName)
       throws Exception {
-    return createTestTable(dbName, tableName, tableSdLoc, partitionFieldName, false);
+    return createTestAvroTable(dbName, tableName, tableSdLoc, partitionFieldName, false);
   }
 
-  public Table createTestTable(String dbName, String tableName, String tableSdLoc,
+  public Table createTestAvroTable(String dbName, String tableName, String tableSdLoc,
       Optional<String> partitionFieldName, boolean ignoreDbCreation) throws Exception {
     if (!ignoreDbCreation) {
       createTestDb(dbName);
@@ -106,6 +107,7 @@ public class LocalHiveMetastoreTestUtils {
 
     Table tbl = org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(dbName, tableName);
     tbl.getSd().setLocation(tableSdLoc);
+    tbl.getSd().getSerdeInfo().setSerializationLib(AvroSerDe.class.getName());
     tbl.getSd().getSerdeInfo().setParameters(ImmutableMap.of(HiveAvroSerDeManager.SCHEMA_URL, "/tmp/dummy"));
 
     if (partitionFieldName.isPresent()) {
@@ -117,11 +119,11 @@ public class LocalHiveMetastoreTestUtils {
     return tbl;
   }
 
-  public Table createTestTable(String dbName, String tableName, List<String> partitionFieldNames) throws Exception {
-    return createTestTable(dbName, tableName, "/tmp/" + tableName, partitionFieldNames, true);
+  public Table createTestAvroTable(String dbName, String tableName, List<String> partitionFieldNames) throws Exception {
+    return createTestAvroTable(dbName, tableName, "/tmp/" + tableName, partitionFieldNames, true);
   }
 
-  public Table createTestTable(String dbName, String tableName, String tableSdLoc,
+  public Table createTestAvroTable(String dbName, String tableName, String tableSdLoc,
       List<String> partitionFieldNames, boolean ignoreDbCreation)
       throws Exception {
 
