@@ -191,7 +191,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       FlowEdge tmpFlowEdge = resultEdgePath.get(i);
       ServiceNode edgeSrcNode = ((LoadBasedFlowEdgeImpl) tmpFlowEdge).getSourceNode();
       ServiceNode edgeTgtNode = ((LoadBasedFlowEdgeImpl) tmpFlowEdge).getTargetNode();
-      specExecutorInstanceMap.put(convertEdgeToJobSpec(edgeSrcNode, edgeTgtNode, flowSpec),
+      specExecutorInstanceMap.put(convertHopToJobSpec(edgeSrcNode, edgeTgtNode, flowSpec),
           ((LoadBasedFlowEdgeImpl) (resultEdgePath.get(i))).getSpecExecutorInstance());
     }
   }
@@ -220,7 +220,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       ServiceNode targetNode = new BaseServiceNodeImpl(userSpecfiedPath.get(i + 1));
       if (weightedGraph.containsVertex(sourceNode) && weightedGraph.containsVertex(targetNode)
           && weightedGraph.containsEdge(sourceNode, targetNode)) {
-        tmpSpecExecutorInstanceMap.put(convertEdgeToJobSpec(sourceNode, targetNode, flowSpec),
+        tmpSpecExecutorInstanceMap.put(convertHopToJobSpec(sourceNode, targetNode, flowSpec),
             (((LoadBasedFlowEdgeImpl) weightedGraph.getEdge(sourceNode, targetNode)).getSpecExecutorInstance()));
       } else {
         log.error("User Specified Path is invalid");
@@ -311,10 +311,10 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
    * Handle the case when edge is not specified.
    * Always select the first available template.
    */
-  private JobSpec convertEdgeToJobSpec (ServiceNode sourceNode, ServiceNode targetNode, FlowSpec flowSpec) {
+  private JobSpec convertHopToJobSpec (ServiceNode sourceNode, ServiceNode targetNode, FlowSpec flowSpec) {
     FlowEdge flowEdge = weightedGraph.getAllEdges(sourceNode, targetNode).iterator().next();
-    URI templateURI = this.getTemplateURI (sourceNode, targetNode, flowSpec, flowEdge);
-    return this.buildJobSpec(sourceNode, targetNode, templateURI, flowSpec);
+    URI templateURI = getTemplateURI (sourceNode, targetNode, flowSpec, flowEdge);
+    return buildJobSpec(sourceNode, targetNode, templateURI, flowSpec);
   }
 
   private URI getTemplateURI (ServiceNode sourceNode, ServiceNode targetNode, FlowSpec flowSpec, FlowEdge flowEdge) {
