@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -224,8 +225,7 @@ public class JobContextTest {
 
   @Test
   public void testCleanUpOldJobData() throws Exception {
-    Path rootPath = new Path(Files.createTempDir().getAbsolutePath(), "TestDir");
-    System.out.println(rootPath);
+    String rootPath = Files.createTempDir().getAbsolutePath();
     final String JOB_PREFIX = Id.Job.PREFIX;
     final String JOB_NAME1 = "GobblinKafka";
     final String JOB_NAME2 = "GobblinBrooklin";
@@ -236,9 +236,9 @@ public class JobContextTest {
     Object[] oldJob2 = new Object[]{JOB_PREFIX, JOB_NAME2, timestamp1};
     Object[] currentJob = new Object[]{JOB_PREFIX, JOB_NAME1, timestamp2};
 
-    Path currentJobPath = new Path(rootPath, JOINER.join(currentJob));
-    Path oldJobPath1 = new Path(rootPath, JOINER.join(oldJob1));
-    Path oldJobPath2 = new Path(rootPath, JOINER.join(oldJob2));
+    Path currentJobPath = new Path(JobContext.getJobDir(rootPath, JOB_NAME1), JOINER.join(currentJob));
+    Path oldJobPath1 = new Path(JobContext.getJobDir(rootPath, JOB_NAME1), JOINER.join(oldJob1));
+    Path oldJobPath2 = new Path(JobContext.getJobDir(rootPath, JOB_NAME2), JOINER.join(oldJob2));
     Path stagingPath = new Path(currentJobPath, "task-staging");
     Path outputPath = new Path(currentJobPath, "task-output");
 
@@ -246,18 +246,18 @@ public class JobContextTest {
     fs.mkdirs(currentJobPath);
     fs.mkdirs(oldJobPath1);
     fs.mkdirs(oldJobPath2);
+    log.info("Created : {} {} {}", currentJobPath, oldJobPath1, oldJobPath2);
 
     gobblin.runtime.JobState jobState = new gobblin.runtime.JobState();
-    jobState.setProp(ConfigurationKeys.CLEANUP_OLD_JOBS_DATA, true);
     jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingPath.toString());
     jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputPath.toString());
 
     JobContext jobContext = mock(JobContext.class);
-    when(jobContext.getWriterStagingDirSet()).thenReturn(false);
-    when(jobContext.getWriterOutputDirSet()).thenReturn(false);
+    when(jobContext.getStagingDirProvided()).thenReturn(false);
+    when(jobContext.getOutputDirProvided()).thenReturn(false);
     when(jobContext.getJobId()).thenReturn(currentJobPath.getName().toString());
 
-    AbstractJobLauncher.cleanUpOldJobData(jobState, new Properties(), jobContext);
+    JobLauncherUtils.cleanUpOldJobData(jobState, log, jobContext.getStagingDirProvided(), jobContext.getOutputDirProvided());
 
     Assert.assertFalse(fs.exists(oldJobPath1));
     Assert.assertTrue(fs.exists(oldJobPath2));

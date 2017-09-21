@@ -835,7 +835,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           throw new RuntimeException("Work unit streams do not support cleaning staging data per task.");
         }
       } else {
-        cleanUpOldJobData(jobState, jobProps, jobContext);
+        if (jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_OLD_JOBS_DATA, ConfigurationKeys.DEFAULT_CLEANUP_OLD_JOBS_DATA)) {
+          JobLauncherUtils.cleanUpOldJobData(jobState, LOG, jobContext.getStagingDirProvided(), jobContext.getOutputDirProvided());
+        }
         JobLauncherUtils.cleanJobStagingData(jobState, LOG);
       }
     } catch (Throwable t) {
@@ -844,34 +846,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
-  protected static void cleanUpOldJobData(JobState state, Properties jobProps, JobContext jobContext) throws IOException {
-    if (jobContext.getJobIdSet()) {
-      LOG.warn("Skipping cleaning old jobs' data. \"{}\" is set to {}; old job's path cannot be determined.", ConfigurationKeys.JOB_ID_KEY, jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY));
-      return;
-    }
-    Set<Path> rootPaths = new HashSet<>();
-    String writerFsUri = state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
-    FileSystem fs = FileSystem.get(URI.create(writerFsUri), WriterUtils.getFsConfiguration(state));
 
-    if (state.getPropAsBoolean(ConfigurationKeys.CLEANUP_OLD_JOBS_DATA, ConfigurationKeys.DEFAULT_CLEANUP_OLD_JOBS_DATA)) {
-      Path taskDataRootDir;
-      if (jobContext.getWriterStagingDirSet()) {
-        taskDataRootDir = new Path(state.getProp(ConfigurationKeys.WRITER_STAGING_DIR)).getParent();
-      } else {
-        taskDataRootDir = new Path(state.getProp(ConfigurationKeys.WRITER_STAGING_DIR)).getParent().getParent();
-      }
-      rootPaths.add(taskDataRootDir);
-      if (jobContext.getWriterOutputDirSet()) {
-        taskDataRootDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)).getParent();
-      } else {
-        taskDataRootDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)).getParent().getParent();
-      }
-      rootPaths.add(taskDataRootDir);
-    }
-    for (Path rootPath : rootPaths) {
-      HadoopUtils.deletePathByRegex(fs, rootPath, getJobIdPrefix(jobContext.getJobId()) + ".*");
-    }
-  }
 
   private static String getJobIdPrefix(String jobId) {
     return jobId.substring(0, jobId.lastIndexOf(Id.Job.SEPARATOR) + 1);
