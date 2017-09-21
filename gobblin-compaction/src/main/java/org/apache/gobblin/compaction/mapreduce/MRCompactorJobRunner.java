@@ -443,7 +443,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     }
 
     //MR output path must not exist when MR job starts, so delete if exists.
-    this.fs.delete(this.dataset.outputTmpPath(), true);
+    this.tmpFs.delete(this.dataset.outputTmpPath(), true);
     FileOutputFormat.setOutputPath(job, this.dataset.outputTmpPath());
   }
 
