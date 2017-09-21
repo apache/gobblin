@@ -205,7 +205,7 @@ public class HiveMaterializerTest {
     File tmpDir = Files.createTempDir();
     tmpDir.deleteOnExit();
 
-    WorkUnit workUnit = HiveMaterializer.queryMaterializationWorkUnit(
+    WorkUnit workUnit = HiveMaterializer.queryResultMaterializationWorkUnit(
         String.format("SELECT * FROM %s.%s WHERE name = 'foo'", this.dbName, this.sourceTableName),
         HiveConverterUtils.StorageFormat.AVRO,
         new TableLikeStageableTableMetadata(this.dataset.getTable(), this.dbName, destinationTable, tmpDir.getAbsolutePath()));

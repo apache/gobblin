@@ -48,7 +48,7 @@ public class QueryBasedMaterializerQueryGenerator extends HiveMaterializerQueryG
   public QueryBasedMaterializerQueryGenerator(WorkUnitState workUnitState) throws IOException {
     super(workUnitState);
 
-    this.sourceQuery = workUnitState.getProp(HiveMaterializer.QUERY_TO_MATERIALIZE_KEY);
+    this.sourceQuery = workUnitState.getProp(HiveMaterializer.QUERY_RESULT_TO_MATERIALIZE_KEY);
     this.storageFormat = HiveConverterUtils.StorageFormat.valueOf(workUnitState.getProp(HiveMaterializer.STORAGE_FORMAT_KEY));
   }
 

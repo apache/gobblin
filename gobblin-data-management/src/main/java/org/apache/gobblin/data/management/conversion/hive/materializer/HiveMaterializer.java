@@ -48,7 +48,7 @@ public class HiveMaterializer extends HiveTask {
   protected static final String STAGEABLE_TABLE_METADATA_KEY = "internal.hiveMaterializer.stageableTableMetadata";
   protected static final String MATERIALIZER_MODE_KEY = "internal.hiveMaterializer.materializerMode";
   protected static final String STORAGE_FORMAT_KEY = "internal.hiveMaterializer.storageFormat";
-  protected static final String QUERY_TO_MATERIALIZE_KEY = "internal.hiveMaterializer.queryToMaterialize";
+  protected static final String QUERY_RESULT_TO_MATERIALIZE_KEY = "internal.hiveMaterializer.queryResultToMaterialize";
 
   /**
    * Create a work unit to copy a source table to a target table using a staging table in between.
@@ -92,12 +92,12 @@ public class HiveMaterializer extends HiveTask {
    * @param storageFormat format in which target table should be written.
    * @param destinationTable {@link StageableTableMetadata} specifying staging and target tables metadata.
    */
-  public static WorkUnit queryMaterializationWorkUnit(String query, HiveConverterUtils.StorageFormat storageFormat,
+  public static WorkUnit queryResultMaterializationWorkUnit(String query, HiveConverterUtils.StorageFormat storageFormat,
       StageableTableMetadata destinationTable) {
     WorkUnit workUnit = new WorkUnit();
-    workUnit.setProp(MATERIALIZER_MODE_KEY, MaterializerMode.QUERY_MATERIALIZATION.name());
+    workUnit.setProp(MATERIALIZER_MODE_KEY, MaterializerMode.QUERY_RESULT_MATERIALIZATION.name());
     workUnit.setProp(STORAGE_FORMAT_KEY, storageFormat.name());
-    workUnit.setProp(QUERY_TO_MATERIALIZE_KEY, query);
+    workUnit.setProp(QUERY_RESULT_TO_MATERIALIZE_KEY, query);
     workUnit.setProp(STAGEABLE_TABLE_METADATA_KEY, HiveSource.GENERICS_AWARE_GSON.toJson(destinationTable));
     TaskUtils.setTaskFactoryClass(workUnit, HiveMaterializerTaskFactory.class);
     HiveTask.disableHiveWatermarker(workUnit);
@@ -125,7 +125,7 @@ public class HiveMaterializer extends HiveTask {
       }
     },
     /** Materialize a query into a table. */
-    QUERY_MATERIALIZATION {
+    QUERY_RESULT_MATERIALIZATION {
       @Override
       public QueryGenerator createQueryGenerator(WorkUnitState state) throws IOException {
         return new QueryBasedMaterializerQueryGenerator(state);

@@ -83,7 +83,7 @@ public class HiveMaterializerSource implements Source<Object, Object> {
         return Lists.newArrayList(workUnit);
       } else if (state.contains(MATERIALIZE_QUERY)) {
         String query = state.getProp(MATERIALIZE_QUERY);
-        WorkUnit workUnit = HiveMaterializer.queryMaterializationWorkUnit(query, getOutputStorageFormat(state),
+        WorkUnit workUnit = HiveMaterializer.queryResultMaterializationWorkUnit(query, getOutputStorageFormat(state),
             new StageableTableMetadata(config.getConfig(HIVE_MATERIALIZER_SOURCE_PREFIX), null));
         HiveTask.disableHiveWatermarker(workUnit);
         return Lists.newArrayList(workUnit);
