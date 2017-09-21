@@ -25,9 +25,11 @@ import java.util.Set;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
@@ -52,6 +54,15 @@ import lombok.extern.slf4j.Slf4j;
  * which creates extract/write level queries and publish level queries respectively.
  */
 public abstract class HiveTask extends BaseAbstractTask {
+  private static final String USE_WATERMARKER_KEY = "internal.hiveTask.useWatermarker";
+
+  /**
+   * Disable Hive watermarker. This is necessary when there is no concrete source table where watermark can be inferred.
+   */
+  public static void disableHiveWatermarker(State state) {
+    state.setProp(USE_WATERMARKER_KEY, Boolean.toString(false));
+  }
+
   protected final TaskContext taskContext;
   protected final WorkUnitState workUnitState;
   protected final HiveWorkUnit workUnit;
@@ -114,11 +125,8 @@ public abstract class HiveTask extends BaseAbstractTask {
           for (Map.Entry<String, String> publishDir : publishDirectories.entrySet()) {
             HadoopUtils.renamePath(fs, new Path(publishDir.getKey()), new Path(publishDir.getValue()), true);
           }
-        } catch (RuntimeException re) {
-          throw re;
-        }
-        catch (Exception e) {
-          log.error("error in move dir");
+        } catch (Throwable t) {
+          throw Throwables.propagate(t);
         }
       }
 
@@ -132,11 +140,12 @@ public abstract class HiveTask extends BaseAbstractTask {
 
       wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
 
-      HiveSourceWatermarker watermarker = GobblinConstructorUtils.invokeConstructor(
-          HiveSourceWatermarkerFactory.class, wus.getProp(HiveSource.HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY,
-              HiveSource.DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS)).createFromState(wus);
+      if (wus.getPropAsBoolean(USE_WATERMARKER_KEY, true)) {
+        HiveSourceWatermarker watermarker = GobblinConstructorUtils.invokeConstructor(HiveSourceWatermarkerFactory.class,
+            wus.getProp(HiveSource.HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY, HiveSource.DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS)).createFromState(wus);
 
-      watermarker.setActualHighWatermark(wus);
+        watermarker.setActualHighWatermark(wus);
+      }
     } catch (RuntimeException re) {
       throw re;
     } catch (Exception e) {

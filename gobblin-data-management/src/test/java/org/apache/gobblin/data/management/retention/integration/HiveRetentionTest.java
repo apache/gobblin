@@ -74,14 +74,14 @@ public class HiveRetentionTest {
       // Setup db, table to purge. Creating 4 partitions. 2 will be deleted and 2 will be retained
       String purgedTableSdLoc = new Path(testTempPath, purgedDbName + purgedTableName).toString();
       this.hiveMetastoreTestUtils.dropDatabaseIfExists(purgedDbName);
-      final Table purgedTbl = this.hiveMetastoreTestUtils.createTestTable(purgedDbName, purgedTableName, purgedTableSdLoc, ImmutableList.of("datepartition"), false);
+      final Table purgedTbl = this.hiveMetastoreTestUtils.createTestAvroTable(purgedDbName, purgedTableName, purgedTableSdLoc, ImmutableList.of("datepartition"), false);
 
       // Setup db, table and partitions to act as replacement partitions source
       String replacementSourceTableSdLoc = new Path(testTempPath, purgedDbName + purgedTableName + "_source").toString();
       String replacementDbName = purgedDbName + "_source";
       String replacementTableName = purgedTableName + "_source";
       this.hiveMetastoreTestUtils.dropDatabaseIfExists(replacementDbName);
-      final Table replacementTbl = this.hiveMetastoreTestUtils.createTestTable(replacementDbName, replacementTableName, replacementSourceTableSdLoc, ImmutableList.of("datepartition"), false);
+      final Table replacementTbl = this.hiveMetastoreTestUtils.createTestAvroTable(replacementDbName, replacementTableName, replacementSourceTableSdLoc, ImmutableList.of("datepartition"), false);
 
       String deleted1 = "2016-01-01-00";
       String deleted2 = "2016-01-02-02";

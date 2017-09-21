@@ -32,6 +32,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
@@ -243,15 +244,15 @@ public class HiveSource implements Source {
             "Creating workunit for table %s as updateTime %s or createTime %s is greater than low watermark %s",
             hiveDataset.getTable().getCompleteName(), updateTime, hiveDataset.getTable().getTTable().getCreateTime(),
             lowWatermark.getValue()));
+        HiveWorkUnit hiveWorkUnit = workUnitForTable(hiveDataset);
+
         LongWatermark expectedDatasetHighWatermark =
             this.watermarker.getExpectedHighWatermark(hiveDataset.getTable(), tableProcessTime);
-        HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
-        hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
-        hiveWorkUnit.setTableLocation(hiveDataset.getTable().getSd().getLocation());
         hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
 
         EventWorkunitUtils.setTableSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue(),
             this.beginGetWorkunitsTime);
+
         this.workunits.add(hiveWorkUnit);
         log.debug(String.format("Workunit added for table: %s", hiveWorkUnit));
 
@@ -264,11 +265,19 @@ public class HiveSource implements Source {
       }
     } catch (UpdateNotFoundException e) {
       log.error(String.format("Not Creating workunit for %s as update time was not found. %s", hiveDataset.getTable()
-          .getCompleteName(), e.getMessage()));
+          .getCompleteName(), e.getMessage()), e);
     } catch (SchemaNotFoundException e) {
       log.error(String.format("Not Creating workunit for %s as schema was not found. %s", hiveDataset.getTable()
-          .getCompleteName(), e.getMessage()));
+          .getCompleteName(), e.getMessage()), e);
     }
+  }
+
+  protected HiveWorkUnit workUnitForTable(HiveDataset hiveDataset) throws IOException {
+    HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
+    if (isAvro(hiveDataset.getTable())) {
+      hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
+    }
+    return hiveWorkUnit;
   }
 
   private void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client) throws IOException {
@@ -315,17 +324,12 @@ public class HiveSource implements Source {
           LongWatermark expectedPartitionHighWatermark = this.watermarker.getExpectedHighWatermark(sourcePartition,
               tableProcessTime, partitionProcessTime);
 
-          HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
-          hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
-          hiveWorkUnit.setTableLocation(hiveDataset.getTable().getSd().getLocation());
-          hiveWorkUnit.setPartitionSchemaUrl(this.avroSchemaManager.getSchemaUrl(sourcePartition));
-          hiveWorkUnit.setPartitionName(sourcePartition.getName());
-          hiveWorkUnit.setPartitionLocation(sourcePartition.getLocation());
-          hiveWorkUnit.setPartitionKeys(sourcePartition.getTable().getPartitionKeys());
+          HiveWorkUnit hiveWorkUnit = workUnitForPartition(hiveDataset, sourcePartition);
           hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedPartitionHighWatermark));
 
           EventWorkunitUtils.setPartitionSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), sourcePartition, updateTime,
               lowWatermark.getValue(), this.beginGetWorkunitsTime);
+
           workunits.add(hiveWorkUnit);
           log.info(String.format("Creating workunit for partition %s as updateTime %s is greater than low watermark %s",
               sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
@@ -346,6 +350,15 @@ public class HiveSource implements Source {
             sourcePartition.getCompleteName(), e.getMessage()));
       }
     }
+  }
+
+  protected HiveWorkUnit workUnitForPartition(HiveDataset hiveDataset, Partition partition) throws IOException {
+    HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset, partition);
+    if (isAvro(hiveDataset.getTable())) {
+      hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
+      hiveWorkUnit.setPartitionSchemaUrl(this.avroSchemaManager.getSchemaUrl(partition));
+    }
+    return hiveWorkUnit;
   }
 
   /***
@@ -446,5 +459,9 @@ public class HiveSource implements Source {
         logger.setLevel(Level.WARN);
       }
     }
+  }
+
+  private boolean isAvro(Table table) {
+    return AvroSerDe.class.getName().equals(table.getSd().getSerdeInfo().getSerializationLib());
   }
 }

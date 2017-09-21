@@ -73,7 +73,7 @@ public class HiveQueryExecutionWriter implements DataWriter<QueryBasedHiveConver
    * Method to add properties needed by publisher to preserve partition params
    */
   private void addPropsForPublisher(QueryBasedHiveConversionEntity hiveConversionEntity) {
-    if (!hiveConversionEntity.getHivePartition().isPresent()) {
+    if (!hiveConversionEntity.getPartition().isPresent()) {
       return;
     }
     ConvertibleHiveDataset convertibleHiveDataset = hiveConversionEntity.getConvertibleHiveDataset();
