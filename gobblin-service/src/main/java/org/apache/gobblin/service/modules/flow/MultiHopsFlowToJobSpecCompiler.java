@@ -220,7 +220,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
       ServiceNode targetNode = new BaseServiceNodeImpl(userSpecfiedPath.get(i + 1));
       if (weightedGraph.containsVertex(sourceNode) && weightedGraph.containsVertex(targetNode)
           && weightedGraph.containsEdge(sourceNode, targetNode)) {
-        tmpSpecExecutorInstanceMap.put(jobSpecGenerator(sourceNode, targetNode, flowSpec),
+        tmpSpecExecutorInstanceMap.put(convertEdgeToJobSpec(sourceNode, targetNode, flowSpec),
             (((LoadBasedFlowEdgeImpl) weightedGraph.getEdge(sourceNode, targetNode)).getSpecExecutorInstance()));
       } else {
         log.error("User Specified Path is invalid");
