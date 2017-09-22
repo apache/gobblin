@@ -229,7 +229,7 @@ public class JsonElementConversionFactory {
      * @return
      */
     protected JsonSchema getElementSchema(String fieldName) {
-      JsonSchema jsonSchema = JsonSchema.buildElementSchema(this.elementDataType);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementDataType);
       jsonSchema.setColumnName(fieldName);
       return jsonSchema;
     }
@@ -366,7 +366,7 @@ public class JsonElementConversionFactory {
     }
 
     private JsonSchema getElementSchema() {
-      JsonSchema jsonSchema = JsonSchema.buildElementSchema(STRING);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(STRING);
       jsonSchema.setColumnName(this.jsonSchema.getColumnName());
       return jsonSchema;
     }
@@ -497,7 +497,7 @@ public class JsonElementConversionFactory {
     }
 
     public JsonElementConverter getKeyConverter() {
-      JsonSchema jsonSchema = JsonSchema.buildElementSchema(STRING);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(STRING);
       jsonSchema.setColumnName(MAP_KEY_COLUMN_NAME);
       return getConverter(jsonSchema, state, false);
     }

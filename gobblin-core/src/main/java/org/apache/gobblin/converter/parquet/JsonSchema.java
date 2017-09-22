@@ -49,14 +49,20 @@ public class JsonSchema extends Schema {
     STRING, INT, LONG, FLOAT, DOUBLE, BOOLEAN, ARRAY, ENUM, RECORD, MAP
   }
 
-  public JsonSchema(JsonArray jsonArray) {
-    JsonObject temp = buildTempRecord(jsonArray);
-    setJsonSchemaProperties(temp);
+  public JsonSchema(JsonArray jsonArray){
+    JsonObject jsonObject = new JsonObject();
+    JsonObject dataType = new JsonObject();
+    jsonObject.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
+    dataType.addProperty(TYPE_KEY, RECORD.toString());
+    dataType.add(RECORD_FIELDS_KEY, jsonArray);
+    jsonObject.add(DATA_TYPE_KEY, dataType);
+    setJsonSchemaProperties(jsonObject);
     this.type = RECORD;
+
   }
 
-  public JsonSchema(JsonObject jsonObject) {
-    setJsonSchemaProperties(jsonObject);
+  public JsonSchema(JsonObject jsonobject) {
+    setJsonSchemaProperties(jsonobject);
     this.type = DataType.valueOf(getDataType().get(TYPE_KEY).getAsString().toUpperCase());
   }
 
@@ -91,17 +97,17 @@ public class JsonSchema extends Schema {
   }
 
   /**
-   * Builds a temp element schema based on type
+   * Builds a {@link JsonSchema} object for a given {@link DataType} object.
    * @param type
    * @return
    */
-  public static JsonSchema buildElementSchema(DataType type) {
-    JsonObject temp = new JsonObject();
+  public static JsonSchema buildBaseSchema(DataType type) {
+    JsonObject jsonObject = new JsonObject();
     JsonObject dataType = new JsonObject();
-    temp.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
+    jsonObject.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
     dataType.addProperty(TYPE_KEY, type.toString());
-    temp.add(DATA_TYPE_KEY, dataType);
-    return new JsonSchema(temp);
+    jsonObject.add(DATA_TYPE_KEY, dataType);
+    return new JsonSchema(jsonObject);
   }
 
   /**
@@ -122,15 +128,5 @@ public class JsonSchema extends Schema {
 
   private String getOptionalProperty(JsonObject jsonObject, String key) {
     return jsonObject.has(key) ? jsonObject.get(key).getAsString() : DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY;
-  }
-
-  private JsonObject buildTempRecord(JsonArray jsonArray) {
-    JsonObject temp = new JsonObject();
-    JsonObject dataType = new JsonObject();
-    temp.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
-    dataType.addProperty(TYPE_KEY, RECORD.toString());
-    dataType.add(RECORD_FIELDS_KEY, jsonArray);
-    temp.add(DATA_TYPE_KEY, dataType);
-    return temp;
   }
 }
