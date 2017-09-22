@@ -42,6 +42,7 @@ public class JsonSchema extends Schema {
   private static final String COMMENT_KEY = "comment";
   private static final String DEFAULT_VALUE_KEY = "defaultValue";
   private static final String IS_NULLABLE_KEY = "isNullable";
+  private static final String DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY = "";
   private final DataType type;
 
   public enum DataType {
@@ -50,13 +51,13 @@ public class JsonSchema extends Schema {
 
   public JsonSchema(JsonArray jsonArray) {
     JsonObject temp = buildTempRecord(jsonArray);
-    setSuper(temp);
+    setJsonSchemaProperties(temp);
     this.type = RECORD;
   }
 
   public JsonSchema(JsonObject jsonObject) {
-    setSuper(jsonObject);
-    this.type = DataType.valueOf(super.getDataType().get(TYPE_KEY).getAsString().toUpperCase());
+    setJsonSchemaProperties(jsonObject);
+    this.type = DataType.valueOf(getDataType().get(TYPE_KEY).getAsString().toUpperCase());
   }
 
   /**
@@ -65,7 +66,7 @@ public class JsonSchema extends Schema {
    */
   public JsonArray getDataTypeValues() {
     if (this.type.equals(RECORD)) {
-      return super.getDataType().get(RECORD_FIELDS_KEY).getAsJsonArray();
+      return getDataType().get(RECORD_FIELDS_KEY).getAsJsonArray();
     }
     return new JsonArray();
   }
@@ -76,7 +77,7 @@ public class JsonSchema extends Schema {
    */
   public JsonArray getSymbols() {
     if (this.type.equals(ENUM)) {
-      return this.getDataType().get(ENUM_SYMBOLS_KEY).getAsJsonArray();
+      return getDataType().get(ENUM_SYMBOLS_KEY).getAsJsonArray();
     }
     return new JsonArray();
   }
@@ -111,12 +112,16 @@ public class JsonSchema extends Schema {
     return this.isNullable() ? OPTIONAL : REQUIRED;
   }
 
-  private void setSuper(JsonObject jsonObject) {
-    super.setColumnName(jsonObject.get(COLUMN_NAME_KEY).getAsString());
-    super.setComment(jsonObject.has(COMMENT_KEY) ? jsonObject.get(COMMENT_KEY).getAsString() : "");
-    super.setDataType(jsonObject.get(DATA_TYPE_KEY).getAsJsonObject());
-    super.setDefaultValue(jsonObject.has(DEFAULT_VALUE_KEY) ? jsonObject.get(DEFAULT_VALUE_KEY).getAsString() : "");
-    super.setNullable(jsonObject.has(IS_NULLABLE_KEY) && jsonObject.get(IS_NULLABLE_KEY).getAsBoolean());
+  private void setJsonSchemaProperties(JsonObject jsonObject) {
+    setColumnName(jsonObject.get(COLUMN_NAME_KEY).getAsString());
+    setDataType(jsonObject.get(DATA_TYPE_KEY).getAsJsonObject());
+    setNullable(jsonObject.has(IS_NULLABLE_KEY) && jsonObject.get(IS_NULLABLE_KEY).getAsBoolean());
+    setComment(getOptionalProperty(jsonObject, COMMENT_KEY));
+    setDefaultValue(getOptionalProperty(jsonObject, DEFAULT_VALUE_KEY));
+  }
+
+  private String getOptionalProperty(JsonObject jsonObject, String key) {
+    return jsonObject.has(key) ? jsonObject.get(key).getAsString() : DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY;
   }
 
   private JsonObject buildTempRecord(JsonArray jsonArray) {
