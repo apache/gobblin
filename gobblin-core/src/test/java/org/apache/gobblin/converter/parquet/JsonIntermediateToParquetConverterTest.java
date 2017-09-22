@@ -21,6 +21,8 @@ import java.lang.reflect.Type;
 
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.source.workunit.Extract;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -56,38 +58,9 @@ public class JsonIntermediateToParquetConverterTest {
         source.createWorkUnit(source.createExtract(Extract.TableType.SNAPSHOT_ONLY, "test_namespace", "test_table")));
   }
 
-  @Test
-  public void testPrimitiveTypes()
-      throws Exception {
-    JsonObject test = testCases.get("simplePrimitiveTypes").getAsJsonObject();
-    parquetConverter = new JsonIntermediateToParquetConverter();
-
-    MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
-    Group record =
-        parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
-
-    assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
-    assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
-  }
-
-  @Test
-  public void testArrayType()
-      throws Exception {
-    JsonObject test = testCases.get("array").getAsJsonObject();
-    parquetConverter = new JsonIntermediateToParquetConverter();
-
-    MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
-    Group record =
-        parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
-
-    assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
-    assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
-  }
-
-  @Test
-  public void testEnumType()
-      throws Exception {
-    JsonObject test = testCases.get("enum").getAsJsonObject();
+  private void testCase(String testCaseName)
+      throws SchemaConversionException, DataConversionException {
+    JsonObject test = testCases.get(testCaseName).getAsJsonObject();
     parquetConverter = new JsonIntermediateToParquetConverter();
 
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
@@ -112,32 +85,35 @@ public class JsonIntermediateToParquetConverterTest {
   }
 
   @Test
+  public void testPrimitiveTypes()
+      throws Exception {
+    testCase("simplePrimitiveTypes");
+  }
+
+  @Test
+  public void testArrayType()
+      throws Exception {
+    testCase("array");
+  }
+
+  @Test
+  public void testEnumType()
+      throws Exception {
+    testCase("enum");
+  }
+
+  @Test
   public void testRecordType()
       throws Exception {
-    JsonObject test = testCases.get("record").getAsJsonObject();
-    parquetConverter = new JsonIntermediateToParquetConverter();
-
-    MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
-    Group record =
-        parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
-
-    assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
-    assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
+    testCase("record");
   }
 
   @Test
   public void testMapType()
       throws Exception {
-    JsonObject test = testCases.get("map").getAsJsonObject();
-    parquetConverter = new JsonIntermediateToParquetConverter();
-
-    MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
-    Group record =
-        parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
-
-    assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
-    assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
+    testCase("map");
   }
+
   private void assertEqualsIgnoreSpaces(String actual, String expected) {
     assertEquals(actual.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""),
         expected.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""));
