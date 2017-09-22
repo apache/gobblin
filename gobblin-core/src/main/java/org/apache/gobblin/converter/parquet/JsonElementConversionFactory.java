@@ -45,7 +45,7 @@ import parquet.schema.Type;
 import parquet.schema.Types;
 
 import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.CHILD;
-import static org.apache.gobblin.converter.parquet.JsonSchema.DataType.*;
+import static org.apache.gobblin.converter.parquet.JsonSchema.DataType.STRING;
 import static parquet.schema.OriginalType.UTF8;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
@@ -118,31 +118,17 @@ public class JsonElementConversionFactory {
   public static abstract class JsonElementConverter {
     protected final boolean repeated;
     protected final JsonSchema jsonSchema;
-    private PrimitiveTypeName targetType;
-
-    /**
-     * HashMap to convert {@link DataType} to {@link PrimitiveTypeName}
-     */
-    private final static HashMap<DataType, PrimitiveTypeName> typeMap = new HashMap<>();
-
-    static {
-      typeMap.put(INT, INT32);
-      typeMap.put(LONG, INT64);
-      typeMap.put(FLOAT, PrimitiveTypeName.FLOAT);
-      typeMap.put(DOUBLE, PrimitiveTypeName.DOUBLE);
-      typeMap.put(BOOLEAN, PrimitiveTypeName.BOOLEAN);
-      typeMap.put(STRING, BINARY);
-    }
+    private PrimitiveTypeName outputType;
 
     /**
      * @param jsonSchema
      * @param repeated
-     * @param targetType
+     * @param outputType
      */
-    public JsonElementConverter(JsonSchema jsonSchema, boolean repeated, PrimitiveTypeName targetType) {
+    public JsonElementConverter(JsonSchema jsonSchema, boolean repeated, PrimitiveTypeName outputType) {
       this.repeated = repeated;
       this.jsonSchema = jsonSchema;
-      this.targetType = targetType;
+      this.outputType = outputType;
     }
 
     /**
@@ -150,7 +136,7 @@ public class JsonElementConversionFactory {
      * @return
      */
     protected Type schema() {
-      return new PrimitiveType(repeated ? REPEATED : this.jsonSchema.optionalOrRequired(), this.targetType,
+      return new PrimitiveType(repeated ? REPEATED : this.jsonSchema.optionalOrRequired(), this.outputType,
           jsonSchema.getColumnName());
     }
 
@@ -293,7 +279,6 @@ public class JsonElementConversionFactory {
     BooleanValue convertField(JsonElement value) {
       return new BooleanValue(value.getAsBoolean());
     }
-
   }
 
   public static class StringConverter extends JsonElementConverter {
