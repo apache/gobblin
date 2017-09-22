@@ -296,8 +296,14 @@ public class JobContext implements Closeable {
     return this.source;
   }
 
-  protected static Path getJobDir(String dir, String jobDir) {
-    return new Path(dir, jobDir);
+  /**
+   * Appends two paths
+   * @param dir1
+   * @param dir2
+   * @return appended path
+   */
+  protected static Path getJobDir(String dir1, String dir2) {
+    return new Path(dir1, dir2);
   }
 
   protected void setTaskStagingAndOutputDirs() {
