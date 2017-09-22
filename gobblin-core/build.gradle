@@ -56,6 +56,7 @@ dependencies {
   compile externalDependency.findBugsAnnotations
   compile externalDependency.oltu
   compile externalDependency.opencsv
+  compile externalDependency.grok
   compile externalDependency.hadoopHdfs
 
   runtime externalDependency.protobuf
