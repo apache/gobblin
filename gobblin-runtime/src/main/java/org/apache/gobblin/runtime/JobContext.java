@@ -109,6 +109,12 @@ public class JobContext implements Closeable {
   private final boolean parallelizeCommit;
   private final int parallelCommits;
 
+  // Were WRITER_STAGING_DIR and WRITER_OUTPUT_DIR provided in the job file
+  @Getter
+  protected final Boolean stagingDirProvided;
+  @Getter
+  protected final Boolean outputDirProvided;
+
   @Getter
   private final DeliverySemantics semantics;
 
@@ -146,6 +152,9 @@ public class JobContext implements Closeable {
     this.jobState =
         new JobState(jobPropsState, this.datasetStateStore.getLatestDatasetStatesByUrns(this.jobName), this.jobName,
             this.jobId);
+
+    stagingDirProvided = this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR);
+    outputDirProvided = this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR);
 
     setTaskStagingAndOutputDirs();
 
@@ -287,26 +296,35 @@ public class JobContext implements Closeable {
     return this.source;
   }
 
-  protected void setTaskStagingAndOutputDirs() {
+  /**
+   * Appends two paths
+   * @param dir1
+   * @param dir2
+   * @return appended path
+   */
+  protected static Path getJobDir(String dir1, String dir2) {
+    return new Path(dir1, dir2);
+  }
 
+  protected void setTaskStagingAndOutputDirs() {
     // Add jobId to writer staging dir
     if (this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR)) {
       String writerStagingDirWithJobId =
-          new Path(this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR), this.jobId).toString();
+          new Path(getJobDir(this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR), this.getJobName()), this.jobId).toString();
       this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, writerStagingDirWithJobId);
     }
 
     // Add jobId to writer output dir
     if (this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
       String writerOutputDirWithJobId =
-          new Path(this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), this.jobId).toString();
+          new Path(getJobDir(this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), this.getJobName()), this.jobId).toString();
       this.jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, writerOutputDirWithJobId);
     }
 
     // Add jobId to task data root dir
     if (this.jobState.contains(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY)) {
       String taskDataRootDirWithJobId =
-          new Path(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), this.jobId).toString();
+          new Path(getJobDir(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), this.getJobName()), this.jobId).toString();
       this.jobState.setProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY, taskDataRootDirWithJobId);
 
       setTaskStagingDir();
