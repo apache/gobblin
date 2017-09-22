@@ -16,25 +16,27 @@
  */
 package org.apache.gobblin.converter.parquet;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.source.extractor.schema.Schema;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import parquet.schema.Type;
+import parquet.schema.Type.Repetition;
 
-import static org.apache.gobblin.converter.parquet.JsonSchema.DataType.ENUM;
-import static org.apache.gobblin.converter.parquet.JsonSchema.DataType.RECORD;
+import static org.apache.gobblin.converter.parquet.JsonSchema.InputType.ENUM;
+import static org.apache.gobblin.converter.parquet.JsonSchema.InputType.RECORD;
 import static parquet.schema.Type.Repetition.OPTIONAL;
 import static parquet.schema.Type.Repetition.REQUIRED;
 
 
 /**
- * Builds a {@link Schema} from jsonSchema represented using json string or JsonArray.
+ * Represents a source schema declared in the configuration with {@link ConfigurationKeys#SOURCE_SCHEMA}.
+ * The source schema is represented by a {@link JsonArray}.
+ * @author tilakpatidar
  */
 public class JsonSchema extends Schema {
   private static final String RECORD_FIELDS_KEY = "values";
-  private static final String DEFAULT_RECORD_COLUMN_NAME = "temp";
   private static final String TYPE_KEY = "type";
   private static final String ENUM_SYMBOLS_KEY = "symbols";
   private static final String COLUMN_NAME_KEY = "columnName";
@@ -42,14 +44,15 @@ public class JsonSchema extends Schema {
   private static final String COMMENT_KEY = "comment";
   private static final String DEFAULT_VALUE_KEY = "defaultValue";
   private static final String IS_NULLABLE_KEY = "isNullable";
+  private static final String DEFAULT_RECORD_COLUMN_NAME = "temp";
   private static final String DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY = "";
-  private final DataType type;
+  private final InputType type;
 
-  public enum DataType {
+  public enum InputType {
     STRING, INT, LONG, FLOAT, DOUBLE, BOOLEAN, ARRAY, ENUM, RECORD, MAP
   }
 
-  public JsonSchema(JsonArray jsonArray){
+  public JsonSchema(JsonArray jsonArray) {
     JsonObject jsonObject = new JsonObject();
     JsonObject dataType = new JsonObject();
     jsonObject.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
@@ -58,16 +61,16 @@ public class JsonSchema extends Schema {
     jsonObject.add(DATA_TYPE_KEY, dataType);
     setJsonSchemaProperties(jsonObject);
     this.type = RECORD;
-
   }
 
   public JsonSchema(JsonObject jsonobject) {
     setJsonSchemaProperties(jsonobject);
-    this.type = DataType.valueOf(getDataType().get(TYPE_KEY).getAsString().toUpperCase());
+    this.type = InputType.valueOf(getDataType().get(TYPE_KEY).getAsString().toUpperCase());
   }
 
   /**
-   * Gets fields within a record type
+   * Get source.schema within a {@link InputType#RECORD} type.
+   * The source.schema is represented by a {@link JsonArray}
    * @return
    */
   public JsonArray getDataTypeValues() {
@@ -78,7 +81,7 @@ public class JsonSchema extends Schema {
   }
 
   /**
-   * Gets symbols within a enum type
+   * Get symbols for a {@link InputType#ENUM} type.
    * @return
    */
   public JsonArray getSymbols() {
@@ -89,19 +92,19 @@ public class JsonSchema extends Schema {
   }
 
   /**
-   * Get source type
+   * Get {@link InputType} for this {@link JsonSchema}.
    * @return
    */
-  public DataType getType() {
+  public InputType getInputType() {
     return type;
   }
 
   /**
-   * Builds a {@link JsonSchema} object for a given {@link DataType} object.
+   * Builds a {@link JsonSchema} object for a given {@link InputType} object.
    * @param type
    * @return
    */
-  public static JsonSchema buildBaseSchema(DataType type) {
+  public static JsonSchema buildBaseSchema(InputType type) {
     JsonObject jsonObject = new JsonObject();
     JsonObject dataType = new JsonObject();
     jsonObject.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
@@ -111,13 +114,17 @@ public class JsonSchema extends Schema {
   }
 
   /**
-   * Parquet RepetitionType Optional or Required
+   * Parquet {@link Repetition} for this {@link JsonSchema}.
    * @return
    */
-  protected Type.Repetition optionalOrRequired() {
+  protected Repetition optionalOrRequired() {
     return this.isNullable() ? OPTIONAL : REQUIRED;
   }
 
+  /**
+   * Set properties for {@link JsonSchema} from a {@link JsonObject}.
+   * @param jsonObject
+   */
   private void setJsonSchemaProperties(JsonObject jsonObject) {
     setColumnName(jsonObject.get(COLUMN_NAME_KEY).getAsString());
     setDataType(jsonObject.get(DATA_TYPE_KEY).getAsJsonObject());
@@ -126,6 +133,13 @@ public class JsonSchema extends Schema {
     setDefaultValue(getOptionalProperty(jsonObject, DEFAULT_VALUE_KEY));
   }
 
+  /**
+   * Get optional property from a {@link JsonObject} for a {@link String} key.
+   * If key does'nt exists returns {@link #DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY}.
+   * @param jsonObject
+   * @param key
+   * @return
+   */
   private String getOptionalProperty(JsonObject jsonObject, String key) {
     return jsonObject.has(key) ? jsonObject.get(key).getAsString() : DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY;
   }

@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.converter.parquet.JsonSchema.DataType;
+import org.apache.gobblin.converter.parquet.JsonSchema.InputType;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -45,7 +45,7 @@ import parquet.schema.Type;
 import parquet.schema.Types;
 
 import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.CHILD;
-import static org.apache.gobblin.converter.parquet.JsonSchema.DataType.STRING;
+import static org.apache.gobblin.converter.parquet.JsonSchema.InputType.STRING;
 import static parquet.schema.OriginalType.UTF8;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
@@ -73,7 +73,7 @@ public class JsonElementConversionFactory {
    */
   public static JsonElementConverter getConverter(JsonSchema schemaNode, WorkUnitState state, boolean repeated) {
 
-    DataType fieldType = schemaNode.getType();
+    InputType fieldType = schemaNode.getInputType();
     switch (fieldType) {
       case INT:
         return new IntConverter(schemaNode, repeated);
@@ -191,22 +191,22 @@ public class JsonElementConversionFactory {
    * A ComplexConverter whose elements are of the same type
    */
   public static abstract class ComplexConverterForUniformElementTypes extends ComplexConverter {
-    private DataType elementDataType;
+    private InputType _elementInputType;
 
     public ComplexConverterForUniformElementTypes(JsonSchema schemaNode, String itemKey, boolean repeated) {
       super(schemaNode, repeated);
-      this.elementDataType = getPrimitiveTypeInSource(schemaNode, itemKey);
+      this._elementInputType = getPrimitiveTypeInSource(schemaNode, itemKey);
     }
 
     /**
-     * {@link DataType} of the elements composed within complex type.
+     * {@link InputType} of the elements composed within complex type.
      * @param schemaNode
      * @param itemKey
      * @return
      */
-    private DataType getPrimitiveTypeInSource(JsonSchema schemaNode, String itemKey) {
+    private InputType getPrimitiveTypeInSource(JsonSchema schemaNode, String itemKey) {
       String type = schemaNode.getDataType().get(itemKey).getAsString().toUpperCase();
-      return DataType.valueOf(type);
+      return InputType.valueOf(type);
     }
 
     /**
@@ -215,7 +215,7 @@ public class JsonElementConversionFactory {
      * @return
      */
     protected JsonSchema getElementSchema(String fieldName) {
-      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementDataType);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this._elementInputType);
       jsonSchema.setColumnName(fieldName);
       return jsonSchema;
     }
