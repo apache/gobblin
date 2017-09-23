@@ -36,16 +36,22 @@ import static parquet.schema.Type.Repetition.REQUIRED;
  * @author tilakpatidar
  */
 public class JsonSchema extends Schema {
-  private static final String RECORD_FIELDS_KEY = "values";
-  private static final String TYPE_KEY = "type";
-  private static final String ENUM_SYMBOLS_KEY = "symbols";
-  private static final String COLUMN_NAME_KEY = "columnName";
-  private static final String DATA_TYPE_KEY = "dataType";
-  private static final String COMMENT_KEY = "comment";
-  private static final String DEFAULT_VALUE_KEY = "defaultValue";
-  private static final String IS_NULLABLE_KEY = "isNullable";
-  private static final String DEFAULT_RECORD_COLUMN_NAME = "temp";
-  private static final String DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY = "";
+  public static final String RECORD_FIELDS_KEY = "values";
+  public static final String TYPE_KEY = "type";
+  public static final String ENUM_SYMBOLS_KEY = "symbols";
+  public static final String COLUMN_NAME_KEY = "columnName";
+  public static final String DATA_TYPE_KEY = "dataType";
+  public static final String COMMENT_KEY = "comment";
+  public static final String DEFAULT_VALUE_KEY = "defaultValue";
+  public static final String IS_NULLABLE_KEY = "isNullable";
+  public static final String DEFAULT_RECORD_COLUMN_NAME = "temp";
+  public static final String DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY = "";
+  public static final String ARRAY_KEY = "item";
+  public static final String ARRAY_ITEMS_KEY = "items";
+  public static final String MAP_ITEMS_KEY = "values";
+  public static final String MAP_KEY = "map";
+  public static final String MAP_KEY_COLUMN_NAME = "key";
+  public static final String MAP_VALUE_COLUMN_NAME = "value";
   private final InputType type;
 
   public enum InputType {
@@ -114,10 +120,20 @@ public class JsonSchema extends Schema {
   }
 
   /**
+   * {@link InputType} of the elements composed within complex type.
+   * @param itemKey
+   * @return
+   */
+  public InputType getElementTypeUsingKey(String itemKey) {
+    String type = this.getDataType().get(itemKey).getAsString().toUpperCase();
+    return InputType.valueOf(type);
+  }
+
+  /**
    * Parquet {@link Repetition} for this {@link JsonSchema}.
    * @return
    */
-  protected Repetition optionalOrRequired() {
+  public Repetition optionalOrRequired() {
     return this.isNullable() ? OPTIONAL : REQUIRED;
   }
 

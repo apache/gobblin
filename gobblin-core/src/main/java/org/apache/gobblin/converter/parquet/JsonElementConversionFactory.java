@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.converter.parquet.JsonSchema.InputType;
+import org.apache.gobblin.converter.parquet.JsonSchema.*;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -45,6 +45,7 @@ import parquet.schema.Type;
 import parquet.schema.Types;
 
 import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.CHILD;
+import static org.apache.gobblin.converter.parquet.JsonSchema.*;
 import static org.apache.gobblin.converter.parquet.JsonSchema.InputType.STRING;
 import static parquet.schema.OriginalType.UTF8;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
@@ -66,44 +67,44 @@ public class JsonElementConversionFactory {
   /**
    * Use to create a converter for a single field from a parquetSchema.
    *
-   * @param schemaNode
+   * @param schema
    * @param state
    * @param repeated - Is the {@link Type} repeated in the parent {@link Group}
    * @return
    */
-  public static JsonElementConverter getConverter(JsonSchema schemaNode, WorkUnitState state, boolean repeated) {
+  public static JsonElementConverter getConverter(JsonSchema schema, WorkUnitState state, boolean repeated) {
 
-    InputType fieldType = schemaNode.getInputType();
+    InputType fieldType = schema.getInputType();
     switch (fieldType) {
       case INT:
-        return new IntConverter(schemaNode, repeated);
+        return new IntConverter(schema, repeated);
 
       case LONG:
-        return new LongConverter(schemaNode, repeated);
+        return new LongConverter(schema, repeated);
 
       case FLOAT:
-        return new FloatConverter(schemaNode, repeated);
+        return new FloatConverter(schema, repeated);
 
       case DOUBLE:
-        return new DoubleConverter(schemaNode, repeated);
+        return new DoubleConverter(schema, repeated);
 
       case BOOLEAN:
-        return new BooleanConverter(schemaNode, repeated);
+        return new BooleanConverter(schema, repeated);
 
       case STRING:
-        return new StringConverter(schemaNode, repeated);
+        return new StringConverter(schema, repeated);
 
       case ARRAY:
-        return new ArrayConverter(schemaNode, state);
+        return new ArrayConverter(schema, state);
 
       case ENUM:
-        return new EnumConverter(schemaNode, state);
+        return new EnumConverter(schema, state);
 
       case RECORD:
-        return new RecordConverter(schemaNode, state);
+        return new RecordConverter(schema, state);
 
       case MAP:
-        return new MapConverter(schemaNode, state);
+        return new MapConverter(schema, state);
 
       default:
         throw new UnsupportedOperationException(fieldType + " is unsupported");
@@ -116,33 +117,15 @@ public class JsonElementConversionFactory {
    *
    */
   public static abstract class JsonElementConverter {
-    protected final boolean repeated;
     protected final JsonSchema jsonSchema;
-    private PrimitiveTypeName outputType;
 
-    /**
-     * @param jsonSchema
-     * @param repeated
-     * @param outputType
-     */
-    public JsonElementConverter(JsonSchema jsonSchema, boolean repeated, PrimitiveTypeName outputType) {
-      this.repeated = repeated;
-      this.jsonSchema = jsonSchema;
-      this.outputType = outputType;
+    protected JsonElementConverter(JsonSchema schema) {
+      this.jsonSchema = schema;
     }
 
     /**
-     * Returns a {@link PrimitiveType} parquetSchema
-     * @return
-     */
-    protected Type schema() {
-      return new PrimitiveType(repeated ? REPEATED : this.jsonSchema.optionalOrRequired(), this.outputType,
-          jsonSchema.getColumnName());
-    }
-
-    /**
-     * Convert value
-     * @param value is JsonNull will return null if allowed or exception if not allowed
+     * Convert value to a parquet type and perform null check.
+     * @param value
      * @return Parquet safe type
      */
     public Object convert(JsonElement value) {
@@ -157,6 +140,12 @@ public class JsonElementConversionFactory {
     }
 
     /**
+     * Returns a {@link Type} parquet schema
+     * @return
+     */
+    abstract Type schema();
+
+    /**
      * Convert JsonElement to Parquet type
      * @param value
      * @return
@@ -165,17 +154,54 @@ public class JsonElementConversionFactory {
   }
 
   /**
-   * For converting Complex data types like ARRAY, ENUM, MAP etc.
+   * Converts a {@link JsonSchema} to a {@link PrimitiveType}
    */
-  public static abstract class ComplexConverter extends JsonElementConverter {
+  public static abstract class PrimitiveConverter extends JsonElementConverter {
+    protected final boolean repeated;
+    private PrimitiveTypeName outputType;
+
+    /**
+     * @param jsonSchema
+     * @param repeated
+     * @param outputType
+     */
+    public PrimitiveConverter(JsonSchema jsonSchema, boolean repeated, PrimitiveTypeName outputType) {
+      super(jsonSchema);
+      this.repeated = repeated;
+      this.outputType = outputType;
+    }
+
+    protected Type schema() {
+      return new PrimitiveType(this.repeated ? REPEATED : this.jsonSchema.optionalOrRequired(), this.outputType,
+          this.jsonSchema.getColumnName());
+    }
+  }
+
+  /**
+   * Converts {@link JsonSchema} having collection of elements of {@link InputType} into a {@link GroupType}.
+   */
+  public static abstract class CollectionConverter extends JsonElementConverter {
+    private InputType elementType;
     private JsonElementConverter elementConverter;
 
-    public ComplexConverter(JsonSchema schema, boolean repeated) {
-      super(schema, repeated, INT32);
+    public CollectionConverter(JsonSchema collectionSchema, InputType elementType) {
+      super(collectionSchema);
+      this.elementType = elementType;
     }
 
     /**
-     * Set a {@link JsonElementConverter} for the elements present within Complex data types.
+     * Prepare a {@link JsonSchema} for the elements in a collection.
+     * @param fieldName
+     * @return
+     */
+    protected JsonSchema getElementSchema(String fieldName) {
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementType);
+      jsonSchema.setColumnName(fieldName);
+      return jsonSchema;
+    }
+
+    /**
+     * Set a {@link JsonElementConverter} for the elements within a collection.
      * @param elementConverter
      */
     protected void setElementConverter(JsonElementConverter elementConverter) {
@@ -187,41 +213,7 @@ public class JsonElementConversionFactory {
     }
   }
 
-  /**
-   * A ComplexConverter whose elements are of the same type
-   */
-  public static abstract class ComplexConverterForUniformElementTypes extends ComplexConverter {
-    private InputType _elementInputType;
-
-    public ComplexConverterForUniformElementTypes(JsonSchema schemaNode, String itemKey, boolean repeated) {
-      super(schemaNode, repeated);
-      this._elementInputType = getPrimitiveTypeInSource(schemaNode, itemKey);
-    }
-
-    /**
-     * {@link InputType} of the elements composed within complex type.
-     * @param schemaNode
-     * @param itemKey
-     * @return
-     */
-    private InputType getPrimitiveTypeInSource(JsonSchema schemaNode, String itemKey) {
-      String type = schemaNode.getDataType().get(itemKey).getAsString().toUpperCase();
-      return InputType.valueOf(type);
-    }
-
-    /**
-     * Prepare a {@link JsonSchema} of composed elements for passing to element converters.
-     * @param fieldName
-     * @return
-     */
-    protected JsonSchema getElementSchema(String fieldName) {
-      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this._elementInputType);
-      jsonSchema.setColumnName(fieldName);
-      return jsonSchema;
-    }
-  }
-
-  public static class IntConverter extends JsonElementConverter {
+  public static class IntConverter extends PrimitiveConverter {
 
     public IntConverter(JsonSchema schema, boolean repeated) {
       super(schema, repeated, INT32);
@@ -233,7 +225,7 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class LongConverter extends JsonElementConverter {
+  public static class LongConverter extends PrimitiveConverter {
 
     public LongConverter(JsonSchema schema, boolean repeated) {
       super(schema, repeated, INT64);
@@ -245,7 +237,7 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class FloatConverter extends JsonElementConverter {
+  public static class FloatConverter extends PrimitiveConverter {
 
     public FloatConverter(JsonSchema schema, boolean repeated) {
       super(schema, repeated, PrimitiveTypeName.FLOAT);
@@ -257,7 +249,7 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class DoubleConverter extends JsonElementConverter {
+  public static class DoubleConverter extends PrimitiveConverter {
 
     public DoubleConverter(JsonSchema schema, boolean repeated) {
       super(schema, repeated, PrimitiveTypeName.DOUBLE);
@@ -269,7 +261,7 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class BooleanConverter extends JsonElementConverter {
+  public static class BooleanConverter extends PrimitiveConverter {
 
     public BooleanConverter(JsonSchema schema, boolean repeated) {
       super(schema, repeated, PrimitiveTypeName.BOOLEAN);
@@ -281,7 +273,7 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class StringConverter extends JsonElementConverter {
+  public static class StringConverter extends PrimitiveConverter {
 
     public StringConverter(JsonSchema schema, boolean repeated) {
       super(schema, repeated, BINARY);
@@ -309,13 +301,11 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class ArrayConverter extends ComplexConverterForUniformElementTypes {
-    private static final String ARRAY_KEY = "item";
-    private static final String SOURCE_SCHEMA_ITEMS_KEY = "items";
+  public static class ArrayConverter extends CollectionConverter {
     private final JsonSchema elementSchema;
 
-    public ArrayConverter(JsonSchema schemaNode, WorkUnitState state) {
-      super(schemaNode, SOURCE_SCHEMA_ITEMS_KEY, true);
+    public ArrayConverter(JsonSchema arraySchema, WorkUnitState state) {
+      super(arraySchema, arraySchema.getElementTypeUsingKey(ARRAY_ITEMS_KEY));
       this.elementSchema = getElementSchema(ARRAY_KEY);
       super.setElementConverter(getConverter(elementSchema, state, true));
     }
@@ -338,14 +328,14 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class EnumConverter extends ComplexConverter {
+  public static class EnumConverter extends CollectionConverter {
     private final JsonSchema elementSchema;
     private final HashSet<String> symbols = new HashSet<>();
 
-    public EnumConverter(JsonSchema schemaNode, WorkUnitState state) {
-      super(schemaNode, false);
+    public EnumConverter(JsonSchema enumSchema, WorkUnitState state) {
+      super(enumSchema, STRING);
       elementSchema = getElementSchema();
-      JsonArray symbolsArray = schemaNode.getSymbols();
+      JsonArray symbolsArray = enumSchema.getSymbols();
       symbolsArray.forEach(e -> symbols.add(e.getAsString()));
       super.setElementConverter(getConverter(elementSchema, state, false));
     }
@@ -370,7 +360,7 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class RecordConverter extends ComplexConverter {
+  public static class RecordConverter extends JsonElementConverter {
 
     private final HashMap<String, JsonElementConverter> converters;
     private final GroupType parquetSchema;
@@ -380,15 +370,15 @@ public class JsonElementConversionFactory {
       ROOT, CHILD
     }
 
-    public RecordConverter(JsonSchema schemaNode, WorkUnitState state) {
-      this(schemaNode, state, CHILD);
+    public RecordConverter(JsonSchema recordSchema, WorkUnitState state) {
+      this(recordSchema, state, CHILD);
     }
 
-    public RecordConverter(JsonSchema schemaNode, WorkUnitState state, RecordType recordType) {
-      super(schemaNode, false);
+    public RecordConverter(JsonSchema recordSchema, WorkUnitState state, RecordType recordType) {
+      super(recordSchema);
       this.converters = new HashMap<>();
       this.recordType = recordType;
-      this.parquetSchema = buildSchema(schemaNode.getDataTypeValues(), state);
+      this.parquetSchema = buildSchema(recordSchema.getDataTypeValues(), state);
     }
 
     @Override
@@ -413,9 +403,9 @@ public class JsonElementConversionFactory {
         JsonObject map = (JsonObject) element;
         JsonSchema elementSchema = new JsonSchema(map);
         String columnName = elementSchema.getColumnName();
-        JsonElementConverter convertor = JsonElementConversionFactory.getConverter(elementSchema, workUnit, false);
-        Type schemaType = convertor.schema();
-        this.converters.put(columnName, convertor);
+        JsonElementConverter converter = JsonElementConversionFactory.getConverter(elementSchema, workUnit, false);
+        Type schemaType = converter.schema();
+        this.converters.put(columnName, converter);
         parquetTypes.add(schemaType);
       }
       String docName = this.jsonSchema.getColumnName();
@@ -430,16 +420,12 @@ public class JsonElementConversionFactory {
     }
   }
 
-  public static class MapConverter extends ComplexConverterForUniformElementTypes {
+  public static class MapConverter extends CollectionConverter {
 
-    private static final String SOURCE_SCHEMA_ITEMS_KEY = "values";
-    private static final String MAP_KEY = "map";
-    private static final String MAP_KEY_COLUMN_NAME = "key";
-    private static final String MAP_VALUE_COLUMN_NAME = "value";
     private final WorkUnitState state;
 
-    public MapConverter(JsonSchema schemaNode, WorkUnitState state) {
-      super(schemaNode, SOURCE_SCHEMA_ITEMS_KEY, false);
+    public MapConverter(JsonSchema mapSchema, WorkUnitState state) {
+      super(mapSchema, mapSchema.getElementTypeUsingKey(MAP_ITEMS_KEY));
       this.state = state;
     }
 
