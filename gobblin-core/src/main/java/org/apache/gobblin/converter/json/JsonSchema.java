@@ -28,7 +28,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import static org.apache.gobblin.converter.json.JsonSchema.InputType.*;
-import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter.JsonUtils.jsonArray;
+import static org.apache.gobblin.converter.json.JsonSchema.SchemaType.CHILD;
+import static org.apache.gobblin.converter.json.JsonSchema.SchemaType.ROOT;
 
 
 /**
@@ -58,10 +59,11 @@ public class JsonSchema extends Schema {
   public static final String MAP_VALUE_COLUMN_NAME = "value";
   private final InputType type;
   private final JsonObject json;
+  private final SchemaType schemaNestedLevel;
   private JsonSchema secondType;
   private JsonSchema firstType;
-  private int size;
   private JsonArray jsonArray;
+  private int fieldsSize;
 
   public enum InputType {
     DATE,
@@ -86,6 +88,15 @@ public class JsonSchema extends Schema {
         Arrays.asList(NULL, BOOLEAN, INT, LONG, FLOAT, DOUBLE, BYTES, STRING, ENUM, FIXED);
   }
 
+  public enum SchemaType {
+    ROOT, CHILD
+  }
+
+  /**
+   * Build a {@link JsonSchema} using {@link JsonArray}
+   * This will create a {@link SchemaType} of {@link SchemaType#ROOT}
+   * @param jsonArray
+   */
   public JsonSchema(JsonArray jsonArray) {
     JsonObject jsonObject = new JsonObject();
     JsonObject dataType = new JsonObject();
@@ -96,10 +107,16 @@ public class JsonSchema extends Schema {
     setJsonSchemaProperties(jsonObject);
     this.type = RECORD;
     this.json = jsonObject;
-    this.size = jsonArray.size();
+    this.fieldsSize = jsonArray.size();
     this.jsonArray = jsonArray;
+    this.schemaNestedLevel = ROOT;
   }
 
+  /**
+   * Build a {@link JsonSchema} using {@link JsonArray}
+   * This will create a {@link SchemaType} of {@link SchemaType#CHILD}
+   * @param jsonObject
+   */
   public JsonSchema(JsonObject jsonObject) {
     setJsonSchemaProperties(jsonObject);
     JsonElement typeElement = getDataType().get(TYPE_KEY);
@@ -108,7 +125,7 @@ public class JsonSchema extends Schema {
     } else if (typeElement.isJsonArray()) {
       JsonArray jsonArray = typeElement.getAsJsonArray();
       if (jsonArray.size() != 2) {
-        throw new RuntimeException("Invalid " + TYPE_KEY + "property in schema");
+        throw new RuntimeException("Invalid " + TYPE_KEY + "property in schema for union types");
       }
       this.type = UNION;
       JsonElement type1 = jsonArray.get(0);
@@ -129,19 +146,9 @@ public class JsonSchema extends Schema {
       throw new RuntimeException("Invalid " + TYPE_KEY + "property in schema");
     }
     this.json = jsonObject;
-    this.size = 1;
-  }
-
-  /**
-   * Get source.schema within a {@link InputType#RECORD} type.
-   * The source.schema is represented by a {@link JsonArray}
-   * @return
-   */
-  public JsonArray getDataTypeValues() {
-    if (this.type.equals(RECORD)) {
-      return getDataType().get(RECORD_FIELDS_KEY).getAsJsonArray();
-    }
-    return new JsonArray();
+    this.jsonArray = new JsonArray();
+    this.schemaNestedLevel = CHILD;
+    this.fieldsSize = 1;
   }
 
   /**
@@ -187,35 +194,13 @@ public class JsonSchema extends Schema {
   }
 
   /**
-   * {@link InputType} of the elements composed within complex type.
-   * @param itemKey
-   * @return
-   */
-  public InputType getElementTypeUsingKey(String itemKey) {
-    String type = this.getDataType().get(itemKey).getAsString().toUpperCase();
-    return InputType.valueOf(type);
-  }
-
-  /**
-   * Set properties for {@link JsonSchema} from a {@link JsonObject}.
-   * @param jsonObject
-   */
-  private void setJsonSchemaProperties(JsonObject jsonObject) {
-    setColumnName(jsonObject.get(COLUMN_NAME_KEY).getAsString());
-    setDataType(jsonObject.get(DATA_TYPE_KEY).getAsJsonObject());
-    setNullable(jsonObject.has(IS_NULLABLE_KEY) && jsonObject.get(IS_NULLABLE_KEY).getAsBoolean());
-    setComment(getOptionalProperty(jsonObject, COMMENT_KEY));
-    setDefaultValue(getOptionalProperty(jsonObject, DEFAULT_VALUE_KEY));
-  }
-
-  /**
    * Get optional property from a {@link JsonObject} for a {@link String} key.
    * If key does'nt exists returns {@link #DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY}.
    * @param jsonObject
    * @param key
    * @return
    */
-  private String getOptionalProperty(JsonObject jsonObject, String key) {
+  public static String getOptionalProperty(JsonObject jsonObject, String key) {
     return jsonObject.has(key) ? jsonObject.get(key).getAsString() : DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY;
   }
 
@@ -243,36 +228,12 @@ public class JsonSchema extends Schema {
    * @return
    */
   public JsonArray getSchemaForArrayHavingRecord() {
-    JsonObject root = new JsonObject();
     JsonObject dataType = getItemsWithinDataType().getAsJsonObject();
-    root.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
-    root.add(DATA_TYPE_KEY, dataType);
-    return new JsonSchema(root).getValuesWithinDataType().getAsJsonArray();
+    return buildBaseSchema(dataType).getValuesWithinDataType().getAsJsonArray();
   }
 
   public boolean isEnumType() {
     return this.type.equals(ENUM);
-  }
-
-  /**
-   * Get dataType.type from schema
-   * @return
-   */
-  public JsonArray getDataTypeTypeFromSchema() {
-    JsonObject dataType = this.getDataType();
-    if (dataType.has(TYPE_KEY)) {
-      if (dataType.get(TYPE_KEY).isJsonPrimitive()) {
-        return jsonArray(dataType.get(TYPE_KEY));
-      } else {
-        if (dataType.get(TYPE_KEY).isJsonArray()) {
-          return dataType.get(TYPE_KEY).getAsJsonArray();
-        } else {
-          return null;
-        }
-      }
-    } else {
-      return null;
-    }
   }
 
   public boolean isMapType() {
@@ -287,20 +248,12 @@ public class JsonSchema extends Schema {
     return this.type.equals(UNION);
   }
 
-  public boolean isPrimitiveType() {
-    return InputType.primitiveTypes.contains(this.type);
-  }
-
   public boolean isFixedType() {
     return this.type.equals(FIXED);
   }
 
   public boolean isArrayType() {
     return this.type.equals(ARRAY);
-  }
-
-  public boolean isTypeEqual(JsonSchema schema) {
-    return this.type.equals(schema.getInputType());
   }
 
   public boolean isNullType() {
@@ -324,10 +277,9 @@ public class JsonSchema extends Schema {
       if (arrayValues.isJsonPrimitive() && arrayValues.getAsJsonPrimitive().isString()) {
         return InputType.valueOf(arrayValues.getAsString().toUpperCase());
       } else {
-        JsonObject root = new JsonObject();
-        root.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
-        root.add(DATA_TYPE_KEY, arrayValues.getAsJsonObject());
-        return InputType.valueOf(new JsonSchema(root).getDataTypeTypeFromSchema().get(0).getAsString());
+        return InputType.valueOf(
+            buildBaseSchema(arrayValues.getAsJsonObject()).getDataTypes().get(0).getInputType().toString()
+                .toUpperCase());
       }
     } catch (UnsupportedOperationException | IllegalStateException e) {
       //values is not string and a nested json array
@@ -339,37 +291,66 @@ public class JsonSchema extends Schema {
     return this.getDataType().get(ARRAY_ITEMS_KEY);
   }
 
-  public String getPropOrBlankString(String key) {
-    return this.json.has(key) ? this.json.get(key).getAsString() : "";
-  }
-
-  public boolean getAsBooleanIfExists(String key) {
-    return this.json.has(key) && this.json.get(key).getAsBoolean();
-  }
-
-  public JsonSchema getFirstInputType() {
+  public JsonSchema getFirstTypeSchema() {
     if (!isUnionType()) {
       return null;
     }
     return this.firstType;
   }
 
-  public JsonSchema getSecondInputType() {
+  public JsonSchema getSecondTypeSchema() {
     if (!isUnionType()) {
       return null;
     }
     return this.secondType;
   }
 
-  public int size() {
-    return this.size;
+  public int fieldsCount() {
+    return this.fieldsSize;
   }
 
-  public JsonElement get() {
-    return this.json;
+  public JsonElement asJsonElement() {
+    return this.json == null ? this.jsonArray : this.json;
   }
 
-  public JsonSchema get(int i) {
+  public JsonSchema getFieldSchemaAt(int i) {
+    if (i >= this.jsonArray.size()) {
+      return new JsonSchema(this.json);
+    }
     return new JsonSchema(this.jsonArray.get(i).getAsJsonObject());
+  }
+
+  public static JsonSchema buildBaseSchemaByWrap(JsonObject dataType) {
+    JsonObject root = new JsonObject();
+    root.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
+    root.add(DATA_TYPE_KEY, dataType);
+    return new JsonSchema(root);
+  }
+
+  public List<JsonSchema> getDataTypes() {
+    if (firstType != null && secondType != null) {
+      return Arrays.asList(firstType, secondType);
+    }
+    return Arrays.asList(this);
+  }
+
+  public boolean isRoot() {
+    return this.schemaNestedLevel.equals(ROOT);
+  }
+
+  public String getName() {
+    return getOptionalProperty(this.getDataType(), NAME_KEY);
+  }
+
+  /**
+   * Set properties for {@link JsonSchema} from a {@link JsonObject}.
+   * @param jsonObject
+   */
+  private void setJsonSchemaProperties(JsonObject jsonObject) {
+    setColumnName(jsonObject.get(COLUMN_NAME_KEY).getAsString());
+    setDataType(jsonObject.get(DATA_TYPE_KEY).getAsJsonObject());
+    setNullable(jsonObject.has(IS_NULLABLE_KEY) && jsonObject.get(IS_NULLABLE_KEY).getAsBoolean());
+    setComment(getOptionalProperty(jsonObject, COMMENT_KEY));
+    setDefaultValue(getOptionalProperty(jsonObject, DEFAULT_VALUE_KEY));
   }
 }

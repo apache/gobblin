@@ -35,7 +35,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.EmptyIterable;
 import org.apache.gobblin.converter.json.JsonSchema;
-import org.apache.gobblin.converter.json.JsonSchema.*;
+import org.apache.gobblin.converter.json.JsonSchema.InputType;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -46,13 +46,14 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import lombok.extern.java.Log;
 import sun.util.calendar.ZoneInfo;
 
-import static org.apache.gobblin.converter.json.JsonSchema.*;
-import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter.JsonUtils.*;
+import static org.apache.gobblin.converter.json.JsonSchema.ENUM_SYMBOLS_KEY;
+import static org.apache.gobblin.converter.json.JsonSchema.NAME_KEY;
+import static org.apache.gobblin.converter.json.JsonSchema.buildBaseSchema;
+import static org.apache.gobblin.converter.json.JsonSchema.getOptionalProperty;
 
 
 /**
@@ -68,7 +69,6 @@ public class JsonElementConversionFactory {
   /**
    * Use to create a converter for a single field from a schema.
    * @param schemaNode
-   * @param fieldType
    * @param namespace
    * @param state
    * @return {@link JsonElementConverter}
@@ -457,15 +457,22 @@ public class JsonElementConversionFactory {
       return this.elementConverter;
     }
 
-    protected void processNestedItems(WorkUnitState state, JsonElement arrayItems)
+    protected void processNestedItems(JsonSchema schema, WorkUnitState state)
         throws UnsupportedDateTypeException {
-      if (arrayItems.isJsonPrimitive()) {
-        String type = arrayItems.getAsString();
+      JsonElement nestedItem = null;
+      if (schema.isArrayType()) {
+        nestedItem = schema.getItemsWithinDataType();
+      }
+      if (schema.isMapType()) {
+        nestedItem = schema.getValuesWithinDataType();
+      }
+      if (nestedItem.isJsonPrimitive()) {
+        String type = nestedItem.getAsString();
         this.setElementConverter(getConverter(buildBaseSchema(InputType.valueOf(type.toUpperCase())), null, state));
-      } else if (arrayItems.isJsonObject()) {
-        JsonObject asJsonObject = arrayItems.getAsJsonObject();
+      } else if (nestedItem.isJsonObject()) {
+        JsonObject asJsonObject = nestedItem.getAsJsonObject();
         this.setElementConverter(getConverter(buildBaseSchema(asJsonObject), null, state));
-      } else if (arrayItems.isJsonArray() || arrayItems.isJsonNull()) {
+      } else if (nestedItem.isJsonArray() || nestedItem.isJsonNull()) {
         throw new UnsupportedOperationException("Array types only allow values in schema as Primitive or a JsonObject");
       }
     }
@@ -499,8 +506,7 @@ public class JsonElementConversionFactory {
     public ArrayConverter(JsonSchema schema, WorkUnitState state)
         throws UnsupportedDateTypeException {
       super(schema);
-      JsonElement arrayItems = getItemsWithinDataType(schema.getDataType());
-      processNestedItems(state, arrayItems);
+      processNestedItems(schema, state);
     }
 
     @Override
@@ -532,8 +538,7 @@ public class JsonElementConversionFactory {
     public MapConverter(JsonSchema schema, WorkUnitState state)
         throws UnsupportedDateTypeException {
       super(schema);
-      JsonElement mapValues = schema.getValuesWithinDataType();
-      processNestedItems(state, mapValues);
+      processNestedItems(schema, state);
     }
 
     @Override
@@ -564,7 +569,6 @@ public class JsonElementConversionFactory {
   public static class RecordConverter extends ComplexConverter {
     private static final Logger LOG = LoggerFactory.getLogger(JsonIntermediateToAvroConverter.class);
     private HashMap<String, JsonElementConverter> converters = new HashMap<>();
-    private JsonObject _schemaNode;
     private Schema _schema;
     private long numFailedConversion = 0;
     private State workUnit;
@@ -573,48 +577,30 @@ public class JsonElementConversionFactory {
         throws UnsupportedDateTypeException {
       super(schema);
       workUnit = state;
-      _schemaNode = schema.get().getAsJsonObject();
-      _schema = buildRecordSchema(getValuesWithinDataType(_schemaNode).getAsJsonArray(), state,
-          getPropOrBlankString(getDataType(_schemaNode), NAME_KEY), namespace);
+      String name = schema.isRoot() ? schema.getColumnName() : getOptionalProperty(schema.getDataType(), NAME_KEY);
+      _schema =
+          buildRecordSchema(new JsonSchema(schema.getValuesWithinDataType().getAsJsonArray()), state, name, namespace);
     }
 
-    public RecordConverter(JsonSchema schema, JsonArray schemaNodeArray, WorkUnitState state, String namespace)
-        throws UnsupportedDateTypeException {
-      super(schema);
-      workUnit = state;
-      JsonObject schemaObj = new JsonObject();
-      JsonObject dataTypeObj = new JsonObject();
-      dataTypeObj.add(RECORD_ITEMS_KEY, schemaNodeArray);
-      dataTypeObj.addProperty(NAME_KEY, state.getExtract().getTable());
-      schemaObj.add(DATA_TYPE_KEY, dataTypeObj);
-      _schemaNode = schemaObj;
-      _schema = buildRecordSchema(getValuesWithinDataType(_schemaNode).getAsJsonArray(), state,
-          getPropOrBlankString(getDataType(_schemaNode), NAME_KEY), namespace);
-    }
-
-    private Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit, String name, String namespace) {
+    private Schema buildRecordSchema(JsonSchema schema, WorkUnitState workUnit, String name, String namespace) {
       List<Schema.Field> fields = new ArrayList<>();
-      for (JsonElement elem : schema) {
-        JsonObject map = (JsonObject) elem;
-        String columnName = getPropOrBlankString(map, COLUMN_NAME_KEY);
-        String comment = getPropOrBlankString(map, COMMENT_KEY);
-        boolean nullable = getBooleanIfExists(map, IS_NULLABLE_KEY);
-        Schema fldSchema;
+      for (int i = 0; i < schema.fieldsCount(); i++) {
+        JsonSchema map = schema.getFieldSchemaAt(i);
         String childNamespace = buildNamespace(namespace, name);
-        JsonArray dataTypeType = getDataTypeTypeFromSchema(map);
         JsonElementConverter converter;
         String sourceType;
+        Schema fldSchema;
         try {
-          sourceType = dataTypeType.size() == 2 ? "union" : getFirstType(dataTypeType).getAsString();
-          converter = getConverter(new JsonSchema(map), childNamespace, workUnit);
-          this.converters.put(columnName, converter);
+          sourceType = map.isUnionType() ? "union" : map.getInputType().toString().toLowerCase();
+          converter = getConverter(map, childNamespace, workUnit);
+          this.converters.put(map.getColumnName(), converter);
           fldSchema = converter.schema();
         } catch (UnsupportedDateTypeException e) {
           throw new UnsupportedOperationException(e);
         }
 
-        Schema.Field fld =
-            new Schema.Field(columnName, fldSchema, comment, nullable ? JsonNodeFactory.instance.nullNode() : null);
+        Schema.Field fld = new Schema.Field(map.getColumnName(), fldSchema, map.getComment(),
+            map.isNullable() ? JsonNodeFactory.instance.nullNode() : null);
         fld.addProp("source.type", sourceType);
         fields.add(fld);
       }
@@ -672,7 +658,7 @@ public class JsonElementConversionFactory {
       for (JsonElement elem : dataType.get(ENUM_SYMBOLS_KEY).getAsJsonArray()) {
         this.enumSet.add(elem.getAsString());
       }
-      String enumName = getPropOrBlankString(dataType, NAME_KEY);
+      String enumName = schema.getName();
       this.enumName = enumName.isEmpty() ? null : enumName;
       this.namespace = namespace;
     }
@@ -720,51 +706,19 @@ public class JsonElementConversionFactory {
 
     public UnionConverter(JsonSchema schemaNode, WorkUnitState state) {
       super(schemaNode);
-      JsonArray types = buildUnionSchema(schemaNode.get().getAsJsonObject());
-      String columnName = schemaNode.getPropOrBlankString(COLUMN_NAME_KEY);
-      firstConverter = getConverter(getFirstType(types), state);
-      secondConverter = getConverter(getSecondType(types), state);
+      List<JsonSchema> types = schemaNode.getDataTypes();
+      firstConverter = getConverter(types.get(0), state);
+      secondConverter = getConverter(types.get(1), state);
       firstSchema = firstConverter.schema();
       secondSchema = secondConverter.schema();
     }
 
-    private JsonElementConverter getConverter(JsonElement schemaElement, WorkUnitState state) {
-      JsonElement type = getType(getDataTypeTypeFromSchema(schemaElement));
-      if (type.isJsonPrimitive()) {
-        try {
-          return JsonElementConversionFactory
-              .getConverter(new JsonSchema(schemaElement.getAsJsonObject()), null, state);
-        } catch (UnsupportedDateTypeException e) {
-          throw new UnsupportedOperationException(e);
-        }
-      } else if (type.isJsonObject()) {
-        try {
-          return JsonElementConversionFactory
-              .getConverter(new JsonSchema(schemaElement.getAsJsonObject()), null, state);
-        } catch (UnsupportedDateTypeException e) {
-          throw new UnsupportedOperationException(e);
-        }
-      } else {
-        throw new UnsupportedOperationException("Unexpected data type in UNION type " + type.toString());
+    private JsonElementConverter getConverter(JsonSchema schemaElement, WorkUnitState state) {
+      try {
+        return JsonElementConversionFactory.getConverter(schemaElement, null, state);
+      } catch (UnsupportedDateTypeException e) {
+        throw new UnsupportedOperationException(e);
       }
-    }
-
-    private JsonArray buildUnionSchema(JsonElement schemaElement) {
-      JsonArray dataType = getDataTypeTypeFromSchema(schemaElement);
-      JsonArray unionSchema = new JsonArray();
-      unionSchema.add(createType(schemaElement, getFirstType(dataType)));
-      unionSchema.add(createType(schemaElement, getSecondType(dataType)));
-      return unionSchema;
-    }
-
-    private JsonElement createType(JsonElement schemaElement, JsonElement type) {
-      JsonElement otherSchema = new JsonParser().parse(schemaElement.toString());
-      if (type.isJsonObject()) {
-        otherSchema.getAsJsonObject().add(DATA_TYPE_KEY, getDataType(type.getAsJsonObject()));
-      } else {
-        getDataType(otherSchema.getAsJsonObject()).add(TYPE_KEY, type.getAsJsonPrimitive());
-      }
-      return otherSchema;
     }
 
     @Override

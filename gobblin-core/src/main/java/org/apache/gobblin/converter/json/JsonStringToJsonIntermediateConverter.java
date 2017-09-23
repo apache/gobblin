@@ -35,8 +35,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 
-import static org.apache.gobblin.converter.json.JsonSchema.*;
-import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter.JsonUtils.*;
+import static org.apache.gobblin.converter.json.JsonSchema.DATA_TYPE_KEY;
+import static org.apache.gobblin.converter.json.JsonSchema.DEFAULT_RECORD_COLUMN_NAME;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType;
+import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter.JsonUtils.jsonArray;
+
 
 /**
  * Converts a json string to a {@link JsonObject}.
@@ -45,12 +48,11 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
 
   private final static Logger log = LoggerFactory.getLogger(JsonStringToJsonIntermediateConverter.class);
 
-  private static final String UNPACK_COMPLEX_SCHEMAS_KEY = "gobblin.converter.jsonStringToJsonIntermediate.unpackComplexSchemas";
+  private static final String UNPACK_COMPLEX_SCHEMAS_KEY =
+      "gobblin.converter.jsonStringToJsonIntermediate.unpackComplexSchemas";
   public static final boolean DEFAULT_UNPACK_COMPLEX_SCHEMAS_KEY = Boolean.TRUE;
 
   private boolean unpackComplexSchemas;
-
-  private static final String TEMP_COLUMN_NAME = "temp";
 
   /**
    * Take in an input schema of type string, the schema must be in JSON format
@@ -59,7 +61,8 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   @Override
   public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
-    this.unpackComplexSchemas = workUnit.getPropAsBoolean(UNPACK_COMPLEX_SCHEMAS_KEY, DEFAULT_UNPACK_COMPLEX_SCHEMAS_KEY);
+    this.unpackComplexSchemas =
+        workUnit.getPropAsBoolean(UNPACK_COMPLEX_SCHEMAS_KEY, DEFAULT_UNPACK_COMPLEX_SCHEMAS_KEY);
 
     JsonParser jsonParser = new JsonParser();
     log.info("Schema: " + inputSchema);
@@ -81,7 +84,8 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     if (!this.unpackComplexSchemas) {
       return new SingleRecordIterable<>(inputRecord);
     }
-    JsonObject rec = parseJsonBasedOnSchema(inputRecord, outputSchema);
+    JsonSchema schema = new JsonSchema(outputSchema);
+    JsonObject rec = parseJsonBasedOnSchema(inputRecord, schema);
     return new SingleRecordIterable(rec);
   }
 
@@ -94,8 +98,8 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    */
   private JsonArray parseJsonBasedOnSchema(JsonArray input, JsonArray schema)
       throws DataConversionException {
-    JsonObject firstSchema = schema.get(0).getAsJsonObject().get(DATA_TYPE_KEY).getAsJsonObject();
-    return unwrapTempAsArray(wrapAndProcess(input, firstSchema));
+    JsonObject firstSchema = schema.get(0).getAsJsonObject();
+    return unwrapTempAsArray(wrapAndProcess(input, JsonSchema.buildBaseSchemaByWrap(firstSchema)));
   }
 
   /**
@@ -106,45 +110,39 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @return
    * @throws DataConversionException
    */
-  private JsonObject parseJsonBasedOnSchema(JsonObject record, JsonArray schema)
+  private JsonObject parseJsonBasedOnSchema(JsonObject record, JsonSchema schema)
       throws DataConversionException {
     try {
 
       JsonObject output = new JsonObject();
-      for (int i = 0; i < schema.size(); i++) {
-
-        JsonElement schemaElement = schema.get(i);
-        JsonObject schemaObject = schemaElement.getAsJsonObject();
-        String expectedColumnName = getColumnName(schemaObject);
-        JsonArray dataType = getDataTypeTypeFromSchema(schemaObject);
-
-        if (record.has(expectedColumnName)) {
-
-          JsonElement value = record.get(expectedColumnName);
-          if (isUnionType(schemaObject)) {
-            JsonArray unionSchema = buildUnionSchema(schemaElement);
-            JsonObject firstTypeSchema = getFirstType(unionSchema).getAsJsonObject();
-            JsonObject secondTypeSchema = getSecondType(unionSchema).getAsJsonObject();
+      for (int i = 0; i < schema.fieldsCount(); i++) {
+        JsonSchema schemaElement = schema.getFieldSchemaAt(i);
+        String columnKey = schemaElement.getColumnName();
+        if (record.has(columnKey)) {
+          JsonElement columnValue = record.get(columnKey);
+          if (schemaElement.isUnionType()) {
+            JsonSchema firstTypeSchema = schemaElement.getFirstTypeSchema();
+            JsonSchema secondTypeSchema = schemaElement.getSecondTypeSchema();
             try {
-              output.add(expectedColumnName, unwrapTemp(wrapAndProcess(value, firstTypeSchema)));
+              output.add(columnKey, unwrapTemp(wrapAndProcess(columnValue, firstTypeSchema)));
             } catch (DataConversionException e) {
-              output.add(expectedColumnName, unwrapTemp(wrapAndProcess(value, secondTypeSchema)));
+              output.add(columnKey, unwrapTemp(wrapAndProcess(columnValue, secondTypeSchema)));
             }
-          } else if (isEnumType(schemaObject)) {
-            JsonElement parseEnumType = parseEnumType(schemaElement, value);
-            output.add(expectedColumnName, parseEnumType);
-          } else if (value.isJsonArray()) {
-            JsonElement parsed = parseJsonArrayType(schemaElement, value);
-            output.add(expectedColumnName, parsed);
-          } else if (value.isJsonObject()) {
-            JsonElement parsed = parseJsonObjectType(schemaElement, value);
-            output.add(expectedColumnName, parsed);
+          } else if (schemaElement.isEnumType()) {
+            JsonElement parseEnumType = parseEnumType(schemaElement, columnValue);
+            output.add(columnKey, parseEnumType);
+          } else if (columnValue.isJsonArray()) {
+            JsonElement parsed = parseJsonArrayType(schemaElement, columnValue);
+            output.add(columnKey, parsed);
+          } else if (columnValue.isJsonObject()) {
+            JsonElement parsed = parseJsonObjectType(schemaElement, columnValue);
+            output.add(columnKey, parsed);
           } else {
-            JsonElement parsedElement = parsePrimitiveType(schemaObject, dataType, value);
-            output.add(expectedColumnName, parsedElement);
+            JsonElement parsedElement = parsePrimitiveType(schemaElement, columnValue);
+            output.add(columnKey, parsedElement);
           }
         } else {
-          output.add(expectedColumnName, JsonNull.INSTANCE);
+          output.add(columnKey, JsonNull.INSTANCE);
         }
       }
       return output;
@@ -154,27 +152,6 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
     }
   }
 
-  private JsonArray buildUnionSchema(JsonElement schemaElement) {
-    JsonElement otherSchema = new JsonParser().parse(schemaElement.toString());
-    JsonArray dataType = getDataTypeTypeFromSchema(schemaElement);
-    JsonElement firstType = getFirstType(dataType);
-    JsonElement secondType = getSecondType(dataType);
-    if (firstType.isJsonObject()) {
-      schemaElement.getAsJsonObject().add(DATA_TYPE_KEY, firstType.getAsJsonObject().get(DATA_TYPE_KEY).getAsJsonObject());
-    } else {
-      schemaElement.getAsJsonObject().get(DATA_TYPE_KEY).getAsJsonObject().add(TYPE_KEY, firstType.getAsJsonPrimitive());
-    }
-    if (secondType.isJsonObject()) {
-      otherSchema.getAsJsonObject().add(DATA_TYPE_KEY, secondType.getAsJsonObject().get(DATA_TYPE_KEY).getAsJsonObject());
-    } else {
-      otherSchema.getAsJsonObject().get(DATA_TYPE_KEY).getAsJsonObject().add(TYPE_KEY, secondType.getAsJsonPrimitive());
-    }
-    JsonArray unionSchema = new JsonArray();
-    unionSchema.add(schemaElement.getAsJsonObject().get(DATA_TYPE_KEY).getAsJsonObject());
-    unionSchema.add(otherSchema.getAsJsonObject().get(DATA_TYPE_KEY).getAsJsonObject());
-    return unionSchema;
-  }
-
   /**
    * Parses Enum type values
    * @param schema
@@ -182,15 +159,13 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @return
    * @throws DataConversionException
    */
-  private JsonElement parseEnumType(JsonElement schema, JsonElement value)
+  private JsonElement parseEnumType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
-    JsonObject schemaObject = schema.getAsJsonObject();
-    JsonArray allowedSymbols = allowedSymbolsInEnum(schemaObject);
-    if (allowedSymbols.contains(jsonArray(value).get(0))) {
+    if (schema.getSymbols().contains(jsonArray(value).get(0))) {
       return value;
     } else {
       throw new DataConversionException(
-          "Invalid symbol: " + value.getAsString() + " allowed values: " + allowedSymbols.toString());
+          "Invalid symbol: " + value.getAsString() + " allowed values: " + schema.getSymbols().toString());
     }
   }
 
@@ -201,39 +176,39 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @return
    * @throws DataConversionException
    */
-  private JsonElement parseJsonArrayType(JsonElement schema, JsonElement value)
+  private JsonElement parseJsonArrayType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
-    JsonObject schemaObject = schema.getAsJsonObject();
-    String arrayType = arrayType(schema);
-    JsonElement nestedType = schemaObject.get(DATA_TYPE_KEY).getAsJsonObject().get(ARRAY_ITEMS_KEY);
-    if (isPrimitiveType(arrayType)) {
+    InputType arrayType = schema.arrayType();
+    JsonElement nestedItem = schema.getItemsWithinDataType();
+    JsonSchema nestedSchema = null;
+    if (nestedItem.isJsonObject()) {
+      nestedSchema = new JsonSchema(nestedItem.getAsJsonObject());
+    }
+    if (nestedItem.isJsonArray()) {
+      nestedSchema = new JsonSchema(nestedItem.getAsJsonArray());
+    }
+    if (InputType.primitiveTypes.contains(arrayType)) {
       return value;
-    } else if (isMapType(nestedType)) {
-      JsonElement arrayItems = getItemsWithinDataType(getDataType(schemaObject));
-      if (arrayItems.isJsonPrimitive() || arrayItems.isJsonNull()) {
-        return value;
-      } else if (arrayItems.isJsonObject()) {
-        JsonArray tempArray = new JsonArray();
-        JsonArray valueArray = value.getAsJsonArray();
-        for (int index = 0; index < valueArray.size(); index++) {
-          tempArray.add(unwrapTempAsObject(
-              wrapAndProcess(valueArray.get(index).getAsJsonObject(), getDataType(arrayItems.getAsJsonObject()))));
-        }
-        return tempArray;
+    } else if (nestedSchema.isMapType()) {
+      JsonArray tempArray = new JsonArray();
+      JsonArray valueArray = value.getAsJsonArray();
+      for (int index = 0; index < valueArray.size(); index++) {
+        tempArray.add(unwrapTempAsObject(
+            wrapAndProcess(valueArray.get(index).getAsJsonObject(), new JsonSchema(nestedItem.getAsJsonObject()))));
       }
-      return new JsonArray();
-    } else if (isRecordType(nestedType)) {
+      return tempArray;
+    } else if (nestedSchema.isRecordType()) {
       JsonArray tempArray = new JsonArray();
       JsonArray valArray = value.getAsJsonArray();
-      JsonArray schemaArr = getSchemaForArrayHavingRecord(schemaObject);
+      JsonArray schemaArr = schema.getSchemaForArrayHavingRecord();
       for (int j = 0; j < schemaArr.size(); j++) {
-        tempArray.add(parseJsonBasedOnSchema((JsonObject) valArray.get(j), schemaArr));
+        tempArray.add(parseJsonBasedOnSchema((JsonObject) valArray.get(j), new JsonSchema(schemaArr)));
       }
       return tempArray;
     } else {
       JsonArray newArray = new JsonArray();
       for (JsonElement v : value.getAsJsonArray()) {
-        newArray.add(parseJsonBasedOnSchema((JsonObject) v, jsonArray(schema)));
+        newArray.add(parseJsonBasedOnSchema((JsonObject) v, schema));
       }
       return new JsonArray();
     }
@@ -241,40 +216,40 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
 
   /**
    * Parses JsonObject type values
-   * @param schema
    * @param value
    * @return
    * @throws DataConversionException
    */
-  private JsonElement parseJsonObjectType(JsonElement schema, JsonElement value)
+  private JsonElement parseJsonObjectType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
-    JsonObject schemaObject = schema.getAsJsonObject();
-    if (isMapType(schema)) {
-      if (getValuesWithinDataType(schemaObject).isJsonPrimitive()) {
+    JsonElement valuesWithinDataType = schema.getValuesWithinDataType();
+    if (schema.isMapType()) {
+      if (valuesWithinDataType.isJsonPrimitive()) {
         return value;
-      } else if (getValuesWithinDataType(schemaObject).isJsonObject()) {
-        JsonObject mapValueSchema = getValuesWithinDataType(schemaObject).getAsJsonObject();
+      } else if (valuesWithinDataType.isJsonObject()) {
+        JsonObject mapValueSchema = valuesWithinDataType.getAsJsonObject().get(DATA_TYPE_KEY).getAsJsonObject();
 
         JsonObject map = new JsonObject();
         for (Entry<String, JsonElement> mapEntry : value.getAsJsonObject().entrySet()) {
           JsonElement mapValue = mapEntry.getValue();
           if (mapValue.isJsonArray()) {
             map.add(mapEntry.getKey(), parseJsonBasedOnSchema(mapValue.getAsJsonArray(), jsonArray(mapValueSchema)));
-          } else if (mapValue.isJsonObject()) {
-            map.add(mapEntry.getKey(),
-                unwrapTempAsObject(wrapAndProcess(mapValue.getAsJsonObject(), getDataType(mapValueSchema))));
           } else {
-            map.add(mapEntry.getKey(),
-                unwrapTempAsPrimitive(wrapAndProcess(mapValue.getAsJsonPrimitive(), getDataType(mapValueSchema))));
+            JsonSchema schema1 = JsonSchema.buildBaseSchemaByWrap(mapValueSchema);
+            if (mapValue.isJsonObject()) {
+              map.add(mapEntry.getKey(), unwrapTempAsObject(wrapAndProcess(mapValue.getAsJsonObject(), schema1)));
+            } else {
+              map.add(mapEntry.getKey(), unwrapTempAsPrimitive(wrapAndProcess(mapValue.getAsJsonPrimitive(), schema1)));
+            }
           }
         }
         return map;
       } else {
         return value;
       }
-    } else if (isRecordType(schema)) {
-      JsonArray schemaArray = getValuesWithinDataType(schemaObject).getAsJsonArray();
-      return parseJsonBasedOnSchema((JsonObject) value, schemaArray);
+    } else if (schema.isRecordType()) {
+      JsonArray schemaArray = valuesWithinDataType.getAsJsonArray();
+      return parseJsonBasedOnSchema((JsonObject) value, new JsonSchema(schemaArray));
     } else {
       return JsonNull.INSTANCE;
     }
@@ -282,29 +257,29 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
 
   /**
    * Parses primitive types
-   * @param schemaObject
-   * @param dataType
+   * @param schema
    * @param value
    * @return
    * @throws DataConversionException
    */
-  private JsonElement parsePrimitiveType(JsonObject schemaObject, JsonArray dataType, JsonElement value)
+  private JsonElement parsePrimitiveType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
-    if (isNullType(schemaObject) && value.isJsonNull()) {
+
+    if (schema.isNullType() && value.isJsonNull()) {
       return JsonNull.INSTANCE;
     }
-    if ((isNullType(schemaObject) && !value.isJsonNull()) || (!isNullType(schemaObject) && value.isJsonNull())) {
+    if ((schema.isNullType() && !value.isJsonNull()) || (!schema.isNullType() && value.isJsonNull())) {
       throw new DataConversionException(
-          "Type mismatch for " + value.toString() + " of type " + getDataTypeTypeFromSchema(schemaObject).toString());
+          "Type mismatch for " + value.toString() + " of type " + schema.getDataTypes().toString());
     }
 
-    if (isFixedType(schemaObject)) {
-      int expectedSize = getSizeOfFixedData(schemaObject);
+    if (schema.isFixedType()) {
+      int expectedSize = schema.getSizeOfFixedData();
       if (value.getAsString().length() == expectedSize) {
         return value;
       } else {
         throw new DataConversionException(
-            "Fixed type value is not same as defined value expected size: " + expectedSize);
+            "Fixed type value is not same as defined value expected fieldsCount: " + expectedSize);
       }
     } else {
       return value;
@@ -318,9 +293,9 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @return
    * @throws DataConversionException
    */
-  private JsonObject wrapAndProcess(JsonElement input, JsonObject schema)
+  private JsonObject wrapAndProcess(JsonElement input, JsonSchema schema)
       throws DataConversionException {
-    return parseJsonBasedOnSchema(buildTempObject(input), buildTempSchema(schema));
+    return parseJsonBasedOnSchema(buildTempObject(input), schema);
   }
 
   /**
@@ -329,7 +304,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @return
    */
   private JsonElement unwrapTempAsObject(JsonObject parsed) {
-    return parsed.get(TEMP_COLUMN_NAME).getAsJsonObject();
+    return parsed.get(DEFAULT_RECORD_COLUMN_NAME).getAsJsonObject();
   }
 
   /**
@@ -338,7 +313,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @return
    */
   private JsonElement unwrapTempAsPrimitive(JsonObject parsed) {
-    return parsed.get(TEMP_COLUMN_NAME).getAsJsonPrimitive();
+    return parsed.get(DEFAULT_RECORD_COLUMN_NAME).getAsJsonPrimitive();
   }
 
   /**
@@ -347,11 +322,11 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @return
    */
   private JsonArray unwrapTempAsArray(JsonObject object) {
-    return object.get(TEMP_COLUMN_NAME).getAsJsonArray();
+    return object.get(DEFAULT_RECORD_COLUMN_NAME).getAsJsonArray();
   }
 
   private JsonElement unwrapTemp(JsonObject jsonObject) {
-    JsonElement element = jsonObject.get(TEMP_COLUMN_NAME);
+    JsonElement element = jsonObject.get(DEFAULT_RECORD_COLUMN_NAME);
     if (element.isJsonArray()) {
       return element.getAsJsonArray();
     }
@@ -375,101 +350,18 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   private JsonObject buildTempObject(JsonElement prop) {
     JsonObject tempObject = new JsonObject();
     if (prop instanceof JsonObject) {
-      tempObject.add(TEMP_COLUMN_NAME, prop.getAsJsonObject());
+      tempObject.add(DEFAULT_RECORD_COLUMN_NAME, prop.getAsJsonObject());
     } else if (prop instanceof JsonArray) {
-      tempObject.add(TEMP_COLUMN_NAME, prop.getAsJsonArray());
+      tempObject.add(DEFAULT_RECORD_COLUMN_NAME, prop.getAsJsonArray());
     } else if (prop instanceof JsonPrimitive) {
-      tempObject.add(TEMP_COLUMN_NAME, prop.getAsJsonPrimitive());
+      tempObject.add(DEFAULT_RECORD_COLUMN_NAME, prop.getAsJsonPrimitive());
     } else if (prop instanceof JsonNull) {
-      tempObject.add(TEMP_COLUMN_NAME, prop.getAsJsonNull());
+      tempObject.add(DEFAULT_RECORD_COLUMN_NAME, prop.getAsJsonNull());
     }
     return tempObject;
   }
 
-  /**
-   * Wraps the schema within dataType and add columnName temp
-   * @param dataType
-   * @return
-   */
-  private JsonArray buildTempSchema(JsonObject dataType) {
-    JsonObject schemaObj = new JsonObject();
-    schemaObj.addProperty(COLUMN_NAME_KEY, TEMP_COLUMN_NAME);
-    schemaObj.add(DATA_TYPE_KEY, dataType);
-    return jsonArray(schemaObj);
-  }
-
   public static class JsonUtils {
-    /**
-     * Fetches dataType.values from the JsonObject
-     * @param schemaObject
-     * @return
-     */
-    public static JsonElement getValuesWithinDataType(JsonObject schemaObject) {
-      return getDataType(schemaObject).get(RECORD_ITEMS_KEY);
-    }
-
-    /**
-     * Gets size for fixed type viz dataType.size from the JsonObject
-     * @param schemaObject
-     * @return
-     */
-    public static int getSizeOfFixedData(JsonObject schemaObject) {
-      return getDataType(schemaObject).get(SIZE_KEY).getAsInt();
-    }
-
-    /**
-     * Gets schema of record which is present within array schema.
-     * @param schemaObject
-     * @return
-     */
-    public static JsonArray getSchemaForArrayHavingRecord(JsonObject schemaObject) {
-      return getValuesWithinDataType(getItemsWithinDataType(getDataType(schemaObject)).getAsJsonObject())
-          .getAsJsonArray();
-    }
-
-    /**
-     * Gets allowed symbols in enum from schema of enum type
-     * @param schemaObject
-     * @return
-     */
-    public static JsonArray allowedSymbolsInEnum(JsonObject schemaObject) {
-      return getDataType(schemaObject).get(ENUM_SYMBOLS_KEY).getAsJsonArray();
-    }
-
-    public static boolean isEnumType(JsonObject schemaObject) {
-      return getDataTypeTypeFromSchema(schemaObject).get(0).getAsString().equalsIgnoreCase("enum");
-    }
-
-    /**
-     * Get dataType.type from schema
-     * @param schemaObject
-     * @return
-     */
-    public static JsonArray getDataTypeTypeFromSchema(JsonObject schemaObject) {
-      JsonObject dataType = getDataType(schemaObject);
-      if (dataType.has(TYPE_KEY)) {
-        if (dataType.get(TYPE_KEY).isJsonPrimitive()) {
-          return jsonArray(dataType.get(TYPE_KEY));
-        } else {
-          if (dataType.get(TYPE_KEY).isJsonArray()) {
-            return dataType.get(TYPE_KEY).getAsJsonArray();
-          } else {
-            return null;
-          }
-        }
-      } else {
-        return null;
-      }
-    }
-
-    /**
-     * Get dataType.type from schema
-     * @param schemaElement
-     * @return
-     */
-    public static JsonArray getDataTypeTypeFromSchema(JsonElement schemaElement) {
-      return getDataTypeTypeFromSchema(schemaElement.getAsJsonObject());
-    }
 
     /**
      * Creates a {@link JsonArray} with one {@link JsonElement}
@@ -480,96 +372,6 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       JsonArray temp = new JsonArray();
       temp.add(element);
       return temp;
-    }
-
-    public static String getColumnName(JsonObject schemaObject) {
-      return schemaObject.get(COLUMN_NAME_KEY).getAsString();
-    }
-
-    public static boolean isMapType(JsonElement schema) {
-      return isTypeEqual(schema, "map");
-    }
-
-    public static boolean isRecordType(JsonElement schema) {
-      return isTypeEqual(schema, "record");
-    }
-
-    public static boolean isUnionType(JsonObject schemaObject) {
-      JsonArray type = getDataTypeTypeFromSchema(schemaObject);
-      return (type != null ? type.size() : 0) == 2;
-    }
-
-    public static boolean isPrimitiveType(String arrayType) {
-      return arrayType != null && "null boolean int long float double bytes string enum fixed"
-          .contains(arrayType.toLowerCase());
-    }
-
-    public static boolean isFixedType(JsonElement schema) {
-      return isTypeEqual(schema, "fixed");
-    }
-
-    public static boolean isArrayType(JsonElement schema) {
-      return isTypeEqual(schema, "array");
-    }
-
-    public static boolean isTypeEqual(JsonElement schema, String expectedType) {
-      JsonArray type = getDataTypeTypeFromSchema(schema);
-      return type.get(0).getAsString().equalsIgnoreCase(expectedType);
-    }
-
-    public static boolean isNullType(JsonElement schemeElement) {
-      return isTypeEqual(schemeElement, "null");
-    }
-
-    /**
-     * Fetches the nested or primitive array items type from schema.
-     * @param schema
-     * @return
-     * @throws DataConversionException
-     */
-    public static String arrayType(JsonElement schema)
-        throws DataConversionException {
-      if (!isArrayType(schema)) {
-        return null;
-      }
-
-      JsonElement arrayValues = getItemsWithinDataType(getDataType(schema.getAsJsonObject()));
-
-      try {
-        return arrayValues.isJsonPrimitive() && arrayValues.getAsJsonPrimitive().isString() ? arrayValues.getAsString()
-            : getDataTypeTypeFromSchema(arrayValues.getAsJsonObject()).get(0).getAsString();
-      } catch (UnsupportedOperationException | IllegalStateException e) {
-        //values is not string and a nested json array
-        throw new DataConversionException("Array types only allow values as primitive, null or JsonObject");
-      }
-    }
-
-    public static JsonElement getItemsWithinDataType(JsonObject object) {
-      return object.get(ARRAY_ITEMS_KEY);
-    }
-
-    public static JsonObject getDataType(JsonObject element) {
-      return element.get(DATA_TYPE_KEY).getAsJsonObject();
-    }
-
-    public static String getPropOrBlankString(JsonObject map, String key) {
-      return map.has(key) ? map.get(key).getAsString() : "";
-    }
-
-    public static boolean getBooleanIfExists(JsonObject map, String key) {
-      return map.has(key) && map.get(key).getAsBoolean();
-    }
-
-    public static JsonElement getType(JsonArray jsonArray) {
-      return getFirstType(jsonArray);
-    }
-
-    public static JsonElement getFirstType(JsonArray jsonArray) {
-      return jsonArray.get(0);
-    }
-
-    public static JsonElement getSecondType(JsonArray jsonArray) {
-      return jsonArray.get(1);
     }
   }
 }
