@@ -36,7 +36,7 @@ import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.
  * A converter to Convert JsonIntermediate to Parquet
  * @author tilakpatidar
  */
-public class JsonIntermediateToParquetConverter extends Converter<JsonArray, MessageType, JsonObject, Group> {
+public class JsonIntermediateToParquetGroupConverter extends Converter<JsonArray, MessageType, JsonObject, Group> {
   private RecordConverter recordConverter;
 
   @Override

@@ -38,11 +38,11 @@ import static org.testng.Assert.assertEquals;
 
 
 @Test(groups = {"gobblin.converter"})
-public class JsonIntermediateToParquetConverterTest {
+public class JsonIntermediateToParquetGroupConverterTest {
   private static final String RESOURCE_PATH = "/converter/parquet/JsonIntermediateToParquetConverter.json";
   private static JsonObject testCases;
   private static WorkUnitState workUnit;
-  private static JsonIntermediateToParquetConverter parquetConverter;
+  private static JsonIntermediateToParquetGroupConverter parquetConverter;
 
   @BeforeClass
   public static void setUp() {
@@ -50,7 +50,7 @@ public class JsonIntermediateToParquetConverterTest {
     }.getType();
     Gson gson = new Gson();
     JsonObject testData = gson.fromJson(
-        new InputStreamReader(JsonIntermediateToParquetConverter.class.getResourceAsStream(RESOURCE_PATH)), listType);
+        new InputStreamReader(JsonIntermediateToParquetGroupConverter.class.getResourceAsStream(RESOURCE_PATH)), listType);
 
     testCases = testData.getAsJsonObject();
     SourceState source = new SourceState();
@@ -61,7 +61,7 @@ public class JsonIntermediateToParquetConverterTest {
   private void testCase(String testCaseName)
       throws SchemaConversionException, DataConversionException {
     JsonObject test = testCases.get(testCaseName).getAsJsonObject();
-    parquetConverter = new JsonIntermediateToParquetConverter();
+    parquetConverter = new JsonIntermediateToParquetGroupConverter();
 
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
     Group record =
@@ -75,7 +75,7 @@ public class JsonIntermediateToParquetConverterTest {
   public void testEnumTypeBelongsToEnumSet()
       throws Exception {
     JsonObject test = testCases.get("enum").getAsJsonObject();
-    parquetConverter = new JsonIntermediateToParquetConverter();
+    parquetConverter = new JsonIntermediateToParquetGroupConverter();
 
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
     JsonObject jsonRecord = test.get("record").getAsJsonObject();
