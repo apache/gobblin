@@ -26,6 +26,7 @@ import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.avro.JsonElementConversionFactory.MapConverter;
 import org.apache.gobblin.converter.avro.JsonElementConversionFactory.NullConverter;
 import org.apache.gobblin.converter.avro.JsonElementConversionFactory.RecordConverter;
+import org.apache.gobblin.converter.json.JsonSchema;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.testng.Assert;
@@ -43,10 +44,7 @@ import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Arr
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter.buildNamespace;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.UnionConverter;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.ARRAY;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.RECORD;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.MAP;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.UNION;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.NULL;
 
 
 /**
@@ -80,8 +78,10 @@ public class JsonElementConversionFactoryTest {
     String testName = "schemaWithArrayOfMaps";
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
+    JsonSchema jsonSchema = new JsonSchema(schema);
+    jsonSchema.setColumnName("dummy");
 
-    ArrayConverter converter = new ArrayConverter("dummy", true, ARRAY.toString(), schema, state);
+    ArrayConverter converter = new ArrayConverter(jsonSchema, state);
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
 
@@ -91,8 +91,10 @@ public class JsonElementConversionFactoryTest {
     String testName = "schemaWithArrayOfRecords";
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
+    JsonSchema jsonSchema = new JsonSchema(schema);
+    jsonSchema.setColumnName("dummy1");
 
-    ArrayConverter converter = new ArrayConverter("dummy1", true, ARRAY.toString(), schema, state);
+    ArrayConverter converter = new ArrayConverter(jsonSchema, state);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -103,9 +105,11 @@ public class JsonElementConversionFactoryTest {
     String testName = "schemaWithRecord";
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
+    JsonSchema jsonSchema = new JsonSchema(schema);
+    jsonSchema.setColumnName("dummy1");
 
-    RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
-        buildNamespace(state.getExtract().getNamespace(), "something"));
+    RecordConverter converter =
+        new RecordConverter(jsonSchema, state, buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -117,17 +121,17 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    ArrayConverter converter = new ArrayConverter("dummy1", true, ARRAY.toString(), schema, state);
+    ArrayConverter converter = new ArrayConverter(new JsonSchema(schema), state);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
 
   @Test
   public void schemaWithNullType() {
-    NullConverter nullConverter = new NullConverter("dummy1", ARRAY.toString());
+    NullConverter nullConverter = new NullConverter(JsonSchema.buildBaseSchema(NULL));
     JsonObject expected = new JsonObject();
     expected.addProperty("type", "null");
-    expected.addProperty("source.type", "array");
+    expected.addProperty("source.type", "null");
 
     Assert.assertEquals(avroSchemaToJsonElement(nullConverter), expected);
   }
@@ -139,7 +143,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    ArrayConverter converter = new ArrayConverter("dummy1", true, ARRAY.toString(), schema, state);
+    ArrayConverter converter = new ArrayConverter(new JsonSchema(schema), state);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -151,7 +155,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    MapConverter converter = new MapConverter("dummy1", true, MAP.toString(), schema, state);
+    MapConverter converter = new MapConverter(new JsonSchema(schema), state);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -163,7 +167,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    MapConverter converter = new MapConverter("dummy1", true, MAP.toString(), schema, state);
+    MapConverter converter = new MapConverter(new JsonSchema(schema), state);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -175,7 +179,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    MapConverter converter = new MapConverter("dummy1", true, MAP.toString(), schema, state);
+    MapConverter converter = new MapConverter(new JsonSchema(schema), state);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -187,7 +191,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    MapConverter converter = new MapConverter("dummy1", true, MAP.toString(), schema, state);
+    MapConverter converter = new MapConverter(new JsonSchema(schema), state);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -199,7 +203,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
+    RecordConverter converter = new RecordConverter(new JsonSchema(schema), state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
@@ -212,7 +216,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
+    RecordConverter converter = new RecordConverter(new JsonSchema(schema), state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
@@ -225,7 +229,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
+    RecordConverter converter = new RecordConverter(new JsonSchema(schema), state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
@@ -237,8 +241,7 @@ public class JsonElementConversionFactoryTest {
     String testName = "schemaWithMapValuesAsJsonArray";
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
 
-    new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
-        buildNamespace(state.getExtract().getNamespace(), "something"));
+    new RecordConverter(new JsonSchema(schema), state, buildNamespace(state.getExtract().getNamespace(), "something"));
   }
 
   @Test(expectedExceptions = UnsupportedOperationException.class)
@@ -247,8 +250,7 @@ public class JsonElementConversionFactoryTest {
     String testName = "schemaWithMapValuesAsJsonNull";
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
 
-    new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
-        buildNamespace(state.getExtract().getNamespace(), "something"));
+    new RecordConverter(new JsonSchema(schema), state, buildNamespace(state.getExtract().getNamespace(), "something"));
   }
 
   @Test
@@ -258,7 +260,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
+    RecordConverter converter = new RecordConverter(new JsonSchema(schema), state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
@@ -271,8 +273,8 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
-        buildNamespace(state.getExtract().getNamespace(), "person"));
+    RecordConverter converter =
+        new RecordConverter(new JsonSchema(schema), state, buildNamespace(state.getExtract().getNamespace(), "person"));
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
     Assert.assertEquals(converter.schema().getField("someperson").schema().getNamespace(), "namespace.person.myrecord");
     Assert.assertEquals(converter.schema().getNamespace(), "namespace.person");
@@ -285,7 +287,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    RecordConverter converter = new RecordConverter("dummy1", true, RECORD.toString(), schema, state,
+    RecordConverter converter = new RecordConverter(new JsonSchema(schema), state,
         buildNamespace(state.getExtract().getNamespace(), "something"));
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
@@ -302,7 +304,7 @@ public class JsonElementConversionFactoryTest {
     JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
     ;
 
-    UnionConverter converter = new UnionConverter("dummy1", UNION.toString(), schema, state);
+    UnionConverter converter = new UnionConverter(new JsonSchema(schema), state);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -315,7 +317,7 @@ public class JsonElementConversionFactoryTest {
     JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
     ;
 
-    UnionConverter converter = new UnionConverter("dummy1", UNION.toString(), schema, state);
+    UnionConverter converter = new UnionConverter(new JsonSchema(schema), state);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }

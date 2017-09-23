@@ -44,7 +44,8 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
    */
 
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, Schema schemaNode,
-      WorkUnitState state, boolean nullable) throws UnsupportedDateTypeException {
+      WorkUnitState state, boolean nullable)
+      throws UnsupportedDateTypeException {
 
     InputType type;
     try {
@@ -55,27 +56,30 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
 
     switch (type) {
       case ARRAY:
-        return new JsonElementConversionWithAvroSchemaFactory.ArrayConverter(fieldName, nullable, type.toString(), schemaNode, state);
+        return new JsonElementConversionWithAvroSchemaFactory.ArrayConverter(fieldName, nullable, type.toString(),
+            schemaNode, state);
 
       case MAP:
-        return new JsonElementConversionWithAvroSchemaFactory.MapConverter(fieldName, nullable, type.toString(), schemaNode, state);
+        return new JsonElementConversionWithAvroSchemaFactory.MapConverter(fieldName, nullable, type.toString(),
+            schemaNode, state);
 
       case ENUM:
-        return new JsonElementConversionWithAvroSchemaFactory.EnumConverter(fieldName, nullable, type.toString(), schemaNode);
+        return new JsonElementConversionWithAvroSchemaFactory.EnumConverter(fieldName, nullable, type.toString(),
+            schemaNode);
 
       default:
-        return JsonElementConversionFactory.getConvertor(fieldName, "", fieldType, null, state, nullable);
+        return JsonElementConversionFactory.getConvertor(fieldName, fieldType, null, state, nullable);
     }
   }
 
   public static class ArrayConverter extends ComplexConverter {
 
-    public ArrayConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode,
-        WorkUnitState state) throws UnsupportedDateTypeException {
+    public ArrayConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode, WorkUnitState state)
+        throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
       super.setElementConverter(
-          getConvertor(fieldName, schemaNode.getElementType().getType().getName(),
-              schemaNode.getElementType(), state, isNullable()));
+          getConvertor(fieldName, schemaNode.getElementType().getType().getName(), schemaNode.getElementType(), state,
+              isNullable()));
     }
 
     @Override
@@ -104,12 +108,12 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
 
   public static class MapConverter extends ComplexConverter {
 
-    public MapConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode,
-        WorkUnitState state) throws UnsupportedDateTypeException {
+    public MapConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode, WorkUnitState state)
+        throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
       super.setElementConverter(
-          getConvertor(fieldName, schemaNode.getValueType().getType().getName(),
-              schemaNode.getValueType(), state, isNullable()));
+          getConvertor(fieldName, schemaNode.getValueType().getType().getName(), schemaNode.getValueType(), state,
+              isNullable()));
     }
 
     @Override

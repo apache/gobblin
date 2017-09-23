@@ -28,6 +28,7 @@ import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.converter.ToAvroConverterBase;
 import org.apache.gobblin.converter.avro.JsonElementConversionFactory.RecordConverter;
+import org.apache.gobblin.converter.json.JsonSchema;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -58,9 +59,9 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
   public Schema convertSchema(JsonArray schema, WorkUnitState workUnit)
       throws SchemaConversionException {
     try {
-      recordConverter =
-          new RecordConverter(workUnit.getExtract().getTable(), false, "", schema, workUnit,
-              workUnit.getExtract().getNamespace());
+      JsonSchema jsonSchema = new JsonSchema(schema);
+      jsonSchema.setColumnName(workUnit.getExtract().getTable());
+      recordConverter = new RecordConverter(jsonSchema, workUnit, workUnit.getExtract().getNamespace());
     } catch (UnsupportedDateTypeException e) {
       throw new SchemaConversionException(e);
     }
@@ -103,8 +104,7 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
           + "is not specified. Trying to get the orignal schema from previous avro files.");
       originalSchemaPath = WriterUtils
           .getDataPublisherFinalDir(workUnitState, workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1),
-              workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY, 0))
-          .getParent();
+              workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY, 0)).getParent();
     }
     try {
       Schema prevSchema = AvroUtils.getDirectorySchema(originalSchemaPath, conf, false);
