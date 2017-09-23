@@ -42,11 +42,11 @@ import com.google.gson.reflect.TypeToken;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.ArrayConverter;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter.buildNamespace;
-import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.ARRAY;
-import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.MAP;
-import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.RECORD;
-import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.UNION;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.UnionConverter;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.ARRAY;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.RECORD;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.MAP;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.UNION;
 
 
 /**

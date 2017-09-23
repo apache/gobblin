@@ -17,16 +17,19 @@
 
 package org.apache.gobblin.converter.avro;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.json.JsonSchema.InputType;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 
 /**
@@ -43,9 +46,9 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, Schema schemaNode,
       WorkUnitState state, boolean nullable) throws UnsupportedDateTypeException {
 
-    Type type;
+    InputType type;
     try {
-      type = Type.valueOf(fieldType.toUpperCase());
+      type = InputType.valueOf(fieldType.toUpperCase());
     } catch (IllegalArgumentException e) {
       throw new UnsupportedDateTypeException(fieldType + " is unsupported");
     }

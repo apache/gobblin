@@ -34,6 +34,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.EmptyIterable;
+import org.apache.gobblin.converter.json.JsonSchema.InputType;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -49,6 +50,7 @@ import com.google.gson.JsonParser;
 import lombok.extern.java.Log;
 import sun.util.calendar.ZoneInfo;
 
+import static org.apache.gobblin.converter.json.JsonSchema.*;
 import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter.JsonUtils.*;
 
 
@@ -61,26 +63,6 @@ import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConv
  *
  */
 public class JsonElementConversionFactory {
-
-  public enum Type {
-    DATE,
-    TIMESTAMP,
-    TIME,
-    FIXED,
-    STRING,
-    BYTES,
-    INT,
-    LONG,
-    FLOAT,
-    DOUBLE,
-    BOOLEAN,
-    ARRAY,
-    MAP,
-    ENUM,
-    RECORD,
-    NULL,
-    UNION
-  }
 
   /**
    * Use to create a converter for a single field from a schema.
@@ -97,9 +79,9 @@ public class JsonElementConversionFactory {
       JsonObject schemaNode, WorkUnitState state, boolean nullable)
       throws UnsupportedDateTypeException {
 
-    Type type;
+    InputType type;
     try {
-      type = Type.valueOf(fieldType.toUpperCase());
+      type = InputType.valueOf(fieldType.toUpperCase());
     } catch (IllegalArgumentException e) {
       throw new UnsupportedDateTypeException(fieldType + " is unsupported");
     }
@@ -594,7 +576,7 @@ public class JsonElementConversionFactory {
       workUnit = state;
       _schemaNode = schemaNode;
       _schema = buildRecordSchema(getValuesWithinDataType(_schemaNode).getAsJsonArray(), state,
-          getPropOrBlankString(getDataType(_schemaNode), "name"), namespace);
+          getPropOrBlankString(getDataType(_schemaNode), NAME_KEY), namespace);
     }
 
     public RecordConverter(String fieldName, boolean nullable, String sourceType, JsonArray schemaNodeArray,
@@ -604,12 +586,12 @@ public class JsonElementConversionFactory {
       workUnit = state;
       JsonObject schemaObj = new JsonObject();
       JsonObject dataTypeObj = new JsonObject();
-      dataTypeObj.add("values", schemaNodeArray);
-      dataTypeObj.addProperty("name", state.getExtract().getTable());
-      schemaObj.add("dataType", dataTypeObj);
+      dataTypeObj.add(RECORD_ITEMS_KEY, schemaNodeArray);
+      dataTypeObj.addProperty(NAME_KEY, state.getExtract().getTable());
+      schemaObj.add(DATA_TYPE_KEY, dataTypeObj);
       _schemaNode = schemaObj;
       _schema = buildRecordSchema(getValuesWithinDataType(_schemaNode).getAsJsonArray(), state,
-          getPropOrBlankString(getDataType(_schemaNode), "name"), namespace);
+          getPropOrBlankString(getDataType(_schemaNode), NAME_KEY), namespace);
     }
 
     private Schema buildRecordSchema(JsonArray schema, WorkUnitState workUnit, String name, String namespace) {
@@ -617,9 +599,9 @@ public class JsonElementConversionFactory {
       for (JsonElement elem : schema) {
         JsonObject map = (JsonObject) elem;
 
-        String columnName = getPropOrBlankString(map, "columnName");
-        String comment = getPropOrBlankString(map, "comment");
-        boolean nullable = getBooleanIfExists(map, "isNullable");
+        String columnName = getPropOrBlankString(map, COLUMN_NAME_KEY);
+        String comment = getPropOrBlankString(map, COMMENT_KEY);
+        boolean nullable = getBooleanIfExists(map, IS_NULLABLE_KEY);
         Schema fldSchema;
         String childNamespace = buildNamespace(namespace, name);
         JsonArray dataTypeType = getDataTypeTypeFromSchema(map);
@@ -691,10 +673,10 @@ public class JsonElementConversionFactory {
       super(fieldName, nullable, sourceType);
 
       JsonObject dataType = getDataType(schemaNode);
-      for (JsonElement elem : dataType.get("symbols").getAsJsonArray()) {
+      for (JsonElement elem : dataType.get(ENUM_SYMBOLS_KEY).getAsJsonArray()) {
         this.enumSet.add(elem.getAsString());
       }
-      String enumName = getPropOrBlankString(dataType, "name");
+      String enumName = getPropOrBlankString(dataType, NAME_KEY);
       this.enumName = enumName.isEmpty() ? null : enumName;
       this.namespace = namespace;
     }
@@ -741,10 +723,10 @@ public class JsonElementConversionFactory {
     private final JsonElementConverter secondConverter;
 
     public UnionConverter(String fieldName, String sourceType, JsonObject schemaNode, WorkUnitState state) {
-      super(fieldName, getBooleanIfExists(schemaNode, "isNullable"), sourceType);
+      super(fieldName, getBooleanIfExists(schemaNode, IS_NULLABLE_KEY), sourceType);
       JsonArray types = buildUnionSchema(schemaNode);
-      String columnName = getPropOrBlankString(schemaNode, "columnName");
-      boolean nullable = getBooleanIfExists(schemaNode, "isNullable");
+      String columnName = getPropOrBlankString(schemaNode, COLUMN_NAME_KEY);
+      boolean nullable = getBooleanIfExists(schemaNode, IS_NULLABLE_KEY);
       firstConverter = getConverter(getFirstType(types), columnName, state, nullable);
       secondConverter = getConverter(getSecondType(types), columnName, state, nullable);
       firstSchema = firstConverter.schema();
@@ -783,9 +765,9 @@ public class JsonElementConversionFactory {
     private JsonElement createType(JsonElement schemaElement, JsonElement type) {
       JsonElement otherSchema = new JsonParser().parse(schemaElement.toString());
       if (type.isJsonObject()) {
-        otherSchema.getAsJsonObject().add("dataType", getDataType(type.getAsJsonObject()));
+        otherSchema.getAsJsonObject().add(DATA_TYPE_KEY, getDataType(type.getAsJsonObject()));
       } else {
-        getDataType(otherSchema.getAsJsonObject()).add("type", type.getAsJsonPrimitive());
+        getDataType(otherSchema.getAsJsonObject()).add(TYPE_KEY, type.getAsJsonPrimitive());
       }
       return otherSchema;
     }
