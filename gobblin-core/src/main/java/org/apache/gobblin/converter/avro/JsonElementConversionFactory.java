@@ -462,22 +462,14 @@ public class JsonElementConversionFactory {
 
     protected void processNestedItems(JsonSchema schema, WorkUnitState state)
         throws UnsupportedDateTypeException {
-      JsonElement nestedItem = null;
+      JsonSchema nestedItem = null;
       if (schema.isType(ARRAY)) {
-        nestedItem = schema.getItemsWithinDataType().asJsonElement();
+        nestedItem = schema.getItemsWithinDataType();
       }
       if (schema.isType(MAP)) {
         nestedItem = schema.getValuesWithinDataType();
       }
-      if (nestedItem.isJsonPrimitive()) {
-        String type = nestedItem.getAsString();
-        this.setElementConverter(getConverter(buildBaseSchema(InputType.valueOf(type.toUpperCase())), null, state));
-      } else if (nestedItem.isJsonObject()) {
-        JsonObject asJsonObject = nestedItem.getAsJsonObject();
-        this.setElementConverter(getConverter(buildBaseSchema(asJsonObject), null, state));
-      } else if (nestedItem.isJsonArray() || nestedItem.isJsonNull()) {
-        throw new UnsupportedOperationException("Array types only allow values in schema as Primitive or a JsonObject");
-      }
+      this.setElementConverter(getConverter(nestedItem, null, state));
     }
 
     @Override
@@ -581,8 +573,7 @@ public class JsonElementConversionFactory {
       super(schema);
       workUnit = state;
       String name = schema.isRoot() ? schema.getColumnName() : getOptionalProperty(schema.getDataType(), NAME_KEY);
-      _schema =
-          buildRecordSchema(new JsonSchema(schema.getValuesWithinDataType().getAsJsonArray()), state, name, namespace);
+      _schema = buildRecordSchema(schema.getValuesWithinDataType(), state, name, namespace);
     }
 
     private Schema buildRecordSchema(JsonSchema schema, WorkUnitState workUnit, String name, String namespace) {

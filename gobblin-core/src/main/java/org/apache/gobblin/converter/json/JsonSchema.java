@@ -28,7 +28,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.*;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.ENUM;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.FIXED;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.RECORD;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.UNION;
 import static org.apache.gobblin.converter.json.JsonSchema.SchemaType.CHILD;
 import static org.apache.gobblin.converter.json.JsonSchema.SchemaType.ROOT;
 
@@ -85,8 +88,12 @@ public class JsonSchema extends Schema {
     NULL,
     UNION;
 
-    static List<InputType> primitiveTypes =
+    private static List<InputType> primitiveTypes =
         Arrays.asList(NULL, BOOLEAN, INT, LONG, FLOAT, DOUBLE, BYTES, STRING, ENUM, FIXED);
+
+    static boolean isPrimitive(InputType type) {
+      return primitiveTypes.contains(type);
+    }
   }
 
   public enum SchemaType {
@@ -218,8 +225,19 @@ public class JsonSchema extends Schema {
    * Fetches dataType.values from the JsonObject
    * @return
    */
-  public JsonElement getValuesWithinDataType() {
-    return this.getDataType().get(RECORD_ITEMS_KEY);
+  public JsonSchema getValuesWithinDataType() {
+    JsonElement element = this.getDataType().get(MAP_ITEMS_KEY);
+    ;
+    if (element.isJsonObject()) {
+      return new JsonSchema(element.getAsJsonObject());
+    }
+    if (element.isJsonArray()) {
+      return new JsonSchema(element.getAsJsonArray());
+    }
+    if (element.isJsonPrimitive()) {
+      return buildBaseSchema(InputType.valueOf(element.getAsString().toUpperCase()));
+    }
+    return null;
   }
 
   /**
@@ -231,15 +249,6 @@ public class JsonSchema extends Schema {
       return this.getDataType().get(SIZE_KEY).getAsInt();
     }
     return 0;
-  }
-
-  /**
-   * Gets schema of record which is present within array schema.
-   * @return
-   */
-  public JsonArray getSchemaForArrayHavingRecord() {
-    JsonObject dataType = getItemsWithinDataType().asJsonElement().getAsJsonObject();
-    return buildBaseSchema(dataType).getValuesWithinDataType().getAsJsonArray();
   }
 
   public boolean isType(InputType type) {

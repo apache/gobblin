@@ -34,7 +34,6 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import static org.apache.gobblin.converter.json.JsonSchema.DATA_TYPE_KEY;
 import static org.apache.gobblin.converter.json.JsonSchema.DEFAULT_RECORD_COLUMN_NAME;
 import static org.apache.gobblin.converter.json.JsonSchema.InputType;
 import static org.apache.gobblin.converter.json.JsonSchema.InputType.FIXED;
@@ -191,27 +190,24 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       throws DataConversionException {
     InputType arrayType = schema.getInputTypeOfArrayItems();
     JsonSchema nestedSchema = schema.getItemsWithinDataType();
-    if (InputType.primitiveTypes.contains(arrayType)) {
+    JsonArray tempArray = new JsonArray();
+    if (InputType.isPrimitive(arrayType)) {
       return value;
     } else if (nestedSchema.isType(MAP)) {
-      JsonArray tempArray = new JsonArray();
       JsonArray valueArray = value.getAsJsonArray();
       for (int index = 0; index < valueArray.size(); index++) {
         tempArray.add(parse(valueArray.get(index), nestedSchema));
       }
       return tempArray;
     } else if (nestedSchema.isType(RECORD)) {
-      JsonArray tempArray = new JsonArray();
       JsonArray valArray = value.getAsJsonArray();
-      JsonArray schemaArr = schema.getSchemaForArrayHavingRecord();
-      for (int j = 0; j < schemaArr.size(); j++) {
-        tempArray.add(parse((JsonObject) valArray.get(j), new JsonSchema(schemaArr)));
+      for (int j = 0; j < schema.fieldsCount(); j++) {
+        tempArray.add(parse((JsonObject) valArray.get(j), schema.getItemsWithinDataType()));
       }
       return tempArray;
     } else {
-      JsonArray newArray = new JsonArray();
       for (JsonElement v : value.getAsJsonArray()) {
-        newArray.add(parse((JsonObject) v, schema));
+        tempArray.add(parse((JsonObject) v, schema));
       }
       return new JsonArray();
     }
@@ -225,34 +221,21 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    */
   private JsonElement parseJsonObjectType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
-    JsonElement valuesWithinDataType = schema.getValuesWithinDataType();
+    JsonSchema valuesWithinDataType = schema.getValuesWithinDataType();
     if (schema.isType(MAP)) {
-      if (valuesWithinDataType.isJsonPrimitive()) {
-        return value;
-      } else if (valuesWithinDataType.isJsonObject()) {
-        JsonObject mapValueSchema = valuesWithinDataType.getAsJsonObject().get(DATA_TYPE_KEY).getAsJsonObject();
-
-        JsonObject map = new JsonObject();
-        for (Entry<String, JsonElement> mapEntry : value.getAsJsonObject().entrySet()) {
-          JsonElement mapValue = mapEntry.getValue();
-          if (mapValue.isJsonArray()) {
-            map.add(mapEntry.getKey(), parse(mapValue.getAsJsonArray(), new JsonSchema(mapValueSchema)));
-          } else {
-            JsonSchema schema1 = new JsonSchema(mapValueSchema);
-            if (mapValue.isJsonObject()) {
-              map.add(mapEntry.getKey(), parse(mapValue, schema1));
-            } else {
-              map.add(mapEntry.getKey(), parse(mapValue, schema1));
-            }
-          }
-        }
-        return map;
-      } else {
+      if (InputType.isPrimitive(valuesWithinDataType.getInputType())) {
         return value;
       }
+
+      JsonObject map = new JsonObject();
+      for (Entry<String, JsonElement> mapEntry : value.getAsJsonObject().entrySet()) {
+        JsonElement mapValue = mapEntry.getValue();
+        map.add(mapEntry.getKey(), parse(mapValue, valuesWithinDataType));
+      }
+      return map;
     } else if (schema.isType(RECORD)) {
-      JsonArray schemaArray = valuesWithinDataType.getAsJsonArray();
-      return parse((JsonObject) value, new JsonSchema(schemaArray));
+      JsonSchema schemaArray = valuesWithinDataType.getValuesWithinDataType();
+      return parse((JsonObject) value, schemaArray);
     } else {
       return JsonNull.INSTANCE;
     }
