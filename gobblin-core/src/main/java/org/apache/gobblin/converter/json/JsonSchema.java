@@ -118,6 +118,12 @@ public class JsonSchema extends Schema {
    * @param jsonObject
    */
   public JsonSchema(JsonObject jsonObject) {
+    JsonObject root = new JsonObject();
+    if (!jsonObject.has(COLUMN_NAME_KEY) && !jsonObject.has(DATA_TYPE_KEY)) {
+      root.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
+      root.add(DATA_TYPE_KEY, jsonObject);
+      jsonObject = root;
+    }
     setJsonSchemaProperties(jsonObject);
     JsonElement typeElement = getDataType().get(TYPE_KEY);
     if (typeElement.isJsonPrimitive()) {
@@ -318,13 +324,6 @@ public class JsonSchema extends Schema {
       return new JsonSchema(this.json);
     }
     return new JsonSchema(this.jsonArray.get(i).getAsJsonObject());
-  }
-
-  public static JsonSchema buildBaseSchemaByWrap(JsonObject dataType) {
-    JsonObject root = new JsonObject();
-    root.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
-    root.add(DATA_TYPE_KEY, dataType);
-    return new JsonSchema(root);
   }
 
   public List<JsonSchema> getDataTypes() {

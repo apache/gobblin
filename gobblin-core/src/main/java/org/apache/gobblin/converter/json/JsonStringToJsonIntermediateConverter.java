@@ -33,12 +33,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
 
 import static org.apache.gobblin.converter.json.JsonSchema.DATA_TYPE_KEY;
 import static org.apache.gobblin.converter.json.JsonSchema.DEFAULT_RECORD_COLUMN_NAME;
 import static org.apache.gobblin.converter.json.JsonSchema.InputType;
-import static org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter.JsonUtils.jsonArray;
 
 
 /**
@@ -85,21 +83,24 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       return new SingleRecordIterable<>(inputRecord);
     }
     JsonSchema schema = new JsonSchema(outputSchema);
-    JsonObject rec = parseJsonBasedOnSchema(inputRecord, schema);
+    JsonObject rec = parse(inputRecord, schema);
     return new SingleRecordIterable(rec);
   }
 
   /**
-   * Overloads parseJsonBasedOnSchema to support JsonArray based inputs
-   * @param input
+   * Parses a provided JsonObject input using the provided JsonArray schema into
+   * a JsonObject.
+   * @param element
    * @param schema
    * @return
    * @throws DataConversionException
    */
-  private JsonArray parseJsonBasedOnSchema(JsonArray input, JsonArray schema)
+  private JsonElement parse(JsonElement element, JsonSchema schema)
       throws DataConversionException {
-    JsonObject firstSchema = schema.get(0).getAsJsonObject();
-    return unwrapTempAsArray(wrapAndProcess(input, JsonSchema.buildBaseSchemaByWrap(firstSchema)));
+    JsonObject root = new JsonObject();
+    root.add(DEFAULT_RECORD_COLUMN_NAME, element);
+    JsonObject jsonObject = parse(root, schema);
+    return jsonObject.get(DEFAULT_RECORD_COLUMN_NAME);
   }
 
   /**
@@ -110,7 +111,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    * @return
    * @throws DataConversionException
    */
-  private JsonObject parseJsonBasedOnSchema(JsonObject record, JsonSchema schema)
+  private JsonObject parse(JsonObject record, JsonSchema schema)
       throws DataConversionException {
     try {
 
@@ -118,37 +119,44 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       for (int i = 0; i < schema.fieldsCount(); i++) {
         JsonSchema schemaElement = schema.getFieldSchemaAt(i);
         String columnKey = schemaElement.getColumnName();
-        if (record.has(columnKey)) {
-          JsonElement columnValue = record.get(columnKey);
-          if (schemaElement.isUnionType()) {
-            JsonSchema firstTypeSchema = schemaElement.getFirstTypeSchema();
-            JsonSchema secondTypeSchema = schemaElement.getSecondTypeSchema();
-            try {
-              output.add(columnKey, unwrapTemp(wrapAndProcess(columnValue, firstTypeSchema)));
-            } catch (DataConversionException e) {
-              output.add(columnKey, unwrapTemp(wrapAndProcess(columnValue, secondTypeSchema)));
-            }
-          } else if (schemaElement.isEnumType()) {
-            JsonElement parseEnumType = parseEnumType(schemaElement, columnValue);
-            output.add(columnKey, parseEnumType);
-          } else if (columnValue.isJsonArray()) {
-            JsonElement parsed = parseJsonArrayType(schemaElement, columnValue);
-            output.add(columnKey, parsed);
-          } else if (columnValue.isJsonObject()) {
-            JsonElement parsed = parseJsonObjectType(schemaElement, columnValue);
-            output.add(columnKey, parsed);
-          } else {
-            JsonElement parsedElement = parsePrimitiveType(schemaElement, columnValue);
-            output.add(columnKey, parsedElement);
-          }
-        } else {
+        JsonElement parsed;
+        if (!record.has(columnKey)) {
           output.add(columnKey, JsonNull.INSTANCE);
+          continue;
         }
+
+        JsonElement columnValue = record.get(columnKey);
+        switch (schemaElement.getInputType()) {
+          case UNION:
+            parsed = parseUnionType(schemaElement, columnValue);
+            break;
+          case ENUM:
+            parsed = parseEnumType(schemaElement, columnValue);
+            break;
+          default:
+            if (columnValue.isJsonArray()) {
+              parsed = parseJsonArrayType(schemaElement, columnValue);
+            } else if (columnValue.isJsonObject()) {
+              parsed = parseJsonObjectType(schemaElement, columnValue);
+            } else {
+              parsed = parsePrimitiveType(schemaElement, columnValue);
+            }
+        }
+        output.add(columnKey, parsed);
       }
       return output;
     } catch (Exception e) {
       e.printStackTrace();
       throw new DataConversionException("Unable to parse " + record.toString() + " with schema " + schema.toString());
+    }
+  }
+
+  private JsonElement parseUnionType(JsonSchema schemaElement, JsonElement columnValue)
+      throws DataConversionException {
+    try {
+      return parse(columnValue, schemaElement.getFirstTypeSchema());
+    } catch (DataConversionException e) {
+      return parse(columnValue, schemaElement.getSecondTypeSchema());
     }
   }
 
@@ -161,12 +169,11 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    */
   private JsonElement parseEnumType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
-    if (schema.getSymbols().contains(jsonArray(value).get(0))) {
+    if (schema.getSymbols().contains(value)) {
       return value;
-    } else {
-      throw new DataConversionException(
-          "Invalid symbol: " + value.getAsString() + " allowed values: " + schema.getSymbols().toString());
     }
+    throw new DataConversionException(
+        "Invalid symbol: " + value.getAsString() + " allowed values: " + schema.getSymbols().toString());
   }
 
   /**
@@ -193,8 +200,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       JsonArray tempArray = new JsonArray();
       JsonArray valueArray = value.getAsJsonArray();
       for (int index = 0; index < valueArray.size(); index++) {
-        tempArray.add(unwrapTempAsObject(
-            wrapAndProcess(valueArray.get(index).getAsJsonObject(), new JsonSchema(nestedItem.getAsJsonObject()))));
+        tempArray.add(parse(valueArray.get(index), new JsonSchema(nestedItem.getAsJsonObject())));
       }
       return tempArray;
     } else if (nestedSchema.isRecordType()) {
@@ -202,13 +208,13 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       JsonArray valArray = value.getAsJsonArray();
       JsonArray schemaArr = schema.getSchemaForArrayHavingRecord();
       for (int j = 0; j < schemaArr.size(); j++) {
-        tempArray.add(parseJsonBasedOnSchema((JsonObject) valArray.get(j), new JsonSchema(schemaArr)));
+        tempArray.add(parse((JsonObject) valArray.get(j), new JsonSchema(schemaArr)));
       }
       return tempArray;
     } else {
       JsonArray newArray = new JsonArray();
       for (JsonElement v : value.getAsJsonArray()) {
-        newArray.add(parseJsonBasedOnSchema((JsonObject) v, schema));
+        newArray.add(parse((JsonObject) v, schema));
       }
       return new JsonArray();
     }
@@ -233,13 +239,13 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
         for (Entry<String, JsonElement> mapEntry : value.getAsJsonObject().entrySet()) {
           JsonElement mapValue = mapEntry.getValue();
           if (mapValue.isJsonArray()) {
-            map.add(mapEntry.getKey(), parseJsonBasedOnSchema(mapValue.getAsJsonArray(), jsonArray(mapValueSchema)));
+            map.add(mapEntry.getKey(), parse(mapValue.getAsJsonArray(), new JsonSchema(mapValueSchema)));
           } else {
-            JsonSchema schema1 = JsonSchema.buildBaseSchemaByWrap(mapValueSchema);
+            JsonSchema schema1 = new JsonSchema(mapValueSchema);
             if (mapValue.isJsonObject()) {
-              map.add(mapEntry.getKey(), unwrapTempAsObject(wrapAndProcess(mapValue.getAsJsonObject(), schema1)));
+              map.add(mapEntry.getKey(), parse(mapValue, schema1));
             } else {
-              map.add(mapEntry.getKey(), unwrapTempAsPrimitive(wrapAndProcess(mapValue.getAsJsonPrimitive(), schema1)));
+              map.add(mapEntry.getKey(), parse(mapValue, schema1));
             }
           }
         }
@@ -249,7 +255,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       }
     } else if (schema.isRecordType()) {
       JsonArray schemaArray = valuesWithinDataType.getAsJsonArray();
-      return parseJsonBasedOnSchema((JsonObject) value, new JsonSchema(schemaArray));
+      return parse((JsonObject) value, new JsonSchema(schemaArray));
     } else {
       return JsonNull.INSTANCE;
     }
@@ -283,95 +289,6 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       }
     } else {
       return value;
-    }
-  }
-
-  /**
-   * Wraps input and schema into respective temp objects and parseJsonBasedSchema
-   * @param input
-   * @param schema
-   * @return
-   * @throws DataConversionException
-   */
-  private JsonObject wrapAndProcess(JsonElement input, JsonSchema schema)
-      throws DataConversionException {
-    return parseJsonBasedOnSchema(buildTempObject(input), schema);
-  }
-
-  /**
-   * Get the original value back from temp object as object
-   * @param parsed
-   * @return
-   */
-  private JsonElement unwrapTempAsObject(JsonObject parsed) {
-    return parsed.get(DEFAULT_RECORD_COLUMN_NAME).getAsJsonObject();
-  }
-
-  /**
-   * Get the original value back from temp object as primitive
-   * @param parsed
-   * @return
-   */
-  private JsonElement unwrapTempAsPrimitive(JsonObject parsed) {
-    return parsed.get(DEFAULT_RECORD_COLUMN_NAME).getAsJsonPrimitive();
-  }
-
-  /**
-   * Get the original value back from temp object as an array
-   * @param object
-   * @return
-   */
-  private JsonArray unwrapTempAsArray(JsonObject object) {
-    return object.get(DEFAULT_RECORD_COLUMN_NAME).getAsJsonArray();
-  }
-
-  private JsonElement unwrapTemp(JsonObject jsonObject) {
-    JsonElement element = jsonObject.get(DEFAULT_RECORD_COLUMN_NAME);
-    if (element.isJsonArray()) {
-      return element.getAsJsonArray();
-    }
-    if (element.isJsonPrimitive()) {
-      return element.getAsJsonPrimitive();
-    }
-    if (element.isJsonObject()) {
-      return element.getAsJsonObject();
-    }
-    if (element.isJsonNull()) {
-      return element.getAsJsonNull();
-    }
-    return null;
-  }
-
-  /**
-   * Wraps the object into a JsonObject with key temp
-   * @param prop
-   * @return
-   */
-  private JsonObject buildTempObject(JsonElement prop) {
-    JsonObject tempObject = new JsonObject();
-    if (prop instanceof JsonObject) {
-      tempObject.add(DEFAULT_RECORD_COLUMN_NAME, prop.getAsJsonObject());
-    } else if (prop instanceof JsonArray) {
-      tempObject.add(DEFAULT_RECORD_COLUMN_NAME, prop.getAsJsonArray());
-    } else if (prop instanceof JsonPrimitive) {
-      tempObject.add(DEFAULT_RECORD_COLUMN_NAME, prop.getAsJsonPrimitive());
-    } else if (prop instanceof JsonNull) {
-      tempObject.add(DEFAULT_RECORD_COLUMN_NAME, prop.getAsJsonNull());
-    }
-    return tempObject;
-  }
-
-  public static class JsonUtils {
-
-    /**
-     * Creates a {@link JsonArray} with one {@link JsonElement}
-     * @param element
-     * @return
-     */
-    public static JsonArray jsonArray(JsonElement element) {
-      JsonArray temp = new JsonArray();
-      temp.add(element);
-      return temp;
     }
   }
 }
