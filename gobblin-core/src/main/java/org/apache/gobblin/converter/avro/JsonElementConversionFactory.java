@@ -51,6 +51,9 @@ import lombok.extern.java.Log;
 import sun.util.calendar.ZoneInfo;
 
 import static org.apache.gobblin.converter.json.JsonSchema.ENUM_SYMBOLS_KEY;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.ARRAY;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.MAP;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.UNION;
 import static org.apache.gobblin.converter.json.JsonSchema.NAME_KEY;
 import static org.apache.gobblin.converter.json.JsonSchema.buildBaseSchema;
 import static org.apache.gobblin.converter.json.JsonSchema.getOptionalProperty;
@@ -460,10 +463,10 @@ public class JsonElementConversionFactory {
     protected void processNestedItems(JsonSchema schema, WorkUnitState state)
         throws UnsupportedDateTypeException {
       JsonElement nestedItem = null;
-      if (schema.isArrayType()) {
-        nestedItem = schema.getItemsWithinDataType();
+      if (schema.isType(ARRAY)) {
+        nestedItem = schema.getItemsWithinDataType().asJsonElement();
       }
-      if (schema.isMapType()) {
+      if (schema.isType(MAP)) {
         nestedItem = schema.getValuesWithinDataType();
       }
       if (nestedItem.isJsonPrimitive()) {
@@ -591,7 +594,7 @@ public class JsonElementConversionFactory {
         String sourceType;
         Schema fldSchema;
         try {
-          sourceType = map.isUnionType() ? "union" : map.getInputType().toString().toLowerCase();
+          sourceType = map.isType(UNION) ? "union" : map.getInputType().toString().toLowerCase();
           converter = getConverter(map, childNamespace, workUnit);
           this.converters.put(map.getColumnName(), converter);
           fldSchema = converter.schema();

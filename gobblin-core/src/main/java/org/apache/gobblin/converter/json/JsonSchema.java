@@ -17,6 +17,7 @@
 package org.apache.gobblin.converter.json;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -123,6 +124,9 @@ public class JsonSchema extends Schema {
       root.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
       root.add(DATA_TYPE_KEY, jsonObject);
       jsonObject = root;
+    }
+    if (!jsonObject.has(COLUMN_NAME_KEY) && jsonObject.has(DATA_TYPE_KEY)) {
+      jsonObject.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
     }
     setJsonSchemaProperties(jsonObject);
     JsonElement typeElement = getDataType().get(TYPE_KEY);
@@ -234,36 +238,12 @@ public class JsonSchema extends Schema {
    * @return
    */
   public JsonArray getSchemaForArrayHavingRecord() {
-    JsonObject dataType = getItemsWithinDataType().getAsJsonObject();
+    JsonObject dataType = getItemsWithinDataType().asJsonElement().getAsJsonObject();
     return buildBaseSchema(dataType).getValuesWithinDataType().getAsJsonArray();
   }
 
-  public boolean isEnumType() {
-    return this.type.equals(ENUM);
-  }
-
-  public boolean isMapType() {
-    return this.type.equals(MAP);
-  }
-
-  public boolean isRecordType() {
-    return this.type.equals(RECORD);
-  }
-
-  public boolean isUnionType() {
-    return this.type.equals(UNION);
-  }
-
-  public boolean isFixedType() {
-    return this.type.equals(FIXED);
-  }
-
-  public boolean isArrayType() {
-    return this.type.equals(ARRAY);
-  }
-
-  public boolean isNullType() {
-    return this.type.equals(NULL);
+  public boolean isType(InputType type) {
+    return this.type.equals(type);
   }
 
   /**
@@ -271,43 +251,31 @@ public class JsonSchema extends Schema {
    * @return
    * @throws DataConversionException
    */
-  public InputType arrayType()
+  public InputType getInputTypeOfArrayItems()
       throws DataConversionException {
-    if (!isArrayType()) {
-      return null;
-    }
-
-    JsonElement arrayValues = getItemsWithinDataType();
-
-    try {
-      if (arrayValues.isJsonPrimitive() && arrayValues.getAsJsonPrimitive().isString()) {
-        return InputType.valueOf(arrayValues.getAsString().toUpperCase());
-      } else {
-        return InputType.valueOf(
-            buildBaseSchema(arrayValues.getAsJsonObject()).getDataTypes().get(0).getInputType().toString()
-                .toUpperCase());
-      }
-    } catch (UnsupportedOperationException | IllegalStateException e) {
-      //values is not string and a nested json array
+    JsonSchema arrayValues = getItemsWithinDataType();
+    if (arrayValues == null) {
       throw new DataConversionException("Array types only allow values as primitive, null or JsonObject");
     }
+    return arrayValues.getInputType();
   }
 
-  public JsonElement getItemsWithinDataType() {
-    return this.getDataType().get(ARRAY_ITEMS_KEY);
+  public JsonSchema getItemsWithinDataType() {
+    JsonElement element = this.getDataType().get(ARRAY_ITEMS_KEY);
+    if (element.isJsonObject()) {
+      return new JsonSchema(element.getAsJsonObject());
+    }
+    if (element.isJsonPrimitive()) {
+      return buildBaseSchema(InputType.valueOf(element.getAsString().toUpperCase()));
+    }
+    return null;
   }
 
   public JsonSchema getFirstTypeSchema() {
-    if (!isUnionType()) {
-      return null;
-    }
     return this.firstType;
   }
 
   public JsonSchema getSecondTypeSchema() {
-    if (!isUnionType()) {
-      return null;
-    }
     return this.secondType;
   }
 
@@ -330,7 +298,7 @@ public class JsonSchema extends Schema {
     if (firstType != null && secondType != null) {
       return Arrays.asList(firstType, secondType);
     }
-    return Arrays.asList(this);
+    return Collections.singletonList(this);
   }
 
   public boolean isRoot() {

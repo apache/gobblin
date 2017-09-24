@@ -37,6 +37,10 @@ import com.google.gson.JsonParser;
 import static org.apache.gobblin.converter.json.JsonSchema.DATA_TYPE_KEY;
 import static org.apache.gobblin.converter.json.JsonSchema.DEFAULT_RECORD_COLUMN_NAME;
 import static org.apache.gobblin.converter.json.JsonSchema.InputType;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.FIXED;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.MAP;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.NULL;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.RECORD;
 
 
 /**
@@ -185,25 +189,18 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    */
   private JsonElement parseJsonArrayType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
-    InputType arrayType = schema.arrayType();
-    JsonElement nestedItem = schema.getItemsWithinDataType();
-    JsonSchema nestedSchema = null;
-    if (nestedItem.isJsonObject()) {
-      nestedSchema = new JsonSchema(nestedItem.getAsJsonObject());
-    }
-    if (nestedItem.isJsonArray()) {
-      nestedSchema = new JsonSchema(nestedItem.getAsJsonArray());
-    }
+    InputType arrayType = schema.getInputTypeOfArrayItems();
+    JsonSchema nestedSchema = schema.getItemsWithinDataType();
     if (InputType.primitiveTypes.contains(arrayType)) {
       return value;
-    } else if (nestedSchema.isMapType()) {
+    } else if (nestedSchema.isType(MAP)) {
       JsonArray tempArray = new JsonArray();
       JsonArray valueArray = value.getAsJsonArray();
       for (int index = 0; index < valueArray.size(); index++) {
-        tempArray.add(parse(valueArray.get(index), new JsonSchema(nestedItem.getAsJsonObject())));
+        tempArray.add(parse(valueArray.get(index), nestedSchema));
       }
       return tempArray;
-    } else if (nestedSchema.isRecordType()) {
+    } else if (nestedSchema.isType(RECORD)) {
       JsonArray tempArray = new JsonArray();
       JsonArray valArray = value.getAsJsonArray();
       JsonArray schemaArr = schema.getSchemaForArrayHavingRecord();
@@ -229,7 +226,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   private JsonElement parseJsonObjectType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
     JsonElement valuesWithinDataType = schema.getValuesWithinDataType();
-    if (schema.isMapType()) {
+    if (schema.isType(MAP)) {
       if (valuesWithinDataType.isJsonPrimitive()) {
         return value;
       } else if (valuesWithinDataType.isJsonObject()) {
@@ -253,7 +250,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       } else {
         return value;
       }
-    } else if (schema.isRecordType()) {
+    } else if (schema.isType(RECORD)) {
       JsonArray schemaArray = valuesWithinDataType.getAsJsonArray();
       return parse((JsonObject) value, new JsonSchema(schemaArray));
     } else {
@@ -271,15 +268,15 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   private JsonElement parsePrimitiveType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
 
-    if (schema.isNullType() && value.isJsonNull()) {
+    if (schema.isType(NULL) && value.isJsonNull()) {
       return JsonNull.INSTANCE;
     }
-    if ((schema.isNullType() && !value.isJsonNull()) || (!schema.isNullType() && value.isJsonNull())) {
+    if ((schema.isType(NULL) && !value.isJsonNull()) || (!schema.isType(NULL) && value.isJsonNull())) {
       throw new DataConversionException(
           "Type mismatch for " + value.toString() + " of type " + schema.getDataTypes().toString());
     }
 
-    if (schema.isFixedType()) {
+    if (schema.isType(FIXED)) {
       int expectedSize = schema.getSizeOfFixedData();
       if (value.getAsString().length() == expectedSize) {
         return value;
