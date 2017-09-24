@@ -189,28 +189,15 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   private JsonElement parseJsonArrayType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
     InputType arrayType = schema.getInputTypeOfArrayItems();
-    JsonSchema nestedSchema = schema.getItemsWithinDataType();
     JsonArray tempArray = new JsonArray();
     if (InputType.isPrimitive(arrayType)) {
       return value;
-    } else if (nestedSchema.isType(MAP)) {
-      JsonArray valueArray = value.getAsJsonArray();
-      for (int index = 0; index < valueArray.size(); index++) {
-        tempArray.add(parse(valueArray.get(index), nestedSchema));
-      }
-      return tempArray;
-    } else if (nestedSchema.isType(RECORD)) {
-      JsonArray valArray = value.getAsJsonArray();
-      for (int j = 0; j < schema.fieldsCount(); j++) {
-        tempArray.add(parse((JsonObject) valArray.get(j), schema.getItemsWithinDataType()));
-      }
-      return tempArray;
-    } else {
-      for (JsonElement v : value.getAsJsonArray()) {
-        tempArray.add(parse((JsonObject) v, schema));
-      }
-      return new JsonArray();
     }
+    JsonSchema nestedSchema = schema.getItemsWithinDataType();
+    for (JsonElement v : value.getAsJsonArray()) {
+      tempArray.add(parse(v, nestedSchema));
+    }
+    return tempArray;
   }
 
   /**
