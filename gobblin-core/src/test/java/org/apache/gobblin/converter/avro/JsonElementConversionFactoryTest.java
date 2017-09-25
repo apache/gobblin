@@ -43,8 +43,8 @@ import com.google.gson.reflect.TypeToken;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.ArrayConverter;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.JsonElementConverter.buildNamespace;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.NULL;
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.UnionConverter;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.NULL;
 
 
 /**
@@ -235,7 +235,7 @@ public class JsonElementConversionFactoryTest {
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
 
-  @Test(expectedExceptions = UnsupportedOperationException.class)
+  @Test(expectedExceptions = IllegalStateException.class)
   public void schemaWithMapValuesAsJsonArray()
       throws Exception {
     String testName = "schemaWithMapValuesAsJsonArray";
@@ -302,7 +302,6 @@ public class JsonElementConversionFactoryTest {
     String testName = "schemaWithUnion";
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
-    ;
 
     UnionConverter converter = new UnionConverter(new JsonSchema(schema), state);
 
@@ -315,7 +314,6 @@ public class JsonElementConversionFactoryTest {
     String testName = "schemaWithComplexUnion";
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
-    ;
 
     UnionConverter converter = new UnionConverter(new JsonSchema(schema), state);
 

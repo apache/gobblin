@@ -25,6 +25,7 @@ import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,12 +35,11 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.FIXED;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.MAP;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.NULL;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.RECORD;
 import static org.apache.gobblin.converter.json.JsonSchema.DEFAULT_RECORD_COLUMN_NAME;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.FIXED;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.MAP;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.NULL;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.RECORD;
 
 
 /**
@@ -129,7 +129,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
         }
 
         JsonElement columnValue = record.get(columnKey);
-        switch (schemaElement.getInputType()) {
+        switch (schemaElement.getType()) {
           case UNION:
             parsed = parseUnionType(schemaElement, columnValue);
             break;
@@ -188,9 +188,9 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    */
   private JsonElement parseJsonArrayType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
-    InputType arrayType = schema.getInputTypeOfArrayItems();
+    Type arrayType = schema.getTypeOfArrayItems();
     JsonArray tempArray = new JsonArray();
-    if (InputType.isPrimitive(arrayType)) {
+    if (Type.isPrimitive(arrayType)) {
       return value;
     }
     JsonSchema nestedSchema = schema.getItemsWithinDataType();
@@ -210,7 +210,7 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
       throws DataConversionException {
     JsonSchema valuesWithinDataType = schema.getValuesWithinDataType();
     if (schema.isType(MAP)) {
-      if (InputType.isPrimitive(valuesWithinDataType.getInputType())) {
+      if (Type.isPrimitive(valuesWithinDataType.getType())) {
         return value;
       }
 

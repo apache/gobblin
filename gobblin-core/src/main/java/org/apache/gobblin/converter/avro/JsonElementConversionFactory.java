@@ -35,7 +35,6 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.EmptyIterable;
 import org.apache.gobblin.converter.json.JsonSchema;
-import org.apache.gobblin.converter.json.JsonSchema.InputType;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -50,8 +49,8 @@ import com.google.gson.JsonObject;
 import lombok.extern.java.Log;
 import sun.util.calendar.ZoneInfo;
 
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.*;
 import static org.apache.gobblin.converter.json.JsonSchema.ENUM_SYMBOLS_KEY;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.*;
 import static org.apache.gobblin.converter.json.JsonSchema.SOURCE_TYPE;
 import static org.apache.gobblin.converter.json.JsonSchema.buildBaseSchema;
 
@@ -66,6 +65,33 @@ import static org.apache.gobblin.converter.json.JsonSchema.buildBaseSchema;
  */
 public class JsonElementConversionFactory {
 
+  public enum Type {
+    DATE,
+    TIMESTAMP,
+    TIME,
+    FIXED,
+    STRING,
+    BYTES,
+    INT,
+    LONG,
+    FLOAT,
+    DOUBLE,
+    BOOLEAN,
+    ARRAY,
+    MAP,
+    ENUM,
+    RECORD,
+    NULL,
+    UNION;
+
+    private static List<Type> primitiveTypes =
+        Arrays.asList(NULL, BOOLEAN, INT, LONG, FLOAT, DOUBLE, BYTES, STRING, ENUM, FIXED);
+
+    public static boolean isPrimitive(Type type) {
+      return primitiveTypes.contains(type);
+    }
+  }
+
   /**
    * Use to create a converter for a single field from a schema.
    * @param schemaNode
@@ -77,7 +103,7 @@ public class JsonElementConversionFactory {
   public static JsonElementConverter getConverter(JsonSchema schemaNode, String namespace, WorkUnitState state)
       throws UnsupportedDateTypeException {
 
-    InputType type = schemaNode.getInputType();
+    Type type = schemaNode.getType();
 
     DateTimeZone timeZone = getTimeZone(state.getProp(ConfigurationKeys.CONVERTER_AVRO_DATE_TIMEZONE, "UTC"));
     switch (type) {
@@ -186,7 +212,7 @@ public class JsonElementConversionFactory {
     }
 
     public JsonElementConverter(String fieldName, boolean nullable, String sourceType) {
-      JsonSchema jsonSchema = buildBaseSchema(InputType.valueOf(sourceType.toUpperCase()));
+      JsonSchema jsonSchema = buildBaseSchema(Type.valueOf(sourceType.toUpperCase()));
       jsonSchema.setColumnName(fieldName);
       jsonSchema.setNullable(nullable);
       this.jsonSchema = jsonSchema;
@@ -224,7 +250,7 @@ public class JsonElementConversionFactory {
 
     protected Schema schema() {
       Schema schema = Schema.create(getTargetType());
-      schema.addProp("source.type", this.jsonSchema.getInputType().toString().toLowerCase());
+      schema.addProp("source.type", this.jsonSchema.getType().toString().toLowerCase());
       return schema;
     }
 
@@ -582,7 +608,7 @@ public class JsonElementConversionFactory {
         String sourceType;
         Schema fldSchema;
         try {
-          sourceType = map.isType(UNION) ? UNION.toString().toLowerCase() : map.getInputType().toString().toLowerCase();
+          sourceType = map.isType(UNION) ? UNION.toString().toLowerCase() : map.getType().toString().toLowerCase();
           converter = getConverter(map, childNamespace, workUnit);
           this.converters.put(map.getColumnName(), converter);
           fldSchema = converter.schema();

@@ -22,16 +22,17 @@ import java.util.List;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type;
 import org.apache.gobblin.source.extractor.schema.Schema;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.ENUM;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.FIXED;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.RECORD;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.UNION;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.ENUM;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.FIXED;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.RECORD;
+import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.UNION;
 import static org.apache.gobblin.converter.json.JsonSchema.SchemaType.CHILD;
 import static org.apache.gobblin.converter.json.JsonSchema.SchemaType.ROOT;
 
@@ -57,39 +58,12 @@ public class JsonSchema extends Schema {
   public static final String ARRAY_ITEMS_KEY = "items";
   public static final String MAP_ITEMS_KEY = "values";
   public static final String SOURCE_TYPE = "source.type";
-  private final InputType type;
+  private final Type type;
   private final JsonObject json;
   private final SchemaType schemaNestedLevel;
   private JsonSchema secondType;
   private JsonSchema firstType;
   private JsonArray jsonArray;
-
-  public enum InputType {
-    DATE,
-    TIMESTAMP,
-    TIME,
-    FIXED,
-    STRING,
-    BYTES,
-    INT,
-    LONG,
-    FLOAT,
-    DOUBLE,
-    BOOLEAN,
-    ARRAY,
-    MAP,
-    ENUM,
-    RECORD,
-    NULL,
-    UNION;
-
-    private static List<InputType> primitiveTypes =
-        Arrays.asList(NULL, BOOLEAN, INT, LONG, FLOAT, DOUBLE, BYTES, STRING, ENUM, FIXED);
-
-    static boolean isPrimitive(InputType type) {
-      return primitiveTypes.contains(type);
-    }
-  }
 
   public enum SchemaType {
     ROOT, CHILD
@@ -132,7 +106,7 @@ public class JsonSchema extends Schema {
     setJsonSchemaProperties(jsonObject);
     JsonElement typeElement = getDataType().get(TYPE_KEY);
     if (typeElement.isJsonPrimitive()) {
-      this.type = InputType.valueOf(typeElement.getAsString().toUpperCase());
+      this.type = Type.valueOf(typeElement.getAsString().toUpperCase());
     } else if (typeElement.isJsonArray()) {
       JsonArray jsonArray = typeElement.getAsJsonArray();
       if (jsonArray.size() != 2) {
@@ -142,10 +116,10 @@ public class JsonSchema extends Schema {
       JsonElement type1 = jsonArray.get(0);
       JsonElement type2 = jsonArray.get(1);
       if (type1.isJsonPrimitive()) {
-        this.firstType = buildBaseSchema(InputType.valueOf(type1.getAsString().toUpperCase()));
+        this.firstType = buildBaseSchema(Type.valueOf(type1.getAsString().toUpperCase()));
       }
       if (type2.isJsonPrimitive()) {
-        this.secondType = buildBaseSchema(InputType.valueOf(type2.getAsString().toUpperCase()));
+        this.secondType = buildBaseSchema(Type.valueOf(type2.getAsString().toUpperCase()));
       }
       if (type1.isJsonObject()) {
         this.firstType = buildBaseSchema(type1.getAsJsonObject());
@@ -164,7 +138,7 @@ public class JsonSchema extends Schema {
   }
 
   /**
-   * Get symbols for a {@link InputType#ENUM} type.
+   * Get symbols for a {@link Type#ENUM} type.
    * @return
    */
   public JsonArray getSymbols() {
@@ -175,19 +149,19 @@ public class JsonSchema extends Schema {
   }
 
   /**
-   * Get {@link InputType} for this {@link JsonSchema}.
+   * Get {@link Type} for this {@link JsonSchema}.
    * @return
    */
-  public InputType getInputType() {
+  public Type getType() {
     return type;
   }
 
   /**
-   * Builds a {@link JsonSchema} object for a given {@link InputType} object.
+   * Builds a {@link JsonSchema} object for a given {@link Type} object.
    * @param type
    * @return
    */
-  public static JsonSchema buildBaseSchema(InputType type) {
+  public static JsonSchema buildBaseSchema(Type type) {
     JsonObject jsonObject = new JsonObject();
     JsonObject dataType = new JsonObject();
     jsonObject.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
@@ -197,7 +171,7 @@ public class JsonSchema extends Schema {
   }
 
   /**
-   * Builds a {@link JsonSchema} object for a given {@link InputType} object.
+   * Builds a {@link JsonSchema} object for a given {@link Type} object.
    * @return
    */
   public static JsonSchema buildBaseSchema(JsonObject root) {
@@ -222,7 +196,6 @@ public class JsonSchema extends Schema {
    */
   public JsonSchema getValuesWithinDataType() {
     JsonElement element = this.getDataType().get(MAP_ITEMS_KEY);
-    ;
     if (element.isJsonObject()) {
       return new JsonSchema(element.getAsJsonObject());
     }
@@ -230,9 +203,10 @@ public class JsonSchema extends Schema {
       return new JsonSchema(element.getAsJsonArray());
     }
     if (element.isJsonPrimitive()) {
-      return buildBaseSchema(InputType.valueOf(element.getAsString().toUpperCase()));
+      return buildBaseSchema(Type.valueOf(element.getAsString().toUpperCase()));
     }
-    return null;
+    throw new UnsupportedOperationException(
+        "Map values can only be defined using JsonObject, JsonArray or JsonPrimitive.");
   }
 
   /**
@@ -246,7 +220,7 @@ public class JsonSchema extends Schema {
     return 0;
   }
 
-  public boolean isType(InputType type) {
+  public boolean isType(Type type) {
     return this.type.equals(type);
   }
 
@@ -255,13 +229,13 @@ public class JsonSchema extends Schema {
    * @return
    * @throws DataConversionException
    */
-  public InputType getInputTypeOfArrayItems()
+  public Type getTypeOfArrayItems()
       throws DataConversionException {
     JsonSchema arrayValues = getItemsWithinDataType();
     if (arrayValues == null) {
       throw new DataConversionException("Array types only allow values as primitive, null or JsonObject");
     }
-    return arrayValues.getInputType();
+    return arrayValues.getType();
   }
 
   public JsonSchema getItemsWithinDataType() {
@@ -270,9 +244,9 @@ public class JsonSchema extends Schema {
       return new JsonSchema(element.getAsJsonObject());
     }
     if (element.isJsonPrimitive()) {
-      return buildBaseSchema(InputType.valueOf(element.getAsString().toUpperCase()));
+      return buildBaseSchema(Type.valueOf(element.getAsString().toUpperCase()));
     }
-    return null;
+    throw new UnsupportedOperationException("Array items can only be defined using JsonObject or JsonPrimitive.");
   }
 
   public JsonSchema getFirstTypeSchema() {
