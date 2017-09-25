@@ -67,14 +67,23 @@ public abstract class HiveTask extends BaseAbstractTask {
     state.setProp(USE_WATERMARKER_KEY, Boolean.toString(false));
   }
 
+  /**
+   * Add the input file to the Hive session before running the task.
+   */
   public static void addFile(State state, String file) {
     state.setProp(ADD_FILES, state.getProp(ADD_FILES, "") + "," + file);
   }
 
+  /**
+   * Add the input jar to the Hive session before running the task.
+   */
   public static void addJar(State state, String jar) {
     state.setProp(ADD_JARS, state.getProp(ADD_JARS, "") + "," + jar);
   }
 
+  /**
+   * Run the specified setup query on the Hive session before running the task.
+   */
   public static void addSetupQuery(State state, String query) {
     state.setProp(SETUP_QUERIES, state.getProp(SETUP_QUERIES, "") + ";" + query);
   }
