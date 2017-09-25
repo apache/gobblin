@@ -185,7 +185,7 @@ public class JsonElementConversionFactory {
     }
     JsonObject dataType = schemaNode.get(DATA_TYPE_KEY).getAsJsonObject();
     if (!dataType.has(TYPE_KEY)) {
-      dataType.get(TYPE_KEY).getAsJsonObject().addProperty(TYPE_KEY, fieldType);
+      dataType.addProperty(TYPE_KEY, fieldType);
     }
     if (!schemaNode.has(IS_NULLABLE_KEY)) {
       schemaNode.addProperty(IS_NULLABLE_KEY, nullable);

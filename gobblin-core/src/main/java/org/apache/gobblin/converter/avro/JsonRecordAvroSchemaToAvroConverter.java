@@ -17,8 +17,8 @@
 
 package org.apache.gobblin.converter.avro;
 
-import com.google.common.base.Preconditions;
 import java.util.List;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -28,6 +28,8 @@ import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.converter.ToAvroConverterBase;
+
+import com.google.common.base.Preconditions;
 import com.google.gson.JsonObject;
 
 
