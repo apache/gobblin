@@ -559,7 +559,7 @@ public class JsonElementConversionFactory {
 
   @Log
   public static class RecordConverter extends ComplexConverter {
-    private static final Logger LOG = LoggerFactory.getLogger(JsonIntermediateToAvroConverter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RecordConverter.class);
     private HashMap<String, JsonElementConverter> converters = new HashMap<>();
     private Schema _schema;
     private long numFailedConversion = 0;
