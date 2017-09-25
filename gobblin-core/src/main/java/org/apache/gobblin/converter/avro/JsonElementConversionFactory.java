@@ -51,12 +51,9 @@ import lombok.extern.java.Log;
 import sun.util.calendar.ZoneInfo;
 
 import static org.apache.gobblin.converter.json.JsonSchema.ENUM_SYMBOLS_KEY;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.ARRAY;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.MAP;
-import static org.apache.gobblin.converter.json.JsonSchema.InputType.UNION;
-import static org.apache.gobblin.converter.json.JsonSchema.NAME_KEY;
+import static org.apache.gobblin.converter.json.JsonSchema.InputType.*;
+import static org.apache.gobblin.converter.json.JsonSchema.SOURCE_TYPE;
 import static org.apache.gobblin.converter.json.JsonSchema.buildBaseSchema;
-import static org.apache.gobblin.converter.json.JsonSchema.getOptionalProperty;
 
 
 /**
@@ -491,7 +488,7 @@ public class JsonElementConversionFactory {
     @Override
     public Schema schema() {
       Schema schema = Schema.createArray(getElementConverter().schema());
-      schema.addProp("source.type", "array");
+      schema.addProp(SOURCE_TYPE, ARRAY.toString().toLowerCase());
       return schema;
     }
   }
@@ -523,7 +520,7 @@ public class JsonElementConversionFactory {
     @Override
     public Schema schema() {
       Schema schema = Schema.createArray(getElementConverter().schema());
-      schema.addProp("source.type", "array");
+      schema.addProp(SOURCE_TYPE, ARRAY.toString().toLowerCase());
       return schema;
     }
   }
@@ -555,7 +552,7 @@ public class JsonElementConversionFactory {
     @Override
     public Schema schema() {
       Schema schema = Schema.createMap(getElementConverter().schema());
-      schema.addProp("source.type", "map");
+      schema.addProp(SOURCE_TYPE, MAP.toString().toLowerCase());
       return schema;
     }
   }
@@ -572,7 +569,7 @@ public class JsonElementConversionFactory {
         throws UnsupportedDateTypeException {
       super(schema);
       workUnit = state;
-      String name = schema.isRoot() ? schema.getColumnName() : getOptionalProperty(schema.getDataType(), NAME_KEY);
+      String name = schema.isRoot() ? schema.getColumnName() : schema.getName();
       _schema = buildRecordSchema(schema.getValuesWithinDataType(), state, name, namespace);
     }
 
@@ -585,7 +582,7 @@ public class JsonElementConversionFactory {
         String sourceType;
         Schema fldSchema;
         try {
-          sourceType = map.isType(UNION) ? "union" : map.getInputType().toString().toLowerCase();
+          sourceType = map.isType(UNION) ? UNION.toString().toLowerCase() : map.getInputType().toString().toLowerCase();
           converter = getConverter(map, childNamespace, workUnit);
           this.converters.put(map.getColumnName(), converter);
           fldSchema = converter.schema();
@@ -595,7 +592,7 @@ public class JsonElementConversionFactory {
 
         Schema.Field fld = new Schema.Field(map.getColumnName(), fldSchema, map.getComment(),
             map.isNullable() ? JsonNodeFactory.instance.nullNode() : null);
-        fld.addProp("source.type", sourceType);
+        fld.addProp(SOURCE_TYPE, sourceType);
         fields.add(fld);
       }
       Schema avroSchema = Schema.createRecord(name.isEmpty() ? null : name, "", namespace, false);
@@ -634,7 +631,7 @@ public class JsonElementConversionFactory {
     @Override
     public Schema schema() {
       Schema schema = _schema;
-      schema.addProp("source.type", "record");
+      schema.addProp(SOURCE_TYPE, RECORD.toString().toLowerCase());
       return schema;
     }
   }
@@ -670,7 +667,7 @@ public class JsonElementConversionFactory {
     @Override
     public Schema schema() {
       this.schema = Schema.createEnum(this.enumName, "", namespace, this.enumSet);
-      this.schema.addProp("source.type", "enum");
+      this.schema.addProp(SOURCE_TYPE, ENUM.toString().toLowerCase());
       return this.schema;
     }
   }

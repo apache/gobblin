@@ -54,20 +54,15 @@ public class JsonSchema extends Schema {
   public static final String IS_NULLABLE_KEY = "isNullable";
   public static final String DEFAULT_RECORD_COLUMN_NAME = "temp";
   public static final String DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY = "";
-  public static final String RECORD_ITEMS_KEY = "values";
-  public static final String ARRAY_KEY = "item";
   public static final String ARRAY_ITEMS_KEY = "items";
   public static final String MAP_ITEMS_KEY = "values";
-  public static final String MAP_KEY = "map";
-  public static final String MAP_KEY_COLUMN_NAME = "key";
-  public static final String MAP_VALUE_COLUMN_NAME = "value";
+  public static final String SOURCE_TYPE = "source.type";
   private final InputType type;
   private final JsonObject json;
   private final SchemaType schemaNestedLevel;
   private JsonSchema secondType;
   private JsonSchema firstType;
   private JsonArray jsonArray;
-  private int fieldsSize;
 
   public enum InputType {
     DATE,
@@ -115,7 +110,6 @@ public class JsonSchema extends Schema {
     setJsonSchemaProperties(jsonObject);
     this.type = RECORD;
     this.json = jsonObject;
-    this.fieldsSize = jsonArray.size();
     this.jsonArray = jsonArray;
     this.schemaNestedLevel = ROOT;
   }
@@ -163,9 +157,10 @@ public class JsonSchema extends Schema {
       throw new RuntimeException("Invalid " + TYPE_KEY + "property in schema");
     }
     this.json = jsonObject;
-    this.jsonArray = new JsonArray();
+    JsonArray jsonArray = new JsonArray();
+    jsonArray.add(jsonObject);
+    this.jsonArray = jsonArray;
     this.schemaNestedLevel = CHILD;
-    this.fieldsSize = 1;
   }
 
   /**
@@ -289,11 +284,7 @@ public class JsonSchema extends Schema {
   }
 
   public int fieldsCount() {
-    return this.fieldsSize;
-  }
-
-  public JsonElement asJsonElement() {
-    return this.json == null ? this.jsonArray : this.json;
+    return this.jsonArray.size();
   }
 
   public JsonSchema getFieldSchemaAt(int i) {
