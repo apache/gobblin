@@ -50,9 +50,7 @@ import lombok.extern.java.Log;
 import sun.util.calendar.ZoneInfo;
 
 import static org.apache.gobblin.converter.avro.JsonElementConversionFactory.Type.*;
-import static org.apache.gobblin.converter.json.JsonSchema.ENUM_SYMBOLS_KEY;
-import static org.apache.gobblin.converter.json.JsonSchema.SOURCE_TYPE;
-import static org.apache.gobblin.converter.json.JsonSchema.buildBaseSchema;
+import static org.apache.gobblin.converter.json.JsonSchema.*;
 
 
 /**
@@ -100,7 +98,7 @@ public class JsonElementConversionFactory {
    * @return {@link JsonElementConverter}
    * @throws UnsupportedDateTypeException
    */
-  public static JsonElementConverter getConverter(JsonSchema schemaNode, String namespace, WorkUnitState state)
+  public static JsonElementConverter getConvertor(JsonSchema schemaNode, String namespace, WorkUnitState state)
       throws UnsupportedDateTypeException {
 
     Type type = schemaNode.getType();
@@ -167,7 +165,7 @@ public class JsonElementConversionFactory {
   }
 
   /**
-   * Backward Compatible form of {@link JsonElementConverter#getConverter(JsonSchema, String, WorkUnitState)}
+   * Backward Compatible form of {@link JsonElementConverter#getConvertor(JsonSchema, String, WorkUnitState)}
    * @param fieldName
    * @param fieldType
    * @param schemaNode
@@ -179,8 +177,21 @@ public class JsonElementConversionFactory {
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
       WorkUnitState state, boolean nullable)
       throws UnsupportedDateTypeException {
+    if (!schemaNode.has(COLUMN_NAME_KEY)) {
+      schemaNode.addProperty(COLUMN_NAME_KEY, fieldName);
+    }
+    if (!schemaNode.has(DATA_TYPE_KEY)) {
+      schemaNode.add(DATA_TYPE_KEY, new JsonObject());
+    }
+    JsonObject dataType = schemaNode.get(DATA_TYPE_KEY).getAsJsonObject();
+    if (!dataType.has(TYPE_KEY)) {
+      dataType.get(TYPE_KEY).getAsJsonObject().addProperty(TYPE_KEY, fieldType);
+    }
+    if (!schemaNode.has(IS_NULLABLE_KEY)) {
+      schemaNode.addProperty(IS_NULLABLE_KEY, nullable);
+    }
     JsonSchema schema = new JsonSchema(schemaNode);
-    return getConverter(schema, null, state);
+    return getConvertor(schema, null, state);
   }
 
   private static DateTimeZone getTimeZone(String id) {
@@ -492,7 +503,7 @@ public class JsonElementConversionFactory {
       if (schema.isType(MAP)) {
         nestedItem = schema.getValuesWithinDataType();
       }
-      this.setElementConverter(getConverter(nestedItem, null, state));
+      this.setElementConverter(getConvertor(nestedItem, null, state));
     }
 
     @Override
@@ -609,7 +620,7 @@ public class JsonElementConversionFactory {
         Schema fldSchema;
         try {
           sourceType = map.isType(UNION) ? UNION.toString().toLowerCase() : map.getType().toString().toLowerCase();
-          converter = getConverter(map, childNamespace, workUnit);
+          converter = getConvertor(map, childNamespace, workUnit);
           this.converters.put(map.getColumnName(), converter);
           fldSchema = converter.schema();
         } catch (UnsupportedDateTypeException e) {
@@ -732,7 +743,7 @@ public class JsonElementConversionFactory {
 
     private JsonElementConverter getConverter(JsonSchema schemaElement, WorkUnitState state) {
       try {
-        return JsonElementConversionFactory.getConverter(schemaElement, null, state);
+        return JsonElementConversionFactory.getConvertor(schemaElement, null, state);
       } catch (UnsupportedDateTypeException e) {
         throw new UnsupportedOperationException(e);
       }

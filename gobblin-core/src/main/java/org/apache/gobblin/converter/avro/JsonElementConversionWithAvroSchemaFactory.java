@@ -67,7 +67,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
             schemaNode);
 
       default:
-        return JsonElementConversionFactory.getConvertor(fieldName, fieldType, null, state, nullable);
+        return JsonElementConversionFactory.getConvertor(fieldName, fieldType, new JsonObject(), state, nullable);
     }
   }
 
