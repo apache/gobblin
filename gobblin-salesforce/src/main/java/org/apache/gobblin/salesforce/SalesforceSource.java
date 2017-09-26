@@ -79,9 +79,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
   private static final String DAY_PARTITION_QUERY_TEMPLATE = "SELECT count(${column}) cnt, DAY_ONLY(${column}) time FROM ${table} "
-      + "WHERE CALENDAR_YEAR(${column}) = ${year} GROUP BY DAY_ONLY(${column}) ORDER BY DAY_ONLY(${column})";
-  private static final String DAY_PARTITION_QUERY_LOW_WATERMARK_TEMPLATE = "SELECT count(${column}) cnt, DAY_ONLY(${column}) time FROM ${table} "
-      + "WHERE CALENDAR_YEAR(${column}) = ${year} AND ${column} ${greater} ${start} GROUP BY DAY_ONLY(${column}) ORDER BY DAY_ONLY(${column})";
+      + "WHERE ${column} ${greater} ${start} AND ${column} ${less} ${end} GROUP BY DAY_ONLY(${column}) ORDER BY DAY_ONLY(${column})";
   private static final String DAY_FORMAT = "yyyy-MM-dd";
 
   private static final Gson GSON = new Gson();
@@ -192,17 +190,16 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     Date startDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
     calendar.setTime(startDate);
     int startYear = calendar.get(Calendar.YEAR);
-    String startDateString = Utils.dateToString(startDate, SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
+    String lowWatermarkDate = Utils.dateToString(startDate, SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
 
     Date endDate = Utils.toDate(partition.getHighWatermark(), Partitioner.WATERMARKTIMEFORMAT);
     calendar.setTime(endDate);
     int endYear = calendar.get(Calendar.YEAR);
+    String highWatermarkDate = Utils.dateToString(endDate, SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
 
     Map<String, String> values = new HashMap<>();
     values.put("table", entity);
     values.put("column", watermarkColumn);
-    values.put("start", startDateString);
-    values.put("greater", partition.isLowWatermarkInclusive() ? ">=" : ">");
     StrSubstitutor sub = new StrSubstitutor(values);
 
     SalesforceConnector connector = new SalesforceConnector(state);
@@ -215,8 +212,28 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     }
 
     for (int year = startYear; year <= endYear; year++) {
-      values.put("year", Integer.toString(year));
-      String query = year == startYear ? sub.replace(DAY_PARTITION_QUERY_LOW_WATERMARK_TEMPLATE) : sub.replace(DAY_PARTITION_QUERY_TEMPLATE);
+
+      if (year == startYear) {
+        values.put("start", lowWatermarkDate);
+        values.put("greater", partition.isLowWatermarkInclusive() ? ">=" : ">");
+      } else {
+        calendar.clear();
+        calendar.set(Calendar.YEAR, year);
+        values.put("start", Utils.dateToString(calendar.getTime(), SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT));
+        values.put("greater", ">=");
+      }
+
+      if (year == endYear) {
+        values.put("end", highWatermarkDate);
+        values.put("less", partition.isHighWatermarkInclusive() ? "<=" : "<");
+      } else {
+        calendar.clear();
+        calendar.set(Calendar.YEAR, year + 1);
+        values.put("end", Utils.dateToString(calendar.getTime(), SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT));
+        values.put("less", "<");
+      }
+
+      String query = sub.replace(DAY_PARTITION_QUERY_TEMPLATE);
       log.info("Histogram query: " + query);
 
       try {
