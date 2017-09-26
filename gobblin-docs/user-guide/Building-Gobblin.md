@@ -45,7 +45,7 @@ Add the option `-PexcludeHadoopDeps` to exclude all Hadoop libraries from `gobbl
 
 ### Exclude Hive Dependencies from `gobblin-dist.tar.gz`
 
-Add the option `-PexcludeHiveDeps` to exclude all Hadoop libraries from `gobblin-dist.tar.gz`.
+Add the option `-PexcludeHiveDeps` to exclude all Hive libraries from `gobblin-dist.tar.gz`.
 
 # Custom Gradle Tasks
 
