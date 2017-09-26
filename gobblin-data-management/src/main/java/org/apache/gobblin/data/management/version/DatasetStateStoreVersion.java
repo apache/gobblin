@@ -18,30 +18,13 @@
 package org.apache.gobblin.data.management.version;
 
 import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
-import org.joda.time.DateTime;
-import lombok.Getter;
+
 
 /**
- * {@link TimestampedDatasetVersion} that has a {@link DatasetStateStoreEntryManager}
+ * {@link DatasetVersion} that has a {@link DatasetStateStoreEntryManager}
  */
-@Getter
-public class TimestampedDatasetStateStoreVersion extends TimestampedDatasetVersion implements DatasetStateStoreVersion {
+public interface DatasetStateStoreVersion extends DatasetVersion {
 
-  private final DatasetStateStoreEntryManager entry;
+  DatasetStateStoreEntryManager getEntry();
 
-  public TimestampedDatasetStateStoreVersion(DatasetStateStoreEntryManager entry) {
-    super(new DateTime(entry.getTimestamp()), null);
-    this.entry = entry;
-  }
-
-  @Override
-  public int compareTo(FileSystemDatasetVersion other) {
-    TimestampedDatasetVersion otherAsDateTime = (TimestampedDatasetVersion) other;
-    return this.version.equals(otherAsDateTime.version) ? 0 : this.version.compareTo(otherAsDateTime.version);
-  }
-
-  @Override
-  public int hashCode() {
-    return this.version.hashCode();
-  }
 }

@@ -20,36 +20,30 @@ package org.apache.gobblin.data.management.retention.dataset.finder;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import org.apache.gobblin.data.management.retention.dataset.CleanableDatasetStoreDataset;
-import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.data.management.retention.dataset.TimeBasedDatasetStoreDataset;
 import org.apache.gobblin.metastore.DatasetStoreDataset;
 import org.apache.gobblin.metastore.DatasetStoreDatasetFinder;
 import org.apache.hadoop.fs.FileSystem;
-import com.google.common.collect.Lists;
 
 
 /**
  * A {@link DatasetStoreDatasetFinder} that returns {@link CleanableDatasetStoreDataset}
  */
-public class CleanableDatasetStoreDatasetFinder extends DatasetStoreDatasetFinder {
+public class TimeBasedDatasetStoreDatasetFinder extends DatasetStoreDatasetFinder {
 
-  private FileSystem fs;
   private Properties props;
 
-  public CleanableDatasetStoreDatasetFinder(FileSystem fs, Properties props) throws IOException {
+  public TimeBasedDatasetStoreDatasetFinder(FileSystem fs, Properties props) throws IOException {
     super(fs, props);
-    this.fs = fs;
     this.props = props;
   }
 
   @Override
-  public List<Dataset> findDatasets() throws IOException {
-    List<Dataset> datasets = super.findDatasets();
-    List<Dataset> cleanableDatasets = Lists.newArrayList();
-
-    for (Dataset dataset : datasets) {
-      cleanableDatasets.add(new CleanableDatasetStoreDataset(this.fs, this.props, (DatasetStoreDataset) dataset));
-    }
-    return cleanableDatasets;
-  }
+  public List<DatasetStoreDataset> findDatasets() throws IOException {
+    return super.findDatasets().stream()
+                .map(dataset -> new TimeBasedDatasetStoreDataset(dataset.getKey(), dataset.getDatasetStateStoreMetadataEntries(), props))
+                .collect(Collectors.toList());
+      }
 }

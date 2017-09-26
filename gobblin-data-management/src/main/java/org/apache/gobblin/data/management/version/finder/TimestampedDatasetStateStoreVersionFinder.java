@@ -20,7 +20,6 @@ package org.apache.gobblin.data.management.version.finder;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import org.apache.gobblin.data.management.retention.dataset.CleanableDatasetStoreDataset;
 import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 import org.apache.gobblin.data.management.version.TimestampedDatasetStateStoreVersion;
 import org.apache.gobblin.dataset.Dataset;
@@ -41,7 +40,7 @@ public class TimestampedDatasetStateStoreVersionFinder implements VersionFinder<
 
   @Override
   public Collection<TimestampedDatasetStateStoreVersion> findDatasetVersions(Dataset dataset) throws IOException {
-    DatasetStoreDataset storeDataset = ((CleanableDatasetStoreDataset) dataset).getStore();
+    DatasetStoreDataset storeDataset = ((DatasetStoreDataset) dataset);
     List<TimestampedDatasetStateStoreVersion> versions = Lists.newArrayList();
 
     for (DatasetStateStoreEntryManager entry : storeDataset.getDatasetStateStoreMetadataEntries()) {

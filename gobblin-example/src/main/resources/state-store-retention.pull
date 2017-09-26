@@ -18,9 +18,8 @@
 type=hadoopJava
 job.class=org.apache.gobblin.data.management.retention.DatasetCleanerJob
 
-gobblin.retention.dataset.finder.class=org.apache.gobblin.data.management.retention.dataset.finder.CleanableDatasetStoreDatasetFinder
-gobblin.retention.skip.trash=true
-gobblin.retention.minutes.retained=30
+gobblin.retention.dataset.finder.class=org.apache.gobblin.data.management.retention.dataset.finder.TimeBasedDatasetStoreDatasetFinder
+selection.timeBased.lookbackTime=30m
 
 state.store.fs.uri=hdfs://localhost:9000
 state.store.dir=example/state-store

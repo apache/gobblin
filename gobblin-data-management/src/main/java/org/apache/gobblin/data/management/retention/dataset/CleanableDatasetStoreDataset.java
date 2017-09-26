@@ -19,44 +19,41 @@ package org.apache.gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Properties;
-import org.apache.gobblin.data.management.version.TimestampedDatasetStateStoreVersion;
-import org.apache.gobblin.data.management.version.finder.TimestampedDatasetStateStoreVersionFinder;
+import java.util.Collections;
+import java.util.List;
+import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
+import org.apache.gobblin.data.management.version.DatasetStateStoreVersion;
+import org.apache.gobblin.data.management.version.DatasetVersion;
 import org.apache.gobblin.data.management.version.finder.VersionFinder;
 import org.apache.gobblin.metastore.DatasetStoreDataset;
-import org.apache.hadoop.fs.FileSystem;
-import lombok.Data;
+import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
+import com.google.common.collect.Lists;
 
 
 /**
  * A cleanable {@link DatasetStoreDataset}
  */
-@Data
-public class CleanableDatasetStoreDataset extends ModificationTimeDataset {
+public abstract class CleanableDatasetStoreDataset<T extends DatasetVersion> extends DatasetStoreDataset implements CleanableDataset {
 
-  private final DatasetStoreDataset store;
-  private final VersionFinder<TimestampedDatasetStateStoreVersion> versionFinder;
-
-  public CleanableDatasetStoreDataset(FileSystem fs, Properties props, DatasetStoreDataset store) throws IOException {
-    super(fs, props, null);
-    this.store = store;
-    this.versionFinder = new TimestampedDatasetStateStoreVersionFinder();
+  public CleanableDatasetStoreDataset(DatasetStoreDataset.Key key, List<DatasetStateStoreEntryManager> entries) {
+    super(key, entries);
   }
 
+  public abstract VersionFinder<? extends T> getVersionFinder();
+
+  public abstract VersionSelectionPolicy<T> getVersionSelectionPolicy();
+
   @Override
-  protected void cleanImpl(Collection deletableVersions) throws IOException {
+  public void clean() throws IOException {
+
+    List<T> versions = Lists.newArrayList(this.getVersionFinder().findDatasetVersions(this));
+
+    Collections.sort(versions, Collections.reverseOrder());
+
+    Collection<T> deletableVersions = this.getVersionSelectionPolicy().listSelectedVersions(versions);
+
     for (Object version : deletableVersions) {
-      ((TimestampedDatasetStateStoreVersion) version).getEntry().delete();
+      ((DatasetStateStoreVersion) version).getEntry().delete();
     }
-  }
-
-  @Override
-  public String datasetURN() {
-    return this.store.datasetURN();
-  }
-
-  @Override
-  public VersionFinder<? extends TimestampedDatasetStateStoreVersion> getVersionFinder() {
-    return this.versionFinder;
   }
 }
