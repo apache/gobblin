@@ -27,11 +27,13 @@ import org.apache.gobblin.data.management.version.finder.TimestampedDatasetState
 import org.apache.gobblin.data.management.version.finder.VersionFinder;
 import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 import org.apache.gobblin.util.ConfigUtils;
+import lombok.Data;
 
 
 /**
  * A {@link CleanableDatasetStoreDataset} that deletes entries before a certain time
  */
+@Data
 public class TimeBasedDatasetStoreDataset extends CleanableDatasetStoreDataset<TimestampedDatasetVersion> {
 
   private final VersionFinder<TimestampedDatasetStateStoreVersion> versionFinder;

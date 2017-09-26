@@ -41,6 +41,11 @@ public class TimestampedDatasetStateStoreVersion extends TimestampedDatasetVersi
   }
 
   @Override
+  public boolean equals(Object obj) {
+    return super.equals(obj);
+  }
+
+  @Override
   public int hashCode() {
     return this.version.hashCode();
   }
