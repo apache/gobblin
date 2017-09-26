@@ -41,7 +41,7 @@ public class ImmediatelyInvalidResourceEntry<T> extends ResourceInstance<T> {
     // request from the factory
     this.valid = false;
 
-    return getTheResource();
+    return super.getResource();
   }
 
   @Override

@@ -56,7 +56,7 @@ public class DataPublisherFactoryTest {
 
     // Check capabilities
     Assert.assertTrue(publisher1.supportsCapability(DataPublisher.REUSABLE, Collections.EMPTY_MAP));
-    Assert.assertFalse(publisher1.supportsCapability(DataPublisher.THREADSAFE, Collections.EMPTY_MAP));
+    Assert.assertFalse(publisher1.supportsCapability(Capability.THREADSAFE, Collections.EMPTY_MAP));
   }
 
   @Test
@@ -91,7 +91,7 @@ public class DataPublisherFactoryTest {
 
     // Check capabilities
     Assert.assertTrue(publisher1.supportsCapability(DataPublisher.REUSABLE, Collections.EMPTY_MAP));
-    Assert.assertTrue(publisher1.supportsCapability(DataPublisher.THREADSAFE, Collections.EMPTY_MAP));
+    Assert.assertTrue(publisher1.supportsCapability(Capability.THREADSAFE, Collections.EMPTY_MAP));
   }
 
   private static class TestNonThreadsafeDataPublisher extends DataPublisher {
@@ -128,7 +128,7 @@ public class DataPublisherFactoryTest {
 
     @Override
     public boolean supportsCapability(Capability c, Map<String, Object> properties) {
-      return (c == DataPublisher.THREADSAFE || c == DataPublisher.REUSABLE);
+      return (c == Capability.THREADSAFE || c == DataPublisher.REUSABLE);
     }
   }
 }

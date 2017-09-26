@@ -35,11 +35,6 @@ import org.apache.gobblin.configuration.WorkUnitState;
  */
 public abstract class DataPublisher implements Closeable, CapabilityAware {
   /**
-   * Threadsafe capability.
-   */
-  public static final Capability THREADSAFE = new Capability("THREADSAFE", false);
-
-  /**
    * Reusable capability.
    */
   public static final Capability REUSABLE = new Capability("REUSABLE", false);

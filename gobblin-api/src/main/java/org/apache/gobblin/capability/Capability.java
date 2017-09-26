@@ -18,6 +18,8 @@ package org.apache.gobblin.capability;
 
 import org.apache.gobblin.annotation.Alpha;
 
+import lombok.Data;
+
 /**
  * Represents a set of functionality a job-creator can ask for. Examples could include
  * encryption, compression, partitioning...
@@ -26,56 +28,13 @@ import org.apache.gobblin.annotation.Alpha;
  * the encryption algorithm to use.
  */
 @Alpha
+@Data
 public class Capability {
+  /**
+   * Threadsafe capability.
+   */
+  public static final Capability THREADSAFE = new Capability("THREADSAFE", false);
+
   private final String name;
   private final boolean critical;
-
-  /**
-   * Create a new Capability description.
-   * @param name Name of the capability
-   * @param critical If a capability is marked critical and a job is configured with components that can't satisfy
-   *                 the capability, Gobblin will refuse to run the job. If it is not critical then Gobblin will simply
-   *                 issue a warning.
-   */
-  public Capability(String name, boolean critical) {
-    this.name = name;
-    this.critical = critical;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public boolean isCritical() {
-    return critical;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    Capability that = (Capability) o;
-
-    if (critical != that.critical) {
-      return false;
-    }
-    return name != null ? name.equals(that.name) : that.name == null;
-  }
-
-  @Override
-  public int hashCode() {
-    int result = name != null ? name.hashCode() : 0;
-    result = 31 * result + (critical ? 1 : 0);
-    return result;
-  }
-
-  @Override
-  public String toString() {
-    return "Capability{" + "name='" + name + '\'' + ", critical=" + critical + '}';
-  }
 }

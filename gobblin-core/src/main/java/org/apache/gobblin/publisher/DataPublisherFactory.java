@@ -29,6 +29,7 @@ import org.apache.gobblin.broker.iface.ScopedConfigView;
 import org.apache.gobblin.broker.iface.SharedResourceFactory;
 import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.capability.Capability;
 import org.apache.gobblin.configuration.State;
 
 import lombok.extern.slf4j.Slf4j;
@@ -74,7 +75,7 @@ public class DataPublisherFactory<S extends ScopeType<S>>
       // by the broker.
       // Otherwise, it is not shareable, so return it as an immediately invalidated resource that will only be returned
       // once from the broker.
-      if (publisher.supportsCapability(DataPublisher.THREADSAFE, Collections.EMPTY_MAP)) {
+      if (publisher.supportsCapability(Capability.THREADSAFE, Collections.EMPTY_MAP)) {
         return new ResourceInstance<>(publisher);
       } else {
         return new ImmediatelyInvalidResourceEntry<>(publisher);
