@@ -217,9 +217,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         values.put("start", lowWatermarkDate);
         values.put("greater", partition.isLowWatermarkInclusive() ? ">=" : ">");
       } else {
-        calendar.clear();
-        calendar.set(Calendar.YEAR, year);
-        values.put("start", Utils.dateToString(calendar.getTime(), SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT));
+        values.put("start", getDateString(year));
         values.put("greater", ">=");
       }
 
@@ -227,9 +225,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         values.put("end", highWatermarkDate);
         values.put("less", partition.isHighWatermarkInclusive() ? "<=" : "<");
       } else {
-        calendar.clear();
-        calendar.set(Calendar.YEAR, year + 1);
-        values.put("end", Utils.dateToString(calendar.getTime(), SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT));
+        values.put("end", getDateString(year + 1));
         values.put("less", "<");
       }
 
@@ -247,6 +243,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     }
 
     return histogram;
+  }
+
+  private String getDateString(int year) {
+    Calendar calendar = new GregorianCalendar();
+    calendar.clear();
+    calendar.set(Calendar.YEAR, year);
+    return Utils.dateToString(calendar.getTime(), SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
   }
 
   private Histogram parseHistogram(CommandOutput<?, ?> response) throws DataRecordException {
