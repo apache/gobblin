@@ -79,7 +79,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
   private static final String DAY_PARTITION_QUERY_TEMPLATE = "SELECT count(${column}) cnt, DAY_ONLY(${column}) time FROM ${table} "
-      + "WHERE CALENDAR_YEAR(${column}) = ${year} GROUP BY DAY_ONLY(${column}) ORDER BY DAY_ONLY(${column})";
+      + "WHERE ${column} ${greater} ${start} AND ${column} ${less} ${end} GROUP BY DAY_ONLY(${column}) ORDER BY DAY_ONLY(${column})";
   private static final String DAY_FORMAT = "yyyy-MM-dd";
 
   private static final Gson GSON = new Gson();
@@ -101,17 +101,18 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
             .toUpperCase());
     String watermarkColumn = state.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
 
+    int maxPartitions = state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS,
+        ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
+
     // Only support time related watermark
     if (watermarkType == WatermarkType.SIMPLE || Strings.isNullOrEmpty(watermarkColumn)
-        || !state.getPropAsBoolean(ENABLE_DYNAMIC_PARTITIONING)) {
+        || !state.getPropAsBoolean(ENABLE_DYNAMIC_PARTITIONING) || maxPartitions <= 1) {
       return super.generateWorkUnits(sourceEntity, state, previousWatermark);
     }
 
     Partition partition = new Partitioner(state).getGlobalPartition(previousWatermark);
     Histogram histogram = getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
 
-    int maxPartitions = state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS,
-        ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
     String specifiedPartitions = generateSpecifiedPartitions(histogram, maxPartitions, partition.getHighWatermark());
     state.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
     state.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, specifiedPartitions);
@@ -189,10 +190,12 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     Date startDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
     calendar.setTime(startDate);
     int startYear = calendar.get(Calendar.YEAR);
+    String lowWatermarkDate = Utils.dateToString(startDate, SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
 
     Date endDate = Utils.toDate(partition.getHighWatermark(), Partitioner.WATERMARKTIMEFORMAT);
     calendar.setTime(endDate);
     int endYear = calendar.get(Calendar.YEAR);
+    String highWatermarkDate = Utils.dateToString(endDate, SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
 
     Map<String, String> values = new HashMap<>();
     values.put("table", entity);
@@ -209,7 +212,23 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     }
 
     for (int year = startYear; year <= endYear; year++) {
-      values.put("year", Integer.toString(year));
+
+      if (year == startYear) {
+        values.put("start", lowWatermarkDate);
+        values.put("greater", partition.isLowWatermarkInclusive() ? ">=" : ">");
+      } else {
+        values.put("start", getDateString(year));
+        values.put("greater", ">=");
+      }
+
+      if (year == endYear) {
+        values.put("end", highWatermarkDate);
+        values.put("less", partition.isHighWatermarkInclusive() ? "<=" : "<");
+      } else {
+        values.put("end", getDateString(year + 1));
+        values.put("less", "<");
+      }
+
       String query = sub.replace(DAY_PARTITION_QUERY_TEMPLATE);
       log.info("Histogram query: " + query);
 
@@ -224,6 +243,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     }
 
     return histogram;
+  }
+
+  private String getDateString(int year) {
+    Calendar calendar = new GregorianCalendar();
+    calendar.clear();
+    calendar.set(Calendar.YEAR, year);
+    return Utils.dateToString(calendar.getTime(), SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
   }
 
   private Histogram parseHistogram(CommandOutput<?, ?> response) throws DataRecordException {
