@@ -30,7 +30,7 @@ import static org.apache.gobblin.metastore.DatasetStoreDatasetFinder.*;
  */
 public class DatasetStateStoreSourceTest {
 
-  public static String jstPath = "";
+  public static String jstPath = "/gobblin-runtime/src/test/resources/store.TestJob/current.jst";
   @Test
   public void testDatasetStateStoreSource() {
     // Specify the path that contains .jst file

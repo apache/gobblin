@@ -31,16 +31,16 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
+
 @Slf4j
 /**
  * Using {@link DatasetStoreDataset} to extract its list of {@link DatasetStateStoreEntryManager},
  * which has the access to datasetURN and its belonging {@link DatasetStateStore}.
- */
-public class DatasetStateStoreExtractor implements Extractor<String, ListIterator<DatasetStateStoreEntryManager>> {
+ */ public class DatasetStateStoreExtractor implements Extractor<String, ListIterator<DatasetStateStoreEntryManager>> {
 
   /**
    * A single dataset found by {@link org.apache.gobblin.metastore.DatasetStoreDatasetFinder}
-   * can result in multiple {@link DatasetStateStoreEntryManager}s.
+   * can result in multiple {@link DatasetStateStoreEntryManager}s, in the case of Dataset level dataset-level state store.
    */
   private ListIterator<DatasetStateStoreEntryManager> iterableDatasetState;
 
@@ -48,14 +48,14 @@ public class DatasetStateStoreExtractor implements Extractor<String, ListIterato
 
   public DatasetStateStoreExtractor(WorkUnitState workUnitState) {
     WorkUnit wu = workUnitState.getWorkunit();
-    this.dataset = DatasetStateStoreSource.GENERICS_AWARE_GSON.fromJson
-        (wu.getProp(DatasetStateStoreSource.ABSTRACT_DATASET), DatasetStoreDataset.class);
+    this.dataset =
+        DatasetStateStoreSource.GENERICS_AWARE_GSON.fromJson(wu.getProp(DatasetStateStoreSource.ABSTRACT_DATASET),
+            DatasetStoreDataset.class);
 
     for (DatasetStateStoreEntryManager datasetStateStoreEntryManager : this.dataset.getDatasetStateStoreMetadataEntries()) {
       iterableDatasetState.add(datasetStateStoreEntryManager);
     }
   }
-
 
   @Override
   public String getSchema() throws IOException {
@@ -81,12 +81,11 @@ public class DatasetStateStoreExtractor implements Extractor<String, ListIterato
 
   @Nullable
   @Override
-  public ListIterator<DatasetStateStoreEntryManager>
-  readRecord(@Deprecated ListIterator<DatasetStateStoreEntryManager> reuse) throws DataRecordException, IOException {
+  public ListIterator<DatasetStateStoreEntryManager> readRecord(
+      @Deprecated ListIterator<DatasetStateStoreEntryManager> reuse) throws DataRecordException, IOException {
     if (!iterableDatasetState.hasNext()) {
       return this.iterableDatasetState;
-    }
-    else {
+    } else {
       log.warn("There's no available record from " + "TODO: The name of StateStore");
       return null;
     }

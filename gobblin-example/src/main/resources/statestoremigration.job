@@ -1,0 +1,44 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+job.name=jstTOMySQL
+job.description=.jstFileMovedToMySQL
+
+source.class=org.apache.gobblin.runtime.runtime_constructs.DatasetStateStoreSource
+source.filebased.data.directory=/path/to/avro/file/directory
+source.max.number.of.partitions=4
+
+extract.table.type=SNAPSHOT_ONLY
+extract.is.full=true
+extract.namespace=dummy_name_space
+extract.table.name=dummy_name
+
+filebased.report.status.on.count=100
+
+converter.classes=org.apache.gobblin.runtime.runtime_constructs.DatasetStateStoreWriter
+#name pairs if name does not match between source and JDBC destination
+converter.avro.jdbc.entry_fields_pairs={"businessUnit":"business_unit", "geoRegion":"geo_region", "superRegion":"super_region", "subRegion":"sub_region"}
+
+writer.builder.class=org.apache.gobblin.runtime.runtime_constructs.
+writer.destination.type=MYSQL
+writer.jdbc.batch_size=1000
+
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher
+
+fs.uri=file://localhost/
+source.filebased.fs.uri=${fs.uri}
+state.store.fs.uri=${fs.uri}
