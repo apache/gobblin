@@ -386,10 +386,13 @@ public class HiveSource implements Source {
 
   /**
    * Check if workunit needs to be created. Returns <code>true</code> If the
-   * <code>updateTime</code> is greater than the <code>lowWatermark</code>.
+   * <code>updateTime</code> is greater than the <code>lowWatermark</code> and <code>maxLookBackTime</code>
    * <code>createTime</code> is not used. It exists for backward compatibility
    */
   protected boolean shouldCreateWorkunit(long createTime, long updateTime, LongWatermark lowWatermark) {
+    if (new DateTime(updateTime).isBefore(this.maxLookBackTime)) {
+      return false;
+    }
     return new DateTime(updateTime).isAfter(lowWatermark.getValue());
   }
 
