@@ -103,7 +103,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   private static final int MAX_PK_CHUNKING_SIZE = 250000;
   private static final int MIN_PK_CHUNKING_SIZE = 100000;
   private static final int DEFAULT_PK_CHUNKING_SIZE = 200000;
-  private static final String PK_CHUNKING_KEY = "salesforce.pkChunking";
+  private static final String ENABLE_PK_CHUNKING_KEY = "salesforce.enablePkChunking";
   private static final String PK_CHUNKING_SIZE_KEY = "salesforce.pkChunkingSize";
   private static final int MAX_RETRY_INTERVAL_SECS = 600;
   // avoid using too many bulk API calls by only allowing PK chunking only if max partitions is configured <= this
@@ -137,13 +137,13 @@ public class SalesforceExtractor extends RestApiExtractor {
     if (state.getPropAsBoolean(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, false)
         || state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS,
         ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS) > PK_CHUNKING_MAX_PARTITIONS_LIMIT) {
-      if (state.getPropAsBoolean(PK_CHUNKING_KEY, false)) {
+      if (state.getPropAsBoolean(ENABLE_PK_CHUNKING_KEY, false)) {
         log.warn("Max partitions too high, so PK chunking is not enabled");
       }
 
       this.pkChunking = false;
     } else {
-      this.pkChunking = state.getPropAsBoolean(PK_CHUNKING_KEY, false);
+      this.pkChunking = state.getPropAsBoolean(ENABLE_PK_CHUNKING_KEY, false);
     }
 
     this.pkChunkingSize =
@@ -744,29 +744,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       BatchInfoList batchInfoList = this.bulkConnection.getBatchInfoList(this.bulkJob.getId());
 
       if (usingPkChunking && bulkBatchInfo.getState() == BatchStateEnum.NotProcessed) {
-        BatchInfo[] batchInfos = batchInfoList.getBatchInfo();
-
-        // Wait for all batches other than the first one. The first one is not processed in PK chunking mode
-        for (int i = 1; i < batchInfos.length; i++) {
-          BatchInfo bi = batchInfos[i];
-
-          // get refreshed job status
-          bi = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), bi.getId());
-
-          while ((bi.getState() != BatchStateEnum.Completed)
-              && (bi.getState() != BatchStateEnum.Failed)) {
-            Thread.sleep(retryInterval * 1000);
-            bi = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), bi.getId());
-            log.debug("Bulk Api Batch Info:" + bi);
-            log.info("Waiting for bulk resultSetIds");
-          }
-          bulkBatchInfo = bi;
-
-          // exit if there was a failure
-          if (bulkBatchInfo.getState() == BatchStateEnum.Failed) {
-            break;
-          }
-        }
+        bulkBatchInfo = waitForPkBatches(batchInfoList, retryInterval);
       }
 
       if (bulkBatchInfo.getState() == BatchStateEnum.Failed) {
@@ -808,6 +786,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       // if Buffer is empty then get stream for the new resultset id
       if (this.bulkBufferedReader == null || !this.bulkBufferedReader.ready()) {
 
+        // log the number of records from each result set after it is processed (bulkResultIdCount > 0)
         if (this.bulkResultIdCount > 0) {
           log.info("Result set {} had {} records", this.bulkResultIdCount,
               this.bulkRecordCount - this.prevBulkRecordCount);
@@ -889,6 +868,45 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   public static List<Command> constructGetCommand(String restQuery) {
     return Arrays.asList(new RestApiCommand().build(Arrays.asList(restQuery), RestApiCommandType.GET));
+  }
+
+  /**
+   * Waits for the PK batches to complete. The wait will stop after all batches are complete or on the first failed batch
+   * @param batchInfoList list of batch info
+   * @param retryInterval the polling interval
+   * @return the last {@link BatchInfo} processed
+   * @throws InterruptedException
+   * @throws AsyncApiException
+   */
+  private BatchInfo waitForPkBatches(BatchInfoList batchInfoList, int retryInterval)
+      throws InterruptedException, AsyncApiException {
+    BatchInfo batchInfo = null;
+    BatchInfo[] batchInfos = batchInfoList.getBatchInfo();
+
+    // Wait for all batches other than the first one. The first one is not processed in PK chunking mode
+    for (int i = 1; i < batchInfos.length; i++) {
+      BatchInfo bi = batchInfos[i];
+
+      // get refreshed job status
+      bi = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), bi.getId());
+
+      while ((bi.getState() != BatchStateEnum.Completed)
+          && (bi.getState() != BatchStateEnum.Failed)) {
+        Thread.sleep(retryInterval * 1000);
+        bi = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), bi.getId());
+        log.debug("Bulk Api Batch Info:" + bi);
+        log.info("Waiting for bulk resultSetIds");
+      }
+
+      batchInfo = bi;
+
+      // exit if there was a failure
+      if (batchInfo.getState() == BatchStateEnum.Failed) {
+        break;
+      }
+    }
+
+    return batchInfo;
   }
 
   @Data
