@@ -289,7 +289,10 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     // Add job.name and job.group
     if (flowSpec.getConfig().hasPath(ConfigurationKeys.FLOW_NAME_KEY)) {
       jobSpec.setConfig(jobSpec.getConfig()
-          .withValue(ConfigurationKeys.JOB_NAME_KEY, flowSpec.getConfig().getValue(ConfigurationKeys.FLOW_NAME_KEY)));
+          .withValue(ConfigurationKeys.JOB_NAME_KEY,  ConfigValueFactory.fromAnyRef(
+              flowSpec.getConfig().getValue(ConfigurationKeys.FLOW_NAME_KEY).unwrapped().toString()
+                  + "-" + sourceNode.getNodeName()
+                  + "-" + targetNode.getNodeName())));
     }
     if (flowSpec.getConfig().hasPath(ConfigurationKeys.FLOW_GROUP_KEY)) {
       jobSpec.setConfig(jobSpec.getConfig()
@@ -329,8 +332,9 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
    */
   public static URI jobSpecURIGenerator(FlowSpec flowSpec, ServiceNode sourceNode, ServiceNode targetNode) {
     try {
-      return new URI(flowSpec.getUri().getScheme(), flowSpec.getUri().getAuthority(),
-          "/" + sourceNode.getNodeName() + "-" + targetNode.getNodeName(), null);
+      return new URI(JobSpec.Builder.DEFAULT_JOB_CATALOG_SCHEME, flowSpec.getUri().getAuthority(),
+          StringUtils.appendIfMissing(StringUtils.prependIfMissing(flowSpec.getUri().getPath(), "/"),"/")
+              + sourceNode.getNodeName() + "-" + targetNode.getNodeName(), null);
     } catch (URISyntaxException e) {
       log.error(
           "URI construction failed when jobSpec from " + sourceNode.getNodeName() + " to " + targetNode.getNodeName());
