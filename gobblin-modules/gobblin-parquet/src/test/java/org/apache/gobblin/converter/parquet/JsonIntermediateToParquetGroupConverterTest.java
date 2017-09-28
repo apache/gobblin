@@ -39,7 +39,7 @@ import static org.testng.Assert.assertEquals;
 
 @Test(groups = {"gobblin.converter"})
 public class JsonIntermediateToParquetGroupConverterTest {
-  private static final String RESOURCE_PATH = "/converter/parquet/JsonIntermediateToParquetConverter.json";
+  private static final String RESOURCE_PATH = "/converter/JsonIntermediateToParquetConverter.json";
   private static JsonObject testCases;
   private static WorkUnitState workUnit;
   private static JsonIntermediateToParquetGroupConverter parquetConverter;
