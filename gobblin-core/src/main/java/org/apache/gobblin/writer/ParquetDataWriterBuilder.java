@@ -24,8 +24,16 @@ import com.google.common.base.Strings;
 import parquet.example.data.Group;
 import parquet.schema.MessageType;
 
+import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
+
 
 public class ParquetDataWriterBuilder extends FsDataWriterBuilder<MessageType, Group> {
+  public static final String WRITER_PARQUET_PAGE_SIZE = WRITER_PREFIX + ".parquet.page.size";
+  public static final String WRITER_PARQUET_DICTIONARY_PAGE_SIZE = WRITER_PREFIX + ".parquet.dictionary.page.size";
+  public static final String WRITER_PARQUET_DICTIONARY = WRITER_PREFIX + ".parquet.dictionary";
+  public static final String WRITER_PARQUET_VALIDATE = WRITER_PREFIX + ".parquet.validate";
+  public static final String WRITER_PARQUET_VERSION = WRITER_PREFIX + ".parquet.version";
+
   @Override
   public DataWriter<Group> build()
       throws IOException {

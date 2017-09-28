@@ -32,7 +32,8 @@ import parquet.hadoop.example.GroupWriteSupport;
 import parquet.hadoop.metadata.CompressionCodecName;
 import parquet.schema.MessageType;
 
-import static org.apache.gobblin.configuration.ConfigurationKeys.*;
+import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_CODEC_TYPE;
+import static org.apache.gobblin.writer.ParquetDataWriterBuilder.*;
 import static parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
 import static parquet.hadoop.ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED;
 import static parquet.hadoop.ParquetWriter.DEFAULT_IS_VALIDATING_ENABLED;
