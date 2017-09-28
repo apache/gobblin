@@ -333,7 +333,8 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   public static URI jobSpecURIGenerator(FlowSpec flowSpec, ServiceNode sourceNode, ServiceNode targetNode) {
     try {
       return new URI(JobSpec.Builder.DEFAULT_JOB_CATALOG_SCHEME, flowSpec.getUri().getAuthority(),
-          flowSpec.getUri().getPath() + "/" + sourceNode.getNodeName() + "-" + targetNode.getNodeName(), null);
+          StringUtils.appendIfMissing(StringUtils.prependIfMissing(flowSpec.getUri().getPath(), "/"),"/")
+              + sourceNode.getNodeName() + "-" + targetNode.getNodeName(), null);
     } catch (URISyntaxException e) {
       log.error(
           "URI construction failed when jobSpec from " + sourceNode.getNodeName() + " to " + targetNode.getNodeName());
