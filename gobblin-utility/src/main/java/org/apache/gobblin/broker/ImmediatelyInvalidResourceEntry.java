@@ -17,38 +17,40 @@
 
 package org.apache.gobblin.broker;
 
-import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * A {@link SharedResourceFactoryResponse} that returns a newly created resource instance.
+ * A {@link ResourceEntry} that expires immediately. The resource is not closed on invalidation since the lifetime of
+ * the object cannot be determined by the cache, so the recipient of the resource needs to close it.
  */
-@Data
-public class ResourceInstance<T> implements ResourceEntry<T> {
-  // Note: the name here is theResource instead of resource since to avoid a collision of the lombok generated getter
-  // and the getResource() method defined in {@link ResourceEntry}. The collision results in unintended side effects
-  // when getResource() is overridden since it may have additional logic that should not be executed when the value of
-  // this field is fetched using the getter, such as in the Lombok generated toString().
-  private final T theResource;
+@Slf4j
+@EqualsAndHashCode(callSuper = true)
+public class ImmediatelyInvalidResourceEntry<T> extends ResourceInstance<T> {
+  private boolean valid;
 
-  /**
-   * This method returns the resource, but may have logic before the return.
-   * @return the resource
-   */
+  public ImmediatelyInvalidResourceEntry(T resource) {
+    super(resource);
+    this.valid = true;
+  }
+
   @Override
   public T getResource() {
-    return getTheResource();
+    // mark the object as invalid before returning so that a new one will be created on the next
+    // request from the factory
+    this.valid = false;
+
+    return super.getResource();
   }
 
   @Override
   public boolean isValid() {
-    return true;
+    return this.valid;
   }
 
   @Override
   public void onInvalidate() {
-    // this should never happen
-    throw new RuntimeException();
+    // these type of resource cannot be closed on invalidation since the lifetime can't be determined
   }
 }
