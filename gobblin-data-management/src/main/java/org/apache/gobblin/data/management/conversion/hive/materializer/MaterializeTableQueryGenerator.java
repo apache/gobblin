@@ -43,6 +43,7 @@ public class MaterializeTableQueryGenerator extends HiveMaterializerFromEntityQu
 
   @Override
   public List<String> generateQueries() {
+    ensureParentOfStagingPathExists();
     return Lists.newArrayList(HiveConverterUtils.generateStagingCTASStatementFromSelectStar(
         new HiveDatasetFinder.DbAndTable(this.outputDatabaseName, this.stagingTableName),
         new HiveDatasetFinder.DbAndTable(this.inputDbName, this.inputTableName),

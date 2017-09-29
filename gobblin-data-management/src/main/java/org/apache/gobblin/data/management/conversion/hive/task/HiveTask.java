@@ -25,6 +25,7 @@ import java.util.Set;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -55,12 +56,36 @@ import lombok.extern.slf4j.Slf4j;
  */
 public abstract class HiveTask extends BaseAbstractTask {
   private static final String USE_WATERMARKER_KEY = "internal.hiveTask.useWatermarker";
+  private static final String ADD_FILES = "internal.hiveTask.addFiles";
+  private static final String ADD_JARS = "internal.hiveTask.addJars";
+  private static final String SETUP_QUERIES = "internal.hiveTask.setupQueries";
 
   /**
    * Disable Hive watermarker. This is necessary when there is no concrete source table where watermark can be inferred.
    */
   public static void disableHiveWatermarker(State state) {
     state.setProp(USE_WATERMARKER_KEY, Boolean.toString(false));
+  }
+
+  /**
+   * Add the input file to the Hive session before running the task.
+   */
+  public static void addFile(State state, String file) {
+    state.setProp(ADD_FILES, state.getProp(ADD_FILES, "") + "," + file);
+  }
+
+  /**
+   * Add the input jar to the Hive session before running the task.
+   */
+  public static void addJar(State state, String jar) {
+    state.setProp(ADD_JARS, state.getProp(ADD_JARS, "") + "," + jar);
+  }
+
+  /**
+   * Run the specified setup query on the Hive session before running the task.
+   */
+  public static void addSetupQuery(State state, String query) {
+    state.setProp(SETUP_QUERIES, state.getProp(SETUP_QUERIES, "") + ";" + query);
   }
 
   protected final TaskContext taskContext;
@@ -70,6 +95,10 @@ public abstract class HiveTask extends BaseAbstractTask {
   protected final List<String> hiveExecutionQueries;
   protected final QueryBasedHivePublishEntity publishEntity;
   protected final HiveJdbcConnector hiveJdbcConnector;
+
+  private final List<String> addFiles;
+  private final List<String> addJars;
+  private final List<String> setupQueries;
 
   public HiveTask(TaskContext taskContext) {
     super(taskContext);
@@ -85,6 +114,10 @@ public abstract class HiveTask extends BaseAbstractTask {
     } catch (SQLException se) {
       throw new RuntimeException("Error in creating JDBC Connector", se);
     }
+
+    this.addFiles = this.workUnitState.getPropAsList(ADD_FILES, "");
+    this.addJars = this.workUnitState.getPropAsList(ADD_JARS, "");
+    this.setupQueries = Splitter.on(";").trimResults().omitEmptyStrings().splitToList(this.workUnitState.getProp(SETUP_QUERIES, ""));
   }
 
   /**
@@ -166,6 +199,10 @@ public abstract class HiveTask extends BaseAbstractTask {
   public void run() {
     try {
       List<String> queries = generateHiveQueries();
+
+      this.hiveJdbcConnector.executeStatements(Lists.transform(this.addFiles, file -> "ADD FILE " + file).toArray(new String[]{}));
+      this.hiveJdbcConnector.executeStatements(Lists.transform(this.addJars, file -> "ADD JAR " + file).toArray(new String[]{}));
+      this.hiveJdbcConnector.executeStatements(this.setupQueries.toArray(new String[]{}));
       this.hiveJdbcConnector.executeStatements(queries.toArray(new String[queries.size()]));
       super.run();
     } catch (Exception e) {
