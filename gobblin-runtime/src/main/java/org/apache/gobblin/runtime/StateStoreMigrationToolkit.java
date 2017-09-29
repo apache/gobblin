@@ -36,9 +36,9 @@ import org.apache.hadoop.util.GenericOptionsParser;
  */
 @Slf4j
 public class StateStoreMigrationToolkit {
-  private static String SOURCE_KEY = "source";
-  private static String DESTINATION_KEY = "destination";
-  private static String JOB_NAME_KEY = "jobName";
+  private static final String SOURCE_KEY = "source";
+  private static final String DESTINATION_KEY = "destination";
+  private static final String JOB_NAME_KEY = "jobName";
 
   @SuppressWarnings("unchecked")
   public static void main(String[] args) throws Exception {
@@ -55,8 +55,8 @@ public class StateStoreMigrationToolkit {
 
     Map<String, JobState.DatasetState> map =
         srcDatasetStateStore.getLatestDatasetStatesByUrns(config.getString(JOB_NAME_KEY));
-    for (String key : map.keySet()) {
-      dstDatasetStateStore.persistDatasetState(key, map.get(key));
+    for (Map.Entry<String, JobState.DatasetState> entry : map.entrySet()) {
+      dstDatasetStateStore.persistDatasetState(entry.getKey(), entry.getValue());
     }
   }
 }

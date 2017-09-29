@@ -21,6 +21,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -31,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.UTF8;
 
 
 public class MigrationCliOptions {
@@ -64,7 +66,7 @@ public class MigrationCliOptions {
 
       FileSystem fs = FileSystem.get(new Configuration());
       FSDataInputStream inputStream = fs.open(new Path(cmd.getOptionValue(CONFIG_OPTION.getLongOpt())));
-      return ConfigFactory.parseReader(new InputStreamReader(inputStream));
+      return ConfigFactory.parseReader(new InputStreamReader(inputStream, Charset.defaultCharset()));
     } catch (ParseException e) {
       throw new IOException(e);
     }
