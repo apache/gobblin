@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import java.io.IOException;
 import java.util.Collection;
 
+import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -37,7 +38,7 @@ import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
  * Dummy {@link Dataset} that does nothing.
  */
 @RequiredArgsConstructor
-public class DummyDataset implements CopyableDataset, CleanableDataset {
+public class DummyDataset implements CopyableDataset, CleanableDataset, FileSystemDataset {
 
   private final Path datasetRoot;
 
