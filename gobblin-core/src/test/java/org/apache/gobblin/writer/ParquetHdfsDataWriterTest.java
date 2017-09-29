@@ -40,6 +40,11 @@ import parquet.hadoop.api.ReadSupport;
 import parquet.io.api.RecordMaterializer;
 import parquet.schema.MessageType;
 
+import static org.apache.gobblin.writer.ParquetDataWriterBuilder.WRITER_PARQUET_DICTIONARY;
+import static org.apache.gobblin.writer.ParquetDataWriterBuilder.WRITER_PARQUET_DICTIONARY_PAGE_SIZE;
+import static org.apache.gobblin.writer.ParquetDataWriterBuilder.WRITER_PARQUET_PAGE_SIZE;
+import static org.apache.gobblin.writer.ParquetDataWriterBuilder.WRITER_PARQUET_VALIDATE;
+
 
 @Test(groups = {"gobblin.writer"})
 public class ParquetHdfsDataWriterTest {
@@ -82,10 +87,10 @@ public class ParquetHdfsDataWriterTest {
     properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, TestConstants.TEST_OUTPUT_DIR);
     properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, this.filePath);
     properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, TestConstants.PARQUET_TEST_FILENAME);
-    properties.setProp(ConfigurationKeys.WRITER_PARQUET_DICTIONARY, true);
-    properties.setProp(ConfigurationKeys.WRITER_PARQUET_DICTIONARY_PAGE_SIZE, 1024);
-    properties.setProp(ConfigurationKeys.WRITER_PARQUET_PAGE_SIZE, 1024);
-    properties.setProp(ConfigurationKeys.WRITER_PARQUET_VALIDATE, true);
+    properties.setProp(WRITER_PARQUET_DICTIONARY, true);
+    properties.setProp(WRITER_PARQUET_DICTIONARY_PAGE_SIZE, 1024);
+    properties.setProp(WRITER_PARQUET_PAGE_SIZE, 1024);
+    properties.setProp(WRITER_PARQUET_VALIDATE, true);
     return properties;
   }
 

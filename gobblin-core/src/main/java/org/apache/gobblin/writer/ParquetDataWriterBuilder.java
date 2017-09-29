@@ -17,14 +17,30 @@
 package org.apache.gobblin.writer;
 
 import java.io.IOException;
+import java.util.Optional;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import parquet.column.ParquetProperties;
 import parquet.example.data.Group;
+import parquet.hadoop.ParquetWriter;
+import parquet.hadoop.example.GroupWriteSupport;
+import parquet.hadoop.metadata.CompressionCodecName;
 import parquet.schema.MessageType;
 
+import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_CODEC_TYPE;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
+import static org.apache.gobblin.writer.ParquetHdfsDataWriter.DEFAULT_PARQUET_WRITER;
+import static parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
+import static parquet.hadoop.ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED;
+import static parquet.hadoop.ParquetWriter.DEFAULT_IS_VALIDATING_ENABLED;
+import static parquet.hadoop.ParquetWriter.DEFAULT_PAGE_SIZE;
 
 
 public class ParquetDataWriterBuilder extends FsDataWriterBuilder<MessageType, Group> {
@@ -48,5 +64,38 @@ public class ParquetDataWriterBuilder extends FsDataWriterBuilder<MessageType, G
       default:
         throw new RuntimeException("Unknown destination type: " + this.destination.getType());
     }
+  }
+
+  public ParquetWriter<Group> getWriter(long blockSize, Path stagingFile)
+      throws IOException {
+    State state = this.destination.getProperties();
+    long pageSize = state.getPropAsLong(getProperty(WRITER_PARQUET_PAGE_SIZE), DEFAULT_PAGE_SIZE);
+    long dictPageSize = state.getPropAsLong(getProperty(WRITER_PARQUET_DICTIONARY_PAGE_SIZE), DEFAULT_BLOCK_SIZE);
+    boolean enableDictionary =
+        state.getPropAsBoolean(getProperty(WRITER_PARQUET_DICTIONARY), DEFAULT_IS_DICTIONARY_ENABLED);
+    boolean validate = state.getPropAsBoolean(getProperty(WRITER_PARQUET_VALIDATE), DEFAULT_IS_VALIDATING_ENABLED);
+    CompressionCodecName codec = getCodecFromConfig();
+    GroupWriteSupport support = new GroupWriteSupport();
+    Configuration conf = new Configuration();
+    GroupWriteSupport.setSchema(this.schema, conf);
+    ParquetProperties.WriterVersion writerVersion = getWriterVersion();
+    return new ParquetWriter<>(stagingFile, support, codec, (int) blockSize, (int) pageSize, (int) dictPageSize,
+        enableDictionary, validate, writerVersion, conf);
+  }
+
+  private ParquetProperties.WriterVersion getWriterVersion() {
+    return ParquetProperties.WriterVersion.fromString(
+        this.destination.getProperties().getProp(getProperty(WRITER_PARQUET_VERSION), DEFAULT_PARQUET_WRITER));
+  }
+
+  private CompressionCodecName getCodecFromConfig() {
+    State state = this.destination.getProperties();
+    String codecValue = Optional.ofNullable(state.getProp(getProperty(WRITER_CODEC_TYPE)))
+        .orElse(CompressionCodecName.SNAPPY.toString());
+    return CompressionCodecName.valueOf(codecValue.toUpperCase());
+  }
+
+  private String getProperty(String key) {
+    return ForkOperatorUtils.getPropertyNameForBranch(key, this.getBranches(), this.getBranch());
   }
 }
