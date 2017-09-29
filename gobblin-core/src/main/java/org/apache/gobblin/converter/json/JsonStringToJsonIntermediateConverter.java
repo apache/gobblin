@@ -232,9 +232,10 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
   private JsonElement parsePrimitiveType(JsonSchema schema, JsonElement value)
       throws DataConversionException {
 
-    if (schema.isType(NULL) && value.isJsonNull()) {
+    if ((schema.isType(NULL) || schema.isNullable()) && value.isJsonNull()) {
       return JsonNull.INSTANCE;
     }
+
     if ((schema.isType(NULL) && !value.isJsonNull()) || (!schema.isType(NULL) && value.isJsonNull())) {
       throw new DataConversionException(
           "Type mismatch for " + value.toString() + " of type " + schema.getDataTypes().toString());
