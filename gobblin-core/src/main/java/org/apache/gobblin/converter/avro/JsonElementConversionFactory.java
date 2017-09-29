@@ -262,7 +262,7 @@ public class JsonElementConversionFactory {
     protected Schema schema() {
       Schema schema = Schema.create(getTargetType());
       schema.addProp("source.type", this.jsonSchema.getType().toString().toLowerCase());
-      return schema;
+      return buildUnionIfNullable(schema);
     }
 
     /**
@@ -301,6 +301,13 @@ public class JsonElementConversionFactory {
         return null;
       }
       return namespace.trim() + "." + name.trim();
+    }
+
+    protected Schema buildUnionIfNullable(Schema schema) {
+      if (this.isNullable()) {
+        return Schema.createUnion(Schema.create(Schema.Type.NULL), schema);
+      }
+      return schema;
     }
   }
 
@@ -517,13 +524,22 @@ public class JsonElementConversionFactory {
 
     @Override
     Object convertField(JsonElement value) {
+      if (this.isNullable() && value.isJsonNull()) {
+        return null;
+      }
       List<Object> list = new ArrayList<>();
 
       for (JsonElement elem : (JsonArray) value) {
         list.add(getElementConverter().convertField(elem));
       }
 
-      return new GenericData.Array<>(schema(), list);
+      return new GenericData.Array<>(arraySchema(), list);
+    }
+
+    private Schema arraySchema() {
+      Schema schema = Schema.createArray(getElementConverter().schema());
+      schema.addProp(SOURCE_TYPE, ARRAY.toString().toLowerCase());
+      return schema;
     }
 
     @Override
@@ -533,9 +549,7 @@ public class JsonElementConversionFactory {
 
     @Override
     public Schema schema() {
-      Schema schema = Schema.createArray(getElementConverter().schema());
-      schema.addProp(SOURCE_TYPE, ARRAY.toString().toLowerCase());
-      return schema;
+      return buildUnionIfNullable(arraySchema());
     }
   }
 
@@ -567,7 +581,7 @@ public class JsonElementConversionFactory {
     public Schema schema() {
       Schema schema = Schema.createMap(getElementConverter().schema());
       schema.addProp(SOURCE_TYPE, MAP.toString().toLowerCase());
-      return schema;
+      return buildUnionIfNullable(schema);
     }
   }
 
@@ -646,7 +660,7 @@ public class JsonElementConversionFactory {
     public Schema schema() {
       Schema schema = _schema;
       schema.addProp(SOURCE_TYPE, RECORD.toString().toLowerCase());
-      return schema;
+      return buildUnionIfNullable(schema);
     }
   }
 
@@ -682,7 +696,7 @@ public class JsonElementConversionFactory {
     public Schema schema() {
       this.schema = Schema.createEnum(this.enumName, "", namespace, this.enumSet);
       this.schema.addProp(SOURCE_TYPE, ENUM.toString().toLowerCase());
-      return this.schema;
+      return buildUnionIfNullable(this.schema);
     }
   }
 

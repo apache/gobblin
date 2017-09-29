@@ -23,9 +23,11 @@ import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.avro.JsonElementConversionFactory.EnumConverter;
 import org.apache.gobblin.converter.avro.JsonElementConversionFactory.MapConverter;
 import org.apache.gobblin.converter.avro.JsonElementConversionFactory.NullConverter;
 import org.apache.gobblin.converter.avro.JsonElementConversionFactory.RecordConverter;
+import org.apache.gobblin.converter.avro.JsonElementConversionFactory.StringConverter;
 import org.apache.gobblin.converter.json.JsonSchema;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -316,6 +318,67 @@ public class JsonElementConversionFactoryTest {
     JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
 
     UnionConverter converter = new UnionConverter(new JsonSchema(schema), state);
+
+    Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
+  }
+
+  @Test
+  public void schemaWithIsNullable()
+      throws Exception {
+    String testName = "schemaWithIsNullable";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
+
+    StringConverter converter = new StringConverter(new JsonSchema(schema));
+
+    Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
+  }
+
+  @Test
+  public void schemaWithRecordIsNullable()
+      throws Exception {
+    String testName = "schemaWithRecordIsNullable";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
+
+    RecordConverter converter = new RecordConverter(new JsonSchema(schema), state,
+        buildNamespace(state.getExtract().getNamespace(), "something"));
+
+    Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
+  }
+
+  @Test
+  public void schemaWithMapIsNullable()
+      throws Exception {
+    String testName = "schemaWithMapIsNullable";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
+
+    MapConverter converter = new MapConverter(new JsonSchema(schema), state);
+
+    Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
+  }
+
+  @Test
+  public void schemaWithEnumIsNullable()
+      throws Exception {
+    String testName = "schemaWithEnumIsNullable";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
+
+    EnumConverter converter = new EnumConverter(new JsonSchema(schema), "something");
+
+    Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
+  }
+
+  @Test
+  public void schemaWithArrayIsNullable()
+      throws Exception {
+    String testName = "schemaWithArrayIsNullable";
+    JsonObject schema = getSchemaData(testName).getAsJsonObject();
+    JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
+
+    ArrayConverter converter = new ArrayConverter(new JsonSchema(schema), state);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
