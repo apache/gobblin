@@ -505,29 +505,6 @@ public class JsonElementConversionFactory {
       }
       this.setElementConverter(getConvertor(nestedItem, null, state));
     }
-
-    @Override
-    Object convertField(JsonElement value) {
-      List<Object> list = new ArrayList<>();
-
-      for (JsonElement elem : (JsonArray) value) {
-        list.add(getElementConverter().convertField(elem));
-      }
-
-      return new GenericData.Array<>(schema(), list);
-    }
-
-    @Override
-    public org.apache.avro.Schema.Type getTargetType() {
-      return Schema.Type.ARRAY;
-    }
-
-    @Override
-    public Schema schema() {
-      Schema schema = Schema.createArray(getElementConverter().schema());
-      schema.addProp(SOURCE_TYPE, ARRAY.toString().toLowerCase());
-      return schema;
-    }
   }
 
   public static class ArrayConverter extends ComplexConverter {
