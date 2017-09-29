@@ -116,8 +116,6 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
    */
   private JsonObject parse(JsonObject record, JsonSchema schema)
       throws DataConversionException {
-    try {
-
       JsonObject output = new JsonObject();
       for (int i = 0; i < schema.fieldsCount(); i++) {
         JsonSchema schemaElement = schema.getFieldSchemaAt(i);
@@ -148,10 +146,6 @@ public class JsonStringToJsonIntermediateConverter extends Converter<String, Jso
         output.add(columnKey, parsed);
       }
       return output;
-    } catch (Exception e) {
-      e.printStackTrace();
-      throw new DataConversionException("Unable to parse " + record.toString() + " with schema " + schema.toString());
-    }
   }
 
   private JsonElement parseUnionType(JsonSchema schemaElement, JsonElement columnValue)

@@ -75,14 +75,18 @@ public class JsonStringToJsonIntermediateConverterTest {
       JsonObject json = testData.get(0).getAsJsonObject();
       JsonArray schema = testData.get(1).getAsJsonArray();
       JsonObject expected = testData.get(2).getAsJsonObject();
-
-      JsonObject result = parseJsonObject(json, schema);
-
+      JsonObject result = null;
+      try {
+        result = parseJsonObject(json, schema);
+      } catch (Exception e) {
+        e.printStackTrace();
+        assertEquals("Test case failed : " + keyset.getKey(), "No exception", e.getMessage());
+      }
       assertEquals("Test case failed : " + keyset.getKey(), expected, result);
     }
   }
 
-  @Test(expectedExceptions = DataConversionException.class)
+  @Test(expectedExceptions = DataConversionException.class, expectedExceptionsMessageRegExp = "Invalid symbol.*")
   public void jsonWithInvalidEnumEntry()
       throws DataConversionException {
     String jsonStr = "{\"a\":\"somename\", \"b\":\"TROLL\"}";
@@ -90,10 +94,9 @@ public class JsonStringToJsonIntermediateConverterTest {
         "    [{\"columnName\":\"a\", \"dataType\":{\"type\":\"string\"}},{\"columnName\":\"b\", \"dataType\":{\"type\":\"enum\", \"symbols\":[\"HELL\",\"BELLS\"]}}]";
 
     parseJsonObject(buildJsonObject(jsonStr), buildJsonArray(schemaStr));
-
   }
 
-  @Test(expectedExceptions = DataConversionException.class)
+  @Test(expectedExceptions = UnsupportedOperationException.class, expectedExceptionsMessageRegExp = "Array items can only be defined using JsonObject or JsonPrimitive.")
   public void jsonWithArrayOfMapContainingRecordWithWrongSchema()
       throws DataConversionException {
     String jsonStr = "{\"a\":\"somename\", \"b\":[{\"d\":{\"age\":\"10\"}},{\"d\":{\"age\":\"1\"}}]}";
