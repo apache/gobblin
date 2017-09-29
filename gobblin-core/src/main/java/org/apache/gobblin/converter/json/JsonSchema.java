@@ -53,7 +53,7 @@ public class JsonSchema extends Schema {
   public static final String COMMENT_KEY = "comment";
   public static final String DEFAULT_VALUE_KEY = "defaultValue";
   public static final String IS_NULLABLE_KEY = "isNullable";
-  public static final String DEFAULT_RECORD_COLUMN_NAME = "temp";
+  public static final String DEFAULT_RECORD_COLUMN_NAME = "root";
   public static final String DEFAULT_VALUE_FOR_OPTIONAL_PROPERTY = "";
   public static final String ARRAY_ITEMS_KEY = "items";
   public static final String MAP_ITEMS_KEY = "values";
