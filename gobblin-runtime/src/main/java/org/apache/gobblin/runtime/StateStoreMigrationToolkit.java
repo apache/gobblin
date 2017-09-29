@@ -36,7 +36,6 @@ import org.apache.hadoop.util.GenericOptionsParser;
  */
 @Slf4j
 public class StateStoreMigrationToolkit {
-  public static String RESERVE_SOURCE_KEY = "keepOldState";
   private static String SOURCE_KEY = "source";
   private static String DESTINATION_KEY = "destination";
   private static String JOB_NAME_KEY = "jobName";
@@ -50,7 +49,6 @@ public class StateStoreMigrationToolkit {
     Preconditions.checkNotNull(config.getObject(DESTINATION_KEY));
     Preconditions.checkNotNull(config.getString(JOB_NAME_KEY));
 
-    boolean isOldStateStoreKept = !config.hasPath(RESERVE_SOURCE_KEY) || config.getBoolean(RESERVE_SOURCE_KEY);
     DatasetStateStore dstDatasetStateStore =
         DatasetStateStore.buildDatasetStateStore(config.getConfig(DESTINATION_KEY));
     DatasetStateStore srcDatasetStateStore = DatasetStateStore.buildDatasetStateStore(config.getConfig(SOURCE_KEY));
