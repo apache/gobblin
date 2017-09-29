@@ -15,23 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.retention.dataset;
+package org.apache.gobblin.data.management.version;
 
-import java.io.IOException;
-import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 
 
 /**
- * An abstraction for a set of files where a simple {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy}
- * can be applied.
+ * {@link DatasetVersion} that has a {@link DatasetStateStoreEntryManager}
  */
-public interface CleanableDataset extends Dataset {
+public interface DatasetStateStoreVersion extends DatasetVersion {
 
-  /**
-   * Cleans the {@link CleanableDataset}. In general, this means to apply a
-   * {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy} and delete files and directories that need deleting.
-   * @throws IOException
-   */
-  public void clean() throws IOException;
+  DatasetStateStoreEntryManager getEntry();
 
 }

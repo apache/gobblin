@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
@@ -48,7 +49,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * @author adsharma
  */
 @Slf4j
-public class CleanableHivePartitionDataset extends HivePartitionDataset implements CleanableDataset {
+public class CleanableHivePartitionDataset extends HivePartitionDataset implements CleanableDataset, FileSystemDataset {
   private FileSystem fs;
   private State state;
 
