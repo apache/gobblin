@@ -51,7 +51,9 @@ import static parquet.schema.OriginalType.UTF8;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
+import static parquet.schema.Type.Repetition.OPTIONAL;
 import static parquet.schema.Type.Repetition.REPEATED;
+import static parquet.schema.Type.Repetition.REQUIRED;
 
 
 /**
@@ -425,8 +427,15 @@ public class JsonElementConversionFactory {
       ParquetGroup r1 = new ParquetGroup((GroupType) schema());
       JsonObject inputRecord = value.getAsJsonObject();
       for (Map.Entry<String, JsonElement> entry : inputRecord.entrySet()) {
-        JsonElementConverter converter = this.converters.get(entry.getKey());
-        r1.add(entry.getKey(), converter.convert(entry.getValue()));
+        String key = entry.getKey();
+        JsonElementConverter converter = this.converters.get(key);
+        Object convertedValue = converter.convert(entry.getValue());
+        boolean valueIsNull = convertedValue == null;
+        Type.Repetition repetition = converter.jsonSchema.optionalOrRequired();
+        if (valueIsNull && repetition.equals(OPTIONAL)) {
+          continue;
+        }
+        r1.add(key, convertedValue);
       }
       return r1;
     }

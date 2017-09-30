@@ -195,7 +195,7 @@
       }
     ],
     "record": {
-      "cityToCountry":{
+      "cityToCountry": {
         "ny": "US",
         "london": "UK",
         "delhi": "India"
@@ -203,5 +203,21 @@
     },
     "expectedRecord": "cityToCountry; map; key:ny;value:US; map; key:london;value:UK; map; key:delhi;value:India;",
     "expectedSchema": "message test_table {  ;   required groupcityToCountry {  ;  repeated group map {  ;   required binary key (UTF8) ;   ;   required binary value (UTF8) ;   ;  } ;  } ;  } ;"
+  },
+  "nullValueInOptionalField": {
+    "record": {
+      "a": null
+    },
+    "schema": [
+      {
+        "columnName": "a",
+        "isNullable": true,
+        "dataType": {
+          "type": "int"
+        }
+      }
+    ],
+    "expectedRecord": "",
+    "expectedSchema": "message test_table {; optional int32 a ;; };"
   }
 }

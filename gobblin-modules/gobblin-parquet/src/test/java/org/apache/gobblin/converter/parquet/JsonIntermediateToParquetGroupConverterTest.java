@@ -114,6 +114,13 @@ public class JsonIntermediateToParquetGroupConverterTest {
     testCase("map");
   }
 
+  @Test
+  public void testNullValueInOptionalField()
+      throws Exception {
+    testCase("nullValueInOptionalField");
+
+  }
+
   private void assertEqualsIgnoreSpaces(String actual, String expected) {
     assertEquals(actual.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""),
         expected.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""));
