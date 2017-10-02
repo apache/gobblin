@@ -50,11 +50,7 @@ public class ParquetHdfsDataWriter extends FsDataWriter<Group> {
   @Override
   public void write(Group record)
       throws IOException {
-    try {
-      writer.write(record);
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
+    this.writer.write(record);
     this.count.incrementAndGet();
   }
 

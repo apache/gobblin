@@ -51,7 +51,7 @@ public class ParquetHdfsDataWriterTest {
 
   private MessageType schema;
   private String filePath;
-  private DataWriter<Group> writer;
+  private ParquetHdfsDataWriter writer;
   private State properties;
 
   @BeforeMethod
@@ -71,7 +71,7 @@ public class ParquetHdfsDataWriterTest {
     this.schema = TestConstants.PARQUET_SCHEMA;
     this.filePath = getFilePath();
     this.properties = createStateWithConfig();
-    this.writer = getParquetDataWriterBuilder().build();
+    this.writer = (ParquetHdfsDataWriter) getParquetDataWriterBuilder().build();
   }
 
   private String getFilePath() {
