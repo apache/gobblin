@@ -184,6 +184,9 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
     return this.innerMetricContext.getNames();
   }
 
+  /**
+   * Inject the tags of this {@link MetricContext} to the given {@link GobblinTrackingEvent}
+   */
   private void injectTagsToEvent(GobblinTrackingEvent event) {
     Map<String, String> originalMetadata = event.getMetadata();
     Map<String, Object> tags = getTagMap();
@@ -211,6 +214,9 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
     sendNotification(notification);
   }
 
+  /**
+   * Submit a {@link GobblinTrackingEvent} to all notification listeners as a {@link FailureEventNotification}.
+   */
   public void submitFailureEvent(GobblinTrackingEvent nonReusableEvent) {
     nonReusableEvent.setTimestamp(System.currentTimeMillis());
     injectTagsToEvent(nonReusableEvent);
