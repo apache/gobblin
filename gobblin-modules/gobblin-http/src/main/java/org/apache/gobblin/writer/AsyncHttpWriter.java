@@ -18,8 +18,12 @@
 package org.apache.gobblin.writer;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Queue;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +37,8 @@ import org.apache.gobblin.http.HttpClient;
 import org.apache.gobblin.http.ResponseHandler;
 import org.apache.gobblin.http.ResponseStatus;
 
+import com.google.common.collect.Maps;
+
 
 /**
  * This class is an {@link AsyncHttpWriter} that writes data in a batch, which
@@ -45,6 +51,10 @@ import org.apache.gobblin.http.ResponseStatus;
 @Slf4j
 public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   private static final Logger LOG = LoggerFactory.getLogger(AsyncHttpWriter.class);
+  private static final String ASYNC_HTTP_WRITER_NAMESPACE = "asyncHttpWriter";
+  private static final String ASYNC_REQUEST = "asyncRequest";
+  private static final String ROOT_EXCEPTION = "rootException";
+  private static final String FATAL_ASYNC_HTTP_WRITE_EVENT = "FatalAsyncHttpWrite";
 
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
@@ -53,12 +63,15 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   private final AsyncRequestBuilder<D, RQ> requestBuilder;
   private final int maxAttempts;
 
+  private final MetricContext context;
+
   public AsyncHttpWriter(AsyncHttpWriterBuilder builder) {
     super(builder.getQueueCapacity());
     this.httpClient = builder.getClient();
     this.requestBuilder = builder.getAsyncRequestBuilder();
     this.responseHandler = builder.getResponseHandler();
     this.maxAttempts = builder.getMaxAttempts();
+    this.context = MetricContext.builder(getClass().getCanonicalName()).build();
   }
 
   @Override
@@ -82,8 +95,9 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
           LOG.error("Fail to send request");
           LOG.info(asyncRequest.toString());
 
-          onFailure(asyncRequest, e);
-          throw new DispatchException("Write failed on IOException", e);
+          DispatchException de = new DispatchException("Write failed on IOException", e);
+          onFailure(asyncRequest, de);
+          throw de;
         } else {
           continue;
         }
@@ -152,10 +166,28 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
 
   /**
    * Callback on failing to send the asyncRequest
+   *
+   * @deprecated Use {@link #onFailure(AsyncRequest, DispatchException)}
    */
+  @Deprecated
   protected void onFailure(AsyncRequest<D, RQ> asyncRequest, Throwable throwable) {
     for (AsyncRequest.Thunk thunk: asyncRequest.getThunks()) {
       thunk.callback.onFailure(throwable);
+    }
+  }
+
+  protected void onFailure(AsyncRequest<D, RQ> asyncRequest, DispatchException exception) {
+    if (exception.isFatal()) {
+      // Report failure event
+      Map<String, String> metadata = Maps.newHashMap();
+      metadata.put(ROOT_EXCEPTION, ExceptionUtils.getStackTrace(ExceptionUtils.getRootCause(exception)));
+      metadata.put(ASYNC_REQUEST, asyncRequest.toString());
+      GobblinTrackingEvent event =
+          new GobblinTrackingEvent(0l, ASYNC_HTTP_WRITER_NAMESPACE, FATAL_ASYNC_HTTP_WRITE_EVENT, metadata);
+      context.submitFailureEvent(event);
+    }
+    for (AsyncRequest.Thunk thunk : asyncRequest.getThunks()) {
+      thunk.callback.onFailure(exception);
     }
   }
 

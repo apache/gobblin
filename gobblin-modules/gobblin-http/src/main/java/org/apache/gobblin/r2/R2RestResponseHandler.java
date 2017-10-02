@@ -19,12 +19,11 @@ package org.apache.gobblin.r2;
 import com.google.common.collect.Maps;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
-import org.apache.gobblin.configuration.State;
+
 import org.apache.gobblin.http.ResponseHandler;
 import org.apache.gobblin.http.StatusType;
-import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.net.Request;
 import org.apache.gobblin.utils.HttpConstants;
 import org.apache.gobblin.utils.HttpUtils;
@@ -48,19 +47,17 @@ public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestR
 
   public static final String CONTENT_TYPE_HEADER = "Content-Type";
   private final String R2_RESPONSE_EVENT_NAMESPACE = "r2.response";
-  private final String R2_FAILED_REQUEST = "R2FailedRequest";
+  private final String R2_FAILED_REQUEST_EVENT = "R2FailedRequest";
   private final Set<String> errorCodeWhitelist;
-  MetricContext metricsContext;
-  EventSubmitter eventSubmitter;
+  private MetricContext metricsContext;
 
   public R2RestResponseHandler() {
-    this(new HashSet<>(), Instrumented.getMetricContext(new State(), R2RestResponseHandler.class));
+    this(new HashSet<>(), MetricContext.builder(R2RestResponseHandler.class.getCanonicalName()).build());
   }
 
   public R2RestResponseHandler(Set<String> errorCodeWhitelist, MetricContext metricContext) {
     this.errorCodeWhitelist = errorCodeWhitelist;
     this.metricsContext = metricContext;
-    eventSubmitter = new EventSubmitter.Builder(metricsContext, R2_RESPONSE_EVENT_NAMESPACE).build();
   }
 
   @Override
@@ -74,11 +71,18 @@ public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestR
       status.setContent(response.getEntity());
       status.setContentType(response.getHeader(CONTENT_TYPE_HEADER));
     } else {
-      Map<String, String> metadata = Maps.newHashMap();
-      metadata.put(HttpConstants.REQUEST, request.toString());
-      metadata.put(HttpConstants.STATUS_CODE, String.valueOf(statusCode));
-      eventSubmitter.submit(R2_FAILED_REQUEST, metadata);
       log.info("Receive an unsuccessful response with status code: " + statusCode);
+
+      Map<String, String> metadata = Maps.newHashMap();
+      metadata.put(HttpConstants.STATUS_CODE, String.valueOf(statusCode));
+      metadata.put(HttpConstants.REQUEST, request.toString());
+      GobblinTrackingEvent event =
+          new GobblinTrackingEvent(0L, R2_RESPONSE_EVENT_NAMESPACE, R2_FAILED_REQUEST_EVENT, metadata);
+      if (status.getType() != StatusType.CONTINUE) {
+        metricsContext.submitFailureEvent(event);
+      } else {
+        metricsContext.submitEvent(event);
+      }
     }
 
     return status;

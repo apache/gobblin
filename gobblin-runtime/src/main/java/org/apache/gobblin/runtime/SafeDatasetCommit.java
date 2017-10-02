@@ -26,6 +26,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import org.apache.gobblin.commit.CommitSequence;
@@ -38,6 +39,7 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.lineage.LineageException;
 import org.apache.gobblin.lineage.LineageInfo;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
@@ -45,6 +47,7 @@ import org.apache.gobblin.publisher.UnpublishedHandling;
 import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
+import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 
 import lombok.Data;
@@ -62,6 +65,10 @@ import lombok.extern.slf4j.Slf4j;
 final class SafeDatasetCommit implements Callable<Void> {
 
   private static final Object GLOBAL_LOCK = new Object();
+
+  private static final String SAFE_DATASET_COMMIT_NAMESPACE = "safeDatasetCommit";
+  private static final String DATASET_STATE = "datasetState";
+  private static final String FAILED_DATASET_EVENT = "FailedDataset";
 
   private final boolean shouldCommitDataInJob;
   private final boolean isJobCancelled;
@@ -100,6 +107,8 @@ final class SafeDatasetCommit implements Callable<Void> {
       log.error("Failed to instantiate data publisher for dataset %s of job %s.", this.datasetUrn,
           this.jobContext.getJobId(), roe);
       throw new RuntimeException(roe);
+    } finally {
+      submitFailureEvent(datasetState);
     }
 
     if (this.isJobCancelled) {
@@ -163,7 +172,9 @@ final class SafeDatasetCommit implements Callable<Void> {
     } finally {
       try {
         finalizeDatasetState(datasetState, datasetUrn);
+        submitFailureEvent(datasetState);
         submitLineageEvent(datasetState.getTaskStates());
+
         if (commitSequenceBuilder.isPresent()) {
           buildAndExecuteCommitSequence(commitSequenceBuilder.get(), datasetState, datasetUrn);
           datasetState.setState(JobState.RunningState.COMMITTED);
@@ -179,6 +190,17 @@ final class SafeDatasetCommit implements Callable<Void> {
       }
     }
     return null;
+  }
+
+  private void submitFailureEvent(JobState.DatasetState datasetState) {
+    Optional<JobMetrics> context = jobContext.getJobMetricsOptional();
+    if (context.isPresent() && datasetState.getState() == JobState.RunningState.FAILED) {
+      Map<String, String> metadata = Maps.newHashMap();
+      metadata.put(DATASET_STATE, datasetState.toString());
+      GobblinTrackingEvent event =
+          new GobblinTrackingEvent(0L, SAFE_DATASET_COMMIT_NAMESPACE, FAILED_DATASET_EVENT, metadata);
+      context.get().getMetricContext().submitFailureEvent(event);
+    }
   }
 
   private void submitLineageEvent(Collection<TaskState> states) {
