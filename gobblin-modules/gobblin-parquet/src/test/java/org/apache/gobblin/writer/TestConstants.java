@@ -35,9 +35,9 @@ public class TestConstants {
 
   public static final String PARQUET_TEST_FILENAME = "test.parquet";
 
-  public static final String TEST_FS_URI = "file://localhost/";
+  public static final String TEST_FS_URI = "file:///";
 
-  public static final String TEST_ROOT_DIR = "test";
+  public static final String TEST_ROOT_DIR = System.getProperty("java.io.tmpdir");
 
   public static final String TEST_STAGING_DIR = TEST_ROOT_DIR + "/staging";
 
