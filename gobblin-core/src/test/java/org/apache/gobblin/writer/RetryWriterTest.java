@@ -16,17 +16,17 @@
  */
 package org.apache.gobblin.writer;
 
-import static org.mockito.Mockito.*;
-
 import java.io.IOException;
-
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.stream.RecordEnvelope;
-import org.apache.gobblin.writer.exception.NonTransientException;
-import org.apache.gobblin.util.FinalState;
 
 import org.junit.Assert;
 import org.testng.annotations.Test;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.exception.NonTransientException;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.util.FinalState;
+
+import static org.mockito.Mockito.*;
 
 @Test(groups = { "gobblin.writer" })
 public class RetryWriterTest {

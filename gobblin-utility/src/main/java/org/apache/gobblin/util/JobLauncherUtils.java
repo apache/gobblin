@@ -20,8 +20,10 @@ package org.apache.gobblin.util;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -236,6 +238,29 @@ public class JobLauncherUtils {
     }
   }
 
+  public static void cleanUpOldJobData(State state, Logger logger, boolean stagingDirProvided, boolean outputDirProvided) throws IOException {
+    Set<Path> jobPaths = new HashSet<>();
+    String writerFsUri = state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
+    FileSystem fs = FileSystem.get(URI.create(writerFsUri), WriterUtils.getFsConfiguration(state));
+
+    Path jobPath;
+    if (stagingDirProvided) {
+      jobPath = new Path(state.getProp(ConfigurationKeys.WRITER_STAGING_DIR)).getParent();
+    } else {
+      jobPath = new Path(state.getProp(ConfigurationKeys.WRITER_STAGING_DIR)).getParent().getParent();
+    }
+    jobPaths.add(jobPath);
+    if (outputDirProvided) {
+      jobPath = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)).getParent();
+    } else {
+      jobPath = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)).getParent().getParent();
+    }
+    jobPaths.add(jobPath);
+    for (Path jobPathToDelete : jobPaths) {
+      logger.info("Cleaning up old job directory " + jobPathToDelete);
+      HadoopUtils.deletePath(fs, jobPathToDelete, true);
+    }
+  }
   /**
    * @param state
    * @param fsUri

@@ -45,11 +45,18 @@ public class CopyRouteGeneratorBase implements CopyRouteGenerator {
     List<DataFlowTopology.DataFlowPath> paths = topology.getDataFlowPaths();
 
     for (DataFlowTopology.DataFlowPath p : paths) {
+      /**
+       * Routes are list of pairs that generated from config in the format of topology specification.
+       * For example, source:[holdem, war] will end up with
+       * List<(source, holdem), (source, war)>
+       */
       List<CopyRoute> routes = p.getCopyRoutes();
+
       if (routes.isEmpty()) {
         continue;
       }
 
+      // All the routes should has the same copyFrom but different copyTo.
       if (routes.get(0).getCopyFrom().equals(copyFrom)) {
         return Optional.of(routes);
       }

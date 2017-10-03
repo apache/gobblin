@@ -28,10 +28,14 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.token.Token;
+import org.apache.log4j.Logger;
 
+import com.github.rholder.retry.Retryer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,6 +43,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.retry.RetryerFactory;
 
 
 /**
@@ -46,15 +51,25 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  */
 @Slf4j
 public class WriterUtils {
+  private static final Logger LOG = Logger.getLogger(WriterUtils.class);
 
   public static final String WRITER_ENCRYPTED_CONFIG_PATH = ConfigurationKeys.WRITER_PREFIX + ".encrypted";
 
-  /**
-   * TABLENAME should be used for jobs that pull from multiple tables/topics and intend to write the records
-   * in each table/topic to a separate folder. Otherwise, DEFAULT can be used.
-   */
+  public static final Config NO_RETRY_CONFIG = ConfigFactory.empty();
+
   public enum WriterFilePathType {
+    /**
+     * Write records into namespace/table folder. If namespace has multiple components, each component will be
+     * a folder in the path. For example: the write file path for namespace 'org.apache.gobblin' and table 'tableName'
+     * will be 'org/apache/gobblin/tableName'
+     */
+    NAMESPACE_TABLE,
+    /**
+     * TABLENAME should be used for jobs that pull from multiple tables/topics and intend to write the records
+     * in each table/topic to a separate folder.
+     */
     TABLENAME,
+    /** Write records into the output file decided by {@link org.apache.gobblin.source.workunit.Extract}*/
     DEFAULT
   }
 
@@ -148,6 +163,8 @@ public class WriterUtils {
     }
 
     switch (getWriterFilePathType(state)) {
+      case NAMESPACE_TABLE:
+        return getNamespaceTableWriterFilePath(state);
       case TABLENAME:
         return WriterUtils.getTableNameWriterFilePath(state);
       default:
@@ -159,6 +176,20 @@ public class WriterUtils {
     String pathTypeStr =
         state.getProp(ConfigurationKeys.WRITER_FILE_PATH_TYPE, ConfigurationKeys.DEFAULT_WRITER_FILE_PATH_TYPE);
     return WriterFilePathType.valueOf(pathTypeStr.toUpperCase());
+  }
+
+  /**
+   * Creates {@link Path} for case {@link WriterFilePathType#NAMESPACE_TABLE} with configurations
+   * {@link ConfigurationKeys#EXTRACT_NAMESPACE_NAME_KEY} and {@link ConfigurationKeys#EXTRACT_TABLE_NAME_KEY}
+   * @param state
+   * @return a path
+   */
+  public static Path getNamespaceTableWriterFilePath(State state) {
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY));
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY));
+
+    String namespace = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY).replaceAll("\\.", Path.SEPARATOR);
+    return new Path( namespace + Path.SEPARATOR + state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY));
   }
 
   /**
@@ -247,15 +278,38 @@ public class WriterUtils {
    * @param perm The permission to be set
    * @throws IOException if failing to create dir or set permission.
    */
-  public static void mkdirsWithRecursivePermission(FileSystem fs, Path path, FsPermission perm) throws IOException {
+  public static void mkdirsWithRecursivePermission(final FileSystem fs, final Path path, FsPermission perm) throws IOException {
+    mkdirsWithRecursivePermissionWithRetry(fs, path, perm, NO_RETRY_CONFIG);
+  }
+
+  public static void mkdirsWithRecursivePermissionWithRetry(final FileSystem fs, final Path path, FsPermission perm, Config retrierConfig) throws IOException {
+
     if (fs.exists(path)) {
       return;
     }
+
     if (path.getParent() != null && !fs.exists(path.getParent())) {
-      mkdirsWithRecursivePermission(fs, path.getParent(), perm);
+      mkdirsWithRecursivePermissionWithRetry(fs, path.getParent(), perm, retrierConfig);
     }
+
     if (!fs.mkdirs(path, perm)) {
       throw new IOException(String.format("Unable to mkdir %s with permission %s", path, perm));
+    }
+
+    if (retrierConfig != NO_RETRY_CONFIG) {
+      //Wait until file is not there as it can happen the file fail to exist right away on eventual consistent fs like Amazon S3
+      Retryer<Void> retryer = RetryerFactory.newInstance(retrierConfig);
+
+      try {
+        retryer.call(() -> {
+          if (!fs.exists(path)) {
+            throw new IOException("Path " + path + " does not exist however it should. Will wait more.");
+          }
+          return null;
+        });
+      } catch (Exception e) {
+        throw new IOException("Path " + path + "does not exist however it should. Giving up..."+ e);
+      }
     }
 
     // Double check permission, since fs.mkdirs() may not guarantee to set the permission correctly

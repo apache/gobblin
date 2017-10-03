@@ -81,7 +81,7 @@ public class PinotAuditCountVerifierTest {
            GOBBLIN_TIER,  1000L
     ));
 
-    Assert.assertTrue (verifier.verify(dataset));
+    Assert.assertTrue (verifier.verify(dataset).isSuccessful);
 
     // test true because GOBBLIN_TIER / PRODUCER_TIER is above threshold
     client.setCounts(ImmutableMap.of(
@@ -89,7 +89,7 @@ public class PinotAuditCountVerifierTest {
             ORIGIN_TIER,   1100L,
             GOBBLIN_TIER,  1000L
     ));
-    Assert.assertTrue (verifier.verify(dataset));
+    Assert.assertTrue (verifier.verify(dataset).isSuccessful);
 
 
     // test false because GOBBLIN_TIER / (PRODUCER_TIER || ORIGIN_TIER) is below threshold
@@ -98,7 +98,7 @@ public class PinotAuditCountVerifierTest {
             ORIGIN_TIER,   1100L,
             GOBBLIN_TIER,  1000L
     ));
-    Assert.assertFalse (verifier.verify(dataset));
+    Assert.assertFalse (verifier.verify(dataset).isSuccessful);
   }
 
 

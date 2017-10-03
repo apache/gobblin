@@ -41,7 +41,7 @@ public abstract class StateStoreEntryManager<T extends State> {
   /** {@link StateStore} where this entry exists. */
   private final StateStore stateStore;
 
-  private final long getTimestamp() {
+  public final long getTimestamp() {
     if (this.timestamp <= 0) {
       throw new RuntimeException("Timestamp is not reliable.");
     }

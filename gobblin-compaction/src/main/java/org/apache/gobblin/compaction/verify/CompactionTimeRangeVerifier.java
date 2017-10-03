@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.compaction.verify;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
@@ -42,8 +43,9 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
 
   protected State state;
 
-  public boolean verify (FileSystemDataset dataset) {
-
+  public Result verify (FileSystemDataset dataset) {
+    final DateTime earliest;
+    final DateTime latest;
     try {
       CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
       DateTime folderTime = result.getTime();
@@ -55,21 +57,22 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
       // get earliest time
       String maxTimeAgoStr = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
       Period maxTimeAgo = formatter.parsePeriod(maxTimeAgoStr);
-      DateTime earliest = current.minus(maxTimeAgo);
+      earliest = current.minus(maxTimeAgo);
 
       // get latest time
       String minTimeAgoStr = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
       Period minTimeAgo = formatter.parsePeriod(minTimeAgoStr);
-      DateTime latest = current.minus(minTimeAgo);
+      latest = current.minus(minTimeAgo);
 
       if (earliest.isBefore(folderTime) && latest.isAfter(folderTime)) {
-        log.info("{} falls in the user defined time range", dataset.datasetRoot());
-        return true;
+        log.debug("{} falls in the user defined time range", dataset.datasetRoot());
+        return new Result(true, "");
       }
     } catch (Exception e) {
-      log.error("{} cannot be verified because of {}", dataset.datasetRoot(), e.toString());
+      log.error("{} cannot be verified because of {}", dataset.datasetRoot(), ExceptionUtils.getFullStackTrace(e));
+      return new Result(false, e.toString());
     }
-    return false;
+    return new Result(false, dataset.datasetRoot() + " is not in between " + earliest + " and " + latest);
   }
 
   public String getName() {

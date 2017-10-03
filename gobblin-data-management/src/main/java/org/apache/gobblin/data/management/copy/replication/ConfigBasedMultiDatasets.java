@@ -132,14 +132,19 @@ public class ConfigBasedMultiDatasets {
         Optional<List<CopyRoute>> copyRoutes = cpGen.getPushRoutes(rc, pushFrom);
         if(!copyRoutes.isPresent()) {
           log.warn("In Push mode, did not found any copyRoute for dataset with meta data {}", rc.getMetaData());
-          return;
+          continue;
         }
 
+        /**
+         * For-Loop responsibility:
+         * For each of the {@link CopyRoute}, generate a {@link ConfigBasedDataset}.
+         */
         for(CopyRoute cr: copyRoutes.get()){
           if(cr.getCopyTo() instanceof HadoopFsEndPoint){
 
             HadoopFsEndPoint ep = (HadoopFsEndPoint)cr.getCopyTo();
             if(ep.getFsURI().toString().equals(pushModeTargetCluster)){
+
               // For a candidate dataset, iterate thru. all available blacklist patterns.
               ConfigBasedDataset configBasedDataset = new ConfigBasedDataset(rc, this.props, cr);
               if (blacklistFilteringHelper(configBasedDataset, this.blacklist)){
@@ -164,10 +169,18 @@ public class ConfigBasedMultiDatasets {
 
     // PULL mode
     CopyRouteGenerator cpGen = rc.getCopyRouteGenerator();
+    /**
+     * Replicas comes from the 'List' which will normally be set in gobblin.replicas
+     * Basically this is all possible destination for this replication job.
+     */
     List<EndPoint> replicas = rc.getReplicas();
     for(EndPoint replica: replicas){
       // Only pull the data from current execution cluster
       if(needGenerateCopyEntity(replica, executionClusterURI)){
+        /*
+        * CopyRoute represent a coypable Dataset to execute, e.g. if you specify source:[war, holdem],
+        * there could be two {@link #ConfigBasedDataset} generated.
+        */
         Optional<CopyRoute> copyRoute = cpGen.getPullRoute(rc, replica);
         if(copyRoute.isPresent()){
           ConfigBasedDataset configBasedDataset = new ConfigBasedDataset(rc, this.props, copyRoute.get());

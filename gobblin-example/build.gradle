@@ -38,6 +38,7 @@ dependencies {
     compile externalDependency.httpcore
     compile externalDependency.httpclient
     compile externalDependency.commonsCli
+    compile externalDependency.hiveJdbc
 
     testCompile externalDependency.testng
 }

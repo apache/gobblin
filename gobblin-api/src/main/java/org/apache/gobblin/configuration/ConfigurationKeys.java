@@ -147,6 +147,7 @@ public class ConfigurationKeys {
   public static final String TASK_DATA_ROOT_DIR_KEY = "task.data.root.dir";
   public static final String SOURCE_CLASS_KEY = "source.class";
   public static final String CONVERTER_CLASSES_KEY = "converter.classes";
+  public static final String RECORD_STREAM_PROCESSOR_CLASSES_KEY = "recordStreamProcessor.classes";
   public static final String FORK_OPERATOR_CLASS_KEY = "fork.operator.class";
   public static final String DEFAULT_FORK_OPERATOR_CLASS = "org.apache.gobblin.fork.IdentityForkOperator";
   public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
@@ -179,6 +180,8 @@ public class ConfigurationKeys {
   public static final String CLEANUP_STAGING_DATA_PER_TASK = "cleanup.staging.data.per.task";
   public static final boolean DEFAULT_CLEANUP_STAGING_DATA_PER_TASK = true;
   public static final String CLEANUP_STAGING_DATA_BY_INITIALIZER = "cleanup.staging.data.by.initializer";
+  public static final String CLEANUP_OLD_JOBS_DATA = "cleanup.old.job.data";
+  public static final boolean DEFAULT_CLEANUP_OLD_JOBS_DATA = false;
 
   public static final String QUEUED_TASK_TIME_MAX_SIZE = "taskexecutor.queued_task_time.history.max_size";
   public static final int DEFAULT_QUEUED_TASK_TIME_MAX_SIZE = 2048;
@@ -341,6 +344,7 @@ public class ConfigurationKeys {
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
 
+
   // Internal use only - used to send metadata to publisher
   public static final String WRITER_METADATA_KEY = WRITER_PREFIX + "._internal.metadata";
   public static final String WRITER_PARTITION_PATH_KEY = WRITER_PREFIX + "._internal.partition.path";
@@ -353,9 +357,6 @@ public class ConfigurationKeys {
   public static final String WRITER_BYTES_WRITTEN = WRITER_PREFIX + ".bytes.written";
   public static final String WRITER_EARLIEST_TIMESTAMP = WRITER_PREFIX + ".earliest.timestamp";
   public static final String WRITER_AVERAGE_TIMESTAMP = WRITER_PREFIX + ".average.timestamp";
-  // Used internally to enable closing of the writer on flush
-  public static final String WRITER_CLOSE_ON_FLUSH_KEY = WRITER_PREFIX + ".closeOnFlush";
-  public static final boolean DEFAULT_WRITER_CLOSE_ON_FLUSH = false;
 
   /**
    * Configuration properties used by the quality checker.
@@ -481,6 +482,10 @@ public class ConfigurationKeys {
   public static final String SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT =
       "source.querybased.promoteUnsignedIntToBigInt";
   public static final boolean DEFAULT_SOURCE_QUERYBASED_PROMOTE_UNSIGNED_INT_TO_BIGINT = false;
+
+  public static final String SOURCE_QUERYBASED_RESET_EMPTY_PARTITION_WATERMARK =
+      "source.querybased.resetEmptyPartitionWatermark";
+  public static final boolean DEFAULT_SOURCE_QUERYBASED_RESET_EMPTY_PARTITION_WATERMARK = true;
 
   public static final String ENABLE_DELIMITED_IDENTIFIER = "enable.delimited.identifier";
   public static final boolean DEFAULT_ENABLE_DELIMITED_IDENTIFIER = false;
@@ -771,6 +776,14 @@ public class ConfigurationKeys {
    */
   public static final String AZKABAN_EXECUTION_TIME_RANGE = "azkaban.execution.time.range";
   public static final String AZKABAN_EXECUTION_DAYS_LIST = "azkaban.execution.days.list";
+  public static final String AZKABAN_PROJECT_NAME = "azkaban.flow.projectname";
+  public static final String AZKABAN_FLOW_ID = "azkaban.flow.flowid";
+  public static final String AZKABAN_JOB_ID = "azkaban.job.id";
+  public static final String AZKABAN_EXEC_ID = "azkaban.flow.execid";
+  public static final String AZKABAN_URL = "azkaban.link.execution.url";
+  public static final String AZKABAN_FLOW_URL = "azkaban.link.workflow.url";
+  public static final String AZKABAN_JOB_URL = "azkaban.link.job.url";
+  public static final String AZKABAN_JOB_EXEC_URL = "azkaban.link.jobexec.url";
 
   /**
    * Hive registration properties

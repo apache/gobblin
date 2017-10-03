@@ -29,6 +29,9 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.records.FlushControlMessageHandler;
+import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.FlushControlMessage;
+import org.apache.gobblin.stream.MetadataUpdateControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.Decorator;
 import org.apache.gobblin.util.FinalState;
@@ -40,6 +43,13 @@ import org.apache.gobblin.util.FinalState;
  * @param <D>
  */
 public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements Decorator, FinalState, Retriable {
+  // Used internally to enable closing of the writer on flush
+  public static final String WRITER_CLOSE_ON_FLUSH_KEY = ConfigurationKeys.WRITER_PREFIX + ".closeOnFlush";
+  public static final boolean DEFAULT_WRITER_CLOSE_ON_FLUSH = false;
+
+  public static final String WRITER_CLOSE_ON_METADATA_UPDATE = ConfigurationKeys.WRITER_PREFIX + ".closeOnMetadataUpdate";
+  public static final boolean DEFAULT_CLOSE_ON_METADATA_UPDATE = true;
+
   private static final Logger LOG = LoggerFactory.getLogger(CloseOnFlushWriterWrapper.class);
 
   private final State state;
@@ -48,6 +58,8 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
   private boolean closed;
   // is the close functionality enabled?
   private final boolean closeOnFlush;
+  private final ControlMessageHandler controlMessageHandler;
+  private final boolean closeOnMetadataUpdate;
 
   public CloseOnFlushWriterWrapper(Supplier<DataWriter<D>> writerSupplier, State state) {
     Preconditions.checkNotNull(state, "State is required.");
@@ -58,8 +70,12 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
     this.writer = writerSupplier.get();
     this.closed = false;
 
-    this.closeOnFlush = this.state.getPropAsBoolean(ConfigurationKeys.WRITER_CLOSE_ON_FLUSH_KEY,
-        ConfigurationKeys.DEFAULT_WRITER_CLOSE_ON_FLUSH);
+    this.closeOnFlush = this.state.getPropAsBoolean(WRITER_CLOSE_ON_FLUSH_KEY,
+        DEFAULT_WRITER_CLOSE_ON_FLUSH);
+
+    this.controlMessageHandler = new CloseOnFlushWriterMessageHandler();
+    this.closeOnMetadataUpdate = this.state.getPropAsBoolean(WRITER_CLOSE_ON_METADATA_UPDATE,
+        DEFAULT_CLOSE_ON_METADATA_UPDATE);
   }
 
   @Override
@@ -129,13 +145,7 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
 
   @Override
   public ControlMessageHandler getMessageHandler() {
-    // if close on flush is configured then create a handler that will invoke the wrapper's flush to perform close
-    // on flush operations, otherwise return the wrapped writer's handler.
-    if (this.closeOnFlush) {
-      return new FlushControlMessageHandler(this);
-    } else {
-      return this.writer.getMessageHandler();
-    }
+    return this.controlMessageHandler;
   }
 
   /**
@@ -144,12 +154,47 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
    */
   @Override
   public void flush() throws IOException {
+    flush(this.closeOnFlush);
+  }
+
+  private void flush(boolean close) throws IOException {
     this.writer.flush();
 
     // commit data then close the writer
-    if (this.closeOnFlush) {
+    if (close) {
       commit();
       close();
+    }
+  }
+
+  /**
+   * A {@link ControlMessageHandler} that handles closing on flush
+   */
+  private class CloseOnFlushWriterMessageHandler implements ControlMessageHandler {
+    @Override
+    public void handleMessage(ControlMessage message) {
+      ControlMessageHandler underlyingHandler = CloseOnFlushWriterWrapper.this.writer.getMessageHandler();
+
+      // let underlying writer handle the control messages first
+      underlyingHandler.handleMessage(message);
+
+      // Handle close after flush logic. The file is closed if requested by the flush or the configuration.
+      if ((message instanceof FlushControlMessage &&
+          (CloseOnFlushWriterWrapper.this.closeOnFlush ||
+              ((FlushControlMessage) message).getFlushType() == FlushControlMessage.FlushType.FLUSH_AND_CLOSE)) ||
+          (message instanceof MetadataUpdateControlMessage && CloseOnFlushWriterWrapper.this.closeOnMetadataUpdate)) {
+        try {
+          // avoid flushing again
+          if (underlyingHandler instanceof FlushControlMessageHandler) {
+            commit();
+            close();
+          } else {
+            flush(true);
+          }
+        } catch (IOException e) {
+          throw new RuntimeException("Could not flush when handling FlushControlMessage", e);
+        }
+      }
     }
   }
 }

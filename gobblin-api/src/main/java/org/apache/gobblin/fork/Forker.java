@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -59,7 +60,7 @@ public class Forker {
     workUnitState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, branches);
 
     forkOperator.init(workUnitState);
-    List<Boolean> forkedSchemas = forkOperator.forkSchema(workUnitState, inputStream.getSchema());
+    List<Boolean> forkedSchemas = forkOperator.forkSchema(workUnitState, inputStream.getGlobalMetadata().getSchema());
     int activeForks = (int) forkedSchemas.stream().filter(b -> b).count();
 
     Preconditions.checkState(forkedSchemas.size() == branches, String
@@ -90,7 +91,8 @@ public class Forker {
         Flowable<StreamEntity<D>> thisStream =
             forkedStream.filter(new ForkFilter<>(idx)).map(RecordWithForkMap::getRecordCopyIfNecessary);
         forkStreams.add(inputStream.withRecordStream(thisStream,
-            mustCopy ? (S) CopyHelper.copy(inputStream.getSchema()) : inputStream.getSchema()));
+            mustCopy ? (GlobalMetadata<S>) CopyHelper.copy(inputStream.getGlobalMetadata()) :
+                inputStream.getGlobalMetadata()));
       } else {
         forkStreams.add(null);
       }

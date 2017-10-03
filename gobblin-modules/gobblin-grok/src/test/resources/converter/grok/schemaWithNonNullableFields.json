@@ -1,0 +1,66 @@
+[
+  {
+    "columnName": "clientip",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "ident",
+    "comment": "",
+    "isNullable": "false",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "auth",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "timestamp",
+    "comment": "",
+    "isNullable": "false",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "request",
+    "comment": "",
+    "isNullable": "false",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "httpversion",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "double"
+    }
+  },
+  {
+    "columnName": "response",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  },
+  {
+    "columnName": "bytes",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  }
+]

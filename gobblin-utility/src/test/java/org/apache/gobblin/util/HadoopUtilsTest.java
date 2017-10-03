@@ -29,6 +29,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.Trash;
+import org.apache.hadoop.fs.TrashPolicy;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -280,5 +282,24 @@ public class HadoopUtilsTest {
     for (Map.Entry<String, String> entry : encryptedVals.entrySet()) {
       Assert.assertNotNull(configuration.get(entry.getKey())); //Verify key with child path exist as decryption is unit tested in ConfigUtil.
     }
+  }
+
+  @Test
+  public void testMoveToTrash() throws IOException {
+    Path hadoopUtilsTestDir = new Path(Files.createTempDir().getAbsolutePath(), "HadoopUtilsTestDir");
+    Configuration conf = new Configuration();
+    // Set the time to keep it in trash to 10 minutes.
+    // 0 means object will be deleted instantly.
+    conf.set("fs.trash.interval", "10");
+    FileSystem fs = FileSystem.getLocal(conf);
+    Trash trash = new Trash(fs, conf);
+    TrashPolicy trashPolicy = TrashPolicy.getInstance(conf, fs, fs.getHomeDirectory());
+    Path trashPath = trashPolicy.getCurrentTrashDir();
+
+    fs.mkdirs(hadoopUtilsTestDir);
+    Assert.assertTrue(fs.exists(hadoopUtilsTestDir));
+    trash.moveToTrash(hadoopUtilsTestDir.getParent());
+    Assert.assertFalse(fs.exists(hadoopUtilsTestDir));
+    Assert.assertTrue(fs.exists(trashPath));
   }
 }

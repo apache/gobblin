@@ -40,12 +40,12 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import javax.annotation.Nonnull;
-
 import lombok.Getter;
 import lombok.Setter;
 
 import org.apache.gobblin.ack.Ackable;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.exception.NonTransientException;
 import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinMetrics;
@@ -57,8 +57,6 @@ import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.FinalState;
-import org.apache.gobblin.writer.exception.NonTransientException;
-
 
 /**
  * A Data Writer to use as a base for writing async writers.

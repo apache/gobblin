@@ -1,0 +1,50 @@
+{
+  "name": "TestRecord",
+  "type": "record",
+  "namespace": "org.apache.gobblin.test",
+  "fields": [
+    {
+      "name": "fieldToIgnore",
+      "type": "string"
+    },
+    {
+      "name": "nullableField",
+      "type": ["string", "null"]
+    },
+    {
+      "name": "longField",
+      "type": "long"
+    },
+    {
+      "name": "arrayField",
+      "type": {
+        "type": "array",
+        "items": "string"
+      }
+    },
+    {
+      "name": "mapField",
+      "type": {
+        "type": "map",
+        "values": "string"
+      }
+    },
+    {
+      "name": "nestedRecords",
+      "type": {
+        "type": "record",
+        "name": "nested",
+        "fields": [
+          {
+            "name": "nestedField",
+            "type": "string"
+          },
+          {
+            "name": "nestedField2",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ]
+}

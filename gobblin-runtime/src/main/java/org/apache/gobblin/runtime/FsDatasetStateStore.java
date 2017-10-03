@@ -34,6 +34,7 @@ import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
 import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryManager;
 import org.apache.gobblin.util.filters.HiddenFilter;
+import org.apache.gobblin.util.hadoop.GobblinSequenceFileReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -234,8 +235,24 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
 
     Configuration deserializeConfig = new Configuration(this.conf);
     WritableShimSerialization.addToHadoopConfiguration(deserializeConfig);
-    try (@SuppressWarnings("deprecation") SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath,
+    try (@SuppressWarnings("deprecation") GobblinSequenceFileReader reader = new GobblinSequenceFileReader(this.fs, tablePath,
         deserializeConfig)) {
+
+      /**
+       * Add this change so that all stateful flow will have back compatibility.
+       * Shim layer of state store is therefore avoided because of this change.
+       * Keep the implementation of Shim layer temporarily.
+       */
+     String className = reader.getValueClassName();
+     if (className.startsWith("gobblin")) {
+       LOGGER.warn("There's old JobState with no apache package name being read while we cast them at runtime");
+       className = "org.apache." + className;
+     }
+
+      if (!className.equals(JobState.class.getName()) && !className.equals(JobState.DatasetState.class.getName())) {
+        throw new RuntimeException("There is a mismatch in the Class Type of state in state-store and that in runtime");
+      }
+
       // This is necessary for backward compatibility as existing jobs are using the JobState class
       Object writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
 
@@ -255,7 +272,6 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
         throw new IOException(e);
       }
     }
-
     return states;
   }
 
@@ -320,7 +336,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
               ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOGGER), Optional.of("GetFsDatasetStateStore-")))
               .executeAndGetResults();
       int maxNumberOfErrorLogs = 10;
-      IteratorExecutor.logFailures(results, LOGGER, maxNumberOfErrorLogs);
+      IteratorExecutor.logAndThrowFailures(results, LOGGER, maxNumberOfErrorLogs);
     } catch (InterruptedException e) {
       throw new IOException("Failed to get latest dataset states.", e);
     }

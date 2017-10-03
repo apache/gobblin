@@ -75,7 +75,7 @@ public class DatePartitionedHiveVersionFinderTest {
     DatePartitionHiveVersionFinder versionFinder = new DatePartitionHiveVersionFinder(this.fs, ConfigFactory.empty());
     String tableName = "VfTb1";
 
-    Table tbl = this.hiveMetastoreTestUtils.createTestTable(dbName, tableName, ImmutableList.of("datepartition"));
+    Table tbl = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, ImmutableList.of("datepartition"));
     org.apache.hadoop.hive.metastore.api.Partition tp =
         this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of("2016-01-01-20"), (int) System.currentTimeMillis());
     Partition partition = new Partition(new org.apache.hadoop.hive.ql.metadata.Table(tbl), tp);
@@ -95,7 +95,7 @@ public class DatePartitionedHiveVersionFinderTest {
 
     DatePartitionHiveVersionFinder versionFinder = new DatePartitionHiveVersionFinder(this.fs, conf);
 
-    Table tbl = this.hiveMetastoreTestUtils.createTestTable(dbName, tableName, ImmutableList.of("field1"));
+    Table tbl = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, ImmutableList.of("field1"));
     org.apache.hadoop.hive.metastore.api.Partition tp =
         this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of("2016/01/01/20"), (int) System.currentTimeMillis());
     Partition partition = new Partition(new org.apache.hadoop.hive.ql.metadata.Table(tbl), tp);
@@ -109,7 +109,7 @@ public class DatePartitionedHiveVersionFinderTest {
     DatePartitionHiveVersionFinder versionFinder = new DatePartitionHiveVersionFinder(this.fs, ConfigFactory.empty());
     String tableName = "VfTb3";
 
-    Table tbl = this.hiveMetastoreTestUtils.createTestTable(dbName, tableName, ImmutableList.of("datepartition", "field1"));
+    Table tbl = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, ImmutableList.of("datepartition", "field1"));
     org.apache.hadoop.hive.metastore.api.Partition tp =
         this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of("2016-01-01-20", "f1"), (int) System.currentTimeMillis());
     Partition partition = new Partition(new org.apache.hadoop.hive.ql.metadata.Table(tbl), tp);
