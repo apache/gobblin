@@ -45,7 +45,7 @@ public class JsonIntermediateToParquetGroupConverter extends Converter<JsonArray
     String fieldName = workUnit.getExtract().getTable();
     JsonSchema jsonSchema = new JsonSchema(inputSchema);
     jsonSchema.setColumnName(fieldName);
-    recordConverter = new RecordConverter(jsonSchema, workUnit, ROOT);
+    recordConverter = new RecordConverter(jsonSchema, ROOT);
     return (MessageType) recordConverter.schema();
   }
 
