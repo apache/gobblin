@@ -733,7 +733,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       // wait for completion, failure, or formation of PK chunking batches
       while ((bulkBatchInfo.getState() != BatchStateEnum.Completed)
           && (bulkBatchInfo.getState() != BatchStateEnum.Failed)
-          && (usingPkChunking && bulkBatchInfo.getState() != BatchStateEnum.NotProcessed)) {
+          && (!usingPkChunking || bulkBatchInfo.getState() != BatchStateEnum.NotProcessed)) {
         Thread.sleep(retryInterval * 1000);
         bulkBatchInfo = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), bulkBatchInfo.getId());
         log.debug("Bulk Api Batch Info:" + bulkBatchInfo);
