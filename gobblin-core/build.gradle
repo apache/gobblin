@@ -19,9 +19,10 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
-  compile project(":gobblin-core-base")
   compile project(":gobblin-tunnel")
   compile project(":gobblin-utility")
+  compile project(":gobblin-metastore")
+  compile project(":gobblin-core-base")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-modules:gobblin-avro-json")
   compile project(":gobblin-modules:gobblin-metadata")
