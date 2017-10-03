@@ -34,7 +34,9 @@ import parquet.hadoop.example.GroupWriteSupport;
 import parquet.hadoop.metadata.CompressionCodecName;
 import parquet.schema.MessageType;
 
+import static org.apache.gobblin.configuration.ConfigurationKeys.LOCAL_FS_URI;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_CODEC_TYPE;
+import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_FILE_SYSTEM_URI;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
 import static org.apache.gobblin.writer.ParquetHdfsDataWriter.DEFAULT_PARQUET_WRITER;
 import static parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
@@ -74,12 +76,14 @@ public class ParquetDataWriterBuilder extends FsDataWriterBuilder<MessageType, G
     boolean enableDictionary =
         state.getPropAsBoolean(getProperty(WRITER_PARQUET_DICTIONARY), DEFAULT_IS_DICTIONARY_ENABLED);
     boolean validate = state.getPropAsBoolean(getProperty(WRITER_PARQUET_VALIDATE), DEFAULT_IS_VALIDATING_ENABLED);
+    String rootURI = state.getProp(WRITER_FILE_SYSTEM_URI, LOCAL_FS_URI);
+    Path absoluteStagingFile = new Path(rootURI, stagingFile);
     CompressionCodecName codec = getCodecFromConfig();
     GroupWriteSupport support = new GroupWriteSupport();
     Configuration conf = new Configuration();
     GroupWriteSupport.setSchema(this.schema, conf);
     ParquetProperties.WriterVersion writerVersion = getWriterVersion();
-    return new ParquetWriter<>(stagingFile, support, codec, (int) blockSize, (int) pageSize, (int) dictPageSize,
+    return new ParquetWriter<>(absoluteStagingFile, support, codec, (int) blockSize, (int) pageSize, (int) dictPageSize,
         enableDictionary, validate, writerVersion, conf);
   }
 
