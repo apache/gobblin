@@ -107,7 +107,7 @@ public class StateStoreMigrationCli implements CliApplication {
       this.path = new Path(path);
     }
 
-    public void deletedSourceStateStore() {
+    public void deleteSourceStateStore() {
       this.deleteSourceStateStore = true;
     }
   }
