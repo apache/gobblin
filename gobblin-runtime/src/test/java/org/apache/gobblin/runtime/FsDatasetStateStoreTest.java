@@ -230,19 +230,19 @@ public class FsDatasetStateStoreTest {
     store.persistDatasetState("dataset1", new JobState.DatasetState("job2", "job2_id1"));
     store.persistDatasetState("", new JobState.DatasetState("job3", "job3_id1"));
 
-    List<FsDatasetStateStoreEntryManager> metadataList = store.getEntryManagersForTables(new StateStorePredicate(x -> true));
+    List<FsDatasetStateStoreEntryManager> metadataList = store.getMetadataForTables(new StateStorePredicate(x -> true));
 
     // 5 explicitly stored states, plus 4 current links, one per job-dataset
     Assert.assertEquals(metadataList.size(), 9);
 
-    metadataList = store.getEntryManagersForTables(new StoreNamePredicate("job1", x-> true));
+    metadataList = store.getMetadataForTables(new StoreNamePredicate("job1", x-> true));
     // 3 explicitly stored states, plus 2 current links, one per dataset
     Assert.assertEquals(metadataList.size(), 5);
 
-    metadataList = store.getEntryManagersForTables(new DatasetPredicate("job1", "dataset1", x -> true));
+    metadataList = store.getMetadataForTables(new DatasetPredicate("job1", "dataset1", x -> true));
     Assert.assertEquals(metadataList.size(), 3);
 
-    metadataList = store.getEntryManagersForTables(new DatasetPredicate("job1", "dataset2", meta ->
+    metadataList = store.getMetadataForTables(new DatasetPredicate("job1", "dataset2", meta ->
       ((DatasetStateStoreEntryManager) meta).getStateId().equals(DatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX)
     ));
     Assert.assertEquals(metadataList.size(), 1);
@@ -257,7 +257,7 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(readTaskState.getProp("key"), "value");
     metadata.delete();
     // verify it got deleted
-    metadataList = store.getEntryManagersForTables(new DatasetPredicate("job1", "dataset2", meta ->
+    metadataList = store.getMetadataForTables(new DatasetPredicate("job1", "dataset2", meta ->
         ((DatasetStateStoreEntryManager) meta).getStateId().equals(DatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX)
     ));
     Assert.assertTrue(metadataList.isEmpty());

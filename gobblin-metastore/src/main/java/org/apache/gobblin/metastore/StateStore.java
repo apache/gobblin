@@ -208,7 +208,7 @@ public interface StateStore<T extends State> {
    * @return A list of all {@link StateStoreEntryManager}s matching the predicate.
    * @throws IOException
    */
-  default List<? extends StateStoreEntryManager> getEntryManagersForTables(StateStorePredicate predicate)
+  default List<? extends StateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
       throws IOException {
     throw new UnsupportedOperationException("Operation unsupported for predicate with class " + predicate.getClass());
   }

@@ -83,7 +83,7 @@ public class DatasetStoreDatasetFinder implements DatasetsFinder<DatasetStoreDat
 
   @Override
   public List<DatasetStoreDataset> findDatasets() throws IOException {
-    List<DatasetStateStoreEntryManager> entries = this.store.getEntryManagersForTables(this.predicate);
+    List<DatasetStateStoreEntryManager> entries = this.store.getMetadataForTables(this.predicate);
 
     Map<DatasetStoreDataset.Key, List<DatasetStateStoreEntryManager>> entriesGroupedByDataset =
         entries.stream().collect(Collectors.groupingBy(DatasetStoreDataset.Key::new));

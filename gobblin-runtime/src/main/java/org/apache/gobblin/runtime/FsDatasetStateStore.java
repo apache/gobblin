@@ -421,7 +421,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
   }
 
   @Override
-  public List<FsDatasetStateStoreEntryManager> getEntryManagersForTables(StateStorePredicate predicate)
+  public List<FsDatasetStateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
       throws IOException {
 
     Stream<Path> stores = predicate instanceof StoreNamePredicate ?
