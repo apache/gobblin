@@ -91,15 +91,13 @@ public class RecoveryHelper {
     }
 
     String guid = computeGuid(state, file);
-    StringBuilder nameBuilder = new StringBuilder(guid);
-    nameBuilder.append("_");
-    nameBuilder.append(shortenPathName(file.getOrigin().getPath(), 250 - nameBuilder.length()));
 
     if (!this.fs.exists(this.persistDir.get())) {
       this.fs.mkdirs(this.persistDir.get(), new FsPermission(FsAction.ALL, FsAction.READ, FsAction.NONE));
     }
 
-    Path targetPath = new Path(this.persistDir.get(), nameBuilder.toString());
+    Path targetPath = new Path(new Path(this.persistDir.get(), guid),
+        shortenPathName(file.getOrigin().getPath(), 250 - guid.length()));
     log.info(String.format("Persisting file %s with guid %s to location %s.", path, guid, targetPath));
     if (this.fs.rename(path, targetPath)) {
       this.fs.setTimes(targetPath, System.currentTimeMillis(), -1);
@@ -122,8 +120,8 @@ public class RecoveryHelper {
       return Optional.absent();
     }
 
-    Path glob = new Path(this.persistDir.get(), computeGuid(state, file) + "_*");
-    for (FileStatus fileStatus : this.fs.globStatus(glob)) {
+    Path guidPath = new Path(this.persistDir.get(), computeGuid(state, file));
+    for (FileStatus fileStatus : this.fs.listStatus(guidPath)) {
       if (filter.apply(fileStatus)) {
         return Optional.of(fileStatus);
       }
