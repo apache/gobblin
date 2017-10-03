@@ -357,9 +357,9 @@ public class TaskState extends WorkUnitState {
   public void toJson(JsonWriter jsonWriter, boolean keepConfig) throws IOException {
     jsonWriter.beginObject();
 
-    jsonWriter.name("taskId").value(this.getTaskId()).name("workingState").value(this.getWorkingState().name())
-        .name("startTime").value(this.getStartTime()).name("endTime").value(this.getEndTime()).name("duration")
-        .value(this.getTaskDuration()).name("retryCount")
+    jsonWriter.name("task id").value(this.getTaskId()).name("task state").value(this.getWorkingState().name())
+        .name("start time").value(this.getStartTime()).name("end time").value(this.getEndTime()).name("duration")
+        .value(this.getTaskDuration()).name("retry count")
         .value(this.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY, 0));
 
     // Also add failure exception information if it exists. This information is useful even in the
