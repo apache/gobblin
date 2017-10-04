@@ -46,8 +46,8 @@ import static parquet.hadoop.ParquetWriter.DEFAULT_PAGE_SIZE;
 
 
 public class ParquetDataWriterBuilder extends FsDataWriterBuilder<MessageType, Group> {
-  public static final String WRITER_PARQUET_PAGE_SIZE = WRITER_PREFIX + ".parquet.page.size";
-  public static final String WRITER_PARQUET_DICTIONARY_PAGE_SIZE = WRITER_PREFIX + ".parquet.dictionary.page.size";
+  public static final String WRITER_PARQUET_PAGE_SIZE = WRITER_PREFIX + ".parquet.pageSize";
+  public static final String WRITER_PARQUET_DICTIONARY_PAGE_SIZE = WRITER_PREFIX + ".parquet.dictionaryPageSize";
   public static final String WRITER_PARQUET_DICTIONARY = WRITER_PREFIX + ".parquet.dictionary";
   public static final String WRITER_PARQUET_VALIDATE = WRITER_PREFIX + ".parquet.validate";
   public static final String WRITER_PARQUET_VERSION = WRITER_PREFIX + ".parquet.version";
