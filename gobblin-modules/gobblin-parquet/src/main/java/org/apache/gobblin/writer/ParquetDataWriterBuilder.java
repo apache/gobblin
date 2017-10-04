@@ -68,11 +68,18 @@ public class ParquetDataWriterBuilder extends FsDataWriterBuilder<MessageType, G
     }
   }
 
-  public ParquetWriter<Group> getWriter(long blockSize, Path stagingFile)
+  /**
+   * Build a {@link ParquetWriter<Group>} for given file path with a block size.
+   * @param blockSize
+   * @param stagingFile
+   * @return
+   * @throws IOException
+   */
+  public ParquetWriter<Group> getWriter(int blockSize, Path stagingFile)
       throws IOException {
     State state = this.destination.getProperties();
-    long pageSize = state.getPropAsLong(getProperty(WRITER_PARQUET_PAGE_SIZE), DEFAULT_PAGE_SIZE);
-    long dictPageSize = state.getPropAsLong(getProperty(WRITER_PARQUET_DICTIONARY_PAGE_SIZE), DEFAULT_BLOCK_SIZE);
+    int pageSize = state.getPropAsInt(getProperty(WRITER_PARQUET_PAGE_SIZE), DEFAULT_PAGE_SIZE);
+    int dictPageSize = state.getPropAsInt(getProperty(WRITER_PARQUET_DICTIONARY_PAGE_SIZE), DEFAULT_BLOCK_SIZE);
     boolean enableDictionary =
         state.getPropAsBoolean(getProperty(WRITER_PARQUET_DICTIONARY), DEFAULT_IS_DICTIONARY_ENABLED);
     boolean validate = state.getPropAsBoolean(getProperty(WRITER_PARQUET_VALIDATE), DEFAULT_IS_VALIDATING_ENABLED);
@@ -83,8 +90,8 @@ public class ParquetDataWriterBuilder extends FsDataWriterBuilder<MessageType, G
     Configuration conf = new Configuration();
     GroupWriteSupport.setSchema(this.schema, conf);
     ParquetProperties.WriterVersion writerVersion = getWriterVersion();
-    return new ParquetWriter<>(absoluteStagingFile, support, codec, (int) blockSize, (int) pageSize, (int) dictPageSize,
-        enableDictionary, validate, writerVersion, conf);
+    return new ParquetWriter<>(absoluteStagingFile, support, codec, blockSize, pageSize, dictPageSize, enableDictionary,
+        validate, writerVersion, conf);
   }
 
   private ParquetProperties.WriterVersion getWriterVersion() {

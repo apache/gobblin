@@ -44,7 +44,7 @@ public class ParquetHdfsDataWriter extends FsDataWriter<Group> {
   public ParquetHdfsDataWriter(ParquetDataWriterBuilder builder, State state)
       throws IOException {
     super(builder, state);
-    this.writer = builder.getWriter(this.blockSize, this.stagingFile);
+    this.writer = builder.getWriter((int) this.blockSize, this.stagingFile);
   }
 
   @Override
