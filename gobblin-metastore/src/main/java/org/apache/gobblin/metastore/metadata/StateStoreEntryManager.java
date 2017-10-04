@@ -28,6 +28,7 @@ import lombok.Data;
 
 /**
  * Contains metadata about an entry in a {@link StateStore}.
+ * Exposes access to the {@link StateStore} that contains the entry.
  * @param <T> type of {@link State} that can be read from this entry.
  */
 @Data
