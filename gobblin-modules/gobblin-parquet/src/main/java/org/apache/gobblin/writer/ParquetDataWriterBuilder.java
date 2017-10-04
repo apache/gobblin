@@ -38,7 +38,6 @@ import static org.apache.gobblin.configuration.ConfigurationKeys.LOCAL_FS_URI;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_CODEC_TYPE;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_FILE_SYSTEM_URI;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
-import static org.apache.gobblin.writer.ParquetHdfsDataWriter.DEFAULT_PARQUET_WRITER;
 import static parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
 import static parquet.hadoop.ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED;
 import static parquet.hadoop.ParquetWriter.DEFAULT_IS_VALIDATING_ENABLED;
@@ -51,6 +50,7 @@ public class ParquetDataWriterBuilder extends FsDataWriterBuilder<MessageType, G
   public static final String WRITER_PARQUET_DICTIONARY = WRITER_PREFIX + ".parquet.dictionary";
   public static final String WRITER_PARQUET_VALIDATE = WRITER_PREFIX + ".parquet.validate";
   public static final String WRITER_PARQUET_VERSION = WRITER_PREFIX + ".parquet.version";
+  public static final String DEFAULT_PARQUET_WRITER = "v1";
 
   @Override
   public DataWriter<Group> build()

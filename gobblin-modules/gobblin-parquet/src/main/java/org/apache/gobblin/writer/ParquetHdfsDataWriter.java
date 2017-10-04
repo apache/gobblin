@@ -39,7 +39,6 @@ import parquet.hadoop.ParquetWriter;
 public class ParquetHdfsDataWriter extends FsDataWriter<Group> {
   private final ParquetWriter<Group> writer;
   protected final AtomicLong count = new AtomicLong(0);
-  public static final String DEFAULT_PARQUET_WRITER = "v1";
 
   public ParquetHdfsDataWriter(ParquetDataWriterBuilder builder, State state)
       throws IOException {
