@@ -61,7 +61,10 @@ public class ParquetHdfsDataWriter extends FsDataWriter<Group> {
   @Override
   public void close()
       throws IOException {
-    this.writer.close();
-    super.close();
+    try {
+      this.writer.close();
+    } finally {
+      super.close();
+    }
   }
 }
