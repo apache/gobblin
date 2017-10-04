@@ -137,11 +137,11 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
   }
   
   private void provisionTopic(String topicName,Config config) {
-		String zooKeeperPropKey = KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER;
-		if(!config.hasPath(zooKeeperPropKey)){
-		    log.debug("Topic "+topicName+" is configured without the partition and replication");
-			return;
-		}
+	    String zooKeeperPropKey = KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER;
+	    if(!config.hasPath(zooKeeperPropKey)){
+	    	log.debug("Topic "+topicName+" is configured without the partition and replication");
+	    	return;
+	    }
 	    String zookeeperConnect = config.getString(zooKeeperPropKey);
 	    int sessionTimeoutMs = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.ZOOKEEPER_SESSION_TIMEOUT, KafkaWriterConfigurationKeys.ZOOKEEPER_SESSION_TIMEOUT_DEFAULT);
 	    int connectionTimeoutMs = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.ZOOKEEPER_CONNECTION_TIMEOUT, KafkaWriterConfigurationKeys.ZOOKEEPER_CONNECTION_TIMEOUT_DEFAULT);
