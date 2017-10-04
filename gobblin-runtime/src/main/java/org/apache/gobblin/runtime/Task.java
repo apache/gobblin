@@ -29,9 +29,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.util.EventUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -119,7 +119,6 @@ public class Task implements TaskIFace {
   private static final String TASK_NAMESPACE = Task.class.getCanonicalName();
   private static final String TASK_STATE = "taskState";
   private static final String FAILED_TASK_EVENT = "FailedTask";
-  private static final String ROOT_EXCEPTION = "rootException";
 
   private final String jobId;
   private final String taskId;
@@ -521,7 +520,7 @@ public class Task implements TaskIFace {
 
     // Send task failure event
     Map<String, String> metadata = Maps.newHashMap();
-    metadata.put(ROOT_EXCEPTION, ExceptionUtils.getFullStackTrace(ExceptionUtils.getRootCause(t)));
+    metadata.put(EventUtils.ROOT_CAUSE, EventUtils.getRootCause(t));
     metadata.put(TASK_STATE, this.taskState.toString());
     GobblinTrackingEvent event =
         new GobblinTrackingEvent(0L, TASK_NAMESPACE, FAILED_TASK_EVENT, metadata);

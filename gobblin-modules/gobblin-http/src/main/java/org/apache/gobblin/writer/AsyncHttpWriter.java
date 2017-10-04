@@ -21,9 +21,9 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Queue;
 
-import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.util.EventUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,6 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   private static final Logger LOG = LoggerFactory.getLogger(AsyncHttpWriter.class);
   private static final String ASYNC_HTTP_WRITER_NAMESPACE = "asyncHttpWriter";
   private static final String ASYNC_REQUEST = "asyncRequest";
-  private static final String ROOT_EXCEPTION = "rootException";
   private static final String FATAL_ASYNC_HTTP_WRITE_EVENT = "FatalAsyncHttpWrite";
 
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
@@ -180,7 +179,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
     if (exception.isFatal()) {
       // Report failure event
       Map<String, String> metadata = Maps.newHashMap();
-      metadata.put(ROOT_EXCEPTION, ExceptionUtils.getStackTrace(ExceptionUtils.getRootCause(exception)));
+      metadata.put(EventUtils.ROOT_CAUSE, EventUtils.getRootCause(exception));
       metadata.put(ASYNC_REQUEST, asyncRequest.toString());
       GobblinTrackingEvent event =
           new GobblinTrackingEvent(0l, ASYNC_HTTP_WRITER_NAMESPACE, FATAL_ASYNC_HTTP_WRITE_EVENT, metadata);
