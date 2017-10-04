@@ -245,6 +245,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
         throw new RuntimeException(e);
       }
     }
+    this.topologyCatalog.getInitFromFactory().set(true);
   }
 
   public boolean isLeader() {
@@ -479,6 +480,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
       public HelixTaskResult handleMessage() throws InterruptedException {
         if (jobScheduler.isActive()) {
           String flowSpecUri = _message.getAttribute(Message.Attributes.INNER_MESSAGE);
+          LOGGER.info ("ControllerUserDefinedMessage received : {}, type {}", flowSpecUri, _message.getMsgSubType());
           try {
             if (_message.getMsgSubType().equals(ServiceConfigKeys.HELIX_FLOWSPEC_ADD)) {
               Spec spec = flowCatalog.getSpec(new URI(flowSpecUri));
@@ -493,6 +495,9 @@ public class GobblinServiceManager implements ApplicationLauncher {
           } catch (SpecNotFoundException | URISyntaxException e) {
             LOGGER.error("Cannot process Helix message for flowSpecUri: " + flowSpecUri, e);
           }
+        } else {
+          String flowSpecUri = _message.getAttribute(Message.Attributes.INNER_MESSAGE);
+          LOGGER.info ("ControllerUserDefinedMessage received but ignored due to not in active mode: {}, type {}", flowSpecUri, _message.getMsgSubType());
         }
         HelixTaskResult helixTaskResult = new HelixTaskResult();
         helixTaskResult.setSuccess(true);

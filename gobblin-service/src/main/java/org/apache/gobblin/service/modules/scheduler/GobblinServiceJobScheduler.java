@@ -103,6 +103,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       return;
     }
 
+    // Need to set active first; otherwise in the STANDBY->ACTIVE transition,
+    // the onAddSpec will forward specs to the leader, which is itself.
+    this.isActive = isActive;
+
     // Since we are going to change status to isActive=true, schedule all flows
     if (isActive) {
       if (this.flowCatalog.isPresent()) {
@@ -118,10 +122,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         onDeleteSpec(spec.getUri(), spec.getVersion());
       }
     }
-
-    // Change status after invoking addition / removal of specs, or else they will use isActive
-    // .. to exhibit behavior for updated iActive value
-    this.isActive = isActive;
   }
 
   @Override
@@ -162,7 +162,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       return;
     }
 
-    _log.info("New Spec detected: " + addedSpec);
+    _log.info("New Flow Spec detected: " + addedSpec);
 
     if (addedSpec instanceof FlowSpec) {
       if (!isActive && helixManager.isPresent()) {
