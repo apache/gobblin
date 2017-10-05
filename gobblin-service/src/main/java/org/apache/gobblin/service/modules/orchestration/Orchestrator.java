@@ -138,8 +138,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   /** {@inheritDoc} */
   @Override
   public void onAddSpec(Spec addedSpec) {
-    _log.info("New Topology Spec detected: " + addedSpec);
-
     if (addedSpec instanceof TopologySpec) {
       _log.info("New Spec detected of type TopologySpec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
@@ -179,6 +177,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   public void orchestrate(Spec spec) throws Exception {
     // Add below waiting because TopologyCatalog and FlowCatalog service can be launched at the same time
+    // TODO: Remove this wait when sequencing of service startup is introduced.
     while (true) {
       if (this.topologyCatalog.get().getInitFromFactory().get() &&
           this.topologyCatalog.get().getInitFromSpecStore().get()) {

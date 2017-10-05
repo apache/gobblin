@@ -103,12 +103,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       return;
     }
 
-    // Need to set active first; otherwise in the STANDBY->ACTIVE transition,
-    // the onAddSpec will forward specs to the leader, which is itself.
-    this.isActive = isActive;
-
     // Since we are going to change status to isActive=true, schedule all flows
     if (isActive) {
+      // Need to set active first; otherwise in the STANDBY->ACTIVE transition,
+      // the onAddSpec will forward specs to the leader, which is itself.
+      this.isActive = isActive;
       if (this.flowCatalog.isPresent()) {
         Collection<Spec> specs = this.flowCatalog.get().getSpecs();
         for (Spec spec : specs) {
@@ -121,6 +120,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       for (Spec spec : this.scheduledFlowSpecs.values()) {
         onDeleteSpec(spec.getUri(), spec.getVersion());
       }
+      // Need to set active at the end; otherwise in the ACTIVE->STANDBY transition,
+      // the onAddSpec will forward specs to the leader, which is itself.
+      this.isActive = isActive;
     }
   }
 
