@@ -121,7 +121,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         onDeleteSpec(spec.getUri(), spec.getVersion());
       }
       // Need to set active at the end; otherwise in the ACTIVE->STANDBY transition,
-      // the onAddSpec will forward specs to the leader, which is itself.
+      // the onDeleteSpec will forward specs to the leader, which is itself.
       this.isActive = isActive;
     }
   }
