@@ -177,15 +177,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   public void orchestrate(Spec spec) throws Exception {
     // Add below waiting because TopologyCatalog and FlowCatalog service can be launched at the same time
-    // TODO: Remove this wait when sequencing of service startup is introduced.
-    while (true) {
-      if (this.topologyCatalog.get().getInitFromFactory().get() &&
-          this.topologyCatalog.get().getInitFromSpecStore().get()) {
-        break;
-      }
-      _log.info ("Wait for all topologies to be initialized");
-      Thread.sleep(3000);
-    }
+    this.topologyCatalog.get().getInitComplete().await();
 
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {

@@ -23,7 +23,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CountDownLatch;
 
 import javax.annotation.Nonnull;
 import lombok.Getter;
@@ -68,9 +68,7 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
   protected final TopologyCatalog.StandardMetrics metrics;
   protected final SpecStore specStore;
   @Getter
-  protected AtomicBoolean initFromSpecStore = new AtomicBoolean(false);
-  @Getter
-  protected AtomicBoolean initFromFactory = new AtomicBoolean(false);
+  protected CountDownLatch initComplete = new CountDownLatch(1);
 
   private final ClassAliasResolver<SpecStore> aliasResolver;
 
@@ -129,7 +127,6 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
   @Override
   protected void startUp() throws Exception {
     notifyAllListeners();
-    initFromSpecStore.set(true);
   }
 
   @Override

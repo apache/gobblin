@@ -131,8 +131,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     super.startUp();
   }
 
+  /**
+   * Synchronize the job scheduling because the same flowSpec can be scheduled by different threads.
+   */
   @Override
-  public void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
+  public synchronized void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
     Map<String, Object> additionalJobDataMap = Maps.newHashMap();
     additionalJobDataMap.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC,
         this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)));
