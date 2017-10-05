@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.copy.recovery;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
@@ -91,13 +92,13 @@ public class RecoveryHelper {
     }
 
     String guid = computeGuid(state, file);
+    Path guidPath = new Path(this.persistDir.get(), guid);
 
-    if (!this.fs.exists(this.persistDir.get())) {
-      this.fs.mkdirs(this.persistDir.get(), new FsPermission(FsAction.ALL, FsAction.READ, FsAction.NONE));
+    if (!this.fs.exists(guidPath)) {
+      this.fs.mkdirs(guidPath, new FsPermission(FsAction.ALL, FsAction.READ, FsAction.NONE));
     }
 
-    Path targetPath = new Path(new Path(this.persistDir.get(), guid),
-        shortenPathName(file.getOrigin().getPath(), 250 - guid.length()));
+    Path targetPath = new Path(guidPath, shortenPathName(file.getOrigin().getPath(), 250 - guid.length()));
     log.info(String.format("Persisting file %s with guid %s to location %s.", path, guid, targetPath));
     if (this.fs.rename(path, targetPath)) {
       this.fs.setTimes(targetPath, System.currentTimeMillis(), -1);
@@ -121,7 +122,14 @@ public class RecoveryHelper {
     }
 
     Path guidPath = new Path(this.persistDir.get(), computeGuid(state, file));
-    for (FileStatus fileStatus : this.fs.listStatus(guidPath)) {
+    FileStatus[] statuses;
+    try {
+      statuses = this.fs.listStatus(guidPath);
+    } catch (FileNotFoundException e) {
+      return Optional.absent();
+    }
+
+    for (FileStatus fileStatus : statuses) {
       if (filter.apply(fileStatus)) {
         return Optional.of(fileStatus);
       }
