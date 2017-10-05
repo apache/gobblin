@@ -19,6 +19,7 @@ package org.apache.gobblin.azkaban;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -30,6 +31,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -42,6 +45,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -88,6 +92,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private static final Logger LOG = Logger.getLogger(AzkabanJobLauncher.class);
 
   public static final String GOBBLIN_LOG_LEVEL_KEY = "gobblin.log.levelOverride";
+  public static final String TEMPLATE_KEY = "gobblin.template.uri";
 
   private static final String HADOOP_FS_DEFAULT_NAME = "fs.default.name";
   private static final String AZKABAN_LINK_JOBEXEC_URL = "azkaban.link.jobexec.url";
@@ -158,6 +163,14 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
       this.props.setProperty("env." + HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
     }
 
+    Properties jobProps = this.props;
+    if (this.props.containsKey(TEMPLATE_KEY)) {
+      URI templateUri = new URI(this.props.getProperty(TEMPLATE_KEY));
+      Config resolvedJob = new PackagedTemplatesJobCatalogDecorator().getTemplate(templateUri)
+          .getResolvedConfig(ConfigUtils.propertiesToConfig(jobProps));
+      jobProps = ConfigUtils.configToProperties(resolvedJob);
+    }
+
     List<Tag<?>> tags = Lists.newArrayList();
     tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
     RootMetricContext.get(tags);
@@ -176,7 +189,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
     // Create a JobLauncher instance depending on the configuration. The same properties object is
     // used for both system and job configuration properties because Azkaban puts configuration
     // properties in the .job file and in the .properties file into the same Properties object.
-    this.jobLauncher = this.closer.register(JobLauncherFactory.newJobLauncher(this.props, this.props));
+    this.jobLauncher = this.closer.register(JobLauncherFactory.newJobLauncher(jobProps, jobProps));
 
     // Since Java classes cannot extend multiple classes and Azkaban jobs must extend AbstractJob, we must use composition
     // verses extending ServiceBasedAppLauncher
