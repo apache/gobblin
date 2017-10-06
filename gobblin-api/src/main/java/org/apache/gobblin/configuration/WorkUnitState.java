@@ -367,6 +367,20 @@ public class WorkUnitState extends State {
     return super.contains(key) || this.workUnit.contains(key) || this.jobState.contains(key);
   }
 
+  @Override
+  public void removeProp(String key) {
+    super.removeProp(key);
+    this.workUnit.removeProp(key);
+    this.jobState.removeProp(key);
+  }
+
+  @Override
+  public void removeProps(String keyPrefix) {
+    super.removeProps(keyPrefix);
+    this.workUnit.removeProps(keyPrefix);
+    this.jobState.removeProps(keyPrefix);
+  }
+
   /**
    * Get the {@link org.apache.gobblin.source.workunit.Extract} associated with the {@link WorkUnit}.
    *
