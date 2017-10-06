@@ -181,8 +181,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
-      Map<Spec, SpecExecutor> specExecutorInstanceMap = specCompiler.compileFlow(spec);
-
+      Map<Spec, SpecExecutor> specExecutorInstanceMap;
+      synchronized (this) {
+        specExecutorInstanceMap = specCompiler.compileFlow(spec);
+      }
       if (specExecutorInstanceMap.isEmpty()) {
         _log.warn("Cannot determine an executor to run on for Spec: " + spec);
         return;
