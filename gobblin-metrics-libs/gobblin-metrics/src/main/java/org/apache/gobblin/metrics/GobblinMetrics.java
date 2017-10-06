@@ -493,7 +493,9 @@ public class GobblinMetrics {
       }
 
       OutputStream output = append ? fs.append(metricLogFile) : fs.create(metricLogFile, true);
+      // Add metrics reporter
       OutputStreamReporter.Factory.newBuilder().outputTo(output).build(properties);
+      // Set up events reporter at the same time!!
       this.codahaleScheduledReporters.add(this.codahaleReportersCloser
           .register(OutputStreamEventReporter.forContext(RootMetricContext.get()).outputTo(output).build()));
 

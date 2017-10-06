@@ -20,8 +20,10 @@ import com.google.common.collect.Maps;
 import com.linkedin.r2.message.rest.RestRequest;
 import com.linkedin.r2.message.rest.RestResponse;
 
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.http.ResponseHandler;
 import org.apache.gobblin.http.StatusType;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.net.Request;
@@ -52,7 +54,7 @@ public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestR
   private MetricContext metricsContext;
 
   public R2RestResponseHandler() {
-    this(new HashSet<>(), MetricContext.builder(R2RestResponseHandler.class.getCanonicalName()).build());
+    this(new HashSet<>(), Instrumented.getMetricContext(new State(), R2RestResponseHandler.class));
   }
 
   public R2RestResponseHandler(Set<String> errorCodeWhitelist, MetricContext metricContext) {

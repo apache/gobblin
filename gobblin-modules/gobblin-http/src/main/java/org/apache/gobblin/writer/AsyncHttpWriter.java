@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Queue;
 
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.EventUtils;
@@ -70,7 +71,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
     this.requestBuilder = builder.getAsyncRequestBuilder();
     this.responseHandler = builder.getResponseHandler();
     this.maxAttempts = builder.getMaxAttempts();
-    this.context = MetricContext.builder(getClass().getCanonicalName()).build();
+    this.context = Instrumented.getMetricContext(builder.getState(), AsyncHttpWriter.class);
   }
 
   @Override
