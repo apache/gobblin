@@ -164,27 +164,29 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
     }
 
     Properties jobProps = this.props;
-    if (this.props.containsKey(TEMPLATE_KEY)) {
-      URI templateUri = new URI(this.props.getProperty(TEMPLATE_KEY));
+    if (jobProps.containsKey(TEMPLATE_KEY)) {
+      URI templateUri = new URI(jobProps.getProperty(TEMPLATE_KEY));
       Config resolvedJob = new PackagedTemplatesJobCatalogDecorator().getTemplate(templateUri)
           .getResolvedConfig(ConfigUtils.propertiesToConfig(jobProps));
       jobProps = ConfigUtils.configToProperties(resolvedJob);
     }
 
+    getLog().info("Properties: " + jobProps.toString());
+
     List<Tag<?>> tags = Lists.newArrayList();
     tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
     RootMetricContext.get(tags);
-    GobblinMetrics.addCustomTagsToProperties(this.props, tags);
+    GobblinMetrics.addCustomTagsToProperties(jobProps, tags);
 
     // If the job launcher type is not specified in the job configuration,
     // override the default to use the MAPREDUCE launcher.
-    if (!this.props.containsKey(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY)) {
-      this.props.setProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY,
+    if (!jobProps.containsKey(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY)) {
+      jobProps.setProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY,
           JobLauncherFactory.JobLauncherType.MAPREDUCE.toString());
     }
 
     this.ownAzkabanSla = Long.parseLong(
-        this.props.getProperty(AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS, DEFAULT_AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS));
+        jobProps.getProperty(AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS, DEFAULT_AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS));
 
     // Create a JobLauncher instance depending on the configuration. The same properties object is
     // used for both system and job configuration properties because Azkaban puts configuration
@@ -194,7 +196,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
     // Since Java classes cannot extend multiple classes and Azkaban jobs must extend AbstractJob, we must use composition
     // verses extending ServiceBasedAppLauncher
     this.applicationLauncher =
-        this.closer.register(new ServiceBasedAppLauncher(this.props, "Azkaban-" + UUID.randomUUID()));
+        this.closer.register(new ServiceBasedAppLauncher(jobProps, "Azkaban-" + UUID.randomUUID()));
   }
 
   @Override
