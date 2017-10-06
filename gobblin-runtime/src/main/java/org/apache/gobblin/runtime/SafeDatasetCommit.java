@@ -41,14 +41,12 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
-import org.apache.gobblin.publisher.NoopPublisher;
 import org.apache.gobblin.publisher.UnpublishedHandling;
 import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -210,7 +208,7 @@ final class SafeDatasetCommit implements Callable<Void> {
     } finally {
       for (TaskState taskState: states) {
         // Remove lineage info from the state to avoid sending duplicate lineage events in the next run
-        taskState.removeProps(LineageInfo.LINEAGE_NAME_SPACE);
+        taskState.removePropsWithPrefix(LineageInfo.LINEAGE_NAME_SPACE);
       }
     }
   }

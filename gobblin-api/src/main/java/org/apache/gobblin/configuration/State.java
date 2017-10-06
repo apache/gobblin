@@ -503,14 +503,14 @@ public class State implements WritableShim {
   /**
    * Remove all properties with a certain keyPrefix
    *
-   * @param keyPrefix key prefix
+   * @param prefix key prefix
    */
-  public void removeProps(String keyPrefix) {
-    this.specProperties.entrySet().removeIf(entry -> ((String) entry.getKey()).startsWith(keyPrefix));
+  public void removePropsWithPrefix(String prefix) {
+    this.specProperties.entrySet().removeIf(entry -> ((String) entry.getKey()).startsWith(prefix));
 
     Properties newCommonProperties = null;
     for (Object key: this.commonProperties.keySet()) {
-      if (((String)key).startsWith(keyPrefix)) {
+      if (((String)key).startsWith(prefix)) {
         if (newCommonProperties == null) {
           newCommonProperties = new Properties();
           newCommonProperties.putAll(this.commonProperties);

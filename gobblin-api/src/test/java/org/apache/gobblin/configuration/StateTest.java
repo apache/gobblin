@@ -83,14 +83,14 @@ public class StateTest {
   }
 
   @Test
-  public void testRemovePropsByPrefix() {
+  public void testRemovePropsWithPrefix() {
     final State state = new State();
     final String prefix = "prefix";
     for (int i = 0; i < 10; i++) {
       state.setProp("prefix." + i, i);
     }
     Assert.assertTrue(state.getPropertyNames().size() == 10);
-    state.removeProps(prefix);
+    state.removePropsWithPrefix(prefix);
     Assert.assertTrue(state.getPropertyNames().size() == 0);
   }
 }

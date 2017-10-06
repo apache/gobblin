@@ -375,10 +375,10 @@ public class WorkUnitState extends State {
   }
 
   @Override
-  public void removeProps(String keyPrefix) {
-    super.removeProps(keyPrefix);
-    this.workUnit.removeProps(keyPrefix);
-    this.jobState.removeProps(keyPrefix);
+  public void removePropsWithPrefix(String prefix) {
+    super.removePropsWithPrefix(prefix);
+    this.workUnit.removePropsWithPrefix(prefix);
+    this.jobState.removePropsWithPrefix(prefix);
   }
 
   /**
