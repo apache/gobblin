@@ -67,9 +67,6 @@ public class HiveJdbcConnector implements Closeable {
   // Connection to the Hive DB
   private Connection conn;
 
-  // Re-usable Statement
-  private Statement stmt;
-
   private int hiveServerVersion;
 
   private boolean isSimulate;
@@ -160,7 +157,6 @@ public class HiveJdbcConnector implements Closeable {
    */
   private HiveJdbcConnector withHiveConnectionFromUrl(String hiveServerUrl) throws SQLException {
     this.conn = DriverManager.getConnection(hiveServerUrl);
-    this.stmt = this.conn.createStatement();
     return this;
   }
 
@@ -175,7 +171,6 @@ public class HiveJdbcConnector implements Closeable {
   private HiveJdbcConnector withHiveConnectionFromUrlUserPassword(String hiveServerUrl, String hiveServerUser,
       String hiveServerPassword) throws SQLException {
     this.conn = DriverManager.getConnection(hiveServerUrl, hiveServerUser, hiveServerPassword);
-    this.stmt = this.conn.createStatement();
     return this;
   }
 
@@ -190,7 +185,6 @@ public class HiveJdbcConnector implements Closeable {
     } else {
       this.conn = DriverManager.getConnection(HIVE2_EMBEDDED_CONNECTION_STRING);
     }
-    this.stmt = this.conn.createStatement();
     return this;
   }
 
@@ -250,7 +244,14 @@ public class HiveJdbcConnector implements Closeable {
         LOG.info("[SIMULATE MODE] STATEMENT NOT RUN: " + choppedStatement(statement));
       } else {
         LOG.info("RUNNING STATEMENT: " + choppedStatement(statement));
-        this.stmt.execute(statement);
+        try (Statement stmt = this.conn.createStatement()) {
+          try {
+            stmt.execute(statement);
+          } catch (SQLException sqe) {
+            LOG.error("Failed statement: " + statement);
+            throw sqe;
+          }
+        }
       }
     }
   }
@@ -269,13 +270,6 @@ public class HiveJdbcConnector implements Closeable {
 
   @Override
   public void close() throws IOException {
-    if (this.stmt != null) {
-      try {
-        this.stmt.close();
-      } catch (SQLException e) {
-        LOG.error("Failed to close JDBC statement object", e);
-      }
-    }
 
     if (this.conn != null) {
       try {

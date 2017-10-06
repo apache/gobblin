@@ -28,7 +28,6 @@ import java.util.Map;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
-import org.apache.tools.ant.taskdefs.Local;
 import org.joda.time.DateTime;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -423,7 +422,7 @@ public class PartitionLevelWatermarkerTest {
     File tableSdFile = Files.createTempDir();
     tableSdFile.deleteOnExit();
     return new Table(LocalHiveMetastoreTestUtils.getInstance()
-        .createTestTable(dbName, name, tableSdFile.getAbsolutePath(),
+        .createTestAvroTable(dbName, name, tableSdFile.getAbsolutePath(),
             partitioned ? Optional.of("part") : Optional.<String>absent()));
   }
 

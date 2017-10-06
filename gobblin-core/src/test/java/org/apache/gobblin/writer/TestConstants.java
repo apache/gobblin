@@ -25,15 +25,11 @@ package org.apache.gobblin.writer;
 public class TestConstants {
 
   // Test Avro schema
-  public static final String AVRO_SCHEMA = "{\"namespace\": \"example.avro\",\n" +
-      " \"type\": \"record\",\n" +
-      " \"name\": \"User\",\n" +
-      " \"fields\": [\n" +
-      "     {\"name\": \"name\", \"type\": \"string\"},\n" +
-      "     {\"name\": \"favorite_number\",  \"type\": \"int\"},\n" +
-      "     {\"name\": \"favorite_color\", \"type\": \"string\"}\n" +
-      " ]\n" +
-      "}";
+  public static final String AVRO_SCHEMA =
+      "{\"namespace\": \"example.avro\",\n" + " \"type\": \"record\",\n" + " \"name\": \"User\",\n" + " \"fields\": [\n"
+          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
+          + "     {\"name\": \"favorite_number\",  \"type\": \"int\"},\n"
+          + "     {\"name\": \"favorite_color\", \"type\": \"string\"}\n" + " ]\n" + "}";
 
   // Test Avro data in json format
   public static final String[] JSON_RECORDS =

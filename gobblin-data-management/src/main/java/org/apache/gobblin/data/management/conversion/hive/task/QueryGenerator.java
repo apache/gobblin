@@ -25,7 +25,7 @@ import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiv
 /**
  * An interface for generating queries.
  */
-interface QueryGenerator {
+public interface QueryGenerator {
 
   /**
    * Generates queries to extract/convert/write data

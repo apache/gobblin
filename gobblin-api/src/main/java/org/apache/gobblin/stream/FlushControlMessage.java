@@ -16,7 +16,9 @@
  */
 package org.apache.gobblin.stream;
 
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
@@ -25,21 +27,23 @@ import lombok.Getter;
  * Control message for flushing writers
  * @param <D>
  */
-@AllArgsConstructor
+@AllArgsConstructor(access= AccessLevel.PRIVATE)
 @EqualsAndHashCode
+@Builder
 public class FlushControlMessage<D> extends ControlMessage<D> {
   @Getter
-  private final FlushReason flushReason;
+  private final String flushReason;
+  @Getter
+  private final FlushType flushType;
 
   @Override
   protected StreamEntity<D> buildClone() {
-    return new FlushControlMessage(flushReason);
+    return FlushControlMessage.<D>builder().flushReason(this.flushReason).flushType(this.flushType).build();
   }
 
   @AllArgsConstructor
-  @EqualsAndHashCode
-  public static class FlushReason {
-    @Getter
-    private final String reason;
+  public enum FlushType {
+    FlUSH,
+    FLUSH_AND_CLOSE /* use this type to request a close after flush */
   }
 }

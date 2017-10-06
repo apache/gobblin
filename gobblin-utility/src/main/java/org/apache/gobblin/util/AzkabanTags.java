@@ -21,6 +21,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.conf.Configuration;
 
 import com.google.common.collect.ImmutableMap;
@@ -33,11 +34,15 @@ import com.google.common.collect.Maps;
 public class AzkabanTags {
 
   public static final ImmutableMap<String, String> PROPERTIES_TO_TAGS_MAP = new ImmutableMap.Builder<String, String>()
-      .put("azkaban.flow.projectname", "azkabanProjectName")
-      .put("azkaban.flow.flowid", "azkabanFlowId")
-      .put("azkaban.job.id", "azkabanJobId")
-      .put("azkaban.flow.execid", "azkabanExecId")
-      .put("azkaban.link.execution.url", "azkabanURL").build();
+      .put(ConfigurationKeys.AZKABAN_PROJECT_NAME, "azkabanProjectName")
+      .put(ConfigurationKeys.AZKABAN_FLOW_ID, "azkabanFlowId")
+      .put(ConfigurationKeys.AZKABAN_JOB_ID, "azkabanJobId")
+      .put(ConfigurationKeys.AZKABAN_EXEC_ID, "azkabanExecId")
+      .put(ConfigurationKeys.AZKABAN_URL, "azkabanURL")
+      .put(ConfigurationKeys.AZKABAN_FLOW_URL, "azkabanFlowURL")
+      .put(ConfigurationKeys.AZKABAN_JOB_URL, "azkabanJobURL")
+      .put(ConfigurationKeys.AZKABAN_JOB_EXEC_URL, "azkabanJobExecURL")
+      .build();
 
   /**
    * Uses {@link #getAzkabanTags(Configuration)} with default Hadoop {@link Configuration}
@@ -48,6 +53,14 @@ public class AzkabanTags {
 
   /**
    * Gets all useful Azkaban runtime properties required by metrics as a {@link Map}.
+   * Below metrics will be fetched if available:
+   * - azkabanFlowId : name of Azkaban flow
+   * - azkabanFlowURL : URL of Azkaban flow
+   * - azkabanURL : URL of Azkaban flow execution
+   * - azkabanExecId : ID of flow execution
+   * - azkabanJobId : name of Azkaban job
+   * - azkabanJobURL : URL of Azkaban job
+   * - azkabanJobExecURL : URL of Azkaban job execution
    *
    * @param conf Hadoop Configuration that contains the properties. Keys of {@link #PROPERTIES_TO_TAGS_MAP} lists out
    * all the properties to look for in {@link Configuration}.

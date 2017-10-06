@@ -58,6 +58,7 @@ dependencies {
   compile externalDependency.javaxInject
   compile externalDependency.jgit
   compile externalDependency.jodaTime
+  compile externalDependency.jgrapht
   compile externalDependency.kafka08
   compile externalDependency.log4j
   compile externalDependency.lombok

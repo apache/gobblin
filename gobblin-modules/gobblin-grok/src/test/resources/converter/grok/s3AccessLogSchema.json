@@ -1,0 +1,138 @@
+[
+  {
+    "columnName": "owner",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "bucket",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "timestamp",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "clientip",
+    "comment": "",
+    "isNullable": "false",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "requester",
+    "comment": "",
+    "isNullable": "false",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "request_id",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "operation",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "key",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "response",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  },
+  {
+    "columnName": "error_code",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  },
+  {
+    "columnName": "bytes",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  },
+  {
+    "columnName": "object_size",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  },
+  {
+    "columnName": "request_time_ms",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  },
+  {
+    "columnName": "turnaround_time_ms",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  },
+  {
+    "columnName": "referrer",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "agent",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "version_id",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  }
+]

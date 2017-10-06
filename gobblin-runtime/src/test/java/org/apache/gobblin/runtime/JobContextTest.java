@@ -29,18 +29,27 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
+import com.google.common.io.Files;
 
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.Either;
+import org.apache.gobblin.util.Id;
 
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
@@ -212,6 +221,47 @@ public class JobContextTest {
     }
     // job failed
     Assert.assertEquals(jobContext.getJobState().getState(), JobState.RunningState.FAILED);
+  }
+
+  @Test
+  public void testCleanUpOldJobData() throws Exception {
+    String rootPath = Files.createTempDir().getAbsolutePath();
+    final String JOB_PREFIX = Id.Job.PREFIX;
+    final String JOB_NAME1 = "GobblinKafka";
+    final String JOB_NAME2 = "GobblinBrooklin";
+    final long timestamp1 = 1505774129247L;
+    final long timestamp2 = 1505774129248L;
+    final Joiner JOINER = Joiner.on(Id.SEPARATOR).skipNulls();
+    Object[] oldJob1 = new Object[]{JOB_PREFIX, JOB_NAME1, timestamp1};
+    Object[] oldJob2 = new Object[]{JOB_PREFIX, JOB_NAME2, timestamp1};
+    Object[] currentJob = new Object[]{JOB_PREFIX, JOB_NAME1, timestamp2};
+
+    Path currentJobPath = new Path(JobContext.getJobDir(rootPath, JOB_NAME1), JOINER.join(currentJob));
+    Path oldJobPath1 = new Path(JobContext.getJobDir(rootPath, JOB_NAME1), JOINER.join(oldJob1));
+    Path oldJobPath2 = new Path(JobContext.getJobDir(rootPath, JOB_NAME2), JOINER.join(oldJob2));
+    Path stagingPath = new Path(currentJobPath, "task-staging");
+    Path outputPath = new Path(currentJobPath, "task-output");
+
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    fs.mkdirs(currentJobPath);
+    fs.mkdirs(oldJobPath1);
+    fs.mkdirs(oldJobPath2);
+    log.info("Created : {} {} {}", currentJobPath, oldJobPath1, oldJobPath2);
+
+    gobblin.runtime.JobState jobState = new gobblin.runtime.JobState();
+    jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingPath.toString());
+    jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputPath.toString());
+
+    JobContext jobContext = mock(JobContext.class);
+    when(jobContext.getStagingDirProvided()).thenReturn(false);
+    when(jobContext.getOutputDirProvided()).thenReturn(false);
+    when(jobContext.getJobId()).thenReturn(currentJobPath.getName().toString());
+
+    JobLauncherUtils.cleanUpOldJobData(jobState, log, jobContext.getStagingDirProvided(), jobContext.getOutputDirProvided());
+
+    Assert.assertFalse(fs.exists(oldJobPath1));
+    Assert.assertTrue(fs.exists(oldJobPath2));
+    Assert.assertFalse(fs.exists(currentJobPath));
   }
 
   /**

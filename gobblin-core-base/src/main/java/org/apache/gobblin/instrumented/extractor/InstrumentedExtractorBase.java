@@ -34,6 +34,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.MetricNames;
@@ -190,7 +191,8 @@ public abstract class InstrumentedExtractorBase<S, D>
       }
     });
     recordStream = recordStream.doFinally(this::close);
-    return new RecordStreamWithMetadata<>(recordStream, schema);
+    return new RecordStreamWithMetadata<>(recordStream, GlobalMetadata.<S>builder().schema(schema).build());
+
   }
 
   /**

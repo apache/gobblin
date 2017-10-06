@@ -1059,6 +1059,41 @@ This is used to control the writer creation. If the value is set to true, writer
 False 
 ###### Required
 No
+#### writer.parquet.page.size
+###### Description
+The page size threshold
+###### Default Value
+1048576
+###### Required
+No
+#### writer.parquet.dictionary.page.size
+###### Description
+The block size threshold.
+###### Default Value
+134217728
+###### Required
+No
+#### writer.parquet.dictionary
+###### Description
+To turn dictionary encoding on.
+###### Default Value
+true
+###### Required
+No
+#### writer.parquet.validate
+###### Description
+To turn on validation using the schema.
+###### Default Value
+false
+###### Required
+No
+#### writer.parquet.version
+###### Description
+Version of parquet writer to use. Available versions are v1 and v2.
+###### Default Value
+v1
+###### Required
+No
 # Data Publisher Properties <a name="Data-Publisher-Properties"></a>
 #### data.publisher.type 
 ###### Description

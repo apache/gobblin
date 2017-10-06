@@ -31,8 +31,11 @@ import static org.mockito.Mockito.when;
 
 /**
  * Unit test for {@link EnvelopeSchemaConverter}.
+ *
+ * @deprecated As a result of deprecating {@link EnvelopeSchemaConverter}
  */
 @Test(groups = {"gobblin.converter"})
+@Deprecated
 public class EnvelopeSchemaConverterTest {
 
   public static final String SCHEMA_KEY = "testKey";

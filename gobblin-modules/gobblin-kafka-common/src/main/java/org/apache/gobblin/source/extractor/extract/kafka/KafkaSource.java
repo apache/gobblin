@@ -518,6 +518,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     // Default to job level configurations
     Extract.TableType currentTableType = tableType;
     String currentExtractNamespace = extractNamespace;
+    String currentExtractTableName = partition.getTopicName();
     boolean isCurrentFullExtract = isFullExtract;
     // Update to topic specific configurations if any
     if (topicSpecificState.isPresent()) {
@@ -526,10 +527,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         currentTableType = Extract.TableType.valueOf(topicState.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY));
       }
       currentExtractNamespace = topicState.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, extractNamespace);
+      currentExtractTableName =
+          topicState.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partition.getTopicName());
       isCurrentFullExtract = topicState.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY, isFullExtract);
     }
 
-    Extract extract = this.createExtract(currentTableType, currentExtractNamespace, partition.getTopicName());
+    Extract extract = this.createExtract(currentTableType, currentExtractNamespace, currentExtractTableName);
     if (isCurrentFullExtract) {
       extract.setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, true);
     }
@@ -538,9 +541,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     if (topicSpecificState.isPresent()) {
       workUnit.addAll(topicSpecificState.get());
     }
+
     workUnit.setProp(TOPIC_NAME, partition.getTopicName());
     addDatasetUrnOptionally(workUnit);
-    workUnit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partition.getTopicName());
     workUnit.setProp(PARTITION_ID, partition.getId());
     workUnit.setProp(LEADER_ID, partition.getLeader().getId());
     workUnit.setProp(LEADER_HOSTANDPORT, partition.getLeader().getHostAndPort().toString());

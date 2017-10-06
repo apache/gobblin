@@ -68,7 +68,7 @@ public class MRCompactionTask extends MRTask {
   public void run() {
     List<CompactionVerifier> verifiers = this.suite.getMapReduceVerifiers();
     for (CompactionVerifier verifier : verifiers) {
-      if (!verifier.verify(dataset)) {
+      if (!verifier.verify(dataset).isSuccessful()) {
         log.error("Verification {} for {} is not passed.", verifier.getName(), dataset.datasetURN());
         this.onMRTaskComplete (false, new IOException("Compaction verification for MR is failed"));
         return;

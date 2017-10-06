@@ -304,6 +304,20 @@ public class WorkUnit extends State {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
   }
 
+  @Override
+  public boolean contains(String key) {
+    return super.contains(key) || this.extract.contains(key);
+  }
+
+  @Override
+  public String getProp(String key) {
+    String value = super.getProp(key);
+    if (value == null) {
+      value = this.extract.getProp(key);
+    }
+    return value;
+  }
+
   /**
    * Set the low watermark of this {@link WorkUnit}.
    *

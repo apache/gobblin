@@ -29,6 +29,7 @@ import org.apache.gobblin.metastore.predicates.DatasetPredicate;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -54,8 +55,12 @@ public class DatasetStoreDatasetFinder implements DatasetsFinder<DatasetStoreDat
     this.predicate = buildPredicate();
   }
 
+  public DatasetStoreDatasetFinder(Properties props) throws IOException {
+    this(FileSystem.get(new Configuration()), props);
+  }
+
   private StateStorePredicate buildPredicate() {
-    StateStorePredicate predicate= null;
+    StateStorePredicate predicate = null;
     String storeName = null;
     String datasetUrn;
 
@@ -66,7 +71,8 @@ public class DatasetStoreDatasetFinder implements DatasetsFinder<DatasetStoreDat
 
     if (ConfigUtils.hasNonEmptyPath(this.config, DATASET_URN_FILTER)) {
       if (storeName == null) {
-        throw new IllegalArgumentException(DATASET_URN_FILTER + " requires " + STORE_NAME_FILTER + " to also be defined.");
+        throw new IllegalArgumentException(
+            DATASET_URN_FILTER + " requires " + STORE_NAME_FILTER + " to also be defined.");
       }
       datasetUrn = this.config.getString(DATASET_URN_FILTER);
       predicate = new DatasetPredicate(storeName, datasetUrn, x -> true);

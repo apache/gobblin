@@ -44,6 +44,7 @@ import org.apache.gobblin.instrumented.writer.InstrumentedPartitionedDataWriterD
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.MetadataUpdateControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.util.AvroUtils;
@@ -68,8 +69,10 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   private final Optional<WriterPartitioner> partitioner;
   private final LoadingCache<GenericRecord, DataWriter<D>> partitionWriters;
   private final Optional<PartitionAwareDataWriterBuilder> builder;
+  private final DataWriterBuilder writerBuilder;
   private final boolean shouldPartition;
   private final Closer closer;
+  private final ControlMessageHandler controlMessageHandler;
   private boolean isSpeculativeAttemptSafe;
   private boolean isWatermarkCapable;
 
@@ -79,6 +82,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     this.isWatermarkCapable = true;
     this.baseWriterId = builder.getWriterId();
     this.closer = Closer.create();
+    this.writerBuilder = builder;
+    this.controlMessageHandler = new PartitionDataWriterMessageHandler();
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override
       public DataWriter<D> load(final GenericRecord key)
@@ -322,7 +327,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
 
   @Override
   public ControlMessageHandler getMessageHandler() {
-    return new PartitionDataWriterMessageHandler();
+    return this.controlMessageHandler;
   }
 
   /**
@@ -332,6 +337,12 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     @Override
     public void handleMessage(ControlMessage message) {
       StreamEntity.ForkCloner cloner = message.forkCloner();
+
+      // update the schema used to build writers
+      if (message instanceof MetadataUpdateControlMessage) {
+        PartitionedDataWriter.this.writerBuilder.withSchema(((MetadataUpdateControlMessage) message)
+            .getGlobalMetadata().getSchema());
+      }
 
       for (DataWriter writer : PartitionedDataWriter.this.partitionWriters.asMap().values()) {
         ControlMessage cloned = (ControlMessage) cloner.getClone();

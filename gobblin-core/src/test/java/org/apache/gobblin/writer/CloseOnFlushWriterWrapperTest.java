@@ -27,6 +27,7 @@ import org.testng.annotations.Test;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.FlushControlMessageHandler;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.stream.FlushControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -43,86 +44,85 @@ public class CloseOnFlushWriterWrapperTest {
     byte[] record = new byte[]{'a', 'b', 'c', 'd'};
 
     writer.writeEnvelope(new RecordEnvelope(record));
-    writer.getMessageHandler().handleMessage(new FlushControlMessage(new FlushControlMessage.FlushReason("flush")));
+
+    writer.getMessageHandler().handleMessage(FlushControlMessage.builder().build());
 
     Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
     Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
     Assert.assertEquals(dummyWriters.get(0).closeCount, 0);
     Assert.assertFalse(dummyWriters.get(0).committed);
-    Assert.assertTrue(dummyWriters.get(0).handlerCalled);
+    Assert.assertEquals(dummyWriters.get(0).handlerCalled, 1);
   }
 
   @Test
   public void testCloseOnFlushEnabled()
       throws IOException {
     WorkUnitState state = new WorkUnitState();
-    state.getJobState().setProp(ConfigurationKeys.WRITER_CLOSE_ON_FLUSH_KEY, "true");
+    state.getJobState().setProp(CloseOnFlushWriterWrapper.WRITER_CLOSE_ON_FLUSH_KEY, "true");
     List<DummyWriter> dummyWriters = new ArrayList<>();
     CloseOnFlushWriterWrapper<byte[]> writer = getCloseOnFlushWriter(dummyWriters, state);
 
     byte[] record = new byte[]{'a', 'b', 'c', 'd'};
 
     writer.writeEnvelope(new RecordEnvelope(record));
-    writer.getMessageHandler().handleMessage(new FlushControlMessage(new FlushControlMessage.FlushReason("flush")));
+    writer.getMessageHandler().handleMessage(FlushControlMessage.builder().build());
 
     Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
     Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
     Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
     Assert.assertTrue(dummyWriters.get(0).committed);
-    // handler from CloseOnFlushWriterWrapper should have been called instead
-    Assert.assertFalse(dummyWriters.get(0).handlerCalled);
+    Assert.assertEquals(dummyWriters.get(0).handlerCalled, 1);
   }
 
   @Test
   public void testWriteAfterFlush()
       throws IOException {
     WorkUnitState state = new WorkUnitState();
-    state.getJobState().setProp(ConfigurationKeys.WRITER_CLOSE_ON_FLUSH_KEY, "true");
+    state.getJobState().setProp(CloseOnFlushWriterWrapper.WRITER_CLOSE_ON_FLUSH_KEY, "true");
     List<DummyWriter> dummyWriters = new ArrayList<>();
     CloseOnFlushWriterWrapper<byte[]> writer = getCloseOnFlushWriter(dummyWriters, state);
 
     byte[] record = new byte[]{'a', 'b', 'c', 'd'};
 
     writer.writeEnvelope(new RecordEnvelope(record));
-    writer.getMessageHandler().handleMessage(new FlushControlMessage(new FlushControlMessage.FlushReason("flush")));
+    writer.getMessageHandler().handleMessage(FlushControlMessage.builder().build());
 
     Assert.assertEquals(dummyWriters.size(), 1);
     Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
     Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
     Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
     Assert.assertTrue(dummyWriters.get(0).committed);
-    Assert.assertFalse(dummyWriters.get(0).handlerCalled);
+    Assert.assertEquals(dummyWriters.get(0).handlerCalled, 1);
 
     writer.writeEnvelope(new RecordEnvelope(record));
-    writer.getMessageHandler().handleMessage(new FlushControlMessage(new FlushControlMessage.FlushReason("flush")));
+    writer.getMessageHandler().handleMessage(FlushControlMessage.builder().build());
 
     Assert.assertEquals(dummyWriters.size(), 2);
     Assert.assertEquals(dummyWriters.get(1).recordsWritten(), 1);
     Assert.assertEquals(dummyWriters.get(1).flushCount, 1);
     Assert.assertEquals(dummyWriters.get(1).closeCount, 1);
     Assert.assertTrue(dummyWriters.get(1).committed);
-    Assert.assertFalse(dummyWriters.get(1).handlerCalled);
+    Assert.assertEquals(dummyWriters.get(1).handlerCalled, 1);
   }
 
   @Test
   public void testCloseAfterFlush()
       throws IOException {
     WorkUnitState state = new WorkUnitState();
-    state.getJobState().setProp(ConfigurationKeys.WRITER_CLOSE_ON_FLUSH_KEY, "true");
+    state.getJobState().setProp(CloseOnFlushWriterWrapper.WRITER_CLOSE_ON_FLUSH_KEY, "true");
     List<DummyWriter> dummyWriters = new ArrayList<>();
     CloseOnFlushWriterWrapper<byte[]> writer = getCloseOnFlushWriter(dummyWriters, state);
 
     byte[] record = new byte[]{'a', 'b', 'c', 'd'};
 
     writer.writeEnvelope(new RecordEnvelope(record));
-    writer.getMessageHandler().handleMessage(new FlushControlMessage(new FlushControlMessage.FlushReason("flush")));
+    writer.getMessageHandler().handleMessage(FlushControlMessage.builder().build());
 
     Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
     Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
     Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
     Assert.assertTrue(dummyWriters.get(0).committed);
-    // handler from CloseOnFlushWriterWrapper should have been called instead
-    Assert.assertFalse(dummyWriters.get(0).handlerCalled);
+    Assert.assertEquals(dummyWriters.get(0).handlerCalled, 1);
 
     writer.close();
 
@@ -148,7 +148,7 @@ public class CloseOnFlushWriterWrapperTest {
     private int flushCount = 0;
     private int closeCount = 0;
     private boolean committed = false;
-    private boolean handlerCalled = false;
+    private int handlerCalled = 0;
 
     DummyWriter() {
     }
@@ -190,10 +190,10 @@ public class CloseOnFlushWriterWrapperTest {
 
     @Override
     public ControlMessageHandler getMessageHandler() {
-      return new ControlMessageHandler() {
+      return new FlushControlMessageHandler(this) {
         @Override
         public void handleMessage(ControlMessage message) {
-          handlerCalled = true;
+          handlerCalled++;
           if (message instanceof FlushControlMessage) {
             flush();
           }

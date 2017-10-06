@@ -18,6 +18,8 @@
 package org.apache.gobblin.util;
 
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -83,7 +85,14 @@ public class ParallelRunner implements Closeable {
   public static final int DEFAULT_PARALLEL_RUNNER_THREADS = 10;
 
   private final ExecutorService executor;
-  private final FileSystem fs;
+
+  /**
+   * Setting of fs is allowed to support reusing the {@link ParallelRunner} with different {@link FileSystem}s
+   * after all tasks have completed execution.
+   */
+  @Getter
+  @Setter
+  private FileSystem fs;
 
   private final List<NamedFuture> futures = Lists.newArrayList();
 
@@ -341,38 +350,49 @@ public class ParallelRunner implements Closeable {
     this.futures.add(new NamedFuture(this.executor.submit(callable), name));
   }
 
-  @Override
-  public void close() throws IOException {
+  /**
+   * Wait for all submitted tasks to complete. The {@link ParallelRunner} can be reused after this call.
+   * @throws IOException
+   */
+  public void waitForTasks() throws IOException {
     // Wait for all submitted tasks to complete
-    try {
-      boolean wasInterrupted = false;
-      IOException exception = null;
-      for (NamedFuture future : this.futures) {
-        try {
-          if (wasInterrupted) {
-            future.getFuture().cancel(true);
-          } else {
-            future.getFuture().get();
-          }
-        } catch (InterruptedException ie) {
-          LOGGER.warn("Task was interrupted: " + future.getName());
-          wasInterrupted = true;
-          if (exception == null) {
-            exception = new IOException(ie);
-          }
-        } catch (ExecutionException ee) {
-          LOGGER.warn("Task failed: " + future.getName(), ee.getCause());
-          if (exception == null) {
-            exception = new IOException(ee.getCause());
-          }
+    boolean wasInterrupted = false;
+    IOException exception = null;
+    for (NamedFuture future : this.futures) {
+      try {
+        if (wasInterrupted) {
+          future.getFuture().cancel(true);
+        } else {
+          future.getFuture().get();
+        }
+      } catch (InterruptedException ie) {
+        LOGGER.warn("Task was interrupted: " + future.getName());
+        wasInterrupted = true;
+        if (exception == null) {
+          exception = new IOException(ie);
+        }
+      } catch (ExecutionException ee) {
+        LOGGER.warn("Task failed: " + future.getName(), ee.getCause());
+        if (exception == null) {
+          exception = new IOException(ee.getCause());
         }
       }
-      if (wasInterrupted) {
-        Thread.currentThread().interrupt();
-      }
-      if (exception != null && this.failPolicy == FailPolicy.FAIL_ONE_FAIL_ALL) {
-        throw exception;
-      }
+    }
+    if (wasInterrupted) {
+      Thread.currentThread().interrupt();
+    }
+    if (exception != null && this.failPolicy == FailPolicy.FAIL_ONE_FAIL_ALL) {
+      throw exception;
+    }
+
+    // clear so that more tasks can be submitted to this ParallelRunner
+    futures.clear();
+  }
+
+  @Override
+  public void close() throws IOException {
+    try {
+      waitForTasks();
     } finally {
       ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(LOGGER));
     }

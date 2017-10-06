@@ -26,7 +26,20 @@ import lombok.Data;
  */
 @Data
 public class ResourceInstance<T> implements ResourceEntry<T> {
-  private final T resource;
+  // Note: the name here is theResource instead of resource since to avoid a collision of the lombok generated getter
+  // and the getResource() method defined in {@link ResourceEntry}. The collision results in unintended side effects
+  // when getResource() is overridden since it may have additional logic that should not be executed when the value of
+  // this field is fetched using the getter, such as in the Lombok generated toString().
+  private final T theResource;
+
+  /**
+   * This method returns the resource, but may have logic before the return.
+   * @return the resource
+   */
+  @Override
+  public T getResource() {
+    return getTheResource();
+  }
 
   @Override
   public boolean isValid() {
