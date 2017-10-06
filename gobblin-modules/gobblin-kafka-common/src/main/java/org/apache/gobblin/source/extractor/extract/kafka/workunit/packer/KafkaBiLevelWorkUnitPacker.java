@@ -24,10 +24,8 @@ import java.util.PriorityQueue;
 
 import com.google.common.collect.Lists;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -70,25 +68,19 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
     double avgGroupSize = totalEstDataSize / numContainers / getPreGroupingSizeFactor(this.state);
 
     List<MultiWorkUnit> mwuGroups = Lists.newArrayList();
-    for (Map.Entry<String, List<WorkUnit>> entry : workUnitsByTopic.entrySet()) {
-      double estimatedDataSizeForTopic = calcTotalEstSizeForTopic(entry.getValue());
+    for (List<WorkUnit> workUnitsForTopic : workUnitsByTopic.values()) {
+      double estimatedDataSizeForTopic = calcTotalEstSizeForTopic(workUnitsForTopic);
       if (estimatedDataSizeForTopic < avgGroupSize) {
 
         // If the total estimated size of a topic is smaller than group size, put all partitions of this
         // topic in a single group.
         MultiWorkUnit mwuGroup = MultiWorkUnit.createEmpty();
-        mwuGroup.setProp(LineageInfo.LINEAGE_DATASET_URN, entry.getKey());
-        addWorkUnitsToMultiWorkUnit(entry.getValue(), mwuGroup);
+        addWorkUnitsToMultiWorkUnit(workUnitsForTopic, mwuGroup);
         mwuGroups.add(mwuGroup);
       } else {
         // Use best-fit-decreasing to group workunits for a topic into multiple groups.
-        mwuGroups.addAll(bestFitDecreasingBinPacking(entry.getKey(), entry.getValue(), avgGroupSize));
+        mwuGroups.addAll(bestFitDecreasingBinPacking(workUnitsForTopic, avgGroupSize));
       }
-    }
-
-    // Add common lineage information
-    for (MultiWorkUnit multiWorkUnit: mwuGroups) {
-      LineageInfo.setDatasetLineageAttribute(multiWorkUnit, ConfigurationKeys.KAFKA_BROKERS, this.state.getProp(ConfigurationKeys.KAFKA_BROKERS, ""));
     }
 
     List<WorkUnit> groups = squeezeMultiWorkUnits(mwuGroups);
@@ -111,7 +103,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
    * Group {@link WorkUnit}s into groups. Each group is a {@link MultiWorkUnit}. Each group has a capacity of
    * avgGroupSize. If there's a single {@link WorkUnit} whose size is larger than avgGroupSize, it forms a group itself.
    */
-  private static List<MultiWorkUnit> bestFitDecreasingBinPacking(String topic, List<WorkUnit> workUnits, double avgGroupSize) {
+  private static List<MultiWorkUnit> bestFitDecreasingBinPacking(List<WorkUnit> workUnits, double avgGroupSize) {
 
     // Sort workunits by data size desc
     Collections.sort(workUnits, LOAD_DESC_COMPARATOR);
@@ -123,7 +115,6 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
         addWorkUnitToMultiWorkUnit(workUnit, bestGroup);
       } else {
         bestGroup = MultiWorkUnit.createEmpty();
-        bestGroup.setProp(LineageInfo.LINEAGE_DATASET_URN, topic);
         addWorkUnitToMultiWorkUnit(workUnit, bestGroup);
       }
       pQueue.add(bestGroup);
