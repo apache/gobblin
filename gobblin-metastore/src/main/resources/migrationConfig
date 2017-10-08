@@ -1,0 +1,25 @@
+# A simple template of configuration for migration of state store.
+
+source: {
+	state.store.type:fs
+
+	#Path up to store name. Don't add table name.
+	state.store.dir: ""
+}
+
+
+destination: {
+	state.store.db.user :
+	state.store.db.table :
+	state.store.type : org.apache.gobblin.runtime.MysqlDatasetStateStoreFactory
+	state.store.db.url : ""
+	state.store.db.password : ""
+
+	#Required
+	encrypt.key.loc: ""
+}
+
+
+keepOldState:true
+
+jobName:TestJob
