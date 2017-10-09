@@ -263,7 +263,8 @@ public class PullFileLoader {
     PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
     try (InputStreamReader inputStreamReader = new InputStreamReader(this.fs.open(propertiesPath),
         Charsets.UTF_8)) {
-      propertiesConfiguration.setDelimiterParsingDisabled(ConfigUtils.getBoolean(fallback,PROPERTY_DELIMITER_PARSING_ENABLED_KEY, DEFAULT_PROPERTY_DELIMITER_PARSING_ENABLED_KEY));
+      propertiesConfiguration.setDelimiterParsingDisabled(ConfigUtils.getBoolean(fallback,
+    		  PROPERTY_DELIMITER_PARSING_ENABLED_KEY, DEFAULT_PROPERTY_DELIMITER_PARSING_ENABLED_KEY));
       propertiesConfiguration.load(inputStreamReader);
 
       Config configFromProps =
