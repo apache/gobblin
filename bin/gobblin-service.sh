@@ -30,7 +30,10 @@ function start() {
 
   LOG_ARGS="1>${FWDIR_LOGS}/GobblinService.stdout 2>${FWDIR_LOGS}/GobblinService.stderr"
 
-  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS org.apache.gobblin.service.modules.core.GobblinServiceManager --service_name $SERVICE_NAME $LOG_ARGS"
+  LOG4J_ARGS="-Dlog4j.configuration=conf/log4j.xml"
+  DEBUGGER_ARGS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5006"
+
+  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS $LOG4J_ARGS $DEBUGGER_ARGS org.apache.gobblin.service.modules.core.GobblinServiceManager --service_name $SERVICE_NAME $LOG_ARGS"
 
   echo "Running command:"
   echo "$COMMAND"
