@@ -171,8 +171,6 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
       jobProps = ConfigUtils.configToProperties(resolvedJob);
     }
 
-    getLog().info("Properties: " + jobProps.toString());
-
     List<Tag<?>> tags = Lists.newArrayList();
     tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
     RootMetricContext.get(tags);
