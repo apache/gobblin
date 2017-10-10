@@ -103,7 +103,7 @@ public class RecoveryHelperTest {
     Assert.assertEquals(stagingDir.listFiles().length, 0);
     Assert.assertEquals(recoveryDir.listFiles().length, 1);
 
-    File fileInRecovery = recoveryDir.listFiles()[0];
+    File fileInRecovery = recoveryDir.listFiles()[0].listFiles()[0];
     Assert.assertEquals(IOUtils.readLines(new FileInputStream(fileInRecovery)).get(0), content);
 
     Optional<FileStatus> fileToRecover =
