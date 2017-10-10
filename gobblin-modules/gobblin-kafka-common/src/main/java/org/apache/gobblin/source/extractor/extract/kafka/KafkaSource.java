@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
+import org.apache.gobblin.lineage.LineageInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,6 +133,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private Extract.TableType tableType;
   private String extractNamespace;
   private boolean isFullExtract;
+  private String kafkaBrokers;
   private boolean shouldEnableDatasetStateStore;
   private AtomicBoolean isDatasetStateEnabled = new AtomicBoolean(false);
   private Set<String> topicsToProcess;
@@ -172,7 +174,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       extractNamespace = KafkaSource.DEFAULT_NAMESPACE_NAME;
     }
     isFullExtract = state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY);
-
+    kafkaBrokers = state.getProp(ConfigurationKeys.KAFKA_BROKERS, "");
     this.shouldEnableDatasetStateStore = state.getPropAsBoolean(GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE,
         DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE);
 
@@ -538,10 +540,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     }
 
     WorkUnit workUnit = WorkUnit.create(extract);
-    if (topicSpecificState.isPresent()) {
-      workUnit.addAll(topicSpecificState.get());
-    }
-
     workUnit.setProp(TOPIC_NAME, partition.getTopicName());
     addDatasetUrnOptionally(workUnit);
     workUnit.setProp(PARTITION_ID, partition.getId());
@@ -549,6 +547,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     workUnit.setProp(LEADER_HOSTANDPORT, partition.getLeader().getHostAndPort().toString());
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, offsets.getStartOffset());
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, offsets.getLatestOffset());
+
+    // Add lineage info
+    workUnit.setProp(LineageInfo.LINEAGE_DATASET_URN, partition.getTopicName());
+    LineageInfo.setDatasetLineageAttribute(workUnit, ConfigurationKeys.KAFKA_BROKERS, kafkaBrokers);
+
     LOG.info(String.format("Created workunit for partition %s: lowWatermark=%d, highWatermark=%d, range=%d", partition,
         offsets.getStartOffset(), offsets.getLatestOffset(), offsets.getLatestOffset() - offsets.getStartOffset()));
 

@@ -81,4 +81,16 @@ public class StateTest {
       Assert.fail("Concurrency test failed with first exception: " + ExceptionUtils.getFullStackTrace(this.exceptions.poll()));
     }
   }
+
+  @Test
+  public void testRemovePropsWithPrefix() {
+    final State state = new State();
+    final String prefix = "prefix";
+    for (int i = 0; i < 10; i++) {
+      state.setProp("prefix." + i, i);
+    }
+    Assert.assertTrue(state.getPropertyNames().size() == 10);
+    state.removePropsWithPrefix(prefix);
+    Assert.assertTrue(state.getPropertyNames().size() == 0);
+  }
 }
