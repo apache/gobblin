@@ -49,10 +49,10 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class LineageInfo {
-  public static final String LINEAGE_DATASET_URN = "lineage.dataset.urn";
   public static final String LINEAGE_NAME_SPACE = "gobblin.lineage";
   public static final String BRANCH_ID_METADATA_KEY = "branchId";
   private static final String DATASET_PREFIX =  LINEAGE_NAME_SPACE + ".";
+  public static final String LINEAGE_DATASET_URN = DATASET_PREFIX + "dataset.urn";
   private static final String BRANCH_PREFIX = DATASET_PREFIX + "branch.";
 
   @Getter

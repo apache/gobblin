@@ -37,18 +37,18 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.lineage.LineageException;
 import org.apache.gobblin.lineage.LineageInfo;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
-import org.apache.gobblin.publisher.NoopPublisher;
 import org.apache.gobblin.publisher.UnpublishedHandling;
 import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -57,7 +57,7 @@ import lombok.extern.slf4j.Slf4j;
  * {@link DataPublisher#publish(Collection)}. This class is thread-safe if and only if the implementation of
  * {@link DataPublisher} used is also thread-safe.
  */
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 final class SafeDatasetCommit implements Callable<Void> {
 
@@ -71,6 +71,8 @@ final class SafeDatasetCommit implements Callable<Void> {
   private final boolean isMultithreaded;
   private final JobContext jobContext;
 
+  private MetricContext metricContext;
+
   @Override
   public Void call()
       throws Exception {
@@ -78,6 +80,8 @@ final class SafeDatasetCommit implements Callable<Void> {
       log.info(this.datasetUrn + " have been committed.");
       return null;
     }
+    metricContext = Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class);
+
     finalizeDatasetStateBeforeCommit(this.datasetState);
     Class<? extends DataPublisher> dataPublisherClass;
     try (Closer closer = Closer.create()) {
@@ -159,6 +163,7 @@ final class SafeDatasetCommit implements Callable<Void> {
     } finally {
       try {
         finalizeDatasetState(datasetState, datasetUrn);
+        submitLineageEvent(datasetState.getTaskStates());
         if (commitSequenceBuilder.isPresent()) {
           buildAndExecuteCommitSequence(commitSequenceBuilder.get(), datasetState, datasetUrn);
           datasetState.setState(JobState.RunningState.COMMITTED);
@@ -182,9 +187,8 @@ final class SafeDatasetCommit implements Callable<Void> {
     }
 
     TaskState oneWorkUnitState = states.iterator().next();
-    if (oneWorkUnitState.contains(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE) && oneWorkUnitState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE).equals(
-        NoopPublisher.class.getName())) {
-      // if no publisher configured, each task should be responsible for sending lineage event.
+    if (!oneWorkUnitState.contains(LineageInfo.LINEAGE_DATASET_URN)) {
+      // Do nothing if the dataset is not configured with lineage info
       return;
     }
 
@@ -194,14 +198,18 @@ final class SafeDatasetCommit implements Callable<Void> {
       Collection<Collection<State>> datasetStates = LineageInfo.aggregateByDatasetUrn(states).values();
       for (Collection<State> dataState: datasetStates) {
         Collection<LineageInfo> branchLineages = LineageInfo.load(dataState, LineageInfo.Level.All);
-        EventSubmitter submitter = new EventSubmitter.Builder(Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class),
-            LineageInfo.LINEAGE_NAME_SPACE).build();
+        EventSubmitter submitter = new EventSubmitter.Builder(metricContext, LineageInfo.LINEAGE_NAME_SPACE).build();
         for (LineageInfo info: branchLineages) {
           submitter.submit(info.getId(), info.getLineageMetaData());
         }
       }
     } catch (LineageException e) {
       log.error ("Lineage event submission failed due to :" + e.toString());
+    } finally {
+      for (TaskState taskState: states) {
+        // Remove lineage info from the state to avoid sending duplicate lineage events in the next run
+        taskState.removePropsWithPrefix(LineageInfo.LINEAGE_NAME_SPACE);
+      }
     }
   }
 
@@ -222,7 +230,6 @@ final class SafeDatasetCommit implements Callable<Void> {
 
     try {
       publisher.publish(taskStates);
-      submitLineageEvent(taskStates);
     } catch (Throwable t) {
       log.error("Failed to commit dataset", t);
       setTaskFailureException(taskStates, t);

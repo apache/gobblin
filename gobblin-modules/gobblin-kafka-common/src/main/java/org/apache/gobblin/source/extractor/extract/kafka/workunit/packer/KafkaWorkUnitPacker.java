@@ -81,25 +81,11 @@ public abstract class KafkaWorkUnitPacker {
 
   protected final AbstractSource<?, ?> source;
   protected final SourceState state;
-  protected final Extract.TableType tableType;
-  protected final String extractNameSpace;
-  protected final boolean isFullExtract;
   protected final KafkaWorkUnitSizeEstimator sizeEstimator;
 
   protected KafkaWorkUnitPacker(AbstractSource<?, ?> source, SourceState state) {
     this.source = source;
     this.state = state;
-    if (state.getPropAsBoolean(KafkaSource.GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION)) {
-      String tableTypeStr = state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY,
-          KafkaSource.DEFAULT_TABLE_TYPE.toString());
-      tableType = Extract.TableType.valueOf(tableTypeStr);
-      extractNameSpace = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, KafkaSource.DEFAULT_NAMESPACE_NAME);
-    } else {
-      // To be compatible, reject table type and namespace configuration keys as previous implementation
-      tableType = KafkaSource.DEFAULT_TABLE_TYPE;
-      extractNameSpace = KafkaSource.DEFAULT_NAMESPACE_NAME;
-    }
-    isFullExtract = state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY);
     this.sizeEstimator = getWorkUnitSizeEstimator();
   }
 
@@ -227,13 +213,18 @@ public abstract class KafkaWorkUnitPacker {
     List<KafkaPartition> partitions = getPartitionsFromMultiWorkUnit(multiWorkUnit);
     Preconditions.checkArgument(!partitions.isEmpty(), "There must be at least one partition in the multiWorkUnit");
 
-    Extract extract = this.source.createExtract(tableType, extractNameSpace, partitions.get(0).getTopicName());
-    if (isFullExtract) {
-      extract.setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, true);
-    }
-    WorkUnit workUnit = WorkUnit.create(extract, interval);
+    // Squeeze all partitions from the multiWorkUnit into of one the work units, which can be any one
+    WorkUnit workUnit = multiWorkUnit.getWorkUnits().get(0);
+    // Update interval
+    workUnit.removeProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
+    workUnit.removeProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY);
+    workUnit.setWatermarkInterval(interval);
+    // Remove the original partition information
+    workUnit.removeProp(KafkaSource.PARTITION_ID);
+    workUnit.removeProp(KafkaSource.LEADER_ID);
+    workUnit.removeProp(KafkaSource.LEADER_HOSTANDPORT);
+    // Add combined partitions information
     populateMultiPartitionWorkUnit(partitions, workUnit);
-    workUnit.setProp(ESTIMATED_WORKUNIT_SIZE, multiWorkUnit.getProp(ESTIMATED_WORKUNIT_SIZE));
     LOG.info(String.format("Created MultiWorkUnit for partitions %s", partitions));
     return workUnit;
   }
@@ -243,9 +234,7 @@ public abstract class KafkaWorkUnitPacker {
    */
   private static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
     Preconditions.checkArgument(!partitions.isEmpty(), "There should be at least one partition");
-    workUnit.setProp(KafkaSource.TOPIC_NAME, partitions.get(0).getTopicName());
     GobblinMetrics.addCustomTagToState(workUnit, new Tag<>("kafkaTopic", partitions.get(0).getTopicName()));
-    workUnit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partitions.get(0).getTopicName());
     for (int i = 0; i < partitions.size(); i++) {
       workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i), partitions.get(i).getId());
       workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i),
