@@ -594,11 +594,9 @@ public class SalesforceExtractor extends RestApiExtractor {
       // Get data from input stream
       // If bulk load is not finished, get data from the stream
       // Skip empty result sets since they will cause the extractor to terminate early
-      do {
-        if (!this.isBulkJobFinished()) {
-          rs = getBulkData();
-        }
-      } while (rs != null && rs.isEmpty() && !this.isBulkJobFinished());
+      while (!this.isBulkJobFinished() && (rs == null || rs.isEmpty())) {
+        rs = getBulkData();
+      }
 
       // Set bulkApiInitialRun to false after the completion of first run
       this.bulkApiInitialRun = false;
@@ -802,9 +800,12 @@ public class SalesforceExtractor extends RestApiExtractor {
   }
 
   /**
-   * Fetch a batch of records
+   * Fetch records into a {@link RecordSetList} up to the configured batch size {@link #batchSize}. This batch is not
+   * the entire Salesforce result batch. It is an internal batch in the extractor for buffering a subset of the result
+   * stream that comes from a Salesforce batch for more efficient processing.
    * @param rs the record set to fetch into
-   * @param initialRecordCount Initial record count to use. This should correspond to the number of records already in rs
+   * @param initialRecordCount Initial record count to use. This should correspond to the number of records already in rs.
+   *                           This is used to limit the number of records returned in rs to {@link #batchSize}.
    * @throws DataRecordException
    * @throws IOException
    */
