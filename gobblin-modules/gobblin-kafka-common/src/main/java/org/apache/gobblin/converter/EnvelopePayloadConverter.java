@@ -32,7 +32,7 @@ import org.apache.gobblin.configuration.WorkUnitState;
  *
  * <p> Given an envelope schema as the input schema, the output schema will have the payload
  * field, configured by key {@value PAYLOAD_FIELD}, set with its latest schema fetched from a
- * {@link #registry} (see {@code createDecoratedField(Field)}). The converter copies the other fields
+ * {@link #registry} (see {@code createLatestPayloadField(Field)}). The converter copies the other fields
  * from the input schema to the output schema
  *
  * <p> Given an envelope record as the input record, the output record will have the payload set
@@ -51,13 +51,7 @@ public class EnvelopePayloadConverter extends BaseEnvelopeSchemaConverter<Generi
       throws SchemaConversionException {
     List<Field> outputSchemaFields = new ArrayList<>();
     for (Field field : inputSchema.getFields()) {
-      if (field.name().equals(payloadField)) {
-        // Decorate the field with full schema
-        outputSchemaFields.add(createDecoratedField(field));
-      } else {
-        // Make a copy of the field to the output schema
-        outputSchemaFields.add(new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order()));
-      }
+      outputSchemaFields.add(convertFieldSchema(inputSchema, field, workUnit));
     }
 
     Schema outputSchema = Schema
@@ -67,12 +61,26 @@ public class EnvelopePayloadConverter extends BaseEnvelopeSchemaConverter<Generi
   }
 
   /**
+   * Convert to the output schema of a field
+   */
+  protected Field convertFieldSchema(Schema inputSchema, Field field, WorkUnitState workUnit)
+      throws SchemaConversionException {
+    if (field.name().equals(payloadField)) {
+      // Create a payload field with latest schema
+      return createLatestPayloadField(field);
+    }
+    // Make a copy of the field to the output schema
+    return new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
+  }
+
+  /**
    * Create a payload field with its latest schema fetched from {@link #registry}
    *
    * @param field the original payload field from input envelope schema
    * @return a new payload field with its latest schema
    */
-  private Field createDecoratedField(Field field) throws SchemaConversionException {
+  private Field createLatestPayloadField(Field field)
+      throws SchemaConversionException {
     try {
       Schema payloadSchema = fetchLatestPayloadSchema();
       return new Field(field.name(), payloadSchema, DECORATED_PAYLOAD_DOC, field.defaultValue(), field.order());
@@ -86,12 +94,20 @@ public class EnvelopePayloadConverter extends BaseEnvelopeSchemaConverter<Generi
       throws DataConversionException {
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
     for (Field field : inputRecord.getSchema().getFields()) {
-      if (field.name().equals(payloadField)) {
-        outputRecord.put(payloadField, upConvertPayload(inputRecord));
-      } else {
-        outputRecord.put(field.name(), inputRecord.get(field.name()));
-      }
+      outputRecord.put(field.name(), convertFieldValue(outputSchema, field, inputRecord, workUnit));
     }
     return new SingleRecordIterable<>(outputRecord);
+  }
+
+  /**
+   * Convert to the output value of a field
+   */
+  protected Object convertFieldValue(Schema outputSchema, Field field, GenericRecord inputRecord,
+      WorkUnitState workUnit)
+      throws DataConversionException {
+    if (field.name().equals(payloadField)) {
+      return upConvertPayload(inputRecord);
+    }
+    return inputRecord.get(field.name());
   }
 }
