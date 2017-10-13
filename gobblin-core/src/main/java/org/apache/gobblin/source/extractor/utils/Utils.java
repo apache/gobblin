@@ -112,6 +112,17 @@ public class Utils {
     return outDate;
   }
 
+  public static Date toDate(String input, String inputfmt) {
+    final SimpleDateFormat inputFormat = new SimpleDateFormat(inputfmt);
+    Date outDate = null;
+    try {
+      outDate = inputFormat.parse(input);
+    } catch (ParseException e) {
+      LOG.error("Parse to date failed", e);
+    }
+    return outDate;
+  }
+
   public static String epochToDate(long epoch, String format) {
     SimpleDateFormat sdf = new SimpleDateFormat(format);
     Date date = new Date(epoch);
