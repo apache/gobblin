@@ -65,6 +65,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -78,9 +79,25 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   public static final boolean DEFAULT_USE_ALL_OBJECTS = false;
 
   private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
-  private static final String DAY_PARTITION_QUERY_TEMPLATE = "SELECT count(${column}) cnt, DAY_ONLY(${column}) time FROM ${table} "
-      + "WHERE ${column} ${greater} ${start} AND ${column} ${less} ${end} GROUP BY DAY_ONLY(${column}) ORDER BY DAY_ONLY(${column})";
-  private static final String DAY_FORMAT = "yyyy-MM-dd";
+  private static final String ENABLE_DYNAMIC_PROBING = "salesforce.enableDynamicProbing";
+  private static final String DYNAMIC_PROBING_LIMIT = "salesforce.dynamicProbingLimit";
+  private static final int DEFAULT_DYNAMIC_PROBING_LIMIT = 1000;
+  private static final String MIN_TARGET_PARTITION_SIZE = "salesforce.minTargetPartitionSize";
+  private static final int DEFAULT_MIN_TARGET_PARTITION_SIZE = 250000;
+  // this is used to generate histogram buckets smaller than the target partition size to allow for more even
+  // packing of the generated partitions
+  private static final String PROBE_TARGET_RATIO = "salesforce.probeTargetRatio";
+  private static final double DEFAULT_PROBE_TARGET_RATIO = 0.60;
+  private static final int MIN_SPLIT_TIME_MILLIS = 1000;
+
+  private static final String DAY_PARTITION_QUERY_TEMPLATE =
+      "SELECT count(${column}) cnt, DAY_ONLY(${column}) time FROM ${table} " + "WHERE ${column} ${greater} ${start}"
+          + " AND ${column} ${less} ${end} GROUP BY DAY_ONLY(${column}) ORDER BY DAY_ONLY(${column})";
+  private static final String PROBE_PARTITION_QUERY_TEMPLATE = "SELECT count(${column}) cnt FROM ${table} "
+      + "WHERE ${column} ${greater} ${start} AND ${column} ${less} ${end}";
+
+  private static final String SECONDS_FORMAT = "yyyy-MM-dd-HH:mm:ss";
+  private static final String ZERO_TIME_SUFFIX = "-00:00:00";
 
   private static final Gson GSON = new Gson();
 
@@ -103,25 +120,28 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     int maxPartitions = state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS,
         ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
+    int minTargetPartitionSize = state.getPropAsInt(MIN_TARGET_PARTITION_SIZE, DEFAULT_MIN_TARGET_PARTITION_SIZE);
 
     // Only support time related watermark
-    if (watermarkType == WatermarkType.SIMPLE || Strings.isNullOrEmpty(watermarkColumn)
-        || !state.getPropAsBoolean(ENABLE_DYNAMIC_PARTITIONING) || maxPartitions <= 1) {
+    if (watermarkType == WatermarkType.SIMPLE || Strings.isNullOrEmpty(watermarkColumn) || !state.getPropAsBoolean(
+        ENABLE_DYNAMIC_PARTITIONING) || maxPartitions <= 1) {
       return super.generateWorkUnits(sourceEntity, state, previousWatermark);
     }
 
     Partition partition = new Partitioner(state).getGlobalPartition(previousWatermark);
     Histogram histogram = getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
 
-    String specifiedPartitions = generateSpecifiedPartitions(histogram, maxPartitions, partition.getHighWatermark());
+    String specifiedPartitions = generateSpecifiedPartitions(histogram, minTargetPartitionSize, maxPartitions,
+        partition.getLowWatermark(), partition.getHighWatermark());
     state.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
     state.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, specifiedPartitions);
 
     return super.generateWorkUnits(sourceEntity, state, previousWatermark);
   }
 
-  String generateSpecifiedPartitions(Histogram histogram, int maxPartitions, long expectedHighWatermark) {
-    long interval = DoubleMath.roundToLong((double) histogram.totalRecordCount / maxPartitions, RoundingMode.CEILING);
+  String generateSpecifiedPartitions(Histogram histogram, int minTargetPartitionSize, int maxPartitions, long lowWatermark,
+      long expectedHighWatermark) {
+    int interval = computeTargetPartitionSize(histogram, minTargetPartitionSize, maxPartitions);
     int totalGroups = histogram.getGroups().size();
 
     log.info("Histogram total record count: " + histogram.totalRecordCount);
@@ -136,11 +156,12 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     int count = 0;
     HistogramGroup group;
     Iterator<HistogramGroup> it = groups.iterator();
+
     while (it.hasNext()) {
       group = it.next();
       if (count == 0) {
         // Add a new partition point;
-        partitionPoints.add(Utils.toDateTimeFormat(group.getKey(), DAY_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
+        partitionPoints.add(Utils.toDateTimeFormat(group.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
       }
 
       // Move the candidate to a new bucket if the attempted total is 2x of interval
@@ -148,7 +169,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         // Summarize current group
         statistics.addValue(count);
         // A step-in start
-        partitionPoints.add(Utils.toDateTimeFormat(group.getKey(), DAY_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
+        partitionPoints.add(Utils.toDateTimeFormat(group.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
         count = group.count;
       } else {
         // Add group into current partition
@@ -161,6 +182,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         // A fresh start next time
         count = 0;
       }
+    }
+
+    if (partitionPoints.isEmpty()) {
+      throw new RuntimeException("Unexpected empty partition list");
     }
 
     // If the last group is used as the last partition point
@@ -182,7 +207,166 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     return specifiedPartitions;
   }
 
-  private Histogram getHistogram(String entity, String watermarkColumn, SourceState state,
+  /**
+   * Compute the target partition size.
+   */
+  private int computeTargetPartitionSize(Histogram histogram, int minTargetPartitionSize, int maxPartitions) {
+     return Math.max(minTargetPartitionSize,
+        DoubleMath.roundToInt((double) histogram.totalRecordCount / maxPartitions, RoundingMode.CEILING));
+  }
+
+  /**
+   * Get a {@link JsonArray} containing the query results
+   */
+  private JsonArray getRecordsForQuery(SalesforceConnector connector, String query) {
+    try {
+      String soqlQuery = SalesforceExtractor.getSoqlUrl(query);
+      List<Command> commands = RestApiConnector.constructGetCommand(connector.getFullUri(soqlQuery));
+      CommandOutput<?, ?> response = connector.getResponse(commands);
+
+      String output;
+      Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
+      if (itr.hasNext()) {
+        output = itr.next();
+      } else {
+        throw new DataRecordException("Failed to get data from salesforce; REST response has no output");
+      }
+
+      return GSON.fromJson(output, JsonObject.class).getAsJsonArray("records");
+    } catch (RestApiClientException | RestApiProcessingException | DataRecordException e) {
+      throw new RuntimeException("Fail to get data from salesforce", e);
+    }
+  }
+
+  /**
+   * Get the row count for a time range
+   */
+  private int getCountForRange(TableCountProbingContext probingContext, StrSubstitutor sub,
+      Map<String, String> subValues, long startTime, long endTime) {
+    String startTimeStr = Utils.dateToString(new Date(startTime), SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
+    String endTimeStr = Utils.dateToString(new Date(endTime), SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
+
+    subValues.put("start", startTimeStr);
+    subValues.put("end", endTimeStr);
+
+    String query = sub.replace(PROBE_PARTITION_QUERY_TEMPLATE);
+
+    log.debug("Count query: " + query);
+    probingContext.probeCount++;
+
+    JsonArray records = getRecordsForQuery(probingContext.connector, query);
+    Iterator<JsonElement> elements = records.iterator();
+    JsonObject element = elements.next().getAsJsonObject();
+
+    return element.get("cnt").getAsInt();
+  }
+
+  /**
+   * Split a histogram bucket along the midpoint if it is larger than the bucket size limit.
+   */
+  private void getHistogramRecursively(TableCountProbingContext probingContext, Histogram histogram, StrSubstitutor sub,
+      Map<String, String> values, int count, long startEpoch, long endEpoch) {
+    long midpointEpoch = startEpoch + (endEpoch - startEpoch) / 2;
+
+    // don't split further if small, above the probe limit, or less than 1 second difference between the midpoint and start
+    if (count <= probingContext.bucketSizeLimit
+        || probingContext.probeCount > probingContext.probeLimit
+        || (midpointEpoch - startEpoch < MIN_SPLIT_TIME_MILLIS)) {
+      histogram.add(new HistogramGroup(Utils.epochToDate(startEpoch, SECONDS_FORMAT), count));
+      return;
+    }
+
+    int countLeft = getCountForRange(probingContext, sub, values, startEpoch, midpointEpoch);
+
+    getHistogramRecursively(probingContext, histogram, sub, values, countLeft, startEpoch, midpointEpoch);
+    log.debug("Count {} for left partition {} to {}", countLeft, startEpoch, midpointEpoch);
+
+    int countRight = count - countLeft;
+
+    getHistogramRecursively(probingContext, histogram, sub, values, countRight, midpointEpoch, endEpoch);
+    log.debug("Count {} for right partition {} to {}", countRight, midpointEpoch, endEpoch);
+  }
+
+  /**
+   * Get a histogram for the time range by probing to break down large buckets. Use count instead of
+   * querying if it is non-negative.
+   */
+  private Histogram getHistogramByProbing(TableCountProbingContext probingContext, int count, long startEpoch,
+      long endEpoch) {
+    Histogram histogram = new Histogram();
+
+    Map<String, String> values = new HashMap<>();
+    values.put("table", probingContext.entity);
+    values.put("column", probingContext.watermarkColumn);
+    values.put("greater", ">=");
+    values.put("less", "<");
+    StrSubstitutor sub = new StrSubstitutor(values);
+
+    getHistogramRecursively(probingContext, histogram, sub, values, count, startEpoch, endEpoch);
+
+    return histogram;
+  }
+
+  /**
+   * Refine the histogram by probing to split large buckets
+   * @return the refined histogram
+   */
+  private Histogram getRefinedHistogram(SalesforceConnector connector, String entity, String watermarkColumn,
+      SourceState state, Partition partition, Histogram histogram) {
+    final int maxPartitions = state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS,
+        ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
+    final int probeLimit = state.getPropAsInt(DYNAMIC_PROBING_LIMIT, DEFAULT_DYNAMIC_PROBING_LIMIT);
+    final int minTargetPartitionSize = state.getPropAsInt(MIN_TARGET_PARTITION_SIZE, DEFAULT_MIN_TARGET_PARTITION_SIZE);
+    final Histogram outputHistogram = new Histogram();
+    final double probeTargetRatio = state.getPropAsDouble(PROBE_TARGET_RATIO, DEFAULT_PROBE_TARGET_RATIO);
+    final int bucketSizeLimit =
+        (int) (probeTargetRatio * computeTargetPartitionSize(histogram, minTargetPartitionSize, maxPartitions));
+
+    log.info("Refining histogram with bucket size limit {}.", bucketSizeLimit);
+
+    HistogramGroup currentGroup;
+    HistogramGroup nextGroup;
+    final TableCountProbingContext probingContext =
+        new TableCountProbingContext(connector, entity, watermarkColumn, bucketSizeLimit, probeLimit);
+
+    if (histogram.getGroups().isEmpty()) {
+      return outputHistogram;
+    }
+
+    // make a copy of the histogram list and add a dummy entry at the end to avoid special processing of the last group
+    List<HistogramGroup> list = new ArrayList(histogram.getGroups());
+    Date hwmDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
+    list.add(new HistogramGroup(Utils.epochToDate(hwmDate.getTime(), SECONDS_FORMAT), 0));
+
+    for (int i = 0; i < list.size() - 1; i++) {
+      currentGroup = list.get(i);
+      nextGroup = list.get(i + 1);
+
+      // split the group if it is larger than the bucket size limit
+      if (currentGroup.count > bucketSizeLimit) {
+        long startEpoch = Utils.toDate(currentGroup.getKey(), SECONDS_FORMAT).getTime();
+        long endEpoch = Utils.toDate(nextGroup.getKey(), SECONDS_FORMAT).getTime();
+
+        outputHistogram.add(getHistogramByProbing(probingContext, currentGroup.count, startEpoch, endEpoch));
+      } else {
+        outputHistogram.add(currentGroup);
+      }
+    }
+
+    log.info("Executed {} probes for refining the histogram.", probingContext.probeCount);
+
+    // if the probe limit has been reached then print a warning
+    if (probingContext.probeCount >= probingContext.probeLimit) {
+      log.warn("Reached the probe limit");
+    }
+
+    return outputHistogram;
+  }
+
+  /**
+   * Get a histogram with day granularity buckets.
+   */
+  private Histogram getHistogramByDayBucketing(SalesforceConnector connector, String entity, String watermarkColumn,
       Partition partition) {
     Histogram histogram = new Histogram();
 
@@ -202,17 +386,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     values.put("column", watermarkColumn);
     StrSubstitutor sub = new StrSubstitutor(values);
 
-    SalesforceConnector connector = new SalesforceConnector(state);
-    try {
-      if (!connector.connect()) {
-        throw new RuntimeException("Failed to connect.");
-      }
-    } catch (RestApiConnectionException e) {
-      throw new RuntimeException("Failed to connect.", e);
-    }
-
     for (int year = startYear; year <= endYear; year++) {
-
       if (year == startYear) {
         values.put("start", lowWatermarkDate);
         values.put("greater", partition.isLowWatermarkInclusive() ? ">=" : ">");
@@ -232,14 +406,39 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       String query = sub.replace(DAY_PARTITION_QUERY_TEMPLATE);
       log.info("Histogram query: " + query);
 
-      try {
-        String soqlQuery = SalesforceExtractor.getSoqlUrl(query);
-        List<Command> commands = RestApiConnector.constructGetCommand(connector.getFullUri(soqlQuery));
-        CommandOutput<?, ?> response = connector.getResponse(commands);
-        histogram.add(parseHistogram(response));
-      } catch (RestApiClientException | RestApiProcessingException | DataRecordException e) {
-        throw new RuntimeException("Fail to get data of year " + year + " from salesforce", e);
+      histogram.add(parseDayBucketingHistogram(getRecordsForQuery(connector, query)));
+    }
+
+    return histogram;
+  }
+
+  /**
+   * Generate the histogram
+   */
+  private Histogram getHistogram(String entity, String watermarkColumn, SourceState state,
+      Partition partition) {
+    SalesforceConnector connector = new SalesforceConnector(state);
+
+    try {
+      if (!connector.connect()) {
+        throw new RuntimeException("Failed to connect.");
       }
+    } catch (RestApiConnectionException e) {
+      throw new RuntimeException("Failed to connect.", e);
+    }
+
+    Histogram histogram = getHistogramByDayBucketing(connector, entity, watermarkColumn, partition);
+
+    // exchange the first histogram group key with the global low watermark to ensure that the low watermark is captured
+    // in the range of generated partitions
+    HistogramGroup firstGroup = histogram.getGroups().get(0);
+    Date lwmDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
+    histogram.getGroups().set(0, new HistogramGroup(Utils.epochToDate(lwmDate.getTime(), SECONDS_FORMAT),
+        firstGroup.getCount()));
+
+    // refine the histogram
+    if (state.getPropAsBoolean(ENABLE_DYNAMIC_PROBING)) {
+      histogram = getRefinedHistogram(connector, entity, watermarkColumn, state, partition, histogram);
     }
 
     return histogram;
@@ -252,23 +451,23 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     return Utils.dateToString(calendar.getTime(), SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
   }
 
-  private Histogram parseHistogram(CommandOutput<?, ?> response) throws DataRecordException {
-    log.info("Parse histogram");
+  /**
+   * Parse the query results into a {@link Histogram}
+   */
+  private Histogram parseDayBucketingHistogram(JsonArray records) {
+    log.info("Parse day-based histogram");
+
     Histogram histogram = new Histogram();
 
-    String output;
-    Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
-    if (itr.hasNext()) {
-      output = itr.next();
-    } else {
-      throw new DataRecordException("Failed to get data from salesforce; REST response has no output");
-    }
-    JsonArray records = GSON.fromJson(output, JsonObject.class).getAsJsonArray("records");
     Iterator<JsonElement> elements = records.iterator();
     JsonObject element;
+
     while (elements.hasNext()) {
       element = elements.next().getAsJsonObject();
-      histogram.add(new HistogramGroup(element.get("time").getAsString(), element.get("cnt").getAsInt()));
+      String time = element.get("time").getAsString() + ZERO_TIME_SUFFIX;
+      int count = element.get("cnt").getAsInt();
+
+      histogram.add(new HistogramGroup(time, count));
     }
 
     return histogram;
@@ -354,4 +553,17 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     return result;
   }
 
+  /**
+   * Context for probing the table for row counts of a time range
+   */
+  @RequiredArgsConstructor
+  private static class TableCountProbingContext {
+    private final SalesforceConnector connector;
+    private final String entity;
+    private final String watermarkColumn;
+    private final int bucketSizeLimit;
+    private final int probeLimit;
+
+    private int probeCount = 0;
+  }
 }
