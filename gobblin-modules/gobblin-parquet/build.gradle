@@ -20,6 +20,7 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-core")
 
+  compile externalDependency.gson
   compile externalDependency.parquet
 
   testCompile externalDependency.testng
