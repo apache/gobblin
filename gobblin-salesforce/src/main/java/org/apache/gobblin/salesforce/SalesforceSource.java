@@ -84,6 +84,8 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   private static final int DEFAULT_DYNAMIC_PROBING_LIMIT = 1000;
   private static final String MIN_TARGET_PARTITION_SIZE = "salesforce.minTargetPartitionSize";
   private static final int DEFAULT_MIN_TARGET_PARTITION_SIZE = 250000;
+  // this is used to generate histogram buckets smaller than the target partition size to allow for more even
+  // packing of the generated partitions
   private static final String PROBE_TARGET_RATIO = "salesforce.probeTargetRatio";
   private static final double DEFAULT_PROBE_TARGET_RATIO = 0.60;
   private static final int MIN_SPLIT_TIME_MILLIS = 1000;
@@ -186,9 +188,6 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       throw new RuntimeException("Unexpected empty partition list");
     }
 
-    // exchange the first partition point with the global low watermark
-    partitionPoints.set(0, Long.toString(lowWatermark));
-
     // If the last group is used as the last partition point
     if (count == 0) {
       // Exchange the last partition point with global high watermark
@@ -265,42 +264,34 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   /**
    * Split a histogram bucket along the midpoint if it is larger than the bucket size limit.
    */
-  private int getHistogramRecursively(TableCountProbingContext probingContext, Histogram histogram, StrSubstitutor sub,
-      Map<String, String> values, int approximateCount, long startEpoch, long endEpoch) {
-    // if an approximate count was specified then use it instead of querying
-    int count = approximateCount > -1 ? approximateCount : getCountForRange(probingContext, sub, values, startEpoch,
-        endEpoch);
-    int countLeft;
-    int countRight;
+  private void getHistogramRecursively(TableCountProbingContext probingContext, Histogram histogram, StrSubstitutor sub,
+      Map<String, String> values, int count, long startEpoch, long endEpoch) {
     long midpointEpoch = startEpoch + (endEpoch - startEpoch) / 2;
 
-    // split further if large, below the probe limit, and at least 1 second difference between the midpoint and start
-    if (count > probingContext.bucketSizeLimit && probingContext.probeCount < probingContext.probeLimit
-        && (midpointEpoch - startEpoch > MIN_SPLIT_TIME_MILLIS)) {
-      countLeft = getHistogramRecursively(probingContext, histogram, sub, values, -1, startEpoch, midpointEpoch);
-      log.debug("Count {} for left partition {} to {}", countLeft, startEpoch, midpointEpoch);
-
-      countRight = count - countLeft;
-
-      if (countRight > probingContext.bucketSizeLimit) {
-        countRight = getHistogramRecursively(probingContext, histogram, sub, values, countRight, midpointEpoch, endEpoch);
-      } else {
-        histogram.add(new HistogramGroup(Utils.epochToDate(midpointEpoch, SECONDS_FORMAT), countRight));
-      }
-
-      log.debug("Count {} for right partition {} to {}", countRight, midpointEpoch, endEpoch);
-    } else {
+    // don't split further if small, above the probe limit, or less than 1 second difference between the midpoint and start
+    if (count <= probingContext.bucketSizeLimit
+        || probingContext.probeCount > probingContext.probeLimit
+        || (midpointEpoch - startEpoch < MIN_SPLIT_TIME_MILLIS)) {
       histogram.add(new HistogramGroup(Utils.epochToDate(startEpoch, SECONDS_FORMAT), count));
+      return;
     }
 
-    return count;
+    int countLeft = getCountForRange(probingContext, sub, values, startEpoch, midpointEpoch);
+
+    getHistogramRecursively(probingContext, histogram, sub, values, countLeft, startEpoch, midpointEpoch);
+    log.debug("Count {} for left partition {} to {}", countLeft, startEpoch, midpointEpoch);
+
+    int countRight = count - countLeft;
+
+    getHistogramRecursively(probingContext, histogram, sub, values, countRight, midpointEpoch, endEpoch);
+    log.debug("Count {} for right partition {} to {}", countRight, midpointEpoch, endEpoch);
   }
 
   /**
-   * Get a histogram for the time range by probing to break down large buckets. Use approximateCount instead of
+   * Get a histogram for the time range by probing to break down large buckets. Use count instead of
    * querying if it is non-negative.
    */
-  private Histogram getHistogramByProbing(TableCountProbingContext probingContext, int appoximateCount, long startEpoch,
+  private Histogram getHistogramByProbing(TableCountProbingContext probingContext, int count, long startEpoch,
       long endEpoch) {
     Histogram histogram = new Histogram();
 
@@ -311,7 +302,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     values.put("less", "<");
     StrSubstitutor sub = new StrSubstitutor(values);
 
-    getHistogramRecursively(probingContext, histogram, sub, values, appoximateCount, startEpoch, endEpoch);
+    getHistogramRecursively(probingContext, histogram, sub, values, count, startEpoch, endEpoch);
 
     return histogram;
   }
@@ -333,41 +324,32 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     log.info("Refining histogram with bucket size limit {}.", bucketSizeLimit);
 
-    final Iterator<HistogramGroup> it = histogram.getGroups().iterator();
-    HistogramGroup group = null;
-    HistogramGroup prevGroup;
+    HistogramGroup currentGroup;
+    HistogramGroup nextGroup;
     final TableCountProbingContext probingContext =
         new TableCountProbingContext(connector, entity, watermarkColumn, bucketSizeLimit, probeLimit);
 
-    if (it.hasNext()) {
-      group = it.next();
+    if (histogram.getGroups().isEmpty()) {
+      return outputHistogram;
     }
 
-    while (it.hasNext()) {
-      prevGroup = group;
-      group = it.next();
+    // make a copy of the histogram list and add a dummy entry at the end to avoid special processing of the last group
+    List<HistogramGroup> list = new ArrayList(histogram.getGroups());
+    Date hwmDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
+    list.add(new HistogramGroup(Utils.epochToDate(hwmDate.getTime(), SECONDS_FORMAT), 0));
+
+    for (int i = 0; i < list.size() - 1; i++) {
+      currentGroup = list.get(i);
+      nextGroup = list.get(i + 1);
 
       // split the group if it is larger than the bucket size limit
-      if (prevGroup.count > bucketSizeLimit) {
-        long startEpoch = Utils.toDate(prevGroup.getKey(), SECONDS_FORMAT).getTime();
-        long endEpoch = Utils.toDate(group.getKey(), SECONDS_FORMAT).getTime();
+      if (currentGroup.count > bucketSizeLimit) {
+        long startEpoch = Utils.toDate(currentGroup.getKey(), SECONDS_FORMAT).getTime();
+        long endEpoch = Utils.toDate(nextGroup.getKey(), SECONDS_FORMAT).getTime();
 
-        outputHistogram.add(getHistogramByProbing(probingContext, prevGroup.count, startEpoch, endEpoch));
+        outputHistogram.add(getHistogramByProbing(probingContext, currentGroup.count, startEpoch, endEpoch));
       } else {
-        outputHistogram.add(prevGroup);
-      }
-    }
-
-    // handle last group
-    if (group != null) {
-      if (group.count > bucketSizeLimit) {
-        long startEpoch = Utils.toDate(group.getKey(), SECONDS_FORMAT).getTime();
-        Date endDate = Utils.toDate(partition.getHighWatermark(), Partitioner.WATERMARKTIMEFORMAT);
-        long endEpoch = endDate.getTime();
-
-        outputHistogram.add(getHistogramByProbing(probingContext, group.count, startEpoch, endEpoch));
-      } else {
-        outputHistogram.add(group);
+        outputHistogram.add(currentGroup);
       }
     }
 
@@ -424,7 +406,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       String query = sub.replace(DAY_PARTITION_QUERY_TEMPLATE);
       log.info("Histogram query: " + query);
 
-      histogram.add(parseHistogram(getRecordsForQuery(connector, query)));
+      histogram.add(parseDayBucketingHistogram(getRecordsForQuery(connector, query)));
     }
 
     return histogram;
@@ -447,6 +429,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     Histogram histogram = getHistogramByDayBucketing(connector, entity, watermarkColumn, partition);
 
+    // exchange the first histogram group key with the global low watermark to ensure that the low watermark is captured
+    // in the range of generated partitions
+    HistogramGroup firstGroup = histogram.getGroups().get(0);
+    Date lwmDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
+    histogram.getGroups().set(0, new HistogramGroup(Utils.epochToDate(lwmDate.getTime(), SECONDS_FORMAT),
+        firstGroup.getCount()));
+
     // refine the histogram
     if (state.getPropAsBoolean(ENABLE_DYNAMIC_PROBING)) {
       histogram = getRefinedHistogram(connector, entity, watermarkColumn, state, partition, histogram);
@@ -465,8 +454,8 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   /**
    * Parse the query results into a {@link Histogram}
    */
-  private Histogram parseHistogram(JsonArray records) {
-    log.info("Parse histogram");
+  private Histogram parseDayBucketingHistogram(JsonArray records) {
+    log.info("Parse day-based histogram");
 
     Histogram histogram = new Histogram();
 
