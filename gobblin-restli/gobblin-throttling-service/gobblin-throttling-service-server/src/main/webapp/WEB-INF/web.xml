@@ -30,7 +30,7 @@
   </filter-mapping>
 
   <listener>
-    <listener-class>gobblin.restli.throttling.ThrottlingGuiceServletConfig</listener-class>
+    <listener-class>org.apache.gobblin.restli.throttling.ThrottlingGuiceServletConfig</listener-class>
   </listener>
 
   <context-param>
@@ -41,6 +41,21 @@
   <context-param>
     <param-name>gobblin.broker.limiter.streamCopierBandwidth.localhost.localhost.qps</param-name>
     <param-value>100000000</param-value>
+  </context-param>
+
+  <context-param>
+    <param-name>gobblin.broker.limiter.filesystem.ltx1-holdem.grid.linkedin.com.presto.qps</param-name>
+    <param-value>10</param-value>
+  </context-param>
+
+  <context-param>
+    <param-name>gobblin.broker.limiter.filesystem.ltx1-holdem.grid.linkedin.com.etl.qps</param-name>
+    <param-value>5</param-value>
+  </context-param>
+
+  <context-param>
+    <param-name>gobblin.broker.limiter.serviceName</param-name>
+    <param-value>presto</param-value>
   </context-param>
 
 </web-app>

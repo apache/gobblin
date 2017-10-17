@@ -30,10 +30,18 @@ public class FileSystemLimiterKey extends SharedLimiterKey {
 
   public static final String RESOURCE_LIMITED_PREFIX = "filesystem";
   private final URI uri;
+  public final String serviceName;
 
   public FileSystemLimiterKey(URI uri) {
     super(RESOURCE_LIMITED_PREFIX + "/" + getFSIdentifier(uri));
     this.uri = uri;
+    this.serviceName = null;
+  }
+
+  public FileSystemLimiterKey(URI uri, String serviceName) {
+    super(RESOURCE_LIMITED_PREFIX + "/" + getFSIdentifier(uri) + "/" + serviceName);
+    this.uri = uri;
+    this.serviceName = serviceName;
   }
 
   private static String getFSIdentifier(URI uri) {
