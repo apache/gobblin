@@ -118,7 +118,6 @@ public class GPGFileDecryptor {
     }
 
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    InputStream resultStream = null;
 
     try (InputStream clear = pbe.getDataStream(
         new JcePublicKeyDataDecryptorFactoryBuilder().setProvider(BouncyCastleProvider.PROVIDER_NAME).build(sKey))) {
@@ -126,10 +125,8 @@ public class GPGFileDecryptor {
       JcaPGPObjectFactory pgpFact = new JcaPGPObjectFactory(clear);
       Object pgpfObject = pgpFact.nextObject();
 
-      while (pgpfObject != null)
-      {
-        if (pgpfObject instanceof PGPCompressedData)
-        {
+      while (pgpfObject != null) {
+        if (pgpfObject instanceof PGPCompressedData) {
           PGPCompressedData cData = (PGPCompressedData) pgpfObject;
           pgpFact = new JcaPGPObjectFactory(cData.getDataStream());
           pgpfObject = pgpFact.nextObject();
@@ -146,9 +143,10 @@ public class GPGFileDecryptor {
         }
         pgpfObject = pgpFact.nextObject();
       }
-      resultStream = new ByteArrayInputStream(outputStream.toByteArray());
+      return new ByteArrayInputStream(outputStream.toByteArray());
+    }
+    finally {
       outputStream.close();
-      return resultStream;
     }
   }
 
