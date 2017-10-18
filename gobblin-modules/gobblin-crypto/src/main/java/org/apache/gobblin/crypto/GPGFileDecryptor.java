@@ -144,8 +144,7 @@ public class GPGFileDecryptor {
         pgpfObject = pgpFact.nextObject();
       }
       return new ByteArrayInputStream(outputStream.toByteArray());
-    }
-    finally {
+    } finally {
       outputStream.close();
     }
   }
