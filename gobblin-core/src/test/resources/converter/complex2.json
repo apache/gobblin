@@ -1,0 +1,186 @@
+{
+  "schema": [
+    {
+      "columnName": "protocolv1",
+      "comment": "This is a protocol description for a fictitious network service.",
+      "dataType": {
+        "type": "record",
+        "values": [
+          {
+            "columnName": "DependencyType",
+            "dataType": {
+              "type": "enum",
+              "name": "depType",
+              "symbols": [
+                "REQUIRED",
+                "OPTIONAL"
+              ]
+            }
+          },
+          {
+            "columnName": "DependencyDetail",
+            "comment": "Details about status of a dependency.",
+            "dataType": {
+              "type": "record",
+              "values": [
+                {
+                  "columnName": "name",
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "comment": "A short name of the service who's status is being reported"
+                },
+                {
+                  "columnName": "descendingField",
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "comment": "A descending sort order field"
+                },
+                {
+                  "columnName": "ignoredField",
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "comment": "An ignored order sort field"
+                },
+                {
+                  "columnName": "status",
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "comment": "A string representing the operational status for this service"
+                },
+                {
+                  "columnName": "timestamp",
+                  "dataType": {
+                    "type": "string"
+                  },
+                  "comment": "A timestamp showing the time at which this particular dependency was compiled."
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "record": {
+    "protocolv1": {
+      "DependencyType": "REQUIRED",
+      "DependencyDetail": {
+        "name": "something",
+        "descendingField": "someorder",
+        "ignoredField": "somefield",
+        "status": "somestatus",
+        "timestamp": "2342323423"
+      }
+    }
+  },
+  "expectedSchema": {
+    "type": "record",
+    "name": "dummy_table",
+    "namespace": "namespace",
+    "doc": "",
+    "fields": [
+      {
+        "name": "protocolv1",
+        "type": {
+          "type": "record",
+          "namespace": "",
+          "doc": "",
+          "fields": [
+            {
+              "name": "DependencyType",
+              "type": {
+                "type": "enum",
+                "name": "depType",
+                "doc": "",
+                "symbols": [
+                  "REQUIRED",
+                  "OPTIONAL"
+                ],
+                "source.type": "enum"
+              },
+              "doc": "",
+              "source.type": "enum"
+            },
+            {
+              "name": "DependencyDetail",
+              "type": {
+                "type": "record",
+                "doc": "",
+                "fields": [
+                  {
+                    "name": "name",
+                    "type": {
+                      "type": "string",
+                      "source.type": "string"
+                    },
+                    "doc": "A short name of the service who's status is being reported",
+                    "source.type": "string"
+                  },
+                  {
+                    "name": "descendingField",
+                    "type": {
+                      "type": "string",
+                      "source.type": "string"
+                    },
+                    "doc": "A descending sort order field",
+                    "source.type": "string"
+                  },
+                  {
+                    "name": "ignoredField",
+                    "type": {
+                      "type": "string",
+                      "source.type": "string"
+                    },
+                    "doc": "An ignored order sort field",
+                    "source.type": "string"
+                  },
+                  {
+                    "name": "status",
+                    "type": {
+                      "type": "string",
+                      "source.type": "string"
+                    },
+                    "doc": "A string representing the operational status for this service",
+                    "source.type": "string"
+                  },
+                  {
+                    "name": "timestamp",
+                    "type": {
+                      "type": "string",
+                      "source.type": "string"
+                    },
+                    "doc": "A timestamp showing the time at which this particular dependency was compiled.",
+                    "source.type": "string"
+                  }
+                ],
+                "source.type": "record"
+              },
+              "doc": "Details about status of a dependency.",
+              "source.type": "record"
+            }
+          ],
+          "source.type": "record"
+        },
+        "doc": "This is a protocol description for a fictitious network service.",
+        "source.type": "record"
+      }
+    ],
+    "source.type": "record"
+  },
+  "expectedRecord": {
+    "protocolv1": {
+      "DependencyType": "REQUIRED",
+      "DependencyDetail": {
+        "name": "something",
+        "descendingField": "someorder",
+        "ignoredField": "somefield",
+        "status": "somestatus",
+        "timestamp": "2342323423"
+      }
+    }
+  }
+}

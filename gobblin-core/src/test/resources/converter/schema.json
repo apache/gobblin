@@ -1,376 +1,400 @@
-[
-   {
-      "columnName":"Id",
-      "dataType":{
-         "type":"string"
+{
+  "schema": [
+    {
+      "columnName": "Id",
+      "dataType": {
+        "type": "string"
       },
-      "waterMark":false,
-      "primaryKey":1,
-      "length":18,
-      "precision":0,
-      "scale":0,
-      "isNullable":false,
-      "comment":"Account ID",
-      "unique":false
-   },
-   {
-      "columnName":"IsDeleted",
-      "dataType":{
-         "type":"boolean"
+      "waterMark": false,
+      "primaryKey": 1,
+      "length": 18,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": false,
+      "comment": "Account ID",
+      "unique": false
+    },
+    {
+      "columnName": "IsDeleted",
+      "dataType": {
+        "type": "boolean"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":false,
-      "comment":"Deleted",
-      "unique":false
-   },
-   {
-      "columnName":"Salutation",
-      "dataType":{
-         "items":"string",
-         "type":"array"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": false,
+      "comment": "Deleted",
+      "unique": false
+    },
+    {
+      "columnName": "Salutation",
+      "dataType": {
+        "items": "string",
+        "type": "array"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":40,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"Salutation",
-      "unique":false
-   },
-   {
-      "columnName":"MapAccount",
-      "dataType":{
-         "values":"string",
-         "type":"map"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 40,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "Salutation",
+      "unique": false
+    },
+    {
+      "columnName": "MapAccount",
+      "dataType": {
+        "values": "string",
+        "type": "map"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":40,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"Salutation",
-      "unique":false
-   },
-   {
-      "columnName":"Industry",
-      "dataType":{
-         "symbols":[
-            "IT",
-            "SALES"
-         ],
-         "name":"Industry",
-         "type":"enum"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 40,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "Salutation",
+      "unique": false
+    },
+    {
+      "columnName": "Industry",
+      "dataType": {
+        "symbols": [
+          "IT",
+          "SALES"
+        ],
+        "name": "Industry",
+        "type": "enum"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":40,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"Salutation",
-      "unique":false
-   },
-   {
-      "columnName":"LastModifiedDate",
-      "dataType":{
-         "type":"timestamp"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 40,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "Salutation",
+      "unique": false
+    },
+    {
+      "columnName": "LastModifiedDate",
+      "dataType": {
+        "type": "timestamp"
       },
-      "waterMark":true,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":false,
-      "comment":"Last Modified Date",
-      "unique":false
-   },
-   {
-      "columnName":"null_this",
-      "dataType":{
-         "type":"String"
+      "waterMark": true,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": false,
+      "comment": "Last Modified Date",
+      "unique": false
+    },
+    {
+      "columnName": "null_this",
+      "dataType": {
+        "type": "String"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"test null",
-      "unique":false
-   },
-   {
-      "columnName":"date_type",
-      "dataType":{
-         "type":"date"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "test null",
+      "unique": false
+    },
+    {
+      "columnName": "date_type",
+      "dataType": {
+        "type": "date"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":false,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"time_type",
-      "dataType":{
-         "type":"time"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": false,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "time_type",
+      "dataType": {
+        "type": "time"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":false,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"bytes_type",
-      "dataType":{
-         "type":"bytes"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": false,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "bytes_type",
+      "dataType": {
+        "type": "bytes"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":false,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"int_type",
-      "dataType":{
-         "type":"int"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": false,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "int_type",
+      "dataType": {
+        "type": "int"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":false,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"long_type",
-      "dataType":{
-         "type":"long"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": false,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "long_type",
+      "dataType": {
+        "type": "long"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":false,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"float_type",
-      "dataType":{
-         "type":"float"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": false,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "float_type",
+      "dataType": {
+        "type": "float"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":false,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"double_type",
-      "dataType":{
-         "type":"double"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": false,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "double_type",
+      "dataType": {
+        "type": "double"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":false,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"string_type_null",
-      "dataType":{
-         "type":"string"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": false,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "string_type_null",
+      "dataType": {
+        "type": "string"
       },
-      "waterMark":false,
-      "primaryKey":1,
-      "length":18,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"Account ID",
-      "unique":false
-   },
-   {
-      "columnName":"boolean_type_null",
-      "dataType":{
-         "type":"boolean"
+      "waterMark": false,
+      "primaryKey": 1,
+      "length": 18,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "Account ID",
+      "unique": false
+    },
+    {
+      "columnName": "boolean_type_null",
+      "dataType": {
+        "type": "boolean"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"Deleted",
-      "unique":false
-   },
-   {
-      "columnName":"list_type_null",
-      "dataType":{
-         "items":"string",
-         "type":"array"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "Deleted",
+      "unique": false
+    },
+    {
+      "columnName": "list_type_null",
+      "dataType": {
+        "items": "string",
+        "type": "array"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":40,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"Salutation",
-      "unique":false
-   },
-   {
-      "columnName":"map_type_null",
-      "dataType":{
-         "values":"string",
-         "type":"map"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 40,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "Salutation",
+      "unique": false
+    },
+    {
+      "columnName": "map_type_null",
+      "dataType": {
+        "values": "string",
+        "type": "map"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":40,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"Salutation",
-      "unique":false
-   },
-
-   {
-      "columnName":"timestamp_type_null",
-      "dataType":{
-         "type":"timestamp"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 40,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "Salutation",
+      "unique": false
+    },
+    {
+      "columnName": "timestamp_type_null",
+      "dataType": {
+        "type": "timestamp"
       },
-      "waterMark":true,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"Last Modified Date",
-      "unique":false
-   },
-   {
-      "columnName":"date_type_null",
-      "dataType":{
-         "type":"date"
+      "waterMark": true,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "Last Modified Date",
+      "unique": false
+    },
+    {
+      "columnName": "date_type_null",
+      "dataType": {
+        "type": "date"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"time_type_null",
-      "dataType":{
-         "type":"time"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "time_type_null",
+      "dataType": {
+        "type": "time"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"bytes_type_null",
-      "dataType":{
-         "type":"bytes"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "bytes_type_null",
+      "dataType": {
+        "type": "bytes"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"int_type_null",
-      "dataType":{
-         "type":"int"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "int_type_null",
+      "dataType": {
+        "type": "int"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"long_type_null",
-      "dataType":{
-         "type":"long"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "long_type_null",
+      "dataType": {
+        "type": "long"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"float_type_null",
-      "dataType":{
-         "type":"float"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "float_type_null",
+      "dataType": {
+        "type": "float"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"testing datatypes",
-      "unique":false
-   },
-   {
-      "columnName":"double_type_null",
-      "dataType":{
-         "type":"double"
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "testing datatypes",
+      "unique": false
+    },
+    {
+      "columnName": "double_type_null",
+      "dataType": {
+        "type": "double"
       },
-      "waterMark":false,
-      "primaryKey":0,
-      "length":0,
-      "precision":0,
-      "scale":0,
-      "isNullable":true,
-      "comment":"testing datatypes",
-      "unique":false
-   }
-]
+      "waterMark": false,
+      "primaryKey": 0,
+      "length": 0,
+      "precision": 0,
+      "scale": 0,
+      "isNullable": true,
+      "comment": "testing datatypes",
+      "unique": false
+    }
+  ],
+  "record": {
+    "Id": "232498",
+    "IsDeleted": false,
+    "Salutation": [
+      "test",
+      "test1",
+      "test2"
+    ],
+    "MapAccount": {
+      "test": "test",
+      "test1": "test",
+      "test2": "test"
+    },
+    "Industry": "IT",
+    "LastModifiedDate": "2014-01-02 12:23:37",
+    "date_type": "2014-01-02 12:23:37",
+    "time_type": "12:23:37",
+    "bytes_type": "dfkljafnio3ebpoahdjhjh",
+    "int_type": 3,
+    "long_type": 7899083748927,
+    "float_type": 4.3,
+    "double_type": 9.763649736
+  }
+}
