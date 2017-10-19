@@ -27,26 +27,28 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableMap;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.google.common.util.concurrent.AbstractIdleService;
-
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecConsumer;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.job_monitor.AvroJobSpecKafkaJobMonitor;
 import org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor;
 import org.apache.gobblin.runtime.std.DefaultJobCatalogListenerImpl;
 import org.apache.gobblin.util.CompletedFuture;
 import org.apache.gobblin.util.ConfigUtils;
-import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.*;
 
+import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.SPEC_KAFKA_TOPICS_KEY;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -58,7 +60,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   public static final String SPEC_STREAMING_BLOCKING_QUEUE_SIZE = "spec.StreamingBlockingQueueSize";
   private static final int DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE = 100;
   private final AvroJobSpecKafkaJobMonitor _jobMonitor;
-  private final BlockingQueue<ImmutablePair<Verb, Spec>> _jobSpecQueue;
+  private final BlockingQueue<ImmutablePair<SpecExecutor.Verb, Spec>> _jobSpecQueue;
 
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
     String topic = config.getString(SPEC_KAFKA_TOPICS_KEY);
@@ -93,11 +95,11 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
    * @return list of (verb, jobspecs) pairs.
    */
   @Override
-  public Future<? extends List<Pair<Verb, Spec>>> changedSpecs() {
-    List<Pair<Verb, Spec>> changesSpecs = new ArrayList<>();
+  public Future<? extends List<Pair<SpecExecutor.Verb, Spec>>> changedSpecs() {
+    List<Pair<SpecExecutor.Verb, Spec>> changesSpecs = new ArrayList<>();
 
     try {
-      Pair<Verb, Spec> specPair = _jobSpecQueue.take();
+      Pair<SpecExecutor.Verb, Spec> specPair = _jobSpecQueue.take();
 
       do {
         changesSpecs.add(specPair);
@@ -140,7 +142,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
       super.onAddJob(addedJob);
 
       try {
-        _jobSpecQueue.put(new ImmutablePair<Verb, Spec>(Verb.ADD, addedJob));
+        _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.ADD, addedJob));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
@@ -154,7 +156,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
         Properties props = new Properties();
         jobSpecBuilder.withVersion(deletedJobVersion).withConfigAsProperties(props);
 
-        _jobSpecQueue.put(new ImmutablePair<Verb, Spec>(Verb.DELETE, jobSpecBuilder.build()));
+        _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.DELETE, jobSpecBuilder.build()));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
@@ -164,7 +166,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
       super.onUpdateJob(updatedJob);
 
       try {
-        _jobSpecQueue.put(new ImmutablePair<Verb, Spec>(Verb.UPDATE, updatedJob));
+        _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.UPDATE, updatedJob));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
