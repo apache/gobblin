@@ -31,7 +31,7 @@ import org.apache.gobblin.converter.ToAvroConverterBase;
 
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonObject;
-import com.google.common.base.Preconditions;
+import com.google.gson.JsonNull;
 import com.google.common.base.Splitter;
 
 
@@ -84,10 +84,6 @@ public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase
         continue;
       }
 
-      if (inputRecord.get(field.name()) == null) {
-        throw new DataConversionException("Field missing from record: " + field.name());
-      }
-
       Schema.Type type = field.schema().getType();
       boolean nullable = false;
       Schema schema = field.schema();
@@ -107,6 +103,14 @@ public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase
         } else {
           throw new DataConversionException("Unions must be size 2, and contain one null");
         }
+
+        if (inputRecord.get(field.name()) == null) {
+          inputRecord.add(field.name(), JsonNull.INSTANCE);
+        }
+      }
+
+      if (inputRecord.get(field.name()) == null) {
+        throw new DataConversionException("Field missing from record: " + field.name());
       }
 
       if (type.equals(Schema.Type.RECORD)) {
