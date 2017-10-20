@@ -19,42 +19,51 @@ package org.apache.gobblin.service;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.Future;
-import javax.annotation.concurrent.NotThreadSafe;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import org.slf4j.Logger;
-import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.api.SpecProducer;
-import org.apache.gobblin.kafka.writer.Kafka08DataWriter;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
 import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
-import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.*;
 
+import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.VERB_KEY;
+import javax.annotation.concurrent.NotThreadSafe;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @NotThreadSafe
 public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
+  private static final String KAFKA_DATA_WRITER_CLASS_KEY = "spec.kafka.dataWriterClass";
+  private static final String DEFAULT_KAFKA_DATA_WRITER_CLASS =
+      "org.apache.gobblin.kafka.writer.Kafka08DataWriter";
 
   // Producer
-  protected Kafka08DataWriter<byte[]> _kafka08Producer;
+  protected AsyncDataWriter<byte[]> _kafkaProducer;
   private final AvroSerializer<AvroJobSpec> _serializer;
   private Config _config;
+  private final String _kafkaProducerClassName;
 
   public SimpleKafkaSpecProducer(Config config, Optional<Logger> log) {
+    _kafkaProducerClassName = ConfigUtils.getString(config, KAFKA_DATA_WRITER_CLASS_KEY,
+        DEFAULT_KAFKA_DATA_WRITER_CLASS);
 
     try {
       _serializer = new AvroBinarySerializer<>(AvroJobSpec.SCHEMA$, new FixedSchemaVersionWriter());
@@ -79,7 +88,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
     log.info("Adding Spec: " + addedSpec + " using Kafka.");
 
-    return getKafka08Producer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
+    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }
 
   @Override
@@ -88,18 +97,18 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
     log.info("Updating Spec: " + updatedSpec + " using Kafka.");
 
-    return getKafka08Producer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
+    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }
 
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI) {
 
     AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
-        .setMetadata(ImmutableMap.of(VERB_KEY, Verb.DELETE.name())).build();
+        .setMetadata(ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.DELETE.name())).build();
 
     log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
 
-    return getKafka08Producer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
+    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }
 
   @Override
@@ -109,17 +118,25 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
   @Override
   public void close() throws IOException {
-    _kafka08Producer.close();
+    _kafkaProducer.close();
   }
 
-  private Kafka08DataWriter<byte[]> getKafka08Producer() {
-    if (null == _kafka08Producer) {
-      _kafka08Producer = new Kafka08DataWriter<byte[]>(ConfigUtils.configToProperties(_config));
+  private AsyncDataWriter<byte[]> getKafkaProducer() {
+    if (null == _kafkaProducer) {
+      try {
+        Class<?> kafkaProducerClass = (Class<?>) Class.forName(_kafkaProducerClassName);
+        _kafkaProducer = (AsyncDataWriter<byte[]>) ConstructorUtils.invokeConstructor(kafkaProducerClass,
+            ConfigUtils.configToProperties(_config));
+      } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+        log.error("Failed to instantiate Kafka consumer from class " + _kafkaProducerClassName, e);
+
+        throw new RuntimeException("Failed to instantiate Kafka consumer", e);
+      }
     }
-    return _kafka08Producer;
+    return _kafkaProducer;
   }
 
-  private AvroJobSpec convertToAvroJobSpec(Spec spec, Verb verb) {
+  private AvroJobSpec convertToAvroJobSpec(Spec spec, SpecExecutor.Verb verb) {
     if (spec instanceof JobSpec) {
       JobSpec jobSpec = (JobSpec) spec;
       AvroJobSpec.Builder avroJobSpecBuilder = AvroJobSpec.newBuilder();

@@ -17,6 +17,7 @@
 package org.apache.gobblin.kafka.client;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
@@ -81,6 +82,9 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     super(config);
     Preconditions.checkArgument(config.hasPath(GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY),
         "Missing required property " + GOBBLIN_CONFIG_KEY_DESERIALIZER_CLASS_KEY);
+
+    Config scopedConfig = ConfigUtils.getConfigOrEmpty(config, AbstractBaseKafkaConsumerClient.CONFIG_PREFIX_NO_DOT);
+
     Properties props = new Properties();
     props.put(KAFKA_09_CLIENT_BOOTSTRAP_SERVERS_KEY, Joiner.on(",").join(super.brokers));
     props.put(KAFKA_09_CLIENT_ENABLE_AUTO_COMMIT_KEY, KAFKA_09_DEFAULT_ENABLE_AUTO_COMMIT);
@@ -89,6 +93,9 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
         ConfigUtils.getString(config, GOBBLIN_CONFIG_KEY_DESERIALIZER_CLASS_KEY, KAFKA_09_DEFAULT_KEY_DESERIALIZER));
     props.put(KAFKA_09_CLIENT_VALUE_DESERIALIZER_CLASS_KEY,
         config.getString(GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY));
+
+    props.putAll(ConfigUtils.configToProperties(scopedConfig));
+
     this.consumer = new KafkaConsumer<>(props);
 
   }
@@ -112,12 +119,20 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
 
   @Override
   public long getEarliestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException {
-    throw new UnsupportedOperationException("getEarliestOffset and getLatestOffset is not supported by Kafka-09");
+    TopicPartition topicPartition = new TopicPartition(partition.getTopicName(), partition.getId());
+    this.consumer.assign(Collections.singletonList(topicPartition));
+    this.consumer.seekToBeginning(topicPartition);
+
+    return this.consumer.position(topicPartition);
   }
 
   @Override
   public long getLatestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException {
-    throw new UnsupportedOperationException("getEarliestOffset and getLatestOffset is not supported by Kafka-09");
+    TopicPartition topicPartition = new TopicPartition(partition.getTopicName(), partition.getId());
+    this.consumer.assign(Collections.singletonList(topicPartition));
+    this.consumer.seekToEnd(topicPartition);
+
+    return this.consumer.position(topicPartition);
   }
 
   @Override

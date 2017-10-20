@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,43 +32,48 @@ import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
-
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
-import org.apache.gobblin.runtime.api.SpecExecutor;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.kafka.client.ByteArrayBasedKafkaRecord;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
-import org.apache.gobblin.kafka.client.Kafka08ConsumerClient;
 import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecConsumer;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 import org.apache.gobblin.util.CompletedFuture;
-import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.*;
+import org.apache.gobblin.util.ConfigUtils;
 
+import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.VERB_KEY;
 import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
 public class SimpleKafkaSpecConsumer implements SpecConsumer<Spec>, Closeable {
+  private static final String CONSUMER_CLIENT_FACTORY_CLASS_KEY = "spec.kafka.consumerClientClassFactory";
+  private static final String DEFAULT_CONSUMER_CLIENT_FACTORY_CLASS =
+      "org.apache.gobblin.kafka.client.Kafka08ConsumerClient$Factory";
 
   // Consumer
-  protected final GobblinKafkaConsumerClient _kafka08Consumer;
+  protected final GobblinKafkaConsumerClient _kafkaConsumer;
   protected final List<KafkaPartition> _partitions;
   protected final List<Long> _lowWatermark;
   protected final List<Long> _nextWatermark;
@@ -84,8 +90,25 @@ public class SimpleKafkaSpecConsumer implements SpecConsumer<Spec>, Closeable {
   public SimpleKafkaSpecConsumer(Config config, Optional<Logger> log) {
 
     // Consumer
-    _kafka08Consumer = new Kafka08ConsumerClient.Factory().create(config);
-    List<KafkaTopic> kafkaTopics = _kafka08Consumer.getFilteredTopics(Collections.EMPTY_LIST,
+    String kafkaConsumerClientClass = ConfigUtils.getString(config, CONSUMER_CLIENT_FACTORY_CLASS_KEY,
+        DEFAULT_CONSUMER_CLIENT_FACTORY_CLASS);
+
+    try {
+      Class<?> clientFactoryClass = (Class<?>) Class.forName(kafkaConsumerClientClass);
+      final GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory factory =
+          (GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory)
+              ConstructorUtils.invokeConstructor(clientFactoryClass);
+
+      _kafkaConsumer = factory.create(config);
+    } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+      if (log.isPresent()) {
+        log.get().error("Failed to instantiate Kafka consumer from class " + kafkaConsumerClientClass, e);
+      }
+
+      throw new RuntimeException("Failed to instantiate Kafka consumer", e);
+    }
+
+    List<KafkaTopic> kafkaTopics = _kafkaConsumer.getFilteredTopics(Collections.EMPTY_LIST,
         Lists.newArrayList(Pattern.compile(config.getString(SimpleKafkaSpecExecutor.SPEC_KAFKA_TOPICS_KEY))));
     _partitions = kafkaTopics.get(0).getPartitions();
     _lowWatermark = Lists.newArrayList(Collections.nCopies(_partitions.size(), 0L));
@@ -171,9 +194,9 @@ public class SimpleKafkaSpecConsumer implements SpecConsumer<Spec>, Closeable {
           }
 
           String verbName = record.getMetadata().get(VERB_KEY);
-          Verb verb = Verb.valueOf(verbName);
+          SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
 
-          changesSpecs.add(new ImmutablePair<Verb, Spec>(verb, jobSpecBuilder.build()));
+          changesSpecs.add(new ImmutablePair<SpecExecutor.Verb, Spec>(verb, jobSpecBuilder.build()));
         } catch (Throwable t) {
           log.error("Could not decode record at partition " + this.currentPartitionIdx +
               " offset " + nextValidMessage.getOffset());
@@ -194,7 +217,7 @@ public class SimpleKafkaSpecConsumer implements SpecConsumer<Spec>, Closeable {
       int i=0;
       for (KafkaPartition kafkaPartition : _partitions) {
         if (isFirstRun) {
-          long earliestOffset = _kafka08Consumer.getEarliestOffset(kafkaPartition);
+          long earliestOffset = _kafkaConsumer.getEarliestOffset(kafkaPartition);
           _lowWatermark.set(i, earliestOffset);
         } else {
           _lowWatermark.set(i, _highWatermark.get(i));
@@ -211,7 +234,7 @@ public class SimpleKafkaSpecConsumer implements SpecConsumer<Spec>, Closeable {
     try {
       int i=0;
       for (KafkaPartition kafkaPartition : _partitions) {
-        long latestOffset = _kafka08Consumer.getLatestOffset(kafkaPartition);
+        long latestOffset = _kafkaConsumer.getLatestOffset(kafkaPartition);
         _highWatermark.set(i, latestOffset);
         i++;
       }
@@ -244,7 +267,7 @@ public class SimpleKafkaSpecConsumer implements SpecConsumer<Spec>, Closeable {
   }
 
   private Iterator<KafkaConsumerRecord> fetchNextMessageBuffer() {
-    return _kafka08Consumer.consume(_partitions.get(this.currentPartitionIdx),
+    return _kafkaConsumer.consume(_partitions.get(this.currentPartitionIdx),
         _nextWatermark.get(this.currentPartitionIdx), _highWatermark.get(this.currentPartitionIdx));
   }
 
@@ -259,6 +282,6 @@ public class SimpleKafkaSpecConsumer implements SpecConsumer<Spec>, Closeable {
 
   @Override
   public void close() throws IOException {
-    _kafka08Consumer.close();
+    _kafkaConsumer.close();
   }
 }

@@ -19,22 +19,19 @@ package org.apache.gobblin.service;
 
 import java.io.Serializable;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.concurrent.Future;
 
-import com.google.common.base.Optional;
-import com.typesafe.config.Config;
-import com.google.common.io.Closer;
-
 import org.slf4j.Logger;
-import org.apache.gobblin.configuration.ConfigurationKeys;
+
+import com.google.common.base.Optional;
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.util.CompletedFuture;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.api.SpecConsumer;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
+import org.apache.gobblin.util.CompletedFuture;
 
 /**
  * An {@link SpecExecutor} that use Kafka as the communication mechanism.
@@ -87,11 +84,11 @@ public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
 
   public static class SpecExecutorInstanceDataPacket implements Serializable {
 
-    protected Verb _verb;
+    protected SpecExecutor.Verb _verb;
     protected URI _uri;
     protected Spec _spec;
 
-    public SpecExecutorInstanceDataPacket(Verb verb, URI uri, Spec spec) {
+    public SpecExecutorInstanceDataPacket(SpecExecutor.Verb verb, URI uri, Spec spec) {
       _verb = verb;
       _uri = uri;
       _spec = spec;

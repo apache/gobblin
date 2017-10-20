@@ -41,7 +41,8 @@ import javax.annotation.Nullable;
  */
 public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaConsumerClient {
 
-  public static final String CONFIG_PREFIX = "source.kafka.";
+  public static final String CONFIG_PREFIX_NO_DOT = "source.kafka";
+  public static final String CONFIG_PREFIX = CONFIG_PREFIX_NO_DOT + ".";
   public static final String CONFIG_KAFKA_FETCH_TIMEOUT_VALUE = CONFIG_PREFIX + "fetchTimeoutMillis";
   public static final int CONFIG_KAFKA_FETCH_TIMEOUT_VALUE_DEFAULT = 1000; // 1 second
   public static final String CONFIG_KAFKA_FETCH_REQUEST_MIN_BYTES = CONFIG_PREFIX + "fetchMinBytes";
