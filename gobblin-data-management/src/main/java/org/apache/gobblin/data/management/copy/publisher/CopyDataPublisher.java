@@ -209,7 +209,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
           // Dataset Output path is injected in each copyableFile.
           // This can be optimized by having a dataset level equivalent class for copyable entities
           // and storing dataset related information, e.g. dataset output path, there.
-          if (!fileSetRoot.isPresent()) {
+
+          // Currently datasetOutputPath is only present for hive datasets.
+          if (!fileSetRoot.isPresent() && copyableFile.getDatasetOutputPath() != null) {
             fileSetRoot = Optional.of(copyableFile.getDatasetOutputPath());
           }
         }
