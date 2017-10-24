@@ -69,7 +69,7 @@ public class CopyableDatasetMetadata {
    */
   private static String getSerializedWithNewPackage(String serialized) {
     serialized = serialized.replace("\"gobblin.data.management.", "\"org.apache.gobblin.data.management.");
-    log.info("Serialized updated copy entity: " + serialized);
+    log.debug("Serialized updated copy entity: " + serialized);
     return serialized;
   }
 }
