@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +54,7 @@ public class FlowCatalogTest {
 
   private static final String SPEC_STORE_PARENT_DIR = "/tmp";
   private static final String SPEC_STORE_DIR = "/tmp/flowTestSpecStore";
+  private static final String SPEC_GROUP_DIR = "/tmp/flowTestSpecStore/flowTestGroupDir";
   private static final String SPEC_DESCRIPTION = "Test Flow Spec";
   private static final String SPEC_VERSION = "1";
 
@@ -142,7 +144,7 @@ public class FlowCatalogTest {
   }
 
   @Test (dependsOnMethods = "createFlowSpec")
-  public void deleteFlowSpec() {
+  public void deleteFlowSpec() throws SpecNotFoundException {
     // List Current Specs
     Collection<Spec> specs = flowCatalog.getSpecs();
     logger.info("[Before Delete] Number of specs: " + specs.size());
@@ -157,18 +159,18 @@ public class FlowCatalogTest {
 
     // List Specs after adding
     specs = flowCatalog.getSpecs();
-    logger.info("[After Create] Number of specs: " + specs.size());
+    logger.info("[After Delete] Number of specs: " + specs.size());
     i = 0;
     for (Spec spec : specs) {
       flowSpec = (FlowSpec) spec;
-      logger.info("[After Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
+      logger.info("[After Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
     Assert.assertTrue(specs.size() == 0, "Spec store should be empty after deletion");
   }
 
   public URI computeFlowSpecURI() {
     // Make sure this is relative
-    URI uri = PathUtils.relativizePath(new Path(SPEC_STORE_DIR), new Path(SPEC_STORE_PARENT_DIR)).toUri();
+    URI uri = PathUtils.relativizePath(new Path(SPEC_GROUP_DIR), new Path(SPEC_STORE_PARENT_DIR)).toUri();
     return uri;
   }
 }
