@@ -19,18 +19,24 @@ package org.apache.gobblin.kafka.writer;
 
 import java.util.Properties;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-
+import org.apache.gobblin.kafka.serialize.GsonSerializerBase;
 import org.apache.gobblin.writer.AsyncDataWriter;
+import org.apache.kafka.common.serialization.Serializer;
 
-/**
- * Builder that hands back a {@link Kafka08DataWriter}
- */
-public class KafkaDataWriterBuilder extends AbstractKafkaDataWriterBuilder<Schema, GenericRecord> {
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
+
+public class Kafka09JsonObjectWriterBuilder extends AbstractKafkaDataWriterBuilder<JsonArray, JsonObject> {
+  private static final String VALUE_SERIALIZER_KEY =
+      KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG;
 
   @Override
-  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props) {
-    return new Kafka08DataWriter<>(props);
+  protected AsyncDataWriter<JsonObject> getAsyncDataWriter(Properties props) {
+    props.setProperty(VALUE_SERIALIZER_KEY, KafkaGsonObjectSerializer.class.getName());
+    return new Kafka09DataWriter<>(props);
+  }
+
+  public final static class KafkaGsonObjectSerializer extends GsonSerializerBase<JsonObject> implements Serializer<JsonObject> {
   }
 }
