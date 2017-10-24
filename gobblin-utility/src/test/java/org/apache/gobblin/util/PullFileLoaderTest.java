@@ -228,11 +228,9 @@ public class PullFileLoaderTest {
             .put(PullFileLoader.PROPERTY_DELIMITER_PARSING_ENABLED_KEY, true)
             .build());
     pullFile = loader.loadPullFile(path, cfg, false);
-    System.out.println(pullFile.getString("json.property.key"));
-    System.out.println(pullFile.getString("json.property.key1"));
     Assert.assertEquals(pullFile.getString("json.property.key"), pullFile.getString("json.property.key1"));
   }
-  
+  	
   private Config pullFileFromPath(Collection<Config> configs, Path path) throws IOException {
     for (Config config : configs) {
       if (config.getString(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY).equals(path.toString())) {
