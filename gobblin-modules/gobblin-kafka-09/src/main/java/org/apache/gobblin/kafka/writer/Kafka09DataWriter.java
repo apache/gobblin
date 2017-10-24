@@ -137,33 +137,33 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
   }
   
   private void provisionTopic(String topicName,Config config) {
-	    String zooKeeperPropKey = KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER;
-	    if(!config.hasPath(zooKeeperPropKey)){
-	    	log.debug("Topic "+topicName+" is configured without the partition and replication");
-	    	return;
-	    }
-	    String zookeeperConnect = config.getString(zooKeeperPropKey);
-	    int sessionTimeoutMs = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.ZOOKEEPER_SESSION_TIMEOUT, KafkaWriterConfigurationKeys.ZOOKEEPER_SESSION_TIMEOUT_DEFAULT);
-	    int connectionTimeoutMs = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.ZOOKEEPER_CONNECTION_TIMEOUT, KafkaWriterConfigurationKeys.ZOOKEEPER_CONNECTION_TIMEOUT_DEFAULT);
-	    // Note: You must initialize the ZkClient with ZKStringSerializer.  If you don't, then
-	    // createTopic() will only seem to work (it will return without error).  The topic will exist in
-	    // only ZooKeeper and will be returned when listing topics, but Kafka itself does not create the
-	    // topic.
-	    ZkClient zkClient = new ZkClient(zookeeperConnect, sessionTimeoutMs, connectionTimeoutMs, ZKStringSerializer$.MODULE$);
-	    // Security for Kafka was added in Kafka 0.9.0.0
-	    ZkUtils zkUtils = new ZkUtils(zkClient, new ZkConnection(zookeeperConnect), false);
-	    int partitions = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.PARTITION_COUNT, KafkaWriterConfigurationKeys.PARTITION_COUNT_DEFAULT);
-	    int replication = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.REPLICATION_COUNT, KafkaWriterConfigurationKeys.PARTITION_COUNT_DEFAULT);
-	    Properties topicConfig = new Properties(); 
-	  	if(AdminUtils.topicExists(zkUtils, topicName)){
-	  		log.debug("Topic"+topicName+" already Exists with replication: "+replication+" and partitions :"+partitions);
-	  		return;
-	  	}
-	  	try {
-	  		AdminUtils.createTopic(zkUtils, topicName, partitions, replication, topicConfig);
-	  	} catch (RuntimeException e) {
-	  		throw new RuntimeException(e);
-	  	}
-	    log.info("Created Topic "+topicName+" with replication: "+replication+" and partitions :"+partitions);
-	}
+    String zooKeeperPropKey = KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER;
+    if(!config.hasPath(zooKeeperPropKey)) {
+     log.debug("Topic "+topicName+" is configured without the partition and replication");
+     return;
+    }
+    String zookeeperConnect = config.getString(zooKeeperPropKey);
+    int sessionTimeoutMs = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.ZOOKEEPER_SESSION_TIMEOUT, KafkaWriterConfigurationKeys.ZOOKEEPER_SESSION_TIMEOUT_DEFAULT);
+    int connectionTimeoutMs = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.ZOOKEEPER_CONNECTION_TIMEOUT, KafkaWriterConfigurationKeys.ZOOKEEPER_CONNECTION_TIMEOUT_DEFAULT);
+    // Note: You must initialize the ZkClient with ZKStringSerializer.  If you don't, then
+    // createTopic() will only seem to work (it will return without error).  The topic will exist in
+    // only ZooKeeper and will be returned when listing topics, but Kafka itself does not create the
+    // topic.
+    ZkClient zkClient = new ZkClient(zookeeperConnect, sessionTimeoutMs, connectionTimeoutMs, ZKStringSerializer$.MODULE$);
+    // Security for Kafka was added in Kafka 0.9.0.0
+    ZkUtils zkUtils = new ZkUtils(zkClient, new ZkConnection(zookeeperConnect), false);
+    int partitions = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.PARTITION_COUNT, KafkaWriterConfigurationKeys.PARTITION_COUNT_DEFAULT);
+    int replication = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.REPLICATION_COUNT, KafkaWriterConfigurationKeys.PARTITION_COUNT_DEFAULT);
+    Properties topicConfig = new Properties(); 
+    if(AdminUtils.topicExists(zkUtils, topicName)) {
+	   log.debug("Topic"+topicName+" already Exists with replication: "+replication+" and partitions :"+partitions);
+       return;
+    } 
+    try {
+       AdminUtils.createTopic(zkUtils, topicName, partitions, replication, topicConfig);
+    } catch (RuntimeException e) {
+       throw new RuntimeException(e);
+    }
+       log.info("Created Topic "+topicName+" with replication: "+replication+" and partitions :"+partitions);
+    }
 }
