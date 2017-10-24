@@ -76,6 +76,8 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
       "org.apache.kafka.common.serialization.StringDeserializer";
   private static final String KAFKA_09_DEFAULT_GROUP_ID = "kafka09";
 
+  public static final String GOBBLIN_CONFIG_KEY_DESERIALIZER_CLASS_KEY = CONFIG_PREFIX
+      + KAFKA_09_CLIENT_KEY_DESERIALIZER_CLASS_KEY;
   public static final String GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY = CONFIG_PREFIX
       + KAFKA_09_CLIENT_VALUE_DESERIALIZER_CLASS_KEY;
 
