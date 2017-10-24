@@ -72,6 +72,9 @@ public class PullFileLoader {
   public static final Set<String> DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS = Sets.newHashSet("pull", "job");
   public static final Set<String> DEFAULT_HOCON_PULL_FILE_EXTENSIONS = Sets.newHashSet("json", "conf");
 
+  public static final String PROPERTY_DELIMITER_PARSING_ENABLED_KEY = "property.parsing.enablekey";
+  public static final boolean DEFAULT_PROPERTY_DELIMITER_PARSING_ENABLED_KEY = false;
+  
   private final Path rootDirectory;
   private final FileSystem fs;
   private final ExtensionFilter javaPropsPullFileFilter;
@@ -260,6 +263,7 @@ public class PullFileLoader {
     PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
     try (InputStreamReader inputStreamReader = new InputStreamReader(this.fs.open(propertiesPath),
         Charsets.UTF_8)) {
+      propertiesConfiguration.setDelimiterParsingDisabled(ConfigUtils.getBoolean(fallback,PROPERTY_DELIMITER_PARSING_ENABLED_KEY, DEFAULT_PROPERTY_DELIMITER_PARSING_ENABLED_KEY));
       propertiesConfiguration.load(inputStreamReader);
 
       Config configFromProps =

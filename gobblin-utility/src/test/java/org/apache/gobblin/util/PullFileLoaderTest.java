@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -218,7 +219,18 @@ public class PullFileLoaderTest {
     Assert.assertEquals(pullFile.entrySet().size(), 7);
   }
 
-
+  @Test
+  public void testJsonPropertyReuseJobLoading() throws Exception {
+    Path path;
+    Config pullFile;
+    path = new Path(this.basePath, "bjob.pull");
+    Config cfg = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+            .put(PullFileLoader.PROPERTY_DELIMITER_PARSING_ENABLED_KEY, true)
+            .build());
+    pullFile = loader.loadPullFile(path, cfg, false);
+    Assert.assertEquals(pullFile.getString("json.property.key"), pullFile.getString("json.property.key1"));
+  }
+  	
   private Config pullFileFromPath(Collection<Config> configs, Path path) throws IOException {
     for (Config config : configs) {
       if (config.getString(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY).equals(path.toString())) {
@@ -227,5 +239,5 @@ public class PullFileLoaderTest {
     }
     throw new IOException("Not found.");
   }
-
+  
 }
