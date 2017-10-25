@@ -34,7 +34,8 @@ public interface MutableSpecCatalog extends SpecCatalog {
   public void put(Spec spec);
 
   /**
-   * Removes an existing {@link Spec} with the given URI. A no-op if such {@link Spec} does not exist.
+   * Removes an existing {@link Spec} with the given URI.
+   * Throws SpecNotFoundException if such {@link Spec} does not exist.
    */
-  void remove(URI uri);
+  void remove(URI uri) throws SpecNotFoundException;
 }
