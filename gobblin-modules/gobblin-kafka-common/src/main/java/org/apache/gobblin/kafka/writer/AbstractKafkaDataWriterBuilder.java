@@ -30,6 +30,9 @@ import org.apache.gobblin.writer.DataWriterBuilder;
 import com.typesafe.config.Config;
 
 
+/**
+ * Base kafka data writer builder. It builds an async kafka {@link DataWriter}
+ */
 public abstract class AbstractKafkaDataWriterBuilder<S, D> extends DataWriterBuilder<S, D> {
 
   protected abstract AsyncDataWriter<D> getAsyncDataWriter(Properties props);
