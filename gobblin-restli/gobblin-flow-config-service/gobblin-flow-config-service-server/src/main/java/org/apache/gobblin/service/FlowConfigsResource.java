@@ -192,14 +192,12 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
       URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
           "/" + flowConfig.getId().getFlowGroup() + "/" + flowConfig.getId().getFlowName(), null, null);
 
-      if (getFlowCatalog().getSpec(flowUri) != null) {
+      if (getFlowCatalog().exists(flowUri)) {
         logAndThrowRestLiServiceException(HttpStatus.S_409_CONFLICT,
             "Flow with the same name already exists: " + flowUri, null);
       }
     } catch (URISyntaxException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getId().getFlowName(), e);
-    } catch (SpecNotFoundException e) {
-      // okay if flow does not exist
     }
 
     getFlowCatalog().put(createFlowSpecForConfig(flowConfig));
@@ -231,7 +229,11 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
       URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
       flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
           "/" + flowGroup + "/" + flowName, null, null);
-      FlowSpec oldFlowSpec = (FlowSpec) getFlowCatalog().getSpec(flowUri);
+      if (!getFlowCatalog().exists(flowUri)) {
+        logAndThrowRestLiServiceException(HttpStatus.S_404_NOT_FOUND,
+            "Flow does not exist: flowGroup " + flowGroup + " flowName " + flowName, null);
+      }
+
       FlowSpec newFlowSpec = createFlowSpecForConfig(flowConfig);
 
       getFlowCatalog().put(newFlowSpec);
@@ -239,9 +241,6 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (URISyntaxException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUri, e);
-    } catch (SpecNotFoundException e) {
-      logAndThrowRestLiServiceException(HttpStatus.S_404_NOT_FOUND, "Flow does not exist: flowGroup " + flowGroup +
-          " flowName " + flowName, null);
     }
 
     return null;
@@ -265,7 +264,6 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
       URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
       flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
           "/" + flowGroup + "/" + flowName, null, null);
-      FlowSpec flowSpec = (FlowSpec) getFlowCatalog().getSpec(flowUri);
 
       getFlowCatalog().remove(flowUri);
 

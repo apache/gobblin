@@ -209,6 +209,14 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
+  public boolean exists(URI uri) {
+    try {
+      return specStore.exists(uri);
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve Spec from Spec store for URI: " + uri, e);
+    }
+  }
+
   @Override
   public Spec getSpec(URI uri) throws SpecNotFoundException {
     try {
@@ -240,7 +248,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   @Override
-  public void remove(URI uri) {
+  public void remove(URI uri) throws SpecNotFoundException {
     try {
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(uri);
@@ -250,7 +258,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       this.listeners.onDeleteSpec(spec.getUri(), spec.getVersion());
       specStore.deleteSpec(uri);
 
-    } catch (IOException | SpecNotFoundException e) {
+    } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
     }
   }

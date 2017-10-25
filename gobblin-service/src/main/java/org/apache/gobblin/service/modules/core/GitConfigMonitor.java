@@ -25,6 +25,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -234,8 +236,8 @@ public class GitConfigMonitor extends AbstractIdleService {
   private void removeSpec(DiffEntry change) {
     if (checkConfigFilePath(change.getOldPath())) {
       Path configFilePath = new Path(this.repositoryDir, change.getOldPath());
-      String flowName = Files.getNameWithoutExtension(configFilePath.getName());
-      String flowGroup = configFilePath.getParent().getName();
+      String flowName = FSSpecStore.getSpecName(configFilePath);
+      String flowGroup = FSSpecStore.getSpecGroup(configFilePath);
 
       // build a dummy config to get the proper URI for delete
       Config dummyConfig = ConfigBuilder.create()
@@ -249,7 +251,12 @@ public class GitConfigMonitor extends AbstractIdleService {
           .withDescription(SPEC_DESCRIPTION)
           .build();
 
-      this.flowCatalog.remove(spec.getUri());
+      try {
+        this.flowCatalog.remove(spec.getUri());
+      } catch (SpecNotFoundException e) {
+        // okay if flow does not exist
+        log.warn("Flow {} does not exist.", spec.getUri());
+      }
     }
   }
 
@@ -285,8 +292,8 @@ public class GitConfigMonitor extends AbstractIdleService {
    */
   private Config loadConfigFileWithFlowNameOverrides(Path configFilePath) throws IOException {
     Config flowConfig = this.pullFileLoader.loadPullFile(configFilePath, emptyConfig, false);
-    String flowName = Files.getNameWithoutExtension(configFilePath.getName());
-    String flowGroup = configFilePath.getParent().getName();
+    String flowName = FSSpecStore.getSpecName(configFilePath);
+    String flowGroup = FSSpecStore.getSpecGroup(configFilePath);
 
     return flowConfig.withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
         .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup));
