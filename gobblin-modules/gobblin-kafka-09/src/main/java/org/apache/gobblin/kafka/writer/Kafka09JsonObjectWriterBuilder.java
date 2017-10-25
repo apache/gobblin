@@ -27,6 +27,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 
+/**
+ * A {@link org.apache.gobblin.writer.DataWriterBuilder} that builds a {@link org.apache.gobblin.writer.DataWriter} to
+ * write {@link JsonObject} to kafka
+ */
 public class Kafka09JsonObjectWriterBuilder extends AbstractKafkaDataWriterBuilder<JsonArray, JsonObject> {
   private static final String VALUE_SERIALIZER_KEY =
       KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG;
@@ -37,6 +41,9 @@ public class Kafka09JsonObjectWriterBuilder extends AbstractKafkaDataWriterBuild
     return new Kafka09DataWriter<>(props);
   }
 
+  /**
+   * A specific {@link Serializer} that serializes {@link JsonObject} to byte array
+   */
   public final static class KafkaGsonObjectSerializer extends GsonSerializerBase<JsonObject> implements Serializer<JsonObject> {
   }
 }

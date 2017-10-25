@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.gobblin.kafka.serialize;
 
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
 
+/**
+ * Base kafka Gson deserializer, which deserializes a json string to a {@link JsonElement}
+ */
 public class GsonDeserializerBase<T extends JsonElement> {
   private static final Gson GSON = new Gson();
 

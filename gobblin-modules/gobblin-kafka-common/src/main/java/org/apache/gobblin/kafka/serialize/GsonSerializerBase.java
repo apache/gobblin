@@ -23,6 +23,10 @@ import java.util.Map;
 import com.google.gson.JsonElement;
 
 
+/**
+ * Base kafka GSON serializer, which serializes json data into string encoded with
+ * {@link StandardCharsets#UTF_8}
+ */
 public class GsonSerializerBase<T extends JsonElement> {
   public void configure(Map<String, ?> configs, boolean isKey) {
     // Do nothing by default

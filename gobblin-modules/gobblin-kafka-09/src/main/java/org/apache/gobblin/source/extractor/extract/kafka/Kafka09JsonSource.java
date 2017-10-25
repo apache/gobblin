@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
@@ -34,6 +35,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 
+/**
+ * A {@link KafkaSource} that reads kafka record as {@link JsonObject}
+ */
 public class Kafka09JsonSource extends KafkaSource<JsonArray, JsonObject> {
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -77,6 +81,9 @@ public class Kafka09JsonSource extends KafkaSource<JsonArray, JsonObject> {
     }
   }
 
+  /**
+   * A specific kafka {@link Deserializer} that deserializes record as JasonObject
+   */
   public static final class KafkaGsonDeserializer extends GsonDeserializerBase<JsonObject> implements Deserializer<JsonObject> {
   }
 }
