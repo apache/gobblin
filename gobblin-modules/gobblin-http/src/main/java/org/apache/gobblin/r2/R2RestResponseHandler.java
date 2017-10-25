@@ -26,6 +26,7 @@ import org.apache.gobblin.http.StatusType;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.FailureEvent;
 import org.apache.gobblin.net.Request;
 import org.apache.gobblin.utils.HttpConstants;
 import org.apache.gobblin.utils.HttpUtils;
@@ -49,7 +50,7 @@ public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestR
 
   public static final String CONTENT_TYPE_HEADER = "Content-Type";
   private final String R2_RESPONSE_EVENT_NAMESPACE = "r2.response";
-  private final String R2_FAILED_REQUEST_EVENT = "R2FailedRequest";
+  private final String R2_FAILED_REQUEST_EVENT = "r2FailedRequest";
   private final Set<String> errorCodeWhitelist;
   private MetricContext metricsContext;
 
@@ -78,11 +79,12 @@ public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestR
       Map<String, String> metadata = Maps.newHashMap();
       metadata.put(HttpConstants.STATUS_CODE, String.valueOf(statusCode));
       metadata.put(HttpConstants.REQUEST, request.toString());
-      GobblinTrackingEvent event =
-          new GobblinTrackingEvent(0L, R2_RESPONSE_EVENT_NAMESPACE, R2_FAILED_REQUEST_EVENT, metadata);
       if (status.getType() != StatusType.CONTINUE) {
-        metricsContext.submitFailureEvent(event);
+        FailureEvent failureEvent = new FailureEvent(metricsContext);
+        failureEvent.submit(R2_FAILED_REQUEST_EVENT, metadata);
       } else {
+        GobblinTrackingEvent event =
+            new GobblinTrackingEvent(0L, R2_RESPONSE_EVENT_NAMESPACE, R2_FAILED_REQUEST_EVENT, metadata);
         metricsContext.submitEvent(event);
       }
     }

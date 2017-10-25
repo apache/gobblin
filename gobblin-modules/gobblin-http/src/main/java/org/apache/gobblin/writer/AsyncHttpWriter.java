@@ -22,9 +22,8 @@ import java.util.Map;
 import java.util.Queue;
 
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.util.EventUtils;
+import org.apache.gobblin.metrics.event.FailureEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,9 +51,8 @@ import com.google.common.collect.Maps;
 @Slf4j
 public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   private static final Logger LOG = LoggerFactory.getLogger(AsyncHttpWriter.class);
-  private static final String ASYNC_HTTP_WRITER_NAMESPACE = "asyncHttpWriter";
   private static final String ASYNC_REQUEST = "asyncRequest";
-  private static final String FATAL_ASYNC_HTTP_WRITE_EVENT = "FatalAsyncHttpWrite";
+  private static final String FATAL_ASYNC_HTTP_WRITE_EVENT = "fatalAsyncHttpWrite";
 
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
@@ -179,12 +177,10 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   protected void onFailure(AsyncRequest<D, RQ> asyncRequest, DispatchException exception) {
     if (exception.isFatal()) {
       // Report failure event
-      Map<String, String> metadata = Maps.newHashMap();
-      metadata.put(EventUtils.ROOT_CAUSE, EventUtils.getRootCause(exception));
-      metadata.put(ASYNC_REQUEST, asyncRequest.toString());
-      GobblinTrackingEvent event =
-          new GobblinTrackingEvent(0l, ASYNC_HTTP_WRITER_NAMESPACE, FATAL_ASYNC_HTTP_WRITE_EVENT, metadata);
-      context.submitFailureEvent(event);
+      FailureEvent failureEvent = new FailureEvent(context);
+      failureEvent.setRootCause(exception);
+      failureEvent.setMetadata(ASYNC_REQUEST, asyncRequest.toString());
+      failureEvent.submit(FATAL_ASYNC_HTTP_WRITE_EVENT, Maps.newHashMap());
     }
     for (AsyncRequest.Thunk thunk : asyncRequest.getThunks()) {
       thunk.callback.onFailure(exception);

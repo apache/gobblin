@@ -39,15 +39,14 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.lineage.LineageException;
 import org.apache.gobblin.lineage.LineageInfo;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.FailureEvent;
 import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.UnpublishedHandling;
 import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
-import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 
 import lombok.Data;
@@ -66,9 +65,8 @@ final class SafeDatasetCommit implements Callable<Void> {
 
   private static final Object GLOBAL_LOCK = new Object();
 
-  private static final String SAFE_DATASET_COMMIT_NAMESPACE = "safeDatasetCommit";
   private static final String DATASET_STATE = "datasetState";
-  private static final String FAILED_DATASET_EVENT = "FailedDataset";
+  private static final String FAILED_DATASET_EVENT = "failedDataset";
 
   private final boolean shouldCommitDataInJob;
   private final boolean isJobCancelled;
@@ -193,13 +191,10 @@ final class SafeDatasetCommit implements Callable<Void> {
   }
 
   private void submitFailureEvent(JobState.DatasetState datasetState) {
-    Optional<JobMetrics> context = jobContext.getJobMetricsOptional();
-    if (context.isPresent() && datasetState.getState() == JobState.RunningState.FAILED) {
-      Map<String, String> metadata = Maps.newHashMap();
-      metadata.put(DATASET_STATE, datasetState.toString());
-      GobblinTrackingEvent event =
-          new GobblinTrackingEvent(0L, SAFE_DATASET_COMMIT_NAMESPACE, FAILED_DATASET_EVENT, metadata);
-      context.get().getMetricContext().submitFailureEvent(event);
+    if (datasetState.getState() == JobState.RunningState.FAILED) {
+      FailureEvent failureEvent = new FailureEvent(metricContext);
+      failureEvent.setMetadata(DATASET_STATE, datasetState.toString());
+      failureEvent.submit(FAILED_DATASET_EVENT, Maps.newHashMap());
     }
   }
 

@@ -34,7 +34,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.metrics.notification.FailureEventNotification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -211,17 +210,6 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
     injectTagsToEvent(nonReusableEvent);
 
     EventNotification notification = new EventNotification(nonReusableEvent);
-    sendNotification(notification);
-  }
-
-  /**
-   * Submit a {@link GobblinTrackingEvent} to all notification listeners as a {@link FailureEventNotification}.
-   */
-  public void submitFailureEvent(GobblinTrackingEvent nonReusableEvent) {
-    nonReusableEvent.setTimestamp(System.currentTimeMillis());
-    injectTagsToEvent(nonReusableEvent);
-
-    FailureEventNotification notification = new FailureEventNotification(nonReusableEvent);
     sendNotification(notification);
   }
 

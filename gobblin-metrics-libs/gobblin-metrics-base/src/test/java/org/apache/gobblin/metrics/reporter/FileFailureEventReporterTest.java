@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.FailureEvent;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -45,8 +46,9 @@ public class FileFailureEventReporterTest {
     when(fs.exists(any())).thenReturn(true);
     when(fs.append(any())).thenReturn(outputStream);
 
+    final String eventName = "testEvent";
     GobblinTrackingEvent event =
-        new GobblinTrackingEvent(0L, "testNamespace", "TestEvent", Maps.newHashMap());
+        new GobblinTrackingEvent(0L, "testNamespace", eventName, Maps.newHashMap());
 
     // Noop on normal event
     testContext.submitEvent(event);
@@ -54,7 +56,8 @@ public class FileFailureEventReporterTest {
     verify(outputStream, never()).write(anyByte());
 
     // Process failure event
-    testContext.submitFailureEvent(event);
+    FailureEvent failureEvent = new FailureEvent(testContext);
+    failureEvent.submit(eventName, Maps.newHashMap());
     // Failure log output is setup
     verify(fs, times(1)).append(failureLogPath);
     // Report successfully

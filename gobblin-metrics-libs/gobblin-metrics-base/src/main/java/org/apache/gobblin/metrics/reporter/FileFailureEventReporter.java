@@ -21,9 +21,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.notification.FailureEventNotification;
-import org.apache.gobblin.metrics.notification.Notification;
+import org.apache.gobblin.metrics.event.FailureEvent;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * An {@link OutputStreamEventReporter} reports only {@link FailureEventNotification}. It won't create
+ * An {@link OutputStreamEventReporter} reports only {@link FailureEvent}. It won't create
  * the failure log file until a failure event is processed
  */
 @Slf4j
@@ -51,10 +51,10 @@ public class FileFailureEventReporter extends OutputStreamEventReporter {
   }
 
   @Override
-  public void notificationCallback(Notification notification) {
-    if (notification instanceof FailureEventNotification) {
+  public void addEventToReportingQueue(GobblinTrackingEvent event) {
+    if (FailureEvent.isFailureEvent(event)) {
       setupOutputStream();
-      addEventToReportingQueue(((FailureEventNotification) notification).getEvent());
+      super.addEventToReportingQueue(event);
     }
   }
 
