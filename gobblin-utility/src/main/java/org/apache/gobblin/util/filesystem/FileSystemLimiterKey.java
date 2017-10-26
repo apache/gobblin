@@ -33,9 +33,7 @@ public class FileSystemLimiterKey extends SharedLimiterKey {
   public final String serviceName;
 
   public FileSystemLimiterKey(URI uri) {
-    super(RESOURCE_LIMITED_PREFIX + "/" + getFSIdentifier(uri));
-    this.uri = uri;
-    this.serviceName = null;
+    this(uri, null);
   }
 
   public FileSystemLimiterKey(URI uri, String serviceName) {

@@ -53,17 +53,13 @@ public class ThrottledFileSystem extends FileSystemInstrumentation {
    * Factory for {@link ThrottledFileSystem}.
    */
   public static class Factory<S extends ScopeType<S>> extends FileSystemInstrumentationFactory<S> {
-    private final String SERVICE_NAME_CONF_KEY = "gobblin.broker.limiter.serviceName";
+    private final String SERVICE_NAME_CONF_KEY = "gobblin.broker.filesystem.limiterServiceName";
     @Override
     public FileSystem instrumentFileSystem(FileSystem fs, SharedResourcesBroker<S> broker,
         ConfigView<S, FileSystemKey> config) {
       try {
         String serviceName = config.getConfig().getString(SERVICE_NAME_CONF_KEY);
-        Limiter limiter;
-        if (serviceName == null)
-          limiter = broker.getSharedResource(new SharedLimiterFactory<S>(), new FileSystemLimiterKey(config.getKey().getUri()));
-        else
-          limiter = broker.getSharedResource(new SharedLimiterFactory<S>(), new FileSystemLimiterKey(config.getKey().getUri(), serviceName));
+        Limiter limiter = broker.getSharedResource(new SharedLimiterFactory<S>(), new FileSystemLimiterKey(config.getKey().getUri()));
         return new ThrottledFileSystem(fs, limiter, serviceName);
       } catch (NotConfiguredException nce) {
         throw new RuntimeException(nce);

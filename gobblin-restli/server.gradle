@@ -78,4 +78,5 @@ artifacts {
 }
 
 war {
+  classifier "war"
 }
