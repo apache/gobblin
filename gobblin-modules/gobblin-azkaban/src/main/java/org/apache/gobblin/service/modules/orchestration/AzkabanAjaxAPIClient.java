@@ -157,6 +157,22 @@ public class AzkabanAjaxAPIClient {
   }
 
   /***
+   * Deletes an Azkaban project.
+   * @param sessionId Session Id.
+   * @param azkabanProjectConfig Azkaban Project Config.
+   * @throws IOException
+   */
+  public static void deleteAzkabanProject(String sessionId, AzkabanProjectConfig azkabanProjectConfig)
+      throws IOException {
+    Map<String, String> params = Maps.newHashMap();
+    params.put("delete", "true");
+    params.put("project", azkabanProjectConfig.getAzkabanProjectName());
+
+    executeGetRequest(prepareGetRequest(azkabanProjectConfig.getAzkabanServerUrl() + "/manager",
+        sessionId, params));
+  }
+
+  /***
    * Replace an existing Azkaban Project. If proxy user and group permissions are specified in
    * Azkaban Project Config, then this method also adds it to the project configuration.
    * @param sessionId Session Id.
