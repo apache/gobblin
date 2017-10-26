@@ -28,7 +28,8 @@ Gobblin also allows you to specify a global configuration file that contains com
     * [SftpExtractor Properties](#SftpExtractor-Properties)  
 * [Converter Properties](#Converter-Properties)
   * [CsvToJsonConverter Properties](#CsvToJsonConverter-Properties)    
-  * [JsonIntermediateToAvroConverter Properties](#JsonIntermediateToAvroConverter-Properties)  
+  * [JsonIntermediateToAvroConverter Properties](#JsonIntermediateToAvroConverter-Properties)
+  * [JsonStringToJsonIntermediateConverter Properties](#JsonStringToJsonIntermediateConverter-Properties)
   * [AvroFilterConverter Properties](#AvroFilterConverter-Properties)  
   * [AvroFieldRetrieverConverter Properties](#AvroFieldRetrieverConverter-Properties)  
   * [AvroFieldsPickConverter Properties](#AvroFieldsPickConverter-Properties)  
@@ -821,28 +822,28 @@ None
 Yes
 ## JsonIntermediateToAvroConverter Properties <a name="JsonIntermediateToAvroConverter-Properties"></a>
 This converter takes in JSON data in a specific schema, and converts it to Avro data.
-#### converter.avro.date.format 
+#### converter.avro.date.format
 ###### Description
 Source format of the date columns for Avro-related converters.
 ###### Default Value
 None
 ###### Required
 No
-#### converter.avro.timestamp.format 
+#### converter.avro.timestamp.format
 ###### Description
 Source format of the timestamp columns for Avro-related converters.
 ###### Default Value
 None
 ###### Required
 No
-#### converter.avro.time.format 
+#### converter.avro.time.format
 ###### Description
 Source format of the time columns for Avro-related converters.
 ###### Default Value
 None
 ###### Required
 No
-#### converter.avro.binary.charset 
+#### converter.avro.binary.charset
 ###### Description
 Source format of the time columns for Avro-related converters.
 ###### Default Value
@@ -861,6 +862,28 @@ Yes
 This converter is will fail for this many number of records before throwing an exception.
 ###### Default Value
 0
+###### Required
+No
+#### converter.avro.nullify.fields.enabled
+###### Description
+Generate new avro schema by nullifying fields that previously existed but not in the current schema.
+###### Default Value
+false
+###### Required
+No
+#### converter.avro.nullify.fields.original.schema.path
+###### Description
+Path of the original avro schema which will be used for merging and nullify fields.
+###### Default Value
+None
+###### Required
+No
+## JsonStringToJsonIntermediateConverter Properties <a name="JsonStringToJsonIntermediateConverter-Properties"></a>
+#### gobblin.converter.jsonStringToJsonIntermediate.unpackComplexSchemas
+###### Description
+Parse nested JSON record using source.schema.
+###### Default Value
+True
 ###### Required
 No
 ## AvroFilterConverter Properties <a name="AvroFilterConverter-Properties"></a>

@@ -18,6 +18,8 @@
 package org.apache.gobblin.runtime.spec_store;
 
 import com.google.common.io.ByteStreams;
+
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -35,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -98,18 +101,75 @@ public class FSSpecStore implements SpecStore {
     }
   }
 
+  /**
+   * @param specUri path of the spec
+   * @return empty string for topology spec, as topolgies do not have a group,
+   *         group name for flow spec
+   */
+  public static String getSpecGroup(Path specUri) {
+    return specUri.getParent().getName();
+  }
+
+  public static String getSpecName(Path specUri) {
+    return Files.getNameWithoutExtension(specUri.getName());
+  }
+
+  private Collection<Spec> getAllVersionsOfSpec(String specGroup, String specName) throws IOException {
+    Collection<Spec> specs = Lists.newArrayList();
+    FileStatus[] fileStatuses;
+    try {
+      fileStatuses = listSpecs(this.fsSpecStoreDirPath, specGroup);
+    } catch (FileNotFoundException e) {
+      return specs;
+    }
+
+    for (FileStatus fileStatus : fileStatuses) {
+      if (!fileStatus.isDirectory() && fileStatus.getPath().getName().startsWith(specName)) {
+        specs.add(readSpecFromFile(fileStatus.getPath()));
+      }
+    }
+    return specs;
+  }
+
+  @Override
+  public Collection<Spec> getAllVersionsOfSpec(URI specUri) throws IOException {
+    Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
+    Path specPath = new Path(specUri.getPath());
+    return getAllVersionsOfSpec(getSpecGroup(specPath), getSpecName(specPath));
+  }
+
   @Override
   public boolean exists(URI specUri) throws IOException {
     Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
+    Path flowPath = new Path(specUri.getPath());
+    String specGroup = getSpecGroup(flowPath);
+    String specName = getSpecName(flowPath);
+    FileStatus[] fileStatuses;
+    try {
+      fileStatuses = listSpecs(this.fsSpecStoreDirPath, specGroup);
+    } catch (FileNotFoundException e) {
+      return false;
+    }
 
-    FileStatus[] fileStatuses = fs.listStatus(this.fsSpecStoreDirPath);
+    // TODO Fix ETL-6496
+    // We need to revisit having a version delimiter.
+    // Currently without a delimiter the prefix check may match other specs that should not be matched.
     for (FileStatus fileStatus : fileStatuses) {
-      if (StringUtils.startsWith(fileStatus.getPath().getName(), specUri.toString())) {
+      if (!fileStatus.isDirectory() && fileStatus.getPath().getName().startsWith(specName)) {
         return true;
       }
     }
-
     return false;
+  }
+
+  private FileStatus[] listSpecs(Path fsSpecStoreDirPath, String specGroup) throws FileNotFoundException, IOException {
+    FileStatus[] fileStatuses;
+    if (StringUtils.isEmpty(specGroup)) {
+      fileStatuses = fs.listStatus(fsSpecStoreDirPath);
+    } else {
+      fileStatuses = fs.listStatus(new Path(fsSpecStoreDirPath, specGroup));
+    }
+    return fileStatuses;
   }
 
   @Override
@@ -204,25 +264,6 @@ public class FSSpecStore implements SpecStore {
     }
 
     return readSpecFromFile(specPath);
-  }
-
-  @Override
-  public Collection<Spec> getAllVersionsOfSpec(URI specUri) throws IOException, SpecNotFoundException {
-    Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
-
-    Collection<Spec> specs = getSpecs();
-    Collection<Spec> filteredSpecs = Lists.newArrayList();
-    for (Spec spec : specs) {
-      if (spec.getUri().equals(specUri)) {
-        filteredSpecs.add(spec);
-      }
-    }
-
-    if (filteredSpecs.size() == 0) {
-      throw new SpecNotFoundException(specUri);
-    }
-
-    return filteredSpecs;
   }
 
   @Override

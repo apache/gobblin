@@ -1,0 +1,27 @@
+{
+  "User": {
+    "id": null,
+    "username": "hewhomustnotbenamed",
+    "passwordHash": "avadakedavara",
+    "signupDate": 1503651112419,
+    "emailAddresses": "vold@gmail.com",
+    "twitterAccounts": [
+      {
+        "status": "ACTIVE",
+        "userId": 555,
+        "screenName": "hewhomustnotbenamed",
+        "oauthToken": "sdfsds",
+        "oauthTokenSecret": "dfsdsds",
+        "dateAuthorized": 1503651112419
+      }
+    ],
+    "toDoItems": [
+      {
+        "status": "HIDDEN",
+        "title": "Kill the boy",
+        "description": "AvadaKedavara",
+        "snoozeDate": 1503651112419
+      }
+    ]
+  }
+}

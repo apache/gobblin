@@ -26,22 +26,25 @@ import java.util.TimeZone;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.WorkUnit;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.source.workunit.Extract.TableType;
 
 
 /**
@@ -55,28 +58,48 @@ public class JsonIntermediateToAvroConverterTest {
   private JsonObject jsonRecord;
   private WorkUnitState state;
 
-  @BeforeClass
-  public void setUp()
-      throws Exception {
-    Type listType = new TypeToken<JsonArray>() {
+  /**
+   * To test schema and record using the path to their resource file.
+   * @param resourceFilePath
+   * @throws SchemaConversionException
+   * @throws DataConversionException
+   */
+  private void complexSchemaTest(String resourceFilePath)
+      throws SchemaConversionException, DataConversionException {
+    JsonObject testData = initResources(resourceFilePath);
+
+    JsonIntermediateToAvroConverter converter = new JsonIntermediateToAvroConverter();
+
+    Schema avroSchema = converter.convertSchema(jsonSchema, state);
+    GenericRecord genericRecord = converter.convertRecord(avroSchema, jsonRecord, state).iterator().next();
+    JsonParser parser = new JsonParser();
+    Assert.assertEquals(parser.parse(avroSchema.toString()).getAsJsonObject(),
+        testData.get("expectedSchema").getAsJsonObject());
+    Assert.assertEquals(parser.parse(genericRecord.toString()), testData.get("expectedRecord").getAsJsonObject());
+  }
+
+  private JsonObject initResources(String resourceFilePath) {
+    Type listType = new TypeToken<JsonObject>() {
     }.getType();
     Gson gson = new Gson();
-    jsonSchema = gson.fromJson(new InputStreamReader(this.getClass().getResourceAsStream("/converter/schema.json")), listType);
+    JsonObject testData =
+        gson.fromJson(new InputStreamReader(this.getClass().getResourceAsStream(resourceFilePath)), listType);
 
-    listType = new TypeToken<JsonObject>() {
-    }.getType();
-    jsonRecord = gson.fromJson(new InputStreamReader(this.getClass().getResourceAsStream("/converter/record.json")), listType);
+    jsonRecord = testData.get("record").getAsJsonObject();
+    jsonSchema = testData.get("schema").getAsJsonArray();
 
-    SourceState source = new SourceState();
-    state = new WorkUnitState(
-        source.createWorkUnit(source.createExtract(TableType.SNAPSHOT_ONLY, "test_table", "test_namespace")));
+    WorkUnit workUnit = new WorkUnit(new SourceState(),
+        new Extract(new SourceState(), Extract.TableType.SNAPSHOT_ONLY, "namespace", "dummy_table"));
+    state = new WorkUnitState(workUnit);
     state.setProp(ConfigurationKeys.CONVERTER_AVRO_TIME_FORMAT, "HH:mm:ss");
     state.setProp(ConfigurationKeys.CONVERTER_AVRO_DATE_TIMEZONE, "PST");
+    return testData;
   }
 
   @Test
   public void testConverter()
       throws Exception {
+    initResources("/converter/schema.json");
     JsonIntermediateToAvroConverter converter = new JsonIntermediateToAvroConverter();
 
     Schema avroSchema = converter.convertSchema(jsonSchema, state);
@@ -120,5 +143,23 @@ public class JsonIntermediateToAvroConverterTest {
     GenericRecord record2 = converter.convertRecord(avroSchema, jsonRecord, state).iterator().next();
 
     Assert.assertNotEquals(record.get("LastModifiedDate"), record2.get("LastModifiedDate"));
+  }
+
+  @Test
+  public void testComplexSchema1()
+      throws Exception {
+    complexSchemaTest("/converter/complex1.json");
+  }
+
+  @Test
+  public void testComplexSchema2()
+      throws Exception {
+    complexSchemaTest("/converter/complex2.json");
+  }
+
+  @Test
+  public void testComplexSchema3()
+      throws Exception {
+    complexSchemaTest("/converter/complex3.json");
   }
 }
