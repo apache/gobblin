@@ -30,7 +30,6 @@ import org.apache.gobblin.runtime.util.MultiWorkUnitUnpackingIterator;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.extract.kafka.Kafka09JsonSource;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.writer.DataWriter;
@@ -84,7 +83,7 @@ public class Kafka09JsonIntegrationTest {
   private SourceState createSourceState(String topic) {
     SourceState state = new SourceState();
     state.setProp(ConfigurationKeys.KAFKA_BROKERS, "localhost:" + kafkaTestHelper.getKafkaServerPort());
-    state.setProp(KafkaSimpleStreamingSource.TOPIC_WHITELIST, topic);
+    state.setProp(KafkaSource.TOPIC_WHITELIST, topic);
     state.setProp(KafkaSource.GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
         Kafka09ConsumerClient.Factory.class.getName());
     state.setProp(KafkaSource.BOOTSTRAP_WITH_OFFSET, "earliest");
