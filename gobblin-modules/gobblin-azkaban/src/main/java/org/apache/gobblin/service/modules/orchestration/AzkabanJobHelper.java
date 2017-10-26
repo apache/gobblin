@@ -121,6 +121,20 @@ public class AzkabanJobHelper {
   }
 
   /***
+   * Delete project on Azkaban based on Azkaban config.
+   * @param sessionId Session Id.
+   * @param azkabanProjectConfig Azkaban Project Config.
+   * @throws IOException
+   */
+  public static void deleteAzkabanJob(String sessionId, AzkabanProjectConfig azkabanProjectConfig)
+      throws IOException {
+    log.info("Deleting Azkaban project for: " + azkabanProjectConfig.getAzkabanProjectName());
+
+    // Delete project
+    AzkabanAjaxAPIClient.deleteAzkabanProject(sessionId, azkabanProjectConfig);
+  }
+
+  /***
    * Replace project on Azkaban based on Azkaban config. This includes preparing the zip file and uploading it to
    * Azkaban, setting permissions and schedule.
    * @param sessionId Session Id.
