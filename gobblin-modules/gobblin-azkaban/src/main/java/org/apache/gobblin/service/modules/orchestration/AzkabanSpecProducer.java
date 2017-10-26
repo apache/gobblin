@@ -141,6 +141,14 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI) {
     // Delete project
+    JobSpec jobSpec = new JobSpec.Builder(deletedSpecURI).build();
+
+    try {
+      AzkabanJobHelper.deleteAzkabanJob(_sessionId, new AzkabanProjectConfig(jobSpec));
+    } catch (IOException e) {
+      throw new RuntimeException("Issue in deleting Azkaban project.", e);
+    }
+
     throw new UnsupportedOperationException();
   }
 

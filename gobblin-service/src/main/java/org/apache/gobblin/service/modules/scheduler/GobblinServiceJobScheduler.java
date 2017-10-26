@@ -229,8 +229,15 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
 
     try {
-      this.scheduledFlowSpecs.remove(deletedSpecURI.toString());
-      unscheduleJob(deletedSpecURI.toString());
+      Spec deletedSpec = this.scheduledFlowSpecs.get(deletedSpecURI.toString());
+      if (null != deletedSpec) {
+        this.orchestrator.remove(deletedSpec);
+        this.scheduledFlowSpecs.remove(deletedSpecURI.toString());
+        unscheduleJob(deletedSpecURI.toString());
+      } else {
+        _log.warn(String.format("Spec with URI: %s was not found in cache. May be it was cleaned, if not please "
+                + "clean it manually", deletedSpecURI));
+      }
     } catch (JobException e) {
       _log.warn(String.format("Spec with URI: %s was not unscheduled cleaning",
           deletedSpecURI), e);
