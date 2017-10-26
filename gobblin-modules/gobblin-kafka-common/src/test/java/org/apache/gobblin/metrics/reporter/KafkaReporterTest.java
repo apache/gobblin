@@ -18,10 +18,10 @@
 package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -32,7 +32,6 @@ import org.testng.annotations.Test;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
-
 import com.google.common.collect.Lists;
 
 import org.apache.gobblin.metrics.Measurements;
@@ -40,10 +39,9 @@ import org.apache.gobblin.metrics.Metric;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.MetricReport;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.kafka.KafkaPusher;
 import org.apache.gobblin.metrics.kafka.KafkaReporter;
+import org.apache.gobblin.metrics.kafka.Pusher;
 import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
-
 
 @Test(groups = { "gobblin.metrics" })
 public class KafkaReporterTest {
@@ -54,11 +52,11 @@ public class KafkaReporterTest {
    * Get builder for KafkaReporter (override if testing an extension of KafkaReporter)
    * @return KafkaReporter builder
    */
-  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(KafkaPusher pusher) {
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(Pusher pusher) {
     return KafkaReporter.BuilderFactory.newBuilder().withKafkaPusher(pusher);
   }
 
-  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilderFromContext(KafkaPusher pusher) {
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilderFromContext(Pusher pusher) {
     return KafkaReporter.BuilderFactory.newBuilder().withKafkaPusher(pusher);
   }
 

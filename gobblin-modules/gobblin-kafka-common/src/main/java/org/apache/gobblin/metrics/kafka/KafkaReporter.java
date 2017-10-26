@@ -17,6 +17,13 @@
 
 package org.apache.gobblin.metrics.kafka;
 
+import java.io.IOException;
+import java.util.Properties;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.MetricReport;
 import org.apache.gobblin.metrics.reporter.MetricReportReporter;
@@ -26,13 +33,6 @@ import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-
-import java.io.IOException;
-import java.util.Properties;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,12 +44,11 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class KafkaReporter extends MetricReportReporter {
-
   public static final String SCHEMA_VERSION_WRITER_TYPE = "metrics.kafka.schemaVersionWriterType";
+  private static final String METRICS_KAFKA_PREFIX = "metrics.kafka";
 
   protected final AvroSerializer<MetricReport> serializer;
-  protected final KafkaPusher kafkaPusher;
-
+  protected final Pusher kafkaPusher;
 
   protected KafkaReporter(Builder<?> builder, Config config) throws IOException {
     super(builder, config);
@@ -73,7 +72,11 @@ public class KafkaReporter extends MetricReportReporter {
     if (builder.kafkaPusher.isPresent()) {
       this.kafkaPusher = builder.kafkaPusher.get();
     } else {
-      this.kafkaPusher = this.closer.register(new KafkaPusher(builder.brokers, builder.topic));
+      Config kafkaConfig = ConfigUtils.getConfigOrEmpty(config, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX);
+      String pusherClassName = ConfigUtils.getString(config, PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
+          PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
+
+      this.kafkaPusher = PusherUtils.getPusher(pusherClassName, builder.brokers, builder.topic, Optional.of(kafkaConfig));
     }
   }
 
@@ -82,9 +85,9 @@ public class KafkaReporter extends MetricReportReporter {
   }
 
   /**
-   * A static factory class for obtaining new {@link org.apache.gobblin.metrics.kafka.KafkaReporter.Builder}s
+   * A static factory class for obtaining new {@link Builder}s
    *
-   * @see org.apache.gobblin.metrics.kafka.KafkaReporter.Builder
+   * @see Builder
    */
   public static class BuilderFactory {
 
@@ -109,7 +112,7 @@ public class KafkaReporter extends MetricReportReporter {
 
     protected String brokers;
     protected String topic;
-    protected Optional<KafkaPusher> kafkaPusher;
+    protected Optional<Pusher> kafkaPusher;
 
     protected Builder() {
       super();
@@ -118,9 +121,9 @@ public class KafkaReporter extends MetricReportReporter {
     }
 
     /**
-     * Set {@link org.apache.gobblin.metrics.kafka.KafkaPusher} to use.
+     * Set {@link Pusher} to use.
      */
-    public T withKafkaPusher(KafkaPusher pusher) {
+    public T withKafkaPusher(Pusher pusher) {
       this.kafkaPusher = Optional.of(pusher);
       return self();
     }

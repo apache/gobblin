@@ -29,9 +29,9 @@ import com.google.common.collect.Maps;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.reporter.util.EventUtils;
 import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
-import org.apache.gobblin.metrics.kafka.KafkaPusher;
+import org.apache.gobblin.metrics.kafka.Pusher;
+import org.apache.gobblin.metrics.reporter.util.EventUtils;
 
 
 @Test(groups = {"gobblin.metrics"})
@@ -43,7 +43,7 @@ public class KafkaEventReporterTest {
    * @return KafkaReporter builder
    */
   public KafkaEventReporter.Builder<? extends KafkaEventReporter.Builder> getBuilder(MetricContext context,
-      KafkaPusher pusher) {
+      Pusher pusher) {
     return KafkaEventReporter.Factory.forContext(context).withKafkaPusher(pusher);
   }
 
@@ -141,7 +141,7 @@ public class KafkaEventReporterTest {
    * Assumes existence of the metric has already been checked.
    * @param it Kafka ConsumerIterator
    * @return next metric in the stream
-   * @throws java.io.IOException
+   * @throws IOException
    */
   protected GobblinTrackingEvent nextEvent(Iterator<byte[]> it) throws IOException {
     Assert.assertTrue(it.hasNext());

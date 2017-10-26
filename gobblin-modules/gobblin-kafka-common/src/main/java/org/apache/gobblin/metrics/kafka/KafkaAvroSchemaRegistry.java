@@ -31,7 +31,6 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +39,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.HttpClientFactory;
+import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
 import org.apache.gobblin.util.AvroUtils;
 
 

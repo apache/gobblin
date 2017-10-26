@@ -38,7 +38,7 @@ public enum KafkaReportingFormats {
   /**
    * Get a {@link org.apache.gobblin.metrics.kafka.KafkaReporter.Builder} for this reporting format.
    *
-   * @param properties {@link java.util.Properties} containing information to build reporters.
+   * @param properties {@link Properties} containing information to build reporters.
    * @return {@link org.apache.gobblin.metrics.kafka.KafkaReporter.Builder}.
    */
   public KafkaReporter.Builder<?> metricReporterBuilder(Properties properties) {
@@ -60,8 +60,8 @@ public enum KafkaReportingFormats {
 
   /**
    * Get a {@link org.apache.gobblin.metrics.kafka.KafkaEventReporter.Builder} for this reporting format.
-   * @param context {@link org.apache.gobblin.metrics.MetricContext} that should be reported.
-   * @param properties {@link java.util.Properties} containing information to build reporters.
+   * @param context {@link MetricContext} that should be reported.
+   * @param properties {@link Properties} containing information to build reporters.
    * @return {@link org.apache.gobblin.metrics.kafka.KafkaEventReporter.Builder}.
    */
   public KafkaEventReporter.Builder<?> eventReporterBuilder(MetricContext context, Properties properties) {
