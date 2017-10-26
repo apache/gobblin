@@ -517,10 +517,10 @@ public class Task implements TaskIFace {
     this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(t));
 
     // Send task failure event
-    FailureEvent failureEvent = new FailureEvent(taskContext.getTaskMetrics().getMetricContext());
+    FailureEvent failureEvent = new FailureEvent(FAILED_TASK_EVENT);
     failureEvent.setRootCause(t);
     failureEvent.setMetadata(TASK_STATE, this.taskState.toString());
-    failureEvent.submit(FAILED_TASK_EVENT, Maps.newHashMap());
+    failureEvent.submit(taskContext.getTaskMetrics().getMetricContext());
   }
 
   /**
