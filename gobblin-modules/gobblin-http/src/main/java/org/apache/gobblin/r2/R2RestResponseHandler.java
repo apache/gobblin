@@ -80,8 +80,9 @@ public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestR
       metadata.put(HttpConstants.STATUS_CODE, String.valueOf(statusCode));
       metadata.put(HttpConstants.REQUEST, request.toString());
       if (status.getType() != StatusType.CONTINUE) {
-        FailureEvent failureEvent = new FailureEvent(metricsContext);
-        failureEvent.submit(R2_FAILED_REQUEST_EVENT, metadata);
+        FailureEvent failureEvent = new FailureEvent(R2_FAILED_REQUEST_EVENT);
+        failureEvent.addAdditionalMetadata(metadata);
+        failureEvent.submit(metricsContext);
       } else {
         GobblinTrackingEvent event =
             new GobblinTrackingEvent(0L, R2_RESPONSE_EVENT_NAMESPACE, R2_FAILED_REQUEST_EVENT, metadata);

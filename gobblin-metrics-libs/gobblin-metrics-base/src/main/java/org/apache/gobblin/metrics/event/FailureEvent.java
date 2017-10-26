@@ -26,6 +26,8 @@ import org.apache.gobblin.metrics.MetricContext;
 
 import com.google.common.collect.Maps;
 
+import lombok.Getter;
+
 
 /**
  * A failure event represents a specific {@link GobblinTrackingEvent} whose metadata has
@@ -39,17 +41,26 @@ public class FailureEvent {
   private static final String EVENT_NAMESPACE = "gobblin.event";
   private static final String ROOT_CAUSE = "rootException";
 
-  private final EventSubmitter submitter;
+  @Getter
+  private final String name;
+  @Getter
+  private final String namespace;
+  @Getter
   private final Map<String, String> metadata;
 
-  public FailureEvent(MetricContext context) {
-    submitter = new EventSubmitter.Builder(context, EVENT_NAMESPACE).build();
+  public FailureEvent(String name) {
+    this(name, EVENT_NAMESPACE);
+  }
+
+  public FailureEvent(String name, String namespace) {
+    this.name = name;
+    this.namespace = namespace;
     metadata = Maps.newHashMap();
     metadata.put(EventSubmitter.EVENT_TYPE, EVENT_TYPE);
   }
 
   /**
-   * Given an throwable, get its root cause and set to the metadata
+   * Given an throwable, get its root cause and set as a metadata
    */
   public void setRootCause(Throwable t) {
     setMetadata(ROOT_CAUSE, getRootCause(t));
@@ -63,13 +74,17 @@ public class FailureEvent {
   }
 
   /**
-   * Submit the event
-   * @param name the name of the event
-   * @param additionalMetadata additional meta data to be added to the event
+   * Add additional metadata
    */
-  public void submit(String name, Map<String, String> additionalMetadata) {
+  public void addAdditionalMetadata(Map<String, String> additionalMetadata) {
     metadata.putAll(additionalMetadata);
-    submitter.submit(name, metadata);
+  }
+
+  /**
+   * Submit the event
+   */
+  public void submit(MetricContext context) {
+    context.submitEvent(new GobblinTrackingEvent(0L, EVENT_NAMESPACE, name, metadata));
   }
 
   /**

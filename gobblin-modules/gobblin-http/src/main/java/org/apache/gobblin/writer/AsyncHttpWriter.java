@@ -177,10 +177,10 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   protected void onFailure(AsyncRequest<D, RQ> asyncRequest, DispatchException exception) {
     if (exception.isFatal()) {
       // Report failure event
-      FailureEvent failureEvent = new FailureEvent(context);
+      FailureEvent failureEvent = new FailureEvent(FATAL_ASYNC_HTTP_WRITE_EVENT);
       failureEvent.setRootCause(exception);
       failureEvent.setMetadata(ASYNC_REQUEST, asyncRequest.toString());
-      failureEvent.submit(FATAL_ASYNC_HTTP_WRITE_EVENT, Maps.newHashMap());
+      failureEvent.submit(context);
     }
     for (AsyncRequest.Thunk thunk : asyncRequest.getThunks()) {
       thunk.callback.onFailure(exception);

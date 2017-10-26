@@ -192,9 +192,9 @@ final class SafeDatasetCommit implements Callable<Void> {
 
   private void submitFailureEvent(JobState.DatasetState datasetState) {
     if (datasetState.getState() == JobState.RunningState.FAILED) {
-      FailureEvent failureEvent = new FailureEvent(metricContext);
+      FailureEvent failureEvent = new FailureEvent(FAILED_DATASET_EVENT);
       failureEvent.setMetadata(DATASET_STATE, datasetState.toString());
-      failureEvent.submit(FAILED_DATASET_EVENT, Maps.newHashMap());
+      failureEvent.submit(metricContext);
     }
   }
 

@@ -47,8 +47,9 @@ public class FileFailureEventReporterTest {
     when(fs.append(any())).thenReturn(outputStream);
 
     final String eventName = "testEvent";
+    final String eventNamespace = "testNamespace";
     GobblinTrackingEvent event =
-        new GobblinTrackingEvent(0L, "testNamespace", eventName, Maps.newHashMap());
+        new GobblinTrackingEvent(0L, eventNamespace, eventName, Maps.newHashMap());
 
     // Noop on normal event
     testContext.submitEvent(event);
@@ -56,8 +57,8 @@ public class FileFailureEventReporterTest {
     verify(outputStream, never()).write(anyByte());
 
     // Process failure event
-    FailureEvent failureEvent = new FailureEvent(testContext);
-    failureEvent.submit(eventName, Maps.newHashMap());
+    FailureEvent failureEvent = new FailureEvent(eventName, eventNamespace);
+    failureEvent.submit(testContext);
     // Failure log output is setup
     verify(fs, times(1)).append(failureLogPath);
     // Report successfully
