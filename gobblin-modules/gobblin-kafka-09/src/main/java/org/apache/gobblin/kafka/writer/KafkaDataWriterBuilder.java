@@ -19,6 +19,7 @@ package org.apache.gobblin.kafka.writer;
 
 import java.util.Properties;
 
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
 import org.apache.gobblin.writer.AsyncDataWriter;
@@ -27,7 +28,7 @@ import org.apache.gobblin.writer.AsyncDataWriter;
 /**
  * Builder that hands back a {@link Kafka09DataWriter}
  */
-public class KafkaDataWriterBuilder extends BaseKafkaDataWriterBuilder {
+public class KafkaDataWriterBuilder extends AbstractKafkaDataWriterBuilder<Schema, GenericRecord> {
   @Override
   protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props) {
     return new Kafka09DataWriter<>(props);

@@ -15,28 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.kafka.serialize;
 
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
-import org.apache.kafka.common.serialization.Deserializer;
-
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
-import org.apache.gobblin.kafka.serialize.GsonDeserializerBase;
-
 
 /**
- * Implementation of {@link Deserializer} that deserializes Kafka data into a {@link JsonElement} using the
- * {@link StandardCharsets#UTF_8} encoding.
+ * Base kafka Gson deserializer, which deserializes a json string to a {@link JsonElement}
  */
-public class KafkaGsonDeserializer extends GsonDeserializerBase<JsonElement> implements Deserializer<JsonElement> {
-
+public class GsonDeserializerBase<T extends JsonElement> {
   private static final Gson GSON = new Gson();
 
-  @VisibleForTesting
-  static final Charset CHARSET = StandardCharsets.UTF_8;
+  public void configure(Map<String, ?> configs, boolean isKey) {
+    // Do nothing
+  }
+
+  public T deserialize(String topic, byte[] data) {
+    return (T) GSON.fromJson(new String(data, StandardCharsets.UTF_8), JsonElement.class);
+  }
+
+  public void close() {
+    // Do nothing
+  }
 }

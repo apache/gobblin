@@ -17,57 +17,15 @@
 
 package org.apache.gobblin.kafka.writer;
 
-import java.io.IOException;
-import java.util.Properties;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-
-import com.typesafe.config.Config;
-
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.writer.AsyncWriterManager;
-import org.apache.gobblin.writer.AsyncDataWriter;
-import org.apache.gobblin.writer.DataWriter;
-import org.apache.gobblin.writer.DataWriterBuilder;
 
 
 /**
  * Base class for creating KafkaDataWriter builders.
+ *
+ * @deprecated Use {@link AbstractKafkaDataWriterBuilder}
  */
-
-public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> {
-
-  protected abstract AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props);
-
-  /**
-   * Build a {@link DataWriter}.
-   *
-   * @throws IOException if there is anything wrong building the writer
-   * @return the built {@link DataWriter}
-   */
-  @Override
-  public DataWriter<GenericRecord> build()
-      throws IOException {
-    State state = this.destination.getProperties();
-    Properties taskProps = state.getProperties();
-    Config config = ConfigUtils.propertiesToConfig(taskProps);
-    long commitTimeoutMillis = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG,
-        KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_DEFAULT);
-    long commitStepWaitTimeMillis = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_CONFIG,
-        KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_DEFAULT);
-    double failureAllowance = ConfigUtils.getDouble(config, KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_CONFIG,
-        KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_DEFAULT) / 100.0;
-
-    return AsyncWriterManager.builder()
-        .config(config)
-        .commitTimeoutMillis(commitTimeoutMillis)
-        .commitStepWaitTimeInMillis(commitStepWaitTimeMillis)
-        .failureAllowanceRatio(failureAllowance)
-        .retriesEnabled(false)
-        .asyncDataWriter(getAsyncDataWriter(taskProps))
-        .build();
-  }
-
+@Deprecated
+public abstract class BaseKafkaDataWriterBuilder extends AbstractKafkaDataWriterBuilder<Schema, GenericRecord> {
 }

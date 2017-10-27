@@ -31,29 +31,59 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MultiWorkUnitUnpackingIterator implements Iterator<WorkUnit> {
   private final Iterator<WorkUnit> workUnits;
+
+  /** The iterator for {@link #nextWu} if it's a {@link MultiWorkUnit} */
   private Iterator<WorkUnit> currentIterator;
+  /** The work unit to be checked in {@link #next()} */
+  private WorkUnit nextWu;
+  /** A flag indicating if a new seek operation will be needed */
+  private boolean needSeek = true;
 
   @Override
   public boolean hasNext() {
-    return this.workUnits.hasNext() || (this.currentIterator != null && this.currentIterator.hasNext());
+    seekNext();
+    return nextWu != null;
   }
 
   @Override
   public WorkUnit next() {
+    // In case, the caller forgets to call hasNext()
+    seekNext();
+
+    WorkUnit wu = nextWu;
+    if (nextWu instanceof MultiWorkUnit) {
+      wu = this.currentIterator.next();
+    }
+    needSeek = true;
+    return wu;
+  }
+
+  /** Seek to the next available work unit, skipping all empty work units */
+  private void seekNext() {
+    if (!needSeek) {
+      return;
+    }
+
+    // First, iterate all
     if (this.currentIterator != null && this.currentIterator.hasNext()) {
-      WorkUnit next = this.currentIterator.next();
-      if (next instanceof MultiWorkUnit) {
-        throw new IllegalStateException("A MultiWorkUnit cannot contain other MultiWorkUnits.");
+      needSeek = false;
+      return;
+    }
+
+    // Then, find the next available work unit
+    nextWu = null;
+    this.currentIterator = null;
+    while (nextWu == null && workUnits.hasNext()) {
+      nextWu = workUnits.next();
+      if (nextWu instanceof MultiWorkUnit) {
+        this.currentIterator = ((MultiWorkUnit) nextWu).getWorkUnits().iterator();
+        if (!this.currentIterator.hasNext()) {
+          nextWu = null;
+        }
       }
-      return next;
     }
-    WorkUnit wu = this.workUnits.next();
-    if (wu instanceof MultiWorkUnit) {
-      this.currentIterator = ((MultiWorkUnit) wu).getWorkUnits().iterator();
-      return next();
-    } else {
-      return wu;
-    }
+
+    needSeek = false;
   }
 
   @Override

@@ -76,15 +76,14 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
   private final Producer<String, D> producer;
   private final String topic;
 
-  public static Producer getKafkaProducer(Properties props)
-  {
+  public static Producer getKafkaProducer(Properties props) {
     Object producerObject = KafkaWriterHelper.getKafkaProducer(props);
-    try
-    {
+    try {
       Producer producer = (Producer) producerObject;
       return producer;
     } catch (ClassCastException e) {
-      log.error("Failed to instantiate Kafka producer " + producerObject.getClass().getName() + " as instance of Producer.class", e);
+      log.error("Failed to instantiate Kafka producer " + producerObject.getClass().getName()
+          + " as instance of Producer.class", e);
       throw Throwables.propagate(e);
     }
   }
@@ -93,8 +92,7 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
     this(getKafkaProducer(props), ConfigFactory.parseProperties(props));
   }
 
-  public Kafka09DataWriter(Producer producer, Config config)
-  {
+  public Kafka09DataWriter(Producer producer, Config config) {
     this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
     this.producer = producer;
   }
@@ -105,7 +103,6 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
     log.debug("Close called");
     this.producer.close();
   }
-
 
   @Override
   public Future<WriteResponse> write(final D record, final WriteCallback callback) {
