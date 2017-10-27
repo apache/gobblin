@@ -26,7 +26,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import org.apache.gobblin.commit.CommitSequence;
@@ -106,7 +105,7 @@ final class SafeDatasetCommit implements Callable<Void> {
           this.jobContext.getJobId(), roe);
       throw new RuntimeException(roe);
     } finally {
-      submitFailureEvent(datasetState);
+      maySubmitFailureEvent(datasetState);
     }
 
     if (this.isJobCancelled) {
@@ -170,7 +169,7 @@ final class SafeDatasetCommit implements Callable<Void> {
     } finally {
       try {
         finalizeDatasetState(datasetState, datasetUrn);
-        submitFailureEvent(datasetState);
+        maySubmitFailureEvent(datasetState);
         submitLineageEvent(datasetState.getTaskStates());
 
         if (commitSequenceBuilder.isPresent()) {
@@ -190,7 +189,7 @@ final class SafeDatasetCommit implements Callable<Void> {
     return null;
   }
 
-  private void submitFailureEvent(JobState.DatasetState datasetState) {
+  private void maySubmitFailureEvent(JobState.DatasetState datasetState) {
     if (datasetState.getState() == JobState.RunningState.FAILED) {
       FailureEvent failureEvent = new FailureEvent(FAILED_DATASET_EVENT);
       failureEvent.setMetadata(DATASET_STATE, datasetState.toString());

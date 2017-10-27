@@ -40,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 public class FileFailureEventReporter extends OutputStreamEventReporter {
   private final FileSystem fs;
   private final Path failureLogFile;
-  private boolean hasSetupOutputStream;
+  private volatile boolean hasSetupOutputStream;
 
   public FileFailureEventReporter(MetricContext context, FileSystem fs, Path failureLogFile)
       throws IOException {
@@ -67,18 +67,25 @@ public class FileFailureEventReporter extends OutputStreamEventReporter {
       return;
     }
 
-    try {
-      boolean append = false;
-      if (fs.exists(failureLogFile)) {
-        log.info("Failure log file %s already exists, appending to it", failureLogFile);
-        append = true;
+    synchronized (failureLogFile) {
+      // Setup is done by some thread
+      if (hasSetupOutputStream) {
+        return;
       }
-      OutputStream outputStream = append ? fs.append(failureLogFile) : fs.create(failureLogFile);
-      output = this.closer.register(new PrintStream(outputStream, false, Charsets.UTF_8.toString()));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    } finally {
-      hasSetupOutputStream = true;
+
+      try {
+        boolean append = false;
+        if (fs.exists(failureLogFile)) {
+          log.info("Failure log file %s already exists, appending to it", failureLogFile);
+          append = true;
+        }
+        OutputStream outputStream = append ? fs.append(failureLogFile) : fs.create(failureLogFile);
+        output = this.closer.register(new PrintStream(outputStream, false, Charsets.UTF_8.toString()));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      } finally {
+        hasSetupOutputStream = true;
+      }
     }
   }
 }
