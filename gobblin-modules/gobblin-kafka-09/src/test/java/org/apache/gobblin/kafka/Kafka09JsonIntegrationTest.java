@@ -21,6 +21,17 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.List;
 
+import org.testng.Assert;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.Test;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -34,16 +45,6 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.Destination;
-import org.testng.Assert;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
-import org.testng.annotations.Test;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-
-import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX;
 import static org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys.KAFKA_TOPIC;
@@ -91,13 +92,15 @@ public class Kafka09JsonIntegrationTest {
   }
 
   @Test
-  public void testHappyPath() throws IOException, DataRecordException {
+  public void testHappyPath()
+      throws IOException, DataRecordException {
     String topic = "testKafka09JsonSource";
     kafkaTestHelper.provisionTopic(topic);
     SourceState state = createSourceState(topic);
 
     // Produce a record
-    state.setProp(KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", "localhost:" + kafkaTestHelper.getKafkaServerPort());
+    state.setProp(KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers",
+        "localhost:" + kafkaTestHelper.getKafkaServerPort());
     state.setProp(KAFKA_TOPIC, topic);
     Destination destination = Destination.of(Destination.DestinationType.KAFKA, state);
     Kafka09JsonObjectWriterBuilder writerBuilder = new Kafka09JsonObjectWriterBuilder();

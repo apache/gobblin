@@ -20,12 +20,13 @@ package org.apache.gobblin.source.extractor.extract.kafka;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-import org.apache.gobblin.kafka.serialize.GsonDeserializerBase;
 import org.apache.kafka.common.serialization.Deserializer;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+
+import org.apache.gobblin.kafka.serialize.GsonDeserializerBase;
 
 
 /**

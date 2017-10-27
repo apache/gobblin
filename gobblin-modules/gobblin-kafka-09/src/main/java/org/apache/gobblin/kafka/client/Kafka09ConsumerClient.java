@@ -20,15 +20,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.regex.Pattern;
-
-import javax.annotation.Nonnull;
-
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -40,7 +33,6 @@ import org.apache.kafka.common.TopicPartition;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
@@ -48,11 +40,14 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javax.annotation.Nonnull;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.DatasetFilterUtils;
 
 
 /**
@@ -95,15 +90,14 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     Preconditions.checkArgument(config.hasPath(GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY),
         "Missing required property " + GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY);
 
-    Config scopedConfig = config.getConfig(CONFIG_PREFIX_NO_DOT).withFallback(FALLBACK);
     Properties props = new Properties();
-    props.putAll(ConfigUtils.configToProperties(scopedConfig));
-
     props.put(KAFKA_09_CLIENT_BOOTSTRAP_SERVERS_KEY, Joiner.on(",").join(super.brokers));
     props.put(KAFKA_09_CLIENT_SESSION_TIMEOUT_KEY, super.socketTimeoutMillis);
 
-    this.consumer = new KafkaConsumer<>(props);
+    Config scopedConfig = config.getConfig(CONFIG_PREFIX_NO_DOT).withFallback(FALLBACK);
+    props.putAll(ConfigUtils.configToProperties(scopedConfig));
 
+    this.consumer = new KafkaConsumer<>(props);
   }
 
   public Kafka09ConsumerClient(Config config, Consumer<K, V> consumer) {

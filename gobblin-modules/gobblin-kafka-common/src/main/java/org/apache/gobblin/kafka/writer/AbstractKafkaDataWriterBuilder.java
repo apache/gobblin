@@ -20,14 +20,14 @@ package org.apache.gobblin.kafka.writer;
 import java.io.IOException;
 import java.util.Properties;
 
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.AsyncWriterManager;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.DataWriterBuilder;
-
-import com.typesafe.config.Config;
 
 
 /**
