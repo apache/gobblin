@@ -17,34 +17,39 @@
 
 package org.apache.gobblin.metrics.reporter;
 
+
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Queue;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import com.google.common.collect.Queues;
 
-import org.apache.gobblin.metrics.GobblinTrackingEvent;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.reporter.util.EventUtils;
-import org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter;
-import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
-import org.apache.gobblin.metrics.kafka.KafkaPusher;
+import org.apache.gobblin.metrics.kafka.Pusher;
 
 
-@Test(groups = {"gobblin.metrics"})
-public class KafkaAvroEventReporterTest extends KafkaEventReporterTest {
+/**
+ * Mock instance of {@link org.apache.gobblin.metrics.kafka.Pusher} used for testing.
+ */
+public class MockKafkaPusher implements Pusher {
 
-  @Override
-  public KafkaEventReporter.Builder<? extends KafkaEventReporter.Builder> getBuilder(MetricContext context,
-      KafkaPusher pusher) {
-    return KafkaAvroEventReporter.forContext(context).withKafkaPusher(pusher);
+  Queue<byte[]> messages = Queues.newLinkedBlockingQueue();
+
+  public MockKafkaPusher() {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  protected GobblinTrackingEvent nextEvent(Iterator<byte[]> it)
+  public void pushMessages(List<byte[]> messages) {
+    this.messages.addAll(messages);
+  }
+
+  @Override
+  public void close()
       throws IOException {
-    Assert.assertTrue(it.hasNext());
-    return EventUtils.deserializeReportFromAvroSerialization(new GobblinTrackingEvent(), it.next());
   }
+
+  public Iterator<byte[]> messageIterator() {
+    return this.messages.iterator();
+  }
+
 }

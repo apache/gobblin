@@ -24,14 +24,15 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-
-import lombok.extern.slf4j.Slf4j;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.CustomCodahaleReporterFactory;
 import org.apache.gobblin.metrics.KafkaReportingFormats;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.util.ConfigUtils;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
@@ -92,6 +93,14 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
       try {
         KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(RootMetricContext.get(),
             properties);
+
+        Config kafkaConfig = ConfigUtils.getConfigOrEmpty(ConfigUtils.propertiesToConfig(properties),
+            PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX);
+        builder.withConfig(kafkaConfig);
+
+        builder.withPusherClassName(properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
+            PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME));
+
         return builder.build(brokers, eventsTopic.or(defaultTopic).get());
       } catch (IOException exception) {
         log.error("Failed to create Kafka events reporter. Will not report events to Kafka.", exception);
