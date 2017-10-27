@@ -17,14 +17,6 @@
 
 package org.apache.gobblin.metrics.kafka;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metrics.MetricReport;
-import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
-import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
-import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
-import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
-import org.apache.gobblin.util.ConfigUtils;
-
 import java.io.IOException;
 import java.util.Properties;
 
@@ -32,6 +24,14 @@ import org.apache.avro.Schema;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.MetricReport;
+import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
+import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
+import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
+import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -58,9 +58,9 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * A static factory class for obtaining new {@link org.apache.gobblin.metrics.kafka.KafkaAvroReporter.Builder}s
+   * A static factory class for obtaining new {@link Builder}s
    *
-   * @see org.apache.gobblin.metrics.kafka.KafkaAvroReporter.Builder
+   * @see Builder
    */
   public static class BuilderFactory {
 

@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.metrics.kafka;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -34,7 +33,7 @@ import kafka.producer.ProducerConfig;
 /**
  * Establishes a connection to a Kafka cluster and pushed byte messages to a specified topic.
  */
-public class KafkaPusher implements Closeable {
+public class KafkaPusher implements Pusher {
 
   private final String topic;
   private final ProducerCloseable<String, byte[]> producer;

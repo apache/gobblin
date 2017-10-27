@@ -24,11 +24,10 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import org.apache.gobblin.metrics.MetricReport;
-import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.metrics.kafka.KafkaAvroReporter;
-import org.apache.gobblin.metrics.kafka.KafkaPusher;
 import org.apache.gobblin.metrics.kafka.KafkaReporter;
-
+import org.apache.gobblin.metrics.kafka.Pusher;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 
 /**
  * Test for KafkaAvroReporter
@@ -49,12 +48,12 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
   }
 
   @Override
-  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(KafkaPusher pusher) {
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(Pusher pusher) {
     return KafkaAvroReporter.BuilderFactory.newBuilder().withKafkaPusher(pusher);
   }
 
   @Override
-  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilderFromContext(KafkaPusher pusher) {
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilderFromContext(Pusher pusher) {
     return KafkaAvroReporter.BuilderFactory.newBuilder().withKafkaPusher(pusher);
   }
 
