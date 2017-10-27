@@ -40,8 +40,7 @@ import static org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys.CLIEN
 @Slf4j
 public class KafkaWriterHelper {
 
-  static Properties getProducerProperties(Properties props)
-  {
+  static Properties getProducerProperties(Properties props) {
     Properties producerProperties = stripPrefix(props, KAFKA_PRODUCER_CONFIG_PREFIX);
 
     // Provide default properties if not set from above
@@ -52,8 +51,7 @@ public class KafkaWriterHelper {
     return producerProperties;
   }
 
-  private static void setDefaultIfUnset(Properties props, String key, String value)
-  {
+  private static void setDefaultIfUnset(Properties props, String key, String value) {
     if (!props.containsKey(key)) {
       props.setProperty(key, value);
     }
@@ -62,22 +60,18 @@ public class KafkaWriterHelper {
   private static Properties stripPrefix(Properties props, String prefix) {
     Properties strippedProps = new Properties();
     int prefixLength = prefix.length();
-    for (String key: props.stringPropertyNames())
-    {
-      if (key.startsWith(prefix))
-      {
+    for (String key : props.stringPropertyNames()) {
+      if (key.startsWith(prefix)) {
         strippedProps.setProperty(key.substring(prefixLength), props.getProperty(key));
       }
     }
     return strippedProps;
   }
 
-  public static Object getKafkaProducer(Properties props)
-  {
+  public static Object getKafkaProducer(Properties props) {
     Config config = ConfigFactory.parseProperties(props);
-    String kafkaProducerClass = ConfigUtils
-        .getString(config, KafkaWriterConfigurationKeys.KAFKA_WRITER_PRODUCER_CLASS,
-            KafkaWriterConfigurationKeys.KAFKA_WRITER_PRODUCER_CLASS_DEFAULT);
+    String kafkaProducerClass = ConfigUtils.getString(config, KafkaWriterConfigurationKeys.KAFKA_WRITER_PRODUCER_CLASS,
+        KafkaWriterConfigurationKeys.KAFKA_WRITER_PRODUCER_CLASS_DEFAULT);
     Properties producerProps = getProducerProperties(props);
     try {
       Class<?> producerClass = (Class<?>) Class.forName(kafkaProducerClass);
@@ -88,6 +82,4 @@ public class KafkaWriterHelper {
       throw Throwables.propagate(e);
     }
   }
-
-
 }
