@@ -252,7 +252,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     this.applicablePathCache = CacheBuilder.newBuilder().maximumSize(2000).build();
     this.datasetHelper = new DatasetHelper(this.dataset, this.fs, this.getApplicableFileExtensions());
 
-    this.outputExtension = this.dataset.jobProps().getProp(MRCompactor.COMPACTION_FILE_EXTENSION, ".avro");
+    this.outputExtension = "."+this.dataset.jobProps().getProp(MRCompactor.COMPACTION_FILE_EXTENSION, "avro");
 
     if (this.isRetryEnabled) {
       this.retrierConfig = ConfigBuilder.create()

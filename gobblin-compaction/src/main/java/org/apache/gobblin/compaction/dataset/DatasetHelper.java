@@ -127,7 +127,7 @@ public class DatasetHelper {
   }
 
   public List<Path> getApplicableFilePaths (Path dataDir) throws IOException {
-    return getApplicableFilePaths(fs, dataDir, Lists.newArrayList("avro"));
+    return getApplicableFilePaths(fs, dataDir, this.extensions);
   }
 
   public Optional<DateTime> getEarliestLateFileModificationTime() {
