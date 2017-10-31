@@ -305,7 +305,7 @@ public class JsonElementConversionFactory {
 
     protected Schema buildUnionIfNullable(Schema schema) {
       if (this.isNullable()) {
-        return Schema.createUnion(Schema.create(Schema.Type.NULL), schema);
+        return Schema.createUnion(Arrays.asList(Schema.create(Schema.Type.NULL), schema));
       }
       return schema;
     }
@@ -756,7 +756,7 @@ public class JsonElementConversionFactory {
 
     @Override
     protected Schema schema() {
-      return Schema.createUnion(firstSchema, secondSchema);
+      return Schema.createUnion(Arrays.asList(firstSchema, secondSchema));
     }
   }
 }
