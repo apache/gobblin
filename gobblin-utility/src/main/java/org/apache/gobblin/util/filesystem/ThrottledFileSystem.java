@@ -53,7 +53,7 @@ public class ThrottledFileSystem extends FileSystemInstrumentation {
    * Factory for {@link ThrottledFileSystem}.
    */
   public static class Factory<S extends ScopeType<S>> extends FileSystemInstrumentationFactory<S> {
-    private final String SERVICE_NAME_CONF_KEY = "gobblin.broker.filesystem.limiterServiceName";
+    private static final String SERVICE_NAME_CONF_KEY = "gobblin.broker.filesystem.limiterServiceName";
     @Override
     public FileSystem instrumentFileSystem(FileSystem fs, SharedResourcesBroker<S> broker,
         ConfigView<S, FileSystemKey> config) {
