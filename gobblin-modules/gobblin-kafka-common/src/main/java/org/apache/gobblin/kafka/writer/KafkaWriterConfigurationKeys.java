@@ -50,4 +50,15 @@ public class KafkaWriterConfigurationKeys {
   static final String KAFKA_SCHEMA_REGISTRY_SWITCH_NAME = "kafka.schemaRegistry.switchName";
   static final String KAFKA_SCHEMA_REGISTRY_SWITCH_NAME_DEFAULT = "true";
 
+  public static final String KAFKA_TOPIC_CONFIG = "writer.kafka.";
+  static final String TOPIC_NAME = "topic";
+  public static final String CLUSTER_ZOOKEEPER = KAFKA_TOPIC_CONFIG + "zookeeper";
+  static final String REPLICATION_COUNT = KAFKA_TOPIC_CONFIG + "replicationCount";
+  static final int REPLICATION_COUNT_DEFAULT = 1;
+  static final String PARTITION_COUNT = KAFKA_TOPIC_CONFIG + "partitionCount";
+  static final int PARTITION_COUNT_DEFAULT = 1;
+  public static final String ZOOKEEPER_SESSION_TIMEOUT = CLUSTER_ZOOKEEPER + ".sto";
+  static final int ZOOKEEPER_SESSION_TIMEOUT_DEFAULT = 10000; // 10 seconds
+  public static final String ZOOKEEPER_CONNECTION_TIMEOUT = CLUSTER_ZOOKEEPER + ".cto";
+  static final int ZOOKEEPER_CONNECTION_TIMEOUT_DEFAULT = 8000; // 8 seconds
 }
