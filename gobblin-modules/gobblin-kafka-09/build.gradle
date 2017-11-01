@@ -72,7 +72,13 @@ configurations {
 }
 
 test {
-  workingDir rootProject.rootDir
+  workingDir rootProject.rootDir  
+  systemProperty "live.newtopic", System.getProperty("live.newtopic")
+  systemProperty "live.newtopic.replicationCount", System.getProperty("live.newtopic.replicationCount")
+  systemProperty "live.newtopic.partitionCount", System.getProperty("live.newtopic.partitionCount")
+  systemProperty "live.cluster.count", System.getProperty("live.cluster.count")
+  systemProperty "live.zookeeper", System.getProperty("live.zookeeper")
+  systemProperty "live.broker", System.getProperty("live.broker")
 }
 
 ext.classification="library"
