@@ -56,7 +56,7 @@ public class FlowCatalogTest {
   private static final String SPEC_STORE_DIR = "/tmp/flowTestSpecStore";
   private static final String SPEC_GROUP_DIR = "/tmp/flowTestSpecStore/flowTestGroupDir";
   private static final String SPEC_DESCRIPTION = "Test Flow Spec";
-  private static final String SPEC_VERSION = "1";
+  private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
 
   private ServiceBasedAppLauncher serviceLauncher;
   private FlowCatalog flowCatalog;

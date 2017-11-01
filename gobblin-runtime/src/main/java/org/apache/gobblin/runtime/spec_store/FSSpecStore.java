@@ -25,6 +25,7 @@ import java.net.URI;
 import java.util.Collection;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -114,28 +115,28 @@ public class FSSpecStore implements SpecStore {
     return Files.getNameWithoutExtension(specUri.getName());
   }
 
-  private Collection<Spec> getAllVersionsOfSpec(String specGroup, String specName) throws IOException {
+  private Collection<Spec> getAllVersionsOfSpec(Path spec) {
     Collection<Spec> specs = Lists.newArrayList();
-    FileStatus[] fileStatuses;
-    try {
-      fileStatuses = listSpecs(this.fsSpecStoreDirPath, specGroup);
-    } catch (FileNotFoundException e) {
-      return specs;
-    }
 
-    for (FileStatus fileStatus : fileStatuses) {
-      if (!fileStatus.isDirectory() && fileStatus.getPath().getName().startsWith(specName)) {
-        specs.add(readSpecFromFile(fileStatus.getPath()));
-      }
+    try {
+      specs.add(readSpecFromFile(spec));
+    } catch (IOException e) {
+      log.warn("Spec {} not found.", spec);
     }
     return specs;
   }
 
+  /**
+   * Returns all versions of the spec defined by specUri.
+   * Currently, multiple versions are not supported, so this should return exactly one spec.
+   * @param specUri URI for the {@link Spec} to be retrieved.
+   * @return all versions of the spec.
+   */
   @Override
-  public Collection<Spec> getAllVersionsOfSpec(URI specUri) throws IOException {
+  public Collection<Spec> getAllVersionsOfSpec(URI specUri) {
     Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
-    Path specPath = new Path(specUri.getPath());
-    return getAllVersionsOfSpec(getSpecGroup(specPath), getSpecName(specPath));
+    Path specPath = getPathForURI(this.fsSpecStoreDirPath, specUri, FlowSpec.Builder.DEFAULT_VERSION);
+    return getAllVersionsOfSpec(specPath);
   }
 
   @Override
@@ -146,7 +147,7 @@ public class FSSpecStore implements SpecStore {
     String specName = getSpecName(flowPath);
     FileStatus[] fileStatuses;
     try {
-      fileStatuses = listSpecs(this.fsSpecStoreDirPath, specGroup);
+      fileStatuses = listSpecs(specGroup);
     } catch (FileNotFoundException e) {
       return false;
     }
@@ -155,19 +156,19 @@ public class FSSpecStore implements SpecStore {
     // We need to revisit having a version delimiter.
     // Currently without a delimiter the prefix check may match other specs that should not be matched.
     for (FileStatus fileStatus : fileStatuses) {
-      if (!fileStatus.isDirectory() && fileStatus.getPath().getName().startsWith(specName)) {
+      if (!fileStatus.isDirectory() && fileStatus.getPath().getName().equals(specName + FlowSpec.Builder.DEFAULT_VERSION)) {
         return true;
       }
     }
     return false;
   }
 
-  private FileStatus[] listSpecs(Path fsSpecStoreDirPath, String specGroup) throws FileNotFoundException, IOException {
+  private FileStatus[] listSpecs(String specGroup) throws IOException {
     FileStatus[] fileStatuses;
     if (StringUtils.isEmpty(specGroup)) {
-      fileStatuses = fs.listStatus(fsSpecStoreDirPath);
+      fileStatuses = fs.listStatus(this.fsSpecStoreDirPath);
     } else {
-      fileStatuses = fs.listStatus(new Path(fsSpecStoreDirPath, specGroup));
+      fileStatuses = fs.listStatus(new Path(this.fsSpecStoreDirPath, specGroup));
     }
     return fileStatuses;
   }
@@ -192,11 +193,7 @@ public class FSSpecStore implements SpecStore {
   public boolean deleteSpec(URI specUri) throws IOException {
     Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
 
-    try {
-      return deleteSpec(specUri, getSpec(specUri).getVersion());
-    } catch (SpecNotFoundException e) {
-      throw new IOException(String.format("Issue in removing Spec: %s", specUri), e);
-    }
+      return deleteSpec(specUri, FlowSpec.Builder.DEFAULT_VERSION);
   }
 
   @Override
@@ -207,13 +204,7 @@ public class FSSpecStore implements SpecStore {
     try {
       log.info(String.format("Deleting Spec with URI: %s in FSSpecStore: %s", specUri, this.fsSpecStoreDirPath));
       Path specPath = getPathForURI(this.fsSpecStoreDirPath, specUri, version);
-
-      if (fs.exists(specPath)) {
-        return fs.delete(specPath, false);
-      } else {
-        log.warn("No file with URI:" + specUri + " is found. Deletion failed.");
-        return false;
-      }
+      return fs.delete(specPath, false);
     } catch (IOException e) {
       throw new IOException(String.format("Issue in removing Spec: %s for Version: %s", specUri, version), e);
     }
@@ -221,17 +212,12 @@ public class FSSpecStore implements SpecStore {
 
   @Override
   public Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException {
-    Preconditions.checkArgument(null != spec, "Spec should not be null");
-
-    log.info(String.format("Updating Spec with URI: %s in FSSpecStore: %s", spec.getUri(), this.fsSpecStoreDirPath));
-    Path specPath = getPathForURI(this.fsSpecStoreDirPath, spec.getUri(), spec.getVersion());
-    writeSpecToFile(specPath, spec);
-
+    addSpec(spec);
     return spec;
   }
 
   @Override
-  public Spec getSpec(URI specUri) throws IOException, SpecNotFoundException {
+  public Spec getSpec(URI specUri) throws SpecNotFoundException {
     Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
 
     Collection<Spec> specs = getAllVersionsOfSpec(specUri);
@@ -296,9 +282,9 @@ public class FSSpecStore implements SpecStore {
    * @throws IOException
    */
   protected Spec readSpecFromFile(Path path) throws IOException {
-    Spec spec = null;
+    Spec spec;
 
-    try (FSDataInputStream fis = fs.open(path);) {
+    try (FSDataInputStream fis = fs.open(path)) {
       spec = this.specSerDe.deserialize(ByteStreams.toByteArray(fis));
     }
 
@@ -312,12 +298,8 @@ public class FSSpecStore implements SpecStore {
    * @throws IOException
    */
   protected void writeSpecToFile(Path specPath, Spec spec) throws IOException {
-    if (fs.exists(specPath)) {
-      fs.delete(specPath, true);
-    }
-
     byte[] serializedSpec = this.specSerDe.serialize(spec);
-    try (FSDataOutputStream os = fs.create(specPath)) {
+    try (FSDataOutputStream os = fs.create(specPath, true)) {
       os.write(serializedSpec);
     }
   }

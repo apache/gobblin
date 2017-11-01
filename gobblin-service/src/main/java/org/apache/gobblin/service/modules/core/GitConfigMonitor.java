@@ -72,7 +72,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GitConfigMonitor extends AbstractIdleService {
   private static final String SPEC_DESCRIPTION = "Git-based flow config";
-  private static final String SPEC_VERSION = "1";
+  private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
   private static final int TERMINATION_TIMEOUT = 30;
   private static final int CONFIG_FILE_DEPTH = 3;
   private static final String REMOTE_NAME = "origin";
@@ -251,12 +251,7 @@ public class GitConfigMonitor extends AbstractIdleService {
           .withDescription(SPEC_DESCRIPTION)
           .build();
 
-      try {
         this.flowCatalog.remove(spec.getUri());
-      } catch (SpecNotFoundException e) {
-        // okay if flow does not exist
-        log.warn("Flow {} does not exist.", spec.getUri());
-      }
     }
   }
 

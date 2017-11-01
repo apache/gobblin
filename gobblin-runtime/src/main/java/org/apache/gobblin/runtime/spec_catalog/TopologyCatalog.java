@@ -30,6 +30,7 @@ import lombok.Getter;
 
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -232,15 +233,9 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
 
       log.info(String.format("Adding TopologySpec with URI: %s and Config: %s", spec.getUri(),
           ((TopologySpec) spec).getConfigAsProperties()));
-      if (specStore.exists(spec.getUri())) {
-        specStore.updateSpec(spec);
-        this.listeners.onUpdateSpec(spec);
-      } else {
         specStore.addSpec(spec);
         this.listeners.onAddSpec(spec);
-      }
-
-    } catch (IOException | SpecNotFoundException e) {
+    } catch (IOException e) {
       throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
   }
@@ -252,11 +247,9 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
       Preconditions.checkNotNull(uri);
 
       log.info(String.format("Removing TopologySpec with URI: %s", uri));
-      Spec spec = specStore.getSpec(uri);
-      this.listeners.onDeleteSpec(spec.getUri(), spec.getVersion());
+      this.listeners.onDeleteSpec(uri, FlowSpec.Builder.DEFAULT_VERSION);
       specStore.deleteSpec(uri);
-
-    } catch (IOException | SpecNotFoundException e) {
+    } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
     }
   }

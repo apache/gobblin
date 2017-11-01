@@ -66,7 +66,6 @@ public class GobblinServiceManagerTest {
   private static final String SERVICE_WORK_DIR = "/tmp/serviceWorkDir/";
   private static final String SPEC_STORE_PARENT_DIR = "/tmp/serviceCore/";
   private static final String SPEC_DESCRIPTION = "Test ServiceCore";
-  private static final String SPEC_VERSION = "1";
   private static final String TOPOLOGY_SPEC_STORE_DIR = "/tmp/serviceCore/topologyTestSpecStore";
   private static final String FLOW_SPEC_STORE_DIR = "/tmp/serviceCore/flowTestSpecStore";
   private static final String GIT_CLONE_DIR = "/tmp/serviceCore/clone";
@@ -168,8 +167,7 @@ public class GobblinServiceManagerTest {
     flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
 
     FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
-        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
-            setRunImmediately(true))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
     this.flowConfigClient.createFlowConfig(flowConfig);
@@ -191,11 +189,8 @@ public class GobblinServiceManagerTest {
     try {
       this.flowConfigClient.createFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.CONFLICT_409);
-      return;
+      Assert.fail("Create Again should pass without complaining that the spec already exists.");
     }
-
-    Assert.fail("Get should have gotten a 409 error");
   }
 
   @Test (dependsOnMethods = "testCreateAgain")
@@ -207,7 +202,7 @@ public class GobblinServiceManagerTest {
     Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME);
     Assert.assertEquals(flowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE );
     Assert.assertEquals(flowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
-    Assert.assertTrue(flowConfig.getSchedule().isRunImmediately());
+    Assert.assertFalse(flowConfig.getSchedule().isRunImmediately());
     // Add this asssert back when getFlowSpec() is changed to return the raw flow spec
     //Assert.assertEquals(flowConfig.getProperties().size(), 1);
     Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
@@ -333,10 +328,8 @@ public class GobblinServiceManagerTest {
     try {
       this.flowConfigClient.updateFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
-      return;
+      Assert.fail("Bad update should pass without complaining that the spec does not exists.");
     }
-
-    Assert.fail("Get should have raised a 404 error");
+    cleanUpDir(SPEC_STORE_PARENT_DIR);
   }
 }

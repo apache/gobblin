@@ -171,11 +171,8 @@ public class FlowConfigTest {
     try {
       _client.createFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.S_409_CONFLICT.getCode());
-      return;
+      Assert.fail("Create Again should pass without complaining that the spec already exists.");
     }
-
-    Assert.fail("Get should have gotten a 409 error");
   }
 
   @Test (dependsOnMethods = "testCreateAgain")
@@ -187,7 +184,7 @@ public class FlowConfigTest {
     Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME);
     Assert.assertEquals(flowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE );
     Assert.assertEquals(flowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
-    Assert.assertTrue(flowConfig.getSchedule().isRunImmediately());
+    Assert.assertFalse(flowConfig.getSchedule().isRunImmediately());
     // Add this asssert back when getFlowSpec() is changed to return the raw flow spec
     //Assert.assertEquals(flowConfig.getProperties().size(), 1);
     Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
@@ -282,11 +279,8 @@ public class FlowConfigTest {
     try {
       _client.updateFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.S_404_NOT_FOUND.getCode());
-      return;
+      Assert.fail("Bad update should pass without complaining that the spec does not exists.");
     }
-
-    Assert.fail("Get should have raised a 404 error");
   }
 
   @AfterClass(alwaysRun = true)

@@ -234,29 +234,22 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
       log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", spec.getUri(),
           ((FlowSpec) spec).getConfigAsProperties()));
-      if (specStore.exists(spec.getUri())) {
-        specStore.updateSpec(spec);
-        this.listeners.onUpdateSpec(spec);
-      } else {
-        specStore.addSpec(spec);
-        this.listeners.onAddSpec(spec);
-      }
-
-    } catch (IOException | SpecNotFoundException e) {
+      specStore.addSpec(spec);
+      this.listeners.onAddSpec(spec);
+    } catch (IOException e) {
       throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
   }
 
   @Override
-  public void remove(URI uri) throws SpecNotFoundException {
+  public void remove(URI uri) {
     try {
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(uri);
 
       log.info(String.format("Removing FlowSpec with URI: %s", uri));
-      Spec spec = specStore.getSpec(uri);
-      this.listeners.onDeleteSpec(spec.getUri(), spec.getVersion());
       specStore.deleteSpec(uri);
+      this.listeners.onDeleteSpec(uri, FlowSpec.Builder.DEFAULT_VERSION);
 
     } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
