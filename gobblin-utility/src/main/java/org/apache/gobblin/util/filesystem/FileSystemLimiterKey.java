@@ -22,7 +22,6 @@ import java.net.URI;
 import com.google.common.base.Strings;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
-import org.apache.hadoop.util.StringUtils;
 
 /**
  * {@link SharedLimiterKey} used for NameNode throttling.

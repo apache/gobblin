@@ -21,6 +21,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -58,7 +59,7 @@ public class ThrottledFileSystem extends FileSystemInstrumentation {
     public FileSystem instrumentFileSystem(FileSystem fs, SharedResourcesBroker<S> broker,
         ConfigView<S, FileSystemKey> config) {
       try {
-        String serviceName = config.getConfig().getString(SERVICE_NAME_CONF_KEY);
+        String serviceName = ConfigUtils.getString(config.getConfig(), SERVICE_NAME_CONF_KEY, "");
         Limiter limiter = broker.getSharedResource(new SharedLimiterFactory<S>(), new FileSystemLimiterKey(config.getKey().getUri()));
         return new ThrottledFileSystem(fs, limiter, serviceName);
       } catch (NotConfiguredException nce) {
