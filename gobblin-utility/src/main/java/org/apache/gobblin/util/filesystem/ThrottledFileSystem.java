@@ -189,6 +189,10 @@ public class ThrottledFileSystem extends FileSystemInstrumentation {
     return this.limiter;
   }
 
+  public String getServiceName() {
+    return this.serviceName;
+  }
+
   @Override
   public void close() throws IOException {
     getRateLimiter().stop();
