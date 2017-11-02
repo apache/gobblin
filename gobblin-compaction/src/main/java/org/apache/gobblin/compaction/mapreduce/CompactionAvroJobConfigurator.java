@@ -45,13 +45,18 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.TaskCompletionEvent;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * A configurator that focused on creating avro compaction map-reduce job
@@ -330,6 +335,30 @@ public class CompactionAvroJobConfigurator {
     }
 
     return uncompacted;
+  }
+
+  public static List<TaskCompletionEvent> getAllTaskCompletionEvent(Job completedJob) {
+    List<TaskCompletionEvent> completionEvents = new LinkedList<>();
+
+    while (true) {
+      try {
+        TaskCompletionEvent[] bunchOfEvents;
+        bunchOfEvents = completedJob.getTaskCompletionEvents(completionEvents.size());
+        if (bunchOfEvents == null || bunchOfEvents.length == 0) {
+          break;
+        }
+        completionEvents.addAll(Arrays.asList(bunchOfEvents));
+      } catch (IOException e) {
+        break;
+      }
+    }
+
+    return completionEvents;
+  }
+
+  public static List<TaskCompletionEvent> getUnsuccessfulTaskCompletionEvent(Job completedJob) {
+    return getAllTaskCompletionEvent(completedJob).stream().filter(te->te.getStatus() != TaskCompletionEvent.Status.SUCCEEDED).collect(
+        Collectors.toList());
   }
 }
 
