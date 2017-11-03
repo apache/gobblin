@@ -101,7 +101,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       List<Path> allFilePaths = DatasetHelper.getApplicableFilePaths(fs, tmpPath, Lists.newArrayList("avro"));
       List<Path> goodPaths = new ArrayList<>();
       for (Path filePath: allFilePaths) {
-        if (isFailedPath(filePath, failedEvents)) {
+        if (CompactionAvroJobConfigurator.isFailedPath(filePath, failedEvents)) {
           this.fs.delete(filePath, false);
           log.error("{} is a bad path so it was deleted", filePath);
         } else {
@@ -172,10 +172,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
     }
   }
 
-  private boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
-    return failedEvents.stream()
-        .anyMatch(event -> path.toString().contains(event.getTaskAttemptId().toString()));
-  }
+
 
   public void addEventSubmitter(EventSubmitter eventSubmitter) {
     this.eventSubmitter = eventSubmitter;

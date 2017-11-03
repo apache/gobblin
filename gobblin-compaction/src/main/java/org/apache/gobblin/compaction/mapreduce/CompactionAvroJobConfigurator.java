@@ -360,5 +360,10 @@ public class CompactionAvroJobConfigurator {
     return getAllTaskCompletionEvent(completedJob).stream().filter(te->te.getStatus() != TaskCompletionEvent.Status.SUCCEEDED).collect(
         Collectors.toList());
   }
+
+  public static boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
+    return failedEvents.stream()
+        .anyMatch(event -> path.toString().contains(Path.SEPARATOR + event.getTaskAttemptId().toString() + Path.SEPARATOR));
+  }
 }
 

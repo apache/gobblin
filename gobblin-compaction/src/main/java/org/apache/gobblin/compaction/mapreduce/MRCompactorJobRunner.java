@@ -329,7 +329,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
           List<Path> allFilePaths = DatasetHelper.getApplicableFilePaths(this.tmpFs, this.dataset.outputTmpPath(), Lists.newArrayList("avro"));
           List<Path> goodPaths = new ArrayList<>();
           for (Path filePath: allFilePaths) {
-            if (isFailedPath(filePath, failedEvents)) {
+            if (CompactionAvroJobConfigurator.isFailedPath(filePath, failedEvents)) {
               this.tmpFs.delete(filePath, false);
               LOG.error("{} is a bad path so it was deleted", filePath);
             } else {
@@ -368,11 +368,6 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     } catch (Throwable t) {
       throw Throwables.propagate(t);
     }
-  }
-
-  private boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
-    return failedEvents.stream()
-        .anyMatch(event -> path.toString().contains(event.getTaskAttemptId().toString()));
   }
 
   /**
