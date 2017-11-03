@@ -19,8 +19,11 @@ package org.apache.gobblin.compaction.mapreduce;
 
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
 import org.apache.gobblin.compaction.mapreduce.avro.*;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
@@ -38,6 +41,7 @@ import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.commons.math3.primes.Primes;
+import org.apache.gobblin.writer.WriterOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
@@ -51,6 +55,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -337,7 +342,7 @@ public class CompactionAvroJobConfigurator {
     return uncompacted;
   }
 
-  public static List<TaskCompletionEvent> getAllTaskCompletionEvent(Job completedJob) {
+  private static List<TaskCompletionEvent> getAllTaskCompletionEvent(Job completedJob) {
     List<TaskCompletionEvent> completionEvents = new LinkedList<>();
 
     while (true) {
@@ -356,14 +361,41 @@ public class CompactionAvroJobConfigurator {
     return completionEvents;
   }
 
-  public static List<TaskCompletionEvent> getUnsuccessfulTaskCompletionEvent(Job completedJob) {
+  private static List<TaskCompletionEvent> getUnsuccessfulTaskCompletionEvent(Job completedJob) {
     return getAllTaskCompletionEvent(completedJob).stream().filter(te->te.getStatus() != TaskCompletionEvent.Status.SUCCEEDED).collect(
         Collectors.toList());
   }
 
-  public static boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
+  private static boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
     return failedEvents.stream()
         .anyMatch(event -> path.toString().contains(Path.SEPARATOR + event.getTaskAttemptId().toString() + Path.SEPARATOR));
+  }
+
+  /**
+   * Remove all bad paths caused by speculative execution
+   * The problem happens when speculative task attempt initialized but then killed in the middle of processing.
+   * Some partial file was generated at {tmp_output}/_temporary/1/_temporary/attempt_xxx_xxx/part-m-xxxx.avro,
+   * without being committed to its final destination at {tmp_output}/part-m-xxxx.avro.
+   *
+   * @param job Completed MR job
+   * @param fs File system that can handle file system
+   * @return all successful paths
+   */
+  public static List<Path> removeFailedPaths(Job job, Path tmpPath, FileSystem fs) throws IOException {
+    List<TaskCompletionEvent> failedEvents = CompactionAvroJobConfigurator.getUnsuccessfulTaskCompletionEvent(job);
+
+    List<Path> allFilePaths = DatasetHelper.getApplicableFilePaths(fs, tmpPath, Lists.newArrayList("avro"));
+    List<Path> goodPaths = new ArrayList<>();
+    for (Path filePath: allFilePaths) {
+      if (CompactionAvroJobConfigurator.isFailedPath(filePath, failedEvents)) {
+        fs.delete(filePath, false);
+        log.error("{} is a bad path so it was deleted", filePath);
+      } else {
+        goodPaths.add(filePath);
+      }
+    }
+
+    return goodPaths;
   }
 }
 

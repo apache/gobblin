@@ -87,27 +87,12 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
               MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
 
       Job job = this.configurator.getConfiguredJob();
-      List<TaskCompletionEvent> failedEvents = CompactionAvroJobConfigurator.getUnsuccessfulTaskCompletionEvent(job);
 
       long newTotalRecords = 0;
       long oldTotalRecords = helper.readRecordCount(new Path (result.getDstAbsoluteDir()));
       long executeCount = helper.readExecutionCount (new Path (result.getDstAbsoluteDir()));
 
-      // Filter out all bad paths caused by speculative execution
-      // The problem happens when speculative task attempt initialized but then killed in the middle of processing.
-      // Some partial file was generated at {tmp_output}/_temporary/1/_temporary/attempt_xxx_xxx/part-m-xxxx.avro,
-      // without being committed to its final destination at {tmp_output}/part-m-xxxx.avro.
-      // We do a scanning here to remove all these bad files before these files being moved to the compaction output folder.
-      List<Path> allFilePaths = DatasetHelper.getApplicableFilePaths(fs, tmpPath, Lists.newArrayList("avro"));
-      List<Path> goodPaths = new ArrayList<>();
-      for (Path filePath: allFilePaths) {
-        if (CompactionAvroJobConfigurator.isFailedPath(filePath, failedEvents)) {
-          this.fs.delete(filePath, false);
-          log.error("{} is a bad path so it was deleted", filePath);
-        } else {
-          goodPaths.add(filePath);
-        }
-      }
+      List<Path> goodPaths = CompactionAvroJobConfigurator.removeFailedPaths(job, tmpPath, this.fs);
 
       if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,

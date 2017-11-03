@@ -325,19 +325,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         this.submitAndWait(job);
         if (shouldPublishData(compactionTimestamp)) {
           // remove all invalid empty files due to speculative task execution
-          List<TaskCompletionEvent> failedEvents = CompactionAvroJobConfigurator.getUnsuccessfulTaskCompletionEvent(job);
-          List<Path> allFilePaths = DatasetHelper.getApplicableFilePaths(this.tmpFs, this.dataset.outputTmpPath(), Lists.newArrayList("avro"));
-          List<Path> goodPaths = new ArrayList<>();
-          for (Path filePath: allFilePaths) {
-            if (CompactionAvroJobConfigurator.isFailedPath(filePath, failedEvents)) {
-              this.tmpFs.delete(filePath, false);
-              LOG.error("{} is a bad path so it was deleted", filePath);
-            } else {
-              LOG.info("{} is a good path so it was kept", filePath);
-              goodPaths.add(filePath);
-            }
-          }
-
+          List<Path> goodPaths = CompactionAvroJobConfigurator.removeFailedPaths(job, this.dataset.outputTmpPath(), this.tmpFs);
 
           if (!this.recompactAllData && this.recompactFromDestPaths) {
             // append new files without deleting output directory
