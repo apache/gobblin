@@ -372,8 +372,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
   private boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
     return failedEvents.stream()
-        .filter(event -> path.toString().contains(event.getTaskAttemptId().toString()))
-        .collect(Collectors.toList()).size() > 0;
+        .anyMatch(event -> path.toString().contains(event.getTaskAttemptId().toString()));
   }
 
   /**

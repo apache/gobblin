@@ -174,8 +174,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
 
   private boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
     return failedEvents.stream()
-        .filter(event -> path.toString().contains(event.getTaskAttemptId().toString()))
-        .collect(Collectors.toList()).size() > 0;
+        .anyMatch(event -> path.toString().contains(event.getTaskAttemptId().toString()));
   }
 
   public void addEventSubmitter(EventSubmitter eventSubmitter) {
