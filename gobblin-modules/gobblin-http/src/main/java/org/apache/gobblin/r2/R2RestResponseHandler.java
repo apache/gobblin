@@ -26,7 +26,7 @@ import org.apache.gobblin.http.StatusType;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.event.FailureEvent;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.gobblin.net.Request;
 import org.apache.gobblin.utils.HttpConstants;
 import org.apache.gobblin.utils.HttpUtils;
@@ -80,7 +80,7 @@ public class R2RestResponseHandler implements ResponseHandler<RestRequest, RestR
       metadata.put(HttpConstants.STATUS_CODE, String.valueOf(statusCode));
       metadata.put(HttpConstants.REQUEST, request.toString());
       if (status.getType() != StatusType.CONTINUE) {
-        FailureEvent failureEvent = new FailureEvent(R2_FAILED_REQUEST_EVENT);
+        FailureEventBuilder failureEvent = new FailureEventBuilder(R2_FAILED_REQUEST_EVENT);
         failureEvent.addAdditionalMetadata(metadata);
         failureEvent.submit(metricsContext);
       } else {

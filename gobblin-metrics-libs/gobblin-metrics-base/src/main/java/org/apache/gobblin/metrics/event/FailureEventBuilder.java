@@ -30,13 +30,13 @@ import lombok.Getter;
 
 
 /**
- * A failure event represents a specific {@link GobblinTrackingEvent} whose metadata has
+ * A failure event builds a specific {@link GobblinTrackingEvent} whose metadata has
  * {@value EventSubmitter#EVENT_TYPE} to be {@value #EVENT_TYPE}
  *
  * <p>
- * Note: A {@link FailureEvent} instance is not reusable
+ * Note: A {@link FailureEventBuilder} instance is not reusable
  */
-public class FailureEvent {
+public class FailureEventBuilder {
   private static final String EVENT_TYPE = "FailureEvent";
   private static final String EVENT_NAMESPACE = "gobblin.event";
   private static final String ROOT_CAUSE = "rootException";
@@ -48,11 +48,11 @@ public class FailureEvent {
   @Getter
   private final Map<String, String> metadata;
 
-  public FailureEvent(String name) {
+  public FailureEventBuilder(String name) {
     this(name, EVENT_NAMESPACE);
   }
 
-  public FailureEvent(String name, String namespace) {
+  public FailureEventBuilder(String name, String namespace) {
     this.name = name;
     this.namespace = namespace;
     metadata = Maps.newHashMap();
@@ -63,13 +63,13 @@ public class FailureEvent {
    * Given an throwable, get its root cause and set as a metadata
    */
   public void setRootCause(Throwable t) {
-    setMetadata(ROOT_CAUSE, getRootCause(t));
+    addMetadata(ROOT_CAUSE, getRootCause(t));
   }
 
   /**
-   * Set a metadata pair
+   * Add a metadata pair
    */
-  public void setMetadata(String key, String value) {
+  public void addMetadata(String key, String value) {
     metadata.put(key, value);
   }
 
@@ -81,10 +81,17 @@ public class FailureEvent {
   }
 
   /**
+   * Build as {@link GobblinTrackingEvent}
+   */
+  public GobblinTrackingEvent build() {
+    return new GobblinTrackingEvent(0L, EVENT_NAMESPACE, name, metadata);
+  }
+
+  /**
    * Submit the event
    */
   public void submit(MetricContext context) {
-    context.submitEvent(new GobblinTrackingEvent(0L, EVENT_NAMESPACE, name, metadata));
+    context.submitEvent(build());
   }
 
   /**

@@ -20,10 +20,11 @@ package org.apache.gobblin.metrics.reporter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.Queue;
 
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.event.FailureEvent;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -33,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * An {@link OutputStreamEventReporter} reports only {@link FailureEvent}. It won't create
+ * An {@link OutputStreamEventReporter} reports only failure event build by {@link FailureEventBuilder}. It won't create
  * the failure log file until a failure event is processed
  */
 @Slf4j
@@ -52,9 +53,16 @@ public class FileFailureEventReporter extends OutputStreamEventReporter {
 
   @Override
   public void addEventToReportingQueue(GobblinTrackingEvent event) {
-    if (FailureEvent.isFailureEvent(event)) {
-      setupOutputStream();
+    if (FailureEventBuilder.isFailureEvent(event)) {
       super.addEventToReportingQueue(event);
+    }
+  }
+
+  @Override
+  public void reportEventQueue(Queue<GobblinTrackingEvent> queue) {
+    if (queue.size() > 0) {
+      setupOutputStream();
+      super.reportEventQueue(queue);
     }
   }
 

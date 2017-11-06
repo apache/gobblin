@@ -18,12 +18,11 @@
 package org.apache.gobblin.writer;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Queue;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.event.FailureEvent;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,8 +35,6 @@ import org.apache.gobblin.async.DispatchException;
 import org.apache.gobblin.http.HttpClient;
 import org.apache.gobblin.http.ResponseHandler;
 import org.apache.gobblin.http.ResponseStatus;
-
-import com.google.common.collect.Maps;
 
 
 /**
@@ -177,9 +174,9 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   protected void onFailure(AsyncRequest<D, RQ> asyncRequest, DispatchException exception) {
     if (exception.isFatal()) {
       // Report failure event
-      FailureEvent failureEvent = new FailureEvent(FATAL_ASYNC_HTTP_WRITE_EVENT);
+      FailureEventBuilder failureEvent = new FailureEventBuilder(FATAL_ASYNC_HTTP_WRITE_EVENT);
       failureEvent.setRootCause(exception);
-      failureEvent.setMetadata(ASYNC_REQUEST, asyncRequest.toString());
+      failureEvent.addMetadata(ASYNC_REQUEST, asyncRequest.toString());
       failureEvent.submit(context);
     }
     for (AsyncRequest.Thunk thunk : asyncRequest.getThunks()) {

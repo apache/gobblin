@@ -39,7 +39,7 @@ import org.apache.gobblin.lineage.LineageException;
 import org.apache.gobblin.lineage.LineageInfo;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.metrics.event.FailureEvent;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.UnpublishedHandling;
@@ -191,8 +191,8 @@ final class SafeDatasetCommit implements Callable<Void> {
 
   private void maySubmitFailureEvent(JobState.DatasetState datasetState) {
     if (datasetState.getState() == JobState.RunningState.FAILED) {
-      FailureEvent failureEvent = new FailureEvent(FAILED_DATASET_EVENT);
-      failureEvent.setMetadata(DATASET_STATE, datasetState.toString());
+      FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_DATASET_EVENT);
+      failureEvent.addMetadata(DATASET_STATE, datasetState.toString());
       failureEvent.submit(metricContext);
     }
   }

@@ -21,7 +21,7 @@ import java.io.IOException;
 
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.event.FailureEvent;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -57,7 +57,7 @@ public class FileFailureEventReporterTest {
     verify(outputStream, never()).write(anyByte());
 
     // Process failure event
-    FailureEvent failureEvent = new FailureEvent(eventName, eventNamespace);
+    FailureEventBuilder failureEvent = new FailureEventBuilder(eventName, eventNamespace);
     failureEvent.submit(testContext);
     // Failure log output is setup
     verify(fs, times(1)).append(failureLogPath);
