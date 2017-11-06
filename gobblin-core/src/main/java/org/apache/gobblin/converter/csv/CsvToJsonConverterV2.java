@@ -213,6 +213,9 @@ public class CsvToJsonConverterV2 extends Converter<String, JsonArray, String[],
     return outputRecord;
   }
 
+  /**
+   * Convert string value to the expected type
+   */
   private JsonElement convertValue(String value, JsonObject dataType) {
     if (dataType == null || !dataType.has(TYPE)) {
       return new JsonPrimitive(value);
@@ -223,6 +226,9 @@ public class CsvToJsonConverterV2 extends Converter<String, JsonArray, String[],
     return valueType.convert(value);
   }
 
+  /**
+   * An enum of type conversions from string value
+   */
   private enum ValueType {
     INT {
       @Override
