@@ -19,9 +19,9 @@ package org.apache.gobblin.util.filesystem;
 
 import java.net.URI;
 
+import com.google.common.base.Strings;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
-
 
 /**
  * {@link SharedLimiterKey} used for NameNode throttling.
@@ -30,10 +30,16 @@ public class FileSystemLimiterKey extends SharedLimiterKey {
 
   public static final String RESOURCE_LIMITED_PREFIX = "filesystem";
   private final URI uri;
+  public final String serviceName;
 
   public FileSystemLimiterKey(URI uri) {
-    super(RESOURCE_LIMITED_PREFIX + "/" + getFSIdentifier(uri));
+    this(uri, null);
+  }
+
+  public FileSystemLimiterKey(URI uri, String serviceName) {
+    super(RESOURCE_LIMITED_PREFIX + "/" + getFSIdentifier(uri) + (Strings.isNullOrEmpty(serviceName) ? "" : "/" + serviceName));
     this.uri = uri;
+    this.serviceName = serviceName;
   }
 
   private static String getFSIdentifier(URI uri) {
