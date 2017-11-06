@@ -72,8 +72,8 @@ public class GobblinServiceManagerTest {
   private static final String GIT_REMOTE_REPO_DIR = "/tmp/serviceCore/remote";
   private static final String GIT_LOCAL_REPO_DIR = "/tmp/serviceCore/local";
 
-  private static final String TEST_GROUP_NAME = "testGroup1";
-  private static final String TEST_FLOW_NAME = "testFlow1";
+  private static final String TEST_GROUP_NAME = "testGroup";
+  private static final String TEST_FLOW_NAME = "testFlow";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
   private static final String TEST_DUMMY_GROUP_NAME = "dummyGroup";
@@ -99,7 +99,7 @@ public class GobblinServiceManagerTest {
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".description",
         "StandaloneTestExecutor");
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".version",
-        "1");
+        FlowSpec.Builder.DEFAULT_VERSION);
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".uri",
         "gobblinExecutor");
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".specExecutorInstance",
@@ -203,7 +203,7 @@ public class GobblinServiceManagerTest {
     Assert.assertEquals(flowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE );
     Assert.assertEquals(flowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
     Assert.assertFalse(flowConfig.getSchedule().isRunImmediately());
-    // Add this asssert back when getFlowSpec() is changed to return the raw flow spec
+    // Add this assert back when getFlowSpec() is changed to return the raw flow spec
     //Assert.assertEquals(flowConfig.getProperties().size(), 1);
     Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
   }
@@ -330,6 +330,6 @@ public class GobblinServiceManagerTest {
     } catch (RestLiResponseException e) {
       Assert.fail("Bad update should pass without complaining that the spec does not exists.");
     }
-    cleanUpDir(SPEC_STORE_PARENT_DIR);
+    cleanUpDir(FLOW_SPEC_STORE_DIR);
   }
 }
