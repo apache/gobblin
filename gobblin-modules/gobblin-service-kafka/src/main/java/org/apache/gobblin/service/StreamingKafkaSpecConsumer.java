@@ -61,7 +61,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   private static final int DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE = 100;
   private final AvroJobSpecKafkaJobMonitor _jobMonitor;
   private final BlockingQueue<ImmutablePair<SpecExecutor.Verb, Spec>> _jobSpecQueue;
-
+  private final MutableJobCatalog _jobCatalog;
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
     String topic = config.getString(SPEC_KAFKA_TOPICS_KEY);
     Config defaults = ConfigFactory.parseMap(ImmutableMap.of(AvroJobSpecKafkaJobMonitor.TOPIC_KEY, topic,
@@ -74,11 +74,9 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
       throw new RuntimeException("Could not create job monitor", e);
     }
 
+    _jobCatalog = jobCatalog;
     _jobSpecQueue = new LinkedBlockingQueue<>(ConfigUtils.getInt(config, "SPEC_STREAMING_BLOCKING_QUEUE_SIZE",
         DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE));
-
-    // listener will add job specs to a blocking queue to send to callers of changedSpecs()
-    jobCatalog.addListener(new JobSpecListener());
   }
 
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Logger log) {
@@ -116,6 +114,10 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
 
   @Override
   protected void startUp() {
+    // listener will add job specs to a blocking queue to send to callers of changedSpecs()
+    // IMPORTANT: This addListener should be invoked after job catalog has been initialized. This is guaranteed because
+    //            StreamingKafkaSpecConsumer is boot after jobCatalog in GobblinClusterManager::startAppLauncherAndServices()
+    _jobCatalog.addListener(new JobSpecListener());
     _jobMonitor.startAsync().awaitRunning();
   }
 
