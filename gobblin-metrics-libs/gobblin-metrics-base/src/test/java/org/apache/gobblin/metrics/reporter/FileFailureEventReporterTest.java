@@ -59,11 +59,11 @@ public class FileFailureEventReporterTest {
     // Process failure event
     FailureEventBuilder failureEvent = new FailureEventBuilder(eventName, eventNamespace);
     failureEvent.submit(testContext);
+    reporter.report();
     // Failure log output is setup
     verify(fs, times(1)).append(failureLogPath);
     // Report successfully
     doAnswer( invocation -> null ).when(outputStream).write(any(byte[].class), anyInt(), anyInt());
-    reporter.report();
     verify(outputStream, times(1)).write(any(byte[].class), anyInt(), anyInt());
   }
 }
