@@ -70,11 +70,6 @@ public class FileFailureEventReporter extends OutputStreamEventReporter {
    * Set up the {@link OutputStream} to the {@link #failureLogFile} only once
    */
   private void setupOutputStream() {
-    if (hasSetupOutputStream) {
-      // Already setup
-      return;
-    }
-
     synchronized (failureLogFile) {
       // Setup is done by some thread
       if (hasSetupOutputStream) {
