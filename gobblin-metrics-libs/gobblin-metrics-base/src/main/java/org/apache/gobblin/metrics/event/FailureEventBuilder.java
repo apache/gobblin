@@ -45,8 +45,9 @@ public class FailureEventBuilder {
   private final String name;
   @Getter
   private final String namespace;
-  @Getter
   private final Map<String, String> metadata;
+
+  private Throwable rootCause;
 
   public FailureEventBuilder(String name) {
     this(name, EVENT_NAMESPACE);
@@ -63,7 +64,7 @@ public class FailureEventBuilder {
    * Given an throwable, get its root cause and set as a metadata
    */
   public void setRootCause(Throwable t) {
-    addMetadata(ROOT_CAUSE, getRootCause(t));
+    rootCause = getRootCause(t);
   }
 
   /**
@@ -84,6 +85,9 @@ public class FailureEventBuilder {
    * Build as {@link GobblinTrackingEvent}
    */
   public GobblinTrackingEvent build() {
+    if (rootCause != null) {
+      metadata.put(ROOT_CAUSE, ExceptionUtils.getStackTrace(rootCause));
+    }
     return new GobblinTrackingEvent(0L, EVENT_NAMESPACE, name, metadata);
   }
 
@@ -102,11 +106,11 @@ public class FailureEventBuilder {
     return StringUtils.isNotEmpty(eventType) && eventType.equals(EVENT_TYPE);
   }
 
-  private static String getRootCause(Throwable t) {
+  private static Throwable getRootCause(Throwable t) {
     Throwable rootCause = ExceptionUtils.getRootCause(t);
     if (rootCause == null) {
       rootCause = t;
     }
-    return ExceptionUtils.getStackTrace(rootCause);
+    return rootCause;
   }
 }
