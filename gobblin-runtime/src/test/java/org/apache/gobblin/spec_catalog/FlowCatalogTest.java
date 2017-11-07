@@ -143,11 +143,12 @@ public class FlowCatalogTest {
     Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Spec after addition");
   }
 
-  @Test void testExist() throws Exception {
+  @Test (dependsOnMethods = "createFlowSpec")
+  void testExist() throws Exception {
     Assert.assertTrue(flowCatalog.exists(flowSpec.getUri()));
   }
 
-  @Test (dependsOnMethods = "createFlowSpec")
+  @Test (dependsOnMethods = "testExist")
   public void deleteFlowSpec() throws SpecNotFoundException {
     // List Current Specs
     Collection<Spec> specs = flowCatalog.getSpecs();
