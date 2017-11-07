@@ -40,7 +40,7 @@ public class ThrottledFileSystemTest {
 
     Limiter limiter = new CountBasedLimiter(2);
 
-    ThrottledFileSystem throttledFileSystem = new ThrottledFileSystem(fs, limiter);
+    ThrottledFileSystem throttledFileSystem = new ThrottledFileSystem(fs, limiter, "testService");
 
     Assert.assertNotNull(throttledFileSystem.getFileStatus(new Path("/myFile")));
     Assert.assertNotNull(throttledFileSystem.getFileStatus(new Path("/myFile")));
@@ -74,7 +74,8 @@ public class ThrottledFileSystemTest {
 
     Limiter limiter = new CountBasedLimiter(5);
 
-    ThrottledFileSystem throttledFileSystem = new ThrottledFileSystem(fs, limiter);
+    ThrottledFileSystem throttledFileSystem = new ThrottledFileSystem(fs, limiter, "testService");
+    Assert.assertEquals(throttledFileSystem.getServiceName(), "testService");
 
     Assert.assertNotNull(throttledFileSystem.listStatus(new Path("/files/99"))); // use 1 permit
     Assert.assertNotNull(throttledFileSystem.listStatus(new Path("/files/250"))); // use 3 permits
