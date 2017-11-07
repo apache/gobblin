@@ -39,6 +39,7 @@ import org.apache.gobblin.lineage.LineageException;
 import org.apache.gobblin.lineage.LineageInfo;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.UnpublishedHandling;
@@ -62,6 +63,9 @@ import lombok.extern.slf4j.Slf4j;
 final class SafeDatasetCommit implements Callable<Void> {
 
   private static final Object GLOBAL_LOCK = new Object();
+
+  private static final String DATASET_STATE = "datasetState";
+  private static final String FAILED_DATASET_EVENT = "failedDataset";
 
   private final boolean shouldCommitDataInJob;
   private final boolean isJobCancelled;
@@ -100,6 +104,8 @@ final class SafeDatasetCommit implements Callable<Void> {
       log.error("Failed to instantiate data publisher for dataset %s of job %s.", this.datasetUrn,
           this.jobContext.getJobId(), roe);
       throw new RuntimeException(roe);
+    } finally {
+      maySubmitFailureEvent(datasetState);
     }
 
     if (this.isJobCancelled) {
@@ -163,7 +169,9 @@ final class SafeDatasetCommit implements Callable<Void> {
     } finally {
       try {
         finalizeDatasetState(datasetState, datasetUrn);
+        maySubmitFailureEvent(datasetState);
         submitLineageEvent(datasetState.getTaskStates());
+
         if (commitSequenceBuilder.isPresent()) {
           buildAndExecuteCommitSequence(commitSequenceBuilder.get(), datasetState, datasetUrn);
           datasetState.setState(JobState.RunningState.COMMITTED);
@@ -179,6 +187,14 @@ final class SafeDatasetCommit implements Callable<Void> {
       }
     }
     return null;
+  }
+
+  private void maySubmitFailureEvent(JobState.DatasetState datasetState) {
+    if (datasetState.getState() == JobState.RunningState.FAILED) {
+      FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_DATASET_EVENT);
+      failureEvent.addMetadata(DATASET_STATE, datasetState.toString());
+      failureEvent.submit(metricContext);
+    }
   }
 
   private void submitLineageEvent(Collection<TaskState> states) {

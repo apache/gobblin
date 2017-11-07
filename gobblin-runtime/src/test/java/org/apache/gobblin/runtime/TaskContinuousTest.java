@@ -31,6 +31,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
@@ -348,6 +349,7 @@ public class TaskContinuousTest {
 
     // Create a mock TaskContext
     TaskContext mockTaskContext = mock(TaskContext.class);
+    when(mockTaskContext.getTaskMetrics()).thenReturn(TaskMetrics.get(taskState));
     when(mockTaskContext.getExtractor()).thenReturn(mockExtractor);
     when(mockTaskContext.getRawSourceExtractor()).thenReturn(mockExtractor);
     when(mockTaskContext.getWatermarkStorage()).thenReturn(mockWatermarkStorage);
