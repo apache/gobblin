@@ -117,7 +117,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
     // listener will add job specs to a blocking queue to send to callers of changedSpecs()
     // IMPORTANT: This addListener should be invoked after job catalog has been initialized. This is guaranteed because
     //            StreamingKafkaSpecConsumer is boot after jobCatalog in GobblinClusterManager::startAppLauncherAndServices()
-    this._jobCatalog.addListener(new JobSpecListener());
+    _jobCatalog.addListener(new JobSpecListener());
     _jobMonitor.startAsync().awaitRunning();
   }
 
