@@ -56,7 +56,7 @@ public class FlowCatalogTest {
   private static final String SPEC_STORE_DIR = "/tmp/flowTestSpecStore";
   private static final String SPEC_GROUP_DIR = "/tmp/flowTestSpecStore/flowTestGroupDir";
   private static final String SPEC_DESCRIPTION = "Test Flow Spec";
-  private static final String SPEC_VERSION = "1";
+  private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
 
   private ServiceBasedAppLauncher serviceLauncher;
   private FlowCatalog flowCatalog;
@@ -144,6 +144,11 @@ public class FlowCatalogTest {
   }
 
   @Test (dependsOnMethods = "createFlowSpec")
+  void testExist() throws Exception {
+    Assert.assertTrue(flowCatalog.exists(flowSpec.getUri()));
+  }
+
+  @Test (dependsOnMethods = "testExist")
   public void deleteFlowSpec() throws SpecNotFoundException {
     // List Current Specs
     Collection<Spec> specs = flowCatalog.getSpecs();

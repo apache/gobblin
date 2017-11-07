@@ -57,7 +57,7 @@ public class OrchestratorTest {
 
   private static final String SPEC_STORE_PARENT_DIR = "/tmp/orchestrator/";
   private static final String SPEC_DESCRIPTION = "Test Orchestrator";
-  private static final String SPEC_VERSION = "1";
+  private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
   private static final String TOPOLOGY_SPEC_STORE_DIR = "/tmp/orchestrator/topologyTestSpecStore";
   private static final String FLOW_SPEC_STORE_DIR = "/tmp/orchestrator/flowTestSpecStore";
   private static final String FLOW_SPEC_GROUP_DIR = "/tmp/orchestrator/flowTestSpecStore/flowTestGroupDir";

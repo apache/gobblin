@@ -126,16 +126,17 @@ public class FlowSpec implements Configurable, Spec {
    *  <li> Default flowCatalogURI is {@link #DEFAULT_FLOW_CATALOG_SCHEME}:
    *  <li> Convention for FlowSpec URI: <flowCatalogURI>/config.get({@link ConfigurationKeys#FLOW_GROUP_KEY})/config.get({@link ConfigurationKeys#FLOW_NAME_KEY})
    *  <li> Convention for Description: config.get({@link ConfigurationKeys#FLOW_DESCRIPTION_KEY})
-   *  <li> Default version: 1
+   *  <li> Default version: empty
    * </ul>
    */
   public static class Builder {
     public static final String DEFAULT_FLOW_CATALOG_SCHEME = "gobblin-flow";
+    public static final String DEFAULT_VERSION = "";
     @VisibleForTesting
     private Optional<Config> config = Optional.absent();
     private Optional<Properties> configAsProperties = Optional.absent();
     private Optional<URI> uri;
-    private String version = "1";
+    private String version = FlowSpec.Builder.DEFAULT_VERSION;
     private Optional<String> description = Optional.absent();
     private Optional<URI> flowCatalogURI = Optional.absent();
     private Optional<Set<URI>> templateURIs = Optional.absent();
@@ -163,7 +164,7 @@ public class FlowSpec implements Configurable, Spec {
 
     public FlowSpec build() {
       Preconditions.checkNotNull(this.uri);
-      Preconditions.checkNotNull(this.version);
+      Preconditions.checkArgument(null != version, "Version should not be null");
 
       return new FlowSpec(getURI(), getVersion(), getDescription(), getConfig(),
           getConfigAsProperties(), getTemplateURIs(), getChildSpecs());
