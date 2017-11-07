@@ -301,16 +301,14 @@ public class GobblinServiceHATest {
     // Try create on both nodes
     try {
       this.node1FlowConfigClient.createFlowConfig(flowConfig1);
-      Assert.fail("Get should have gotten a 409 error");
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.CONFLICT_409);
+      Assert.fail("Create Again should pass without complaining that the spec already exists.");
     }
 
     try {
       this.node2FlowConfigClient.createFlowConfig(flowConfig2);
-      Assert.fail("Get should have gotten a 409 error");
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.CONFLICT_409);
+      Assert.fail("Create Again should pass without complaining that the spec already exists.");
     }
   }
 
@@ -442,16 +440,14 @@ public class GobblinServiceHATest {
 
     try {
       this.node1FlowConfigClient.updateFlowConfig(flowConfig);
-      Assert.fail("Get should have raised a 404 error");
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
+      Assert.fail("Bad update should pass without complaining that the spec does not exists.");
     }
 
     try {
       this.node2FlowConfigClient.updateFlowConfig(flowConfig);
-      Assert.fail("Get should have raised a 404 error");
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
+      Assert.fail("Bad update should pass without complaining that the spec does not exists.");
     }
   }
 

@@ -123,7 +123,6 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
         flowConfig.setSchedule(schedule);
       }
 
-
       // remove keys that were injected as part of flowSpec creation
       flowProps.remove(ConfigurationKeys.JOB_SCHEDULE_KEY);
       flowProps.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
@@ -180,24 +179,11 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
   public CreateResponse create(FlowConfig flowConfig) {
     LOG.info("Create called with flowName " + flowConfig.getId().getFlowName());
 
-    LOG.info("ReadyToUse is: " + readyToUse);
-    LOG.info("FlowCatalog is: " + getFlowCatalog());
+    LOG.debug("ReadyToUse is: " + readyToUse);
+    LOG.debug("FlowCatalog is: " + getFlowCatalog());
 
     if (!readyToUse && getFlowCatalog() == null) {
       throw new RuntimeException("Not ready for use.");
-    }
-
-    try {
-      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
-      URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
-          "/" + flowConfig.getId().getFlowGroup() + "/" + flowConfig.getId().getFlowName(), null, null);
-
-      if (getFlowCatalog().exists(flowUri)) {
-        logAndThrowRestLiServiceException(HttpStatus.S_409_CONFLICT,
-            "Flow with the same name already exists: " + flowUri, null);
-      }
-    } catch (URISyntaxException e) {
-      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getId().getFlowName(), e);
     }
 
     getFlowCatalog().put(createFlowSpecForConfig(flowConfig));
@@ -216,7 +202,6 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
   public UpdateResponse update(ComplexResourceKey<FlowId, EmptyRecord> key, FlowConfig flowConfig) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
-    URI flowUri = null;
 
     LOG.info("Update called with flowGroup " + flowGroup + " flowName " + flowName);
 
@@ -225,25 +210,9 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
           "flowName and flowGroup cannot be changed in update", null);
     }
 
-    try {
-      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
-      flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
-          "/" + flowGroup + "/" + flowName, null, null);
-      if (!getFlowCatalog().exists(flowUri)) {
-        logAndThrowRestLiServiceException(HttpStatus.S_404_NOT_FOUND,
-            "Flow does not exist: flowGroup " + flowGroup + " flowName " + flowName, null);
-      }
-
-      FlowSpec newFlowSpec = createFlowSpecForConfig(flowConfig);
-
-      getFlowCatalog().put(newFlowSpec);
+      getFlowCatalog().put(createFlowSpecForConfig(flowConfig));
 
       return new UpdateResponse(HttpStatus.S_200_OK);
-    } catch (URISyntaxException e) {
-      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUri, e);
-    }
-
-    return null;
   }
 
   /**
@@ -270,9 +239,6 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (URISyntaxException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUri, e);
-    } catch (SpecNotFoundException e) {
-      logAndThrowRestLiServiceException(HttpStatus.S_404_NOT_FOUND, "Flow does not exist: flowGroup " + flowGroup +
-          " flowName " + flowName, null);
     }
 
     return null;
