@@ -30,7 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
-import org.apache.gobblin.lineage.LineageInfo;
+import org.apache.gobblin.metrics.event.lineage.DatasetDescriptor;
+import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +54,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.extract.EventBasedSource;
 import org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
 import org.apache.gobblin.source.extractor.limiter.LimiterConfigurationKeys;
@@ -549,8 +551,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, offsets.getLatestOffset());
 
     // Add lineage info
-    workUnit.setProp(LineageInfo.LINEAGE_DATASET_URN, partition.getTopicName());
-    LineageInfo.setDatasetLineageAttribute(workUnit, ConfigurationKeys.KAFKA_BROKERS, kafkaBrokers);
+    LineageInfo.register(partition.getTopicName(), LineageEventBuilder.LineageType.TRANSFORMED, workUnit);
+    DatasetDescriptor source = new DatasetDescriptor("kafka", partition.getTopicName());
+    source.addMetadata(ConfigurationKeys.KAFKA_BROKERS, kafkaBrokers);
+    LineageInfo.putSource(source, workUnit);
 
     LOG.info(String.format("Created workunit for partition %s: lowWatermark=%d, highWatermark=%d, range=%d", partition,
         offsets.getStartOffset(), offsets.getLatestOffset(), offsets.getLatestOffset() - offsets.getStartOffset()));

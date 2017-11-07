@@ -41,6 +41,7 @@ import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.hive.spec.SimpleHiveSpec;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.MultiTimingEvent;
+import org.apache.gobblin.metrics.event.lineage.DatasetDescriptor;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
 import lombok.Getter;
@@ -149,8 +150,11 @@ public class HivePartitionFileSet extends HiveFileSet {
       multiTimer.nextStage(HiveCopyEntityHelper.Stages.CREATE_COPY_UNITS);
       for (CopyableFile.Builder builder : hiveCopyEntityHelper.getCopyableFilesFromPaths(diffPathSet.filesToCopy,
           hiveCopyEntityHelper.getConfiguration(), Optional.of(this.partition))) {
-        copyEntities.add(builder.fileSet(fileSet).checksum(new byte[0])
-            .datasetOutputPath(desiredTargetLocation.location.toString()).build());
+        CopyableFile fileEntity =
+            builder.fileSet(fileSet).checksum(new byte[0]).datasetOutputPath(desiredTargetLocation.location.toString())
+                .build();
+        this.hiveCopyEntityHelper.setCopyableFileTargetDataset(fileEntity);
+        copyEntities.add(fileEntity);
       }
 
       log.info("Created {} copy entities for partition {}", copyEntities.size(), this.partition.getCompleteName());

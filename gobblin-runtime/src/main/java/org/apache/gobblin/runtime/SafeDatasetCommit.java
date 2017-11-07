@@ -22,24 +22,27 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import org.apache.gobblin.commit.CommitSequence;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.lineage.LineageException;
-import org.apache.gobblin.lineage.LineageInfo;
+import org.apache.gobblin.metrics.event.lineage.LineageException;
+import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.FailureEventBuilder;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.UnpublishedHandling;
@@ -169,9 +172,13 @@ final class SafeDatasetCommit implements Callable<Void> {
     } finally {
       try {
         finalizeDatasetState(datasetState, datasetUrn);
+<<<<<<< HEAD
         maySubmitFailureEvent(datasetState);
         submitLineageEvent(datasetState.getTaskStates());
 
+=======
+        maySubmitLineageEvent(datasetState);
+>>>>>>> [GOBBLIN-307] Implement lineage event as LineageEventBuilder in gobblin
         if (commitSequenceBuilder.isPresent()) {
           buildAndExecuteCommitSequence(commitSequenceBuilder.get(), datasetState, datasetUrn);
           datasetState.setState(JobState.RunningState.COMMITTED);
@@ -189,6 +196,7 @@ final class SafeDatasetCommit implements Callable<Void> {
     return null;
   }
 
+<<<<<<< HEAD
   private void maySubmitFailureEvent(JobState.DatasetState datasetState) {
     if (datasetState.getState() == JobState.RunningState.FAILED) {
       FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_DATASET_EVENT);
@@ -198,35 +206,43 @@ final class SafeDatasetCommit implements Callable<Void> {
   }
 
   private void submitLineageEvent(Collection<TaskState> states) {
+=======
+  private void maySubmitLineageEvent(JobState.DatasetState datasetState) {
+    Collection<TaskState> states = datasetState.getTaskStates();
+>>>>>>> [GOBBLIN-307] Implement lineage event as LineageEventBuilder in gobblin
     if (states.size() == 0) {
       return;
     }
 
     TaskState oneWorkUnitState = states.iterator().next();
-    if (!oneWorkUnitState.contains(LineageInfo.LINEAGE_DATASET_URN)) {
-      // Do nothing if the dataset is not configured with lineage info
+    if (LineageInfo.hasLineageInfo(oneWorkUnitState)) {
+      // Do nothing if the job is not configured with lineage info
       return;
     }
 
     try {
-      // Aggregate states by lineage.dataset.urn, in case datasetUrn may be set to empty so that all task states falls into one empty dataset.
-      // FixMe: once all dataset.urn attribues are set properly, we don't need this aggregation.
-      Collection<Collection<State>> datasetStates = LineageInfo.aggregateByDatasetUrn(states).values();
-      for (Collection<State> dataState: datasetStates) {
-        Collection<LineageInfo> branchLineages = LineageInfo.load(dataState, LineageInfo.Level.All);
-        EventSubmitter submitter = new EventSubmitter.Builder(metricContext, LineageInfo.LINEAGE_NAME_SPACE).build();
-        for (LineageInfo info: branchLineages) {
-          submitter.submit(info.getId(), info.getLineageMetaData());
+      if (StringUtils.isEmpty(datasetUrn)) {
+        // This dataset may contain different kinds of LineageEvent
+        for (Collection<TaskState> collection : aggregateByLineageEvent(states)) {
+          submitLineageEvent(collection);
         }
+      } else {
+        submitLineageEvent(states);
       }
     } catch (LineageException e) {
-      log.error ("Lineage event submission failed due to :" + e.toString());
+      log.error("Lineage event submission failed due to :" + e.toString());
     } finally {
       for (TaskState taskState: states) {
         // Remove lineage info from the state to avoid sending duplicate lineage events in the next run
-        taskState.removePropsWithPrefix(LineageInfo.LINEAGE_NAME_SPACE);
+        LineageInfo.purgeLineageInfo(taskState);
       }
     }
+  }
+
+  private void submitLineageEvent(Collection<TaskState> states) throws LineageException {
+    states.removeIf(taskState -> taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED);
+    Collection<LineageEventBuilder> events = LineageInfo.load(states);
+    events.forEach(event -> event.submit(metricContext));
   }
 
   /**
@@ -414,5 +430,16 @@ final class SafeDatasetCommit implements Callable<Void> {
     log.info("Creating " + DatasetStateCommitStep.class.getSimpleName() + " for dataset " + datasetUrn);
     return Optional.of(new DatasetStateCommitStep.Builder<>().withProps(datasetState).withDatasetUrn(datasetUrn)
         .withDatasetState(datasetState).build());
+  }
+
+  private static Collection<Collection<TaskState>> aggregateByLineageEvent(Collection<TaskState> states) {
+    Map<String, Collection<TaskState>> statesByEvents = Maps.newHashMap();
+    for (TaskState state : states) {
+      String eventName = LineageInfo.getFullEventName(state);
+      Collection<TaskState> statesForEvent = statesByEvents.computeIfAbsent(eventName, k -> Lists.newArrayList());
+      statesForEvent.add(state);
+    }
+
+    return statesByEvents.values();
   }
 }
