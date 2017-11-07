@@ -26,6 +26,7 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.metrics.reporter.FileFailureEventReporter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -405,6 +406,7 @@ public class GobblinMetrics {
     buildGraphiteMetricReporter(properties);
     buildInfluxDBMetricReporter(properties);
     buildCustomMetricReporters(properties);
+    buildFileFailureEventReporter(properties);
 
     // Start reporters that implement org.apache.gobblin.metrics.report.ScheduledReporter
     RootMetricContext.get().startReporting();
@@ -491,13 +493,52 @@ public class GobblinMetrics {
       }
 
       OutputStream output = append ? fs.append(metricLogFile) : fs.create(metricLogFile, true);
+      // Add metrics reporter
       OutputStreamReporter.Factory.newBuilder().outputTo(output).build(properties);
+      // Set up events reporter at the same time!!
       this.codahaleScheduledReporters.add(this.codahaleReportersCloser
           .register(OutputStreamEventReporter.forContext(RootMetricContext.get()).outputTo(output).build()));
 
       LOGGER.info("Will start reporting metrics to directory " + metricsLogDir);
     } catch (IOException ioe) {
       LOGGER.error("Failed to build file metric reporter for job " + this.id, ioe);
+    }
+  }
+
+  private void buildFileFailureEventReporter(Properties properties) {
+    if (!properties.containsKey(ConfigurationKeys.FAILURE_LOG_DIR_KEY)) {
+      LOGGER.error(
+          "Not reporting failure to log files because " + ConfigurationKeys.FAILURE_LOG_DIR_KEY + " is undefined");
+      return;
+    }
+
+    try {
+      String fsUri = properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
+      FileSystem fs = FileSystem.get(URI.create(fsUri), new Configuration());
+
+      // Each job gets its own log subdirectory
+      Path failureLogDir = new Path(properties.getProperty(ConfigurationKeys.FAILURE_LOG_DIR_KEY), this.getName());
+      if (!fs.exists(failureLogDir) && !fs.mkdirs(failureLogDir)) {
+        LOGGER.error("Failed to create failure log directory for metrics " + this.getName());
+        return;
+      }
+
+      // Add a suffix to file name if specified in properties.
+      String metricsFileSuffix =
+          properties.getProperty(ConfigurationKeys.METRICS_FILE_SUFFIX, ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
+      if (!Strings.isNullOrEmpty(metricsFileSuffix) && !metricsFileSuffix.startsWith(".")) {
+        metricsFileSuffix = "." + metricsFileSuffix;
+      }
+
+      // Each job run gets its own failure log file
+      Path failureLogFile =
+          new Path(failureLogDir, this.id + metricsFileSuffix + ".failure.log");
+      this.codahaleScheduledReporters.add(this.codahaleReportersCloser
+          .register(new FileFailureEventReporter(RootMetricContext.get(), fs, failureLogFile)));
+
+      LOGGER.info("Will start reporting failure to directory " + failureLogDir);
+    } catch (IOException ioe) {
+      LOGGER.error("Failed to build file failure event reporter for job " + this.id, ioe);
     }
   }
 

@@ -184,6 +184,20 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
   }
 
   /**
+   * Inject the tags of this {@link MetricContext} to the given {@link GobblinTrackingEvent}
+   */
+  private void injectTagsToEvent(GobblinTrackingEvent event) {
+    Map<String, String> originalMetadata = event.getMetadata();
+    Map<String, Object> tags = getTagMap();
+    Map<String, String> newMetadata = Maps.newHashMap();
+    for(Map.Entry<String, Object> entry : tags.entrySet()) {
+      newMetadata.put(entry.getKey(), entry.getValue().toString());
+    }
+    newMetadata.putAll(originalMetadata);
+    event.setMetadata(newMetadata);
+  }
+
+  /**
    * Submit {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to all notification listeners attached to this or any
    * ancestor {@link org.apache.gobblin.metrics.MetricContext}s. The argument for this method is mutated by the method, so it
    * should not be reused by the caller.
@@ -193,16 +207,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    */
   public void submitEvent(GobblinTrackingEvent nonReusableEvent) {
     nonReusableEvent.setTimestamp(System.currentTimeMillis());
-
-    // Inject metric context tags into event metadata.
-    Map<String, String> originalMetadata = nonReusableEvent.getMetadata();
-    Map<String, Object> tags = getTagMap();
-    Map<String, String> newMetadata = Maps.newHashMap();
-    for(Map.Entry<String, Object> entry : tags.entrySet()) {
-      newMetadata.put(entry.getKey(), entry.getValue().toString());
-    }
-    newMetadata.putAll(originalMetadata);
-    nonReusableEvent.setMetadata(newMetadata);
+    injectTagsToEvent(nonReusableEvent);
 
     EventNotification notification = new EventNotification(nonReusableEvent);
     sendNotification(notification);

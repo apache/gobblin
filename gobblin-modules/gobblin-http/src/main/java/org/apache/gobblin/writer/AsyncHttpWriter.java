@@ -20,6 +20,9 @@ package org.apache.gobblin.writer;
 import java.io.IOException;
 import java.util.Queue;
 
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +48,8 @@ import org.apache.gobblin.http.ResponseStatus;
 @Slf4j
 public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   private static final Logger LOG = LoggerFactory.getLogger(AsyncHttpWriter.class);
+  private static final String ASYNC_REQUEST = "asyncRequest";
+  private static final String FATAL_ASYNC_HTTP_WRITE_EVENT = "fatalAsyncHttpWrite";
 
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
 
@@ -53,12 +58,15 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
   private final AsyncRequestBuilder<D, RQ> requestBuilder;
   private final int maxAttempts;
 
+  private final MetricContext context;
+
   public AsyncHttpWriter(AsyncHttpWriterBuilder builder) {
     super(builder.getQueueCapacity());
     this.httpClient = builder.getClient();
     this.requestBuilder = builder.getAsyncRequestBuilder();
     this.responseHandler = builder.getResponseHandler();
     this.maxAttempts = builder.getMaxAttempts();
+    this.context = Instrumented.getMetricContext(builder.getState(), AsyncHttpWriter.class);
   }
 
   @Override
@@ -82,8 +90,9 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
           LOG.error("Fail to send request");
           LOG.info(asyncRequest.toString());
 
-          onFailure(asyncRequest, e);
-          throw new DispatchException("Write failed on IOException", e);
+          DispatchException de = new DispatchException("Write failed on IOException", e);
+          onFailure(asyncRequest, de);
+          throw de;
         } else {
           continue;
         }
@@ -152,10 +161,26 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
 
   /**
    * Callback on failing to send the asyncRequest
+   *
+   * @deprecated Use {@link #onFailure(AsyncRequest, DispatchException)}
    */
+  @Deprecated
   protected void onFailure(AsyncRequest<D, RQ> asyncRequest, Throwable throwable) {
     for (AsyncRequest.Thunk thunk: asyncRequest.getThunks()) {
       thunk.callback.onFailure(throwable);
+    }
+  }
+
+  protected void onFailure(AsyncRequest<D, RQ> asyncRequest, DispatchException exception) {
+    if (exception.isFatal()) {
+      // Report failure event
+      FailureEventBuilder failureEvent = new FailureEventBuilder(FATAL_ASYNC_HTTP_WRITE_EVENT);
+      failureEvent.setRootCause(exception);
+      failureEvent.addMetadata(ASYNC_REQUEST, asyncRequest.toString());
+      failureEvent.submit(context);
+    }
+    for (AsyncRequest.Thunk thunk : asyncRequest.getThunks()) {
+      thunk.callback.onFailure(exception);
     }
   }
 
