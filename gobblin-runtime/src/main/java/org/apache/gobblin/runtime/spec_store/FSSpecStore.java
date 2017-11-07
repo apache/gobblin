@@ -142,35 +142,9 @@ public class FSSpecStore implements SpecStore {
   @Override
   public boolean exists(URI specUri) throws IOException {
     Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
-    Path flowPath = new Path(specUri.getPath());
-    String specGroup = getSpecGroup(flowPath);
-    String specName = getSpecName(flowPath);
-    FileStatus[] fileStatuses;
-    try {
-      fileStatuses = listSpecs(specGroup);
-    } catch (FileNotFoundException e) {
-      return false;
-    }
 
-    // TODO Fix ETL-6496
-    // We need to revisit having a version delimiter.
-    // Currently without a delimiter the prefix check may match other specs that should not be matched.
-    for (FileStatus fileStatus : fileStatuses) {
-      if (!fileStatus.isDirectory() && fileStatus.getPath().getName().equals(specName + FlowSpec.Builder.DEFAULT_VERSION)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private FileStatus[] listSpecs(String specGroup) throws IOException {
-    FileStatus[] fileStatuses;
-    if (StringUtils.isEmpty(specGroup)) {
-      fileStatuses = fs.listStatus(this.fsSpecStoreDirPath);
-    } else {
-      fileStatuses = fs.listStatus(new Path(this.fsSpecStoreDirPath, specGroup));
-    }
-    return fileStatuses;
+    Path specPath = getPathForURI(this.fsSpecStoreDirPath, specUri, FlowSpec.Builder.DEFAULT_VERSION);
+    return fs.exists(specPath);
   }
 
   @Override
