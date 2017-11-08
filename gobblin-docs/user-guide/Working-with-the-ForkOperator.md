@@ -94,6 +94,33 @@ The `ForkOperator` can have many potential use cases and we have seen the follow
 
 Generally, a common use case of the `ForkOperator` is to route ingested data records so they get written to different output locations _conditionally_. The `ForkOperator` also finds common usage for "dual writes" to different sinks potentially in different formats if the job commit policy `JobCommitPolicy.COMMIT_ON_FULL_SUCCESS` (or `full` in short) or `JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS` (or `successful` in short) is used, as explained above. 
 
+Troubleshooting
+--------------------
+
+1) When using Forks with jobs defined as Hocon, you may encounter an error like: 
+    ```
+    com.typesafe.config.ConfigException$BugOrBroken: In the map, path 'converter.classes' occurs as both the parent object of a value and as a value. Because Map has no defined ordering, this is a broken situation.
+    at com.typesafe.config.impl.PropertiesParser.fromPathMap(PropertiesParser.java:115)
+    at com.typesafe.config.impl.PropertiesParser.fromPathMap(PropertiesParser.java:82)
+    at com.typesafe.config.impl.ConfigImpl.fromAnyRef(ConfigImpl.java:260)
+    at com.typesafe.config.impl.ConfigImpl.fromPathMap(ConfigImpl.java:200)
+    at com.typesafe.config.ConfigFactory.parseMap(ConfigFactory.java:855)
+    at com.typesafe.config.ConfigFactory.parseMap(ConfigFactory.java:866)
+    at gobblin.runtime.embedded.EmbeddedGobblin.getSysConfig(EmbeddedGobblin.java:497)
+    at gobblin.runtime.embedded.EmbeddedGobblin.runAsync(EmbeddedGobblin.java:442)
+    ```
+    This is because in Hocon a key can have only a single type (see: https://github.com/lightbend/config/blob/master/HOCON.md#java-properties-mapping).
+    To solve this, try writing your config like: 
+    
+    ```
+    converter.classes.ROOT_VALUE="..."
+    ...
+    converter.classes.0="..."
+    ...
+    converter.classes.1="..."
+    ```
+
+
 Example
 --------------------
 
