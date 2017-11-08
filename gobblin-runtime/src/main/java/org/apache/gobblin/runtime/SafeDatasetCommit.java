@@ -172,13 +172,8 @@ final class SafeDatasetCommit implements Callable<Void> {
     } finally {
       try {
         finalizeDatasetState(datasetState, datasetUrn);
-<<<<<<< HEAD
         maySubmitFailureEvent(datasetState);
-        submitLineageEvent(datasetState.getTaskStates());
-
-=======
         maySubmitLineageEvent(datasetState);
->>>>>>> [GOBBLIN-307] Implement lineage event as LineageEventBuilder in gobblin
         if (commitSequenceBuilder.isPresent()) {
           buildAndExecuteCommitSequence(commitSequenceBuilder.get(), datasetState, datasetUrn);
           datasetState.setState(JobState.RunningState.COMMITTED);
@@ -196,7 +191,6 @@ final class SafeDatasetCommit implements Callable<Void> {
     return null;
   }
 
-<<<<<<< HEAD
   private void maySubmitFailureEvent(JobState.DatasetState datasetState) {
     if (datasetState.getState() == JobState.RunningState.FAILED) {
       FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_DATASET_EVENT);
@@ -205,11 +199,8 @@ final class SafeDatasetCommit implements Callable<Void> {
     }
   }
 
-  private void submitLineageEvent(Collection<TaskState> states) {
-=======
   private void maySubmitLineageEvent(JobState.DatasetState datasetState) {
     Collection<TaskState> states = datasetState.getTaskStates();
->>>>>>> [GOBBLIN-307] Implement lineage event as LineageEventBuilder in gobblin
     if (states.size() == 0) {
       return;
     }
