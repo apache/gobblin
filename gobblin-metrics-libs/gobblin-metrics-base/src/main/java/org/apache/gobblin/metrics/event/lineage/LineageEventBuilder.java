@@ -18,12 +18,17 @@
 package org.apache.gobblin.metrics.event.lineage;
 
 
+import java.util.Map;
+
+import org.apache.commons.lang.StringUtils;
+
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 
+import avro.shaded.com.google.common.collect.Maps;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * The builder builds a specific {@link GobblinTrackingEvent} whose metadata has {@value GobblinEventBuilder#EVENT_TYPE}
- * to be {@value LineageEventBuilder#GOBBLIN_EVENT_TYPE}
+ * to be {@value LineageEventBuilder#LINEAGE_EVENT_TYPE}
  *
  * Note: A {@link LineageEventBuilder} instance is not reusable
  */
@@ -41,7 +46,7 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
   static final String TYPE_KEY = "lineageType";
   static final String SOURCE = "source";
   static final String DESTINATION = "destination";
-  static final String GOBBLIN_EVENT_TYPE = "LineageEvent";
+  static final String LINEAGE_EVENT_TYPE = "LineageEvent";
 
   private static final Gson GSON = new Gson();
 
@@ -64,7 +69,7 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
   public LineageEventBuilder(String name, String namespace, LineageType type) {
     super(name, namespace);
     this.type = type;
-    addMetadata(EVENT_TYPE, GOBBLIN_EVENT_TYPE);
+    addMetadata(EVENT_TYPE, LINEAGE_EVENT_TYPE);
   }
 
   @Override
@@ -111,6 +116,43 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
     result = 31 * result + (source != null ? source.hashCode() : 0);
     result = 31 * result + (destination != null ? destination.hashCode() : 0);
     return result;
+  }
+
+  /**
+   * Check if the given {@link GobblinTrackingEvent} is a lineage event
+   */
+  public static boolean isLineageEvent(GobblinTrackingEvent event) {
+    String eventType = event.getMetadata().get(EVENT_TYPE);
+    return StringUtils.isNotEmpty(eventType) && eventType.equals(LINEAGE_EVENT_TYPE);
+  }
+
+  /**
+   * Create a {@link LineageEventBuilder} from a {@link GobblinEventBuilder}. An inverse function
+   * to {@link LineageEventBuilder#build()}
+   */
+  public static LineageEventBuilder fromEvent(GobblinTrackingEvent event) {
+    Map<String, String> metadata = event.getMetadata();
+    LineageType type = LineageType.valueOf(metadata.get(TYPE_KEY));
+    LineageEventBuilder lineageEvent = new LineageEventBuilder(event.getName(), event.getNamespace(), type);
+
+    String sourcePrefix = getKey(SOURCE, "");
+    Map<String, String> sourceDataMap = Maps.newHashMap();
+    String destinationPrefix = getKey(DESTINATION, "");
+    Map<String, String> destinationDataMap = Maps.newHashMap();
+
+    metadata.forEach((key, value) -> {
+      if (key.startsWith(sourcePrefix)) {
+        sourceDataMap.put(key.substring(sourcePrefix.length()), value);
+      } else if (key.startsWith(destinationPrefix)) {
+        destinationDataMap.put(key.substring(destinationPrefix.length()), value);
+      } else {
+        lineageEvent.addMetadata(key, value);
+      }
+    });
+
+    lineageEvent.setSource(DatasetDescriptor.fromDataMap(sourceDataMap));
+    lineageEvent.setDestination(DatasetDescriptor.fromDataMap(destinationDataMap));
+    return lineageEvent;
   }
 
   static String getKey(Object ... parts) {

@@ -48,7 +48,7 @@ public class LineageEventTest {
   void verify(LineageEventBuilder event, String name, DatasetDescriptor source, DatasetDescriptor destination, int branchId) {
     Assert.assertEquals(event.getName(), name);
     Assert.assertEquals(event.getNamespace(), GobblinEventBuilder.DEFAULT_NAMESPACE);
-    Assert.assertEquals(event.getMetadata().get(GobblinEventBuilder.EVENT_TYPE), LineageEventBuilder.GOBBLIN_EVENT_TYPE);
+    Assert.assertEquals(event.getMetadata().get(GobblinEventBuilder.EVENT_TYPE), LineageEventBuilder.LINEAGE_EVENT_TYPE);
     Assert.assertTrue(event.getSource().equals(source));
 
     DatasetDescriptor updatedDestination = new DatasetDescriptor(destination);

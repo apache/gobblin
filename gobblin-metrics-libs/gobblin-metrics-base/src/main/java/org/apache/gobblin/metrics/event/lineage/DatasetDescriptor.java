@@ -98,4 +98,17 @@ public final class DatasetDescriptor {
     result = 31 * result + metadata.hashCode();
     return result;
   }
+
+  /**
+   * Deserialize a {@link DatasetDescriptor} from a string map
+   */
+  static DatasetDescriptor fromDataMap(Map<String, String> dataMap) {
+    DatasetDescriptor descriptor = new DatasetDescriptor(dataMap.get(PLATFORM_KEY), dataMap.get(NAME_KEY));
+    dataMap.forEach((key, value) -> {
+      if (!key.equals(PLATFORM_KEY) && !key.equals(NAME_KEY)) {
+        descriptor.addMetadata(key, value);
+      }
+    });
+    return descriptor;
+  }
 }
