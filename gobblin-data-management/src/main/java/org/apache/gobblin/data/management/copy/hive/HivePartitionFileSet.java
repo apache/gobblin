@@ -41,7 +41,6 @@ import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.hive.spec.SimpleHiveSpec;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.MultiTimingEvent;
-import org.apache.gobblin.metrics.event.lineage.DatasetDescriptor;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
 import lombok.Getter;
@@ -153,7 +152,7 @@ public class HivePartitionFileSet extends HiveFileSet {
         CopyableFile fileEntity =
             builder.fileSet(fileSet).checksum(new byte[0]).datasetOutputPath(desiredTargetLocation.location.toString())
                 .build();
-        this.hiveCopyEntityHelper.setCopyableFileTargetDataset(fileEntity);
+        this.hiveCopyEntityHelper.setCopyableFileDestinationDataset(fileEntity);
         copyEntities.add(fileEntity);
       }
 

@@ -22,6 +22,7 @@ import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
@@ -43,38 +44,25 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class LineageEventBuilder extends GobblinEventBuilder {
-  static final String TYPE_KEY = "lineageType";
+  static final String LIENAGE_EVENT_NAMESPACE = Joiner.on(".").join(NAMESPACE, "lineage");
   static final String SOURCE = "source";
   static final String DESTINATION = "destination";
   static final String LINEAGE_EVENT_TYPE = "LineageEvent";
 
   private static final Gson GSON = new Gson();
 
-  public enum LineageType {
-    DIRECT_COPY,
-    TRANSFORMED
-  }
-
-  @Getter
-  private final LineageType type;
   @Getter @Setter
   private DatasetDescriptor source;
   @Getter @Setter
   private DatasetDescriptor destination;
 
-  public LineageEventBuilder(String name, LineageType type) {
-    this(name, DEFAULT_NAMESPACE, type);
-  }
-
-  public LineageEventBuilder(String name, String namespace, LineageType type) {
-    super(name, namespace);
-    this.type = type;
+  public LineageEventBuilder(String name) {
+    super(name, LIENAGE_EVENT_NAMESPACE);
     addMetadata(EVENT_TYPE, LINEAGE_EVENT_TYPE);
   }
 
   @Override
   public GobblinTrackingEvent build() {
-    metadata.put(TYPE_KEY, type.name());
     source.toDataMap().forEach((key, value) -> metadata.put(getKey(SOURCE, key), value));
     destination.toDataMap().forEach((key, value) -> metadata.put(getKey(DESTINATION, key), value));
     return new GobblinTrackingEvent(0L, namespace, name, metadata);
@@ -96,7 +84,7 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
 
     LineageEventBuilder event = (LineageEventBuilder) o;
 
-    if (!namespace.equals(event.namespace) || !name.equals(event.name) || type != event.type || !metadata.equals(event.metadata)) {
+    if (!namespace.equals(event.namespace) || !name.equals(event.name) || !metadata.equals(event.metadata)) {
       return false;
     }
 
@@ -112,7 +100,6 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
     int result = name.hashCode();
     result = 31 * result + namespace.hashCode();
     result = 31 * result + metadata.hashCode();
-    result = 31 * result + type.hashCode();
     result = 31 * result + (source != null ? source.hashCode() : 0);
     result = 31 * result + (destination != null ? destination.hashCode() : 0);
     return result;
@@ -132,8 +119,7 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
    */
   public static LineageEventBuilder fromEvent(GobblinTrackingEvent event) {
     Map<String, String> metadata = event.getMetadata();
-    LineageType type = LineageType.valueOf(metadata.get(TYPE_KEY));
-    LineageEventBuilder lineageEvent = new LineageEventBuilder(event.getName(), event.getNamespace(), type);
+    LineageEventBuilder lineageEvent = new LineageEventBuilder(event.getName());
 
     String sourcePrefix = getKey(SOURCE, "");
     Map<String, String> sourceDataMap = Maps.newHashMap();

@@ -21,7 +21,7 @@ import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.dataset.FileSystemDataset;
-import org.apache.gobblin.metrics.event.lineage.DatasetDescriptor;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
@@ -147,7 +147,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
           .ancestorsOwnerAndPermission(CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(this.fs,
               file.getPath().getParent(), nonGlobSearchPath, configuration))
           .build();
-      copyableFile.setTargetDataset(targetDataset);
+      copyableFile.setDestDataset(targetDataset);
       copyableFiles.add(copyableFile);
     }
     copyEntities.addAll(this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles));

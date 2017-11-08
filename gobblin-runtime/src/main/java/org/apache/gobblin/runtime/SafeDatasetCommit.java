@@ -200,14 +200,16 @@ final class SafeDatasetCommit implements Callable<Void> {
   }
 
   private void maySubmitLineageEvent(JobState.DatasetState datasetState) {
-    Collection<TaskState> states = datasetState.getTaskStates();
-    if (states.size() == 0) {
-      return;
+    Collection<TaskState> allStates = datasetState.getTaskStates();
+    Collection<TaskState> states = Lists.newArrayList();
+    // Filter out failed states or states that don't have lineage info
+    for (TaskState state : allStates) {
+      if (state.getWorkingState() == WorkUnitState.WorkingState.COMMITTED &&
+          LineageInfo.hasLineageInfo(state)) {
+        states.add(state);
+      }
     }
-
-    TaskState oneWorkUnitState = states.iterator().next();
-    if (LineageInfo.hasLineageInfo(oneWorkUnitState)) {
-      // Do nothing if the job is not configured with lineage info
+    if (states.size() == 0) {
       return;
     }
 
@@ -223,16 +225,16 @@ final class SafeDatasetCommit implements Callable<Void> {
     } catch (LineageException e) {
       log.error("Lineage event submission failed due to :" + e.toString());
     } finally {
-      for (TaskState taskState: states) {
-        // Remove lineage info from the state to avoid sending duplicate lineage events in the next run
+      // Purge lineage info from all states
+      for (TaskState taskState : allStates) {
         LineageInfo.purgeLineageInfo(taskState);
       }
     }
   }
 
   private void submitLineageEvent(Collection<TaskState> states) throws LineageException {
-    states.removeIf(taskState -> taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED);
     Collection<LineageEventBuilder> events = LineageInfo.load(states);
+    // Send events
     events.forEach(event -> event.submit(metricContext));
   }
 

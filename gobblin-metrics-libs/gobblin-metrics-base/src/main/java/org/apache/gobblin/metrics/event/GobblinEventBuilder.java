@@ -34,7 +34,7 @@ import org.apache.gobblin.metrics.MetricContext;
  * Note: a {@link GobblinEventBuilder} instance is not reusable
  */
 public class GobblinEventBuilder {
-  public static final String DEFAULT_NAMESPACE = "gobblin.event";
+  public static final String NAMESPACE = "gobblin.event";
   public static final String EVENT_TYPE = "eventType";
 
   @Getter
@@ -44,7 +44,7 @@ public class GobblinEventBuilder {
   protected final Map<String, String> metadata;
 
   public GobblinEventBuilder(String name) {
-    this(name, DEFAULT_NAMESPACE);
+    this(name, NAMESPACE);
   }
 
   public GobblinEventBuilder(String name, String namespace) {

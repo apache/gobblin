@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.metrics.event.lineage;
+package org.apache.gobblin.dataset;
 
 
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 
-import avro.shaded.com.google.common.collect.Maps;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -70,7 +70,7 @@ public final class DatasetDescriptor {
   /**
    * Serialize to a string map
    */
-  Map<String, String> toDataMap() {
+  public Map<String, String> toDataMap() {
     Map<String, String> map = Maps.newHashMap();
     map.put(PLATFORM_KEY, platform);
     map.put(NAME_KEY, name);
@@ -102,7 +102,7 @@ public final class DatasetDescriptor {
   /**
    * Deserialize a {@link DatasetDescriptor} from a string map
    */
-  static DatasetDescriptor fromDataMap(Map<String, String> dataMap) {
+  public static DatasetDescriptor fromDataMap(Map<String, String> dataMap) {
     DatasetDescriptor descriptor = new DatasetDescriptor(dataMap.get(PLATFORM_KEY), dataMap.get(NAME_KEY));
     dataMap.forEach((key, value) -> {
       if (!key.equals(PLATFORM_KEY) && !key.equals(NAME_KEY)) {

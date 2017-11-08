@@ -19,7 +19,8 @@ package org.apache.gobblin.source.extractor.extract.jdbc;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.metrics.event.lineage.DatasetDescriptor;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
@@ -57,14 +58,13 @@ public class MysqlSource extends QueryBasedSource<JsonArray, JsonElement> {
   }
 
   protected void addLineageSourceInfo(SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
-    super.addLineageSourceInfo(sourceState, entity, workUnit);
     String host = sourceState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     String port = sourceState.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
     String database = sourceState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
     String connectionUrl = "jdbc:mysql://" + host.trim() + ":" + port + "/" + database.trim();
-
-    DatasetDescriptor source = new DatasetDescriptor("mysql", database + "." + entity.getSourceEntityName());
-    source.addMetadata("connectionUrl", connectionUrl);
-    LineageInfo.putSource(source, workUnit);
+    DatasetDescriptor source =
+        new DatasetDescriptor(DatasetConstants.PLATFORM_MYSQL, database + "." + entity.getSourceEntityName());
+    source.addMetadata(DatasetConstants.CONNECTION_URL, connectionUrl);
+    LineageInfo.setSource(source, workUnit);
   }
 }

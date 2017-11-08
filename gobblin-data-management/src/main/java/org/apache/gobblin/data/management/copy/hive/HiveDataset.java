@@ -61,7 +61,7 @@ import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.event.lineage.DatasetDescriptor;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;

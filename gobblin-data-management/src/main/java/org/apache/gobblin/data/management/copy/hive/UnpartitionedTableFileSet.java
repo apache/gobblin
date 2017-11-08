@@ -122,7 +122,7 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
         Optional.<Partition> absent())) {
       CopyableFile fileEntity =
           builder.fileSet(fileSet).datasetOutputPath(desiredTargetLocation.location.toString()).build();
-      this.helper.setCopyableFileTargetDataset(fileEntity);
+      this.helper.setCopyableFileDestinationDataset(fileEntity);
       copyEntities.add(fileEntity);
     }
 

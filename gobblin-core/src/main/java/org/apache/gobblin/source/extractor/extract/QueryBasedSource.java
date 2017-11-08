@@ -245,7 +245,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   }
 
   protected void addLineageSourceInfo(SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
-    LineageInfo.register(entity.getSourceEntityName(), LineageEventBuilder.LineageType.TRANSFORMED, workUnit);
+    // Does nothing by default
   }
 
   protected Set<SourceEntity> getFilteredSourceEntities(SourceState state) {

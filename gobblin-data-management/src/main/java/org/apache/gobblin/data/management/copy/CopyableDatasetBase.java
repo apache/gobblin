@@ -18,7 +18,7 @@
 package org.apache.gobblin.data.management.copy;
 
 import org.apache.gobblin.dataset.Dataset;
-import org.apache.gobblin.metrics.event.lineage.DatasetDescriptor;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 
 
 /**

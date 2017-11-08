@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.metrics.event.lineage;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 
@@ -27,11 +26,12 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 
 /**
- * The lineage coordinator in a Gobblin job
+ * The lineage coordinator in a Gobblin job with single source and multiple destinations
  *
  * <p>
  *   In Gobblin, a work unit processes records from only one dataset. It writes output to one or more destinations,
@@ -47,8 +47,7 @@ import org.apache.gobblin.metrics.event.GobblinEventBuilder;
  * <p>
  *   The general flow is:
  *   <ol>
- *     <li> source registers lineage info of a dataset in a work unit </li>
- *     <li> source puts its {@link DatasetDescriptor} to each work unit </li>
+ *     <li> source sets its {@link DatasetDescriptor} to each work unit </li>
  *     <li> destination puts its {@link DatasetDescriptor} to the work unit </li>
  *     <li> load and send all lineage events from all states </li>
  *     <li> purge lineage info from all states </li>
@@ -58,8 +57,6 @@ import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 public final class LineageInfo {
   static final String BRANCH = "branch";
 
-  private static final String LINEAGE_NAMESPACE = "gobblin.event.lineage";
-  private static final String LINEAGE_EVENT_NAMESPACE_KEY = getKey( "namespace");
   private static final Gson GSON = new Gson();
   private static final String NAME_KEY = "name";
 
@@ -67,34 +64,18 @@ public final class LineageInfo {
   }
 
   /**
-   * Register lineage info in a state
+   * Set source {@link DatasetDescriptor} of a lineage event
    *
    * <p>
    *   Only the {@link org.apache.gobblin.source.Source} or its {@link org.apache.gobblin.source.extractor.Extractor}
-   *   is supposed to register a {@link LineageEventBuilder} at a time
+   *   is supposed to set the source for a work unit of a dataset
    * </p>
    *
-   * @param state the state about a {@link org.apache.gobblin.source.workunit.WorkUnit}
-   */
-  public static void register(String name, String namespace, LineageEventBuilder.LineageType type, State state) {
-    state.setProp(LINEAGE_EVENT_NAMESPACE_KEY, namespace);
-    state.setProp(getKey(NAME_KEY), name);
-    state.setProp(getKey(LineageEventBuilder.TYPE_KEY), type.name());
-  }
-
-  /**
-   * Register lineage info with default namespace
-   */
-  public static void register(String name, LineageEventBuilder.LineageType type, State state) {
-    register(name, GobblinEventBuilder.DEFAULT_NAMESPACE, type, state);
-  }
-
-  /**
-   * Put a {@link DatasetDescriptor} of the source dataset to a state
-   *
    * @param state state about a {@link org.apache.gobblin.source.workunit.WorkUnit}
+   *
    */
-  public static void putSource(DatasetDescriptor source, State state) {
+  public static void setSource(DatasetDescriptor source, State state) {
+    state.setProp(getKey(NAME_KEY), source.getName());
     state.setProp(getKey(LineageEventBuilder.SOURCE), GSON.toJson(source));
   }
 
@@ -108,13 +89,22 @@ public final class LineageInfo {
    * </p>
    */
   public static void putDestination(DatasetDescriptor destination, int branchId, State state) {
-    synchronized (state.getProp(LINEAGE_EVENT_NAMESPACE_KEY)) {
+    if (!hasLineageInfo(state)) {
+      return;
+    }
+
+    synchronized (state.getProp(getKey(NAME_KEY))) {
       state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), GSON.toJson(destination));
     }
   }
 
   /**
-   * Load all lineage information from {@link State}s
+   * Load all lineage information from {@link State}s of a dataset
+   *
+   * <p>
+   *   For a dataset, the same branch across different {@link State}s must be the same, as
+   *   the same branch means the same destination
+   * </p>
    *
    * @param states All states which belong to the same dataset
    * @return A collection of {@link LineageEventBuilder}s put in the state
@@ -143,13 +133,10 @@ public final class LineageInfo {
   /**
    * Load all lineage info from a {@link State}
    *
-   * @return A map from branch to its lineage info
+   * @return A map from branch to its lineage info. If there is no destination info, return an empty map
    */
   static Map<String, LineageEventBuilder> load(State state) {
-    String namespace = state.getProp(LINEAGE_EVENT_NAMESPACE_KEY);
     String name = state.getProp(getKey(NAME_KEY));
-    LineageEventBuilder.LineageType type =
-        LineageEventBuilder.LineageType.valueOf(state.getProp(getKey(LineageEventBuilder.TYPE_KEY)));
     DatasetDescriptor source = GSON.fromJson(state.getProp(getKey(LineageEventBuilder.SOURCE)), DatasetDescriptor.class);
 
     String branchedPrefix = getKey(BRANCH, "");
@@ -165,7 +152,7 @@ public final class LineageInfo {
       String branchId = parts[0];
       LineageEventBuilder event = events.get(branchId);
       if (event == null) {
-        event = new LineageEventBuilder(name, namespace, type);
+        event = new LineageEventBuilder(name);
         event.setSource(new DatasetDescriptor(source));
         events.put(parts[0], event);
       }
@@ -187,26 +174,26 @@ public final class LineageInfo {
    * Remove all lineage related properties from a state
    */
   public static void purgeLineageInfo(State state) {
-    state.removePropsWithPrefix(LINEAGE_NAMESPACE);
+    state.removePropsWithPrefix(LineageEventBuilder.LIENAGE_EVENT_NAMESPACE);
   }
 
   /**
    * Check if the given state has lineage info
    */
   public static boolean hasLineageInfo(State state) {
-    return state.contains(LINEAGE_EVENT_NAMESPACE_KEY);
+    return state.contains(getKey(NAME_KEY));
   }
 
   /**
    * Get the full lineage event name from a state
    */
   public static String getFullEventName(State state) {
-    return Joiner.on('.').join(state.getProp(LINEAGE_EVENT_NAMESPACE_KEY), state.getProp(getKey(NAME_KEY)));
+    return Joiner.on('.').join(LineageEventBuilder.LIENAGE_EVENT_NAMESPACE, state.getProp(getKey(NAME_KEY)));
   }
 
   private static String getKey(Object... objects) {
     Object[] args = new Object[objects.length + 1];
-    args[0] = LINEAGE_NAMESPACE;
+    args[0] = LineageEventBuilder.LIENAGE_EVENT_NAMESPACE;
     System.arraycopy(objects, 0, args, 1, objects.length);
     return LineageEventBuilder.getKey(args);
   }
