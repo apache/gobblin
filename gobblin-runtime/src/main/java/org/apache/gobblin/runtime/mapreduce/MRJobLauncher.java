@@ -21,8 +21,10 @@ import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -56,9 +58,9 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
-import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -113,6 +115,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
   static final String INPUT_DIR_NAME = "input";
   private static final String OUTPUT_DIR_NAME = "output";
   private static final String WORK_UNIT_LIST_FILE_EXTENSION = ".wulist";
+
+  // Configuration that make uploading of jar files more reliable,
+  // since multiple Gobblin Jobs are sharing the same jar directory.
+  private static final int MAXIMUM_JAR_COPY_RETRY_TIMES = 5;
+  private static final int WAITING_TIME_ON_IMCOMPLETE_UPLOAD = 3000;
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
@@ -392,20 +399,53 @@ public class MRJobLauncher extends AbstractJobLauncher {
     for (String jarFile : SPLITTER.split(jarFileList)) {
       Path srcJarFile = new Path(jarFile);
       FileStatus[] fileStatusList = lfs.globStatus(srcJarFile);
+
       for (FileStatus status : fileStatusList) {
-        // SNAPSHOT jars should not be shared, as different jobs may be using different versions of it
-        Path baseDir = status.getPath().getName().contains("SNAPSHOT") ? this.unsharedJarsDir : jarFileDir;
-        // DistributedCache requires absolute path, so we need to use makeQualified.
-        Path destJarFile = new Path(this.fs.makeQualified(baseDir), status.getPath().getName());
-        if (!this.fs.exists(destJarFile)) {
-          // Copy the jar file from local file system to HDFS
-          this.fs.copyFromLocalFile(status.getPath(), destJarFile);
+        // For each FileStatus there are chances it could fail in copying at the first attempt, due to file-existence
+        // or file-copy is ongoing by other job instance since all Gobblin jobs share the same jar file directory.
+        // the retryCount is to avoid cases (if any) where retry is going too far and causes job hanging.
+        int retryCount = 0 ;
+        boolean shouldFileBeAddedIntoDC = true;
+        Path destJarFile = calculateDestJarFile(status, jarFileDir);
+          // Adding destJarFile into HDFS until it exists and the size of file on targetPath matches the one on local path.
+        while(!this.fs.exists(destJarFile) || fs.getFileStatus(destJarFile).getLen() != status.getLen()) {
+          try {
+            if (fs.getFileStatus(destJarFile).getLen() != status.getLen()){
+              Thread.sleep(WAITING_TIME_ON_IMCOMPLETE_UPLOAD);
+            }
+            // Set the first parameter as false for not deleting sourceFile
+            // Set the second parameter as false for not overwriting existing file on the target, by default it is true.
+            // If the file is preExisted but overwrite flag set to false, then an IOException if thrown.
+            this.fs.copyFromLocalFile(false, false, status.getPath(), destJarFile);
+          } catch (IOException | InterruptedException e) {
+            LOG.warn("Path:" + destJarFile + " is not copied successfully. Will require retry.");
+            retryCount += 1 ;
+            if (retryCount >= MAXIMUM_JAR_COPY_RETRY_TIMES) {
+              LOG.error("The jar file:" + destJarFile + "failed in being copied into hdfs", e);
+              // If retry reaches upper limit, skip copying this file.
+              shouldFileBeAddedIntoDC = false ;
+              break;
+            }
+          }
         }
-        // Then add the jar file on HDFS to the classpath
-        LOG.info(String.format("Adding %s to classpath", destJarFile));
-        DistributedCache.addFileToClassPath(destJarFile, conf, this.fs);
+        if (shouldFileBeAddedIntoDC) {
+          // Then add the jar file on HDFS to the classpath
+          LOG.info(String.format("Adding %s to classpath", destJarFile));
+          DistributedCache.addFileToClassPath(destJarFile, conf, this.fs);
+        }
       }
     }
+  }
+
+  /**
+   * Calculate the target filePath of the jar file to be copied on HDFS,
+   * given the {@link FileStatus} of a jarFile and the path of directory that contains jar.
+   */
+  private Path calculateDestJarFile(FileStatus status, Path jarFileDir){
+    // SNAPSHOT jars should not be shared, as different jobs may be using different versions of it
+    Path baseDir = status.getPath().getName().contains("SNAPSHOT") ? this.unsharedJarsDir : jarFileDir;
+    // DistributedCache requires absolute path, so we need to use makeQualified.
+    return new Path(this.fs.makeQualified(baseDir), status.getPath().getName());
   }
 
   /**
