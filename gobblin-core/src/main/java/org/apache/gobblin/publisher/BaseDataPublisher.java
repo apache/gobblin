@@ -131,8 +131,6 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     PUBLISH_RETRY_DEFAULTS = ConfigFactory.parseMap(configMap);
   };
 
-  private static final String FS_URI = "fs.uri";
-
   public BaseDataPublisher(State state)
       throws IOException {
     super(state);

@@ -17,6 +17,8 @@
 package org.apache.gobblin.data.management.conversion.hive.dataset;
 
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -35,6 +37,9 @@ import com.typesafe.config.ConfigFactory;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.ConfigUtils;
+
+import static org.mockito.Mockito.when;
+
 
 @Test(groups = { "gobblin.data.management.conversion" })
 public class ConvertibleHiveDatasetTest {
@@ -94,7 +99,8 @@ public class ConvertibleHiveDatasetTest {
   }
 
   @Test
-  public void testInvalidFormat() {
+  public void testInvalidFormat()
+      throws Exception {
 
     Config config = ConfigFactory.parseMap(ImmutableMap.<String, String>of("destinationFormats", "flattenedOrc,nestedOrc"));
     ConvertibleHiveDataset cd = createTestConvertibleDataset(config);
@@ -103,7 +109,8 @@ public class ConvertibleHiveDatasetTest {
   }
 
   @Test
-  public void testDisableFormat() {
+  public void testDisableFormat()
+      throws Exception {
 
     Config config = ConfigFactory.parseMap(ImmutableMap.<String, String> builder()
         .put("destinationFormats", "flattenedOrc")
@@ -154,10 +161,13 @@ public class ConvertibleHiveDatasetTest {
     Assert.assertEquals(conversionConfig.getHiveRuntimeProperties(), hiveProps);
   }
 
-  public static ConvertibleHiveDataset createTestConvertibleDataset(Config config) {
+  public static ConvertibleHiveDataset createTestConvertibleDataset(Config config)
+      throws URISyntaxException {
     Table table = getTestTable("db1", "tb1");
+    FileSystem mockFs = Mockito.mock(FileSystem.class);
+    when(mockFs.getUri()).thenReturn(new URI("test"));
     ConvertibleHiveDataset cd =
-        new ConvertibleHiveDataset(Mockito.mock(FileSystem.class), Mockito.mock(HiveMetastoreClientPool.class), new org.apache.hadoop.hive.ql.metadata.Table(
+        new ConvertibleHiveDataset(mockFs, Mockito.mock(HiveMetastoreClientPool.class), new org.apache.hadoop.hive.ql.metadata.Table(
             table), new Properties(), config);
     return cd;
   }
