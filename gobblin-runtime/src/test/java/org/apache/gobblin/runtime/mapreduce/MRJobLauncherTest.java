@@ -25,6 +25,7 @@ import java.util.Properties;
 import org.apache.commons.io.FileUtils;
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
 import org.jboss.byteman.contrib.bmunit.BMRule;
+import org.jboss.byteman.contrib.bmunit.BMRules;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -33,6 +34,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
@@ -228,6 +230,64 @@ public class MRJobLauncherTest extends BMNGRunner {
     Assert.assertEquals(FileUtils.listFiles(stagingDir, null, true).size(), 0);
     if (outputDir.exists()) {
       Assert.assertEquals(FileUtils.listFiles(outputDir, null, true).size(), 0);
+    }
+  }
+
+  // This test uses byteman to check that the ".suc" files are recorded in the task state store for successful
+  // tasks when there are some task failures.
+  // static variable to count the number of task success marker files written in this test case
+  public static int sucCount1 = 0;
+  @Test
+  @BMRules(rules = {
+      @BMRule(name = "saveSuccessCount", targetClass = "org.apache.gobblin.metastore.FsStateStore",
+          targetMethod = "put", targetLocation = "AT ENTRY", condition = "$2.endsWith(\".suc\")",
+          action = "org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.sucCount1 = org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.sucCount1 + 1")
+  })
+  public void testLaunchJobWithMultiWorkUnitAndFaultyExtractor() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithMultiWorkUnitAndFaultyExtractor");
+    jobProps.setProperty("use.multiworkunit", Boolean.toString(true));
+    try {
+      this.jobLauncherTestHelper.runTestWithCommitSuccessfulTasksPolicy(jobProps);
+
+      // three of the 4 tasks should have succeeded, so 3 suc files should have been written
+      Assert.assertEquals(sucCount1, 3);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
+  // This test case checks that if a ".suc" task state file exists for a task then it is skipped.
+  // This test also checks that ".suc" files are not written when there are no task failures.
+  // static variables accessed by byteman in this test case
+  public static WorkUnitState wus = null;
+  public static int sucCount2 = 0;
+  @Test
+  @BMRules(rules = {
+      @BMRule(name = "getWorkUnitState", targetClass = "org.apache.gobblin.runtime.GobblinMultiTaskAttempt",
+          targetMethod = "runWorkUnits", targetLocation = "AFTER WRITE $taskId", condition = "$taskId.endsWith(\"_1\")",
+          action = "org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.wus = new org.apache.gobblin.configuration.WorkUnitState($workUnit, $0.jobState)"),
+      @BMRule(name = "saveSuccessCount", targetClass = "org.apache.gobblin.metastore.FsStateStore",
+          targetMethod = "put", targetLocation = "AT ENTRY", condition = "$2.endsWith(\".suc\")",
+          action = "org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.sucCount2 = org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.sucCount2 + 1"),
+      @BMRule(name = "writeSuccessFile", targetClass = "org.apache.gobblin.runtime.GobblinMultiTaskAttempt",
+          targetMethod = "taskSuccessfulInPriorAttempt", targetLocation = "AFTER WRITE $taskStateStore",
+          condition = "$1.endsWith(\"_1\")",
+          action = "$taskStateStore.put($0.jobId, $1 + \".suc\", new org.apache.gobblin.runtime.TaskState(org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.wus))")
+  })
+  public void testLaunchJobWithMultiWorkUnitAndSucFile() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithMultiWorkUnitAndSucFile");
+    jobProps.setProperty("use.multiworkunit", Boolean.toString(true));
+    try {
+      this.jobLauncherTestHelper.runTestWithSkippedTask(jobProps, "_1");
+
+      // no failures, so the only success file written is the injected one
+      Assert.assertEquals(sucCount2, 1);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
   }
 
