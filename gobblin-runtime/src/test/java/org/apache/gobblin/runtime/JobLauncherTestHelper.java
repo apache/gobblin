@@ -222,6 +222,45 @@ public class JobLauncherTestHelper {
     }
   }
 
+  /**
+   * Test when a test with the matching suffix is skipped.
+   * @param jobProps job properties
+   * @param skippedTaskSuffix the suffix for the task that is skipped
+   */
+  public void runTestWithSkippedTask(Properties jobProps, String skippedTaskSuffix) throws Exception {
+    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+    jobProps.setProperty(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, Boolean.FALSE.toString());
+    jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "successful");
+    jobProps.setProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
+
+    Closer closer = Closer.create();
+    try {
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
+      jobLauncher.launchJob(null);
+    } finally {
+      closer.close();
+    }
+
+    List<JobState.DatasetState> datasetStateList =
+        this.datasetStateStore.getAll(jobName, sanitizeJobNameForDatasetStore(jobId) + ".jst");
+    JobState jobState = datasetStateList.get(0);
+
+    Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
+    // one task is skipped out of 4
+    Assert.assertEquals(jobState.getCompletedTasks(), 3);
+    for (TaskState taskState : jobState.getTaskStates()) {
+      if (taskState.getTaskId().endsWith(skippedTaskSuffix)) {
+        Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.PENDING);
+      } else {
+        Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+        Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
+            TestExtractor.TOTAL_RECORDS);
+      }
+    }
+  }
+
   public void runTestWithCommitSuccessfulTasksPolicy(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = JobLauncherUtils.newJobId(jobName).toString();
