@@ -56,6 +56,7 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metadata.MetadataMerger;
 import org.apache.gobblin.metadata.types.StaticStringMetadataMerger;
@@ -337,7 +338,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     Path publisherOutputDir = getPublisherOutputDir(state, branchId);
     FileSystem fs = this.publisherFileSystemByBranches.get(branchId);
     DatasetDescriptor destination = new DatasetDescriptor(fs.getScheme(), publisherOutputDir.toString());
-    destination.addMetadata(FS_URI, fs.getUri().toString());
+    destination.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
     LineageInfo.putDestination(destination, branchId, state);
   }
 
