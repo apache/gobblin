@@ -83,7 +83,8 @@ public class AWSJobConfigurationManagerTest {
 
     final Config config = ConfigFactory.empty()
         .withValue(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY, ConfigValueFactory.fromAnyRef(this.jobConfigFileDir.toString()))
-        .withValue(GobblinAWSConfigurationKeys.JOB_CONF_S3_URI_KEY, ConfigValueFactory.fromAnyRef(jobConfZipUri))
+        .withValue(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_FS_URI_KEY, ConfigValueFactory.fromAnyRef("file:///"))
+        .withValue(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_PATH_KEY, ConfigValueFactory.fromAnyRef(jobConfZipUri))
         .withValue(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL, ConfigValueFactory.fromAnyRef("10s"));
     this.jobConfigurationManager = new AWSJobConfigurationManager(this.eventBus, config);
     this.jobConfigurationManager.startAsync().awaitRunning();

@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -78,7 +77,8 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
   private static final long DEFAULT_JOB_CONF_REFRESH_INTERVAL = 60;
 
-  private Optional<String> jobConfS3Uri;
+  private Optional<String> jobConfSourceFileFsUri;
+  private Optional<String> jobConfSourceFilePath;
   private Map<String, Properties> jobConfFiles;
 
   private final long refreshIntervalInSeconds;
@@ -103,13 +103,17 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
     this.jobConfDirPath =
         config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
             .of(config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
-    this.jobConfS3Uri =
-        config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_S3_URI_KEY) ? Optional
-            .of(config.getString(GobblinAWSConfigurationKeys.JOB_CONF_S3_URI_KEY)) : Optional.<String>absent();
+    this.jobConfSourceFileFsUri =
+        config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_FS_URI_KEY) ? Optional
+            .of(config.getString(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_FS_URI_KEY)) : Optional.<String>absent();
+    this.jobConfSourceFilePath =
+            config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_PATH_KEY) ? Optional
+                    .of(config.getString(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_PATH_KEY)) : Optional.<String>absent();
   }
 
   @Override
   protected void startUp() throws Exception {
+    LOGGER.error("HERE");
     LOGGER.info("Starting the " + AWSJobConfigurationManager.class.getSimpleName());
 
     LOGGER.info(String.format("Scheduling the job configuration refresh task with an interval of %d second(s)",
@@ -136,21 +140,15 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
     // TODO: Eventually when config store supports job files as well
     // .. we can replace this logic with config store
-    if (this.jobConfS3Uri.isPresent() && this.jobConfDirPath.isPresent()) {
+    if (this.jobConfSourceFileFsUri.isPresent() && this.jobConfSourceFilePath.isPresent() && this.jobConfDirPath.isPresent()) {
 
-      URI uri = URI.create(this.jobConfS3Uri.get());
-      URI rootUri;
-      try {
-        rootUri = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(), null, null, null);
-      } catch (URISyntaxException e) {
-        throw new IOException(e);
-      }
-      FileSystem fs = FileSystem.get(rootUri, HadoopUtils.getConfFromState(ConfigUtils.configToState(config)));
+      URI uri = URI.create(this.jobConfSourceFileFsUri.get());
+      FileSystem fs = FileSystem.get(uri, HadoopUtils.getConfFromState(ConfigUtils.configToState(config)));
 
       // Download the zip file
-      final Path sourceFile = new Path(uri.getPath());
+      final Path sourceFile = new Path(jobConfSourceFilePath.get());
       final String zipFile = appendSlash(this.jobConfDirPath.get()) +
-              StringUtils.substringAfterLast(this.jobConfS3Uri.get(), File.separator);
+              StringUtils.substringAfterLast(this.jobConfSourceFilePath.get(), File.separator);
       LOGGER.debug("Downloading to zip: " + zipFile + " from uri: " + sourceFile);
       fs.copyToLocalFile(sourceFile, new Path(zipFile));
 
