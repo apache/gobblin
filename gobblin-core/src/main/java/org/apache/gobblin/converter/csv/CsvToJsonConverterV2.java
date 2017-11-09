@@ -30,6 +30,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
@@ -69,6 +70,8 @@ public class CsvToJsonConverterV2 extends Converter<String, JsonArray, String[],
   private static final Logger LOG = LoggerFactory.getLogger(CsvToJsonConverterV2.class);
   private static final JsonParser JSON_PARSER = new JsonParser();
   private static final String COLUMN_NAME_KEY = "columnName";
+  private static final String DATA_TYPE_KEY = "dataType";
+  private static final String TYPE = "type";
   private static final String JSON_NULL_VAL = "null";
 
   public static final String CUSTOM_ORDERING = "converter.csv_to_json.custom_order";
@@ -173,12 +176,13 @@ public class CsvToJsonConverterV2 extends Converter<String, JsonArray, String[],
     JsonObject outputRecord = new JsonObject();
 
     for (int i = 0; i < outputSchema.size(); i++) {
-      String key = outputSchema.get(i).getAsJsonObject().get(COLUMN_NAME_KEY).getAsString();
+      JsonObject field = outputSchema.get(i).getAsJsonObject();
+      String key = field.get(COLUMN_NAME_KEY).getAsString();
 
       if (StringUtils.isEmpty(inputRecord[i]) || JSON_NULL_VAL.equalsIgnoreCase(inputRecord[i])) {
         outputRecord.add(key, JsonNull.INSTANCE);
       } else {
-        outputRecord.addProperty(key, inputRecord[i]);
+        outputRecord.add(key, convertValue(inputRecord[i], field.getAsJsonObject(DATA_TYPE_KEY)));
       }
     }
 
@@ -195,16 +199,73 @@ public class CsvToJsonConverterV2 extends Converter<String, JsonArray, String[],
     Iterator<String> customOrderIterator = customOrder.iterator();
 
     while(outputSchemaIterator.hasNext() && customOrderIterator.hasNext()) {
-      String key = outputSchemaIterator.next().getAsJsonObject().get(COLUMN_NAME_KEY).getAsString();
+      JsonObject field = outputSchemaIterator.next().getAsJsonObject();
+      String key = field.get(COLUMN_NAME_KEY).getAsString();
       int i = Integer.parseInt(customOrderIterator.next());
       Preconditions.checkArgument(i < inputRecord.length, "Index out of bound detected in customer order. Index: " + i + " , # of CSV columns: " + inputRecord.length);
       if (i < 0 || null == inputRecord[i] || JSON_NULL_VAL.equalsIgnoreCase(inputRecord[i])) {
         outputRecord.add(key, JsonNull.INSTANCE);
         continue;
       }
-      outputRecord.addProperty(key, inputRecord[i]);
+      outputRecord.add(key, convertValue(inputRecord[i], field.getAsJsonObject(DATA_TYPE_KEY)));
     }
 
     return outputRecord;
+  }
+
+  /**
+   * Convert string value to the expected type
+   */
+  private JsonElement convertValue(String value, JsonObject dataType) {
+    if (dataType == null || !dataType.has(TYPE)) {
+      return new JsonPrimitive(value);
+    }
+
+    String type = dataType.get(TYPE).getAsString().toUpperCase();
+    ValueType valueType = ValueType.valueOf(type);
+    return valueType.convert(value);
+  }
+
+  /**
+   * An enum of type conversions from string value
+   */
+  private enum ValueType {
+    INT {
+      @Override
+      JsonElement convert(String value) {
+        return new JsonPrimitive(Double.valueOf(value).intValue());
+      }
+    },
+    LONG {
+      @Override
+      JsonElement convert(String value) {
+        return new JsonPrimitive(Double.valueOf(value).longValue());
+      }
+    },
+    FLOAT {
+      @Override
+      JsonElement convert(String value) {
+        return new JsonPrimitive(Double.valueOf(value).floatValue());
+      }
+    },
+    DOUBLE {
+      @Override
+      JsonElement convert(String value) {
+        return new JsonPrimitive(Double.valueOf(value));
+      }
+    },
+    BOOLEAN {
+      @Override
+      JsonElement convert(String value) {
+        return new JsonPrimitive(Boolean.valueOf(value));
+      }
+    },
+    STRING {
+      @Override
+      JsonElement convert(String value) {
+        return new JsonPrimitive(value);
+      }
+    };
+    abstract JsonElement convert(String value);
   }
 }
