@@ -32,13 +32,12 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
  */
 public class FailureEventBuilder extends GobblinEventBuilder {
   private static final String FAILURE_EVENT_TYPE = "FailureEvent";
-  private static final String EVENT_NAMESPACE = "gobblin.event";
   private static final String ROOT_CAUSE = "rootException";
 
   private Throwable rootCause;
 
   public FailureEventBuilder(String name) {
-    this(name, EVENT_NAMESPACE);
+    this(name, NAMESPACE);
   }
 
   public FailureEventBuilder(String name, String namespace) {
@@ -60,7 +59,7 @@ public class FailureEventBuilder extends GobblinEventBuilder {
     if (rootCause != null) {
       metadata.put(ROOT_CAUSE, ExceptionUtils.getStackTrace(rootCause));
     }
-    return new GobblinTrackingEvent(0L, EVENT_NAMESPACE, name, metadata);
+    return new GobblinTrackingEvent(0L, namespace, name, metadata);
   }
 
   /**
