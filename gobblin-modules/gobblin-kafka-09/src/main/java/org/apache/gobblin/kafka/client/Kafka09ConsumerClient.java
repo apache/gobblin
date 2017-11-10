@@ -94,7 +94,12 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     props.put(KAFKA_09_CLIENT_BOOTSTRAP_SERVERS_KEY, Joiner.on(",").join(super.brokers));
     props.put(KAFKA_09_CLIENT_SESSION_TIMEOUT_KEY, super.socketTimeoutMillis);
 
-    Config scopedConfig = config.getConfig(CONFIG_PREFIX_NO_DOT).withFallback(FALLBACK);
+    // grab all the config under "source.kafka" and add the defaults as fallback.
+    Config baseConfig = ConfigUtils.getConfigOrEmpty(config, CONFIG_NAMESPACE).withFallback(FALLBACK);
+    // get the "source.kafka.consumerConfig" config for extra config to pass along to Kafka
+    Config specificConfig = ConfigUtils.getConfigOrEmpty(baseConfig, CONSUMER_CONFIG);
+    // The specific config overrides settings in the base config
+    Config scopedConfig = specificConfig.withFallback(baseConfig.withoutPath(CONSUMER_CONFIG));
     props.putAll(ConfigUtils.configToProperties(scopedConfig));
 
     this.consumer = new KafkaConsumer<>(props);
