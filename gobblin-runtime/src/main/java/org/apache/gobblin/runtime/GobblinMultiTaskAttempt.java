@@ -78,6 +78,7 @@ public class GobblinMultiTaskAttempt {
     CUSTOMIZED
   }
 
+  private static final String TASK_STATE_STORE_SUCCESS_MARKER_SUFFIX = ".suc";
   private final Logger log;
   private final Iterator<WorkUnit> workUnits;
   private final String jobId;
@@ -240,6 +241,14 @@ public class GobblinMultiTaskAttempt {
           log.error(String.format("Task %s failed due to exception: %s", task.getTaskId(),
               task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)));
         }
+
+        // If there are task failures then the tasks may be reattempted. Save a copy of the task state that is used
+        // to filter out successful tasks on subsequent attempts.
+        if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL ||
+            task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.COMMITTED) {
+          taskStateStore.put(task.getJobId(), task.getTaskId() + TASK_STATE_STORE_SUCCESS_MARKER_SUFFIX,
+              task.getTaskState());
+        }
       }
 
       throw new IOException(
@@ -272,6 +281,33 @@ public class GobblinMultiTaskAttempt {
   }
 
   /**
+   * Determine if the task executed successfully in a prior attempt by checkitn the task state store for the success
+   * marker.
+   * @param taskId task id to check
+   * @return whether the task was processed successfully in a prior attempt
+   */
+  private boolean taskSuccessfulInPriorAttempt(String taskId) {
+    if (this.taskStateStoreOptional.isPresent()) {
+      StateStore<TaskState> taskStateStore = this.taskStateStoreOptional.get();
+      // Delete the task state file for the task if it already exists.
+      // This usually happens if the task is retried upon failure.
+      try {
+        if (taskStateStore.exists(jobId, taskId + TASK_STATE_STORE_SUCCESS_MARKER_SUFFIX)) {
+          log.info("Skipping task {} that successfully executed in a prior attempt.", taskId);
+
+          // skip tasks that executed successfully in a previous attempt
+          return true;
+        }
+      } catch (IOException e) {
+        // if an error while looking up the task state store then treat like it was not processed
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Run a given list of {@link WorkUnit}s of a job.
    *
    * <p>
@@ -287,8 +323,14 @@ public class GobblinMultiTaskAttempt {
     List<Task> tasks = Lists.newArrayList();
     while (this.workUnits.hasNext()) {
       WorkUnit workUnit = this.workUnits.next();
-      countDownLatch.countUp();
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+
+      // skip tasks that executed successsfully in a prior attempt
+      if (taskSuccessfulInPriorAttempt(taskId)) {
+        continue;
+      }
+
+      countDownLatch.countUp();
       SubscopedBrokerBuilder<GobblinScopeTypes, ?> taskBrokerBuilder =
           this.jobBroker.newSubscopedBuilder(new TaskScopeInstance(taskId));
       WorkUnitState workUnitState = new WorkUnitState(workUnit, this.jobState, taskBrokerBuilder);
