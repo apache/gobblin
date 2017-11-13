@@ -24,9 +24,12 @@ import org.apache.hadoop.fs.Path;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 
 
 /**
@@ -64,5 +67,22 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
 
       movePath(parallelRunner, workUnitState, status.getPath(), outputPath, branchId);
     }
+  }
+
+  @Override
+  protected DatasetDescriptor createDestinationDescriptor(WorkUnitState state, int branchId) {
+    // Get base descriptor
+    DatasetDescriptor descriptor = super.createDestinationDescriptor(state, branchId);
+
+    // Decorate with partition prefix
+    String propName = ForkOperatorUtils
+        .getPropertyNameForBranch(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX, numBranches, branchId);
+    String timePrefix = state.getProp(propName, "");
+    Path pathWithTimePrefix = new Path(descriptor.getName(), timePrefix);
+    DatasetDescriptor destination = new DatasetDescriptor(descriptor.getPlatform(), pathWithTimePrefix.toString());
+    // Add back the metadata
+    descriptor.getMetadata().forEach(destination::addMetadata);
+
+    return destination;
   }
 }

@@ -329,15 +329,16 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   private void publishMultiTaskData(WorkUnitState state, int branchId, Set<Path> writerOutputPathsMoved)
       throws IOException {
     publishData(state, branchId, false, writerOutputPathsMoved);
-    addLineageInfo(state, branchId);
+    DatasetDescriptor destination = createDestinationDescriptor(state, branchId);
+    LineageInfo.putDestination(destination, branchId, state);
   }
 
-  private void addLineageInfo(WorkUnitState state, int branchId) {
+  protected DatasetDescriptor createDestinationDescriptor(WorkUnitState state, int branchId) {
     Path publisherOutputDir = getPublisherOutputDir(state, branchId);
     FileSystem fs = this.publisherFileSystemByBranches.get(branchId);
     DatasetDescriptor destination = new DatasetDescriptor(fs.getScheme(), publisherOutputDir.toString());
     destination.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
-    LineageInfo.putDestination(destination, branchId, state);
+    return destination;
   }
 
   protected void publishData(WorkUnitState state, int branchId, boolean publishSingleTaskData,
