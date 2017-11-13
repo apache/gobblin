@@ -35,7 +35,10 @@ import lombok.Getter;
  * <p>
  *   Instances of this class are immutable. Calling set* methods returns a copy of the calling instance.
  * </p>
+ *
+ * @deprecated Use {@link GobblinEventBuilder}
  */
+@Deprecated
 public class EventSubmitter {
 
   public static final String EVENT_TYPE = "eventType";

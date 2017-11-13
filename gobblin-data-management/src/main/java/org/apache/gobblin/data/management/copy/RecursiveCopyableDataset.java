@@ -21,6 +21,7 @@ import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
@@ -41,6 +42,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import lombok.Getter;
 
 
 /**
@@ -66,6 +69,9 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   private final boolean update;
   private final boolean delete;
 
+  @Getter
+  private transient final DatasetDescriptor datasetDescriptor;
+
   // Include empty directories in the source for copy
   private final boolean includeEmptyDirectories;
   // Delete empty directories in the destination
@@ -77,6 +83,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     this.rootPath = PathUtils.getPathWithoutSchemeAndAuthority(rootPath);
     this.fs = fs;
+    this.datasetDescriptor = new DatasetDescriptor(fs.getScheme(), rootPath.toString());
 
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
     this.copyableFileFilter = DatasetUtils.instantiateCopyableFileFilter(properties);
@@ -129,17 +136,19 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     List<CopyEntity> copyEntities = Lists.newArrayList();
     List<CopyableFile> copyableFiles = Lists.newArrayList();
+    DatasetDescriptor targetDataset = new DatasetDescriptor(targetFs.getScheme(), targetPath.toString());
 
     for (Path path : toCopy) {
       FileStatus file = filesInSource.get(path);
       Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), nonGlobSearchPath);
       Path thisTargetPath = new Path(configuration.getPublishDir(), filePathRelativeToSearchPath);
-
-      copyableFiles.add(CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
+      CopyableFile copyableFile = CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
           .fileSet(datasetURN()).datasetOutputPath(thisTargetPath.toString())
           .ancestorsOwnerAndPermission(CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(this.fs,
               file.getPath().getParent(), nonGlobSearchPath, configuration))
-          .build());
+          .build();
+      copyableFile.setDestDataset(targetDataset);
+      copyableFiles.add(copyableFile);
     }
     copyEntities.addAll(this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles));
 

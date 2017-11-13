@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.lineage.LineageInfo;
 import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
@@ -48,6 +47,8 @@ import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
+import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.source.extractor.partition.Partition;
 import org.apache.gobblin.source.extractor.partition.Partitioner;
@@ -235,7 +236,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       workunit.setProp(ConfigurationKeys.SOURCE_ENTITY, sourceEntity.getSourceEntityName());
       workunit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, sourceEntity.getDestTableName());
       workunit.setProp(WORK_UNIT_STATE_VERSION_KEY, CURRENT_WORK_UNIT_STATE_VERSION);
-      addLineageSourceInfo (state, sourceEntity, workunit);
+      addLineageSourceInfo(state, sourceEntity, workunit);
       partition.serialize(workunit);
       workUnits.add(workunit);
     }
@@ -243,8 +244,8 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     return workUnits;
   }
 
-  protected void addLineageSourceInfo (SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
-    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, entity.destTableName);
+  protected void addLineageSourceInfo(SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
+    // Does nothing by default
   }
 
   protected Set<SourceEntity> getFilteredSourceEntities(SourceState state) {

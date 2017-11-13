@@ -18,18 +18,18 @@
 package org.apache.gobblin.publisher;
 
 import java.io.IOException;
-import java.util.Set;
 
-import org.apache.gobblin.lineage.LineageInfo;
-import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 
 
 /**
@@ -70,13 +70,19 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
   }
 
   @Override
-  protected void publishData(WorkUnitState state, int branchId, boolean publishSingleTaskData, Set<Path> writerOutputPathsMoved) throws IOException {
-    super.publishData(state, branchId, publishSingleTaskData, writerOutputPathsMoved);
-    if (publishSingleTaskData) {
-      // Add lineage event for destination. Make sure all workunits belongs to the same dataset has exactly the same value
-      Path publisherOutputDir = getPublisherOutputDir(state, branchId);
-      String timePrefix = state.getProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX, "");
-      LineageInfo.setBranchLineageAttribute(state, branchId, PUBLISH_OUTOUT, new Path(publisherOutputDir, timePrefix).toString());
-    }
+  protected DatasetDescriptor createDestinationDescriptor(WorkUnitState state, int branchId) {
+    // Get base descriptor
+    DatasetDescriptor descriptor = super.createDestinationDescriptor(state, branchId);
+
+    // Decorate with partition prefix
+    String propName = ForkOperatorUtils
+        .getPropertyNameForBranch(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX, numBranches, branchId);
+    String timePrefix = state.getProp(propName, "");
+    Path pathWithTimePrefix = new Path(descriptor.getName(), timePrefix);
+    DatasetDescriptor destination = new DatasetDescriptor(descriptor.getPlatform(), pathWithTimePrefix.toString());
+    // Add back the metadata
+    descriptor.getMetadata().forEach(destination::addMetadata);
+
+    return destination;
   }
 }

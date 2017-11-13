@@ -15,21 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.copy;
-
-import org.apache.gobblin.dataset.Dataset;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-
+package org.apache.gobblin.metrics.event.lineage;
 
 /**
- * A common superinterface for {@link Dataset}s that can be operated on by distcp.
- * Concrete classes must implement a subinterface of this interface ({@link CopyableDataset} or {@link IterableCopyableDataset}).
+ * A set of exceptions used by {@link LineageEventBuilder} when lineage information is serialized or deserialized.
  */
-public interface CopyableDatasetBase extends Dataset {
-  /**
-   * Get the descriptor which identifies and provides metadata of the dataset
-   */
-  default DatasetDescriptor getDatasetDescriptor() {
-    return null;
+public class LineageException extends Exception {
+  public LineageException(String message) {
+    super(message);
+  }
+  public static class ConflictException extends LineageException {
+    public ConflictException(String branchId, LineageEventBuilder actual, LineageEventBuilder expect) {
+      super("Conflict LineageEvent: branchId=" + branchId + ", expected=" + expect.toString() + " actual=" + actual.toString());
+    }
   }
 }

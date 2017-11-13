@@ -57,10 +57,12 @@ import org.apache.gobblin.data.management.copy.CopyableDataset;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder.DbAndTable;
 import org.apache.gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
 import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
@@ -106,6 +108,8 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   protected final DbAndTable dbAndTable;
   protected final DbAndTable logicalDbAndTable;
 
+  private transient final DatasetDescriptor datasetDescriptor;
+
   public HiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties properties) {
     this(fs, clientPool, table, properties, ConfigFactory.empty());
   }
@@ -124,6 +128,9 @@ public class HiveDataset implements PrioritizedCopyableDataset {
         Optional.fromNullable(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
+    this.datasetDescriptor = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, tableIdentifier);
+    this.datasetDescriptor.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
+
     this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
     this.dbAndTable = new DbAndTable(table.getDbName(), table.getTableName());
     if (this.datasetNamePattern.isPresent()) {
@@ -132,7 +139,6 @@ public class HiveDataset implements PrioritizedCopyableDataset {
       this.logicalDbAndTable = this.dbAndTable;
     }
     this.datasetConfig = resolveConfig(datasetConfig, dbAndTable, logicalDbAndTable);
-
     this.metricContext = Instrumented.getMetricContext(new State(properties), HiveDataset.class,
         Lists.<Tag<?>> newArrayList(new Tag<>(DATABASE, table.getDbName()), new Tag<>(TABLE, table.getTableName())));
   }
