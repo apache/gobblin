@@ -412,6 +412,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
           try {
             if (this.fs.exists(destJarFile) && fs.getFileStatus(destJarFile).getLen() != status.getLen()) {
               Thread.sleep(WAITING_TIME_ON_IMCOMPLETE_UPLOAD);
+              throw new IOException("Waiting for file to complete on uploading ... ");
             }
             // Set the first parameter as false for not deleting sourceFile
             // Set the second parameter as false for not overwriting existing file on the target, by default it is true.
