@@ -17,47 +17,32 @@
 
 package org.apache.gobblin.metrics.event;
 
-import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
-import org.apache.gobblin.metrics.MetricContext;
-
-import com.google.common.collect.Maps;
-
-import lombok.Getter;
 
 
 /**
- * A failure event builds a specific {@link GobblinTrackingEvent} whose metadata has
- * {@value EventSubmitter#EVENT_TYPE} to be {@value #EVENT_TYPE}
+ * The builder builds builds a specific {@link GobblinTrackingEvent} whose metadata has
+ * {@value GobblinEventBuilder#EVENT_TYPE} to be {@value #FAILURE_EVENT_TYPE}
  *
  * <p>
  * Note: A {@link FailureEventBuilder} instance is not reusable
  */
-public class FailureEventBuilder {
-  private static final String EVENT_TYPE = "FailureEvent";
-  private static final String EVENT_NAMESPACE = "gobblin.event";
+public class FailureEventBuilder extends GobblinEventBuilder {
+  private static final String FAILURE_EVENT_TYPE = "FailureEvent";
   private static final String ROOT_CAUSE = "rootException";
-
-  @Getter
-  private final String name;
-  @Getter
-  private final String namespace;
-  private final Map<String, String> metadata;
 
   private Throwable rootCause;
 
   public FailureEventBuilder(String name) {
-    this(name, EVENT_NAMESPACE);
+    this(name, NAMESPACE);
   }
 
   public FailureEventBuilder(String name, String namespace) {
-    this.name = name;
-    this.namespace = namespace;
-    metadata = Maps.newHashMap();
-    metadata.put(EventSubmitter.EVENT_TYPE, EVENT_TYPE);
+    super(name, namespace);
+    metadata.put(EVENT_TYPE, FAILURE_EVENT_TYPE);
   }
 
   /**
@@ -68,42 +53,21 @@ public class FailureEventBuilder {
   }
 
   /**
-   * Add a metadata pair
-   */
-  public void addMetadata(String key, String value) {
-    metadata.put(key, value);
-  }
-
-  /**
-   * Add additional metadata
-   */
-  public void addAdditionalMetadata(Map<String, String> additionalMetadata) {
-    metadata.putAll(additionalMetadata);
-  }
-
-  /**
    * Build as {@link GobblinTrackingEvent}
    */
   public GobblinTrackingEvent build() {
     if (rootCause != null) {
       metadata.put(ROOT_CAUSE, ExceptionUtils.getStackTrace(rootCause));
     }
-    return new GobblinTrackingEvent(0L, EVENT_NAMESPACE, name, metadata);
+    return new GobblinTrackingEvent(0L, namespace, name, metadata);
   }
 
   /**
-   * Submit the event
-   */
-  public void submit(MetricContext context) {
-    context.submitEvent(build());
-  }
-
-  /**
-   * Check if the given {@link GobblinTrackingEvent} is a failiure event
+   * Check if the given {@link GobblinTrackingEvent} is a failure event
    */
   public static boolean isFailureEvent(GobblinTrackingEvent event) {
-    String eventType = event.getMetadata().get(EventSubmitter.EVENT_TYPE);
-    return StringUtils.isNotEmpty(eventType) && eventType.equals(EVENT_TYPE);
+    String eventType = event.getMetadata().get(EVENT_TYPE);
+    return StringUtils.isNotEmpty(eventType) && eventType.equals(FAILURE_EVENT_TYPE);
   }
 
   private static Throwable getRootCause(Throwable t) {

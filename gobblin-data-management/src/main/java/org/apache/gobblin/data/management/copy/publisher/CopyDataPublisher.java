@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.copy.publisher;
 
 
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import java.io.IOException;
 import java.net.URI;
@@ -27,7 +28,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -214,6 +214,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
           if (!fileSetRoot.isPresent() && copyableFile.getDatasetOutputPath() != null) {
             fileSetRoot = Optional.of(copyableFile.getDatasetOutputPath());
           }
+          LineageInfo.putDestination(copyableFile.getDestDataset(), 0, wus);
         }
         if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
           datasetOriginTimestamp = copyableFile.getOriginTimestamp();

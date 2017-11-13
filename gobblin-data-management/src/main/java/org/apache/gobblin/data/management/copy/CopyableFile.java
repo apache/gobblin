@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.copy;
 
 import org.apache.gobblin.data.management.partition.File;
 import org.apache.gobblin.data.management.copy.PreserveAttributes.Option;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.guid.Guid;
 
@@ -54,6 +55,9 @@ public class CopyableFile extends CopyEntity implements File {
 
   /** {@link FileStatus} of the existing origin file. */
   private FileStatus origin;
+
+  /** The destination dataset the file will be copied to */
+  private DatasetDescriptor destDataset;
 
   /** Complete destination {@link Path} of the file. */
   private Path destination;

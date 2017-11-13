@@ -56,9 +56,11 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.lineage.LineageInfo;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metadata.MetadataMerger;
 import org.apache.gobblin.metadata.types.StaticStringMetadataMerger;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.ParallelRunner;
@@ -106,8 +108,6 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
   protected final Set<Path> publisherOutputDirs = Sets.newHashSet();
 
-  public static final String PUBLISH_OUTOUT = "publish.output";
-
   /* Each partition in each branch may have separate metadata. The metadata mergers are responsible
    * for aggregating this information from all workunits so it can be published.
    */
@@ -130,7 +130,6 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
             .build();
     PUBLISH_RETRY_DEFAULTS = ConfigFactory.parseMap(configMap);
   };
-
 
   public BaseDataPublisher(State state)
       throws IOException {
@@ -330,6 +329,16 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   private void publishMultiTaskData(WorkUnitState state, int branchId, Set<Path> writerOutputPathsMoved)
       throws IOException {
     publishData(state, branchId, false, writerOutputPathsMoved);
+    DatasetDescriptor destination = createDestinationDescriptor(state, branchId);
+    LineageInfo.putDestination(destination, branchId, state);
+  }
+
+  protected DatasetDescriptor createDestinationDescriptor(WorkUnitState state, int branchId) {
+    Path publisherOutputDir = getPublisherOutputDir(state, branchId);
+    FileSystem fs = this.publisherFileSystemByBranches.get(branchId);
+    DatasetDescriptor destination = new DatasetDescriptor(fs.getScheme(), publisherOutputDir.toString());
+    destination.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
+    return destination;
   }
 
   protected void publishData(WorkUnitState state, int branchId, boolean publishSingleTaskData,
@@ -372,7 +381,6 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         if (!replaceFinalOutputDir) {
           addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, state, branchId, parallelRunner);
           writerOutputPathsMoved.add(writerOutputDir);
-          addPublisherLineageInfo(state, branchId, publisherOutputDir.toString());
           return;
         }
 
@@ -387,12 +395,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
       movePath(parallelRunner, state, writerOutputDir, publisherOutputDir, branchId);
       writerOutputPathsMoved.add(writerOutputDir);
-      addPublisherLineageInfo(state, branchId, publisherOutputDir.toString());
     }
-  }
-
-  protected void addPublisherLineageInfo(WorkUnitState state, int branchId, String output) {
-    LineageInfo.setBranchLineageAttribute(state, branchId, PUBLISH_OUTOUT, output);
   }
 
   /**
