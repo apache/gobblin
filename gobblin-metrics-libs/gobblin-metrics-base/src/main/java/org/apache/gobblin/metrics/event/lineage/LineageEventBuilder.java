@@ -44,7 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class LineageEventBuilder extends GobblinEventBuilder {
-  static final String LIENAGE_EVENT_NAMESPACE = Joiner.on(".").join(NAMESPACE, "lineage");
+  static final String LIENAGE_EVENT_NAMESPACE = getKey(NAMESPACE, "lineage");
   static final String SOURCE = "source";
   static final String DESTINATION = "destination";
   static final String LINEAGE_EVENT_TYPE = "LineageEvent";

@@ -26,6 +26,9 @@ import org.apache.gobblin.dataset.DatasetDescriptor;
  * Concrete classes must implement a subinterface of this interface ({@link CopyableDataset} or {@link IterableCopyableDataset}).
  */
 public interface CopyableDatasetBase extends Dataset {
+  /**
+   * Get the descriptor which identifies and provides metadata of the dataset
+   */
   default DatasetDescriptor getDatasetDescriptor() {
     return null;
   }

@@ -25,6 +25,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
@@ -54,8 +56,9 @@ import org.apache.gobblin.metrics.event.GobblinEventBuilder;
  *   </ol>
  * </p>
  */
+@Slf4j
 public final class LineageInfo {
-  static final String BRANCH = "branch";
+  public static final String BRANCH = "branch";
 
   private static final Gson GSON = new Gson();
   private static final String NAME_KEY = "name";
@@ -90,6 +93,7 @@ public final class LineageInfo {
    */
   public static void putDestination(DatasetDescriptor destination, int branchId, State state) {
     if (!hasLineageInfo(state)) {
+      log.warn("State has no lineage info but branch " + branchId + " puts a destination: " + GSON.toJson(destination));
       return;
     }
 
@@ -191,6 +195,9 @@ public final class LineageInfo {
     return Joiner.on('.').join(LineageEventBuilder.LIENAGE_EVENT_NAMESPACE, state.getProp(getKey(NAME_KEY)));
   }
 
+  /**
+   * Prefix all keys with {@link LineageEventBuilder#LIENAGE_EVENT_NAMESPACE}
+   */
   private static String getKey(Object... objects) {
     Object[] args = new Object[objects.length + 1];
     args[0] = LineageEventBuilder.LIENAGE_EVENT_NAMESPACE;

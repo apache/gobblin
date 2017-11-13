@@ -88,7 +88,7 @@ public final class DatasetDescriptor {
     }
 
     DatasetDescriptor that = (DatasetDescriptor) o;
-    return !(!platform.equals(that.platform) || !name.equals(that.name) || !metadata.equals(that.metadata));
+    return platform.equals(that.platform) && name.equals(that.name) && metadata.equals(that.metadata);
   }
 
   @Override
