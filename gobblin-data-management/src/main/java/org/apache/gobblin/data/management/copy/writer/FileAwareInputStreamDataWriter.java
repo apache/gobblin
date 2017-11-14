@@ -231,7 +231,12 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         if (isInstrumentationEnabled()) {
           copier.withCopySpeedMeter(this.copySpeedMeter);
         }
-        this.bytesWritten.addAndGet(copier.copy());
+        long numBytes = copier.copy();
+        if (numBytes != copyableFile.getFileStatus().getLen()) {
+          throw new IOException(String.format("Number of bytes copied doesn't match filesize for file %s.",
+              copyableFile.getOrigin().getPath()));
+        }
+        this.bytesWritten.addAndGet(numBytes);
         if (isInstrumentationEnabled()) {
           log.info("File {}: copied {} bytes, average rate: {} B/s", copyableFile.getOrigin().getPath(),
               this.copySpeedMeter.getCount(), this.copySpeedMeter.getMeanRate());
