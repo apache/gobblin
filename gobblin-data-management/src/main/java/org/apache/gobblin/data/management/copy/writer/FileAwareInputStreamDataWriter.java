@@ -232,7 +232,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
           copier.withCopySpeedMeter(this.copySpeedMeter);
         }
         long numBytes = copier.copy();
-        if (numBytes != copyableFile.getFileStatus().getLen()) {
+        long fileSize = copyableFile.getFileStatus().getLen();
+        if (fileSize > 0 && numBytes != fileSize) {
           throw new IOException(String.format("Number of bytes copied doesn't match filesize for file %s.",
               copyableFile.getOrigin().getPath()));
         }
