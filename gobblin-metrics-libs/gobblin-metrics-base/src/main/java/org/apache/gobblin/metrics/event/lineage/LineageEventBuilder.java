@@ -27,9 +27,9 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
-import avro.shaded.com.google.common.collect.Maps;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
