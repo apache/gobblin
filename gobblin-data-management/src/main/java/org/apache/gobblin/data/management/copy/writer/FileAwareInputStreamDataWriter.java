@@ -84,6 +84,8 @@ import org.apache.gobblin.writer.DataWriter;
 public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileAwareInputStream> implements FinalState, SpeculativeAttemptAwareConstruct {
 
   public static final String GOBBLIN_COPY_BYTES_COPIED_METER = "gobblin.copy.bytesCopiedMeter";
+  public static final String GOBBLIN_COPY_CHECK_FILESIZE = "gobblin.copy.checkFileSize";
+  public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
 
   protected final AtomicLong bytesWritten = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
@@ -96,6 +98,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected final RecoveryHelper recoveryHelper;
   protected final SharedResourcesBroker<GobblinScopeTypes> taskBroker;
   protected final int bufferSize;
+  private final boolean checkFileSize;
 
   protected final Meter copySpeedMeter;
 
@@ -143,6 +146,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.bufferSize = state.getPropAsInt(CopyConfiguration.BUFFER_SIZE, StreamCopier.DEFAULT_BUFFER_SIZE);
     this.encryptionConfig = EncryptionConfigParser
         .getConfigForBranch(EncryptionConfigParser.EntityType.WRITER, this.state, numBranches, branchId);
+
+    this.checkFileSize = state.getPropAsBoolean(GOBBLIN_COPY_CHECK_FILESIZE, DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE);
   }
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId)
@@ -231,7 +236,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         if (isInstrumentationEnabled()) {
           copier.withCopySpeedMeter(this.copySpeedMeter);
         }
-        this.bytesWritten.addAndGet(copier.copy());
+        long numBytes = copier.copy();
+        long fileSize = copyableFile.getFileStatus().getLen();
+        if (this.checkFileSize && numBytes != fileSize) {
+          throw new IOException(String.format("Number of bytes copied doesn't match filesize for file %s.",
+              copyableFile.getOrigin().getPath()));
+        }
+        this.bytesWritten.addAndGet(numBytes);
         if (isInstrumentationEnabled()) {
           log.info("File {}: copied {} bytes, average rate: {} B/s", copyableFile.getOrigin().getPath(),
               this.copySpeedMeter.getCount(), this.copySpeedMeter.getMeanRate());
