@@ -29,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 
 /**
