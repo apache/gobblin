@@ -72,7 +72,9 @@ public class KafkaReporter extends MetricReportReporter {
     if (builder.kafkaPusher.isPresent()) {
       this.kafkaPusher = builder.kafkaPusher.get();
     } else {
-      Config kafkaConfig = ConfigUtils.getConfigOrEmpty(config, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX);
+      Config kafkaConfig = ConfigUtils.getConfigOrEmpty(config, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX)
+          .withFallback(ConfigUtils.getConfigOrEmpty(config, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+
       String pusherClassName = ConfigUtils.getString(config, PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
           PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
 
@@ -82,6 +84,15 @@ public class KafkaReporter extends MetricReportReporter {
 
   protected AvroSerializer<MetricReport> createSerializer(SchemaVersionWriter schemaVersionWriter) throws IOException {
     return new AvroJsonSerializer<>(MetricReport.SCHEMA$, schemaVersionWriter);
+  }
+
+  /**
+   * Get config with metrics configuration and shared kafka configuration
+   */
+  public static Config getKafkaAndMetricsConfigFromProperties(Properties props) {
+    return ConfigUtils.propertiesToConfig(props, Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX))
+        .withFallback(ConfigUtils.propertiesToConfig(props,
+            Optional.of(ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX)));
   }
 
   /**
@@ -139,7 +150,8 @@ public class KafkaReporter extends MetricReportReporter {
       this.brokers = brokers;
       this.topic = topic;
 
-      return new KafkaReporter(this, ConfigUtils.propertiesToConfig(props, Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX)));
+      // create a KafkaReporter with metrics.* and gobblin.kafka.sharedConfig.* keys
+      return new KafkaReporter(this, KafkaReporter.getKafkaAndMetricsConfigFromProperties(props));
     }
   }
 

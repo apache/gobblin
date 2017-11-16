@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -46,12 +47,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.JobLauncherFactory;
@@ -127,6 +131,16 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
     this.props = new Properties();
     this.props.putAll(props);
+
+    // load dynamic configuration and add them to the job properties
+    DynamicConfigGenerator dynamicConfigGenerator =
+        DynamicConfigGeneratorFactory.createDynamicConfigGenerator(ConfigUtils.propertiesToConfig(props));
+    Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig();
+
+    // add the dynamic config to the job config
+    for (Map.Entry<String, ConfigValue> entry : dynamicConfig.entrySet()) {
+      this.props.put(entry.getKey(), entry.getValue().unwrapped().toString());
+    }
 
     Configuration conf = new Configuration();
 

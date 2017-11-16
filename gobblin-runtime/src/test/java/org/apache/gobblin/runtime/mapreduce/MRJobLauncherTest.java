@@ -33,7 +33,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableMap;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
@@ -271,6 +276,10 @@ public class MRJobLauncherTest extends BMNGRunner {
       @BMRule(name = "saveSuccessCount", targetClass = "org.apache.gobblin.metastore.FsStateStore",
           targetMethod = "put", targetLocation = "AT ENTRY", condition = "$2.endsWith(\".suc\")",
           action = "org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.sucCount2 = org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.sucCount2 + 1"),
+      @BMRule(name = "checkProp", targetClass = "org.apache.gobblin.runtime.mapreduce.MRJobLauncher$TaskRunner",
+          targetMethod = "setup", targetLocation = "AT EXIT",
+          condition = "!$0.jobState.getProp(\"DynamicKey1\").equals(\"DynamicValue1\")",
+          action = "throw new RuntimeException(\"could not find key\")"),
       @BMRule(name = "writeSuccessFile", targetClass = "org.apache.gobblin.runtime.GobblinMultiTaskAttempt",
           targetMethod = "taskSuccessfulInPriorAttempt", targetLocation = "AFTER WRITE $taskStateStore",
           condition = "$1.endsWith(\"_1\")",
@@ -281,6 +290,10 @@ public class MRJobLauncherTest extends BMNGRunner {
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithMultiWorkUnitAndSucFile");
     jobProps.setProperty("use.multiworkunit", Boolean.toString(true));
+
+    jobProps.setProperty("dynamicConfigGenerator.class",
+        "org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest$TestDynamicConfigGenerator");
+
     try {
       this.jobLauncherTestHelper.runTestWithSkippedTask(jobProps, "_1");
 
@@ -365,5 +378,16 @@ public class MRJobLauncherTest extends BMNGRunner {
             + "gobblin-test/resource/source/test.avro.2," + "gobblin-test/resource/source/test.avro.3");
 
     return jobProps;
+  }
+
+  public static class TestDynamicConfigGenerator implements DynamicConfigGenerator {
+    public TestDynamicConfigGenerator(Config config) {
+    }
+
+    @Override
+    public Config generateDynamicConfig() {
+      return ConfigFactory.parseMap(ImmutableMap.of(JobLauncherTestHelper.DYNAMIC_KEY1,
+          JobLauncherTestHelper.DYNAMIC_VALUE1));
+    }
   }
 }

@@ -44,6 +44,7 @@ import javax.annotation.Nonnull;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
@@ -96,8 +97,10 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
 
     // grab all the config under "source.kafka" and add the defaults as fallback.
     Config baseConfig = ConfigUtils.getConfigOrEmpty(config, CONFIG_NAMESPACE).withFallback(FALLBACK);
-    // get the "source.kafka.consumerConfig" config for extra config to pass along to Kafka
-    Config specificConfig = ConfigUtils.getConfigOrEmpty(baseConfig, CONSUMER_CONFIG);
+    // get the "source.kafka.consumerConfig" config for extra config to pass along to Kafka with a fallback to the
+    // shared config that start with "gobblin.kafka.sharedConfig"
+    Config specificConfig = ConfigUtils.getConfigOrEmpty(baseConfig, CONSUMER_CONFIG).withFallback(
+        ConfigUtils.getConfigOrEmpty(config, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
     // The specific config overrides settings in the base config
     Config scopedConfig = specificConfig.withFallback(baseConfig.withoutPath(CONSUMER_CONFIG));
     props.putAll(ConfigUtils.configToProperties(scopedConfig));

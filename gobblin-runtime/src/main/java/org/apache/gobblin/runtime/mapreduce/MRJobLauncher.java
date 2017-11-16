@@ -21,10 +21,9 @@ import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -56,7 +55,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ServiceManager;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -64,6 +65,7 @@ import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinMetrics;
@@ -71,6 +73,7 @@ import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
 import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.JobState;
@@ -83,6 +86,7 @@ import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.runtime.util.MetricGroup;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JobConfigurationUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
@@ -626,7 +630,20 @@ public class MRJobLauncher extends AbstractJobLauncher {
         throw new RuntimeException("Failed to setup the mapper task", ioe);
       }
 
-      this.taskExecutor = new TaskExecutor(context.getConfiguration());
+
+      // load dynamic configuration to add to the job configuration
+      Configuration configuration = context.getConfiguration();
+      DynamicConfigGenerator dynamicConfigGenerator = DynamicConfigGeneratorFactory.createDynamicConfigGenerator(
+          ConfigUtils.propertiesToConfig(this.jobState.getProperties()));
+      Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig();
+
+      // add the dynamic config to the job config
+      for (Map.Entry<String, ConfigValue> entry : dynamicConfig.entrySet()) {
+        this.jobState.setProp(entry.getKey(), entry.getValue().unwrapped().toString());
+        configuration.set(entry.getKey(), entry.getValue().unwrapped().toString());
+      }
+
+      this.taskExecutor = new TaskExecutor(configuration);
       this.taskStateTracker = new MRTaskStateTracker(context);
       this.serviceManager = new ServiceManager(Lists.newArrayList(this.taskExecutor, this.taskStateTracker));
       try {
@@ -635,8 +652,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
         LOG.error("Timed out while waiting for the service manager to start up", te);
         throw new RuntimeException(te);
       }
-
-      Configuration configuration = context.getConfiguration();
 
       // Setup and start metrics reporting if metric reporting is enabled
       if (Boolean.valueOf(

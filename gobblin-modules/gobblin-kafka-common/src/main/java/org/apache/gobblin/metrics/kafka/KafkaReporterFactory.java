@@ -94,8 +94,13 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
         KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(RootMetricContext.get(),
             properties);
 
-        Config kafkaConfig = ConfigUtils.getConfigOrEmpty(ConfigUtils.propertiesToConfig(properties),
-            PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX);
+        Config allConfig = ConfigUtils.propertiesToConfig(properties);
+        // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
+        // kafka config
+        Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig,
+            PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX).withFallback(ConfigUtils.getConfigOrEmpty(allConfig,
+            ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+
         builder.withConfig(kafkaConfig);
 
         builder.withPusherClassName(properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
