@@ -210,6 +210,7 @@ final class SafeDatasetCommit implements Callable<Void> {
       }
     }
     if (states.size() == 0) {
+      log.info("Will not submit lineage events");
       return;
     }
 
@@ -234,6 +235,7 @@ final class SafeDatasetCommit implements Callable<Void> {
 
   private void submitLineageEvent(Collection<TaskState> states) throws LineageException {
     Collection<LineageEventBuilder> events = LineageInfo.load(states);
+    log.info(String.format("Will submit %d lineage events", events.size()));
     // Send events
     events.forEach(event -> event.submit(metricContext));
   }

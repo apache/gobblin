@@ -95,7 +95,7 @@ public final class LineageInfo {
       log.warn("State has no lineage info but branch " + branchId + " puts a destination: " + GSON.toJson(destination));
       return;
     }
-
+    log.info(String.format("Put destination %s for branch %d", GSON.toJson(destination), branchId));
     synchronized (state.getProp(getKey(NAME_KEY))) {
       state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), GSON.toJson(destination));
     }
