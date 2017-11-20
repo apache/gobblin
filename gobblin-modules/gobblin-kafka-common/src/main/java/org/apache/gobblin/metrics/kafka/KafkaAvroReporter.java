@@ -25,13 +25,11 @@ import org.apache.avro.Schema;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.MetricReport;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
 import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
 import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -99,7 +97,9 @@ public class KafkaAvroReporter extends KafkaReporter {
     public KafkaAvroReporter build(String brokers, String topic, Properties props) throws IOException {
       this.brokers = brokers;
       this.topic = topic;
-      return new KafkaAvroReporter(this, ConfigUtils.propertiesToConfig(props, Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX)));
+
+      // create a KafkaAvroReporter with metrics.* and gobblin.kafka.sharedConfig.* keys
+      return new KafkaAvroReporter(this, KafkaReporter.getKafkaAndMetricsConfigFromProperties(props));
     }
   }
 }

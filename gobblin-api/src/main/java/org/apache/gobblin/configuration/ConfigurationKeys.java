@@ -205,6 +205,12 @@ public class ConfigurationKeys {
   public static final String DEFAULT_EVENT_METADATA_GENERATOR_CLASS_KEY = "noop";
 
   /**
+   * Configuration for dynamic configuration generation
+   */
+  public static final String DYNAMIC_CONFIG_GENERATOR_CLASS_KEY = "dynamicConfigGenerator.class";
+  public static final String DEFAULT_DYNAMIC_CONFIG_GENERATOR_CLASS_KEY = "noop";
+
+  /**
    * Configuration properties used internally.
    */
   public static final String JOB_ID_KEY = "job.id";
@@ -734,7 +740,7 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_KAFKA_SOURCE_SHARE_CONSUMER_CLIENT = false;
   public static final String KAFKA_SOURCE_AVG_FETCH_TIME_CAP = "kakfa.source.avgFetchTimeCap";
   public static final int DEFAULT_KAFKA_SOURCE_AVG_FETCH_TIME_CAP = 100;
-
+  public static final String SHARED_KAFKA_CONFIG_PREFIX = "gobblin.kafka.sharedConfig";
 
   /**
    * Job execution info server and history store configuration properties.

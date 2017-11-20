@@ -50,6 +50,8 @@ import org.apache.gobblin.util.JobLauncherUtils;
 public class JobLauncherTestHelper {
 
   public static final String SOURCE_FILE_LIST_KEY = "source.files";
+  public static final String DYNAMIC_KEY1 = "DynamicKey1";
+  public static final String DYNAMIC_VALUE1 = "DynamicValue1";
 
   private final StateStore<JobState.DatasetState> datasetStateStore;
   private final Properties launcherProps;
