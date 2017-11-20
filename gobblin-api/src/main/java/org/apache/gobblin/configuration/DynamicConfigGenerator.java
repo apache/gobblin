@@ -26,6 +26,8 @@ import com.typesafe.config.Config;
 public interface DynamicConfigGenerator {
   /**
    * Generate dynamic configuration that should be added to the job configuration.
+   * @param config configuration
+   * @return config object with the dynamic configuration
    */
-  Config generateDynamicConfig();
+  Config generateDynamicConfig(Config config);
 }

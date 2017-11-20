@@ -133,9 +133,10 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
     this.props.putAll(props);
 
     // load dynamic configuration and add them to the job properties
+    Config propsAsConfig = ConfigUtils.propertiesToConfig(props);
     DynamicConfigGenerator dynamicConfigGenerator =
-        DynamicConfigGeneratorFactory.createDynamicConfigGenerator(ConfigUtils.propertiesToConfig(props));
-    Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig();
+        DynamicConfigGeneratorFactory.createDynamicConfigGenerator(propsAsConfig);
+    Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig(propsAsConfig);
 
     // add the dynamic config to the job config
     for (Map.Entry<String, ConfigValue> entry : dynamicConfig.entrySet()) {

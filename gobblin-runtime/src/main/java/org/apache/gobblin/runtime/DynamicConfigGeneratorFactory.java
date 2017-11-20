@@ -44,9 +44,7 @@ public class DynamicConfigGeneratorFactory {
     try {
       ClassAliasResolver<DynamicConfigGenerator> aliasResolver =
           new ClassAliasResolver<>(DynamicConfigGenerator.class);
-      return GobblinConstructorUtils.invokeFirstConstructor(
-          aliasResolver.resolveClass(dynamicConfigGeneratorClassName),
-          Collections.singletonList(config));
+      return aliasResolver.resolveClass(dynamicConfigGeneratorClassName).newInstance();
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Could not construct DynamicConfigGenerator " +
           dynamicConfigGeneratorClassName, e);

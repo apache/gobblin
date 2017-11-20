@@ -381,11 +381,11 @@ public class MRJobLauncherTest extends BMNGRunner {
   }
 
   public static class TestDynamicConfigGenerator implements DynamicConfigGenerator {
-    public TestDynamicConfigGenerator(Config config) {
+    public TestDynamicConfigGenerator() {
     }
 
     @Override
-    public Config generateDynamicConfig() {
+    public Config generateDynamicConfig(Config config) {
       return ConfigFactory.parseMap(ImmutableMap.of(JobLauncherTestHelper.DYNAMIC_KEY1,
           JobLauncherTestHelper.DYNAMIC_VALUE1));
     }

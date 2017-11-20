@@ -633,9 +633,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       // load dynamic configuration to add to the job configuration
       Configuration configuration = context.getConfiguration();
+      Config jobStateAsConfig = ConfigUtils.propertiesToConfig(this.jobState.getProperties());
       DynamicConfigGenerator dynamicConfigGenerator = DynamicConfigGeneratorFactory.createDynamicConfigGenerator(
-          ConfigUtils.propertiesToConfig(this.jobState.getProperties()));
-      Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig();
+          jobStateAsConfig);
+      Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig(jobStateAsConfig);
 
       // add the dynamic config to the job config
       for (Map.Entry<String, ConfigValue> entry : dynamicConfig.entrySet()) {

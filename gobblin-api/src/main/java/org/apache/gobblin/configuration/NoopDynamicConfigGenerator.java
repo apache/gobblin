@@ -27,10 +27,10 @@ import org.apache.gobblin.annotation.Alias;
 @Alias("noop")
 public class NoopDynamicConfigGenerator implements DynamicConfigGenerator {
 
-  public NoopDynamicConfigGenerator(Config config) {
+  public NoopDynamicConfigGenerator() {
   }
 
-  public Config generateDynamicConfig() {
+  public Config generateDynamicConfig(Config config) {
     return ConfigFactory.empty();
   }
 }
