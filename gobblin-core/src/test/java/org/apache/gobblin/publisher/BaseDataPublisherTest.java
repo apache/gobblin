@@ -634,7 +634,7 @@ public class BaseDataPublisherTest {
     if (numBranches > 1) {
       for (int i = 0; i < numBranches; i++) {
         state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + "." + i, "/data/output" + "/branch" + i);
-        state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR+ "." + i, "/data/working" + "/branch" + i);
+        state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR + "." + i, "/data/working" + "/branch" + i);
       }
     }
 

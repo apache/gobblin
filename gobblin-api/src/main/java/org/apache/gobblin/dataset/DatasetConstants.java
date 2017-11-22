@@ -24,8 +24,12 @@ public class DatasetConstants {
   public static final String PLATFORM_HIVE = "hive";
   public static final String PLATFORM_MYSQL = "mysql";
 
+  /** Common metadata */
+  public static final String BRANCH = "branch";
+
   /** File system metadata */
   public static final String FS_URI = "fsUri";
+  public static final String EXAMPLE_DATA_DIR = "exampleDataDir";
 
   /** Kafka metadata */
   public static final String BROKERS = "brokers";

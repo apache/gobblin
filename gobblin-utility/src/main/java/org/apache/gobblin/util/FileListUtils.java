@@ -21,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Stack;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.fs.FileStatus;
@@ -55,6 +56,32 @@ public class FileListUtils {
       return true;
     }
   };
+
+  /**
+   * Get any data file, which is not a directory, from the given path
+   */
+  public static FileStatus getAnyFile(FileSystem fs, Path path) throws IOException {
+    FileStatus root = fs.getFileStatus(path);
+    if (!root.isDirectory()) {
+      return root;
+    }
+
+    // DFS to get the first data file
+    Stack<FileStatus> folders = new Stack<>();
+    folders.push(root);
+    while (!folders.empty()) {
+      FileStatus curFolder = folders.pop();
+      for (FileStatus status : fs.listStatus(curFolder.getPath())) {
+        if (status.isDirectory()) {
+          folders.push(status);
+        } else {
+          return status;
+        }
+      }
+    }
+
+    return null;
+  }
 
   public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path) throws IOException {
     return listFilesRecursively(fs, path, NO_OP_PATH_FILTER);

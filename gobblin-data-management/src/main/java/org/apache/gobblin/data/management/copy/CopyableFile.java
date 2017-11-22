@@ -52,6 +52,11 @@ import com.google.common.collect.Lists;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode(callSuper = true)
 public class CopyableFile extends CopyEntity implements File {
+  /**
+   * The source dataset the file belongs to. For now, since it's only used before copying, set it to be
+   * transient so that it won't be serialized, avoid unnecessary data transfer
+   */
+  private transient DatasetDescriptor sourceDataset;
 
   /** {@link FileStatus} of the existing origin file. */
   private FileStatus origin;

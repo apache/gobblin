@@ -61,9 +61,11 @@ import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metadata.MetadataMerger;
 import org.apache.gobblin.metadata.types.StaticStringMetadataMerger;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
+import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.FsDataWriter;
@@ -290,6 +292,18 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     FileSystem fs = this.publisherFileSystemByBranches.get(branchId);
     DatasetDescriptor destination = new DatasetDescriptor(fs.getScheme(), publisherOutputDir.toString());
     destination.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
+    destination.addMetadata(DatasetConstants.BRANCH, String.valueOf(branchId));
+    try {
+      FileStatus anyFile = FileListUtils.getAnyFile(fs, publisherOutputDir);
+      if (anyFile != null) {
+        destination.addMetadata(DatasetConstants.EXAMPLE_DATA_DIR,
+            PathUtils.getPathWithoutSchemeAndAuthority(anyFile.getPath()).getParent().toString());
+      } else {
+        LOG.info(String.format("No data file found at publish dir %s", publisherOutputDir.toString()));
+      }
+    } catch (IOException e) {
+      LOG.error("Fail to set example data file in destination descriptor", e);
+    }
     return destination;
   }
 

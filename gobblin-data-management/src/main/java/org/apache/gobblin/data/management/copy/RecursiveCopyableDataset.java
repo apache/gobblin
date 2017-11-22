@@ -20,6 +20,7 @@ package org.apache.gobblin.data.management.copy;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.PathUtils;
@@ -136,7 +137,6 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     List<CopyEntity> copyEntities = Lists.newArrayList();
     List<CopyableFile> copyableFiles = Lists.newArrayList();
-    DatasetDescriptor targetDataset = new DatasetDescriptor(targetFs.getScheme(), targetPath.toString());
 
     for (Path path : toCopy) {
       FileStatus file = filesInSource.get(path);
@@ -147,7 +147,14 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
           .ancestorsOwnerAndPermission(CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(this.fs,
               file.getPath().getParent(), nonGlobSearchPath, configuration))
           .build();
+
+      DatasetDescriptor source = new DatasetDescriptor(datasetDescriptor);
+      source.addMetadata(DatasetConstants.EXAMPLE_DATA_DIR, file.getPath().getParent().toString());
+      copyableFile.setSourceDataset(source);
+      DatasetDescriptor targetDataset = new DatasetDescriptor(targetFs.getScheme(), targetPath.toString());
+      targetDataset.addMetadata(DatasetConstants.EXAMPLE_DATA_DIR, thisTargetPath.getParent().toString());
       copyableFile.setDestDataset(targetDataset);
+
       copyableFiles.add(copyableFile);
     }
     copyEntities.addAll(this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles));

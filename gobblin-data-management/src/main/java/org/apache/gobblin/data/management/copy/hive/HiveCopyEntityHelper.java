@@ -766,6 +766,7 @@ public class HiveCopyEntityHelper {
   void setCopyableFileDestinationDataset(CopyableFile copyableFile) {
     DatasetDescriptor destination = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, this.getTargetDatabase() + "." + this.getTargetTable());
     destination.addMetadata(DatasetConstants.FS_URI, this.getTargetFs().getUri().toString());
+    copyableFile.setSourceDataset(dataset.getDatasetDescriptor());
     copyableFile.setDestDataset(destination);
   }
 }
