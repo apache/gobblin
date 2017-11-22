@@ -19,16 +19,32 @@ package org.apache.gobblin.cluster;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareCounter;
+import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.runtime.JobContext;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.api.JobExecutionLauncher;
+import org.apache.gobblin.runtime.listeners.AbstractJobListener;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Gauge;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -46,6 +62,9 @@ import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import org.apache.gobblin.scheduler.SchedulerService;
 
+import javax.annotation.Nonnull;
+import lombok.AllArgsConstructor;
+
 
 /**
  * An extension to {@link JobScheduler} that schedules and runs Gobblin jobs on Helix using
@@ -54,7 +73,7 @@ import org.apache.gobblin.scheduler.SchedulerService;
  * @author Yinan Li
  */
 @Alpha
-public class GobblinHelixJobScheduler extends JobScheduler {
+public class GobblinHelixJobScheduler extends JobScheduler implements StandardMetricsBridge{
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobScheduler.class);
 
@@ -70,6 +89,8 @@ public class GobblinHelixJobScheduler extends JobScheduler {
   private final List<? extends Tag<?>> metadataTags;
   private final ConcurrentHashMap<String, Boolean> jobRunningMap;
   private final MutableJobCatalog jobCatalog;
+  private final MetricContext metricContext;
+  private final InnerStandardMetrics metrics;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
       Path appWorkDir, List<? extends Tag<?>> metadataTags, SchedulerService schedulerService,
@@ -82,6 +103,136 @@ public class GobblinHelixJobScheduler extends JobScheduler {
     this.appWorkDir = appWorkDir;
     this.metadataTags = metadataTags;
     this.jobCatalog = jobCatalog;
+    this.metricContext = getDefaultMetricContext(properties);
+    this.metrics = new InnerStandardMetrics(this);
+  }
+
+  public MetricContext getDefaultMetricContext(Properties properties) {
+    org.apache.gobblin.configuration.State fakeState =
+        new org.apache.gobblin.configuration.State(properties);
+    List<Tag<?>> tags = new ArrayList<>();
+    MetricContext res = Instrumented.getMetricContext(fakeState, GobblinHelixJobScheduler.class, tags);
+    return res;
+  }
+
+  @Nonnull
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return GobblinMetrics.isEnabled(this.properties);
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
+    return null;
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public StandardMetricsBridge.StandardMetrics getStandardMetrics() {
+    return metrics;
+  }
+
+  private class InnerStandardMetrics implements StandardMetrics {
+
+    private final ContextAwareCounter numJobsLaunched;
+    private final ContextAwareCounter numJobsCompleted;
+    private final ContextAwareCounter numJobsCommitted;
+    private final ContextAwareCounter numJobsFailed;
+    private final ContextAwareCounter numJobsCancelled;
+    private final ContextAwareGauge<Integer> numJobsRunning;
+
+    public InnerStandardMetrics(final GobblinHelixJobScheduler jobScheduler) {
+      this.numJobsLaunched = jobScheduler.getMetricContext().contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED_COUNTER);
+      this.numJobsCompleted = jobScheduler.getMetricContext().contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED_COUNTER);
+      this.numJobsCommitted = jobScheduler.getMetricContext().contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED_COUNTER);
+      this.numJobsFailed = jobScheduler.getMetricContext().contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED_COUNTER);
+      this.numJobsCancelled = jobScheduler.getMetricContext().contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED_COUNTER);
+      this.numJobsRunning = jobScheduler.getMetricContext().newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING_GAUGE,
+          new Gauge<Integer>() {
+            @Override public Integer getValue() {
+              return (int)(InnerStandardMetrics.this.numJobsLaunched.getCount() -
+                  InnerStandardMetrics.this.numJobsCompleted.getCount();
+            }
+          });
+    }
+
+    @Override
+    public String getName() {
+      return GobblinHelixJobScheduler.class.getName();
+    }
+
+    @Override
+    public Collection<ContextAwareGauge<?>> getGauges() {
+      return Collections.singleton(numJobsRunning);
+    }
+
+    @Override
+    public Collection<ContextAwareCounter> getConters() {
+      List<ContextAwareCounter> counters = Lists.newArrayList();
+      counters.add(numJobsLaunched);
+      counters.add(numJobsCompleted);
+      counters.add(numJobsCommitted);
+      counters.add(numJobsFailed);
+      counters.add(numJobsCancelled);
+      return counters;
+    }
+
+    @Override
+    public Collection<ContextAwareCounter> getMeters() {
+      return null;
+    }
+  }
+
+  @AllArgsConstructor
+  private class InnerJobListener extends AbstractJobListener {
+    private final InnerStandardMetrics metrics;
+
+    @Override
+    public void onJobPrepare(JobContext jobContext)
+        throws Exception {
+      super.onJobPrepare(jobContext);
+      if (GobblinHelixJobScheduler.this.isInstrumentationEnabled()) {
+        metrics.numJobsLaunched.inc();
+      }
+    }
+
+    @Override
+    public void onJobCompletion(JobContext jobContext)
+        throws Exception {
+      super.onJobCompletion(jobContext);
+      if (GobblinHelixJobScheduler.this.isInstrumentationEnabled()) {
+        metrics.numJobsCompleted.inc();
+        if (jobContext.getJobState().getState() == JobState.RunningState.FAILED) {
+            metrics.numJobsFailed.inc();
+        } else {
+            metrics.numJobsCommitted.inc();
+        }
+      }
+    }
+
+    @Override
+    public void onJobCancellation(JobContext jobContext)
+        throws Exception {
+      super.onJobCancellation(jobContext);
+      if (GobblinHelixJobScheduler.this.isInstrumentationEnabled()) {
+        metrics.numJobsCancelled.inc();
+      }
+    }
+
   }
 
   @Override
@@ -132,10 +283,10 @@ public class GobblinHelixJobScheduler extends JobScheduler {
       jobConfig.putAll(newJobArrival.getJobConfig());
       if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         LOGGER.info("Scheduling job " + newJobArrival.getJobName());
-        scheduleJob(jobConfig, null);
+        scheduleJob(jobConfig, new InnerJobListener(metrics));
       } else {
         LOGGER.info("No job schedule found, so running job " + newJobArrival.getJobName());
-        this.jobExecutor.execute(new NonScheduledJobRunner(newJobArrival.getJobName(), jobConfig, null));
+        this.jobExecutor.execute(new NonScheduledJobRunner(newJobArrival.getJobName(), jobConfig, new InnerJobListener(metrics)));
       }
     } catch (JobException je) {
       LOGGER.error("Failed to schedule or run job " + newJobArrival.getJobName(), je);
