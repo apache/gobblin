@@ -32,6 +32,9 @@ import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 import lombok.Getter;
@@ -141,7 +144,17 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     }
 
     @Override
-    public Collection<ContextAwareCounter> getMeters() {
+    public Collection<ContextAwareMeter> getMeters() {
+      return null;
+    }
+
+    @Override
+    public Collection<ContextAwareTimer> getTimers() {
+      return null;
+    }
+
+    @Override
+    public Collection<ContextAwareHistogram> getHistograms() {
       return null;
     }
   }

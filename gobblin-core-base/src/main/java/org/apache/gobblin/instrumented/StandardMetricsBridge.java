@@ -21,6 +21,9 @@ import java.util.Collection;
 
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.ContextAwareTimer;
 
 
 public interface StandardMetricsBridge extends Instrumentable {
@@ -31,6 +34,8 @@ public interface StandardMetricsBridge extends Instrumentable {
     String getName();
     Collection<ContextAwareGauge<?>> getGauges();
     Collection<ContextAwareCounter> getConters();
-    Collection<ContextAwareCounter> getMeters();
+    Collection<ContextAwareMeter> getMeters();
+    Collection<ContextAwareTimer> getTimers();
+    Collection<ContextAwareHistogram> getHistograms();
   }
 }

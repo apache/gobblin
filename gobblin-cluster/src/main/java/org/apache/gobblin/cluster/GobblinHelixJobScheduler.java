@@ -31,6 +31,9 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.JobContext;
@@ -165,7 +168,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
           new Gauge<Integer>() {
             @Override public Integer getValue() {
               return (int)(InnerStandardMetrics.this.numJobsLaunched.getCount() -
-                  InnerStandardMetrics.this.numJobsCompleted.getCount();
+                  InnerStandardMetrics.this.numJobsCompleted.getCount());
             }
           });
     }
@@ -192,7 +195,17 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     }
 
     @Override
-    public Collection<ContextAwareCounter> getMeters() {
+    public Collection<ContextAwareMeter> getMeters() {
+      return null;
+    }
+
+    @Override
+    public Collection<ContextAwareTimer> getTimers() {
+      return null;
+    }
+
+    @Override
+    public Collection<ContextAwareHistogram> getHistograms() {
       return null;
     }
   }
