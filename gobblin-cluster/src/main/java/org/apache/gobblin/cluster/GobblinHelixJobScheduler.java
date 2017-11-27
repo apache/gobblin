@@ -27,22 +27,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareCounter;
-import org.apache.gobblin.metrics.ContextAwareGauge;
-import org.apache.gobblin.metrics.ContextAwareHistogram;
-import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.gobblin.metrics.ContextAwareTimer;
-import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.runtime.JobContext;
-import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.api.JobExecutionLauncher;
-import org.apache.gobblin.runtime.listeners.AbstractJobListener;
-import org.apache.hadoop.fs.Path;
-import org.apache.helix.HelixManager;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,16 +38,32 @@ import com.google.common.eventbus.Subscribe;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+
+import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
+import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
+import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.ContextAwareCounter;
+import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.ContextAwareTimer;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.JobContext;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.api.JobExecutionLauncher;
+import org.apache.gobblin.runtime.listeners.AbstractJobListener;
 import org.apache.gobblin.scheduler.JobScheduler;
-import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
-import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
-import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixManager;
 
 import javax.annotation.Nonnull;
 import lombok.AllArgsConstructor;
@@ -184,7 +184,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     }
 
     @Override
-    public Collection<ContextAwareCounter> getConters() {
+    public Collection<ContextAwareCounter> getCounters() {
       List<ContextAwareCounter> counters = Lists.newArrayList();
       counters.add(numJobsLaunched);
       counters.add(numJobsCompleted);
@@ -211,7 +211,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   }
 
   @AllArgsConstructor
-  private class InnerJobListener extends AbstractJobListener {
+  private class MetricsTracking extends AbstractJobListener {
     private final InnerStandardMetrics metrics;
 
     @Override
@@ -296,10 +296,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       jobConfig.putAll(newJobArrival.getJobConfig());
       if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         LOGGER.info("Scheduling job " + newJobArrival.getJobName());
-        scheduleJob(jobConfig, new InnerJobListener(metrics));
+        scheduleJob(jobConfig, new MetricsTracking(metrics));
       } else {
         LOGGER.info("No job schedule found, so running job " + newJobArrival.getJobName());
-        this.jobExecutor.execute(new NonScheduledJobRunner(newJobArrival.getJobName(), jobConfig, new InnerJobListener(metrics)));
+        this.jobExecutor.execute(new NonScheduledJobRunner(newJobArrival.getJobName(), jobConfig, new MetricsTracking(metrics)));
       }
     } catch (JobException je) {
       LOGGER.error("Failed to schedule or run job " + newJobArrival.getJobName(), je);

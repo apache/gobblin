@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.codahale.metrics.Gauge;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Service;
 
@@ -135,11 +136,8 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     }
 
     @Override
-    public Collection<ContextAwareCounter> getConters() {
-      List<ContextAwareCounter> counters = new ArrayList<>();
-      counters.add(this.numAddedJobs);
-      counters.add(this.numDeletedJobs);
-      counters.add(this.numUpdatedJobs);
+    public Collection<ContextAwareCounter> getCounters() {
+      List<ContextAwareCounter> counters = ImmutableList.of(numAddedJobs, numDeletedJobs, numDeletedJobs);
       return counters;
     }
 

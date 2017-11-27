@@ -25,7 +25,9 @@ import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 
-
+/**
+ * This interface indicates a class will expose its metrics to some external systems.
+ */
 public interface StandardMetricsBridge extends Instrumentable {
 
   StandardMetrics getStandardMetrics();
@@ -33,7 +35,7 @@ public interface StandardMetricsBridge extends Instrumentable {
   interface StandardMetrics {
     String getName();
     Collection<ContextAwareGauge<?>> getGauges();
-    Collection<ContextAwareCounter> getConters();
+    Collection<ContextAwareCounter> getCounters();
     Collection<ContextAwareMeter> getMeters();
     Collection<ContextAwareTimer> getTimers();
     Collection<ContextAwareHistogram> getHistograms();
