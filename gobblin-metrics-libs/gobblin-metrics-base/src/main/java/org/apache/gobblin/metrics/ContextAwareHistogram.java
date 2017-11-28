@@ -41,7 +41,7 @@ import org.apache.gobblin.metrics.metric.InnerMetric;
  *
  * @author Yinan Li
  */
-class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
+public class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
 
   @Delegate
   private final InnerHistogram innerHistogram;

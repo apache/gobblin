@@ -86,6 +86,8 @@ import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
+import lombok.Getter;
+
 
 /**
  * The central cluster manager for Gobblin Clusters.
@@ -140,8 +142,10 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
   private final boolean isStandaloneMode;
 
+  @Getter
   private MutableJobCatalog jobCatalog;
-
+  @Getter
+  private GobblinHelixJobScheduler jobScheduler;
   private final String clusterName;
   private final Config config;
 
@@ -193,9 +197,9 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
     SchedulerService schedulerService = new SchedulerService(properties);
     this.applicationLauncher.addService(schedulerService);
-    this.applicationLauncher.addService(
-        buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
-            schedulerService));
+    this.jobScheduler = buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
+        schedulerService);
+    this.applicationLauncher.addService(this.jobScheduler);
     this.applicationLauncher.addService(buildJobConfigurationManager(config));
   }
 
