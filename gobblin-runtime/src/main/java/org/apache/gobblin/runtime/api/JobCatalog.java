@@ -17,17 +17,25 @@
 package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import com.codahale.metrics.Gauge;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Service;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
 import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 import lombok.Getter;
@@ -36,7 +44,7 @@ import lombok.Getter;
  * A catalog of all the {@link JobSpec}s a Gobblin instance is currently aware of.
  */
 @Alpha
-public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable {
+public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable, StandardMetricsBridge {
   /** Returns an immutable {@link Collection} of {@link JobSpec}s that are known to the catalog. */
   Collection<JobSpec> getJobs();
 
@@ -44,13 +52,18 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
    * ({@link #isInstrumentationEnabled()}) is false. */
   StandardMetrics getMetrics();
 
+  @Override
+  default StandardMetrics getStandardMetrics() {
+    return getMetrics();
+  }
+
   /**
    * Get a {@link JobSpec} by uri.
    * @throws JobSpecNotFoundException if no such JobSpec exists
    **/
   JobSpec getJobSpec(URI uri) throws JobSpecNotFoundException;
 
-  public static class StandardMetrics implements JobCatalogListener {
+  public static class StandardMetrics implements JobCatalogListener, StandardMetricsBridge.StandardMetrics {
     public static final String NUM_ACTIVE_JOBS_NAME = "numActiveJobs";
     public static final String NUM_ADDED_JOBS = "numAddedJobs";
     public static final String NUM_DELETED_JOBS = "numDeletedJobs";
@@ -110,6 +123,37 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     public void onUpdateJob(JobSpec updatedJob) {
       this.numUpdatedJobs.inc();
       submitTrackingEvent(updatedJob, JOB_UPDATED_OPERATION_TYPE);
+    }
+
+    @Override
+    public String getName() {
+      return "JobCatalog";
+    }
+
+    @Override
+    public Collection<ContextAwareGauge<?>> getGauges() {
+      return Collections.singleton(this.numActiveJobs);
+    }
+
+    @Override
+    public Collection<ContextAwareCounter> getCounters() {
+      List<ContextAwareCounter> counters = ImmutableList.of(numAddedJobs, numDeletedJobs, numDeletedJobs);
+      return counters;
+    }
+
+    @Override
+    public Collection<ContextAwareMeter> getMeters() {
+      return null;
+    }
+
+    @Override
+    public Collection<ContextAwareTimer> getTimers() {
+      return null;
+    }
+
+    @Override
+    public Collection<ContextAwareHistogram> getHistograms() {
+      return null;
     }
   }
 }

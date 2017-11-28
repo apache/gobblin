@@ -43,6 +43,8 @@ public interface JobExecutionLauncher extends Instrumentable {
     public static final String NUM_JOBS_FAILED_COUNTER = "numJobsFailed";
     public static final String NUM_JOBS_CANCELLED_COUNTER = "numJobsCancelled";
     public static final String NUM_JOBS_RUNNING_GAUGE = "numJobsRunning";
+    public static final String TIMER_FOR_JOB_COMPLETION = "timerForJobCompletion";
+    public static final String TIMER_FOR_JOB_FAILURE = "timerForJobFailure";
 
     public static final String TRACKING_EVENT_NAME = "JobExecutionLauncherEvent";
     public static final String JOB_EXECID_META = "jobExecId";
