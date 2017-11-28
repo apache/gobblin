@@ -108,8 +108,6 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   protected final DbAndTable dbAndTable;
   protected final DbAndTable logicalDbAndTable;
 
-  private transient final DatasetDescriptor datasetDescriptor;
-
   public HiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties properties) {
     this(fs, clientPool, table, properties, ConfigFactory.empty());
   }
@@ -128,8 +126,6 @@ public class HiveDataset implements PrioritizedCopyableDataset {
         Optional.fromNullable(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
-    this.datasetDescriptor = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, tableIdentifier);
-    this.datasetDescriptor.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
 
     this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
     this.dbAndTable = new DbAndTable(table.getDbName(), table.getTableName());

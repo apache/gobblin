@@ -62,7 +62,7 @@ public class CopyableFile extends CopyEntity implements File {
   private FileStatus origin;
 
   /** The destination dataset the file will be copied to */
-  private DatasetDescriptor destDataset;
+  private DatasetDescriptor destinationDataset;
 
   /** Complete destination {@link Path} of the file. */
   private Path destination;

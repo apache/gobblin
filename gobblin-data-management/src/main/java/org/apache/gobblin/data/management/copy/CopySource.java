@@ -315,7 +315,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   private void addLineageInfo(CopyEntity copyEntity, WorkUnit workUnit) {
     if (copyEntity instanceof CopyableFile) {
       CopyableFile copyableFile = (CopyableFile) copyEntity;
-      if (copyableFile.getSourceDataset() != null && copyableFile.getDestDataset() != null) {
+      if (copyableFile.getSourceDataset() != null && copyableFile.getDestinationDataset() != null) {
         LineageInfo.setSource(copyableFile.getSourceDataset(), workUnit);
       }
     }

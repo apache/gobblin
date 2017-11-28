@@ -293,17 +293,6 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     DatasetDescriptor destination = new DatasetDescriptor(fs.getScheme(), publisherOutputDir.toString());
     destination.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
     destination.addMetadata(DatasetConstants.BRANCH, String.valueOf(branchId));
-    try {
-      FileStatus anyFile = FileListUtils.getAnyFile(fs, publisherOutputDir);
-      if (anyFile != null) {
-        destination.addMetadata(DatasetConstants.EXAMPLE_DATA_DIR,
-            PathUtils.getPathWithoutSchemeAndAuthority(anyFile.getPath()).getParent().toString());
-      } else {
-        LOG.info(String.format("No data file found at publish dir %s", publisherOutputDir.toString()));
-      }
-    } catch (IOException e) {
-      LOG.error("Fail to set example data file in destination descriptor", e);
-    }
     return destination;
   }
 

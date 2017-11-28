@@ -20,7 +20,6 @@ package org.apache.gobblin.data.management.copy;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
-import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.PathUtils;
@@ -43,8 +42,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import lombok.Getter;
 
 
 /**
@@ -70,9 +67,6 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   private final boolean update;
   private final boolean delete;
 
-  @Getter
-  private transient final DatasetDescriptor datasetDescriptor;
-
   // Include empty directories in the source for copy
   private final boolean includeEmptyDirectories;
   // Delete empty directories in the destination
@@ -84,7 +78,6 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     this.rootPath = PathUtils.getPathWithoutSchemeAndAuthority(rootPath);
     this.fs = fs;
-    this.datasetDescriptor = new DatasetDescriptor(fs.getScheme(), rootPath.toString());
 
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
     this.copyableFileFilter = DatasetUtils.instantiateCopyableFileFilter(properties);
@@ -148,12 +141,10 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
               file.getPath().getParent(), nonGlobSearchPath, configuration))
           .build();
 
-      DatasetDescriptor source = new DatasetDescriptor(datasetDescriptor);
-      source.addMetadata(DatasetConstants.EXAMPLE_DATA_DIR, file.getPath().getParent().toString());
+      DatasetDescriptor source = new DatasetDescriptor(this.fs.getScheme(), path.getParent().toString());
       copyableFile.setSourceDataset(source);
-      DatasetDescriptor targetDataset = new DatasetDescriptor(targetFs.getScheme(), targetPath.toString());
-      targetDataset.addMetadata(DatasetConstants.EXAMPLE_DATA_DIR, thisTargetPath.getParent().toString());
-      copyableFile.setDestDataset(targetDataset);
+      DatasetDescriptor targetDataset = new DatasetDescriptor(targetFs.getScheme(), thisTargetPath.getParent().toString());
+      copyableFile.setDestinationDataset(targetDataset);
 
       copyableFiles.add(copyableFile);
     }

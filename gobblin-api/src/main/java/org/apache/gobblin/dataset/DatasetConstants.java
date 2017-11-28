@@ -19,6 +19,7 @@ package org.apache.gobblin.dataset;
 
 public class DatasetConstants {
   /** Platforms */
+  public static final String PLATFORM_FILE = "file";
   public static final String PLATFORM_HDFS = "hdfs";
   public static final String PLATFORM_KAFKA = "kafka";
   public static final String PLATFORM_HIVE = "hive";
@@ -29,7 +30,6 @@ public class DatasetConstants {
 
   /** File system metadata */
   public static final String FS_URI = "fsUri";
-  public static final String EXAMPLE_DATA_DIR = "exampleDataDir";
 
   /** Kafka metadata */
   public static final String BROKERS = "brokers";

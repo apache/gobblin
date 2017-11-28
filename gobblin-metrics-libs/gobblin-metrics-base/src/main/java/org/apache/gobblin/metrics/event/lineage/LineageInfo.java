@@ -31,6 +31,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.DatasetResolver;
+import org.apache.gobblin.dataset.DatasetResolverFactory;
+import org.apache.gobblin.dataset.NoopDatasetResolver;
 
 
 /**
@@ -60,7 +63,6 @@ import org.apache.gobblin.dataset.DatasetDescriptor;
 @Slf4j
 public final class LineageInfo {
   private static final String BRANCH = "branch";
-
   private static final Gson GSON = new Gson();
   private static final String NAME_KEY = "name";
 
@@ -79,8 +81,10 @@ public final class LineageInfo {
    *
    */
   public static void setSource(DatasetDescriptor source, State state) {
-    state.setProp(getKey(NAME_KEY), source.getName());
-    state.setProp(getKey(LineageEventBuilder.SOURCE), GSON.toJson(source));
+    DatasetResolver resolver = getResolver(state);
+    DatasetDescriptor descriptor = resolver.resolve(source, state);
+    state.setProp(getKey(NAME_KEY), descriptor.getName());
+    state.setProp(getKey(LineageEventBuilder.SOURCE), GSON.toJson(descriptor));
   }
 
   /**
@@ -99,7 +103,9 @@ public final class LineageInfo {
     }
     log.debug(String.format("Put destination %s for branch %d", GSON.toJson(destination), branchId));
     synchronized (state.getProp(getKey(NAME_KEY))) {
-      state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), GSON.toJson(destination));
+      DatasetResolver resolver = getResolver(state);
+      DatasetDescriptor descriptor = resolver.resolve(destination, state);
+      state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), GSON.toJson(descriptor));
     }
   }
 
@@ -187,5 +193,22 @@ public final class LineageInfo {
     args[0] = LineageEventBuilder.LIENAGE_EVENT_NAMESPACE;
     System.arraycopy(objects, 0, args, 1, objects.length);
     return LineageEventBuilder.getKey(args);
+  }
+
+  private static DatasetResolver getResolver(State state) {
+    String resolverFactory = state.getProp(DatasetResolverFactory.CLASS);
+    if (resolverFactory == null) {
+      return NoopDatasetResolver.INSTANCE;
+    }
+
+    DatasetResolver resolver = NoopDatasetResolver.INSTANCE;
+    try {
+      DatasetResolverFactory factory = (DatasetResolverFactory) Class.forName(resolverFactory).newInstance();
+      resolver = factory.createResolver(state);
+    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+      log.error(String.format("Fail to create a DatasetResolver with factory class %s", resolverFactory));
+    }
+
+    return resolver;
   }
 }
