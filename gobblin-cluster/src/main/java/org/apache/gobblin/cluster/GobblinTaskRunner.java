@@ -480,10 +480,6 @@ public class GobblinTaskRunner {
         System.exit(1);
       }
 
-      Log4jConfigurationHelper.updateLog4jConfiguration(GobblinTaskRunner.class,
-          GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE,
-          GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE);
-
       LOGGER.info(JvmUtils.getJvmInputArguments());
 
       String applicationName = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME);

@@ -725,10 +725,6 @@ public class GobblinClusterManager implements ApplicationLauncher {
         isStandaloneClusterManager = Boolean.parseBoolean(cmd.getOptionValue(GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE, "false"));
       }
 
-      Log4jConfigurationHelper.updateLog4jConfiguration(GobblinClusterManager.class,
-          GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE,
-          GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE);
-
       LOGGER.info(JvmUtils.getJvmInputArguments());
       Config config = ConfigFactory.load();
 
