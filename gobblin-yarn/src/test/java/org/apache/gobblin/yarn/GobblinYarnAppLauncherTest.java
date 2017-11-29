@@ -18,6 +18,10 @@
 package org.apache.gobblin.yarn;
 
 import com.google.common.base.Predicate;
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -25,11 +29,19 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinHelixConstants;
+import org.apache.gobblin.cluster.HelixMessageTestBase;
+import org.apache.gobblin.cluster.HelixUtils;
+import org.apache.gobblin.cluster.TestHelper;
+import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -45,19 +57,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import com.google.common.io.Closer;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
-
-import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
-import org.apache.gobblin.cluster.GobblinHelixConstants;
-import org.apache.gobblin.cluster.HelixMessageTestBase;
-import org.apache.gobblin.cluster.HelixUtils;
-import org.apache.gobblin.cluster.TestHelper;
-import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
-import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 /**
@@ -75,6 +74,9 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  */
 @Test(groups = { "gobblin.yarn" }, singleThreaded=true)
 public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
+
+  public static final String DYNAMIC_CONF_PATH = "dynamic.conf";
+  public static final String YARN_SITE_XML_PATH = "yarn-site.xml";
   final Logger LOG = LoggerFactory.getLogger(GobblinYarnAppLauncherTest.class);
 
   private YarnClient yarnClient;
@@ -133,7 +135,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
     // the zk port is dynamically configured
-    try (PrintWriter pw = new PrintWriter("dynamic.conf")) {
+    try (PrintWriter pw = new PrintWriter(DYNAMIC_CONF_PATH)) {
       File dir = new File("target/dummydir");
 
       // dummy directory specified in configuration
@@ -144,7 +146,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     }
 
     // YARN config is dynamic and needs to be passed to other processes
-    try (OutputStream os = new FileOutputStream(new File("yarn-site.xml"))) {
+    try (OutputStream os = new FileOutputStream(new File(YARN_SITE_XML_PATH))) {
       clusterConf.writeXml(os);
     }
 
@@ -251,6 +253,9 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   @AfterClass
   public void tearDown() throws IOException, TimeoutException {
     try {
+      Files.deleteIfExists(Paths.get(DYNAMIC_CONF_PATH));
+      Files.deleteIfExists(Paths.get(YARN_SITE_XML_PATH));
+
       this.gobblinYarnAppLauncher.stopYarnClient();
 
       if (this.helixManager.isConnected()) {
