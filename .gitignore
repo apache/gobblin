@@ -52,3 +52,12 @@ gobblin.tar.gz
 *~
 metastore_db/
 GobblinKey_*.pem
+
+# generated nodeJs files
+node_modules/
+package-lock.json
+
+*.out
+
+# generated java files
+**/gen-java/
