@@ -163,7 +163,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
     this.fs = buildFileSystem(config);
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
-        : GobblinClusterUtils.getAppWorkDirPath(this.fs, clusterName, applicationId);
+        : GobblinClusterUtils.getAppWorkDirPathFromConfig(config, this.fs, clusterName, applicationId);
 
     initializeAppLauncherAndServices();
   }

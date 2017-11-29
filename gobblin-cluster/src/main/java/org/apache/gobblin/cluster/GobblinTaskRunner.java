@@ -160,7 +160,7 @@ public class GobblinTaskRunner {
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
 
     Path appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get() :
-        GobblinClusterUtils.getAppWorkDirPath(this.fs, applicationName, applicationId);
+        GobblinClusterUtils.getAppWorkDirPathFromConfig(config, this.fs, applicationName, applicationId);
 
     List<Service> services = Lists.newArrayList(taskExecutor, taskStateTracker,
         new JMXReportingService(ImmutableMap.of("task.executor" ,taskExecutor.getTaskExecutorQueueMetricSet())));
