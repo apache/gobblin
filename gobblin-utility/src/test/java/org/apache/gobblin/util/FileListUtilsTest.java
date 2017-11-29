@@ -44,28 +44,6 @@ public class FileListUtilsTest {
   private static final String TEST_FILE_NAME2 = "test2";
 
   @Test
-  public void testFindAnyFile() throws IOException {
-    FileSystem localFs = FileSystem.getLocal(new Configuration());
-    Path baseDir = new Path(FILE_UTILS_TEST_DIR, "anyFileDir");
-    try {
-      if (localFs.exists(baseDir)) {
-        localFs.delete(baseDir, true);
-      }
-      localFs.mkdirs(baseDir);
-      Path emptySubDir = new Path(baseDir, "emptySubDir");
-      localFs.mkdirs(emptySubDir);
-      Path dataDir = new Path(baseDir, "dataDir");
-      localFs.mkdirs(dataDir);
-      File dataFile = new File(dataDir.toString(), TEST_FILE_NAME1);
-      localFs.create(new Path(dataDir, TEST_FILE_NAME1));
-      FileStatus file = FileListUtils.getAnyFile(localFs, baseDir);
-      Assert.assertEquals(file.getPath().toString(), dataFile.toURI().toString());
-    } finally {
-      localFs.delete(baseDir, true);
-    }
-  }
-
-  @Test
   public void testListFilesRecursively() throws IOException {
     FileSystem localFs = FileSystem.getLocal(new Configuration());
     Path baseDir = new Path(FILE_UTILS_TEST_DIR, "fileListTestDir1");
