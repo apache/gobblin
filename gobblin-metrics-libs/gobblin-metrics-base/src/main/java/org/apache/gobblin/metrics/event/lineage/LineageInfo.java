@@ -186,16 +186,9 @@ public final class LineageInfo {
   }
 
   /**
-   * Prefix all keys with {@link LineageEventBuilder#LIENAGE_EVENT_NAMESPACE}
+   * Get the configured {@link DatasetResolver} from {@link State}
    */
-  private static String getKey(Object... objects) {
-    Object[] args = new Object[objects.length + 1];
-    args[0] = LineageEventBuilder.LIENAGE_EVENT_NAMESPACE;
-    System.arraycopy(objects, 0, args, 1, objects.length);
-    return LineageEventBuilder.getKey(args);
-  }
-
-  private static DatasetResolver getResolver(State state) {
+  public static DatasetResolver getResolver(State state) {
     String resolverFactory = state.getProp(DatasetResolverFactory.CLASS);
     if (resolverFactory == null) {
       return NoopDatasetResolver.INSTANCE;
@@ -210,5 +203,15 @@ public final class LineageInfo {
     }
 
     return resolver;
+  }
+
+  /**
+   * Prefix all keys with {@link LineageEventBuilder#LIENAGE_EVENT_NAMESPACE}
+   */
+  private static String getKey(Object... objects) {
+    Object[] args = new Object[objects.length + 1];
+    args[0] = LineageEventBuilder.LIENAGE_EVENT_NAMESPACE;
+    System.arraycopy(objects, 0, args, 1, objects.length);
+    return LineageEventBuilder.getKey(args);
   }
 }
