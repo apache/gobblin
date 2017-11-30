@@ -83,6 +83,10 @@ public final class LineageInfo {
   public static void setSource(DatasetDescriptor source, State state) {
     DatasetResolver resolver = getResolver(state);
     DatasetDescriptor descriptor = resolver.resolve(source, state);
+    if (descriptor == null) {
+      return;
+    }
+
     state.setProp(getKey(NAME_KEY), descriptor.getName());
     state.setProp(getKey(LineageEventBuilder.SOURCE), GSON.toJson(descriptor));
   }
@@ -105,6 +109,10 @@ public final class LineageInfo {
     synchronized (state.getProp(getKey(NAME_KEY))) {
       DatasetResolver resolver = getResolver(state);
       DatasetDescriptor descriptor = resolver.resolve(destination, state);
+      if (descriptor == null) {
+        return;
+      }
+
       state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), GSON.toJson(descriptor));
     }
   }
