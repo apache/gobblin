@@ -61,9 +61,11 @@ import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metadata.MetadataMerger;
 import org.apache.gobblin.metadata.types.StaticStringMetadataMerger;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
+import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.FsDataWriter;
@@ -280,6 +282,20 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     }
   }
 
+  private void addLineageInfo(WorkUnitState state, int branchId) {
+    DatasetDescriptor destination = createDestinationDescriptor(state, branchId);
+    LineageInfo.putDestination(destination, branchId, state);
+  }
+
+  protected DatasetDescriptor createDestinationDescriptor(WorkUnitState state, int branchId) {
+    Path publisherOutputDir = getPublisherOutputDir(state, branchId);
+    FileSystem fs = this.publisherFileSystemByBranches.get(branchId);
+    DatasetDescriptor destination = new DatasetDescriptor(fs.getScheme(), publisherOutputDir.toString());
+    destination.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
+    destination.addMetadata(DatasetConstants.BRANCH, String.valueOf(branchId));
+    return destination;
+  }
+
   @Override
   public void publishData(WorkUnitState state)
       throws IOException {
@@ -296,6 +312,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   private void publishSingleTaskData(WorkUnitState state, int branchId)
       throws IOException {
     publishData(state, branchId, true, new HashSet<Path>());
+    addLineageInfo(state, branchId);
   }
 
   @Override
@@ -329,16 +346,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   private void publishMultiTaskData(WorkUnitState state, int branchId, Set<Path> writerOutputPathsMoved)
       throws IOException {
     publishData(state, branchId, false, writerOutputPathsMoved);
-    DatasetDescriptor destination = createDestinationDescriptor(state, branchId);
-    LineageInfo.putDestination(destination, branchId, state);
-  }
-
-  protected DatasetDescriptor createDestinationDescriptor(WorkUnitState state, int branchId) {
-    Path publisherOutputDir = getPublisherOutputDir(state, branchId);
-    FileSystem fs = this.publisherFileSystemByBranches.get(branchId);
-    DatasetDescriptor destination = new DatasetDescriptor(fs.getScheme(), publisherOutputDir.toString());
-    destination.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
-    return destination;
+    addLineageInfo(state, branchId);
   }
 
   protected void publishData(WorkUnitState state, int branchId, boolean publishSingleTaskData,

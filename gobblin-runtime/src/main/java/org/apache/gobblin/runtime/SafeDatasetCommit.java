@@ -38,7 +38,6 @@ import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.event.lineage.LineageException;
 import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.FailureEventBuilder;
@@ -210,20 +209,19 @@ final class SafeDatasetCommit implements Callable<Void> {
       }
     }
     if (states.size() == 0) {
+      log.info("Will not submit lineage events as no state contains lineage info");
       return;
     }
 
     try {
       if (StringUtils.isEmpty(datasetUrn)) {
         // This dataset may contain different kinds of LineageEvent
-        for (Collection<TaskState> collection : aggregateByLineageEvent(states)) {
-          submitLineageEvent(collection);
+        for (Map.Entry<String, Collection<TaskState>> entry : aggregateByLineageEvent(states).entrySet()) {
+          submitLineageEvent(entry.getKey(), entry.getValue());
         }
       } else {
-        submitLineageEvent(states);
+        submitLineageEvent(datasetUrn, states);
       }
-    } catch (LineageException e) {
-      log.error("Lineage event submission failed due to :" + e.toString());
     } finally {
       // Purge lineage info from all states
       for (TaskState taskState : allStates) {
@@ -232,10 +230,11 @@ final class SafeDatasetCommit implements Callable<Void> {
     }
   }
 
-  private void submitLineageEvent(Collection<TaskState> states) throws LineageException {
+  private void submitLineageEvent(String dataset, Collection<TaskState> states) {
     Collection<LineageEventBuilder> events = LineageInfo.load(states);
     // Send events
     events.forEach(event -> event.submit(metricContext));
+    log.info(String.format("Submitted %d lineage events for dataset %s", events.size(), dataset));
   }
 
   /**
@@ -425,7 +424,7 @@ final class SafeDatasetCommit implements Callable<Void> {
         .withDatasetState(datasetState).build());
   }
 
-  private static Collection<Collection<TaskState>> aggregateByLineageEvent(Collection<TaskState> states) {
+  private static Map<String, Collection<TaskState>> aggregateByLineageEvent(Collection<TaskState> states) {
     Map<String, Collection<TaskState>> statesByEvents = Maps.newHashMap();
     for (TaskState state : states) {
       String eventName = LineageInfo.getFullEventName(state);
@@ -433,6 +432,6 @@ final class SafeDatasetCommit implements Callable<Void> {
       statesForEvent.add(state);
     }
 
-    return statesByEvents.values();
+    return statesByEvents;
   }
 }

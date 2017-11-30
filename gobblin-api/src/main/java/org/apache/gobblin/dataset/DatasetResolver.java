@@ -15,18 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.metrics.event.lineage;
+package org.apache.gobblin.dataset;
+
+import org.apache.gobblin.configuration.State;
+
 
 /**
- * A set of exceptions used by {@link LineageEventBuilder} when lineage information is serialized or deserialized.
+ * A {@link DatasetResolver} resolves job specific dataset
  */
-public class LineageException extends Exception {
-  public LineageException(String message) {
-    super(message);
-  }
-  public static class ConflictException extends LineageException {
-    public ConflictException(String branchId, LineageEventBuilder actual, LineageEventBuilder expect) {
-      super("Conflict LineageEvent: branchId=" + branchId + ", expected=" + expect.toString() + " actual=" + actual.toString());
-    }
-  }
+public interface DatasetResolver {
+  /**
+   * Given raw Gobblin dataset, resolve job specific dataset
+   *
+   * @param raw a dataset in terms of Gobblin
+   * @param state configuration that helps resolve job specific dataset
+   * @return resolved dataset for the job
+   */
+  DatasetDescriptor resolve(DatasetDescriptor raw, State state);
 }

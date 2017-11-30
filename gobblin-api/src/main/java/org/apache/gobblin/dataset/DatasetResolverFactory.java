@@ -17,23 +17,15 @@
 
 package org.apache.gobblin.dataset;
 
-public class DatasetConstants {
-  /** Platforms */
-  public static final String PLATFORM_FILE = "file";
-  public static final String PLATFORM_HDFS = "hdfs";
-  public static final String PLATFORM_KAFKA = "kafka";
-  public static final String PLATFORM_HIVE = "hive";
-  public static final String PLATFORM_MYSQL = "mysql";
+import org.apache.gobblin.configuration.State;
 
-  /** Common metadata */
-  public static final String BRANCH = "branch";
 
-  /** File system metadata */
-  public static final String FS_URI = "fsUri";
+/**
+ * A factory that creates an instance of {@link DatasetResolver}
+ */
+public interface DatasetResolverFactory {
+  String NAMESPACE = "DatasetResolverFactory";
+  String CLASS = NAMESPACE + "." + "class";
 
-  /** Kafka metadata */
-  public static final String BROKERS = "brokers";
-
-  /** JDBC metadata */
-  public static final String CONNECTION_URL = "connectionUrl";
+  DatasetResolver createResolver(State state);
 }
