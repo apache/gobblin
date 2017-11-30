@@ -19,16 +19,21 @@ package org.apache.gobblin.metrics.event.lineage;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.DatasetResolver;
+import org.apache.gobblin.dataset.DatasetResolverFactory;
+import org.apache.gobblin.dataset.NoopDatasetResolver;
 
 
 /**
@@ -57,8 +62,7 @@ import org.apache.gobblin.dataset.DatasetDescriptor;
  */
 @Slf4j
 public final class LineageInfo {
-  public static final String BRANCH = "branch";
-
+  private static final String BRANCH = "branch";
   private static final Gson GSON = new Gson();
   private static final String NAME_KEY = "name";
 
@@ -77,8 +81,14 @@ public final class LineageInfo {
    *
    */
   public static void setSource(DatasetDescriptor source, State state) {
-    state.setProp(getKey(NAME_KEY), source.getName());
-    state.setProp(getKey(LineageEventBuilder.SOURCE), GSON.toJson(source));
+    DatasetResolver resolver = getResolver(state);
+    DatasetDescriptor descriptor = resolver.resolve(source, state);
+    if (descriptor == null) {
+      return;
+    }
+
+    state.setProp(getKey(NAME_KEY), descriptor.getName());
+    state.setProp(getKey(LineageEventBuilder.SOURCE), GSON.toJson(descriptor));
   }
 
   /**
@@ -95,42 +105,32 @@ public final class LineageInfo {
       log.warn("State has no lineage info but branch " + branchId + " puts a destination: " + GSON.toJson(destination));
       return;
     }
-
+    log.debug(String.format("Put destination %s for branch %d", GSON.toJson(destination), branchId));
     synchronized (state.getProp(getKey(NAME_KEY))) {
-      state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), GSON.toJson(destination));
+      DatasetResolver resolver = getResolver(state);
+      DatasetDescriptor descriptor = resolver.resolve(destination, state);
+      if (descriptor == null) {
+        return;
+      }
+
+      state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), GSON.toJson(descriptor));
     }
   }
 
   /**
    * Load all lineage information from {@link State}s of a dataset
    *
-   * <p>
-   *   For a dataset, the same branch across different {@link State}s must be the same, as
-   *   the same branch means the same destination
-   * </p>
-   *
    * @param states All states which belong to the same dataset
    * @return A collection of {@link LineageEventBuilder}s put in the state
-   * @throws LineageException.ConflictException if two states have conflict lineage info
    */
-  public static Collection<LineageEventBuilder> load(Collection<? extends State> states)
-      throws LineageException {
+  public static Collection<LineageEventBuilder> load(Collection<? extends State> states) {
     Preconditions.checkArgument(states != null && !states.isEmpty());
-    final Map<String, LineageEventBuilder> resultEvents = Maps.newHashMap();
+    Set<LineageEventBuilder> allEvents = Sets.newHashSet();
     for (State state : states) {
       Map<String, LineageEventBuilder> branchedEvents = load(state);
-      for (Map.Entry<String, LineageEventBuilder> entry : branchedEvents.entrySet()) {
-        String branch = entry.getKey();
-        LineageEventBuilder event = entry.getValue();
-        LineageEventBuilder resultEvent = resultEvents.get(branch);
-        if (resultEvent == null) {
-          resultEvents.put(branch, event);
-        } else if (!resultEvent.equals(event)) {
-          throw new LineageException.ConflictException(branch, event, resultEvent);
-        }
-      }
+      allEvents.addAll(branchedEvents.values());
     }
-    return resultEvents.values();
+    return allEvents;
   }
 
   /**
@@ -162,7 +162,6 @@ public final class LineageInfo {
       switch (parts[1]) {
         case LineageEventBuilder.DESTINATION:
           DatasetDescriptor destination = GSON.fromJson(entry.getValue().toString(), DatasetDescriptor.class);
-          destination.addMetadata(BRANCH, branchId);
           event.setDestination(destination);
           break;
         default:
@@ -192,6 +191,26 @@ public final class LineageInfo {
    */
   public static String getFullEventName(State state) {
     return Joiner.on('.').join(LineageEventBuilder.LIENAGE_EVENT_NAMESPACE, state.getProp(getKey(NAME_KEY)));
+  }
+
+  /**
+   * Get the configured {@link DatasetResolver} from {@link State}
+   */
+  public static DatasetResolver getResolver(State state) {
+    String resolverFactory = state.getProp(DatasetResolverFactory.CLASS);
+    if (resolverFactory == null) {
+      return NoopDatasetResolver.INSTANCE;
+    }
+
+    DatasetResolver resolver = NoopDatasetResolver.INSTANCE;
+    try {
+      DatasetResolverFactory factory = (DatasetResolverFactory) Class.forName(resolverFactory).newInstance();
+      resolver = factory.createResolver(state);
+    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+      log.error(String.format("Fail to create a DatasetResolver with factory class %s", resolverFactory));
+    }
+
+    return resolver;
   }
 
   /**

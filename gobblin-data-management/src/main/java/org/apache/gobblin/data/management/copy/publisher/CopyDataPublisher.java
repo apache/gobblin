@@ -214,7 +214,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
           if (!fileSetRoot.isPresent() && copyableFile.getDatasetOutputPath() != null) {
             fileSetRoot = Optional.of(copyableFile.getDatasetOutputPath());
           }
-          LineageInfo.putDestination(copyableFile.getDestDataset(), 0, wus);
+          LineageInfo.putDestination(copyableFile.getDestinationDataset(), 0, wus);
         }
         if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
           datasetOriginTimestamp = copyableFile.getOriginTimestamp();

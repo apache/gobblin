@@ -65,7 +65,6 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import org.apache.gobblin.source.extractor.Extractor;
@@ -300,7 +299,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           setWorkUnitWatermark(workUnit, watermarkGenerator, copyEntity);
           computeAndSetWorkUnitGuid(workUnit);
           workUnitsForPartition.add(workUnit);
-          addLineageInfo(copyEntity, copyableDataset, workUnit);
+          addLineageInfo(copyEntity, workUnit);
         }
 
         this.workUnitList.putAll(this.fileSet, workUnitsForPartition);
@@ -313,9 +312,17 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     }
   }
 
-  private void addLineageInfo(CopyEntity copyEntity, CopyableDatasetBase copyableDataset, WorkUnit workUnit) {
-    if (copyEntity instanceof CopyableFile && copyableDataset.getDatasetDescriptor() != null) {
-      LineageInfo.setSource(copyableDataset.getDatasetDescriptor(), workUnit);
+  private void addLineageInfo(CopyEntity copyEntity, WorkUnit workUnit) {
+    if (copyEntity instanceof CopyableFile) {
+      CopyableFile copyableFile = (CopyableFile) copyEntity;
+      /*
+       * In Gobblin Distcp, the source and target path info of a CopyableFile are determined by its dataset found by
+       * a DatasetFinder. Consequently, the source and destination dataset for the CopyableFile lineage are expected
+       * to be set by the same logic
+       */
+      if (copyableFile.getSourceDataset() != null && copyableFile.getDestinationDataset() != null) {
+        LineageInfo.setSource(copyableFile.getSourceDataset(), workUnit);
+      }
     }
   }
 
