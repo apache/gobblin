@@ -315,6 +315,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   private void addLineageInfo(CopyEntity copyEntity, WorkUnit workUnit) {
     if (copyEntity instanceof CopyableFile) {
       CopyableFile copyableFile = (CopyableFile) copyEntity;
+      /*
+       * In Gobblin Distcp, the source and target path info of a CopyableFile are determined by its dataset found by
+       * a DatasetFinder. Consequently, the source and destination dataset for the CopyableFile lineage are expected
+       * to be set by the same logic
+       */
       if (copyableFile.getSourceDataset() != null && copyableFile.getDestinationDataset() != null) {
         LineageInfo.setSource(copyableFile.getSourceDataset(), workUnit);
       }

@@ -20,6 +20,7 @@ package org.apache.gobblin.data.management.copy;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.PathUtils;
@@ -141,10 +142,22 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
               file.getPath().getParent(), nonGlobSearchPath, configuration))
           .build();
 
-      DatasetDescriptor source = new DatasetDescriptor(this.fs.getScheme(), path.getParent().toString());
+      /*
+       * By default, the raw Gobblin dataset for CopyableFile lineage is its parent folder
+       * if itself is not a folder
+       */
+      boolean isDir = file.isDirectory();
+
+      Path fullSourcePath = Path.getPathWithoutSchemeAndAuthority(file.getPath());
+      String sourceDataset = isDir ? fullSourcePath.toString() : fullSourcePath.getParent().toString();
+      DatasetDescriptor source = new DatasetDescriptor(this.fs.getScheme(), sourceDataset);
+      source.addMetadata(DatasetConstants.FS_URI, this.fs.getUri().toString());
       copyableFile.setSourceDataset(source);
-      DatasetDescriptor targetDataset = new DatasetDescriptor(targetFs.getScheme(), thisTargetPath.getParent().toString());
-      copyableFile.setDestinationDataset(targetDataset);
+
+      String destinationDataset = isDir ? thisTargetPath.toString() : thisTargetPath.getParent().toString();
+      DatasetDescriptor destination = new DatasetDescriptor(targetFs.getScheme(), destinationDataset);
+      destination.addMetadata(DatasetConstants.FS_URI, targetFs.getUri().toString());
+      copyableFile.setDestinationDataset(destination);
 
       copyableFiles.add(copyableFile);
     }
