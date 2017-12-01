@@ -22,7 +22,6 @@ import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
-import org.apache.gobblin.testing.AssertWithBackoff;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,19 +29,18 @@ import java.net.URL;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
@@ -56,9 +54,12 @@ import org.testng.annotations.Test;
  *   shutdown request message.
  * </p>
  */
-// @Test(groups = { "gobblin.cluster" }, singleThreaded = true)
+// The kill tests are unreliable on Travis
+// Disabled GobblinClusterKillTest until reliability improves
+@Test(groups = {"disabledOnTravis"}, singleThreaded = true)
 public class GobblinClusterKillTest {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinClusterKillTest.class);
+  public static final String CLASS_NAME_BASED_PATH = "org/apache/gobblin/util/test/HelloWorldSource";
 
   private TestingServer _testingZKServer;
 
@@ -140,7 +141,7 @@ public class GobblinClusterKillTest {
     _workerStartThreads[id].start();
   }
 
-  // @BeforeClass
+  @BeforeMethod
   public void setUp() throws Exception {
     // Use a random ZK port
     _testingZKServer = new TestingServer(-1);
@@ -176,12 +177,7 @@ public class GobblinClusterKillTest {
     }
   }
 
-  // The kill tests are unreliable on Travis
-  // Disabled GobblinClusterKillTest until reliability improves
-  // @Test(groups = { "disabledOnTravis" })
-  public void testKillWorker() throws TimeoutException, InterruptedException {
-    Collection<File> matches = Collections.EMPTY_LIST;
-
+  public void testKillWorker() throws Exception {
     final File testJobFile = new File(_jobDirPath + "/GobblinClusterKillTestJob.conf");
 
     // Job file should exist
@@ -230,11 +226,6 @@ public class GobblinClusterKillTest {
   // Disabled GobblinClusterKillTest until reliability improves
   // @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testKillWorker")
   public void testKillManager() throws IOException, TimeoutException, InterruptedException {
-    Collection<File> matches = Collections.EMPTY_LIST;
-
-    // reinitialize test directory
-    setupTestDir();
-
     // kill a manager to cause leader election. New leader will schedule a new job.
     _clusterManagers[0].disconnectHelixManager();
 
@@ -276,9 +267,7 @@ public class GobblinClusterKillTest {
   // Disabled GobblinClusterKillTest until reliability improves
   // @Test(groups = { "disabledOnTravis" }, enabled=true, dependsOnMethods = "testKillManager")
   public void testRestartManager() throws IOException, TimeoutException, InterruptedException {
-    Collection<File> matches = Collections.EMPTY_LIST;
-    // reinitialize test directory
-    setupTestDir();
+    _clusterManagers[0].disconnectHelixManager();
 
     // At this point there is one connected manager. Disconnect it and reconnect the other one to confirm that a manager
     // can continue to function after regaining leadership.
@@ -322,7 +311,7 @@ public class GobblinClusterKillTest {
         }, "Waiting for job-completion");
   }
 
-  // @AfterClass
+  @AfterMethod
   public void tearDown() throws IOException, InterruptedException {
 
     for (int i = 0; i < NUM_MANAGERS; i++) {
@@ -370,11 +359,13 @@ public class GobblinClusterKillTest {
    * @return a {@link File} if directory found, otherwise null
    */
   private File getWriterOutputDir() {
-    File writerOutputJobDir = getFileFromGlob(_testDirPath + "/writer-output", "job*");
+    File writerOutputJobDir = getFileFromGlob(
+        _testDirPath + "/writer-output/GobblinClusterKillTestJob", "job*");
     File writerOutputDir = null;
 
     if (writerOutputJobDir != null) {
-      writerOutputDir = new File(writerOutputJobDir, "gobblin/util/test/HelloWorldSource");
+      writerOutputDir = new File(writerOutputJobDir,
+          CLASS_NAME_BASED_PATH);
     }
 
     return writerOutputDir;
@@ -385,7 +376,8 @@ public class GobblinClusterKillTest {
    * @return a {@link File} if directory found, otherwise null
    */
   private File getJobOutputDir() {
-    return getFileFromGlob(_testDirPath + "/job-output/gobblin/util/test/HelloWorldSource/",
+    return getFileFromGlob(
+        _testDirPath + "/job-output/" + CLASS_NAME_BASED_PATH,
         "*_append");
   }
 }
