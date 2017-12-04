@@ -136,7 +136,7 @@ public class ClusterIntegrationTest {
     Map<String, String> configMap = new HashMap<>();
     String zkConnectionString = _testingZKServer.getConnectString();
     configMap.put(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY, zkConnectionString);
-    configMap.put(GobblinClusterConfigurationKeys.CLUSTRER_WORK_DIR, _workPath.toString());
+    configMap.put(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR, _workPath.toString());
     Config config = ConfigFactory.parseMap(configMap);
     return config;
   }
