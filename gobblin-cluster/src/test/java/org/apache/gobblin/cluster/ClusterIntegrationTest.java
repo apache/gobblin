@@ -34,11 +34,6 @@
 
 package org.apache.gobblin.cluster;
 
-
-import com.google.common.base.Optional;
-import com.google.common.io.Resources;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,13 +44,20 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
-import org.apache.gobblin.testing.AssertWithBackoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
+import com.google.common.io.Resources;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 public class ClusterIntegrationTest {
