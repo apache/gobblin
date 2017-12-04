@@ -25,12 +25,16 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import java.util.regex.Pattern;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
@@ -46,6 +50,7 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -56,6 +61,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.thrift.TException;
 
 
 /**
@@ -83,6 +89,34 @@ public class TokenUtils {
   private static final String KERBEROS_REALM = "kerberos.realm";
 
   /**
+   * the key that will be used to set proper signature for each of the hcat token when multiple hcat
+   * tokens are required to be fetched.
+   */
+  private static final String HIVE_TOKEN_SIGNATURE_KEY = "hive.metastore.token.signature";
+
+  /**
+   * Get Hadoop tokens (tokens for job history server, job tracker and HDFS) using Kerberos keytab.
+   *
+   * @param tokenFile The file that will finally store materialized credentials.
+   * @param ugi The {@link UserGroupInformation} that to be added with negotiated credentials.
+   * @param
+   * @return A {@link UserGroupInformation} containing negotiated credentials.
+   */
+  public static UserGroupInformation getHadoopAndHiveTokens(final State state, File tokenFile, UserGroupInformation ugi,
+      IMetaStoreClient client, String targetUser) throws IOException, InterruptedException {
+    getHadoopTokens(state, tokenFile);
+    Credentials cred = Credentials.readTokenStorageFile(new Path(tokenFile.toURI()), new Configuration());
+    getHiveToken(client, cred, targetUser, ugi);
+    LOG.info("[getHadoopAndHiveTokens] How many in the original cred:" + cred.getAllTokens().size() );
+//    for (final Token<? extends TokenIdentifier> t : cred.getAllTokens()) {
+//      ugi.addToken(t);
+//    }
+    LOG.info("[getHadoopAndHiveTokens] UGI:" + ugi);
+    LOG.info("[getHadoopAndHiveTokens] How many tokens" + ugi.getTokens().size());
+    return ugi;
+  }
+
+  /**
    * Get Hadoop tokens (tokens for job history server, job tracker and HDFS) using Kerberos keytab.
    *
    * @param state A {@link State} object that should contain property {@link #USER_TO_PROXY},
@@ -90,7 +124,7 @@ public class TokenUtils {
    * other namenodes, use property {@link #OTHER_NAMENODES} with comma separated HDFS URIs.
    * @return A {@link File} containing the negotiated credentials.
    */
-  public static File getHadoopTokens(final State state) throws IOException, InterruptedException {
+  public static File getHadoopTokens(final State state, File tokenFile) throws IOException, InterruptedException {
 
     Preconditions.checkArgument(state.contains(KEYTAB_USER), "Missing required property " + KEYTAB_USER);
     Preconditions.checkArgument(state.contains(KEYTAB_LOCATION), "Missing required property " + KEYTAB_LOCATION);
@@ -110,9 +144,7 @@ public class TokenUtils {
     getJhToken(conf, cred);
     getFsAndJtTokens(state, conf, userToProxy, cred);
 
-    File tokenFile = File.createTempFile("mr-azkaban", ".token");
     persistTokens(cred, tokenFile);
-
     return tokenFile;
   }
 
@@ -130,6 +162,87 @@ public class TokenUtils {
     } else {
       return state.getProp(KEYTAB_USER);
     }
+  }
+
+  /**
+   *
+   * @param userToProxy The user that hiveClient is impersonating as to fetch the delegation tokens.
+   * @param ugi The {@link UserGroupInformation} that to be added with negotiated credentials.
+   */
+  private static void getHiveToken(IMetaStoreClient hiveClient, Credentials cred, final String userToProxy,
+      UserGroupInformation ugi) {
+    try {
+      // Fetch and save the default hcat token.
+      LOG.info("Pre-fetching default Hive MetaStore token from hive");
+      HiveConf hiveConf = new HiveConf();
+
+      Token<DelegationTokenIdentifier> hcatToken = fetchHcatToken(userToProxy, hiveConf, null, hiveClient);
+      cred.addToken(hcatToken.getService(), hcatToken);
+      ugi.addToken(hcatToken);
+
+      // Fetch extra Hcat location user specified.
+      final List<String> extraHcatLocations = Arrays.asList("thrift://ltx1-holdemhcat01.grid.linkedin.com:7552");
+      if (Collections.EMPTY_LIST != extraHcatLocations) {
+        LOG.info("Need to pre-fetch extra metaStore tokens from hive.");
+
+        // start to process the user inputs.
+        for (final String thriftUrl : extraHcatLocations) {
+          LOG.info("Pre-fetching metaStore token from : " + thriftUrl);
+
+          hiveConf = new HiveConf();
+          hiveConf.set(HiveConf.ConfVars.METASTOREURIS.varname, thriftUrl);
+          hcatToken = fetchHcatToken(userToProxy, hiveConf, thriftUrl, hiveClient);
+          cred.addToken(hcatToken.getService(), hcatToken);
+          ugi.addToken(hcatToken);
+        }
+      }
+    } catch (final Throwable t) {
+      final String message = "Failed to get hive metastore token." + t.getMessage() + t.getCause();
+      LOG.error(message, t);
+      throw new RuntimeException(message);
+    }
+  }
+
+  /**
+   * function to fetch hcat token as per the specified hive configuration and then store the token
+   * in to the credential store specified .
+   *
+   * @param userToProxy String value indicating the name of the user the token will be fetched for.
+   * @param hiveConf the configuration based off which the hive client will be initialized.
+   */
+  private static Token<DelegationTokenIdentifier> fetchHcatToken(final String userToProxy, final HiveConf hiveConf,
+      final String tokenSignatureOverwrite, final IMetaStoreClient hiveClient)
+      throws IOException, TException, InterruptedException {
+
+    LOG.info(HiveConf.ConfVars.METASTOREURIS.varname + ": " + hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname));
+
+    LOG.info(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname + ": " + hiveConf.get(
+        HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname));
+
+    LOG.info(HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL.varname + ": " + hiveConf.get(
+        HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL.varname));
+
+    final Token<DelegationTokenIdentifier> hcatToken = new Token<>();
+
+    LOG.info(UserGroupInformation.getCurrentUser().toString());
+
+    hcatToken.decodeFromUrlString(
+        hiveClient.getDelegationToken(userToProxy, UserGroupInformation.getLoginUser().getShortUserName()));
+
+    // overwrite the value of the service property of the token if the signature
+    // override is specified.
+    // If the service field is set, do not overwrite that
+    if (hcatToken.getService().getLength() <= 0 && tokenSignatureOverwrite != null
+        && tokenSignatureOverwrite.trim().length() > 0) {
+      hcatToken.setService(new Text(tokenSignatureOverwrite.trim().toLowerCase()));
+
+      LOG.info(HIVE_TOKEN_SIGNATURE_KEY + ":" + (tokenSignatureOverwrite == null ? "" : tokenSignatureOverwrite));
+    }
+
+    LOG.info("Created hive metastore token.");
+    LOG.info("Token kind: " + hcatToken.getKind());
+    LOG.info("Token service: " + hcatToken.getService());
+    return hcatToken;
   }
 
   private static void getJhToken(Configuration conf, Credentials cred) throws IOException {

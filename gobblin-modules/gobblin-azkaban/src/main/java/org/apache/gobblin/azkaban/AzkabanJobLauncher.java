@@ -171,7 +171,10 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
       // see javadoc for more information
       LOG.info(String.format("Job type %s does not provide Hadoop tokens. Negotiating Hadoop tokens.",
           props.getProperty(JOB_TYPE)));
-      File tokenFile = TokenUtils.getHadoopTokens(new State(props));
+
+      File tokenFile = File.createTempFile("mr-azkaban", ".token");
+      TokenUtils.getHadoopTokens(new State(props), tokenFile);
+
       System.setProperty(HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
       System.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
       this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
