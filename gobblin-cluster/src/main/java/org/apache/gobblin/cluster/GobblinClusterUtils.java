@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
-import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTRER_WORK_DIR;
+import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
 
 import com.typesafe.config.Config;
 import java.net.InetAddress;
@@ -54,8 +54,8 @@ public class GobblinClusterUtils {
 
   public static Path getAppWorkDirPathFromConfig(Config config, FileSystem fs,
       String applicationName, String applicationId) {
-    if (config.hasPath(CLUSTRER_WORK_DIR)) {
-      return new Path(config.getString(CLUSTRER_WORK_DIR));
+    if (config.hasPath(CLUSTER_WORK_DIR)) {
+      return new Path(config.getString(CLUSTER_WORK_DIR));
     }
     return new Path(fs.getHomeDirectory(), getAppWorkDirPath(applicationName, applicationId));
   }
