@@ -69,7 +69,6 @@ public class ClusterIntegrationTest {
   private URL _jobConfResourceUrl;
   private TestingServer _testingZKServer;
   private GobblinTaskRunner _worker;
-  private Thread _workerThread;
   private GobblinClusterManager _manager;
 
 
@@ -180,8 +179,8 @@ public class ClusterIntegrationTest {
 
     // Need to run in another thread since the start call will not return until the stop method
     // is called.
-    _workerThread = new Thread(_worker::start);
-    _workerThread.start();
+    Thread workerThread = new Thread(_worker::start);
+    workerThread.start();
   }
 
   private void startManager() throws Exception {
@@ -193,14 +192,9 @@ public class ClusterIntegrationTest {
   }
 
   private void shutdownCluster() throws InterruptedException, IOException {
-    stopWorker();
+    _worker.stop();
     _manager.stop();
     _testingZKServer.close();
-  }
-
-  private void stopWorker() throws InterruptedException {
-    _worker.stop();
-    _workerThread.join();
   }
 
   private void waitForAndVerifyOutputFiles() throws Exception {
