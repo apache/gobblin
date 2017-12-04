@@ -38,7 +38,8 @@ public class KafkaWriterConfigurationKeys {
    * Kafka producer configurations will be passed through as is as long as they are prefixed
    * by the PREFIX specified below.
    */
-  public static final String KAFKA_PRODUCER_CONFIG_PREFIX = "writer.kafka.producerConfig.";
+  public static final String KAFKA_PRODUCER_CONFIG_PREFIX_NO_DOT = "writer.kafka.producerConfig";
+  public static final String KAFKA_PRODUCER_CONFIG_PREFIX = KAFKA_PRODUCER_CONFIG_PREFIX_NO_DOT + ".";
 
   /** Kafka producer scoped configuration keys go here **/
   static final String KEY_SERIALIZER_CONFIG = "key.serializer";
