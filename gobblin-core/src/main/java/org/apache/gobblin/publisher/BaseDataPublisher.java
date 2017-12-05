@@ -54,6 +54,7 @@ import com.typesafe.config.ConfigRenderOptions;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.DatasetConstants;
@@ -109,6 +110,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
   protected final Set<Path> publisherOutputDirs = Sets.newHashSet();
+  protected final Optional<LineageInfo> lineageInfo;
 
   /* Each partition in each branch may have separate metadata. The metadata mergers are responsible
    * for aggregating this information from all workunits so it can be published.
@@ -142,6 +144,15 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     // Add all job configuration properties so they are picked up by Hadoop
     for (String key : this.getState().getPropertyNames()) {
       conf.set(key, this.getState().getProp(key));
+    }
+
+    // Extract LineageInfo from state
+    if (state instanceof SourceState) {
+      lineageInfo = LineageInfo.getLineageInfo(((SourceState) state).getBroker());
+    } else if (state instanceof WorkUnitState) {
+      lineageInfo = LineageInfo.getLineageInfo(((WorkUnitState) state).getTaskBrokerNullable());
+    } else {
+      lineageInfo = Optional.absent();
     }
 
     this.numBranches = this.getState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
@@ -284,7 +295,9 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   private void addLineageInfo(WorkUnitState state, int branchId) {
     DatasetDescriptor destination = createDestinationDescriptor(state, branchId);
-    LineageInfo.putDestination(destination, branchId, state);
+    if (this.lineageInfo.isPresent()) {
+      this.lineageInfo.get().putDestination(destination, branchId, state);
+    }
   }
 
   protected DatasetDescriptor createDestinationDescriptor(WorkUnitState state, int branchId) {

@@ -45,6 +45,8 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.broker.SharedNameKey;
+import org.apache.gobblin.broker.SimpleScopeType;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
@@ -57,6 +59,8 @@ import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.metastore.JobHistoryStore;
 import org.apache.gobblin.metastore.MetaStoreModule;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.broker.LineageInfoFactory;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.runtime.JobState.DatasetState;
 import org.apache.gobblin.runtime.commit.FsCommitSequenceStore;
@@ -152,6 +156,7 @@ public class JobContext implements Closeable {
     this.jobState =
         new JobState(jobPropsState, this.datasetStateStore.getLatestDatasetStatesByUrns(this.jobName), this.jobName,
             this.jobId);
+    this.jobState.setBroker(this.jobBroker);
 
     stagingDirProvided = this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR);
     outputDirProvided = this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR);

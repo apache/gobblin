@@ -65,6 +65,8 @@ public class MysqlSource extends QueryBasedSource<JsonArray, JsonElement> {
     DatasetDescriptor source =
         new DatasetDescriptor(DatasetConstants.PLATFORM_MYSQL, database + "." + entity.getSourceEntityName());
     source.addMetadata(DatasetConstants.CONNECTION_URL, connectionUrl);
-    LineageInfo.setSource(source, workUnit);
+    if (lineageInfo.isPresent()) {
+      lineageInfo.get().setSource(source, workUnit);
+    }
   }
 }

@@ -15,16 +15,42 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.dataset;
+package org.apache.gobblin.broker;
 
-import com.typesafe.config.Config;
+import org.apache.gobblin.broker.iface.SharedResourceKey;
+
 
 /**
- * A factory that creates an instance of {@link DatasetResolver}
+ * A {@link SharedResourceKey} with only a string name
  */
-public interface DatasetResolverFactory {
-  /**
-   * Create a {@link DatasetResolver} instance
-   */
-  DatasetResolver createResolver(Config config);
+public class SharedNameKey implements SharedResourceKey {
+  private final String name;
+
+  public SharedNameKey(String name) {
+    this.name = name;
+  }
+
+  @Override
+  public String toConfigurationKey() {
+    return name;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    SharedNameKey that = (SharedNameKey) o;
+
+    return name != null ? name.equals(that.name) : that.name == null;
+  }
+
+  @Override
+  public int hashCode() {
+    return name != null ? name.hashCode() : 0;
+  }
 }
