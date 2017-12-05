@@ -53,7 +53,7 @@
       <emptyLine />
       <package name="" withSubpackages="true" static="false" />
       <emptyLine />
-      <package name="gobblin" withSubpackages="true" static="false" />
+      <package name="org.apache.gobblin" withSubpackages="true" static="false" />
       <emptyLine />
       <package name="" withSubpackages="true" static="true" />
     </value>
