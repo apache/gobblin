@@ -113,8 +113,8 @@ public class TokenUtils {
    * @param targetUser The user to be impersonated as for fetching hadoop tokens.
    * @return A {@link UserGroupInformation} containing negotiated credentials.
    */
-  public static UserGroupInformation getHadoopAndHiveTokens(final State state, File tokenFile, UserGroupInformation ugi,
-      IMetaStoreClient client, String targetUser) throws IOException, InterruptedException {
+  public static UserGroupInformation getHadoopAndHiveTokensForProxyUser(final State state, File tokenFile,
+      UserGroupInformation ugi, IMetaStoreClient client, String targetUser) throws IOException, InterruptedException {
     ugi.doAs(new PrivilegedExceptionAction<Void>() {
       @Override
       public Void run() throws Exception {
@@ -123,10 +123,9 @@ public class TokenUtils {
       }
     });
     Credentials cred = Credentials.readTokenStorageFile(new Path(tokenFile.toURI()), new Configuration());
+    ugi.getCredentials().addAll(cred);
+    // Will add hive tokens into ugi in this method.
     getHiveToken(state, client, cred, targetUser, ugi);
-    for (final Token<? extends TokenIdentifier> t : cred.getAllTokens()) {
-      ugi.addToken(t);
-    }
     return ugi;
   }
 
@@ -183,11 +182,11 @@ public class TokenUtils {
    * @param userToProxy The user that hiveClient is impersonating as to fetch the delegation tokens.
    * @param ugi The {@link UserGroupInformation} that to be added with negotiated credentials.
    */
-  private static void getHiveToken(final State state, IMetaStoreClient hiveClient, Credentials cred,
+  public static void getHiveToken(final State state, IMetaStoreClient hiveClient, Credentials cred,
       final String userToProxy, UserGroupInformation ugi) {
     try {
       // Fetch and save the default hcat token.
-      LOG.info("Pre-fetching default Hive MetaStore token from hive");
+      LOG.info("Fetching default Hive MetaStore token from hive");
       HiveConf hiveConf = new HiveConf();
 
       Token<DelegationTokenIdentifier> hcatToken = fetchHcatToken(userToProxy, hiveConf, null, hiveClient);
@@ -198,12 +197,12 @@ public class TokenUtils {
       final List<String> extraHcatLocations =
           state.contains(USER_DEFINED_HIVE_LOCATIONS) ? state.getPropAsList(USER_DEFINED_HIVE_LOCATIONS)
               : Collections.EMPTY_LIST;
-      if (Collections.EMPTY_LIST != extraHcatLocations) {
-        LOG.info("Need to pre-fetch extra metaStore tokens from hive.");
+      if (!extraHcatLocations.isEmpty()) {
+        LOG.info("Need to fetch extra metaStore tokens from hive.");
 
         // start to process the user inputs.
         for (final String thriftUrl : extraHcatLocations) {
-          LOG.info("Pre-fetching metaStore token from : " + thriftUrl);
+          LOG.info("Fetching metaStore token from : " + thriftUrl);
 
           hiveConf = new HiveConf();
           hiveConf.set(HiveConf.ConfVars.METASTOREURIS.varname, thriftUrl);
@@ -232,8 +231,6 @@ public class TokenUtils {
       final String tokenSignatureOverwrite, final IMetaStoreClient hiveClient)
       throws IOException, TException, InterruptedException {
 
-    LOG.info(HiveConf.ConfVars.METASTOREURIS.varname + ": " + hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname));
-
     LOG.info(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname + ": " + hiveConf.get(
         HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname));
 
@@ -241,8 +238,6 @@ public class TokenUtils {
         HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL.varname));
 
     final Token<DelegationTokenIdentifier> hcatToken = new Token<>();
-
-    LOG.info(UserGroupInformation.getCurrentUser().toString());
 
     hcatToken.decodeFromUrlString(
         hiveClient.getDelegationToken(userToProxy, UserGroupInformation.getLoginUser().getShortUserName()));
@@ -254,12 +249,11 @@ public class TokenUtils {
         && tokenSignatureOverwrite.trim().length() > 0) {
       hcatToken.setService(new Text(tokenSignatureOverwrite.trim().toLowerCase()));
 
-      LOG.info(HIVE_TOKEN_SIGNATURE_KEY + ":" + (tokenSignatureOverwrite == null ? "" : tokenSignatureOverwrite));
+      LOG.info(HIVE_TOKEN_SIGNATURE_KEY + ":" + tokenSignatureOverwrite);
     }
 
-    LOG.info("Created hive metastore token.");
-    LOG.info("Token kind: " + hcatToken.getKind());
-    LOG.info("Token service: " + hcatToken.getService());
+    LOG.info("Created hive metastore token for user:" + userToProxy + " with kind[" + hcatToken.getKind() + "]"
+        + " and service[" + hcatToken.getService() + "]");
     return hcatToken;
   }
 
