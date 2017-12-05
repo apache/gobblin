@@ -93,26 +93,36 @@ public class TokenUtils {
    * tokens are required to be fetched.
    */
   private static final String HIVE_TOKEN_SIGNATURE_KEY = "hive.metastore.token.signature";
+  private static final String OTHER_HIVE_LOCATIONS = "other.hcatLocation";
 
   /**
-   * Get Hadoop tokens (tokens for job history server, job tracker and HDFS) using Kerberos keytab.
+   * Get Hadoop tokens (tokens for job history server, job tracker, hive and HDFS) using Kerberos keytab,
+   * on behalf on a proxy user, and embed tokens into a {@link UserGroupInformation} as returned result.
    *
+   * Note that when a super-user is fetching tokens for other users,
+   * {@link #fetchHcatToken(String, HiveConf, String, IMetaStoreClient)} getDelegationToken} explicitly
+   * contains a string parameter indicating proxy user, while other hadoop services requires impersonation first.
+   *
+   * @param state A {@link State} object that should contain properties.
    * @param tokenFile The file that will finally store materialized credentials.
    * @param ugi The {@link UserGroupInformation} that to be added with negotiated credentials.
-   * @param
+   * @param targetUser The user to be impersonated as for fetching hadoop tokens.
    * @return A {@link UserGroupInformation} containing negotiated credentials.
    */
   public static UserGroupInformation getHadoopAndHiveTokens(final State state, File tokenFile, UserGroupInformation ugi,
       IMetaStoreClient client, String targetUser) throws IOException, InterruptedException {
-    getHadoopTokens(state, tokenFile);
+    ugi.doAs(new PrivilegedExceptionAction<Void>() {
+      @Override
+      public Void run() throws Exception {
+        getHadoopTokens(state, tokenFile);
+        return null;
+      }
+    });
     Credentials cred = Credentials.readTokenStorageFile(new Path(tokenFile.toURI()), new Configuration());
-    getHiveToken(client, cred, targetUser, ugi);
-    LOG.info("[getHadoopAndHiveTokens] How many in the original cred:" + cred.getAllTokens().size() );
-//    for (final Token<? extends TokenIdentifier> t : cred.getAllTokens()) {
-//      ugi.addToken(t);
-//    }
-    LOG.info("[getHadoopAndHiveTokens] UGI:" + ugi);
-    LOG.info("[getHadoopAndHiveTokens] How many tokens" + ugi.getTokens().size());
+    getHiveToken(state, client, cred, targetUser, ugi);
+    for (final Token<? extends TokenIdentifier> t : cred.getAllTokens()) {
+      ugi.addToken(t);
+    }
     return ugi;
   }
 
@@ -169,8 +179,8 @@ public class TokenUtils {
    * @param userToProxy The user that hiveClient is impersonating as to fetch the delegation tokens.
    * @param ugi The {@link UserGroupInformation} that to be added with negotiated credentials.
    */
-  private static void getHiveToken(IMetaStoreClient hiveClient, Credentials cred, final String userToProxy,
-      UserGroupInformation ugi) {
+  private static void getHiveToken(final State state, IMetaStoreClient hiveClient, Credentials cred,
+      final String userToProxy, UserGroupInformation ugi) {
     try {
       // Fetch and save the default hcat token.
       LOG.info("Pre-fetching default Hive MetaStore token from hive");
@@ -181,7 +191,7 @@ public class TokenUtils {
       ugi.addToken(hcatToken);
 
       // Fetch extra Hcat location user specified.
-      final List<String> extraHcatLocations = Arrays.asList("thrift://ltx1-holdemhcat01.grid.linkedin.com:7552");
+      final List<String> extraHcatLocations = state.getPropAsList(OTHER_HIVE_LOCATIONS);
       if (Collections.EMPTY_LIST != extraHcatLocations) {
         LOG.info("Need to pre-fetch extra metaStore tokens from hive.");
 
@@ -194,6 +204,8 @@ public class TokenUtils {
           hcatToken = fetchHcatToken(userToProxy, hiveConf, thriftUrl, hiveClient);
           cred.addToken(hcatToken.getService(), hcatToken);
           ugi.addToken(hcatToken);
+
+          LOG.info("Successfully fetched token for:" + thriftUrl);
         }
       }
     } catch (final Throwable t) {
