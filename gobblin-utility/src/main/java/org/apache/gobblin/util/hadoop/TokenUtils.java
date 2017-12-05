@@ -93,7 +93,11 @@ public class TokenUtils {
    * tokens are required to be fetched.
    */
   private static final String HIVE_TOKEN_SIGNATURE_KEY = "hive.metastore.token.signature";
-  private static final String OTHER_HIVE_LOCATIONS = "other.hcatLocation";
+  /**
+   * User can specify the hcat location that they used specifically. It could contains addtional hcat location,
+   * comma-separated.
+   */
+  private static final String USER_DEFINED_HIVE_LOCATIONS = "user.defined.hcatLocation";
 
   /**
    * Get Hadoop tokens (tokens for job history server, job tracker, hive and HDFS) using Kerberos keytab,
@@ -191,7 +195,9 @@ public class TokenUtils {
       ugi.addToken(hcatToken);
 
       // Fetch extra Hcat location user specified.
-      final List<String> extraHcatLocations = state.getPropAsList(OTHER_HIVE_LOCATIONS);
+      final List<String> extraHcatLocations =
+          state.contains(USER_DEFINED_HIVE_LOCATIONS) ? state.getPropAsList(USER_DEFINED_HIVE_LOCATIONS)
+              : Collections.EMPTY_LIST;
       if (Collections.EMPTY_LIST != extraHcatLocations) {
         LOG.info("Need to pre-fetch extra metaStore tokens from hive.");
 
