@@ -113,7 +113,7 @@ public class TokenUtils {
    * @param targetUser The user to be impersonated as for fetching hadoop tokens.
    * @return A {@link UserGroupInformation} containing negotiated credentials.
    */
-  public static UserGroupInformation getHadoopAndHiveTokensForProxyUser(final State state, File tokenFile,
+  public static UserGroupInformation getHadoopAndHiveTokensForProxyUser(final State state, Optional<File> tokenFile,
       UserGroupInformation ugi, IMetaStoreClient client, String targetUser) throws IOException, InterruptedException {
     ugi.doAs(new PrivilegedExceptionAction<Void>() {
       @Override
@@ -122,8 +122,13 @@ public class TokenUtils {
         return null;
       }
     });
-    Credentials cred = Credentials.readTokenStorageFile(new Path(tokenFile.toURI()), new Configuration());
-    ugi.getCredentials().addAll(cred);
+
+    Credentials cred = new Credentials();
+    if (tokenFile.isPresent()) {
+      cred = Credentials.readTokenStorageFile(new Path(tokenFile.get().toURI()), new Configuration());
+      ugi.getCredentials().addAll(cred);
+    }
+
     // Will add hive tokens into ugi in this method.
     getHiveToken(state, client, cred, targetUser, ugi);
     return ugi;
@@ -135,9 +140,11 @@ public class TokenUtils {
    * @param state A {@link State} object that should contain property {@link #USER_TO_PROXY},
    * {@link #KEYTAB_USER} and {@link #KEYTAB_LOCATION}. To obtain tokens for
    * other namenodes, use property {@link #OTHER_NAMENODES} with comma separated HDFS URIs.
-   * @return A {@link File} containing the negotiated credentials.
+   * @param tokenFile only persists credentials into tokenFile when necessary. If toeknFile is absent, it indicates
+   *                  there's no need persist credentials.
    */
-  public static File getHadoopTokens(final State state, File tokenFile) throws IOException, InterruptedException {
+  public static void getHadoopTokens(final State state, Optional<File> tokenFile)
+      throws IOException, InterruptedException {
 
     Preconditions.checkArgument(state.contains(KEYTAB_USER), "Missing required property " + KEYTAB_USER);
     Preconditions.checkArgument(state.contains(KEYTAB_LOCATION), "Missing required property " + KEYTAB_LOCATION);
@@ -157,8 +164,9 @@ public class TokenUtils {
     getJhToken(conf, cred);
     getFsAndJtTokens(state, conf, userToProxy, cred);
 
-    persistTokens(cred, tokenFile);
-    return tokenFile;
+    if (tokenFile.isPresent()) {
+      persistTokens(cred, tokenFile.get());
+    }
   }
 
   /**

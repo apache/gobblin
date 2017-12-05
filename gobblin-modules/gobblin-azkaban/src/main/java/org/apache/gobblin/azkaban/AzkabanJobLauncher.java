@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.azkaban;
 
+import com.google.common.base.Optional;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -173,7 +174,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
           props.getProperty(JOB_TYPE)));
 
       File tokenFile = File.createTempFile("mr-azkaban", ".token");
-      TokenUtils.getHadoopTokens(new State(props), tokenFile);
+      TokenUtils.getHadoopTokens(new State(props), Optional.fromNullable(tokenFile));
 
       System.setProperty(HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
       System.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
