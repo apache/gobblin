@@ -18,7 +18,17 @@
 package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareTimer;
+
+import com.google.common.base.Optional;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -38,4 +48,36 @@ public interface MutableSpecCatalog extends SpecCatalog {
    * Throws SpecNotFoundException if such {@link Spec} does not exist.
    */
   void remove(URI uri) throws SpecNotFoundException;
+
+  @Slf4j
+  public static class MutableStandardMetrics extends StandardMetrics {
+    public static final String TIME_FOR_SPEC_CATALOG_REMOVE = "timeForSpecCatalogRemove";
+    public static final String TIME_FOR_SPEC_CATALOG_PUT = "timeForSpecCatalogPut";
+    @Getter private final ContextAwareTimer timeForSpecCatalogPut;
+    @Getter private final ContextAwareTimer timeForSpecCatalogRemove;
+    public MutableStandardMetrics(SpecCatalog catalog) {
+      super(catalog);
+      timeForSpecCatalogPut = catalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_SPEC_CATALOG_PUT, 1, TimeUnit.MINUTES);
+      timeForSpecCatalogRemove =  catalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_SPEC_CATALOG_REMOVE, 1, TimeUnit.MINUTES);
+    }
+
+    public void updatePutSpecTime(long startTime) {
+      log.info("updatePutSpecTime...");
+      Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogPut), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+    }
+
+    public void updateRemoveSpecTime(long startTime) {
+      log.info("updateRemoveSpecTime...");
+      Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogRemove), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public Collection<ContextAwareTimer> getTimers() {
+      Collection<ContextAwareTimer> all = new ArrayList<>();
+      all.addAll(super.getTimers());
+      all.add(this.timeForSpecCatalogPut);
+      all.add(this.timeForSpecCatalogRemove);
+      return all;
+    }
+  }
 }

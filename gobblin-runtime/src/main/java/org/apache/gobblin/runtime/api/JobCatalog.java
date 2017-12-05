@@ -17,19 +17,20 @@
 package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Gauge;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.Service;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
 import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
@@ -39,6 +40,8 @@ import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * A catalog of all the {@link JobSpec}s a Gobblin instance is currently aware of.
@@ -63,11 +66,14 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
    **/
   JobSpec getJobSpec(URI uri) throws JobSpecNotFoundException;
 
-  public static class StandardMetrics implements JobCatalogListener, StandardMetricsBridge.StandardMetrics {
+  @Slf4j
+  public static class StandardMetrics extends DefaultStandardMetrics implements JobCatalogListener {
     public static final String NUM_ACTIVE_JOBS_NAME = "numActiveJobs";
     public static final String NUM_ADDED_JOBS = "numAddedJobs";
     public static final String NUM_DELETED_JOBS = "numDeletedJobs";
     public static final String NUM_UPDATED_JOBS = "numUpdatedJobs";
+    public static final String TIME_FOR_JOB_CATALOG_GET = "timeForJobCatalogGet";
+
     public static final String TRACKING_EVENT_NAME = "JobCatalogEvent";
     public static final String JOB_ADDED_OPERATION_TYPE = "JobAdded";
     public static final String JOB_DELETED_OPERATION_TYPE = "JobDeleted";
@@ -77,18 +83,27 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     @Getter private final ContextAwareCounter numAddedJobs;
     @Getter private final ContextAwareCounter numDeletedJobs;
     @Getter private final ContextAwareCounter numUpdatedJobs;
+    @Getter private final ContextAwareTimer timeForJobCatalogGet;
 
-    public StandardMetrics(final JobCatalog parent) {
-      this.numAddedJobs = parent.getMetricContext().contextAwareCounter(NUM_ADDED_JOBS);
-      this.numDeletedJobs = parent.getMetricContext().contextAwareCounter(NUM_DELETED_JOBS);
-      this.numUpdatedJobs = parent.getMetricContext().contextAwareCounter(NUM_UPDATED_JOBS);
-      this.numActiveJobs = parent.getMetricContext().newContextAwareGauge(NUM_ACTIVE_JOBS_NAME,
+    public StandardMetrics(final JobCatalog jobCatalog) {
+      this.timeForJobCatalogGet = jobCatalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_JOB_CATALOG_GET, 1, TimeUnit.MINUTES);
+      this.numAddedJobs = jobCatalog.getMetricContext().contextAwareCounter(NUM_ADDED_JOBS);
+      this.numDeletedJobs = jobCatalog.getMetricContext().contextAwareCounter(NUM_DELETED_JOBS);
+      this.numUpdatedJobs = jobCatalog.getMetricContext().contextAwareCounter(NUM_UPDATED_JOBS);
+      this.numActiveJobs = jobCatalog.getMetricContext().newContextAwareGauge(NUM_ACTIVE_JOBS_NAME,
           new Gauge<Integer>() {
             @Override public Integer getValue() {
-              return parent.getJobs().size();
+              long startTime = System.currentTimeMillis();
+              int size = jobCatalog.getJobs().size();
+              updateGetJobTime(startTime);
+              return size;
             }
       });
-      parent.addListener(this);
+    }
+
+    public void updateGetJobTime(long startTime) {
+      log.info("updateGetJobTime...");
+      Instrumented.updateTimer(Optional.of(this.timeForJobCatalogGet), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
     }
 
     @Override public void onAddJob(JobSpec addedJob) {
@@ -127,7 +142,7 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
 
     @Override
     public String getName() {
-      return "JobCatalog";
+      return this.getClass().getName();
     }
 
     @Override
@@ -142,18 +157,9 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     }
 
     @Override
-    public Collection<ContextAwareMeter> getMeters() {
-      return null;
-    }
-
-    @Override
     public Collection<ContextAwareTimer> getTimers() {
-      return null;
+      return ImmutableList.of(timeForJobCatalogGet);
     }
 
-    @Override
-    public Collection<ContextAwareHistogram> getHistograms() {
-      return null;
-    }
   }
 }

@@ -21,6 +21,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -145,6 +146,14 @@ public class Instrumented implements Instrumentable, Closeable {
         ? gobblinMetrics.get().getMetricContext().childBuilder(klazz.getCanonicalName() + "." + randomId)
         : MetricContext.builder(klazz.getCanonicalName() + "." + randomId);
     return builder.addTags(generatedTags).addTags(tags).build();
+  }
+
+  public static MetricContext getDefaultMetricContext(Properties properties, Class<?> klazz) {
+    org.apache.gobblin.configuration.State fakeState =
+        new org.apache.gobblin.configuration.State(properties);
+    List<Tag<?>> tags = new ArrayList<>();
+    MetricContext res = Instrumented.getMetricContext(fakeState, klazz, tags);
+    return res;
   }
 
   /**

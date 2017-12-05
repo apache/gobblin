@@ -18,6 +18,7 @@
 package org.apache.gobblin.runtime.job_catalog;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -68,12 +69,17 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(JobCatalog.class.getSimpleName()).build();
-      this.metrics = new StandardMetrics(this);
+      this.metrics = createStandardMetrics();
+      this.addListener(this.metrics);
     }
     else {
       this.metricContext = null;
       this.metrics = null;
     }
+  }
+
+  protected StandardMetrics createStandardMetrics() {
+    return new StandardMetrics(this);
   }
 
   @Override
@@ -87,9 +93,17 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
   }
 
   protected void notifyAllListeners() {
-    for (JobSpec jobSpec : getJobs()) {
+    Collection<JobSpec> jobSpecs = getJobsWithTimeUpdate();
+    for (JobSpec jobSpec : jobSpecs) {
       this.listeners.onAddJob(jobSpec);
     }
+  }
+
+  private Collection<JobSpec> getJobsWithTimeUpdate() {
+    long startTime = System.currentTimeMillis();
+    Collection<JobSpec> jobSpecs = getJobs();
+    this.metrics.updateGetJobTime(startTime);
+    return jobSpecs;
   }
 
   /**{@inheritDoc}*/
@@ -99,7 +113,7 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
     this.listeners.addListener(jobListener);
 
     if (state() == State.RUNNING) {
-      for (JobSpec jobSpec : getJobs()) {
+      for (JobSpec jobSpec : getJobsWithTimeUpdate()) {
         JobCatalogListener.AddJobCallback addJobCallback = new JobCatalogListener.AddJobCallback(jobSpec);
         this.listeners.callbackOneListener(addJobCallback, jobListener);
       }

@@ -82,6 +82,12 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
     super(sysConfig, null, parentMetricContext, instrumentationEnabled);
   }
 
+  @Override
+  protected StandardMetrics createStandardMetrics() {
+    log.info("create standard metrics {} for {}", MutableStandardMetrics.class.getName(), this.getClass().getName());
+    return new MutableStandardMetrics(this);
+  }
+
   /**
    * The expose of observer is used for testing purpose, so that
    * the checkAndNotify method can be revoked manually, instead of waiting for
@@ -108,8 +114,10 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     Preconditions.checkNotNull(jobSpec);
     try {
+      long startTime = System.currentTimeMillis();
       Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobSpec.getUri());
       materializedJobSpec(jobSpecPath, jobSpec, this.fs);
+      ((MutableStandardMetrics)this.metrics).updatePutJobTime(startTime);
     } catch (IOException e) {
       throw new RuntimeException("When persisting a new JobSpec, unexpected issues happen:" + e.getMessage());
     } catch (JobSpecNotFoundException e) {
@@ -126,10 +134,12 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
   public synchronized void remove(URI jobURI) {
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     try {
+      long startTime = System.currentTimeMillis();
       Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobURI);
 
       if (fs.exists(jobSpecPath)) {
         fs.delete(jobSpecPath, false);
+        ((MutableStandardMetrics)this.metrics).updateRemoveJobTime(startTime);
       } else {
         LOGGER.warn("No file with URI:" + jobSpecPath + " is found. Deletion failed.");
       }

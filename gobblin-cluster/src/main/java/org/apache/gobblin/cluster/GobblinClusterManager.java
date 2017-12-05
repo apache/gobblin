@@ -20,6 +20,8 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +37,12 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -83,9 +91,9 @@ import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
-import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
+import javax.annotation.Nonnull;
 import lombok.Getter;
 
 
@@ -112,7 +120,7 @@ import lombok.Getter;
  * @author Yinan Li
  */
 @Alpha
-public class GobblinClusterManager implements ApplicationLauncher {
+public class GobblinClusterManager implements ApplicationLauncher, StandardMetricsBridge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinClusterManager.class);
 
@@ -148,12 +156,14 @@ public class GobblinClusterManager implements ApplicationLauncher {
   private GobblinHelixJobScheduler jobScheduler;
   private final String clusterName;
   private final Config config;
-
+  private final MetricContext metricContext;
+  private final InnerStandardMetrics metrics;
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
     this.clusterName = clusterName;
     this.config = config;
-
+    this.metricContext = Instrumented.getDefaultMetricContext(ConfigUtils.configToProperties(config), this.getClass());
+    this.metrics = new InnerStandardMetrics(this.metricContext);
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
@@ -239,6 +249,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
    */
   @VisibleForTesting
   void handleLeadershipChange(NotificationContext changeContext) {
+    this.metrics.clusterLeadershipChange.update(1);
     if (this.helixManager.isLeader()) {
       // can get multiple notifications on a leadership change, so only start the application launcher the first time
       // the notification is received
@@ -531,6 +542,37 @@ public class GobblinClusterManager implements ApplicationLauncher {
     this.applicationLauncher.close();
   }
 
+  @Override
+  public StandardMetrics getStandardMetrics() {
+    return this.metrics;
+  }
+
+  @Nonnull
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return GobblinMetrics.isEnabled(ConfigUtils.configToProperties(this.config));
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return null;
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
+  }
+
   /**
    * A custom implementation of {@link LiveInstanceChangeListener}.
    */
@@ -541,6 +583,24 @@ public class GobblinClusterManager implements ApplicationLauncher {
       for (LiveInstance liveInstance : liveInstances) {
         LOGGER.info("Live Helix participant instance: " + liveInstance.getInstanceName());
       }
+    }
+  }
+
+  private class InnerStandardMetrics extends DefaultStandardMetrics {
+    public static final String CLUSTER_LEADERSHIP_CHANGE = "clusterLeadershipChange";
+    private ContextAwareHistogram clusterLeadershipChange;
+    public InnerStandardMetrics(final MetricContext metricContext) {
+      clusterLeadershipChange = metricContext.contextAwareHistogramWithSlidingTimeWindow(CLUSTER_LEADERSHIP_CHANGE, 1, TimeUnit.MINUTES);
+    }
+
+    @Override
+    public String getName() {
+      return GobblinClusterManager.class.getName();
+    }
+
+    @Override
+    public Collection<ContextAwareHistogram> getHistograms() {
+      return ImmutableList.of(this.clusterLeadershipChange);
     }
   }
 

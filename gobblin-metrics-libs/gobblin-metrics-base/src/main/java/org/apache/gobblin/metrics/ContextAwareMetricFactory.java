@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.metrics;
 
+import java.util.concurrent.TimeUnit;
+
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
@@ -37,8 +39,12 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
       new ContextAwareMeterFactory();
   public static final ContextAwareMetricFactory<ContextAwareHistogram> DEFAULT_CONTEXT_AWARE_HISTOGRAM_FACTORY =
       new ContextAwareHistogramFactory();
+  public static final ContextAwareMetricFactory<ContextAwareHistogram> SLIDING_TIME_WINDOW_CONTEXT_AWARE_HISTOGRAM_FACTORY =
+      new SlidingTimeWindowContextAwareHistogramFactory();
   public static final ContextAwareMetricFactory<ContextAwareTimer> DEFAULT_CONTEXT_AWARE_TIMER_FACTORY =
       new ContextAwareTimerFactory();
+  public static final ContextAwareMetricFactory<ContextAwareTimer> SLIDING_TIME_WINDOW_CONTEXT_AWARE_TIMER_FACTORY =
+      new SlidingTimeWindowContextAwareTimerFactory();
 
   /**
    * Create a new context-aware metric.
@@ -48,6 +54,13 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
    * @return the newly created metric
    */
   public T newMetric(MetricContext context, String name);
+
+  default public T newMetric(MetricContext context, String name, Object... args) {
+    if (args == null || args.length == 0) {
+      return newMetric(context, name);
+    }
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * Check if a given metric is an instance of the type of context-aware metrics created by this
@@ -108,6 +121,23 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
   }
 
   /**
+   * An implementation of {@link ContextAwareMetricFactory} using {@link com.codahale.metrics.SlidingTimeWindowReservoir}
+   * for {@link ContextAwareHistogram} creation.
+   */
+  public static class SlidingTimeWindowContextAwareHistogramFactory extends ContextAwareHistogramFactory {
+
+    @Override
+    public ContextAwareHistogram newMetric(MetricContext context, String name, Object ... args) {
+      return new ContextAwareHistogram(context, name, (long) args[0], (TimeUnit) args[1]);
+    }
+
+    @Override
+    public boolean isInstance(Metric metric) {
+      return Histogram.class.isInstance(metric);
+    }
+  }
+
+  /**
    * A default implementation of {@link ContextAwareMetricFactory} for {@link ContextAwareTimer}s.
    */
   public static class ContextAwareTimerFactory implements ContextAwareMetricFactory<ContextAwareTimer> {
@@ -115,6 +145,23 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
     @Override
     public ContextAwareTimer newMetric(MetricContext context, String name) {
       return new ContextAwareTimer(context, name);
+    }
+
+    @Override
+    public boolean isInstance(Metric metric) {
+      return Timer.class.isInstance(metric);
+    }
+  }
+
+  /**
+   * An implementation of {@link ContextAwareMetricFactory} using {@link com.codahale.metrics.SlidingTimeWindowReservoir}
+   * for {@link ContextAwareTimer} creation.
+   */
+  public static class SlidingTimeWindowContextAwareTimerFactory extends ContextAwareTimerFactory {
+
+    @Override
+    public ContextAwareTimer newMetric(MetricContext context, String name, Object ...args) {
+      return new ContextAwareTimer(context, name, (long) args[0], (TimeUnit) args[1]);
     }
 
     @Override

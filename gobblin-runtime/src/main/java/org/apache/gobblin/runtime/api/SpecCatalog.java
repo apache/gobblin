@@ -19,20 +19,29 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Gauge;
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
 import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
-public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentable {
+public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetricsBridge {
   /** Returns an immutable {@link Collection} of {@link Spec}s that are known to the catalog. */
   Collection<Spec> getSpecs();
 
@@ -40,13 +49,18 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
    * ({@link #isInstrumentationEnabled()}) is false. */
   SpecCatalog.StandardMetrics getMetrics();
 
+  default StandardMetricsBridge.StandardMetrics getStandardMetrics() {
+    return this.getMetrics();
+  }
+
   /**
    * Get a {@link Spec} by uri.
    * @throws SpecNotFoundException if no such Spec exists
    **/
   Spec getSpec(URI uri) throws SpecNotFoundException;
 
-  public static class StandardMetrics implements SpecCatalogListener {
+  @Slf4j
+  public static class StandardMetrics extends StandardMetricsBridge.DefaultStandardMetrics implements SpecCatalogListener {
     public static final String NUM_ACTIVE_SPECS_NAME = "numActiveSpecs";
     public static final String NUM_ADDED_SPECS = "numAddedSpecs";
     public static final String NUM_DELETED_SPECS = "numDeletedSpecs";
@@ -55,24 +69,54 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
     public static final String SPEC_ADDED_OPERATION_TYPE = "SpecAdded";
     public static final String SPEC_DELETED_OPERATION_TYPE = "SpecDeleted";
     public static final String SPEC_UPDATED_OPERATION_TYPE = "SpecUpdated";
+    public static final String TIME_FOR_SPEC_CATALOG_GET = "timeForSpecCatalogGet";
 
-    @Getter
-    private final ContextAwareGauge<Integer> numActiveSpecs;
+    @Getter private final ContextAwareGauge<Integer> numActiveSpecs;
     @Getter private final ContextAwareCounter numAddedSpecs;
     @Getter private final ContextAwareCounter numDeletedSpecs;
     @Getter private final ContextAwareCounter numUpdatedSpecs;
+    @Getter private final ContextAwareTimer timeForSpecCatalogGet;
 
-    public StandardMetrics(final SpecCatalog parent) {
-      this.numAddedSpecs = parent.getMetricContext().contextAwareCounter(NUM_ADDED_SPECS);
-      this.numDeletedSpecs = parent.getMetricContext().contextAwareCounter(NUM_DELETED_SPECS);
-      this.numUpdatedSpecs = parent.getMetricContext().contextAwareCounter(NUM_UPDATED_SPECS);
-      this.numActiveSpecs = parent.getMetricContext().newContextAwareGauge(NUM_ACTIVE_SPECS_NAME,
+    public StandardMetrics(final SpecCatalog specCatalog) {
+      this.timeForSpecCatalogGet = specCatalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_SPEC_CATALOG_GET, 1, TimeUnit.MINUTES);
+      this.numAddedSpecs = specCatalog.getMetricContext().contextAwareCounter(NUM_ADDED_SPECS);
+      this.numDeletedSpecs = specCatalog.getMetricContext().contextAwareCounter(NUM_DELETED_SPECS);
+      this.numUpdatedSpecs = specCatalog.getMetricContext().contextAwareCounter(NUM_UPDATED_SPECS);
+      this.numActiveSpecs = specCatalog.getMetricContext().newContextAwareGauge(NUM_ACTIVE_SPECS_NAME,
           new Gauge<Integer>() {
             @Override public Integer getValue() {
-              return parent.getSpecs().size();
+              long startTime = System.currentTimeMillis();
+              int size = specCatalog.getSpecs().size();
+              updateGetSpecTime(startTime);
+              return size;
             }
           });
-      parent.addListener(this);
+    }
+
+    public void updateGetSpecTime(long startTime) {
+      log.info("updateGetSpecTime...");
+      Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogGet), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public String getName() {
+      return this.getClass().getName();
+    }
+
+    @Override
+    public Collection<ContextAwareGauge<?>> getGauges() {
+      return Collections.singleton(this.numActiveSpecs);
+    }
+
+    @Override
+    public Collection<ContextAwareCounter> getCounters() {
+      List<ContextAwareCounter> counters = ImmutableList.of(numAddedSpecs, numDeletedSpecs, numUpdatedSpecs);
+      return counters;
+    }
+
+    @Override
+    public Collection<ContextAwareTimer> getTimers() {
+      return ImmutableList.of(this.timeForSpecCatalogGet);
     }
 
     @Override public void onAddSpec(Spec addedSpec) {

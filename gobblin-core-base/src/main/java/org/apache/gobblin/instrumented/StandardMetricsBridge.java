@@ -40,4 +40,37 @@ public interface StandardMetricsBridge extends Instrumentable {
     Collection<ContextAwareTimer> getTimers();
     Collection<ContextAwareHistogram> getHistograms();
   }
+
+  public class DefaultStandardMetrics implements StandardMetrics {
+
+    @Override
+    public String getName() {
+      return this.getClass().getName();
+    }
+
+    @Override
+    public Collection<ContextAwareGauge<?>> getGauges() {
+      return null;
+    }
+
+    @Override
+    public Collection<ContextAwareCounter> getCounters() {
+      return null;
+    }
+
+    @Override
+    public Collection<ContextAwareMeter> getMeters() {
+      return null;
+    }
+
+    @Override
+    public Collection<ContextAwareTimer> getTimers() {
+      return null;
+    }
+
+    @Override
+    public Collection<ContextAwareHistogram> getHistograms() {
+      return null;
+    }
+  }
 }

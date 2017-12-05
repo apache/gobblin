@@ -472,12 +472,22 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    * Get a {@link ContextAwareHistogram} with a given name.
    *
    * @param name name of the {@link ContextAwareHistogram}
+   * @return the {@link ContextAwareHistogram} with the given name
+   */
+  public ContextAwareHistogram contextAwareHistogramWithSlidingTimeWindow(String name, long windowSize, TimeUnit unit) {
+    return contextAwareHistogram(name, ContextAwareMetricFactory.SLIDING_TIME_WINDOW_CONTEXT_AWARE_HISTOGRAM_FACTORY, windowSize, unit);
+  }
+
+  /**
+   * Get a {@link ContextAwareHistogram} with a given name.
+   *
+   * @param name name of the {@link ContextAwareHistogram}
    * @param factory a {@link ContextAwareMetricFactory} for building {@link ContextAwareHistogram}s
    * @return the {@link ContextAwareHistogram} with the given name
    */
   public ContextAwareHistogram contextAwareHistogram(String name,
-      ContextAwareMetricFactory<ContextAwareHistogram> factory) {
-    return this.innerMetricContext.getOrCreate(name, factory);
+      ContextAwareMetricFactory<ContextAwareHistogram> factory, Object ... args) {
+    return this.innerMetricContext.getOrCreate(name, factory, args);
   }
 
   /**
@@ -494,11 +504,21 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    * Get a {@link ContextAwareTimer} with a given name.
    *
    * @param name name of the {@link ContextAwareTimer}
+   * @return the {@link ContextAwareTimer} with the given name
+   */
+  public ContextAwareTimer contextAwareTimerWithSlidingTimeWindow(String name, long windowSize, TimeUnit unit) {
+    return contextAwareTimer(name, ContextAwareMetricFactory.SLIDING_TIME_WINDOW_CONTEXT_AWARE_TIMER_FACTORY, windowSize, unit);
+  }
+
+  /**
+   * Get a {@link ContextAwareTimer} with a given name.
+   *
+   * @param name name of the {@link ContextAwareTimer}
    * @param factory a {@link ContextAwareMetricFactory} for building {@link ContextAwareTimer}s
    * @return the {@link ContextAwareTimer} with the given name
    */
-  public ContextAwareTimer contextAwareTimer(String name, ContextAwareMetricFactory<ContextAwareTimer> factory) {
-    return this.innerMetricContext.getOrCreate(name, factory);
+  public ContextAwareTimer contextAwareTimer(String name, ContextAwareMetricFactory<ContextAwareTimer> factory, Object ... args) {
+    return this.innerMetricContext.getOrCreate(name, factory, args);
   }
 
   /**
