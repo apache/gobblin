@@ -28,7 +28,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.token.Token;
-import org.apache.log4j.Logger;
 
 import com.github.rholder.retry.Retryer;
 import com.google.common.base.Optional;
@@ -51,8 +50,6 @@ import org.apache.gobblin.util.retry.RetryerFactory;
  */
 @Slf4j
 public class WriterUtils {
-  private static final Logger LOG = Logger.getLogger(WriterUtils.class);
-
   public static final String WRITER_ENCRYPTED_CONFIG_PATH = ConfigurationKeys.WRITER_PREFIX + ".encrypted";
 
   public static final Config NO_RETRY_CONFIG = ConfigFactory.empty();
