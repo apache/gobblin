@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.copy.publisher;
 
 
+import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import java.io.IOException;
@@ -81,6 +82,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   private final FileSystem fs;
   protected final EventSubmitter eventSubmitter;
   protected final RecoveryHelper recoveryHelper;
+  protected final Optional<LineageInfo> lineageInfo;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -93,6 +95,15 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
    */
   public CopyDataPublisher(State state) throws IOException {
     super(state);
+    // Extract LineageInfo from state
+    if (state instanceof SourceState) {
+      lineageInfo = LineageInfo.getLineageInfo(((SourceState) state).getBroker());
+    } else if (state instanceof WorkUnitState) {
+      lineageInfo = LineageInfo.getLineageInfo(((WorkUnitState) state).getTaskBrokerNullable());
+    } else {
+      lineageInfo = Optional.absent();
+    }
+
     String uri = this.state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     this.fs = FileSystem.get(URI.create(uri), WriterUtils.getFsConfiguration(state));
 
@@ -214,7 +225,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
           if (!fileSetRoot.isPresent() && copyableFile.getDatasetOutputPath() != null) {
             fileSetRoot = Optional.of(copyableFile.getDatasetOutputPath());
           }
-          LineageInfo.putDestination(copyableFile.getDestinationDataset(), 0, wus);
+          if (lineageInfo.isPresent()) {
+            lineageInfo.get().putDestination(copyableFile.getDestinationDataset(), 0, wus);
+          }
         }
         if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
           datasetOriginTimestamp = copyableFile.getOriginTimestamp();
