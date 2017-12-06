@@ -43,6 +43,12 @@ public interface JobExecutionLauncher extends Instrumentable {
     public static final String NUM_JOBS_FAILED_COUNTER = "numJobsFailed";
     public static final String NUM_JOBS_CANCELLED_COUNTER = "numJobsCancelled";
     public static final String NUM_JOBS_RUNNING_GAUGE = "numJobsRunning";
+    public static final String NUM_JOBS_LAUNCHED_HISTOGRAM = "histogramJobsLaunched";
+    public static final String NUM_JOBS_COMPLETED_HISTOGRAM = "histogramJobsCompleted";
+    public static final String NUM_JOBS_COMMITTED_HISTOGRAM = "histogramJobsCommitted";
+    public static final String NUM_JOBS_FAILED_HISTOGRAM = "histogramJobsFailed";
+    public static final String NUM_JOBS_CANCELLED_HISTOGRAM = "histogramJobsCancelled";
+
     public static final String TIMER_FOR_JOB_COMPLETION = "timerForJobCompletion";
     public static final String TIMER_FOR_JOB_FAILURE = "timerForJobFailure";
     public static final String TIMER_BEFORE_JOB_SCHEDULING = "timerBeforeJobScheduling";

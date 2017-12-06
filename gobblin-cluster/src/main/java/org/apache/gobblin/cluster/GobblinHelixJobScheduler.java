@@ -27,12 +27,12 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.codahale.metrics.Gauge;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -92,7 +92,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private final ConcurrentHashMap<String, Boolean> jobRunningMap;
   private final MutableJobCatalog jobCatalog;
   private final MetricContext metricContext;
-  private final InnerStandardMetrics metrics;
+  private final SchedulerStandardMetrics metrics;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
       Path appWorkDir, List<? extends Tag<?>> metadataTags, SchedulerService schedulerService,
@@ -106,7 +106,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.metadataTags = metadataTags;
     this.jobCatalog = jobCatalog;
     this.metricContext = Instrumented.getDefaultMetricContext(properties, this.getClass());
-    this.metrics = new InnerStandardMetrics(this.metricContext);
+    this.metrics = new SchedulerStandardMetrics(this.metricContext);
   }
 
   @Nonnull
@@ -136,36 +136,47 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   }
 
   @Override
-  public StandardMetricsBridge.StandardMetrics getStandardMetrics() {
+  public StandardMetrics getStandardMetrics() {
     return metrics;
   }
 
-  private class InnerStandardMetrics extends DefaultStandardMetrics {
+  private class SchedulerStandardMetrics extends StandardMetrics {
 
     private final ContextAwareCounter numJobsLaunched;
     private final ContextAwareCounter numJobsCompleted;
     private final ContextAwareCounter numJobsCommitted;
     private final ContextAwareCounter numJobsFailed;
     private final ContextAwareCounter numJobsCancelled;
+    private final ContextAwareHistogram histogramJobsLaunched;
+    private final ContextAwareHistogram histogramJobsCompleted;
+    private final ContextAwareHistogram histogramJobsCommitted;
+    private final ContextAwareHistogram histogramJobsFailed;
+    private final ContextAwareHistogram histogramJobsCancelled;
+
     private final ContextAwareGauge<Integer> numJobsRunning;
     private final ContextAwareTimer timeForJobCompletion;
     private final ContextAwareTimer timeForJobFailure;
     private final ContextAwareTimer timeBeforeJobScheduling;
     private final ContextAwareTimer timeBeforeJobLaunching;
 
-    public InnerStandardMetrics(final MetricContext metricContext) {
+    public SchedulerStandardMetrics(final MetricContext metricContext) {
+      // All historical counters
       this.numJobsLaunched = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED_COUNTER);
       this.numJobsCompleted = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED_COUNTER);
       this.numJobsCommitted = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED_COUNTER);
       this.numJobsFailed = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED_COUNTER);
       this.numJobsCancelled = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED_COUNTER);
+
+      // Counters within last 1 minute
+      this.histogramJobsLaunched = metricContext.contextAwareHistogramWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED_HISTOGRAM, 1, TimeUnit.MINUTES);
+      this.histogramJobsCompleted = metricContext.contextAwareHistogramWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED_HISTOGRAM, 1, TimeUnit.MINUTES);
+      this.histogramJobsCommitted = metricContext.contextAwareHistogramWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED_HISTOGRAM, 1, TimeUnit.MINUTES);
+      this.histogramJobsFailed = metricContext.contextAwareHistogramWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED_HISTOGRAM, 1, TimeUnit.MINUTES);
+      this.histogramJobsCancelled = metricContext.contextAwareHistogramWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED_HISTOGRAM, 1, TimeUnit.MINUTES);
+
       this.numJobsRunning = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING_GAUGE,
-          new Gauge<Integer>() {
-            @Override public Integer getValue() {
-              return (int)(InnerStandardMetrics.this.numJobsLaunched.getCount() -
-                  InnerStandardMetrics.this.numJobsCompleted.getCount());
-            }
-          });
+          ()->(int)(SchedulerStandardMetrics.this.numJobsLaunched.getCount() - SchedulerStandardMetrics.this.numJobsCompleted.getCount()));
+
       this.timeForJobCompletion = metricContext.contextAwareTimerWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_COMPLETION, 1, TimeUnit.MINUTES);
       this.timeForJobFailure = metricContext.contextAwareTimerWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_FAILURE,1, TimeUnit.MINUTES);
       this.timeBeforeJobScheduling = metricContext.contextAwareTimerWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_SCHEDULING, 1, TimeUnit.MINUTES);
@@ -205,14 +216,19 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     @Override
     public Collection<ContextAwareTimer> getTimers() {
-      return ImmutableList.of(timeForJobCompletion, timeForJobFailure);
+      return ImmutableList.of(timeForJobCompletion, timeForJobFailure, timeBeforeJobScheduling, timeBeforeJobLaunching);
+    }
+
+    @Override
+    public Collection<ContextAwareHistogram> getHistograms() {
+      return ImmutableList.of(histogramJobsCompleted, histogramJobsLaunched, histogramJobsFailed, histogramJobsCancelled, histogramJobsCommitted);
     }
   }
 
   private class MetricsTrackingListener extends AbstractJobListener {
-    private final InnerStandardMetrics metrics;
+    private final SchedulerStandardMetrics metrics;
     private static final String START_TIME = "startTime";
-    MetricsTrackingListener(InnerStandardMetrics metrics) {
+    MetricsTrackingListener(SchedulerStandardMetrics metrics) {
       this.metrics = metrics;
     }
 

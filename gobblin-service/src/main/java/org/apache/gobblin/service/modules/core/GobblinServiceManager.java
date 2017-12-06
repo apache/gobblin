@@ -143,7 +143,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected Config config;
 
   private final MetricContext metricContext;
-  private final InnerStandardMetrics metrics;
+  private final ServiceStandardMetrics metrics;
 
   public GobblinServiceManager(String serviceName, String serviceId, Config config,
       Optional<Path> serviceWorkDirOptional) throws Exception {
@@ -155,7 +155,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     }
     this.config = config;
     this.metricContext = Instrumented.getDefaultMetricContext(ConfigUtils.configToProperties(config), this.getClass());
-    this.metrics = new InnerStandardMetrics(this.metricContext);
+    this.metrics = new ServiceStandardMetrics(this.metricContext);
     this.serviceId = serviceId;
     this.serviceLauncher = new ServiceBasedAppLauncher(properties, serviceName);
 
@@ -478,10 +478,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     throw new UnsupportedOperationException();
   }
 
-  private class InnerStandardMetrics extends DefaultStandardMetrics {
+  private class ServiceStandardMetrics extends StandardMetrics {
     public static final String SERVICE_LEADERSHIP_CHANGE = "serviceLeadershipChange";
     private ContextAwareHistogram serviceLeadershipChange;
-    public InnerStandardMetrics(final MetricContext metricContext) {
+    public ServiceStandardMetrics(final MetricContext metricContext) {
       serviceLeadershipChange = metricContext.contextAwareHistogramWithSlidingTimeWindow(SERVICE_LEADERSHIP_CHANGE, 1, TimeUnit.MINUTES);
     }
 

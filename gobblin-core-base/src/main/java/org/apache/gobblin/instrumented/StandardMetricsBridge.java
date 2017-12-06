@@ -25,6 +25,9 @@ import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 
+import com.google.common.collect.ImmutableList;
+
+
 /**
  * This interface indicates a class will expose its metrics to some external systems.
  */
@@ -32,45 +35,30 @@ public interface StandardMetricsBridge extends Instrumentable {
 
   StandardMetrics getStandardMetrics();
 
-  interface StandardMetrics {
-    String getName();
-    Collection<ContextAwareGauge<?>> getGauges();
-    Collection<ContextAwareCounter> getCounters();
-    Collection<ContextAwareMeter> getMeters();
-    Collection<ContextAwareTimer> getTimers();
-    Collection<ContextAwareHistogram> getHistograms();
-  }
+  public class StandardMetrics {
 
-  public class DefaultStandardMetrics implements StandardMetrics {
-
-    @Override
     public String getName() {
       return this.getClass().getName();
     }
 
-    @Override
     public Collection<ContextAwareGauge<?>> getGauges() {
-      return null;
+      return ImmutableList.of();
     }
 
-    @Override
     public Collection<ContextAwareCounter> getCounters() {
-      return null;
+      return ImmutableList.of();
     }
 
-    @Override
     public Collection<ContextAwareMeter> getMeters() {
-      return null;
+      return ImmutableList.of();
     }
 
-    @Override
     public Collection<ContextAwareTimer> getTimers() {
-      return null;
+      return ImmutableList.of();
     }
 
-    @Override
     public Collection<ContextAwareHistogram> getHistograms() {
-      return null;
+      return ImmutableList.of();
     }
   }
 }

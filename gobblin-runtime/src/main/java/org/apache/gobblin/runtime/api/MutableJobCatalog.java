@@ -50,7 +50,7 @@ public interface MutableJobCatalog extends JobCatalog {
   void remove(URI uri);
 
   @Slf4j
-  public static class MutableStandardMetrics extends StandardMetrics {
+  public static class MutableStandardMetrics extends JobCatalog.StandardMetrics {
     public static final String TIME_FOR_JOB_CATALOG_REMOVE = "timeForJobCatalogRemove";
     public static final String TIME_FOR_JOB_CATALOG_PUT = "timeForJobCatalogPut";
     @Getter private final ContextAwareTimer timeForJobCatalogPut;

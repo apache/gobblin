@@ -19,7 +19,6 @@ package org.apache.gobblin.runtime.api;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Gauge;
@@ -52,10 +51,9 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
 
   /** Metrics for the job catalog; null if
    * ({@link #isInstrumentationEnabled()}) is false. */
-  StandardMetrics getMetrics();
+  JobCatalog.StandardMetrics getMetrics();
 
-  @Override
-  default StandardMetrics getStandardMetrics() {
+  default StandardMetricsBridge.StandardMetrics getStandardMetrics() {
     return getMetrics();
   }
 
@@ -66,7 +64,7 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
   JobSpec getJobSpec(URI uri) throws JobSpecNotFoundException;
 
   @Slf4j
-  public static class StandardMetrics extends DefaultStandardMetrics implements JobCatalogListener {
+  public static class StandardMetrics extends StandardMetricsBridge.StandardMetrics implements JobCatalogListener {
     public static final String NUM_ACTIVE_JOBS_NAME = "numActiveJobs";
     public static final String NUM_ADDED_JOBS = "numAddedJobs";
     public static final String NUM_DELETED_JOBS = "numDeletedJobs";
@@ -115,6 +113,7 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
 
     @Override public void onAddJob(JobSpec addedJob) {
       this.numAddedJobs.inc();
+      this.histogramForJobAdd.update(1);
       submitTrackingEvent(addedJob, JOB_ADDED_OPERATION_TYPE);
     }
 
@@ -138,12 +137,14 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     @Override
     public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
       this.numDeletedJobs.inc();
+      this.histogramForJobDelete.update(1);
       submitTrackingEvent(deletedJobURI, deletedJobVersion, JOB_DELETED_OPERATION_TYPE);
     }
 
     @Override
     public void onUpdateJob(JobSpec updatedJob) {
       this.numUpdatedJobs.inc();
+      this.histogramForJobUpdate.update(1);
       submitTrackingEvent(updatedJob, JOB_UPDATED_OPERATION_TYPE);
     }
 
@@ -167,6 +168,7 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
       return ImmutableList.of(timeForJobCatalogGet);
     }
 
+    @Override
     public Collection<ContextAwareHistogram> getHistograms() {
       return ImmutableList.of(histogramForJobAdd, histogramForJobDelete, histogramForJobUpdate);
     }

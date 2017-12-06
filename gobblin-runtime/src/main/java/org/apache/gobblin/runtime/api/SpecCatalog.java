@@ -20,7 +20,6 @@ package org.apache.gobblin.runtime.api;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Gauge;
@@ -29,7 +28,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
-import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareCounter;
@@ -61,7 +59,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
   Spec getSpec(URI uri) throws SpecNotFoundException;
 
   @Slf4j
-  public static class StandardMetrics extends StandardMetricsBridge.DefaultStandardMetrics implements SpecCatalogListener {
+  public static class StandardMetrics extends StandardMetricsBridge.StandardMetrics implements SpecCatalogListener {
     public static final String NUM_ACTIVE_SPECS_NAME = "numActiveSpecs";
     public static final String NUM_ADDED_SPECS = "numAddedSpecs";
     public static final String NUM_DELETED_SPECS = "numDeletedSpecs";

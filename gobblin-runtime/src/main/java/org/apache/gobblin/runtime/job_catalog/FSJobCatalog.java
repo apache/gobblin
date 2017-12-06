@@ -83,7 +83,7 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
   }
 
   @Override
-  protected StandardMetrics createStandardMetrics() {
+  protected JobCatalogStandardMetrics createStandardMetrics() {
     log.info("create standard metrics {} for {}", MutableStandardMetrics.class.getName(), this.getClass().getName());
     return new MutableStandardMetrics(this);
   }
