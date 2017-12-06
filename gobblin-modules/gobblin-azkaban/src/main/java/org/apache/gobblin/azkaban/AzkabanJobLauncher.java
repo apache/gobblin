@@ -36,6 +36,7 @@ import java.util.concurrent.TimeoutException;
 import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.Credentials;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
@@ -174,7 +175,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
           props.getProperty(JOB_TYPE)));
 
       File tokenFile = File.createTempFile("mr-azkaban", ".token");
-      TokenUtils.getHadoopTokens(new State(props), Optional.fromNullable(tokenFile));
+      TokenUtils.getHadoopTokens(new State(props), Optional.of(tokenFile), new Credentials());
 
       System.setProperty(HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
       System.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
