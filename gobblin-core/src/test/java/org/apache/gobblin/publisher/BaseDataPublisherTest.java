@@ -40,6 +40,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -528,8 +529,9 @@ public class BaseDataPublisherTest {
   public void testPublishSingleTask()
       throws IOException {
     WorkUnitState state = buildTaskState(1);
+    LineageInfo lineageInfo = new LineageInfo(ConfigFactory.empty());
     DatasetDescriptor source = new DatasetDescriptor("kafka", "testTopic");
-    LineageInfo.setSource(source, state);
+    lineageInfo.setSource(source, state);
     BaseDataPublisher publisher = new BaseDataPublisher(state);
     publisher.publishData(state);
     Assert.assertTrue(state.contains("gobblin.event.lineage.branch.0.destination"));
@@ -541,9 +543,10 @@ public class BaseDataPublisherTest {
       throws IOException {
     WorkUnitState state1 = buildTaskState(2);
     WorkUnitState state2 = buildTaskState(2);
+    LineageInfo lineageInfo = new LineageInfo(ConfigFactory.empty());
     DatasetDescriptor source = new DatasetDescriptor("kafka", "testTopic");
-    LineageInfo.setSource(source, state1);
-    LineageInfo.setSource(source, state2);
+    lineageInfo.setSource(source, state1);
+    lineageInfo.setSource(source, state2);
     BaseDataPublisher publisher = new BaseDataPublisher(state1);
     publisher.publishData(ImmutableList.of(state1, state2));
     Assert.assertTrue(state1.contains("gobblin.event.lineage.branch.0.destination"));
