@@ -17,6 +17,7 @@
 package org.apache.gobblin.runtime.job_catalog;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobCatalog;
 import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
@@ -83,7 +84,7 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
   }
 
   @Override
-  protected JobCatalogStandardMetrics createStandardMetrics() {
+  protected JobCatalog.StandardMetrics createStandardMetrics() {
     log.info("create standard metrics {} for {}", MutableStandardMetrics.class.getName(), this.getClass().getName());
     return new MutableStandardMetrics(this);
   }
