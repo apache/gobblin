@@ -34,6 +34,7 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
@@ -70,12 +71,18 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     public static final String SPEC_DELETED_OPERATION_TYPE = "SpecDeleted";
     public static final String SPEC_UPDATED_OPERATION_TYPE = "SpecUpdated";
     public static final String TIME_FOR_SPEC_CATALOG_GET = "timeForSpecCatalogGet";
+    public static final String HISTOGRAM_FOR_SPEC_ADD = "histogramForSpecAdd";
+    public static final String HISTOGRAM_FOR_SPEC_UPDATE = "histogramForSpecUpdate";
+    public static final String HISTOGRAM_FOR_SPEC_DELETE = "histogramForSpecDelete";
 
     @Getter private final ContextAwareGauge<Integer> numActiveSpecs;
     @Getter private final ContextAwareCounter numAddedSpecs;
     @Getter private final ContextAwareCounter numDeletedSpecs;
     @Getter private final ContextAwareCounter numUpdatedSpecs;
     @Getter private final ContextAwareTimer timeForSpecCatalogGet;
+    @Getter private final ContextAwareHistogram histogramForSpecAdd;
+    @Getter private final ContextAwareHistogram histogramForSpecUpdate;
+    @Getter private final ContextAwareHistogram histogramForSpecDelete;
 
     public StandardMetrics(final SpecCatalog specCatalog) {
       this.timeForSpecCatalogGet = specCatalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_SPEC_CATALOG_GET, 1, TimeUnit.MINUTES);
@@ -91,6 +98,9 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
               return size;
             }
           });
+      this.histogramForSpecAdd = specCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_SPEC_ADD, 1, TimeUnit.MINUTES);
+      this.histogramForSpecUpdate = specCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_SPEC_UPDATE, 1, TimeUnit.MINUTES);
+      this.histogramForSpecDelete = specCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_SPEC_DELETE, 1, TimeUnit.MINUTES);
     }
 
     public void updateGetSpecTime(long startTime) {
@@ -110,8 +120,12 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
 
     @Override
     public Collection<ContextAwareCounter> getCounters() {
-      List<ContextAwareCounter> counters = ImmutableList.of(numAddedSpecs, numDeletedSpecs, numUpdatedSpecs);
-      return counters;
+      return ImmutableList.of(numAddedSpecs, numDeletedSpecs, numUpdatedSpecs);
+    }
+
+    @Override
+    public Collection<ContextAwareHistogram> getHistograms() {
+      return ImmutableList.of(histogramForSpecAdd, histogramForSpecDelete, histogramForSpecUpdate);
     }
 
     @Override

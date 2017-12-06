@@ -35,7 +35,6 @@ import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareHistogram;
-import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
@@ -73,7 +72,9 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     public static final String NUM_DELETED_JOBS = "numDeletedJobs";
     public static final String NUM_UPDATED_JOBS = "numUpdatedJobs";
     public static final String TIME_FOR_JOB_CATALOG_GET = "timeForJobCatalogGet";
-
+    public static final String HISTOGRAM_FOR_JOB_ADD = "histogramForJobAdd";
+    public static final String HISTOGRAM_FOR_JOB_UPDATE = "histogramForJobUpdate";
+    public static final String HISTOGRAM_FOR_JOB_DELETE = "histogramForJobDelete";
     public static final String TRACKING_EVENT_NAME = "JobCatalogEvent";
     public static final String JOB_ADDED_OPERATION_TYPE = "JobAdded";
     public static final String JOB_DELETED_OPERATION_TYPE = "JobDeleted";
@@ -84,6 +85,9 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     @Getter private final ContextAwareCounter numDeletedJobs;
     @Getter private final ContextAwareCounter numUpdatedJobs;
     @Getter private final ContextAwareTimer timeForJobCatalogGet;
+    @Getter private final ContextAwareHistogram histogramForJobAdd;
+    @Getter private final ContextAwareHistogram histogramForJobUpdate;
+    @Getter private final ContextAwareHistogram histogramForJobDelete;
 
     public StandardMetrics(final JobCatalog jobCatalog) {
       this.timeForJobCatalogGet = jobCatalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_JOB_CATALOG_GET, 1, TimeUnit.MINUTES);
@@ -99,6 +103,9 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
               return size;
             }
       });
+      this.histogramForJobAdd = jobCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_JOB_ADD, 1, TimeUnit.MINUTES);
+      this.histogramForJobUpdate = jobCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_JOB_UPDATE, 1, TimeUnit.MINUTES);
+      this.histogramForJobDelete = jobCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_JOB_DELETE, 1, TimeUnit.MINUTES);
     }
 
     public void updateGetJobTime(long startTime) {
@@ -152,8 +159,7 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
 
     @Override
     public Collection<ContextAwareCounter> getCounters() {
-      List<ContextAwareCounter> counters = ImmutableList.of(numAddedJobs, numDeletedJobs, numDeletedJobs);
-      return counters;
+      return ImmutableList.of(numAddedJobs, numDeletedJobs, numUpdatedJobs);
     }
 
     @Override
@@ -161,5 +167,8 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
       return ImmutableList.of(timeForJobCatalogGet);
     }
 
+    public Collection<ContextAwareHistogram> getHistograms() {
+      return ImmutableList.of(histogramForJobAdd, histogramForJobDelete, histogramForJobUpdate);
+    }
   }
 }
