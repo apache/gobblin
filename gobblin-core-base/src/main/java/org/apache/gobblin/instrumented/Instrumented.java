@@ -148,14 +148,6 @@ public class Instrumented implements Instrumentable, Closeable {
     return builder.addTags(generatedTags).addTags(tags).build();
   }
 
-  public static MetricContext getDefaultMetricContext(Properties properties, Class<?> klazz) {
-    org.apache.gobblin.configuration.State fakeState =
-        new org.apache.gobblin.configuration.State(properties);
-    List<Tag<?>> tags = new ArrayList<>();
-    MetricContext res = Instrumented.getMetricContext(fakeState, klazz, tags);
-    return res;
-  }
-
   /**
    * Generates a new {@link org.apache.gobblin.metrics.MetricContext} with the parent and tags taken from the reference context.
    * Allows replacing {@link org.apache.gobblin.metrics.Tag} with new input tags.

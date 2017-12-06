@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
@@ -105,7 +106,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.appWorkDir = appWorkDir;
     this.metadataTags = metadataTags;
     this.jobCatalog = jobCatalog;
-    this.metricContext = Instrumented.getDefaultMetricContext(properties, this.getClass());
+    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
     this.metrics = new SchedulerStandardMetrics(this.metricContext);
   }
 

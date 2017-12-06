@@ -162,7 +162,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
       Optional<Path> appWorkDirOptional) throws Exception {
     this.clusterName = clusterName;
     this.config = config;
-    this.metricContext = Instrumented.getDefaultMetricContext(ConfigUtils.configToProperties(config), this.getClass());
+    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
     this.metrics = new ClusterStandardMetrics(this.metricContext);
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
