@@ -17,17 +17,11 @@
 
 package org.apache.gobblin.metrics;
 
-import java.util.concurrent.TimeUnit;
-
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.Timer;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
 
 /**
  * An interface for factory classes for {@link ContextAwareMetric}s.
@@ -56,24 +50,6 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
   default public T newMetric(ContextAwareMetricFactoryArgs args) {
     return null;
-  }
-
-  @Data
-  @AllArgsConstructor
-  class ContextAwareMetricFactoryArgs {
-    protected final MetricContext context;
-    protected final String name;
-  }
-
-  @Data
-  class SlidingTimeWindowArgs extends  ContextAwareMetricFactoryArgs {
-    protected final long windowSize;
-    protected final TimeUnit unit;
-    public SlidingTimeWindowArgs(MetricContext context, String name, long windowSize, TimeUnit unit) {
-      super(context, name);
-      this.windowSize = windowSize;
-      this.unit = unit;
-    }
   }
 
   /**
@@ -130,7 +106,8 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public ContextAwareHistogram newMetric(ContextAwareMetricFactoryArgs args) {
-      return new ContextAwareHistogram((SlidingTimeWindowArgs)args);
+      ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs windowArgs = (ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs)args;
+      return new ContextAwareHistogram(windowArgs.getContext(), windowArgs.getName(), windowArgs.getWindowSize(), windowArgs.getUnit());
     }
 
     @Override
@@ -151,7 +128,8 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public ContextAwareTimer newMetric(ContextAwareMetricFactoryArgs args) {
-      return new ContextAwareTimer((SlidingTimeWindowArgs)args);
+      ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs windowArgs = (ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs)args;
+      return new ContextAwareTimer(windowArgs.getContext(), windowArgs.getName(), windowArgs.getWindowSize(), windowArgs.getUnit());
     }
 
     @Override

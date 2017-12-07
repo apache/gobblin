@@ -370,7 +370,8 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
 
   @SuppressWarnings("unchecked")
   protected synchronized <T extends ContextAwareMetric> T getOrCreate(
-      ContextAwareMetricFactory<T> factory, ContextAwareMetricFactory.ContextAwareMetricFactoryArgs args) {
+      ContextAwareMetricFactory<T> factory, ContextAwareMetricFactoryArgs args) {
+    String name = args.getName();
     InnerMetric metric = this.contextAwareMetrics.get(name);
     if (metric != null) {
       if (factory.isInstance(metric)) {
