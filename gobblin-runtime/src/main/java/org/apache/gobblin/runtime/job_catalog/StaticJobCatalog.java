@@ -68,6 +68,9 @@ public class StaticJobCatalog extends JobCatalogBase {
     return mapBuilder.build();
   }
 
+  @edu.umd.cs.findbugs.annotations.SuppressWarnings(
+      value = "UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR",
+      justification = "Uninitialized variable has been checked.")
   @Override
   public void addListener(JobCatalogListener jobListener) {
     if (this.jobs == null) {

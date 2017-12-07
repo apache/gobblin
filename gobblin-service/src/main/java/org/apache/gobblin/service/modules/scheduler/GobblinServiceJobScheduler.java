@@ -109,7 +109,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // the onAddSpec will forward specs to the leader, which is itself.
       this.isActive = isActive;
       if (this.flowCatalog.isPresent()) {
-        Collection<Spec> specs = this.flowCatalog.get().getSpecs();
+        Collection<Spec> specs = this.flowCatalog.get().getSpecsWithTimeUpdate();
         for (Spec spec : specs) {
           onAddSpec(spec);
         }
