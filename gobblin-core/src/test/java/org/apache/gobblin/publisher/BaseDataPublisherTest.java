@@ -42,6 +42,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
+import org.apache.gobblin.broker.gobblin_scopes.TaskScopeInstance;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.broker.iface.SubscopedBrokerBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -49,6 +55,7 @@ import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metadata.MetadataMerger;
 import org.apache.gobblin.metadata.types.GlobalMetadata;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
+import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.writer.FsDataWriter;
 import org.apache.gobblin.writer.FsWriterMetrics;
@@ -529,7 +536,7 @@ public class BaseDataPublisherTest {
   public void testPublishSingleTask()
       throws IOException {
     WorkUnitState state = buildTaskState(1);
-    LineageInfo lineageInfo = new LineageInfo(ConfigFactory.empty());
+    LineageInfo lineageInfo = LineageInfo.getLineageInfo(state.getTaskBroker()).get();
     DatasetDescriptor source = new DatasetDescriptor("kafka", "testTopic");
     lineageInfo.setSource(source, state);
     BaseDataPublisher publisher = new BaseDataPublisher(state);
@@ -543,7 +550,7 @@ public class BaseDataPublisherTest {
       throws IOException {
     WorkUnitState state1 = buildTaskState(2);
     WorkUnitState state2 = buildTaskState(2);
-    LineageInfo lineageInfo = new LineageInfo(ConfigFactory.empty());
+    LineageInfo lineageInfo = LineageInfo.getLineageInfo(state1.getTaskBroker()).get();
     DatasetDescriptor source = new DatasetDescriptor("kafka", "testTopic");
     lineageInfo.setSource(source, state1);
     lineageInfo.setSource(source, state2);
@@ -626,7 +633,16 @@ public class BaseDataPublisherTest {
   }
 
   private WorkUnitState buildTaskState(int numBranches) {
-    WorkUnitState state = new WorkUnitState();
+    SharedResourcesBroker<GobblinScopeTypes> instanceBroker = SharedResourcesBrokerFactory
+        .createDefaultTopLevelBroker(ConfigFactory.empty(), GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBroker<GobblinScopeTypes> jobBroker = instanceBroker
+        .newSubscopedBuilder(new JobScopeInstance("LineageEventTest", String.valueOf(System.currentTimeMillis())))
+        .build();
+    SharedResourcesBroker<GobblinScopeTypes> taskBroker = jobBroker
+        .newSubscopedBuilder(new TaskScopeInstance("LineageEventTestTask" + String.valueOf(System.currentTimeMillis())))
+        .build();
+
+    WorkUnitState state = new WorkUnitState(WorkUnit.createEmpty(), new State(), taskBroker);
 
     state.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, "namespace");
     state.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "table");
