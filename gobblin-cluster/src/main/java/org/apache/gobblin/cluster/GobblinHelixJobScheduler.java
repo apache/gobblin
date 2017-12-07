@@ -93,7 +93,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private final ConcurrentHashMap<String, Boolean> jobRunningMap;
   private final MutableJobCatalog jobCatalog;
   private final MetricContext metricContext;
-  private final SchedulerStandardMetrics metrics;
+  private final Metrics metrics;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
       Path appWorkDir, List<? extends Tag<?>> metadataTags, SchedulerService schedulerService,
@@ -107,7 +107,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.metadataTags = metadataTags;
     this.jobCatalog = jobCatalog;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
-    this.metrics = new SchedulerStandardMetrics(this.metricContext);
+    this.metrics = new Metrics(this.metricContext);
   }
 
   @Nonnull
@@ -141,7 +141,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     return metrics;
   }
 
-  private class SchedulerStandardMetrics extends StandardMetrics {
+  private class Metrics extends StandardMetrics {
 
     private final ContextAwareCounter numJobsLaunched;
     private final ContextAwareCounter numJobsCompleted;
@@ -160,7 +160,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     private final ContextAwareTimer timeBeforeJobScheduling;
     private final ContextAwareTimer timeBeforeJobLaunching;
 
-    public SchedulerStandardMetrics(final MetricContext metricContext) {
+    public Metrics(final MetricContext metricContext) {
       // All historical counters
       this.numJobsLaunched = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED_COUNTER);
       this.numJobsCompleted = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED_COUNTER);
@@ -169,19 +169,19 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       this.numJobsCancelled = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED_COUNTER);
 
       // Counters within last 1 minute
-      this.histogramJobsLaunched = metricContext.contextAwareHistogramWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED_HISTOGRAM, 1, TimeUnit.MINUTES);
-      this.histogramJobsCompleted = metricContext.contextAwareHistogramWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED_HISTOGRAM, 1, TimeUnit.MINUTES);
-      this.histogramJobsCommitted = metricContext.contextAwareHistogramWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED_HISTOGRAM, 1, TimeUnit.MINUTES);
-      this.histogramJobsFailed = metricContext.contextAwareHistogramWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED_HISTOGRAM, 1, TimeUnit.MINUTES);
-      this.histogramJobsCancelled = metricContext.contextAwareHistogramWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED_HISTOGRAM, 1, TimeUnit.MINUTES);
+      this.histogramJobsLaunched = metricContext.contextAwareHistogram(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED_HISTOGRAM, 1, TimeUnit.MINUTES);
+      this.histogramJobsCompleted = metricContext.contextAwareHistogram(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED_HISTOGRAM, 1, TimeUnit.MINUTES);
+      this.histogramJobsCommitted = metricContext.contextAwareHistogram(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED_HISTOGRAM, 1, TimeUnit.MINUTES);
+      this.histogramJobsFailed = metricContext.contextAwareHistogram(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED_HISTOGRAM, 1, TimeUnit.MINUTES);
+      this.histogramJobsCancelled = metricContext.contextAwareHistogram(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED_HISTOGRAM, 1, TimeUnit.MINUTES);
 
       this.numJobsRunning = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING_GAUGE,
-          ()->(int)(SchedulerStandardMetrics.this.numJobsLaunched.getCount() - SchedulerStandardMetrics.this.numJobsCompleted.getCount()));
+          ()->(int)(Metrics.this.numJobsLaunched.getCount() - Metrics.this.numJobsCompleted.getCount()));
 
-      this.timeForJobCompletion = metricContext.contextAwareTimerWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_COMPLETION, 1, TimeUnit.MINUTES);
-      this.timeForJobFailure = metricContext.contextAwareTimerWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_FAILURE,1, TimeUnit.MINUTES);
-      this.timeBeforeJobScheduling = metricContext.contextAwareTimerWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_SCHEDULING, 1, TimeUnit.MINUTES);
-      this.timeBeforeJobLaunching = metricContext.contextAwareTimerWithSlidingTimeWindow(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_LAUNCHING, 1, TimeUnit.MINUTES);
+      this.timeForJobCompletion = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_COMPLETION, 1, TimeUnit.MINUTES);
+      this.timeForJobFailure = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_FAILURE,1, TimeUnit.MINUTES);
+      this.timeBeforeJobScheduling = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_SCHEDULING, 1, TimeUnit.MINUTES);
+      this.timeBeforeJobLaunching = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_LAUNCHING, 1, TimeUnit.MINUTES);
     }
 
     private void updateTimeBeforeJobScheduling (Properties jobConfig) {
@@ -227,9 +227,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   }
 
   private class MetricsTrackingListener extends AbstractJobListener {
-    private final SchedulerStandardMetrics metrics;
+    private final Metrics metrics;
     private static final String START_TIME = "startTime";
-    MetricsTrackingListener(SchedulerStandardMetrics metrics) {
+    MetricsTrackingListener(Metrics metrics) {
       this.metrics = metrics;
     }
 

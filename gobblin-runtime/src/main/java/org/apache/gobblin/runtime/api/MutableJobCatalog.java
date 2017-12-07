@@ -57,8 +57,8 @@ public interface MutableJobCatalog extends JobCatalog {
     @Getter private final ContextAwareTimer timeForJobCatalogRemove;
     public MutableStandardMetrics(JobCatalog catalog) {
       super(catalog);
-      timeForJobCatalogPut = catalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_JOB_CATALOG_PUT, 1, TimeUnit.MINUTES);
-      timeForJobCatalogRemove =  catalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_JOB_CATALOG_REMOVE, 1, TimeUnit.MINUTES);
+      timeForJobCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_JOB_CATALOG_PUT, 1, TimeUnit.MINUTES);
+      timeForJobCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_JOB_CATALOG_REMOVE, 1, TimeUnit.MINUTES);
     }
 
     public void updatePutJobTime(long startTime) {

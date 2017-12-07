@@ -59,7 +59,7 @@ public class InnerHistogram extends Histogram implements InnerMetric {
 
     Optional<MetricContext> parentContext = context.getParent();
     if (parentContext.isPresent()) {
-      this.parentHistogram = Optional.fromNullable(parentContext.get().contextAwareHistogramWithSlidingTimeWindow(name, windowSize, unit));
+      this.parentHistogram = Optional.fromNullable(parentContext.get().contextAwareHistogram(name, windowSize, unit));
     } else {
       this.parentHistogram = Optional.absent();
     }

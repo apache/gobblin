@@ -35,6 +35,7 @@ import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -83,32 +84,25 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     @Getter private final ContextAwareHistogram histogramForSpecDelete;
 
     public StandardMetrics(final SpecCatalog specCatalog) {
-      this.timeForSpecCatalogGet = specCatalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_SPEC_CATALOG_GET, 1, TimeUnit.MINUTES);
-      this.numAddedSpecs = specCatalog.getMetricContext().contextAwareCounter(NUM_ADDED_SPECS);
-      this.numDeletedSpecs = specCatalog.getMetricContext().contextAwareCounter(NUM_DELETED_SPECS);
-      this.numUpdatedSpecs = specCatalog.getMetricContext().contextAwareCounter(NUM_UPDATED_SPECS);
-      this.numActiveSpecs = specCatalog.getMetricContext().newContextAwareGauge(NUM_ACTIVE_SPECS_NAME,
-          new Gauge<Integer>() {
-            @Override public Integer getValue() {
-              long startTime = System.currentTimeMillis();
-              int size = specCatalog.getSpecs().size();
-              updateGetSpecTime(startTime);
-              return size;
-            }
-          });
-      this.histogramForSpecAdd = specCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_SPEC_ADD, 1, TimeUnit.MINUTES);
-      this.histogramForSpecUpdate = specCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_SPEC_UPDATE, 1, TimeUnit.MINUTES);
-      this.histogramForSpecDelete = specCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_SPEC_DELETE, 1, TimeUnit.MINUTES);
+      MetricContext context = specCatalog.getMetricContext();
+      this.timeForSpecCatalogGet = context.contextAwareTimer(TIME_FOR_SPEC_CATALOG_GET, 1, TimeUnit.MINUTES);
+      this.numAddedSpecs = context.contextAwareCounter(NUM_ADDED_SPECS);
+      this.numDeletedSpecs = context.contextAwareCounter(NUM_DELETED_SPECS);
+      this.numUpdatedSpecs = context.contextAwareCounter(NUM_UPDATED_SPECS);
+      this.numActiveSpecs = context.newContextAwareGauge(NUM_ACTIVE_SPECS_NAME,  ()->{
+          long startTime = System.currentTimeMillis();
+          int size = specCatalog.getSpecs().size();
+          updateGetSpecTime(startTime);
+          return size;
+      });
+      this.histogramForSpecAdd = specCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_SPEC_ADD, 1, TimeUnit.MINUTES);
+      this.histogramForSpecUpdate = specCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_SPEC_UPDATE, 1, TimeUnit.MINUTES);
+      this.histogramForSpecDelete = specCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_SPEC_DELETE, 1, TimeUnit.MINUTES);
     }
 
     public void updateGetSpecTime(long startTime) {
       log.info("updateGetSpecTime...");
       Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogGet), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public String getName() {
-      return this.getClass().getName();
     }
 
     @Override

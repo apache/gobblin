@@ -36,6 +36,7 @@ import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -88,22 +89,20 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     @Getter private final ContextAwareHistogram histogramForJobDelete;
 
     public StandardMetrics(final JobCatalog jobCatalog) {
-      this.timeForJobCatalogGet = jobCatalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_JOB_CATALOG_GET, 1, TimeUnit.MINUTES);
-      this.numAddedJobs = jobCatalog.getMetricContext().contextAwareCounter(NUM_ADDED_JOBS);
-      this.numDeletedJobs = jobCatalog.getMetricContext().contextAwareCounter(NUM_DELETED_JOBS);
-      this.numUpdatedJobs = jobCatalog.getMetricContext().contextAwareCounter(NUM_UPDATED_JOBS);
-      this.numActiveJobs = jobCatalog.getMetricContext().newContextAwareGauge(NUM_ACTIVE_JOBS_NAME,
-          new Gauge<Integer>() {
-            @Override public Integer getValue() {
-              long startTime = System.currentTimeMillis();
-              int size = jobCatalog.getJobs().size();
-              updateGetJobTime(startTime);
-              return size;
-            }
+      MetricContext context = jobCatalog.getMetricContext();
+      this.timeForJobCatalogGet = context.contextAwareTimer(TIME_FOR_JOB_CATALOG_GET, 1, TimeUnit.MINUTES);
+      this.numAddedJobs = context.contextAwareCounter(NUM_ADDED_JOBS);
+      this.numDeletedJobs = context.contextAwareCounter(NUM_DELETED_JOBS);
+      this.numUpdatedJobs = context.contextAwareCounter(NUM_UPDATED_JOBS);
+      this.numActiveJobs = context.newContextAwareGauge(NUM_ACTIVE_JOBS_NAME, ()->{
+          long startTime = System.currentTimeMillis();
+          int size = jobCatalog.getJobs().size();
+          updateGetJobTime(startTime);
+          return size;
       });
-      this.histogramForJobAdd = jobCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_JOB_ADD, 1, TimeUnit.MINUTES);
-      this.histogramForJobUpdate = jobCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_JOB_UPDATE, 1, TimeUnit.MINUTES);
-      this.histogramForJobDelete = jobCatalog.getMetricContext().contextAwareHistogramWithSlidingTimeWindow(HISTOGRAM_FOR_JOB_DELETE, 1, TimeUnit.MINUTES);
+      this.histogramForJobAdd = jobCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_JOB_ADD, 1, TimeUnit.MINUTES);
+      this.histogramForJobUpdate = jobCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_JOB_UPDATE, 1, TimeUnit.MINUTES);
+      this.histogramForJobDelete = jobCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_JOB_DELETE, 1, TimeUnit.MINUTES);
     }
 
     public void updateGetJobTime(long startTime) {
@@ -146,11 +145,6 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
       this.numUpdatedJobs.inc();
       this.histogramForJobUpdate.update(1);
       submitTrackingEvent(updatedJob, JOB_UPDATED_OPERATION_TYPE);
-    }
-
-    @Override
-    public String getName() {
-      return this.getClass().getName();
     }
 
     @Override

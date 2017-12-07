@@ -57,8 +57,8 @@ public interface MutableSpecCatalog extends SpecCatalog {
     @Getter private final ContextAwareTimer timeForSpecCatalogRemove;
     public MutableStandardMetrics(SpecCatalog catalog) {
       super(catalog);
-      timeForSpecCatalogPut = catalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_SPEC_CATALOG_PUT, 1, TimeUnit.MINUTES);
-      timeForSpecCatalogRemove =  catalog.getMetricContext().contextAwareTimerWithSlidingTimeWindow(TIME_FOR_SPEC_CATALOG_REMOVE, 1, TimeUnit.MINUTES);
+      timeForSpecCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_PUT, 1, TimeUnit.MINUTES);
+      timeForSpecCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_REMOVE, 1, TimeUnit.MINUTES);
     }
 
     public void updatePutSpecTime(long startTime) {

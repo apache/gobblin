@@ -157,13 +157,13 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private final String clusterName;
   private final Config config;
   private final MetricContext metricContext;
-  private final ClusterStandardMetrics metrics;
+  private final Metrics metrics;
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
     this.clusterName = clusterName;
     this.config = config;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
-    this.metrics = new ClusterStandardMetrics(this.metricContext);
+    this.metrics = new Metrics(this.metricContext);
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
@@ -586,11 +586,11 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     }
   }
 
-  private class ClusterStandardMetrics extends StandardMetrics {
+  private class Metrics extends StandardMetrics {
     public static final String CLUSTER_LEADERSHIP_CHANGE = "clusterLeadershipChange";
     private ContextAwareHistogram clusterLeadershipChange;
-    public ClusterStandardMetrics(final MetricContext metricContext) {
-      clusterLeadershipChange = metricContext.contextAwareHistogramWithSlidingTimeWindow(CLUSTER_LEADERSHIP_CHANGE, 1, TimeUnit.MINUTES);
+    public Metrics(final MetricContext metricContext) {
+      clusterLeadershipChange = metricContext.contextAwareHistogram(CLUSTER_LEADERSHIP_CHANGE, 1, TimeUnit.MINUTES);
     }
 
     @Override
