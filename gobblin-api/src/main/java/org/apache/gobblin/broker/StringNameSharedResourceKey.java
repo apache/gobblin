@@ -23,10 +23,10 @@ import org.apache.gobblin.broker.iface.SharedResourceKey;
 /**
  * A {@link SharedResourceKey} with only a string name
  */
-public class SharedNameKey implements SharedResourceKey {
+public class StringNameSharedResourceKey implements SharedResourceKey {
   private final String name;
 
-  public SharedNameKey(String name) {
+  public StringNameSharedResourceKey(String name) {
     this.name = name;
   }
 
@@ -44,7 +44,7 @@ public class SharedNameKey implements SharedResourceKey {
       return false;
     }
 
-    SharedNameKey that = (SharedNameKey) o;
+    StringNameSharedResourceKey that = (StringNameSharedResourceKey) o;
 
     return name != null ? name.equals(that.name) : that.name == null;
   }

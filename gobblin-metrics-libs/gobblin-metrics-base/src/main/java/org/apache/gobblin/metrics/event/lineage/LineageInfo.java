@@ -34,7 +34,7 @@ import com.typesafe.config.ConfigFactory;
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.broker.SharedNameKey;
+import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.NotConfiguredException;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
@@ -221,8 +221,7 @@ public final class LineageInfo {
     }
 
     try {
-      LineageInfo lineageInfo = broker.getSharedResource(new LineageInfoFactory(),
-          new SharedNameKey(LineageInfoFactory.KEY_NAME));
+      LineageInfo lineageInfo = broker.getSharedResource(new LineageInfoFactory(), EmptyKey.INSTANCE);
       return Optional.of(lineageInfo);
     } catch (NotConfiguredException e) {
       log.warn("Fail to get LineageInfo instance from broker. Will not track data lineage", e);

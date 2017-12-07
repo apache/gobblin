@@ -17,8 +17,8 @@
 
 package org.apache.gobblin.metrics.broker;
 
+import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.ResourceInstance;
-import org.apache.gobblin.broker.SharedNameKey;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.ConfigView;
 import org.apache.gobblin.broker.iface.NotConfiguredException;
@@ -32,8 +32,7 @@ import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 /**
  * A {@link SharedResourceFactory} to share a job level {@link LineageInfo} instance
  */
-public class LineageInfoFactory implements SharedResourceFactory<LineageInfo, SharedNameKey, GobblinScopeTypes> {
-  public static final String KEY_NAME = "lineageEvent";
+public class LineageInfoFactory implements SharedResourceFactory<LineageInfo, EmptyKey, GobblinScopeTypes> {
   public static final String FACTORY_NAME = "lineageInfo";
 
   @Override
@@ -43,13 +42,13 @@ public class LineageInfoFactory implements SharedResourceFactory<LineageInfo, Sh
 
   @Override
   public SharedResourceFactoryResponse<LineageInfo> createResource(SharedResourcesBroker<GobblinScopeTypes> broker,
-      ScopedConfigView<GobblinScopeTypes, SharedNameKey> config)
+      ScopedConfigView<GobblinScopeTypes, EmptyKey> config)
       throws NotConfiguredException {
     return new ResourceInstance<>(new LineageInfo(config.getConfig()));
   }
 
   @Override
-  public GobblinScopeTypes getAutoScope(SharedResourcesBroker<GobblinScopeTypes> broker, ConfigView<GobblinScopeTypes, SharedNameKey> config) {
+  public GobblinScopeTypes getAutoScope(SharedResourcesBroker<GobblinScopeTypes> broker, ConfigView<GobblinScopeTypes, EmptyKey> config) {
     return GobblinScopeTypes.JOB;
   }
 }
