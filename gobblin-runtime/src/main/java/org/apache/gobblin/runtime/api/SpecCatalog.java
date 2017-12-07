@@ -127,6 +127,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
 
     @Override public void onAddSpec(Spec addedSpec) {
       this.numAddedSpecs.inc();
+      this.histogramForSpecAdd.update(1);
       submitTrackingEvent(addedSpec, SPEC_ADDED_OPERATION_TYPE);
     }
 
@@ -150,12 +151,14 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     @Override
     public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
       this.numDeletedSpecs.inc();
+      this.histogramForSpecDelete.update(1);
       submitTrackingEvent(deletedSpecURI, deletedSpecVersion, SPEC_DELETED_OPERATION_TYPE);
     }
 
     @Override
     public void onUpdateSpec(Spec updatedSpec) {
       this.numUpdatedSpecs.inc();
+      this.histogramForSpecUpdate.update(1);
       submitTrackingEvent(updatedSpec, SPEC_UPDATED_OPERATION_TYPE);
     }
   }

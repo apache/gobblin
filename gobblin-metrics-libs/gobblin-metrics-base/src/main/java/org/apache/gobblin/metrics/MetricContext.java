@@ -469,9 +469,11 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
   }
 
   /**
-   * Get a {@link ContextAwareHistogram} with a given name.
+   * Get a {@link ContextAwareHistogram} with a given name and a customized {@link com.codahale.metrics.SlidingTimeWindowReservoir}
    *
    * @param name name of the {@link ContextAwareHistogram}
+   * @param windowSize normally the duration of the time window
+   * @param unit the unit of time
    * @return the {@link ContextAwareHistogram} with the given name
    */
   public ContextAwareHistogram contextAwareHistogram(String name, long windowSize, TimeUnit unit) {
@@ -489,9 +491,11 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
   }
 
   /**
-   * Get a {@link ContextAwareTimer} with a given name.
+   * Get a {@link ContextAwareTimer} with a given name and a customized {@link com.codahale.metrics.SlidingTimeWindowReservoir}
    *
    * @param name name of the {@link ContextAwareTimer}
+   * @param windowSize normally the duration of the time window
+   * @param unit the unit of time
    * @return the {@link ContextAwareTimer} with the given name
    */
   public ContextAwareTimer contextAwareTimer(String name, long windowSize, TimeUnit unit) {

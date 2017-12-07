@@ -54,7 +54,7 @@ public class InnerTimer extends Timer implements InnerMetric {
 
     Optional<MetricContext> parentContext = context.getParent();
     if (parentContext.isPresent()) {
-      this.parentTimer = Optional.fromNullable(parentContext.get().contextAwareTimerWithSlidingTimeWindow(name, windowSize, unit));
+      this.parentTimer = Optional.fromNullable(parentContext.get().contextAwareTimer(name, windowSize, unit));
     } else {
       this.parentTimer = Optional.absent();
     }
