@@ -22,7 +22,11 @@ import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-
+/**
+ * A class which wraps all arguments required by {@link ContextAwareMetricFactory}s.
+ *
+ * A concrete {@link ContextAwareMetricFactory} knows how to interpret this class into its corresponding sub-type.
+ */
 @Data
 @AllArgsConstructor
 public class ContextAwareMetricFactoryArgs {

@@ -106,8 +106,11 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public ContextAwareHistogram newMetric(ContextAwareMetricFactoryArgs args) {
-      ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs windowArgs = (ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs)args;
-      return new ContextAwareHistogram(windowArgs.getContext(), windowArgs.getName(), windowArgs.getWindowSize(), windowArgs.getUnit());
+      if (args instanceof ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs) {
+        ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs windowArgs = (ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs)args;
+        return new ContextAwareHistogram(windowArgs.getContext(), windowArgs.getName(), windowArgs.getWindowSize(), windowArgs.getUnit());
+      }
+      throw new UnsupportedOperationException("Unknown factory arguments to create ContextAwareHistogram");
     }
 
     @Override
@@ -128,8 +131,11 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public ContextAwareTimer newMetric(ContextAwareMetricFactoryArgs args) {
-      ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs windowArgs = (ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs)args;
-      return new ContextAwareTimer(windowArgs.getContext(), windowArgs.getName(), windowArgs.getWindowSize(), windowArgs.getUnit());
+      if (args instanceof ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs) {
+        ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs windowArgs = (ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs)args;
+        return new ContextAwareTimer(windowArgs.getContext(), windowArgs.getName(), windowArgs.getWindowSize(), windowArgs.getUnit());
+      }
+      throw new UnsupportedOperationException("Unknown factory arguments to create ContextAwareTimer");
     }
 
     @Override
