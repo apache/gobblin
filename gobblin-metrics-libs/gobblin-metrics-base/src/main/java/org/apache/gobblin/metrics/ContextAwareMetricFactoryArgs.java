@@ -20,20 +20,21 @@ package org.apache.gobblin.metrics;
 import java.util.concurrent.TimeUnit;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+
 
 /**
  * A class which wraps all arguments required by {@link ContextAwareMetricFactory}s.
  *
  * A concrete {@link ContextAwareMetricFactory} knows how to interpret this class into its corresponding sub-type.
  */
-@Data
 @AllArgsConstructor
+@Getter
 public class ContextAwareMetricFactoryArgs {
   protected final MetricContext context;
   protected final String name;
 
-  @Data
+  @Getter
   public static class SlidingTimeWindowArgs extends  ContextAwareMetricFactoryArgs {
     protected final long windowSize;
     protected final TimeUnit unit;
