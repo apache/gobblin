@@ -369,8 +369,8 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   }
 
   @SuppressWarnings("unchecked")
-  protected synchronized <T extends ContextAwareMetric> T getOrCreate(String name,
-      ContextAwareMetricFactory<T> factory, Object... args) {
+  protected synchronized <T extends ContextAwareMetric> T getOrCreate(
+      ContextAwareMetricFactory<T> factory, ContextAwareMetricFactory.ContextAwareMetricFactoryArgs args) {
     InnerMetric metric = this.contextAwareMetrics.get(name);
     if (metric != null) {
       if (factory.isInstance(metric)) {
@@ -379,7 +379,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
       throw new IllegalArgumentException(name + " is already used for a different type of metric");
     }
 
-    T newMetric = factory.newMetric(this.metricContext.get(), name, args);
+    T newMetric = factory.newMetric(args);
     this.register(name, newMetric);
     return newMetric;
   }

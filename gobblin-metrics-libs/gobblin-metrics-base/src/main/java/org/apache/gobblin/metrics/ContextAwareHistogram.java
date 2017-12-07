@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.metrics;
 
-import java.util.concurrent.TimeUnit;
-
 import lombok.experimental.Delegate;
 
 import com.codahale.metrics.ExponentiallyDecayingReservoir;
@@ -57,10 +55,10 @@ public class ContextAwareHistogram extends Histogram implements ContextAwareMetr
     this.context = context;
   }
 
-  ContextAwareHistogram(MetricContext context, String name, long windowSize, TimeUnit unit) {
-    super(new SlidingTimeWindowReservoir(windowSize, unit));
-    this.innerHistogram = new InnerHistogram(context, name, this, windowSize, unit);
-    this.context = context;
+  ContextAwareHistogram(ContextAwareMetricFactory.SlidingTimeWindowArgs args) {
+    super(new SlidingTimeWindowReservoir(args.getWindowSize(), args.getUnit()));
+    this.innerHistogram = new InnerHistogram(args.getContext(), args.getName(), this, args.getWindowSize(), args.getUnit());
+    this.context = args.getContext();
   }
 
   @Override

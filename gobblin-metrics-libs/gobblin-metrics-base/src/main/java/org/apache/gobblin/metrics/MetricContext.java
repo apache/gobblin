@@ -477,7 +477,9 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    * @return the {@link ContextAwareHistogram} with the given name
    */
   public ContextAwareHistogram contextAwareHistogram(String name, long windowSize, TimeUnit unit) {
-    return this.innerMetricContext.getOrCreate(name, ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_HISTOGRAM_FACTORY, windowSize, unit);
+    ContextAwareMetricFactory.SlidingTimeWindowArgs args = new ContextAwareMetricFactory.SlidingTimeWindowArgs(
+        this.innerMetricContext.getMetricContext().get(), name, windowSize, unit);
+    return this.innerMetricContext.getOrCreate(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_HISTOGRAM_FACTORY, args);
   }
 
   /**
@@ -499,7 +501,9 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    * @return the {@link ContextAwareTimer} with the given name
    */
   public ContextAwareTimer contextAwareTimer(String name, long windowSize, TimeUnit unit) {
-    return this.innerMetricContext.getOrCreate(name, ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_TIMER_FACTORY, windowSize, unit);
+    ContextAwareMetricFactory.SlidingTimeWindowArgs args = new ContextAwareMetricFactory.SlidingTimeWindowArgs(
+        this.innerMetricContext.getMetricContext().get(), name, windowSize, unit);
+    return this.innerMetricContext.getOrCreate(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_TIMER_FACTORY, args);
   }
 
   /**

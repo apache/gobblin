@@ -25,6 +25,9 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.Timer;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
 
 /**
  * An interface for factory classes for {@link ContextAwareMetric}s.
@@ -51,8 +54,26 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
    */
   public T newMetric(MetricContext context, String name);
 
-  default public T newMetric(MetricContext context, String name, Object... args) {
+  default public T newMetric(ContextAwareMetricFactoryArgs args) {
     return null;
+  }
+
+  @Data
+  @AllArgsConstructor
+  class ContextAwareMetricFactoryArgs {
+    protected final MetricContext context;
+    protected final String name;
+  }
+
+  @Data
+  class SlidingTimeWindowArgs extends  ContextAwareMetricFactoryArgs {
+    protected final long windowSize;
+    protected final TimeUnit unit;
+    public SlidingTimeWindowArgs(MetricContext context, String name, long windowSize, TimeUnit unit) {
+      super(context, name);
+      this.windowSize = windowSize;
+      this.unit = unit;
+    }
   }
 
   /**
@@ -108,8 +129,8 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
     }
 
     @Override
-    public ContextAwareHistogram newMetric(MetricContext context, String name, Object ... args) {
-      return new ContextAwareHistogram(context, name, (long)args[0], (TimeUnit) args[1]);
+    public ContextAwareHistogram newMetric(ContextAwareMetricFactoryArgs args) {
+      return new ContextAwareHistogram((SlidingTimeWindowArgs)args);
     }
 
     @Override
@@ -129,8 +150,8 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
     }
 
     @Override
-    public ContextAwareTimer newMetric(MetricContext context, String name, Object ... args) {
-      return new ContextAwareTimer(context, name, (long)args[0], (TimeUnit) args[1]);
+    public ContextAwareTimer newMetric(ContextAwareMetricFactoryArgs args) {
+      return new ContextAwareTimer((SlidingTimeWindowArgs)args);
     }
 
     @Override
