@@ -100,9 +100,9 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
           updateGetJobTime(startTime);
           return size;
       });
-      this.histogramForJobAdd = jobCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_JOB_ADD, 1, TimeUnit.MINUTES);
-      this.histogramForJobUpdate = jobCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_JOB_UPDATE, 1, TimeUnit.MINUTES);
-      this.histogramForJobDelete = jobCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_JOB_DELETE, 1, TimeUnit.MINUTES);
+      this.histogramForJobAdd = context.contextAwareHistogram(HISTOGRAM_FOR_JOB_ADD, 1, TimeUnit.MINUTES);
+      this.histogramForJobUpdate = context.contextAwareHistogram(HISTOGRAM_FOR_JOB_UPDATE, 1, TimeUnit.MINUTES);
+      this.histogramForJobDelete = context.contextAwareHistogram(HISTOGRAM_FOR_JOB_DELETE, 1, TimeUnit.MINUTES);
     }
 
     public void updateGetJobTime(long startTime) {

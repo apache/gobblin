@@ -560,7 +560,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   @Override
   public List<Tag<?>> generateTags(State state) {
-    return null;
+    return ImmutableList.of();
   }
 
   @Override

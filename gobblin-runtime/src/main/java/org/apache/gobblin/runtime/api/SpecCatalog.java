@@ -95,9 +95,9 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
           updateGetSpecTime(startTime);
           return size;
       });
-      this.histogramForSpecAdd = specCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_SPEC_ADD, 1, TimeUnit.MINUTES);
-      this.histogramForSpecUpdate = specCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_SPEC_UPDATE, 1, TimeUnit.MINUTES);
-      this.histogramForSpecDelete = specCatalog.getMetricContext().contextAwareHistogram(HISTOGRAM_FOR_SPEC_DELETE, 1, TimeUnit.MINUTES);
+      this.histogramForSpecAdd = context.contextAwareHistogram(HISTOGRAM_FOR_SPEC_ADD, 1, TimeUnit.MINUTES);
+      this.histogramForSpecUpdate = context.contextAwareHistogram(HISTOGRAM_FOR_SPEC_UPDATE, 1, TimeUnit.MINUTES);
+      this.histogramForSpecDelete = context.contextAwareHistogram(HISTOGRAM_FOR_SPEC_DELETE, 1, TimeUnit.MINUTES);
     }
 
     public void updateGetSpecTime(long startTime) {
