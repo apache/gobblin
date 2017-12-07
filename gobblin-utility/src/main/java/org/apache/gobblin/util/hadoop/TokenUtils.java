@@ -19,6 +19,7 @@ package org.apache.gobblin.util.hadoop;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -125,7 +126,7 @@ public class TokenUtils {
     // Will add hive tokens into ugi in this method.
     getHiveToken(state, client, cred, targetUser, ugi);
 
-    if (tokenFile.isPresent()){
+    if (tokenFile.isPresent()) {
       persistTokens(cred, tokenFile.get());
     }
     // at this point, tokens in ugi can be more than that in Credential object,
@@ -193,9 +194,12 @@ public class TokenUtils {
     try {
       // Fetch and save the default hcat token.
       LOG.info("Fetching default Hive MetaStore token from hive");
-      HiveConf hiveConf = new HiveConf();
 
-      Token<DelegationTokenIdentifier> hcatToken = fetchHcatToken(userToProxy, hiveConf, null, hiveClient);
+      // Fetch and save the default hcat token.
+      // The tokenSignature needs to be matched with the one in HiveConf to correctly identity a specific token.
+      HiveConf hiveConf = new HiveConf();
+      Token<DelegationTokenIdentifier> hcatToken =
+          fetchHcatToken(userToProxy, hiveConf, hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname), hiveClient);
       cred.addToken(hcatToken.getService(), hcatToken);
       ugi.addToken(hcatToken);
 
