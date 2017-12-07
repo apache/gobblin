@@ -146,7 +146,7 @@ public class GobblinHelixTaskTest {
 
     GobblinHelixTaskFactory gobblinHelixTaskFactory =
         new GobblinHelixTaskFactory(Optional.<ContainerMetrics>absent(), this.taskExecutor, this.taskStateTracker,
-            this.localFs, this.appWorkDir, ConfigFactory.empty());
+            this.localFs, this.appWorkDir, ConfigFactory.empty(), this.helixManager);
     this.gobblinHelixTask = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
   }
 
