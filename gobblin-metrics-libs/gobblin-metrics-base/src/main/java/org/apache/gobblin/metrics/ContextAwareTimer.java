@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.metrics;
 
+import java.util.concurrent.TimeUnit;
+
+import com.codahale.metrics.SlidingTimeWindowReservoir;
 import com.codahale.metrics.Timer;
 
 import org.apache.gobblin.metrics.metric.InnerMetric;
@@ -48,6 +51,12 @@ public class ContextAwareTimer extends Timer implements ContextAwareMetric {
 
   ContextAwareTimer(MetricContext context, String name) {
     this.innerTimer = new InnerTimer(context, name, this);
+    this.context = context;
+  }
+
+  ContextAwareTimer(MetricContext context, String name, long windowSize, TimeUnit unit) {
+    super(new SlidingTimeWindowReservoir(windowSize, unit));
+    this.innerTimer = new InnerTimer(context, name, this, windowSize, unit);
     this.context = context;
   }
 

@@ -23,7 +23,6 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.Timer;
 
-
 /**
  * An interface for factory classes for {@link ContextAwareMetric}s.
  *
@@ -48,6 +47,10 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
    * @return the newly created metric
    */
   public T newMetric(MetricContext context, String name);
+
+  default public T newMetric(ContextAwareMetricFactoryArgs args) {
+    return null;
+  }
 
   /**
    * Check if a given metric is an instance of the type of context-aware metrics created by this
@@ -102,6 +105,15 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
     }
 
     @Override
+    public ContextAwareHistogram newMetric(ContextAwareMetricFactoryArgs args) {
+      if (args instanceof ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs) {
+        ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs windowArgs = (ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs)args;
+        return new ContextAwareHistogram(windowArgs.getContext(), windowArgs.getName(), windowArgs.getWindowSize(), windowArgs.getUnit());
+      }
+      throw new UnsupportedOperationException("Unknown factory arguments to create ContextAwareHistogram");
+    }
+
+    @Override
     public boolean isInstance(Metric metric) {
       return Histogram.class.isInstance(metric);
     }
@@ -115,6 +127,15 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
     @Override
     public ContextAwareTimer newMetric(MetricContext context, String name) {
       return new ContextAwareTimer(context, name);
+    }
+
+    @Override
+    public ContextAwareTimer newMetric(ContextAwareMetricFactoryArgs args) {
+      if (args instanceof ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs) {
+        ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs windowArgs = (ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs)args;
+        return new ContextAwareTimer(windowArgs.getContext(), windowArgs.getName(), windowArgs.getWindowSize(), windowArgs.getUnit());
+      }
+      throw new UnsupportedOperationException("Unknown factory arguments to create ContextAwareTimer");
     }
 
     @Override

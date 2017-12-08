@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
@@ -31,21 +32,31 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 
 
+/**
+ * Test for loading linage events from state
+ */
 public class LineageEventTest {
   @Test
   public void testEvent() {
     final String topic = "testTopic";
+    final String kafka = "kafka";
+    final String hdfs = "hdfs";
+    final String mysql = "mysql";
+    final String branch = "branch";
+
     State state0 = new State();
-    DatasetDescriptor source = new DatasetDescriptor("kafka", topic);
+    DatasetDescriptor source = new DatasetDescriptor(kafka, topic);
     LineageInfo.setSource(source, state0);
-    DatasetDescriptor destination0 = new DatasetDescriptor("hdfs", "/data/dbchanges");
-    LineageInfo.putDestination(destination0, 0, state0);
-    DatasetDescriptor destination1 = new DatasetDescriptor("mysql", "kafka.testTopic");
-    LineageInfo.putDestination(destination1, 1, state0);
+    DatasetDescriptor destination00 = new DatasetDescriptor(hdfs, "/data/dbchanges");
+    destination00.addMetadata(branch, "0");
+    LineageInfo.putDestination(destination00, 0, state0);
+    DatasetDescriptor destination01 = new DatasetDescriptor(mysql, "kafka.testTopic");
+    destination01.addMetadata(branch, "1");
+    LineageInfo.putDestination(destination01, 1, state0);
 
     Map<String, LineageEventBuilder> events = LineageInfo.load(state0);
-    verify(events.get("0"), topic, source, destination0, 0);
-    verify(events.get("1"), topic, source, destination1, 1);
+    verify(events.get("0"), topic, source, destination00);
+    verify(events.get("1"), topic, source, destination01);
 
     State state1 = new State();
     LineageInfo.setSource(source, state1);
@@ -54,60 +65,56 @@ public class LineageEventTest {
     states.add(state1);
 
     // Test only full fledged lineage events are loaded
-    try {
-      Collection<LineageEventBuilder> eventsList = LineageInfo.load(states);
-      Assert.assertTrue(eventsList.size() == 2);
-      Assert.assertEquals(getLineageEvent(eventsList, 0), events.get("0"));
-      Assert.assertEquals(getLineageEvent(eventsList, 1), events.get("1"));
-    } catch (LineageException e) {
-      Assert.fail("Unexpected exception");
-    }
+    Collection<LineageEventBuilder> eventsList = LineageInfo.load(states);
+    Assert.assertTrue(eventsList.size() == 2);
+    Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), events.get("0"));
+    Assert.assertEquals(getLineageEvent(eventsList, 1, mysql), events.get("1"));
 
     // There are 3 full fledged lineage events
-    DatasetDescriptor destination2 = new DatasetDescriptor("mysql", "kafka.testTopic2");
-    LineageInfo.putDestination(destination2, 2, state1);
-    try {
-      Collection<LineageEventBuilder> eventsList = LineageInfo.load(states);
-      Assert.assertTrue(eventsList.size() == 3);
-      Assert.assertEquals(getLineageEvent(eventsList, 0), events.get("0"));
-      Assert.assertEquals(getLineageEvent(eventsList, 1), events.get("1"));
-      verify(getLineageEvent(eventsList, 2), topic, source, destination2, 2);
-    } catch (LineageException e) {
-      Assert.fail("Unexpected exception");
-    }
+    DatasetDescriptor destination12 = new DatasetDescriptor(mysql, "kafka.testTopic2");
+    destination12.addMetadata(branch, "2");
+    LineageInfo.putDestination(destination12, 2, state1);
+    eventsList = LineageInfo.load(states);
+    Assert.assertTrue(eventsList.size() == 3);
+    Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), events.get("0"));
+    Assert.assertEquals(getLineageEvent(eventsList, 1, mysql), events.get("1"));
+    verify(getLineageEvent(eventsList, 2, mysql), topic, source, destination12);
 
-    // Throw conflict exception when there is a conflict on a branch between 2 states
-    LineageInfo.putDestination(destination2, 0, state1);
-    boolean hasLineageException = false;
-    try {
-      Collection<LineageEventBuilder> eventsList = LineageInfo.load(states);
-    } catch (LineageException e) {
-      Assert.assertTrue(e instanceof LineageException.ConflictException);
-      hasLineageException = true;
+
+    // There 5 lineage events put, but only 4 unique lineage events
+    DatasetDescriptor destination10 = destination12;
+    LineageInfo.putDestination(destination10, 0, state1);
+    DatasetDescriptor destination11 = new DatasetDescriptor("hive", "kafka.testTopic1");
+    destination11.addMetadata(branch, "1");
+    LineageInfo.putDestination(destination11, 1, state1);
+    eventsList = LineageInfo.load(states);
+    Assert.assertTrue(eventsList.size() == 4);
+    Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), events.get("0"));
+    Assert.assertEquals(getLineageEvent(eventsList, 1, mysql), events.get("1"));
+    // Either branch 0 or 2 of state 1 is selected
+    LineageEventBuilder event12 = getLineageEvent(eventsList, 0, mysql);
+    if (event12 == null) {
+      event12 = getLineageEvent(eventsList, 2, mysql);
     }
-    Assert.assertTrue(hasLineageException);
+    verify(event12, topic, source, destination12);
+    verify(getLineageEvent(eventsList, 1, "hive"), topic, source, destination11);
   }
 
-  private LineageEventBuilder getLineageEvent(Collection<LineageEventBuilder> events, int branchId) {
+  private LineageEventBuilder getLineageEvent(Collection<LineageEventBuilder> events, int branchId, String destinationPlatform) {
     for (LineageEventBuilder event : events) {
-      if (event.getDestination().getMetadata().get(LineageInfo.BRANCH).equals(String.valueOf(branchId))) {
+      if (event.getDestination().getPlatform().equals(destinationPlatform) &&
+          event.getDestination().getMetadata().get(DatasetConstants.BRANCH).equals(String.valueOf(branchId))) {
         return event;
       }
     }
     return null;
   }
 
-  private void verify(LineageEventBuilder event, String name, DatasetDescriptor source, DatasetDescriptor destination, int branchId) {
+  private void verify(LineageEventBuilder event, String name, DatasetDescriptor source, DatasetDescriptor destination) {
     Assert.assertEquals(event.getName(), name);
     Assert.assertEquals(event.getNamespace(), LineageEventBuilder.LIENAGE_EVENT_NAMESPACE);
     Assert.assertEquals(event.getMetadata().get(GobblinEventBuilder.EVENT_TYPE), LineageEventBuilder.LINEAGE_EVENT_TYPE);
     Assert.assertTrue(event.getSource().equals(source));
-
-    DatasetDescriptor updatedDestination = new DatasetDescriptor(destination);
-    updatedDestination.addMetadata(LineageInfo.BRANCH, String.valueOf(branchId));
-    Assert.assertTrue(event.getDestination().equals(updatedDestination));
-
-    // It only has eventType info
-    Assert.assertTrue(event.getMetadata().size() == 1);
+    Assert.assertTrue(event.getDestination().equals(destination));
   }
 }

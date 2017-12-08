@@ -18,9 +18,11 @@
 package org.apache.gobblin.metrics;
 
 import java.lang.ref.WeakReference;
+import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import com.codahale.metrics.Histogram;
+import com.codahale.metrics.SlidingTimeWindowReservoir;
 import com.google.common.base.Optional;
 
 import org.apache.gobblin.metrics.metric.InnerMetric;
@@ -43,6 +45,21 @@ public class InnerHistogram extends Histogram implements InnerMetric {
     Optional<MetricContext> parentContext = context.getParent();
     if (parentContext.isPresent()) {
       this.parentHistogram = Optional.fromNullable(parentContext.get().contextAwareHistogram(name));
+    } else {
+      this.parentHistogram = Optional.absent();
+    }
+
+    this.contextAwareHistogram = new WeakReference<>(contextAwareHistogram);
+  }
+
+  InnerHistogram(MetricContext context, String name, ContextAwareHistogram contextAwareHistogram, long windowSize, TimeUnit unit) {
+    super(new SlidingTimeWindowReservoir(windowSize, unit));
+
+    this.name = name;
+
+    Optional<MetricContext> parentContext = context.getParent();
+    if (parentContext.isPresent()) {
+      this.parentHistogram = Optional.fromNullable(parentContext.get().contextAwareHistogram(name, windowSize, unit));
     } else {
       this.parentHistogram = Optional.absent();
     }

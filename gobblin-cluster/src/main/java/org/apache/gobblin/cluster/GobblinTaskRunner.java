@@ -160,7 +160,7 @@ public class GobblinTaskRunner {
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
 
     Path appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get() :
-        GobblinClusterUtils.getAppWorkDirPath(this.fs, applicationName, applicationId);
+        GobblinClusterUtils.getAppWorkDirPathFromConfig(config, this.fs, applicationName, applicationId);
 
     List<Service> services = Lists.newArrayList(taskExecutor, taskStateTracker,
         new JMXReportingService(ImmutableMap.of("task.executor" ,taskExecutor.getTaskExecutorQueueMetricSet())));
@@ -178,7 +178,7 @@ public class GobblinTaskRunner {
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
     taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME,
         new GobblinHelixTaskFactory(this.containerMetrics, taskExecutor, taskStateTracker, this.fs, appWorkDir,
-            stateStoreJobConfig));
+            stateStoreJobConfig, this.helixManager));
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine().registerStateModelFactory("Task", this.taskStateModelFactory);
   }
@@ -479,10 +479,6 @@ public class GobblinTaskRunner {
         printUsage(options);
         System.exit(1);
       }
-
-      Log4jConfigurationHelper.updateLog4jConfiguration(GobblinTaskRunner.class,
-          GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE,
-          GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE);
 
       LOGGER.info(JvmUtils.getJvmInputArguments());
 

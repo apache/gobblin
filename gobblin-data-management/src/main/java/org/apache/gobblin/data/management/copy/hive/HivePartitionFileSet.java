@@ -152,7 +152,7 @@ public class HivePartitionFileSet extends HiveFileSet {
         CopyableFile fileEntity =
             builder.fileSet(fileSet).checksum(new byte[0]).datasetOutputPath(desiredTargetLocation.location.toString())
                 .build();
-        this.hiveCopyEntityHelper.setCopyableFileDestinationDataset(fileEntity);
+        this.hiveCopyEntityHelper.setCopyableFileDatasets(fileEntity);
         copyEntities.add(fileEntity);
       }
 

@@ -20,6 +20,7 @@ package org.apache.gobblin.metrics;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.TimeUnit;
 
+import com.codahale.metrics.SlidingTimeWindowReservoir;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 
@@ -41,6 +42,19 @@ public class InnerTimer extends Timer implements InnerMetric {
     Optional<MetricContext> parentContext = context.getParent();
     if (parentContext.isPresent()) {
       this.parentTimer = Optional.fromNullable(parentContext.get().contextAwareTimer(name));
+    } else {
+      this.parentTimer = Optional.absent();
+    }
+    this.timer = new WeakReference<>(contextAwareTimer);
+  }
+
+  InnerTimer(MetricContext context, String name, ContextAwareTimer contextAwareTimer, long windowSize, TimeUnit unit) {
+    super(new SlidingTimeWindowReservoir(windowSize, unit));
+    this.name = name;
+
+    Optional<MetricContext> parentContext = context.getParent();
+    if (parentContext.isPresent()) {
+      this.parentTimer = Optional.fromNullable(parentContext.get().contextAwareTimer(name, windowSize, unit));
     } else {
       this.parentTimer = Optional.absent();
     }
