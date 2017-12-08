@@ -37,10 +37,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.Extract;
 
 import lombok.Getter;
+import lombok.Setter;
 
 
 /**
@@ -66,6 +69,9 @@ public class SourceState extends State {
 
   @Getter
   private final List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
+
+  @Getter @Setter
+  private SharedResourcesBroker<GobblinScopeTypes> broker;
 
   /**
    * Default constructor.

@@ -53,7 +53,6 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -192,11 +191,9 @@ public class TokenUtils {
   public static void getHiveToken(final State state, IMetaStoreClient hiveClient, Credentials cred,
       final String userToProxy, UserGroupInformation ugi) {
     try {
-      // Fetch and save the default hcat token.
-      LOG.info("Fetching default Hive MetaStore token from hive");
-
-      // Fetch and save the default hcat token.
-      // The tokenSignature needs to be matched with the one in HiveConf to correctly identity a specific token.
+      // Fetch the delegation token with "service" field overwritten with the metastore.uri configuration.
+      // org.apache.gobblin.hive.HiveMetaStoreClientFactory.getHiveConf(com.google.common.base.Optional<java.lang.String>)
+      // sets the signature field to the same value to retrieve the token correctly.
       HiveConf hiveConf = new HiveConf();
       Token<DelegationTokenIdentifier> hcatToken =
           fetchHcatToken(userToProxy, hiveConf, hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname), hiveClient);

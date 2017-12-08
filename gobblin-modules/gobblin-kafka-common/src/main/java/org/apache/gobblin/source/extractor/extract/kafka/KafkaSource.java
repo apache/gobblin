@@ -32,7 +32,6 @@ import java.util.regex.Pattern;
 
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -143,6 +142,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   private MetricContext metricContext;
 
+  protected Optional<LineageInfo> lineageInfo;
+
   private List<String> getLimiterExtractorReportKeys() {
     List<String> keyNames = new ArrayList<>();
     keyNames.add(KafkaSource.TOPIC_NAME);
@@ -163,6 +164,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     this.metricContext = Instrumented.getMetricContext(state, KafkaSource.class);
+    this.lineageInfo = LineageInfo.getLineageInfo(state.getBroker());
 
     Map<String, List<WorkUnit>> workUnits = Maps.newConcurrentMap();
     if (state.getPropAsBoolean(KafkaSource.GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION)) {
@@ -554,7 +556,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     // Add lineage info
     DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_KAFKA, partition.getTopicName());
     source.addMetadata(DatasetConstants.BROKERS, kafkaBrokers);
-    LineageInfo.setSource(source, workUnit);
+    if (this.lineageInfo.isPresent()) {
+      this.lineageInfo.get().setSource(source, workUnit);
+    }
 
     LOG.info(String.format("Created workunit for partition %s: lowWatermark=%d, highWatermark=%d, range=%d", partition,
         offsets.getStartOffset(), offsets.getLatestOffset(), offsets.getLatestOffset() - offsets.getStartOffset()));

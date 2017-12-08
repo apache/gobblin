@@ -17,15 +17,14 @@
 
 package org.apache.gobblin.dataset;
 
-import org.apache.gobblin.configuration.State;
-
+import com.typesafe.config.Config;
 
 /**
  * A factory that creates an instance of {@link DatasetResolver}
  */
 public interface DatasetResolverFactory {
-  String NAMESPACE = "DatasetResolverFactory";
-  String CLASS = NAMESPACE + "." + "class";
-
-  DatasetResolver createResolver(State state);
+  /**
+   * Create a {@link DatasetResolver} instance
+   */
+  DatasetResolver createResolver(Config config);
 }
