@@ -19,19 +19,38 @@ package org.apache.gobblin.broker;
 
 import org.apache.gobblin.broker.iface.SharedResourceKey;
 
-import lombok.EqualsAndHashCode;
-
 
 /**
- * A dummy {@link SharedResourceKey}.
+ * A {@link SharedResourceKey} with only a string name
  */
-@EqualsAndHashCode
-public final class EmptyKey implements SharedResourceKey {
-  /** A singleton instance */
-  public static final EmptyKey INSTANCE = new EmptyKey();
+public class StringNameSharedResourceKey implements SharedResourceKey {
+  private final String name;
+
+  public StringNameSharedResourceKey(String name) {
+    this.name = name;
+  }
 
   @Override
   public String toConfigurationKey() {
-    return null;
+    return name;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    StringNameSharedResourceKey that = (StringNameSharedResourceKey) o;
+
+    return name != null ? name.equals(that.name) : that.name == null;
+  }
+
+  @Override
+  public int hashCode() {
+    return name != null ? name.hashCode() : 0;
   }
 }

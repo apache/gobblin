@@ -25,6 +25,7 @@ import org.apache.gobblin.configuration.State;
  */
 public class NoopDatasetResolver implements DatasetResolver {
   public static final NoopDatasetResolver INSTANCE = new NoopDatasetResolver();
+  public static final String FACTORY = "NOOP";
 
   private NoopDatasetResolver() {}
 
