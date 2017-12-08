@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.cluster;
 
-import com.google.common.io.Closer;
-import org.apache.gobblin.metastore.StateStore;
-import org.apache.gobblin.runtime.util.StateStores;
 import java.io.IOException;
 import java.util.List;
 
@@ -33,29 +30,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
 import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.runtime.TaskStateTracker;
-import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.SerializationUtils;
-import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 
 
 /**
@@ -80,50 +75,35 @@ public class GobblinHelixTask implements Task {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixTask.class);
 
-  @SuppressWarnings({"unused", "FieldCanBeLocal"})
-  private final Optional<JobMetrics> jobMetrics;
-  private final TaskExecutor taskExecutor;
-  private final TaskStateTracker taskStateTracker;
-
   private final TaskConfig taskConfig;
   // An empty JobState instance that will be filled with values read from the serialized JobState
   private final JobState jobState = new JobState();
   private final String jobName;
   private final String jobId;
   private final String jobKey;
-  private final String participantId;
 
   private final FileSystem fs;
   private final StateStores stateStores;
+  private final TaskAttemptBuilder taskAttemptBuilder;
 
   private GobblinMultiTaskAttempt taskAttempt;
 
-  public GobblinHelixTask(TaskCallbackContext taskCallbackContext, Optional<ContainerMetrics> containerMetrics,
-      TaskExecutor taskExecutor, TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir,
-      StateStores stateStores)
+  public GobblinHelixTask(TaskCallbackContext taskCallbackContext, FileSystem fs, Path appWorkDir,
+      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores)
       throws IOException {
-    this.taskExecutor = taskExecutor;
-    this.taskStateTracker = taskStateTracker;
 
     this.taskConfig = taskCallbackContext.getTaskConfig();
+    this.stateStores = stateStores;
+    this.taskAttemptBuilder = taskAttemptBuilder;
     this.jobName = this.taskConfig.getConfigMap().get(ConfigurationKeys.JOB_NAME_KEY);
     this.jobId = this.taskConfig.getConfigMap().get(ConfigurationKeys.JOB_ID_KEY);
     this.jobKey = Long.toString(Id.parse(this.jobId).getSequence());
-    this.participantId = taskCallbackContext.getManager().getInstanceName();
 
     this.fs = fs;
-    this.stateStores = stateStores;
 
     Path jobStateFilePath = new Path(appWorkDir, this.jobId + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
     SerializationUtils.deserializeState(this.fs, jobStateFilePath, this.jobState);
 
-    if (containerMetrics.isPresent()) {
-      // This must be done after the jobState is deserialized from the jobStateFilePath
-      // A reference to jobMetrics is required to ensure it is not evicted from the GobblinMetricsRegistry Cache
-      this.jobMetrics = Optional.of(JobMetrics.get(this.jobState, containerMetrics.get().getMetricContext()));
-    } else {
-      this.jobMetrics = Optional.absent();
-    }
   }
 
   @Override
@@ -162,9 +142,7 @@ public class GobblinHelixTask implements Task {
       SharedResourcesBroker<GobblinScopeTypes> jobBroker =
           globalBroker.newSubscopedBuilder(new JobScopeInstance(this.jobState.getJobName(), this.jobState.getJobId())).build();
 
-      this.taskAttempt = new GobblinMultiTaskAttempt(workUnits.iterator(), this.jobId, this.jobState, this.taskStateTracker,
-          this.taskExecutor, Optional.of(this.participantId), Optional.of(this.stateStores.taskStateStore), jobBroker);
-
+      this.taskAttempt = this.taskAttemptBuilder.build(workUnits.iterator(), this.jobId, this.jobState, jobBroker);
       this.taskAttempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
       return new TaskResult(TaskResult.Status.COMPLETED, String.format("completed tasks: %d", workUnits.size()));
     } catch (InterruptedException ie) {
