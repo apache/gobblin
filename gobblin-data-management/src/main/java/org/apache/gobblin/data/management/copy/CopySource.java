@@ -118,6 +118,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   public MetricContext metricContext;
 
+  protected Optional<LineageInfo> lineageInfo;
+
   /**
    * <ul>
    * Does the following:
@@ -139,6 +141,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public List<WorkUnit> getWorkunits(final SourceState state) {
 
     this.metricContext = Instrumented.getMetricContext(state, CopySource.class);
+    this.lineageInfo = LineageInfo.getLineageInfo(state.getBroker());
 
     try {
 
@@ -320,8 +323,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
        * a DatasetFinder. Consequently, the source and destination dataset for the CopyableFile lineage are expected
        * to be set by the same logic
        */
-      if (copyableFile.getSourceDataset() != null && copyableFile.getDestinationDataset() != null) {
-        LineageInfo.setSource(copyableFile.getSourceDataset(), workUnit);
+      if (lineageInfo.isPresent() &&
+          copyableFile.getSourceDataset() != null &&
+          copyableFile.getDestinationDataset() != null) {
+        lineageInfo.get().setSource(copyableFile.getSourceDataset(), workUnit);
       }
     }
   }
