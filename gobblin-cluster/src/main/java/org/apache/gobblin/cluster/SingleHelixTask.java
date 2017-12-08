@@ -19,6 +19,7 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
@@ -46,78 +48,75 @@ public class SingleHelixTask {
 
   private static final Logger _logger = LoggerFactory.getLogger(SingleHelixTask.class);
 
-  private GobblinMultiTaskAttempt taskAttempt;
-  private String jobId;
-  private Path workUnitFilePath;
-  private Path jobStateFilePath;
-  private FileSystem fs;
-  private TaskAttemptBuilder taskAttemptBuilder;
-  private StateStores stateStores;
+  private GobblinMultiTaskAttempt _taskattempt;
+  private String _jobId;
+  private Path _workUnitFilePath;
+  private Path _jobStateFilePath;
+  private FileSystem _fs;
+  private TaskAttemptBuilder _taskAttemptBuilder;
+  private StateStores _stateStores;
 
-  public SingleHelixTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
+  SingleHelixTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
       TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores) {
-    this.jobId = jobId;
-    this.workUnitFilePath = workUnitFilePath;
-    this.jobStateFilePath = jobStateFilePath;
-    this.fs = fs;
-    this.taskAttemptBuilder = taskAttemptBuilder;
-    this.stateStores = stateStores;
+    _jobId = jobId;
+    _workUnitFilePath = workUnitFilePath;
+    _jobStateFilePath = jobStateFilePath;
+    _fs = fs;
+    _taskAttemptBuilder = taskAttemptBuilder;
+    _stateStores = stateStores;
   }
 
+  /**
+   *
+   * @return the number of work-units processed
+   * @throws IOException
+   * @throws InterruptedException
+   */
   public int run()
-      throws IOException, InterruptedException {
-    SharedResourcesBroker<GobblinScopeTypes> globalBroker = null;
-    try {
-      return runInternal(globalBroker);
-    }finally {
-      closeGlobalBroker(globalBroker);
-    }
-  }
-
-  private int runInternal(SharedResourcesBroker<GobblinScopeTypes> globalBroker)
       throws IOException, InterruptedException {
     List<WorkUnit> workUnits = getWorkUnits();
     int workUnitSize = workUnits.size();
 
     JobState jobState = getJobState();
+    Config jobConfig = getConfigFromJobState(jobState);
 
-    globalBroker = SharedResourcesBrokerFactory
-        .createDefaultTopLevelBroker(ConfigFactory.parseProperties(jobState.getProperties()), GobblinScopeTypes.GLOBAL.defaultScopeInstance());
-    SharedResourcesBroker<GobblinScopeTypes> jobBroker =
-        globalBroker.newSubscopedBuilder(new JobScopeInstance(jobState.getJobName(), jobState.getJobId())).build();
+    try (SharedResourcesBroker<GobblinScopeTypes> globalBroker = SharedResourcesBrokerFactory
+        .createDefaultTopLevelBroker(jobConfig, GobblinScopeTypes.GLOBAL.defaultScopeInstance())) {
+      SharedResourcesBroker<GobblinScopeTypes> jobBroker = getJobBroker(jobState, globalBroker);
 
-    this.taskAttempt = this.taskAttemptBuilder.build(workUnits.iterator(), this.jobId, jobState, jobBroker);
-    this.taskAttempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
-    return workUnitSize;
-
-  }
-  private void closeGlobalBroker(SharedResourcesBroker<GobblinScopeTypes> globalBroker) {
-    if (globalBroker != null) {
-      try {
-        globalBroker.close();
-      } catch (IOException ioe) {
-        _logger.error("Could not close shared resources broker.", ioe);
-      }
+      _taskattempt = _taskAttemptBuilder.build(workUnits.iterator(), _jobId, jobState, jobBroker);
+      _taskattempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
+      return workUnitSize;
     }
+  }
+
+  private SharedResourcesBroker<GobblinScopeTypes> getJobBroker(JobState jobState,
+      SharedResourcesBroker<GobblinScopeTypes> globalBroker) {
+    return globalBroker.newSubscopedBuilder(new JobScopeInstance(jobState.getJobName(), jobState.getJobId())).build();
+  }
+
+  private Config getConfigFromJobState(JobState jobState) {
+    Properties jobProperties = jobState.getProperties();
+    return ConfigFactory.parseProperties(jobProperties);
   }
 
   private JobState getJobState()
       throws java.io.IOException {
     JobState jobState = new JobState();
-    SerializationUtils.deserializeState(this.fs, jobStateFilePath, jobState);
+    SerializationUtils.deserializeState(_fs, _jobStateFilePath, jobState);
     return jobState;
   }
 
   private List<WorkUnit> getWorkUnits()
       throws IOException {
-    String fileName = workUnitFilePath.getName();
-    String storeName = workUnitFilePath.getParent().getName();
+    String fileName = _workUnitFilePath.getName();
+    String storeName = _workUnitFilePath.getParent().getName();
     WorkUnit workUnit;
 
-    if (workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
-      workUnit = stateStores.mwuStateStore.getAll(storeName, fileName).get(0);
+    if (_workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
+      workUnit = _stateStores.mwuStateStore.getAll(storeName, fileName).get(0);
     } else {
-      workUnit = stateStores.wuStateStore.getAll(storeName, fileName).get(0);
+      workUnit = _stateStores.wuStateStore.getAll(storeName, fileName).get(0);
     }
 
     // The list of individual WorkUnits (flattened) to run
@@ -134,16 +133,16 @@ public class SingleHelixTask {
   }
 
   public void cancel() {
-    if (this.taskAttempt != null) {
+    if (_taskattempt != null) {
       try {
-        _logger.info("Task cancelled: Shutdown starting for tasks with jobId: {}", this.jobId);
-        this.taskAttempt.shutdownTasks();
-        _logger.info("Task cancelled: Shutdown complete for tasks with jobId: {}", this.jobId);
+        _logger.info("Task cancelled: Shutdown starting for tasks with jobId: {}", _jobId);
+        _taskattempt.shutdownTasks();
+        _logger.info("Task cancelled: Shutdown complete for tasks with jobId: {}", _jobId);
       } catch (InterruptedException e) {
-        throw new RuntimeException("Interrupted while shutting down task with jobId: " + this.jobId, e);
+        throw new RuntimeException("Interrupted while shutting down task with jobId: " + _jobId, e);
       }
     } else {
-      _logger.error("Task cancelled but taskAttempt is null, so ignoring.");
+      _logger.error("Task cancelled but _taskattempt is null, so ignoring.");
     }
   }
 }
