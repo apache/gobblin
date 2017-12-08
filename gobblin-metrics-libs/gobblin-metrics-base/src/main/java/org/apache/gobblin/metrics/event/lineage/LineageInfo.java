@@ -44,6 +44,7 @@ import org.apache.gobblin.dataset.DatasetResolver;
 import org.apache.gobblin.dataset.DatasetResolverFactory;
 import org.apache.gobblin.dataset.NoopDatasetResolver;
 import org.apache.gobblin.metrics.broker.LineageInfoFactory;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -63,6 +64,7 @@ import org.apache.gobblin.metrics.broker.LineageInfoFactory;
  * <p>
  *   The general flow is:
  *   <ol>
+ *     <li> get a {@link LineageInfo} instance with {@link LineageInfo#getLineageInfo(SharedResourcesBroker)}</li>
  *     <li> source sets its {@link DatasetDescriptor} to each work unit </li>
  *     <li> destination puts its {@link DatasetDescriptor} to the work unit </li>
  *     <li> load and send all lineage events from all states </li>
@@ -73,6 +75,7 @@ import org.apache.gobblin.metrics.broker.LineageInfoFactory;
 @Slf4j
 public final class LineageInfo {
   private static final String DATASET_RESOLVER_FACTORY = "datasetResolverFactory";
+  private static final String DATASET_RESOLVER_CONFIG_NAMESPACE = "datasetResolver";
 
   private static final String BRANCH = "branch";
   private static final Gson GSON = new Gson();
@@ -217,6 +220,7 @@ public final class LineageInfo {
    */
   public static Optional<LineageInfo> getLineageInfo(@Nullable SharedResourcesBroker<GobblinScopeTypes> broker) {
     if (broker == null) {
+      log.warn("Null broker. Will not track data lineage");
       return Optional.absent();
     }
 
@@ -241,7 +245,7 @@ public final class LineageInfo {
     DatasetResolver resolver = NoopDatasetResolver.INSTANCE;
     try {
       DatasetResolverFactory factory = (DatasetResolverFactory) Class.forName(resolverFactory).newInstance();
-      resolver = factory.createResolver(config);
+      resolver = factory.createResolver(ConfigUtils.getConfigOrEmpty(config, DATASET_RESOLVER_CONFIG_NAMESPACE));
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
       log.error(String.format("Fail to create a DatasetResolver with factory class %s", resolverFactory));
     }
