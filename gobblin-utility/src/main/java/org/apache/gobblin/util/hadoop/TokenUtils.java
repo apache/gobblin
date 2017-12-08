@@ -19,7 +19,6 @@ package org.apache.gobblin.util.hadoop;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import java.io.DataOutputStream;
 import java.io.File;
