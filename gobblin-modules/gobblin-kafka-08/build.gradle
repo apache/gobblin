@@ -19,6 +19,7 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
+  compile project(":gobblin-runtime")
   compile project(":gobblin-core-base")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
@@ -55,11 +56,13 @@ dependencies {
   runtime externalDependency.confluentSchemaRegistryClient
   runtime externalDependency.protobuf
 
+  testCompile project(":gobblin-modules:gobblin-service-kafka")
   testCompile project(":gobblin-runtime")
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
+  testCompile externalDependency.junit
   testCompile(externalDependency.kafka08Test){
     exclude group: "com.sun.jmx", module: "jmxri"
     exclude group: "com.sun.jdmk", module: "jmxtools"

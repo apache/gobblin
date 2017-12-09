@@ -28,7 +28,8 @@ Gobblin also allows you to specify a global configuration file that contains com
     * [SftpExtractor Properties](#SftpExtractor-Properties)  
 * [Converter Properties](#Converter-Properties)
   * [CsvToJsonConverter Properties](#CsvToJsonConverter-Properties)    
-  * [JsonIntermediateToAvroConverter Properties](#JsonIntermediateToAvroConverter-Properties)  
+  * [JsonIntermediateToAvroConverter Properties](#JsonIntermediateToAvroConverter-Properties)
+  * [JsonStringToJsonIntermediateConverter Properties](#JsonStringToJsonIntermediateConverter-Properties)
   * [AvroFilterConverter Properties](#AvroFilterConverter-Properties)  
   * [AvroFieldRetrieverConverter Properties](#AvroFieldRetrieverConverter-Properties)  
   * [AvroFieldsPickConverter Properties](#AvroFieldsPickConverter-Properties)  
@@ -821,28 +822,28 @@ None
 Yes
 ## JsonIntermediateToAvroConverter Properties <a name="JsonIntermediateToAvroConverter-Properties"></a>
 This converter takes in JSON data in a specific schema, and converts it to Avro data.
-#### converter.avro.date.format 
+#### converter.avro.date.format
 ###### Description
 Source format of the date columns for Avro-related converters.
 ###### Default Value
 None
 ###### Required
 No
-#### converter.avro.timestamp.format 
+#### converter.avro.timestamp.format
 ###### Description
 Source format of the timestamp columns for Avro-related converters.
 ###### Default Value
 None
 ###### Required
 No
-#### converter.avro.time.format 
+#### converter.avro.time.format
 ###### Description
 Source format of the time columns for Avro-related converters.
 ###### Default Value
 None
 ###### Required
 No
-#### converter.avro.binary.charset 
+#### converter.avro.binary.charset
 ###### Description
 Source format of the time columns for Avro-related converters.
 ###### Default Value
@@ -861,6 +862,28 @@ Yes
 This converter is will fail for this many number of records before throwing an exception.
 ###### Default Value
 0
+###### Required
+No
+#### converter.avro.nullify.fields.enabled
+###### Description
+Generate new avro schema by nullifying fields that previously existed but not in the current schema.
+###### Default Value
+false
+###### Required
+No
+#### converter.avro.nullify.fields.original.schema.path
+###### Description
+Path of the original avro schema which will be used for merging and nullify fields.
+###### Default Value
+None
+###### Required
+No
+## JsonStringToJsonIntermediateConverter Properties <a name="JsonStringToJsonIntermediateConverter-Properties"></a>
+#### gobblin.converter.jsonStringToJsonIntermediate.unpackComplexSchemas
+###### Description
+Parse nested JSON record using source.schema.
+###### Default Value
+True
 ###### Required
 No
 ## AvroFilterConverter Properties <a name="AvroFilterConverter-Properties"></a>
@@ -1059,6 +1082,41 @@ This is used to control the writer creation. If the value is set to true, writer
 False 
 ###### Required
 No
+#### writer.parquet.page.size
+###### Description
+The page size threshold
+###### Default Value
+1048576
+###### Required
+No
+#### writer.parquet.dictionary.page.size
+###### Description
+The block size threshold.
+###### Default Value
+134217728
+###### Required
+No
+#### writer.parquet.dictionary
+###### Description
+To turn dictionary encoding on.
+###### Default Value
+true
+###### Required
+No
+#### writer.parquet.validate
+###### Description
+To turn on validation using the schema.
+###### Default Value
+false
+###### Required
+No
+#### writer.parquet.version
+###### Description
+Version of parquet writer to use. Available versions are v1 and v2.
+###### Default Value
+v1
+###### Required
+No
 # Data Publisher Properties <a name="Data-Publisher-Properties"></a>
 #### data.publisher.type 
 ###### Description
@@ -1159,8 +1217,8 @@ No
 # JDBC Writer properties <a name="JdbcWriter-Properties"></a>
 Writer(and publisher) that writes to JDBC database. Please configure below two properties to use JDBC writer & publisher.
 
-*  writer.builder.class=gobblin.writer.JdbcWriterBuilder
-*  data.publisher.type=gobblin.publisher.JdbcPublisher
+*  writer.builder.class=org.apache.gobblin.writer.JdbcWriterBuilder
+*  data.publisher.type=org.apache.gobblin.publisher.JdbcPublisher
 
 #### jdbc.publisher.database_name
 ###### Description

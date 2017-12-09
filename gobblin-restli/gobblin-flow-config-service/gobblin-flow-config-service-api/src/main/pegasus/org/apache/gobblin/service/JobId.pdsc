@@ -1,0 +1,29 @@
+{
+  "type" : "record",
+  "name" : "JobId",
+  "namespace" : "org.apache.gobblin.service",
+  "doc" : "Identifier for a Gobblin job",
+  "fields" : [
+    {
+      "name" : "jobName",
+      "type" : "string",
+      "doc" : "Name of the job",
+      "validate": {
+        "strlen": {
+          "min": 1,
+          "max": 128
+        }
+      }
+    },
+    {
+      "name" : "jobGroup",
+      "type" : "string",
+      "doc" : "Group of the job. This defines the namespace for the job.",
+      "validate": {
+        "strlen": {
+          "min": 1,
+          "max": 128
+        }
+      }
+    } ]
+}

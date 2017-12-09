@@ -30,14 +30,14 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.slf4j
   compile externalDependency.avro
+  compile externalDependency.hiveMetastore
   compile externalDependency.jodaTime
   compile externalDependency.jacksonCore
   compile externalDependency.jasypt
   compile externalDependency.lombok
   compile externalDependency.metricsCore
+  compile externalDependency.guavaretrying
   compile externalDependency.guice
-  compile externalDependency.bcpgJdk15on
-  compile externalDependency.bcprovJdk15on
   compile externalDependency.typesafeConfig
   compile externalDependency.commonsPool
   compile externalDependency.hadoopClientCommon
@@ -45,10 +45,10 @@ dependencies {
   compile externalDependency.commonsLang3
   compile externalDependency.gson
   compile externalDependency.opencsv
+  compile externalDependency.hadoopHdfs
 
   runtime externalDependency.hadoopCommon
   runtime externalDependency.hadoopClientCore
-  runtime externalDependency.hadoopHdfs
   runtime externalDependency.hadoopAuth
 
   testCompile externalDependency.hamcrest

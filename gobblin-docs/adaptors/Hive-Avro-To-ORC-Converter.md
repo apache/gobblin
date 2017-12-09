@@ -257,9 +257,9 @@ SLA event is published every time an Avro partition/table is converted to ORC. E
         "workunitCreateTime": "1470227446703"
 
         ## Gobblin metrics metadata
-        "class": "gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher",
+        "class": "org.apache.gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher",
         "metricContextID": "20bfb2a2-0592-4f53-9259-c8ee125f90a8",
-        "metricContextName": "gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher.781426901",
+        "metricContextName": "org.apache.gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher.781426901",
     }
 }
 ```
@@ -273,12 +273,12 @@ The diagram below describes timestamps captured in the SLA event.
 # Avro hive databases and tables to convert
 hive.dataset.whitelist=events.LogEvent|LoginEvent
 
-data.publisher.type=gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher
-source.class=gobblin.data.management.conversion.hive.source.HiveAvroToOrcSource
-writer.builder.class=gobblin.data.management.conversion.hive.writer.HiveQueryWriterBuilder
-converter.classes=gobblin.data.management.conversion.hive.converter.HiveAvroToFlattenedOrcConverter,gobblin.data.management.conversion.hive.converter.HiveAvroToNestedOrcConverter
+data.publisher.type=org.apache.gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher
+source.class=org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSource
+writer.builder.class=org.apache.gobblin.data.management.conversion.hive.writer.HiveQueryWriterBuilder
+converter.classes=org.apache.gobblin.data.management.conversion.hive.converter.HiveAvroToFlattenedOrcConverter,org.apache.gobblin.data.management.conversion.hive.converter.HiveAvroToNestedOrcConverter
 
-hive.dataset.finder.class=gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder
+hive.dataset.finder.class=org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder
 
 # Only flattened orc is enabled
 hive.conversion.avro.destinationFormats=flattenedOrc

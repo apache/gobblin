@@ -2,11 +2,9 @@
 
 [TOC]
 
-**Disclaimer: Gobblin-Docker integration is currently in beta.**
-
 # Introduction
 
-Gobblin integrates with Docker by running a Gobblin standalone service inside a Docker container. The Gobblin service inside the container can monitor the host filesystem for new job configuration files, run the jobs, and write the resulting data to the host filesystem.
+Gobblin integrates with Docker by running a Gobblin standalone service inside a Docker container. The Gobblin service inside the container can monitor the host filesystem for new job configuration files, run the jobs, and write the resulting data to the host filesystem. The Gobblin Docker images can be found on Docker Hub at: https://hub.docker.com/u/gobblin/
 
 # Docker
 
@@ -14,7 +12,7 @@ For more information on Docker, including how to install it, check out the docum
 
 # Docker Repositories
 
-Gobblin currently has four different repositories, and all are on Docker Hub.
+Gobblin currently has four different repositories, and all are on Docker Hub [here](https://hub.docker.com/u/gobblin/).
 
 The `gobblin/gobblin-wikipedia` repository contains images that run the Gobblin Wikipedia job found in the [getting started guide](../Getting-Started). These images are useful for users new to Docker or Gobblin, they primarily act as a "Hello World" example for the Gobblin Docker integration.
 
@@ -45,7 +43,7 @@ The logs are printed to the console, and no errors should pop up. This should pr
 * Preserving the output of a Docker container requires using a [data volume](https://docs.docker.com/engine/tutorials/dockervolumes/). To do this, run the below command:
 
 ```
-docker run -v /home/gobblin/work-dir:/home/gobblin/work-dir gobblin-standalone
+docker run -v /home/gobblin/work-dir:/home/gobblin/work-dir gobblin-wikipedia
 ```
 
 The output of the Gobblin-Wikipedia job should now be written to `/home/gobblin/work-dir/job-output`. The `-v` command in Docker uses a feature of Docker called [data volumes](https://docs.docker.com/engine/tutorials/dockervolumes/). The `-v` option mounts a host directory into a container and is of the form `[host-directory]:[container-directory]`. Now any modifications to the host directory can be seen inside the container-directory, and any modifications to the container-directory can be seen inside the host-directory. This is a standard way to ensure data persists even after a Docker container finishes. It's important to note that the `[host-directory]` in the `-v` option can be changed to any directory (on OSX it must be under the `/Users/` directory), but the `[container-directory]` must remain `/home/gobblin/work-dir` (at least for now).

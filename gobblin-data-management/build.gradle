@@ -22,10 +22,10 @@ dependencies {
   compile project(":gobblin-core")
   compile project(":gobblin-hive-registration")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
+  compile project(":gobblin-runtime")
   compile project(":gobblin-utility")
   compile project(":gobblin-config-management:gobblin-config-client")
   compile project(":gobblin-config-management:gobblin-config-core")
-
   compile externalDependency.lombok
   compile externalDependency.commonsLang
   compile externalDependency.commonsLang3
@@ -44,6 +44,9 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
   compile externalDependency.testng
+  compile externalDependency.junit
+
+  testCompile project(":gobblin-test-utils")
 
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
@@ -51,6 +54,9 @@ dependencies {
   testCompile externalDependency.joptSimple
   testCompile externalDependency.hamcrest
   testCompile externalDependency.testng
+  testCompile externalDependency.hiveJdbc
+
+  testRuntime project(":gobblin-modules:gobblin-crypto-provider") // for GPG
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

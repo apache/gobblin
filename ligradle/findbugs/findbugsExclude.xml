@@ -35,18 +35,18 @@
   <Match>
      <Bug pattern="NM_SAME_SIMPLE_NAME_AS_INTERFACE" />
 	</Match>
-	<!-- Ignore gobblin.audit.values.auditor as the package is still a WIP -->
+	<!-- Ignore org.apache.gobblin.audit.values.auditor as the package is still a WIP -->
   <Match>
-    <Package name="~gobblin\.audit\.values\.auditor.*" />
+    <Package name="~org\.apache\.gobblin\.audit\.values\.auditor.*" />
 	</Match>
   <!-- Ignored until https://github.com/linkedin/gobblin/issues/969 has been resolved -->
   <Match>
-     <Class name="~gobblin\.metastore\.database\.DatabaseJobHistoryStoreV.*" />
+     <Class name="~org\.apache\.gobblin\.metastore\.database\.DatabaseJobHistoryStoreV.*" />
      <Bug pattern="SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING" />
   </Match>
   <!-- Ignored until https://github.com/linkedin/gobblin/issues/976 has been resolved -->
   <Match>
-    <Class name="gobblin.source.extractor.extract.jdbc.JdbcExtractor" />
+    <Class name="org.apache.gobblin.source.jdbc.JdbcExtractor" />
     <Bug pattern="OBL_UNSATISFIED_OBLIGATION,ODR_OPEN_DATABASE_RESOURCE" />
   </Match>
 </FindBugsFilter>

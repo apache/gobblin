@@ -1,0 +1,9 @@
+{
+  "type" : "enum",
+  "name" : "ExecutionStatus",
+  "namespace" : "org.apache.gobblin.service",
+  "doc" : "Execution status for a flow or job",
+  "symbols" : ["RUNNING", "FAILED", "COMPLETE"],
+  "symbolDocs" : {"RUNNING":"Flow or job is currently executing", "FAILED":"Flow or job failed",
+    "COMPLETE":"Flow or job completed execution"}
+}

@@ -19,6 +19,8 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-data-management")
+  compile externalDependency.azkaban
+  compile externalDependency.hiveJdbc
 }
 
 test {

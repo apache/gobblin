@@ -1,0 +1,61 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+job.name=ReadMonthlyPartitionedHDFSWriteDailyPartitionedHDFS
+job.group=HDFSSourceTarget
+job.description=Pull monthly partitioned data from HDFS, write it back as daily partitioned
+
+source.filebased.data.directory=/data/monthly_partitioned/job_output/dataset
+source.filebased.fs.uri=hdfs://localhost:8020
+
+source.class=org.apache.gobblin.source.DatePartitionedAvroFileSource
+source.entity=dataset
+
+# Looking for data in /data/monthly_partitioned/job_output/dataset/monthly/2015/02...
+date.partitioned.source.min.watermark.value=2015/01
+date.partitioned.source.partition.prefix=monthly
+date.partitioned.source.partition.pattern=yyyy/MM
+
+extract.namespace=org.apache.gobblin.example.partitioned
+extract.table.name=dataset
+extract.is.full=true
+extract.table.type=snapshot_only
+
+
+# Wite to HDFS as daily partitioned
+writer.fs.uri=hdfs://localhost:8020
+writer.codec.type=snappy
+writer.builder.class=org.apache.gobblin.writer.AvroDataWriterBuilder
+writer.buffer.size=4096
+writer.file.path.type=TABLENAME
+
+writer.partitioner.class=org.apache.gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner
+writer.partition.columns=change_dt
+writer.partition.pattern=yyyy/MM/dd
+writer.partition.prefix=daily
+writer.partition.timezone=Europe/Zurich
+
+data.publisher.type=org.apache.gobblin.publisher.TimePartitionedDataPublisher
+
+# Misc
+source.timezone=Europe/Zurich
+mapreduce.job.queuename=Myqueue
+
+# Metrics
+mr.report.metrics.as.counters=true
+metrics.reporting.file.enabled=true
+metrics.log.dir=${env:GOBBLIN_WORK_DIR}/metrics

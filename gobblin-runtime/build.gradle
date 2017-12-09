@@ -14,12 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+plugins {
+  id "com.commercehub.gradle.plugin.avro-base" version "0.9.0"
+}
 
 apply plugin: 'java'
 apply plugin: 'me.champeau.gradle.jmh'
+apply plugin: "com.commercehub.gradle.plugin.avro-base"
+
+avro {
+  stringType = "string"
+}
+
+task generateAvro(type: com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask) {
+  source("src/main/avro")
+  outputDir = file("src/main/gen-java")
+}
+
+compileJava {
+  dependsOn tasks.generateAvro
+}
 
 dependencies {
-  compile project(":gobblin-admin")
   compile project(":gobblin-api")
   compile project(":gobblin-core")
   compile project(":gobblin-hive-registration")
@@ -29,7 +45,6 @@ dependencies {
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate')
   compile project(":gobblin-rest-service:gobblin-rest-server")
-  compile project(":gobblin-data-management")
   compile project(":gobblin-modules:google-ingestion")
 
   compile externalDependency.avro
@@ -54,7 +69,6 @@ dependencies {
   compile externalDependency.javaxInject
   compile externalDependency.jodaTime
   compile externalDependency.log4j
-  compile externalDependency.log4jextras
   compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
@@ -65,6 +79,9 @@ dependencies {
   compile externalDependency.kafka08
   compile externalDependency.scala
   compile externalDependency.guavaretrying
+  compile externalDependency.hiveExec
+  compile externalDependency.parquet
+  compile externalDependency.kryo
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile externalDependency.calciteCore
@@ -112,6 +129,17 @@ configurations {
     }
 }
 
+sourceSets {
+  main {
+    java {
+      srcDir 'src/main/gen-java'
+    }
+    resources {
+      srcDir 'src/main/avro'
+    }
+  }
+}
+
 artifacts {
     tests testJar
 }
@@ -142,8 +170,9 @@ ext.classification="library"
  *           -PsysConfigPath=... -PoutputDir=...
  */
 task pullFileConverter(type: JavaExec) {
+  dependsOn jar
   doFirst {
-    main = "gobblin.runtime.template.PullFileToConfigConverter"
+    main = "org.apache.gobblin.runtime.template.PullFileToConfigConverter"
 
     def pullFilesRootPath = "pullFilesRootPath"
     def pullFilesToConvertGlob = "pullFilesToConvertGlob"

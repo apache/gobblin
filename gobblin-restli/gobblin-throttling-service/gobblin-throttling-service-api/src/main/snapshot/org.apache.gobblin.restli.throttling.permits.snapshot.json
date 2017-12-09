@@ -1,0 +1,76 @@
+{
+  "models" : [ {
+    "type" : "record",
+    "name" : "PermitAllocation",
+    "namespace" : "org.apache.gobblin.restli.throttling",
+    "doc" : "Used by gobblin-throttling-service to allocate permits to a client.",
+    "fields" : [ {
+      "name" : "permits",
+      "type" : "long",
+      "doc" : "Number of permits allocated. This may be 0 if no permits are allocated, or the number of requested permits."
+    }, {
+      "name" : "expiration",
+      "type" : "long",
+      "doc" : "Expiration time in Unix timestamp of the allocated permits."
+    }, {
+      "name" : "minRetryDelayMillis",
+      "type" : "long",
+      "doc" : "Client should not try to acquire permits before this delay has passed.",
+      "optional" : true
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "PermitRequest",
+    "namespace" : "org.apache.gobblin.restli.throttling",
+    "doc" : "Used to request permits from a gobblin-throttling-service.",
+    "fields" : [ {
+      "name" : "resource",
+      "type" : "string",
+      "doc" : "Resource for which permits are needed."
+    }, {
+      "name" : "permits",
+      "type" : "long",
+      "doc" : "Number of permits needed."
+    }, {
+      "name" : "minPermits",
+      "type" : "long",
+      "doc" : "Minimum number of useful permits.",
+      "optional" : true
+    }, {
+      "name" : "requestorIdentifier",
+      "type" : "string",
+      "doc" : "Identifier of the service requesting the permits."
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "EmptyRecord",
+    "namespace" : "com.linkedin.restli.common",
+    "doc" : "An literally empty record.  Intended as a marker to indicate the absence of content where a record type is required.  If used the underlying DataMap *must* be empty, EmptyRecordValidator is provided to help enforce this.  For example,  CreateRequest extends Request<EmptyRecord> to indicate it has no response body.   Also, a ComplexKeyResource implementation that has no ParamKey should have a signature like XyzResource implements ComplexKeyResource<XyzKey, EmptyRecord, Xyz>.",
+    "fields" : [ ],
+    "validate" : {
+      "com.linkedin.restli.common.EmptyRecordValidator" : { }
+    }
+  } ],
+  "schema" : {
+    "name" : "permits",
+    "namespace" : "org.apache.gobblin.restli.throttling",
+    "path" : "/permits",
+    "schema" : "org.apache.gobblin.restli.throttling.PermitAllocation",
+    "doc" : "Restli resource for allocating permits through Rest calls. Simply calls a {@link Limiter} in the server configured\n through {@link SharedResourcesBroker}.\n\ngenerated from: org.apache.gobblin.restli.throttling.LimiterServerResource",
+    "collection" : {
+      "identifier" : {
+        "name" : "permitsId",
+        "type" : "org.apache.gobblin.restli.throttling.PermitRequest",
+        "params" : "com.linkedin.restli.common.EmptyRecord"
+      },
+      "supports" : [ "get" ],
+      "methods" : [ {
+        "method" : "get",
+        "doc" : "Request permits from the limiter server. The returned {@link PermitAllocation} specifies the number of permits\n that the client can use."
+      } ],
+      "entity" : {
+        "path" : "/permits/{permitsId}"
+      }
+    }
+  }
+}

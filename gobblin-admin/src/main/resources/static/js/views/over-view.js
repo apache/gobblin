@@ -20,59 +20,83 @@ var app = app || {}
 
 ;(function ($) {
   app.OverView = Backbone.View.extend({
-    el: '#main-content',
-
+    mainTemplate: _.template($('#main-template').html()),
     headerTemplate: _.template($('#header-template').html()),
     contentTemplate: _.template($('#list-all-template').html()),
 
     events: {
-      'click #query-btn': '_fetchData'
+      'click #query-btn': '_fetchData',
+      'enter #results-limit': '_fetchData'
     },
 
     initialize: function () {
-      this.collection = app.jobExecutions
+      var self = this
+      self.setElement($('#main-content'))
+      self.collection = app.jobExecutions
+      if (Gobblin.settings.refreshInterval > 0) {
+        self.timer = setInterval(function () {
+          if (self.initialized) {
+            self._fetchData()
+          }
+        }, Gobblin.settings.refreshInterval);
+      }
+    },
 
-      this.headerEl = this.$el.find('#header-container')
-      this.contentEl = this.$el.find('#content-container')
-
-      this.render()
+    onBeforeClose: function() {
+      var self = this
+      if (self.timer) {
+        clearInterval(self.timer);
+      }
+      if (self.table) {
+        if (self.table.onBeforeClose) {
+          self.table.onBeforeClose()
+        }
+        self.table.remove()
+      }
     },
 
     render: function () {
       var self = this
 
+      self.$el.html(self.mainTemplate)
+      self.headerEl = self.$el.find('#header-container')
       self.headerEl.html(self.headerTemplate({
         header: {
           title: 'Gobblin Jobs'
         }
       }))
+      self.contentEl = self.$el.find('#content-container')
       self.contentEl.html(self.contentTemplate({}))
 
       self.table = new app.TableView({
         el: '#list-all-table-container',
         collection: self.collection,
         columnSchema: 'listJobs',
-        includeJobToggle: true
+        includeJobToggle: true,
+        includeJobsWithTasksToggle: true
       })
+      self.table.render()
+      self.initialized = true
 
-      self._fetchData()
+      return self._fetchData()
     },
 
     _fetchData: function () {
       var self = this
+
+      var includeJobsWithoutTasks = $('#list-jobs-with-tasks-toggle .active input').val() === "ALL"
 
       var opts = {
         limit: self.table.getLimit(),
         includeTaskExecutions: false,
         includeJobMetrics: false,
         includeTaskMetrics: false,
+        includeJobsWithoutTasks: includeJobsWithoutTasks,
         jobProperties: 'job.description,job.runonce,job.schedule',
         taskProperties: ''
       }
       var id = $('#list-jobs-toggle .active input').val()
-      self.collection.fetchCurrent('LIST_TYPE', id, opts).done(function () {
-        self.table.renderData()
-      })
+      self.collection.fetchCurrent('LIST_TYPE', id, opts)
     }
   })
 })(jQuery)

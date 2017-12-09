@@ -6,8 +6,8 @@
 The following metadata attributes are shared across all events:
 
 - Standard execution metadata (TODO add link)
-- `namespace=gobblin.copy.CopyDataPublisher`
-- `metadata["class"]=gobblin.data.management.copy.publisher.CopyDataPublisher`
+- `namespace=org.apache.gobblin.copy.CopyDataPublisher`
+- `metadata["class"]=org.apache.gobblin.data.management.copy.publisher.CopyDataPublisher`
 
 Events by `name`:
 

@@ -1,0 +1,29 @@
+{
+  "name" : "flowstatuses",
+  "namespace" : "org.apache.gobblin.service",
+  "path" : "/flowstatuses",
+  "schema" : "org.apache.gobblin.service.FlowStatus",
+  "doc" : "Resource for handling flow status requests\n\ngenerated from: org.apache.gobblin.service.FlowStatusResource",
+  "collection" : {
+    "identifier" : {
+      "name" : "id",
+      "type" : "org.apache.gobblin.service.FlowStatusId",
+      "params" : "com.linkedin.restli.common.EmptyRecord"
+    },
+    "supports" : [ "get" ],
+    "methods" : [ {
+      "method" : "get",
+      "doc" : "Retrieve the FlowStatus with the given key"
+    } ],
+    "finders" : [ {
+      "name" : "latestFlowStatus",
+      "parameters" : [ {
+        "name" : "flowId",
+        "type" : "org.apache.gobblin.service.FlowId"
+      } ]
+    } ],
+    "entity" : {
+      "path" : "/flowstatuses/{id}"
+    }
+  }
+}

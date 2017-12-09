@@ -19,13 +19,13 @@ job.name=PullWikipediaFromKafkaToConsole
 job.group=KafkaConsole
 job.description=Pull Wikipedia data from Kafka and write to Console
 
-source.class=gobblin.source.extractor.extract.kafka.KafkaDeserializerSource
+source.class=org.apache.gobblin.source.extractor.extract.kafka.KafkaDeserializerSource
 topic.whitelist=WikipediaExample
 
 
 #Use Local Schema Registry and serializers
-#kafka.deserializer.type=gobblin.kafka.serialize.LiAvroDeserializer
-#kafka.schemaRegistry.class=gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry
+#kafka.deserializer.type=org.apache.gobblin.kafka.serialize.LiAvroDeserializer
+#kafka.schemaRegistry.class=org.apache.gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry
 #schemaRegistry.schema.name=WikipediaExample
 #schemaRegistry.schema.value={"namespace": "example.wikipedia.avro","type": "record","name": "WikipediaArticle","fields": [{"name": "pageid", "type": ["double", "null"]},{"name": "title", "type": ["string", "null"]},{"name": "user", "type": ["string", "null"]},{"name": "anon", "type": ["string", "null"]},{"name": "userid",  "type": ["double", "null"]},{"name": "timestamp", "type": ["string", "null"]},{"name": "size",  "type": ["double", "null"]},{"name": "contentformat",  "type": ["string", "null"]},{"name": "contentmodel",  "type": ["string", "null"]},{"name": "content", "type": ["string", "null"]}]}
 
@@ -33,14 +33,14 @@ topic.whitelist=WikipediaExample
 #Use Confluent Schema Registry and serializers
 kafka.deserializer.type=CONFLUENT_AVRO
 kafka.schema.registry.url=http://localhost:8081
-extract.namespace=gobblin.example.wikipedia
+extract.namespace=org.apache.gobblin.example.wikipedia
 
 zookeeper.connect=127.0.0.1:2181
 kafka.brokers=localhost:9092
 mr.job.max.mappers=1
 bootstrap.with.offset=earliest
 
-writer.builder.class=gobblin.writer.ConsoleWriterBuilder
+writer.builder.class=org.apache.gobblin.writer.ConsoleWriterBuilder
 
 
-data.publisher.type=gobblin.publisher.NoopPublisher
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher

@@ -1,0 +1,56 @@
+# ====================================================================
+# Job configurations (can be changed)
+# ====================================================================
+
+job.name=GobblinPushToExternalTest
+job.description=Gobblin job for pushing data to S3
+
+
+
+# target publishing location for copy
+data.publisher.final.dir=<testfolder>
+
+gobblin.dataset.profile.class=org.apache.gobblin.data.management.copy.CopyableGlobDatasetFinder
+gobblin.dataset.pattern=< Dataset pattern describing your to-be-copied data's location >
+
+# For s3 to work, Need to also add hadoop-aws.jar as the dependency in the classpath.
+# Attention that don't use any version later than **2.6.3** (Which means, pre-2015, very old)
+# Or you will hit into some messy dependecies problem related to hadoop version and amazon dependencies.
+fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+writer.encrypted.fs.s3a.access.key=<Encrypted Access Key>
+writer.encrypted.fs.s3a.secret.key=<Encrypted Secret Key>
+fs.s3a.buffer.dir=<Local Buffer folder>
+writer.fs.uri=<Full Bucket Path>
+gobblin.copy.recursive.update=true
+
+#You can disable ssl if necessary
+#fs.s3a.connection.ssl.enabled=false
+
+#Some encryption-related stuff, the content is 'gobblin'
+encrypt.key.loc=<Local File Path for master password>
+
+
+# ====================================================================
+# Distcp configurations (do not change)
+# ====================================================================
+
+type=hadoopJava
+job.class=org.apache.gobblin.azkaban.AzkabanJobLauncher
+
+extract.namespace=org.apache.gobblin.copy
+
+source.class=org.apache.gobblin.data.management.copy.CopySource
+converter.classes=org.apache.gobblin.converter.IdentityConverter
+writer.builder.class=org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder
+data.publisher.type=org.apache.gobblin.data.management.copy.publisher.CopyDataPublisher
+distcp.persist.dir=/tmp/distcp-persist-dir
+
+task.maxretries=0
+workunit.retry.enabled=false
+
+# Intermediate steps configuration.
+work.dir=/tmp/
+state.store.dir=${work.dir}/state-store
+writer.staging.dir=${work.dir}/taskStaging
+writer.output.dir=${work.dir}/taskOutput
+mr.job.root.dir=${work.dir}/working

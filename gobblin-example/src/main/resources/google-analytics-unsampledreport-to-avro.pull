@@ -21,7 +21,7 @@
 job.name=test_ga_to_avro
 
 source.entity=GoogleAnayticsTest
-source.class=gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledSource
+source.class=org.apache.gobblin.source.extractor.extract.google.GoogleAnalyticsUnsampledSource
 source.conn.private.key=/path/to/private/key/file.json
 source.schema=[{"columnName":"Date","comment":"","isNullable":"true","dataType":{"type":"string"}}, {"columnName":"DeviceCategory","comment":"","isNullable":"false","dataType":{"type":"string"}}, {"columnName":"Sessions","comment":"","isNullable":"true","dataType":{"type":"int"}}, {"columnName":"BounceRate","comment":"","isNullable":"true","dataType":{"type":"double"}}, {"columnName":"AvgSessionDuration","comment":"","isNullable":"true","dataType":{"type":"double"}}, {"columnName":"Pageviews","comment":"","isNullable":"true","dataType":{"type":"int"}}, {"columnName":"PageviewsPerSession","comment":"","isNullable":"true","dataType":{"type":"double"}}, {"columnName":"UniquePageviews","comment":"","isNullable":"true","dataType":{"type":"int"}}, {"columnName":"AvgTimeOnPage","comment":"","isNullable":"true","dataType":{"type":"double"}}, {"columnName":"User_count","comment":"","isNullable":"true","dataType":{"type":"int"}}]
 source.csv_file.skip_top_rows_regex=\"?#.*
@@ -52,14 +52,14 @@ extract.delta.fields=dummy
 extract.namespace=${source.entity}
 
 # Converter properties - Record from source will be processed by the below series of converters
-converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.avro.JsonIntermediateToAvroConverter
+converter.classes=org.apache.gobblin.converter.csv.CsvToJsonConverterV2,org.apache.gobblin.converter.avro.JsonIntermediateToAvroConverter
 converter.csv_to_json.custom_order=0,1,3,4,5,6,7,8,9,10
 
 data.publisher.final.dir=${env:GOBBLIN_WORK_DIR}
 writer.file.path=job-output/${source.entity}
 data.publisher.replace.final.dir=true
 
-qualitychecker.task.policies=gobblin.policies.count.RowCountPolicy
+qualitychecker.task.policies=org.apache.gobblin.policies.count.RowCountPolicy
 qualitychecker.task.policy.types=OPTIONAL
 
 metrics.reporting.file.enabled=true
@@ -68,4 +68,4 @@ metrics.reporting.file.enabled=true
 writer.destination.type=HDFS
 writer.output.format=AVRO
 
-data.publisher.type=gobblin.publisher.BaseDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher

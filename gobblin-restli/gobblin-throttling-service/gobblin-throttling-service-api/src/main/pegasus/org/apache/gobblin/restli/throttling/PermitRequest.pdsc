@@ -1,0 +1,12 @@
+{
+  "name": "PermitRequest",
+  "type": "record",
+  "namespace" : "org.apache.gobblin.restli.throttling",
+  "doc": "Used to request permits from a gobblin-throttling-service.",
+  "fields": [
+    {"name": "resource", "type": "string", "doc": "Resource for which permits are needed."},
+    {"name": "permits", "type": "long", "doc": "Number of permits needed."},
+    {"name": "minPermits", "type": "long", "doc": "Minimum number of useful permits.", "optional" : true},
+    {"name": "requestorIdentifier", "type": "string", "doc" : "Identifier of the service requesting the permits."}
+  ]
+}

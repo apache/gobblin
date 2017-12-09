@@ -27,9 +27,12 @@ dependencies {
   compile externalDependency.googleHttpClientGson
   compile externalDependency.googleOauthClient
   compile externalDependency.googleWebmasters
-  compile externalDependency.gson
   compile externalDependency.guava
+  compile externalDependency.commonsLang3
+  compile externalDependency.opencsv
+  compile externalDependency.gson
   compile externalDependency.slf4j
+  compile externalDependency.junit
 
   testCompile externalDependency.mockito
   testCompile externalDependency.testng

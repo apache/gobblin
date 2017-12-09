@@ -16,12 +16,15 @@
  */
 
 apply plugin: 'java'
+apply plugin: 'me.champeau.gradle.jmh'
 
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
+  compile project(":gobblin-modules:gobblin-codecs")
 
+  compile externalDependency.reactivex
   compile externalDependency.avroMapredH2
   compile externalDependency.commonsCodec
   compile externalDependency.avro
@@ -34,10 +37,18 @@ dependencies {
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
+
+  jmh 'org.openjdk.jmh:jmh-core:1.17.3'
 }
 
 test {
   workingDir rootProject.rootDir
+}
+
+jmh {
+    include = ""
+    zip64 = true
+    duplicateClassesStrategy = "EXCLUDE"
 }
 
 

@@ -1,0 +1,22 @@
+{
+  "type" : "record",
+  "name" : "Schedule",
+  "namespace" : "org.apache.gobblin.service",
+  "doc" : "Attributes for defining a job schedule",
+  "fields" : [
+    {
+      "name" : "cronSchedule",
+      "type" : "string",
+      "doc" : "Schedule for flow in cron format",
+      "validate": {
+        "org.apache.gobblin.service.validator.CronValidator": {}
+      }
+    },
+    {
+      "name" : "runImmediately",
+      "type" : "boolean",
+      "default" : false,
+      "doc" : "Set to true to request that a job with a schedule be run immediately in addition to being scheduled"
+    }
+  ]
+}

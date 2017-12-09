@@ -33,12 +33,17 @@ dependencies {
   compile externalDependency.log4j
   compile externalDependency.guava
   compile externalDependency.commonsLang
+  compile externalDependency.httpclient
+  compile externalDependency.httpmime
   compile externalDependency.jodaTime
   compile externalDependency.lombok
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
   compile externalDependency.hadoopYarnApi
   compile externalDependency.findBugsAnnotations
+
+  testCompile externalDependency.mockito
+  testCompile externalDependency.powermock
 }
 
 test {

@@ -19,6 +19,7 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
+  compile project(":gobblin-modules:gobblin-codecs")
   compile project(":gobblin-utility")
 
   compile externalDependency.commonsCodec

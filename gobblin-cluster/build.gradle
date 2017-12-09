@@ -18,7 +18,6 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":gobblin-admin")
   compile project(":gobblin-api")
   compile project(":gobblin-core")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
@@ -49,14 +48,15 @@ dependencies {
   compile externalDependency.hadoopCommon
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
+  compile externalDependency.helix
+
+  runtime project(":gobblin-modules:gobblin-service-kafka")
 
   testCompile project(":gobblin-example")
 
   testCompile externalDependency.testng
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
-
-  compile files('./src/main/resources/helix-core-0.6.6-SNAPSHOT.jar')
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

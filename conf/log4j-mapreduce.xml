@@ -42,12 +42,12 @@
     </layout>
   </appender>
 
-  <logger name="gobblin.runtime" additivity="false">
+  <logger name="org.apache.gobblin.runtime" additivity="false">
     <level value="INFO"/>
     <appender-ref ref="FileRoll" />
   </logger>
 
-  <logger name="gobblin.runtime.mapreduce.CliMRJobLauncher" additivity="false">
+  <logger name="org.apache.gobblin.runtime.mapreduce.CliMRJobLauncher" additivity="false">
     <level value="ERROR"/>
     <appender-ref ref="Console" />
   </logger>

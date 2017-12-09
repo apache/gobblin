@@ -14,81 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package gobblin.configuration;
 
-import java.io.DataInput;
-import java.io.IOException;
-import java.util.Properties;
-
-import gobblin.source.extractor.Watermark;
-
-
-/**
- * An immutable version of {@link WorkUnitState}.
- *
- * @author Yinan Li
+/***
+ * Shim layer for org.apache.gobblin.configuration.ImmutableWorkUnitState
  */
-public class ImmutableWorkUnitState extends WorkUnitState {
-
+public class ImmutableWorkUnitState extends org.apache.gobblin.configuration.ImmutableWorkUnitState {
   public ImmutableWorkUnitState(WorkUnitState workUnitState) {
-    super(workUnitState.getWorkunit(), workUnitState.getJobState());
-    super.addAll(workUnitState.getProperties());
-  }
-
-  @Override
-  public void setWorkingState(WorkingState state) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void setActualHighWatermark(Watermark watermark) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Deprecated
-  @Override
-  public void setHighWaterMark(long value) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void setProp(String key, Object value) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void addAll(Properties properties) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void addAllIfNotExist(Properties properties) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void overrideWith(Properties properties) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void setId(String id) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void readFields(DataInput in) throws IOException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void backoffActualHighWatermark() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public synchronized void appendToListProp(String key, String value) {
-    throw new UnsupportedOperationException();
+    super(workUnitState);
   }
 }

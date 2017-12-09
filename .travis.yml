@@ -44,9 +44,6 @@ env:
 
 jdk:
   - oraclejdk8
-  - oraclejdk7
 
 matrix:
   exclude:
-    - jdk: oraclejdk7
-      env: RUN_TEST_GROUP=coverage

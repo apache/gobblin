@@ -29,9 +29,9 @@ job.group=GobblinSamples
 job.description=The "Hello World" Gobblin job
 
 # Source, Converters, Writer, Publisher
-source.class=gobblin.util.test.HelloWorldSource
-writer.builder.class="gobblin.util.test.StdoutWriter$Builder"
-data.publisher.type=gobblin.publisher.NoopPublisher
+source.class=org.apache.gobblin.util.test.HelloWorldSource
+writer.builder.class="org.apache.gobblin.util.test.StdoutWriter$Builder"
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher
 
 
 # Work paths

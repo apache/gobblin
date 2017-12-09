@@ -1,0 +1,18 @@
+{
+  "id": "A6E45F39C936BEE1FF83B42740C0E63D",
+  "dataset": {
+    "Num-Records": 95,
+    "Num-Files": 3
+  },
+  "file": {
+    "foo3.json": {
+      "Num-Records": 30
+    },
+    "foo4.json": {
+      "Num-Records": 55
+    },
+    "foo1.json": {
+      "Num-Records": 10
+    }
+  }
+}

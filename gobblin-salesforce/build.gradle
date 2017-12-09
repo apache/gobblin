@@ -21,6 +21,7 @@ dependencies {
     compile project(":gobblin-api")
     compile project(":gobblin-core")
     compile project(":gobblin-utility")
+    compile project(":gobblin-modules:gobblin-sql")
 
     compile externalDependency.guava
     compile externalDependency.gson

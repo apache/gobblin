@@ -32,7 +32,7 @@ function start() {
 
   LOG_ARGS="1>${FWDIR_LOGS}/GobblinCluster.worker.$WORKER_ID.stdout 2>${FWDIR_LOGS}/GobblinCluster.worker.$WORKER_ID.stderr"
 
-  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS gobblin.cluster.GobblinTaskRunner --app_name $CLUSTER_NAME --helix_instance_name worker.$WORKER_ID $LOG_ARGS"
+  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS org.apache.gobblin.cluster.GobblinTaskRunner --app_name $CLUSTER_NAME --helix_instance_name worker.$WORKER_ID $LOG_ARGS"
 
   echo "Running command:"
   echo "$COMMAND"
@@ -67,22 +67,21 @@ do
   case "$1" in
     start|stop)
       ACTION="$1"
-      shift
       ;;
     --jvmflags)
-      JVM_FLAGS="$1"
+      JVM_FLAGS="$2"
       shift
       ;;
     --jars)
-      EXTRA_JARS="$1"
+      EXTRA_JARS="$2"
       shift
       ;;
     --cluster)
-      CLUSTER_NAME="$1"
+      CLUSTER_NAME="$2"
       shift
       ;;
     --workerid)
-      WORKER_ID="$1"
+      WORKER_ID="$2"
       shift
       ;;
     --help)

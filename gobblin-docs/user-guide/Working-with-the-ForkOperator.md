@@ -23,7 +23,7 @@ Using the ForkOperator
 The [`ForkOperator`](https://github.com/linkedin/gobblin/blob/master/gobblin-api/src/main/java/gobblin/fork/ForkOperator.java), like most other operators in a Gobblin task flow, is pluggable through the configuration, or more specifically , the configuration property `fork.operator.class` that points to a class that implements the `ForkOperator` interface. For instance:
 
 ```
-fork.operator.class=gobblin.fork.IdentityForkOperator
+fork.operator.class=org.apache.gobblin.fork.IdentityForkOperator
 ```
 
 By default, if no `ForkOperator` class is specified, internally Gobblin uses the default implementation [`IdentityForkOperator`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/fork/IdentityForkOperator.java) with a single forked branch (although it does supports multiple forked branches). The `IdentityForkOperator` simply unconditionally forwards the schema and ingested data records to all the forked branches, the number of which is specified through the configuration property `fork.branches` with a default value of 1. When an `IdentityForkOperator` instance is initialized, it will read the value of `fork.branches` and use that as the return value of `getBranches`.   
@@ -94,6 +94,33 @@ The `ForkOperator` can have many potential use cases and we have seen the follow
 
 Generally, a common use case of the `ForkOperator` is to route ingested data records so they get written to different output locations _conditionally_. The `ForkOperator` also finds common usage for "dual writes" to different sinks potentially in different formats if the job commit policy `JobCommitPolicy.COMMIT_ON_FULL_SUCCESS` (or `full` in short) or `JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS` (or `successful` in short) is used, as explained above. 
 
+Troubleshooting
+--------------------
+
+1) When using Forks with jobs defined as Hocon, you may encounter an error like: 
+    ```
+    com.typesafe.config.ConfigException$BugOrBroken: In the map, path 'converter.classes' occurs as both the parent object of a value and as a value. Because Map has no defined ordering, this is a broken situation.
+    at com.typesafe.config.impl.PropertiesParser.fromPathMap(PropertiesParser.java:115)
+    at com.typesafe.config.impl.PropertiesParser.fromPathMap(PropertiesParser.java:82)
+    at com.typesafe.config.impl.ConfigImpl.fromAnyRef(ConfigImpl.java:260)
+    at com.typesafe.config.impl.ConfigImpl.fromPathMap(ConfigImpl.java:200)
+    at com.typesafe.config.ConfigFactory.parseMap(ConfigFactory.java:855)
+    at com.typesafe.config.ConfigFactory.parseMap(ConfigFactory.java:866)
+    at gobblin.runtime.embedded.EmbeddedGobblin.getSysConfig(EmbeddedGobblin.java:497)
+    at gobblin.runtime.embedded.EmbeddedGobblin.runAsync(EmbeddedGobblin.java:442)
+    ```
+    This is because in Hocon a key can have only a single type (see: https://github.com/lightbend/config/blob/master/HOCON.md#java-properties-mapping).
+    To solve this, try writing your config like: 
+    
+    ```
+    converter.classes.ROOT_VALUE="..."
+    ...
+    converter.classes.0="..."
+    ...
+    converter.classes.1="..."
+    ```
+
+
 Example
 --------------------
 
@@ -142,17 +169,17 @@ public class SensitiveDataAwareForkOperator implements ForkOperator<Schema, Gene
 To make the example more concrete, let's assume that the job uses some converters and quality checkers before the schema and data records reach the `SensitiveDataAwareForkOperator`, and it also uses a converter to purge the sensitive fields and a quality checker that makes sure some mandatory fields exist for purged data records in branch 0. Both branches will be written to the same HDFS but into different locations.
 
 ```
-fork.operator.class=gobblin.example.fork.SensitiveDataAwareForkOperator
+fork.operator.class=org.apache.gobblin.example.fork.SensitiveDataAwareForkOperator
 
 # Pre-fork or non-fork-specific configuration properties
 converter.classes=<Converter classes used in the task flow prior to OutlierAwareForkOperator>
-qualitychecker.task.policies=gobblin.policies.count.RowCountPolicy,gobblin.policies.schema.SchemaCompatibilityPolicy
+qualitychecker.task.policies=org.apache.gobblin.policies.count.RowCountPolicy,org.apache.gobblin.policies.schema.SchemaCompatibilityPolicy
 qualitychecker.task.policy.types=OPTIONAL,OPTIONAL
-data.publisher.type=gobblin.publisher.BaseDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 
 # Configuration properties for branch 0
-converter.classes.0=gobblin.example.converter.PurgingConverter
-qualitychecker.task.policies.0=gobblin.example,policies.MandatoryFieldExistencePolicy
+converter.classes.0=org.apache.gobblin.example.converter.PurgingConverter
+qualitychecker.task.policies.0=org.apache.gobblin.example,policies.MandatoryFieldExistencePolicy
 qualitychecker.task.policy.types.0=FAILED
 writer.fs.uri.0=hdfs://<namenode host>:<namenode port>/
 writer.destination.type.0=HDFS

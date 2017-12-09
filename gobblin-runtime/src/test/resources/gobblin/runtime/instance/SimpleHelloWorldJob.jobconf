@@ -30,10 +30,10 @@ job.group=GobblinSamples
 job.description=The "Hello World" Gobblin job
 
 # Source, Converters, Writer, Publisher
-source.class=gobblin.util.test.HelloWorldSource
-writer.builder.class="gobblin.writer.test.GobblinTestEventBusWriter$Builder"
+source.class=org.apache.gobblin.util.test.HelloWorldSource
+writer.builder.class="org.apache.gobblin.writer.test.GobblinTestEventBusWriter$Builder"
 writer.GobblinTestEventBusWriter.eventBusId=${gobblin.workDir}
-data.publisher.type=gobblin.publisher.NoopPublisher
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher
 
 
 # Work paths

@@ -30,7 +30,7 @@ var app = app || {}
     fetchCurrent: function (idType, id, params) {
       // Fetches using the custom rest.li url scheme
       params = params || ''
-      var idString = idType === 'LIST_TYPE' ? 'gobblin~2Erest~2EQueryListType' : 'string'
+      var idString = idType === 'LIST_TYPE' ? 'org~2Eapache~2Egobblin~2Erest~2EQueryListType' : 'string'
 
       var generatedUrl = this.urlRoot + 'idType=' + idType
       generatedUrl += '&id.' + idString + '=' + id
@@ -53,6 +53,12 @@ var app = app || {}
         paramString += '&' + key + '=' + params[key]
       }
       return paramString
+    },
+    hasExecuted: function() {
+      var filtered = this.filter(function (e) {
+        return e.get("launchedTasks") > 0;
+      });
+      return new JobExecutions(filtered)
     }
   })
 

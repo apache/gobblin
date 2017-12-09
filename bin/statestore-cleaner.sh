@@ -31,4 +31,4 @@ done
 CLASSPATH=$GOBBLIN_JARS
 CLASSPATH+=":$FWDIR/conf"
 
-java -cp $CLASSPATH gobblin.metastore.util.StateStoreCleaner $@
+java -cp $CLASSPATH org.apache.gobblin.metastore.util.StateStoreCleaner $@

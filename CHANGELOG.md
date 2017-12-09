@@ -1,3 +1,191 @@
+GOBBLIN 0.11.0
+-------------
+
+###Created Date:7/19/2017
+
+## HIGHLIGHTS 
+
+* Introduced Java 8.
+* Introduced ReactiveX to enable record level stream processing.
+* Introduced Calcite to help sql building and processing.
+* New Converters: HttpJoinConverter, FlattenNestedKeyConverter, AvroStringFieldEncryptorConverter, AvroToBytesConverter, BytesToAvroConverter
+* New Http constructs: ApacheHttpClient, ApacheHttpAsyncClient, R2Client.
+* New sources: RegexPartitionedAvroFileSource.
+
+## NEW FEATURES 
+
+* [Core] [PR 1909] Introduced ReactiveX to enable record level stream processing.
+* [Core] [PR 2000] Added control messages to Gobblin stream. 
+* [Core] [PR 1998] Added hex and base64 codecs support for JSON CredentialStore. 
+* [Http] [PR 1881] [PR 1965] Added new http client (`ApacheHttpClient`, `ApacheHttpAsyncClient`, `R2Client`) .
+* [Http] [PR 1881] Added default http/r2 request builder and handlers.
+* [Converter] [PR 1943] Added `AvroHttpJoinConverter` to allow remote lookup by providing resource key from avro record.
+* [Converter] [PR1837] [PR1978] Add `FlattenNestedKeyConverter` to extract nested attributes and copy it to the top-level.
+* [Converter] [PR 1844] Added `AvroStringFieldEncryptorConverter` to encrypt a string field in place.
+* [Converter] [PR 1916] Added `AvroToBytesConverter` and `BytesToAvroConverter` to convert an avro record to/from a byte array with underlying encoder.
+* [Metadata] [PR 1871] Added metadata aware file system instrumentation.
+
+## IMPROVEMENTS
+
+* [Core] [PR 1958] Reused existing task execution thread pool for retrying in local execution mode.
+* [Core] [PR 1987] Added configurable `EventMetadataGenerator` to generate additional metadata to emit in the timing events.
+* [Core] [PR 1936] Added `FrontLoadedSampler` to sample records in error file during the quality check. 
+* [Source] [PR 1959] Improved kafka offset fetch time via using a thread local kakfa consumer client for each thread in the `KafkaSource`.
+* [Source] [PR 1836] Refactored `DatePartitionedAvroFileSource` to separate out the mechanism of retrieving files and add `RegexPartitionedAvroFileSource`.
+* [Source] [PR 1948] Made dataset state store configurable in Kafka source.
+* [Source] [PR 1986] Added partition and table information on `HiveWorkUnit`.
+* [Extractor] [PR 1981] Introduced Calcite to help detect a join condition and fail corresponding task when extracting metadata using `JdbcExtractor`.
+* [Extractor] [PR 1964] Allowed query which has SQL keywords as column names to be executed in `JdbcExtractor`.
+* [Extractor] [PR 1962]Allowed user to add optional watermark predicates in `JdbcExtractor`.
+* [Extractor] [PR 1886] [PR 1930] Introduced `DecodeableKafkaRecord` to wrap kafka records consumed through new kafka-client consumer APIs (0.9 and above).
+* [Converter] [PR 1999] Use expected output avro schema to decode a byte array.
+* [Compaction] [PR 1989] Added prioritization capability to Gobblin-built-in compaction flow.
+* [Compaction] [PR 1899] Improved compaction verification by using `WorkUnitStream`.
+* [Hive-Registration] [PR 1983] Reduce lock contention from multiple database and table examination in hive registration.
+* [Encryption] [PR 1934] Allowed converter level encryption config so that multiple converters in a chain can have their own encryption config without impacting others.
+* [CredentialStore][Eric Ogren] Added a test credential store and associated provider that can be used for integration testing.
+* [CredentialStore] [Eric Ogren] Refactored `CredentialStore` factory into its own top-level class.
+* [Distcp] [PR 1888] Added more metadata in the SLA events when Distcp is completed.
+* [Distcp] [PR 1975] Added blacklist/whitelist filtering to `CopySource` as a secondary filtering after `DatasetFinder` filtering is applied.
+* [Distcp] [PR 1997] Make Watermark checking configurable in Distcp flow.
+* [Source] [PR 1941] Added a limit to the max number of files to pull on `FileBasedSource`. 
+* [Source] [PR 1957] Added additional timers to kafka source and hive publisher.
+* [Google] [PR 1889] Added retry logic for Google web master source. Keep the states in iterators and reset the extractor to restart from the very beginning if necessary.
+* [ConfigStore] [PR 1893] [PR 1913] Integrated config store with KafkaSource and hive registration.
+* [ConfigStore] [PR 1908] Integrated config store with `ValidationJob`.
+* [ConfigStore] [PR 1927] Integrated config store with Distcp and retention jobs by introducing `ConfigBasedCleanabledDatasetFinder` and `ConfigBasedCopyableDatasetFinder`.
+* [ConfigStore] [PR 1972] Made config client thread safe.
+* [ConfigStore] [PR 1866] [PR 1887] Allowed ConfigClient to resolve dynamic tags.
+* [ConfigStore] [PR 1956] [PR 1952] Created static config client for hive-registration to avoid repeated initialization.
+* [Throttling] [PR 1862] Improved throttling and config library.
+* [Throttling] [PR 1910] Added throttling control to `AsyncHttpWriter`.
+* [Throttling] [PR 1910] Added throttling control to `R2Client`.
+* [Avro2Orc] [PR 1827] Preserved  partition parameters during avro2orc conversion.
+* [Avro2Orc] [PR 1855] Added hive settings to validation job for avro2orc.
+* [Compliance] [PR 1918] Added lazy initialization of `HiveMetaStoreClientPool` for `HivePartitionFinder`
+
+## BUGS FIXES
+
+* [Core] [PR 1907] Fixed `FileSystemKey` which used invalid characters for configuration key.
+* [Core] [PR 1935] Refactor cancel method in `AzkabanJobLauncher` to avoid state file loss in a shutdown hook.
+* [Http/R2] [PR 1924] Fixed the shutdown hanging issue for `R2Client`.
+* [Writer] [PR 1861] Avoided two jobs sharing same staging or output directory delete each other by adding a new jobId sub-directory.
+* [Writer] [PR 1906] Prevented AsyncHttpWriter closing before buffer is empty.
+* [Writer] [PR 1875] [PR 1880] Fixed a bug in copy writer.
+* [Extractor] [PR 1925] Provided an option to promote an MySQL unsigned int to a bigint to handle large unsigned ints.
+* [Distcp] [PR 1955] Updated avro.schema.url properly when Distcp copies data from partition level.
+* [Distcp] [PR 1915] Added a missing line that resulted in files from the old location being deleted when a hive table is replaced.
+* [Cluster] [PR 1864] Fixed NPE issue when Yarn container is killed.
+* [Cluster] [PR 1838] Started to use `SpecExecutorInstanceConsumer` in the `StreamingJobConfigurationManager` if it is a service.
+* [Cluster] [PR 1974] Fixed issue with job id generation in gobblin cluster when using the internal scheduler by cloning the properties that get mutated during job execution. This prevents the state in the scheduler from getting affected by the job execution. 
+* [Compliance] [PR 1918] Initialized HiveMetaStoreClientPool lazily to make sure metastore connection won't be timed out in HivePartitionFinder.
+* [Compliance] [PR 1960] Fix number type issue when submitting bytes written event.
+* [Compliance] [PR 1860] Preserved the directory structure by suffixing path with timestamp.
+* [Compliance] [PR 1872] Fixed GC issues  for gobblin-compliance.
+* [Compliance] [PR 1884] Dropped staging table from the previous execution ComplianceRetentionJob.
+
+## EXTERNAL CONTRIBUTIONS
+We would like to thank all our external contributors for helping improve Gobblin.
+
+* kadaan 
+  - Change AWS security to credentials providers.(PR 1980)
+
+
+GOBBLIN 0.10.0
+-------------
+###Created Date:05/01/2017
+
+## HIGHLIGHTS 
+
+* Gobblin-as-a-Service: Global orchestrator with REST API for submitting logical flow specifications. Logical flow specifications compile down to physical pipeline specs (Gobblin Jobs) that can run on one or more heterogeneous Gobblin deployments.
+* Gobblin Throttling: Library and service to enforce global usage policies by various processes or applications. For example, Gobblin throttling allows limiting the aggregate QPS to a single Database of all MR applications.
+* Gobblin Stream Mode: This release introduces support for running streaming ingestion pipelines that include all the standard Gobblin pipeline capabilities (converters, forks etc). Streaming sources (Kafka) and sinks (Kafka, Couchbase, Eventhub) are included.
+* Gobblin compliance: Including functionality for purging datasets, Gobblin Compliance module allows for data purging to meet regulatory compliance requirements. (https://gobblin.readthedocs.io/en/latest/user-guide/Gobblin-Compliance/)
+* New Writers: Couchbase (PR 1433), EventHub (PR 1537). 
+* New Sources: Azure Data Lake (PR 1764)
+
+## NEW FEATURES 
+
+* [Source] [PR 1764]Added Azure Data Lake source.
+* [Source] [PR 1762]Added Salesforce daily-based dynamic partitioning.
+* [Source] [PR 1742]Enabled `QueryBasedExtractor` to retry from first iterator. 
+* [Core] [PR 1772]Supported shorter dataset state store name to handle overlong dataURN. 
+* [Core] [PR 1678]Introduced `GlobalMetadata` into data pipelines and updated corresponding Gobblin components.
+* [Core] [PR 1709]Introduced custom Task interface and execution to Gobblin.
+* [Core] [PR 1727]Introduced `MRTask` inherited from Task interface that runs an MR job.
+* [Core] [PR 1457]Added token-based extractor. 
+* [Core] [PR 1463]MySQL Database as state store. 
+* [Core] [PR 1524]Zookeeper and HelixPropertyStore as state store. 
+* [Core] [PR 1662]Added compression and encryption support to `SimpleDataWriter`. 
+* [Cluster] [PR 1524]Scripts to launch Gobblin in standalone cluster mode. 
+* [Encryption] [PR 1616]Added encryption support by introducing a StreamCodec objects that encode/decode bytestreams flowing through it.
+* [Encryption] [PR 1690]Added `gobblin-crypto` module containing encryption-related interfaces for gobblin. 
+* [Extractor] [PR 1518]Implemented Streaming extractor for stream source.
+* [Distcp] [PR 1735]Enabled updating existing hive table for distcp, instead of deleting originally existed one.
+* [Hive-Registration] [PR 1722]Added runtime table properties into Hive Registration.
+* [Writer] [PR 1537]Implemented Eventhub synchronized data writer.
+* [Writer] [PR 1819]Implemented asynchronized HTTP Writer. 
+
+
+## IMPROVEMENTS
+
+* [Build] [PR 1817]Light distribution package building.
+* [Cluster] [PR 1599]Supported multiple Helix controllers for Gobblin standalone cluster manager for high availability.
+* [Cluster] [PR 1613]Support Helix 0.6.7.
+* [Cluster] [PR 1592]Added `ScheduledJobConfigurationManager` in gobblin-cluster to periodically consume from Kafka for new JobSpecs
+* [Compaction] [PR 1760]Implemented general Gobblin-built-in compaction using customized gobblin task.
+* [Converters] [PR 1780]Support `.gzip` extension for UnGzipConverter.
+* [Converters] [PR 1701]Set streamcodec in encrypting converter explicitly.
+* [Converter] [PR 1612]Implemented converter that samples records based on configured sampling ratio. 
+* [Core] [PR 1739]Reduced memory usage when loading by adding `commonProps` to  `FsStateStore`.
+* [Core] [PR 1741]Removed fork branch index, task ID and job ID from task metrics. 
+* [Core] [PR 1649]Enabled events emission when `LimiterExtractorDecorator` failed to retrieve the record.
+* [Core] [PR 1702]Implemented writer-side partitioner based on incoming set of records' `WorkUnitState`.   
+* [Core] [PR 1518] [PR 1596]Enhanced Watermark components for streaming.  
+* [Core] [PR 1534]Implemented converter to convert `.pull` files into `.conf` file using the corresponding template. 
+* [Core] [PR 1505]Enabled creation and access `WorkUnits` and `TaskStates` through `StateStore` interface. 
+* [Copy-Replication] [PR 1728]Added logic of `AbortOnSingleDatasetFailure` in distcp.
+* [Metric] [PR 1782]Added Pinot-based completeness check verifier.
+* [Publisher] [PR 1702]Enable collecting partition information and publish metadata files in each partition directory by default setting.
+* [Source] [PR 1666] [PR 1733]Implemented source-side partitioner for `QueryBasedSource`, allowing user-specified partitions.
+* [Runtime] [PR 1552]Optimized tasks execution in single branch by removing unnecessary data structure used in fork.
+* [Runtime] [PR 1791]Support state persistence for partial commit.
+* [Writer] [PR 1265]Replace DatePartitionedDailyAvroSource with configurable partitioning.
+
+
+## BUGS FIXES
+
+* [Core] [PR 1724]Fixed hanging embedded Gobblin when initialization fails.
+* [Core] [PR 1736]Fixes of contention on shared object `SimpleDateFormat` among all pull jobs start simultaneously in multi-threads context.
+* [Core] [PR 1665]Fixed threadpool leak in HttpWriter. 
+* [Hive-Registration] [PR 1635]Fix NullPointerException when Deserializer is not properly initialized.
+* [Metastore] [PR 986]Fixed `gobblin.metastore.DatabaseJobHistoryStore`'s vulnerability regarding to SQL injection.
+* [Runtime] [PR 1801]Fixed `JobScheduler` failed when "jobconf.fullyQualifiedPath" is not set.
+* [Runtime] [PR 1624]Fix speculative run for `SimpleDataWriter`. 
+* [Source] [PR 1756]Enabled `UncheckedExecutionException` catching in HiveSource.
+
+
+## EXTERNAL CONTRIBUTIONS
+
+* enjoyear 
+  - Fixed multi-threading bug in TimestampWatermark.(PR 1736)
+  - Maintained and fixed google-related source issues. (PR 1771, PR 1765, PR 1742, PR 1628)
+* kadaan 
+  - Fixed `JobScheduler` failed when "jobconf.fullyQualifiedPath" is not set. (PR 1801)
+  - Optimized tasks execution in single branch by removing unnecessary data structure used in fork. (PR 1552) 
+* erwa 
+  - Revert Hive version to 1.0.1, add AvroSerDe handling in HiveMetaStoreUtils.getDeserializer. (PR 1643)
+  - Fix NullPointerException when Deserializer is not properly initialized. (PR 1635)
+* howu
+  - Refactor RestApiConnector and RestApiExtractor. (PR 1708)  
+  - Update constructor of FlowConfigClient and FlowStatusClient. (PR 1734)
+* jinhyukchang 
+  - Added support for Azure Data Lake(ADL) as a source (PR 1764)
+  - Added abortOnSingleDatasetFailure to CopyConfiguration. (PR 1728)
+* wosiu
+  - Fix speculative run for SimpleDataWriter. (PR 1624)
+
+
 GOBBLIN 0.9.0
 -------------
 

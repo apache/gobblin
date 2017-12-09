@@ -21,15 +21,15 @@ job.lock.enabled=false
 
 kafka.brokers=localhost:9092
 
-source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleSource
-extract.namespace=gobblin.extract.kafka
+source.class=org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleSource
+extract.namespace=org.apache.gobblin.extract.kafka
 
-writer.builder.class=gobblin.writer.SimpleDataWriterBuilder
+writer.builder.class=org.apache.gobblin.writer.SimpleDataWriterBuilder
 writer.file.path.type=tablename
 writer.destination.type=HDFS
 writer.output.format=txt
 
-data.publisher.type=gobblin.publisher.BaseDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 
 mr.job.max.mappers=1
 
@@ -68,15 +68,15 @@ job.lock.enabled=false
 
 kafka.brokers=localhost:9092
 
-source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleSource
-extract.namespace=gobblin.extract.kafka
+source.class=org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleSource
+extract.namespace=org.apache.gobblin.extract.kafka
 
-writer.builder.class=gobblin.writer.SimpleDataWriterBuilder
+writer.builder.class=org.apache.gobblin.writer.SimpleDataWriterBuilder
 writer.file.path.type=tablename
 writer.destination.type=HDFS
 writer.output.format=txt
 
-data.publisher.type=gobblin.publisher.BaseDataPublisher
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 
 mr.job.max.mappers=1
 
@@ -138,8 +138,8 @@ It is also possible to set a time limit for each task. For example, to set the t
 ```
 extract.limit.enabled=true
 extract.limit.type=time #(other possible values: rate, count, pool)
-extract.limit.time.limit=15
-extract.limit.time.limit.timeunit=minutes 
+extract.limit.timeLimit=15
+extract.limit.timeLimitTimeunit=minutes
 ```
 # Metrics and Events
 
@@ -234,17 +234,17 @@ An example value could be:
 ```
 [
   {
-    "topic.name": "myTopic1",
+    "dataset": "myTopic1",
     "writer.partition.columns": "header.memberId"
   },
   {
-    "topic.name": "myTopic2",
+    "dataset": "myTopic2",
     "writer.partition.columns": "auditHeader.time"
   }
 ]
 ```
 
-The `topic.name` field also allows regular expressions. For example, one can specify key, value `"topic.name" : "myTopic.\*"`. In this case all topics whose name matches the pattern `myTopic.*` will have all the specified config properties added to their WorkUnit. If more than one topic matches multiple `topic.name`s then the properties from all the JSON objects will be added to their WorkUnit.
+The `dataset` field also allows regular expressions. For example, one can specify key, value `"dataset" : "myTopic.\*"`. In this case all topics whose name matches the pattern `myTopic.*` will have all the specified config properties added to their WorkUnit. If more than one topic matches multiple `dataset`s then the properties from all the JSON objects will be added to their WorkUnit.
 
 # Kafka `Deserializer` Integration
 

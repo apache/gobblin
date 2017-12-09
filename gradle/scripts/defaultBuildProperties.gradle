@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-import gobblin.gradle.BuildProperties
-import gobblin.gradle.BuildProperty
+import org.apache.gobblin.gradle.BuildProperties
+import org.apache.gobblin.gradle.BuildProperty
 
 def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     .register(new BuildProperty("artifactRepository", "https://oss.sonatype.org/service/local/staging/deploy/maven2/", "Maven repository to publish artifacts"))
@@ -29,12 +29,11 @@ def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     .register(new BuildProperty("gobblinFlavor", "standard", "Build flavor (see http://gobblin.readthedocs.io/en/latest/developer-guide/GobblinModules/)"))
     .register(new BuildProperty("hadoopVersion", "2.3.0", "Hadoop dependencies version"))
     .register(new BuildProperty("hiveVersion", "1.0.1", "Hive dependencies version"))
-    .register(new BuildProperty("jdkVersion", JavaVersion.VERSION_1_7.toString(),
-    "Java languange compatibility; one of " + JavaVersion.VERSION_1_7 + ", " +
-        JavaVersion.VERSION_1_8))
+    .register(new BuildProperty("jdkVersion", JavaVersion.VERSION_1_8.toString(),
+    "Java languange compatibility; supported versions: " + JavaVersion.VERSION_1_8))
     .register(new BuildProperty("kafka08Version", "0.8.2.2", "Kafka 0.8 dependencies version"))
     .register(new BuildProperty("kafka09Version", "0.9.0.1", "Kafka 0.9 dependencies version"))
-    .register(new BuildProperty("pegasusVersion", "2.6.0", "Pegasus dependencies version"))
+    .register(new BuildProperty("pegasusVersion", "11.0.0", "Pegasus dependencies version"))
     .register(new BuildProperty("publishToMaven", false, "Enable publishing of artifacts to a central Maven repository"))
     .register(new BuildProperty("salesforceVersion", "37.0.3", "Salesforce dependencies version"))
 

@@ -18,5 +18,9 @@
 subprojects {
   plugins.withType(JavaPlugin) {
     sourceCompatibility = javaVersion
+    configurations {
+      // guava-jdk5 conflicts with guava libraries
+      all*.exclude module: 'guava-jdk5'
+    }
   }
 }

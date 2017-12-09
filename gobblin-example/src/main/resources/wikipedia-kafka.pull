@@ -19,18 +19,18 @@ job.name=PullFromWikipediaToKafka
 job.group=Wikipedia
 job.description=Pull from Wikipedia and write to Kafka
 
-source.class=gobblin.example.wikipedia.WikipediaSource
+source.class=org.apache.gobblin.example.wikipedia.WikipediaSource
 source.page.titles=Wikipedia:Sandbox
 source.revisions.cnt=5
 
 wikipedia.api.rooturl=https://en.wikipedia.org/w/api.php
 wikipedia.avro.schema={"namespace": "example.wikipedia.avro","type": "record","name": "WikipediaArticle","fields": [{"name": "revid", "type": ["double", "null"]},{"name": "pageid", "type": ["double", "null"]},{"name": "title", "type": ["string", "null"]},{"name": "user", "type": ["string", "null"]},{"name": "anon", "type": ["string", "null"]},{"name": "userid",  "type": ["double", "null"]},{"name": "timestamp", "type": ["string", "null"]},{"name": "size",  "type": ["double", "null"]},{"name": "contentformat",  "type": ["string", "null"]},{"name": "contentmodel",  "type": ["string", "null"]},{"name": "content", "type": ["string", "null"]}]}
 
-converter.classes=gobblin.example.wikipedia.WikipediaConverter
+converter.classes=org.apache.gobblin.example.wikipedia.WikipediaConverter
 
-extract.namespace=gobblin.example.wikipedia
+extract.namespace=org.apache.gobblin.example.wikipedia
 
-writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder
+writer.builder.class=org.apache.gobblin.kafka.writer.KafkaDataWriterBuilder
 writer.kafka.topic=WikipediaExample
 writer.kafka.producerConfig.bootstrap.servers=localhost:9092
 
@@ -40,10 +40,10 @@ writer.kafka.producerConfig.bootstrap.servers=localhost:9092
 #writer.kafka.producerConfig.schema.registry.url=http://localhost:8081
 
 #Use Local Schema Registry and serializers
-writer.kafka.producerConfig.value.serializer=gobblin.kafka.serialize.LiAvroSerializer
-writer.kafka.producerConfig.kafka.schemaRegistry.class=gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry
+writer.kafka.producerConfig.value.serializer=org.apache.gobblin.kafka.serialize.LiAvroSerializer
+writer.kafka.producerConfig.kafka.schemaRegistry.class=org.apache.gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry
 writer.kafka.producerConfig.schemaRegistry.schema.name=WikipediaExample
 writer.kafka.producerConfig.schemaRegistry.schema.value={"namespace": "example.wikipedia.avro","type": "record","name": "WikipediaArticle","fields": [{"name": "pageid", "type": ["double", "null"]},{"name": "title", "type": ["string", "null"]},{"name": "user", "type": ["string", "null"]},{"name": "anon", "type": ["string", "null"]},{"name": "userid",  "type": ["double", "null"]},{"name": "timestamp", "type": ["string", "null"]},{"name": "size",  "type": ["double", "null"]},{"name": "contentformat",  "type": ["string", "null"]},{"name": "contentmodel",  "type": ["string", "null"]},{"name": "content", "type": ["string", "null"]}]}
 
 
-data.publisher.type=gobblin.publisher.NoopPublisher
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher

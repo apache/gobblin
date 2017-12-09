@@ -1,0 +1,20 @@
+{
+  "name" : "policies",
+  "namespace" : "org.apache.gobblin.restli.throttling",
+  "path" : "/policies",
+  "schema" : "org.apache.gobblin.restli.throttling.Policy",
+  "doc" : "A Rest.li endpoint for getting the {@link ThrottlingPolicy} associated with a resource id.\n\ngenerated from: org.apache.gobblin.restli.throttling.PoliciesResource",
+  "collection" : {
+    "identifier" : {
+      "name" : "policiesId",
+      "type" : "string"
+    },
+    "supports" : [ "get" ],
+    "methods" : [ {
+      "method" : "get"
+    } ],
+    "entity" : {
+      "path" : "/policies/{policiesId}"
+    }
+  }
+}

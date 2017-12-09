@@ -1,0 +1,31 @@
+{
+  "name" : "flowconfigs",
+  "namespace" : "org.apache.gobblin.service",
+  "path" : "/flowconfigs",
+  "schema" : "org.apache.gobblin.service.FlowConfig",
+  "doc" : "Resource for handling flow configuration requests\n\ngenerated from: org.apache.gobblin.service.FlowConfigsResource",
+  "collection" : {
+    "identifier" : {
+      "name" : "id",
+      "type" : "org.apache.gobblin.service.FlowId",
+      "params" : "com.linkedin.restli.common.EmptyRecord"
+    },
+    "supports" : [ "create", "delete", "get", "update" ],
+    "methods" : [ {
+      "method" : "create",
+      "doc" : "Create a flow configuration that the service will forward to execution instances for execution"
+    }, {
+      "method" : "get",
+      "doc" : "Retrieve the flow configuration with the given key"
+    }, {
+      "method" : "update",
+      "doc" : "Update the flow configuration with the specified key. Running flows are not affected.\n An error is raised if the flow configuration does not exist."
+    }, {
+      "method" : "delete",
+      "doc" : "Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows."
+    } ],
+    "entity" : {
+      "path" : "/flowconfigs/{id}"
+    }
+  }
+}

@@ -198,7 +198,7 @@ start() {
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
   COMMAND+="$GOBBLIN_JVM_FLAGS "
-  COMMAND+="gobblin.scheduler.SchedulerDaemon $DEFAULT_CONFIG_FILE $GOBBLIN_CUSTOM_CONFIG_FILE"
+  COMMAND+="org.apache.gobblin.scheduler.SchedulerDaemon $DEFAULT_CONFIG_FILE $GOBBLIN_CUSTOM_CONFIG_FILE"
   echo "Running command:"
   echo "$COMMAND"
   nohup $COMMAND & echo $! > $PID
@@ -213,6 +213,8 @@ stop() {
       if kill -0 $PID_VALUE > /dev/null 2>&1; then
         echo "Gobblin standalone daemon did not stop gracefully, killing with kill -9"
         kill -9 $PID_VALUE
+        echo "Cleaning up lock directory: $GOBBLIN_WORK_DIR/locks"
+        rm -r $GOBBLIN_WORK_DIR/locks
       fi
     else
       echo "Process $PID_VALUE is not running"

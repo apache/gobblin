@@ -1,0 +1,32 @@
+# Required overrides
+gobblin.workDir=gobblin
+
+launcher.type=LOCAL
+
+job.name=TestSourceToEventhub
+job.group=eventhubTest
+job.description=Pull from Test Source and write to Eventhub
+gobblin.workDir=gobblin
+source.class=org.apache.gobblin.source.extractor.hadoop.AvroFileSource
+converter.classes=org.apache.gobblin.converter.avro.AvroToJsonStringConverter
+
+source.filebased.fs.uri=file://localhost/
+job.lock.dir=/tmp/gobblin-eventhub/locks
+
+extract.table.type=snapshot_append
+source.filebased.data.directory=/tmp/gobblin-eventhub/data
+writer.builder.class=org.apache.gobblin.eventhub.writer.EventhubDataWriterBuilder
+
+#config for eventhub
+data.publisher.type=org.apache.gobblin.publisher.NoopPublisher
+state.store.enabled=false
+task.data.root.dir=${gobblin.workDir}
+
+eventhub.namespace=lidatareplicationtest
+eventhub.hubname=myhub
+eventhub.sas.keyname=RootManageSharedAccessKey
+eventhub.sas.keyvalue="ENC(uuM3rLO2GVO1DMH6vwV/HAlmxpKyGL1uymCVvJcxfi7HpXUGnBeNF15ZZ/56AsB1zAPwBmzpiAg=)"
+encrypt.key.loc=gobblin-eventhub/master
+
+writer.eventhub.batch.ttl=3000
+writer.eventhub.batch.size=262144

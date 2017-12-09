@@ -146,19 +146,29 @@ set_user_jars "$JARS"
 function join { local IFS="$1"; shift; echo "$*"; }
 LIBJARS=(
   $USER_JARS
+  $FWDIR_LIB/gobblin-api-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-avro-json-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-codecs-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-core-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-core-base-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-crypto-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-crypto-provider-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-data-management-$GOBBLIN_VERSION.jar
   $FWDIR_LIB/gobblin-metastore-$GOBBLIN_VERSION.jar
   $FWDIR_LIB/gobblin-metrics-$GOBBLIN_VERSION.jar
-  $FWDIR_LIB/gobblin-core-$GOBBLIN_VERSION.jar
-  $FWDIR_LIB/gobblin-api-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-metrics-base-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-metadata-$GOBBLIN_VERSION.jar
   $FWDIR_LIB/gobblin-utility-$GOBBLIN_VERSION.jar
-  $FWDIR_LIB/guava-15.0.jar
   $FWDIR_LIB/avro-1.8.1.jar
   $FWDIR_LIB/avro-mapred-1.8.1.jar
   $FWDIR_LIB/commons-lang3-3.4.jar
   $FWDIR_LIB/config-1.2.1.jar
-  $FWDIR_LIB/data-2.6.0.jar
+  $FWDIR_LIB/data-11.0.0.jar
   $FWDIR_LIB/gson-2.6.2.jar
+  $FWDIR_LIB/guava-15.0.jar
+  $FWDIR_LIB/guava-retrying-2.0.0.jar
   $FWDIR_LIB/joda-time-2.9.3.jar
+  $FWDIR_LIB/javassist-3.18.2-GA.jar
   $FWDIR_LIB/kafka_2.11-0.8.2.2.jar
   $FWDIR_LIB/kafka-clients-0.8.2.2.jar
   $FWDIR_LIB/metrics-core-2.2.0.jar
@@ -169,6 +179,7 @@ LIBJARS=(
   $FWDIR_LIB/okhttp-2.4.0.jar
   $FWDIR_LIB/okio-1.4.0.jar
   $FWDIR_LIB/retrofit-1.9.0.jar
+  $FWDIR_LIB/reflections-0.9.10.jar
 )
 LIBJARS=$(join , "${LIBJARS[@]}")
 
@@ -193,7 +204,7 @@ export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS -Dgobblin.logs.dir=$GOBBLIN_LOG_D
 # Launch the job to run on Hadoop
 $HADOOP_BIN_DIR/hadoop jar \
         $FWDIR_LIB/gobblin-runtime-$GOBBLIN_VERSION.jar \
-        gobblin.runtime.mapreduce.CliMRJobLauncher \
+        org.apache.gobblin.runtime.mapreduce.CliMRJobLauncher \
         -D mapreduce.user.classpath.first=true \
         -D mapreduce.job.user.classpath.first=true \
         $JT_COMMAND \

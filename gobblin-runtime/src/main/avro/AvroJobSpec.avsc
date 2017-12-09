@@ -1,0 +1,48 @@
+{
+  "type": "record",
+  "name": "AvroJobSpec",
+  "namespace" : "org.apache.gobblin.runtime.job_spec",
+  "fields": [
+    {
+      "name": "uri",
+      "type": "string",
+      "doc": "A URI identifying the job."
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default" : "",
+      "doc": "The implementation-defined version of this spec."
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "default" : "",
+      "doc": "Human-readable description of the job spec."
+    },
+    {
+      "name": "templateUri",
+      "type": "string",
+      "default" : "",
+      "doc": "URI of job template to use."
+    },
+    {
+      "name": "properties",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Job config as a properties collection."
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "separate metadata so that properties is not polluted"
+    }
+  ]
+}

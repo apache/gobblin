@@ -7,13 +7,40 @@ Table of Contents
 
 This guide will help you setup Gobblin, and run your first job. Currently, Gobblin requires JDK 7 or later to run.
 
-# Download
+# Getting a Gobblin Distribution
+
+All steps in this page assume you are using a Gobblin distribution. A distribution contains the Gobblin binaries in a specific directory structure, and is different from the structure of the repository. 
+
+Distributions are generated and distributed as `*.tar.gz` files. After getting the tarball, unpackage it locally:
+
+`tar -xvf gobblin-distribution-[VERSION].tar.gz`.
+
+There are two way to obtain a distribution tarball
+
+## Downloading a Pre-Built Distribution
 
 Download the latest Gobblin release from the [Release Page](https://github.com/linkedin/gobblin/releases). You will want to download the `gobblin-distribution-[RELEASE-VERSION].tar.gz` file.
 
-Unpackage the distribution locally:
+## Building a Distribution
 
-`tar -xvf gobblin-distribution-[RELEASE-VERSION].tar.gz`.
+Clone the repository into your system. 
+
+Build a distribution:
+
+```bash
+cd /path/to/gobblin/repo
+./gradlew :gobblin-distribution:buildDistributionTar
+```
+
+Note: A full build takes time because it runs other tasks like test, javadoc, findMainBugs, etc, which impacts the build performance. 
+For a quick usage, building distribution is good enough. However a full build can be easily made by running:
+```bash
+./gradlew build
+```
+
+After the build is done, there should be a tarball (if there are multiple, use the newest one) at 
+
+`build/gobblin-distribution/distributions/`
 
 # Run Your First Job
 

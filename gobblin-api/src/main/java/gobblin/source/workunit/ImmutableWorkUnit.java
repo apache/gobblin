@@ -14,87 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package gobblin.source.workunit;
 
-import java.io.DataInput;
-import java.io.IOException;
-import java.util.Properties;
-
-import gobblin.configuration.State;
-
-
-/**
- * An immutable version of {@link WorkUnit}.
- *
- * @author Yinan Li
+/***
+ * Shim layer for org.apache.gobblin.source.workunit.ImmutableWorkUnit
  */
-public class ImmutableWorkUnit extends WorkUnit {
-
+public class ImmutableWorkUnit extends org.apache.gobblin.source.workunit.ImmutableWorkUnit {
   public ImmutableWorkUnit(WorkUnit workUnit) {
-    super(workUnit.getExtract());
-    super.addAll(workUnit.getProperties());
-  }
-
-  @Override
-  public void setProp(String key, Object value) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Deprecated
-  @Override
-  public void setHighWaterMark(long highWaterMark) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Deprecated
-  @Override
-  public void setLowWaterMark(long lowWaterMark) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void addAll(Properties properties) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void addAll(State otherState) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void addAllIfNotExist(Properties properties) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void addAllIfNotExist(State otherState) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void overrideWith(Properties properties) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void overrideWith(State otherState) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void setId(String id) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public synchronized void appendToListProp(String key, String value) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void readFields(DataInput in) throws IOException {
-    throw new UnsupportedOperationException();
+    super(workUnit);
   }
 }

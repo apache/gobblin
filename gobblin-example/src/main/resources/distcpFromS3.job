@@ -1,0 +1,59 @@
+# ====================================================================
+# Job configurations (can be changed)
+# ====================================================================
+
+job.name=GobblinDatabaseCopyTest
+job.description=Gobblin job for copy to S3
+
+
+
+# target publishing location for copy
+# The folder containing result files that will show up in the s3
+data.publisher.final.dir=<Full local(target) FS Path>
+
+gobblin.dataset.profile.class=org.apache.gobblin.data.management.copy.CopyableGlobDatasetFinder
+
+#e.g. s3a://gobblinoutput/
+source.filebased.fs.uri=<Full Remote FS Path>
+gobblin.dataset.pattern=<Remote Dataset Pattern>
+
+# For s3 to work, Need to also add hadoop-aws.jar as the dependency in the classpath.
+fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+source.filebased.encrypted.fs.s3a.access.key=<Encrypted Access Key>
+source.filebased.encrypted.fs.s3a.secret.key=<Encrypted Secret key>
+fs.s3a.buffer.dir=<Local Copy Bufer>
+# e.g. file:///
+writer.fs.uri=<Local FS Uri>
+gobblin.copy.recursive.update=true
+
+#You can disable ssl if necessary
+#fs.s3a.connection.ssl.enabled=false
+
+#Loationfor masterPassword file
+encrypt.key.loc=<Local master password file location>
+
+
+# ====================================================================
+# Distcp configurations (do not change)
+# ====================================================================
+
+type=hadoopJava
+job.class=org.apache.gobblin.azkaban.AzkabanJobLauncher
+
+extract.namespace=org.apache.gobblin.copy
+
+source.class=org.apache.gobblin.data.management.copy.CopySource
+converter.classes=org.apache.gobblin.converter.IdentityConverter
+writer.builder.class=org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder
+data.publisher.type=org.apache.gobblin.data.management.copy.publisher.CopyDataPublisher
+distcp.persist.dir=/tmp/distcp-persist-dir
+
+task.maxretries=0
+workunit.retry.enabled=false
+
+# Intermediate steps configuration.
+work.dir=/tmp/
+state.store.dir=${work.dir}/state-store
+writer.staging.dir=${work.dir}/taskStaging
+writer.output.dir=${work.dir}/taskOutput
+mr.job.root.dir=${work.dir}/working

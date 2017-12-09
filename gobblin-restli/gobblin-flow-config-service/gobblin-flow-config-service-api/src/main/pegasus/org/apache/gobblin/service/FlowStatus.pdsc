@@ -1,0 +1,33 @@
+{
+  "type" : "record",
+  "name" : "FlowStatus",
+  "namespace" : "org.apache.gobblin.service",
+  "doc" : "Status of a flow",
+  "fields" : [
+    {
+      "name" : "id",
+      "type" : "FlowStatusId",
+      "doc" : "Flow status identifier"
+    },
+    {
+      "name" : "executionStatistics",
+      "type" : "FlowStatistics",
+      "doc" : "Statistics for this execution of the flow"
+    },
+    {
+      "name" : "executionStatus",
+      "type" : "ExecutionStatus",
+      "doc" : "Flow execution status"
+    },
+    {
+      "name" : "message",
+      "type" : "string",
+      "doc" : "Error or status message"
+    },
+    {
+      "name" : "jobStatuses",
+      "type" : {"type" : "array", "items" : "JobStatus"},
+      "doc" : "Status of jobs belonging to the flow"
+    }
+  ]
+}

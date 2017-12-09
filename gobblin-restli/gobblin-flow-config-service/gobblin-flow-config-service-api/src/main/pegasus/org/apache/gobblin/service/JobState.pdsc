@@ -1,0 +1,18 @@
+{
+  "type" : "record",
+  "name" : "JobState",
+  "namespace" : "org.apache.gobblin.service",
+  "doc" : "Job state that is updated at the end of an execution",
+  "fields" : [
+    {
+      "name" : "lowWatermark",
+      "type" : "string",
+      "doc" : "Low watermark after last execution"
+    },
+    {
+      "name" : "highWatermark",
+      "type" : "string",
+      "doc" : "High watermark after last execution"
+    }
+  ]
+}

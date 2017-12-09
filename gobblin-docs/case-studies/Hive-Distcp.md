@@ -18,12 +18,12 @@ job.name=SampleHiveDistcp
 job.group=HiveDistcp
 job.description=Sample job config for hive distcp
 
-extract.namespace=gobblin.copy.tracking
-gobblin.dataset.profile.class=gobblin.data.management.copy.hive.HiveDatasetFinder
-data.publisher.type=gobblin.data.management.copy.publisher.CopyDataPublisher
-source.class=gobblin.data.management.copy.CopySource
-writer.builder.class=gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder
-converter.classes=gobblin.converter.IdentityConverter
+extract.namespace=org.apache.gobblin.copy.tracking
+gobblin.dataset.profile.class=org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder
+data.publisher.type=org.apache.gobblin.data.management.copy.publisher.CopyDataPublisher
+source.class=org.apache.gobblin.data.management.copy.CopySource
+writer.builder.class=org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder
+converter.classes=org.apache.gobblin.converter.IdentityConverter
 
 hive.dataset.copy.target.table.prefixToBeReplaced=
 hive.dataset.copy.target.table.prefixReplacement=
@@ -74,7 +74,8 @@ If distcp-ng finds that a partition or table it needs to create already exists i
 
 * ABORT: the conflicting table will not be copied (default)
 * REPLACE_PARTITIONS: replace any conflicting partitions, but not tables
-* REPLACE_TABLES: replace any conflicting tables
+* REPLACE_TABLES: replace any conflicting tables by deregistrating previous tables first.
+* UPDATE_TABLES: Keep the original-registered table but make modification.
 
 ## Deregistering tables / partitions
 

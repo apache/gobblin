@@ -31,4 +31,4 @@ done
 CLASSPATH=$GOBBLIN_JARS
 CLASSPATH+=":$FWDIR/conf"
 
-java -cp $CLASSPATH gobblin.runtime.util.JobStateToJsonConverter $@
+java -cp $CLASSPATH org.apache.gobblin.runtime.util.JobStateToJsonConverter $@

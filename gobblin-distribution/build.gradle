@@ -29,7 +29,6 @@ configurations {
 }
 
 dependencies {
-  compile project(':gobblin-admin')
   compile project(':gobblin-api')
   compile project(':gobblin-core')
   compile project(':gobblin-compaction')
@@ -46,6 +45,7 @@ dependencies {
   compile project(':gobblin-cluster')
   compile project(':gobblin-yarn')
   compile project(':gobblin-aws')
+  compile project(':gobblin-service')
   compile project(':gobblin-runtime-hadoop')
 }
 

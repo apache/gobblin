@@ -19,8 +19,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
 // Set group for Maven
-if (!project.hasProperty('group') || project.group.length() == 0) {
-  project.ext.group = 'com.linkedin.gobblin'
+allprojects {
+  if (!project.hasProperty('group') || project.group.length() == 0) {
+    project.ext.group = 'com.linkedin.gobblin'
+    project.group = project.ext.group
+  }
 }
 
 // Maven publishing
@@ -163,11 +166,11 @@ subprojects {
             }
 
             repository(url: rootProject.artifactRepository) {
-              authentication(userName: ossrhUsername, password: ossrhPassword)
+              authentication(userName: rootProject.ext.ossrhUsername, password: rootProject.ext.ossrhPassword)
             }
 
             snapshotRepository(url: rootProject.artifactSnapshotRepository) {
-              authentication(userName: ossrhUsername, password: ossrhPassword)
+              authentication(userName: rootProject.ext.ossrhUsername, password: rootProject.ext.ossrhPassword)
             }
 
             pom.project pomAttributes

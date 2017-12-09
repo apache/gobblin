@@ -6,7 +6,7 @@ A simple writer for byte arrays to a Hadoop file system file. The byte arrays ca
 # Usage
 
 
-    writer.builder.class=gobblin.writer.AvroDataWriterBuilder
+    writer.builder.class=org.apache.gobblin.writer.AvroDataWriterBuilder
 
 # Configuration
 

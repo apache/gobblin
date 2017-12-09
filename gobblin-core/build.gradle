@@ -19,10 +19,13 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
-  compile project(":gobblin-core-base")
   compile project(":gobblin-tunnel")
   compile project(":gobblin-utility")
+  compile project(":gobblin-metastore")
+  compile project(":gobblin-core-base")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
+  compile project(":gobblin-modules:gobblin-avro-json")
+  compile project(":gobblin-modules:gobblin-metadata")
   compile project(":gobblin-hive-registration")
   compile project(":gobblin-config-management:gobblin-config-client")
   compile project(":gobblin-config-management:gobblin-config-core")
@@ -45,12 +48,12 @@ dependencies {
   compile externalDependency.hiveExec
   compile externalDependency.hiveSerDe
   compile externalDependency.httpclient
+  compile externalDependency.httpasyncclient
   compile externalDependency.httpcore
   compile externalDependency.metricsCore
   compile externalDependency.scala
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig
-  compile externalDependency.guavaretrying
   compile externalDependency.findBugsAnnotations
   compile externalDependency.oltu
   compile externalDependency.opencsv
@@ -68,6 +71,7 @@ dependencies {
   testCompile externalDependency.mockRunnerJdbc
   testCompile externalDependency.httpcore
   testCompile externalDependency.httpclient
+  testCompile project(":gobblin-test-utils")
 }
 
 apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"
