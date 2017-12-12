@@ -21,13 +21,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 
-public class SingleTaskRunner {
+class SingleTaskRunner {
   private final Path clusterConfigFilePath;
   private final String jobId;
   private final Path workUnitFilePath;
   private final Path jobStateFilePath;
 
-  public SingleTaskRunner(final String clusterConfigFilePath, final String jobId, final String workUnitFilePath,
+  SingleTaskRunner(final String clusterConfigFilePath, final String jobId, final String workUnitFilePath,
       final String jobStateFilePath) {
     this.clusterConfigFilePath = Paths.get(clusterConfigFilePath);
     this.jobId = jobId;
