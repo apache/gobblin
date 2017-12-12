@@ -17,25 +17,28 @@
 
 package org.apache.gobblin.hive.avro;
 
-import com.codahale.metrics.Timer;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.MetricContext;
 import java.io.IOException;
+import java.net.URI;
 
 import org.apache.avro.Schema;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.codahale.metrics.Timer;
 import com.google.common.base.Preconditions;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveSerDeManager;
 import org.apache.gobblin.hive.HiveSerDeWrapper;
+import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.HadoopUtils;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -68,7 +71,13 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
 
   public HiveAvroSerDeManager(State props) throws IOException {
     super(props);
-    this.fs = FileSystem.get(HadoopUtils.getConfFromState(props));
+
+    if (props.contains(HiveRegistrationPolicyBase.HIVE_FS_URI)) {
+      this.fs = FileSystem.get(URI.create(props.getProp(HiveRegistrationPolicyBase.HIVE_FS_URI)), HadoopUtils.getConfFromState(props));
+    } else {
+      this.fs = FileSystem.get(HadoopUtils.getConfFromState(props));
+    }
+
     this.useSchemaFile = props.getPropAsBoolean(USE_SCHEMA_FILE, DEFAULT_USE_SCHEMA_FILE);
     this.schemaFileName = props.getProp(SCHEMA_FILE_NAME, DEFAULT_SCHEMA_FILE_NAME);
     this.schemaLiteralLengthLimit =
