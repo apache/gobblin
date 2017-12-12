@@ -23,25 +23,21 @@ import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvid
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_JOBSTATE_JOB_STATE;
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_JOB_ID;
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_WORKUNIT;
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 
 public class SingleTaskRunnerMainTest {
 
   @Test
   public void testRun() {
-    SingleTaskRunnerBuilder builder = mock(SingleTaskRunnerBuilder.class);
-    SingleTaskRunner taskRunner = mock(SingleTaskRunner.class);
-    when(builder.setClusterConfigFilePath(any())).thenReturn(builder);
-    when(builder.setJobId(any())).thenReturn(builder);
-    when(builder.setJobStateFilePath(any())).thenReturn(builder);
-    when(builder.setWorkUnitFilePath(any())).thenReturn(builder);
-    when(builder.createSingleTaskRunner()).thenReturn(taskRunner);
+    final SingleTaskRunnerBuilder builder = spy(SingleTaskRunnerBuilder.class);
+    final SingleTaskRunner taskRunner = mock(SingleTaskRunner.class);
+    doReturn(taskRunner).when(builder).createSingleTaskRunner();
 
-    SingleTaskRunnerMain runnerMain = new SingleTaskRunnerMain(builder);
+    final SingleTaskRunnerMain runnerMain = new SingleTaskRunnerMain(builder);
     runnerMain.run(SingleTaskRunnerMainArgumentsDataProvider.getArgs());
 
     verify(builder).setClusterConfigFilePath(TEST_CLUSTER_CONF);
