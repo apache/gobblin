@@ -80,4 +80,11 @@ public class GobblinClusterConfigurationKeys {
   public static final String STOP_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "stopTimeoutSeconds";
   public static final long DEFAULT_STOP_TIMEOUT_SECONDS = 60;
 
+  // Arguments to the single task runner process
+  public static class SingleTaskRunnerCmdOption {
+    public static final String JOB_ID = "job_id";
+    public static final String WORK_UNIT_FILE_PATH = "work_unit_file_path";
+    public static final String JOB_STATE_FILE_PATH = "job_state_file_path";
+    public static final String CLUSTER_CONFIG_FILE_PATH = "cluster_config_file_path";
+  }
 }
