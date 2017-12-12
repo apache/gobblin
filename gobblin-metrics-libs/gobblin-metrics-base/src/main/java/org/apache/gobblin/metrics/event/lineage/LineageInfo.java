@@ -236,7 +236,7 @@ public final class LineageInfo {
   /**
    * Get the configured {@link DatasetResolver} from {@link State}
    */
-  private static DatasetResolver getResolver(Config config) {
+  public static DatasetResolver getResolver(Config config) {
     String resolverFactory = config.getString(DATASET_RESOLVER_FACTORY);
     if (resolverFactory.equals(NoopDatasetResolver.FACTORY)) {
       return NoopDatasetResolver.INSTANCE;
