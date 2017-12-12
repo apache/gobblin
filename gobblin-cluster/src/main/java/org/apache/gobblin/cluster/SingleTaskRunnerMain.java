@@ -1,0 +1,62 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.gobblin.cluster;
+
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Charsets;
+
+import org.apache.gobblin.util.JvmUtils;
+
+
+class SingleTaskRunnerMain {
+  private static final Logger logger = LoggerFactory.getLogger(SingleTaskRunnerMain.class);
+
+  private final SingleTaskRunnerBuilder builder;
+
+  private SingleTaskRunnerMain(final SingleTaskRunnerBuilder builder) {
+    this.builder = builder;
+  }
+
+  public static void main(final String[] args)
+      throws Exception {
+    logger.info(JvmUtils.getJvmInputArguments());
+    final SingleTaskRunnerMain runnerMain = new SingleTaskRunnerMain(new SingleTaskRunnerBuilder());
+    try {
+      runnerMain.run(args);
+    } catch (final Exception e) {
+      logger.error("Got an exception running a single task.", e);
+      System.exit(1);
+    }
+  }
+
+  void run(final String[] args) {
+    final OutputStreamWriter streamWriter = new OutputStreamWriter(System.out, Charsets.UTF_8);
+    final PrintWriter writer = new PrintWriter(streamWriter, true);
+    final SingleTaskRunnerMainOptions options = new SingleTaskRunnerMainOptions(args, writer);
+    final SingleTaskRunner runner =
+        this.builder.setClusterConfigFilePath(options.getClusterConfigFilePath()).setJobId(options.getJobId())
+            .setWorkUnitFilePath(options.getWorkUnitFilePath()).setJobStateFilePath(options.getJobStateFilePath())
+            .createSingleTaskRunner();
+    runner.run();
+  }
+}
