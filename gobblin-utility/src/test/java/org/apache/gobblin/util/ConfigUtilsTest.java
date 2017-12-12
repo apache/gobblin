@@ -129,6 +129,11 @@ public class ConfigUtilsTest {
     Map<String,String> configMap = Maps.newHashMap();
     configMap.put("key1", null);
     Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(configMap), "key1"), ImmutableList.of());
+
+    // Empty list if value is empty string
+    configMap = Maps.newHashMap();
+    configMap.put("key2", "");
+    Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(configMap), "key2"), ImmutableList.of());
   }
 
   @Test
