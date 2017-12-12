@@ -128,7 +128,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
     if (props.containsKey(GOBBLIN_LOG_LEVEL_KEY)) {
       Level logLevel = Level.toLevel(props.getProperty(GOBBLIN_LOG_LEVEL_KEY), Level.INFO);
-      Logger.getLogger("gobblin").setLevel(logLevel);
+      Logger.getLogger("org.apache.gobblin").setLevel(logLevel);
     }
 
     this.props = new Properties();
