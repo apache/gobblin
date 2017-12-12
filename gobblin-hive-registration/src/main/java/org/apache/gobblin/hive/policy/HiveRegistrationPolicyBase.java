@@ -17,21 +17,11 @@
 
 package org.apache.gobblin.hive.policy;
 
-import com.codahale.metrics.Timer;
-import com.google.common.base.Splitter;
-import com.typesafe.config.Config;
-import org.apache.gobblin.config.client.ConfigClient;
-import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
-import org.apache.gobblin.hive.HiveRegister;
-import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
@@ -41,20 +31,31 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.TableType;
 
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegProps;
+import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.HiveSerDeManager;
 import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.hive.spec.SimpleHiveSpec;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 
 
 /**
@@ -271,7 +272,12 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     if (this.props.contains(nameKey)) {
       name = this.props.getProp(nameKey);
     } else if (pattern.isPresent()) {
-      name = pattern.get().matcher(path.toString()).group();
+      Matcher matcher = pattern.get().matcher(path.toString());
+      if (matcher.matches() && matcher.groupCount() >= 1) {
+        name = matcher.group(1);
+      } else {
+        throw new IllegalStateException("No group match found for regexKey " + regexKey+" with regexp "+ pattern.get().toString() +" on path "+path);
+      }
     } else {
       throw new IllegalStateException("Missing required property " + nameKey + " or " + regexKey);
     }
