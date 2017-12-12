@@ -419,7 +419,9 @@ public class ConfigUtils {
     try {
       valueList = config.getStringList(path);
     } catch (ConfigException.WrongType e) {
-
+      if (StringUtils.isEmpty(config.getString(path))) {
+        return Collections.emptyList();
+      }
       /*
        * Using CSV Reader as values could be quoted.
        * E.g The string "a","false","b","10,12" will be split to a list of 4 elements and not 5.
