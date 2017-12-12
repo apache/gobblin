@@ -23,16 +23,15 @@ import java.io.StringWriter;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_CLUSTER_CONF;
+import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_JOBSTATE_JOB_STATE;
+import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_JOB_ID;
+import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_WORKUNIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-
 public class SingleTaskRunnerMainOptionsTest {
 
-  private static final String TEST_JOB_ID = "1";
-  private static final String TEST_WORKUNIT = "/workunit.wu";
-  private static final String TEST_JOBSTATE_JOB_STATE = "/jobstate.job.state";
-  private static final String TEST_CLUSTER_CONF = "/cluster.conf";
   private PrintWriter writer;
   private StringWriter stringWriter;
 
@@ -44,8 +43,7 @@ public class SingleTaskRunnerMainOptionsTest {
 
   @Test
   public void correctCmdLineShouldReturnAllValues() {
-    final String[] args =
-        {"--job_id", TEST_JOB_ID, "--work_unit_file_path", TEST_WORKUNIT, "--job_state_file_path", TEST_JOBSTATE_JOB_STATE, "--cluster_config_file_path", TEST_CLUSTER_CONF};
+    final String[] args = SingleTaskRunnerMainArgumentsDataProvider.getArgs();
     final SingleTaskRunnerMainOptions options = new SingleTaskRunnerMainOptions(args, this.writer);
     final String jobId = options.getJobId();
     final String workUnitFilePath = options.getWorkUnitFilePath();

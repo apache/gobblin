@@ -33,7 +33,7 @@ class SingleTaskRunnerMain {
 
   private final SingleTaskRunnerBuilder builder;
 
-  private SingleTaskRunnerMain(final SingleTaskRunnerBuilder builder) {
+  SingleTaskRunnerMain(final SingleTaskRunnerBuilder builder) {
     this.builder = builder;
   }
 
