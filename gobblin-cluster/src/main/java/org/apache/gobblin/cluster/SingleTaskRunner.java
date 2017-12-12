@@ -25,14 +25,12 @@ class SingleTaskRunner {
   private final Path clusterConfigFilePath;
   private final String jobId;
   private final Path workUnitFilePath;
-  private final Path jobStateFilePath;
 
-  SingleTaskRunner(final String clusterConfigFilePath, final String jobId, final String workUnitFilePath,
-      final String jobStateFilePath) {
+  SingleTaskRunner(final String clusterConfigFilePath, final String jobId,
+      final String workUnitFilePath) {
     this.clusterConfigFilePath = Paths.get(clusterConfigFilePath);
     this.jobId = jobId;
     this.workUnitFilePath = Paths.get(workUnitFilePath);
-    this.jobStateFilePath = Paths.get(jobStateFilePath);
   }
 
   void run() {

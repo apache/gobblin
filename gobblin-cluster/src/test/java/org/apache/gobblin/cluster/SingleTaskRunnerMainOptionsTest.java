@@ -24,7 +24,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_CLUSTER_CONF;
-import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_JOBSTATE_JOB_STATE;
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_JOB_ID;
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_WORKUNIT;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,12 +46,10 @@ public class SingleTaskRunnerMainOptionsTest {
     final SingleTaskRunnerMainOptions options = new SingleTaskRunnerMainOptions(args, this.writer);
     final String jobId = options.getJobId();
     final String workUnitFilePath = options.getWorkUnitFilePath();
-    final String jobStateFilePath = options.getJobStateFilePath();
     final String clusterConfigFilePath = options.getClusterConfigFilePath();
 
     assertThat(jobId).isEqualTo(TEST_JOB_ID);
     assertThat(workUnitFilePath).isEqualTo(TEST_WORKUNIT);
-    assertThat(jobStateFilePath).isEqualTo(TEST_JOBSTATE_JOB_STATE);
     assertThat(clusterConfigFilePath).isEqualTo(TEST_CLUSTER_CONF);
   }
 

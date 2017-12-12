@@ -20,12 +20,10 @@ package org.apache.gobblin.cluster;
 class SingleTaskRunnerMainArgumentsDataProvider {
   static final String TEST_JOB_ID = "1";
   static final String TEST_WORKUNIT = "/workunit.wu";
-  static final String TEST_JOBSTATE_JOB_STATE = "/jobstate.job.state";
   static final String TEST_CLUSTER_CONF = "/cluster.conf";
 
   static String[] getArgs() {
     return new String[]{"--job_id", TEST_JOB_ID, "--work_unit_file_path", TEST_WORKUNIT,
-        "--job_state_file_path", TEST_JOBSTATE_JOB_STATE, "--cluster_config_file_path",
-        TEST_CLUSTER_CONF};
+        "--cluster_config_file_path", TEST_CLUSTER_CONF};
   }
 }

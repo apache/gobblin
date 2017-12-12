@@ -21,7 +21,6 @@ class SingleTaskRunnerBuilder {
   private String clusterConfigFilePath;
   private String jobId;
   private String workUnitFilePath;
-  private String jobStateFilePath;
 
   SingleTaskRunnerBuilder setClusterConfigFilePath(final String clusterConfigFilePath) {
     this.clusterConfigFilePath = clusterConfigFilePath;
@@ -38,12 +37,7 @@ class SingleTaskRunnerBuilder {
     return this;
   }
 
-  SingleTaskRunnerBuilder setJobStateFilePath(final String jobStateFilePath) {
-    this.jobStateFilePath = jobStateFilePath;
-    return this;
-  }
-
   SingleTaskRunner createSingleTaskRunner() {
-    return new SingleTaskRunner(this.clusterConfigFilePath, this.jobId, this.workUnitFilePath, this.jobStateFilePath);
+    return new SingleTaskRunner(this.clusterConfigFilePath, this.jobId, this.workUnitFilePath);
   }
 }

@@ -55,7 +55,7 @@ class SingleTaskRunnerMain {
     final SingleTaskRunnerMainOptions options = new SingleTaskRunnerMainOptions(args, writer);
     final SingleTaskRunner runner =
         this.builder.setClusterConfigFilePath(options.getClusterConfigFilePath()).setJobId(options.getJobId())
-            .setWorkUnitFilePath(options.getWorkUnitFilePath()).setJobStateFilePath(options.getJobStateFilePath())
+            .setWorkUnitFilePath(options.getWorkUnitFilePath())
             .createSingleTaskRunner();
     runner.run();
   }

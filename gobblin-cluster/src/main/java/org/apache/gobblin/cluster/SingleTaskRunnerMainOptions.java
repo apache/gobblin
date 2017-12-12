@@ -33,15 +33,14 @@ import com.google.common.collect.ImmutableMap;
 
 import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.SingleTaskRunnerCmdOption.CLUSTER_CONFIG_FILE_PATH;
 import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.SingleTaskRunnerCmdOption.JOB_ID;
-import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.SingleTaskRunnerCmdOption.JOB_STATE_FILE_PATH;
 import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.SingleTaskRunnerCmdOption.WORK_UNIT_FILE_PATH;
 
 
 class SingleTaskRunnerMainOptions {
   private static final Logger logger = LoggerFactory.getLogger(SingleTaskRunnerMainOptions.class);
   private static final ImmutableMap<String, String> OPTIONS_MAP = ImmutableMap
-      .of(JOB_ID, "job id", WORK_UNIT_FILE_PATH, "work unit file path", JOB_STATE_FILE_PATH, "job state file path",
-          CLUSTER_CONFIG_FILE_PATH, "cluster configuration file path");
+      .of(JOB_ID, "job id", WORK_UNIT_FILE_PATH, "work unit file path", CLUSTER_CONFIG_FILE_PATH,
+          "cluster configuration file path");
   private static final int CHARACTERS_PER_LINE = 80;
 
   private final PrintWriter writer;
@@ -85,10 +84,6 @@ class SingleTaskRunnerMainOptions {
 
   String getWorkUnitFilePath() {
     return this.cmd.getOptionValue(WORK_UNIT_FILE_PATH);
-  }
-
-  String getJobStateFilePath() {
-    return this.cmd.getOptionValue(JOB_STATE_FILE_PATH);
   }
 
   String getClusterConfigFilePath() {

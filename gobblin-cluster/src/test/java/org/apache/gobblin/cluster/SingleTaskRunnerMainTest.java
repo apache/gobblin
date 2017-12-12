@@ -20,7 +20,6 @@ package org.apache.gobblin.cluster;
 import org.testng.annotations.Test;
 
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_CLUSTER_CONF;
-import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_JOBSTATE_JOB_STATE;
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_JOB_ID;
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainArgumentsDataProvider.TEST_WORKUNIT;
 import static org.mockito.Mockito.doReturn;
@@ -42,7 +41,6 @@ public class SingleTaskRunnerMainTest {
 
     verify(builder).setClusterConfigFilePath(TEST_CLUSTER_CONF);
     verify(builder).setJobId(TEST_JOB_ID);
-    verify(builder).setJobStateFilePath(TEST_JOBSTATE_JOB_STATE);
     verify(builder).setWorkUnitFilePath(TEST_WORKUNIT);
     verify(taskRunner).run();
   }
