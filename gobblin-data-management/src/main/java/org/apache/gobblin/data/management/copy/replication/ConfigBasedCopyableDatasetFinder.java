@@ -16,8 +16,6 @@
  */
 package org.apache.gobblin.data.management.copy.replication;
 
-
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -35,28 +33,36 @@ import org.apache.gobblin.dataset.Dataset;
 
 import lombok.extern.slf4j.Slf4j;
 
+
 /**
- * Based on the ConfigStore object to find all {@link ConfigBasedMultiDatasets} to replicate.
- * Specifically for replication job.
- * Normal DistcpNG Job which doesn'involve Dataflow concepts should not use this DatasetFinder but
+ * Based on the ConfigStore object to find all {@link ConfigBasedMultiDatasets} to replicate. Specifically for
+ * replication job. Normal DistcpNG Job which doesn'involve Dataflow concepts should not use this DatasetFinder but
  * different implementation of {@link ConfigBasedDatasetsFinder}.
  */
 @Slf4j
 public class ConfigBasedCopyableDatasetFinder extends ConfigBasedDatasetsFinder {
 
-  public ConfigBasedCopyableDatasetFinder(FileSystem fs, Properties jobProps) throws IOException{
+  public ConfigBasedCopyableDatasetFinder(FileSystem fs, Properties jobProps)
+      throws IOException {
     super(fs, jobProps);
   }
 
-  protected Callable<Void> findDatasetsCallable(final ConfigClient confClient,
-      final URI u, final Properties p, Optional<List<String>> blacklistPatterns, final Collection<Dataset> datasets) {
+  protected Callable<Void> findDatasetsCallable(final ConfigClient confClient, final URI datasetUri,
+      final Properties jobProps, Optional<List<String>> blacklistPatterns, final Collection<Dataset> datasets) {
     return new Callable<Void>() {
       @Override
-      public Void call() throws Exception {
+      public Void call()
+          throws Exception {
         // Process each {@link Config}, find dataset and add those into the datasets
-        Config c = confClient.getConfig(u);
+        Config datasetSpecificConfig = confClient.getConfig(datasetUri);
+        log.debug("Constructing ConfigBasedMultiDatasets for datasetURI[" + datasetUri + "]:" + datasetSpecificConfig);
+        /*
+         * Due to potential topology that user defined, there's possibility that a single dataset config node in configstore
+         * generates multiple {@link ConfigBasedMultiDataset}s.
+         */
         List<Dataset> datasetForConfig =
-            new ConfigBasedMultiDatasets(c, p, blacklistPatterns).getConfigBasedDatasetList();
+            new ConfigBasedMultiDatasets(datasetSpecificConfig, jobProps, blacklistPatterns)
+                .getConfigBasedDatasetList();
         datasets.addAll(datasetForConfig);
         return null;
       }
