@@ -82,7 +82,6 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 
 
 /**
@@ -157,7 +156,7 @@ public class GobblinTaskRunner {
     Properties properties = ConfigUtils.configToProperties(config);
 
     TaskExecutor taskExecutor = new TaskExecutor(properties);
-    TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
+    TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties);
 
     Path appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get() :
         GobblinClusterUtils.getAppWorkDirPathFromConfig(config, this.fs, applicationName, applicationId);
