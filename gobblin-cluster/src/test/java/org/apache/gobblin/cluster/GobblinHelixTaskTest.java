@@ -96,7 +96,7 @@ public class GobblinHelixTaskTest {
 
     this.helixManager = Mockito.mock(HelixManager.class);
     Mockito.when(this.helixManager.getInstanceName()).thenReturn(GobblinHelixTaskTest.class.getSimpleName());
-    this.taskStateTracker = new GobblinHelixTaskStateTracker(new Properties(), this.helixManager);
+    this.taskStateTracker = new GobblinHelixTaskStateTracker(new Properties());
 
     this.localFs = FileSystem.getLocal(configuration);
     this.appWorkDir = new Path(GobblinHelixTaskTest.class.getSimpleName());
