@@ -101,8 +101,8 @@ public class GobblinHelixTask implements Task {
     try (Closer closer = Closer.create()) {
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_NAME_KEY, this.jobName));
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_KEY_KEY, this.jobKey));
-      int workUnitSize = this.task.run();
-      return new TaskResult(TaskResult.Status.COMPLETED, String.format("completed tasks: %d", workUnitSize));
+      this.task.run();
+      return new TaskResult(TaskResult.Status.COMPLETED, "");
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
       return new TaskResult(TaskResult.Status.CANCELED, "");

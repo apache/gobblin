@@ -66,16 +66,9 @@ public class SingleHelixTask {
     _stateStores = stateStores;
   }
 
-  /**
-   *
-   * @return the number of work-units processed
-   * @throws IOException
-   * @throws InterruptedException
-   */
-  public int run()
+  public void run()
       throws IOException, InterruptedException {
     List<WorkUnit> workUnits = getWorkUnits();
-    int workUnitSize = workUnits.size();
 
     JobState jobState = getJobState();
     Config jobConfig = getConfigFromJobState(jobState);
@@ -86,7 +79,6 @@ public class SingleHelixTask {
 
       _taskattempt = _taskAttemptBuilder.build(workUnits.iterator(), _jobId, jobState, jobBroker);
       _taskattempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
-      return workUnitSize;
     }
   }
 
