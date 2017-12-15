@@ -19,6 +19,8 @@ package org.apache.gobblin.util;
 
 import org.testng.annotations.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 
 public class SystemPropertiesWrapperTest {
 
@@ -30,5 +32,6 @@ public class SystemPropertiesWrapperTest {
     // This test is designed to print out the actual value for debugging and demonstration
     // purposes.
     System.out.println(home);
+    assertThat(home).isNotEmpty();
   }
 }
