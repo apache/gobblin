@@ -17,22 +17,18 @@
 
 package org.apache.gobblin.util;
 
-public class SystemPropertiesWrapper {
-  private String get(final String name) {
-    return System.getProperty(name);
-  }
+import org.testng.annotations.Test;
 
-  /**
-   * The path to the JRE that is used to run the program which does the lookup. It is not
-   * related to JAVA_HOME.
-   * e.g.
-   * /Library/Java/JavaVirtualMachines/jdk1.8.0_40.jdk/Contents/Home/jre
-   */
-  public String getJavaHome() {
-    return get("java.home");
-  }
 
-  public String getJavaClassPath() {
-    return get("java.class.path");
+public class SystemPropertiesWrapperTest {
+
+  @Test
+  public void testGetJavaHome() {
+    final SystemPropertiesWrapper propertiesWrapper = new SystemPropertiesWrapper();
+    final String home = propertiesWrapper.getJavaHome();
+    // It's hard to assert where the java JRE home directory is used to launch this process.
+    // This test is designed to print out the actual value for debugging and demonstration
+    // purposes.
+    System.out.println(home);
   }
 }
