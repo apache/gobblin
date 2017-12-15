@@ -37,8 +37,7 @@ class SingleTaskRunnerMain {
     this.builder = builder;
   }
 
-  public static void main(final String[] args)
-      throws Exception {
+  public static void main(final String[] args) {
     logger.info("SingleTaskRunnerMain starting. args: " + Arrays.toString(args));
     final SingleTaskRunnerMain runnerMain = new SingleTaskRunnerMain(new SingleTaskRunnerBuilder());
     try {
@@ -55,7 +54,8 @@ class SingleTaskRunnerMain {
     final PrintWriter writer = new PrintWriter(streamWriter, true);
     final SingleTaskRunnerMainOptions options = new SingleTaskRunnerMainOptions(args, writer);
     final SingleTaskRunner runner =
-        this.builder.setClusterConfigFilePath(options.getClusterConfigFilePath()).setJobId(options.getJobId())
+        this.builder.setClusterConfigFilePath(options.getClusterConfigFilePath())
+            .setJobId(options.getJobId())
             .setWorkUnitFilePath(options.getWorkUnitFilePath())
             .createSingleTaskRunner();
     runner.run();
