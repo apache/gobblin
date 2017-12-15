@@ -31,13 +31,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
 
-import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.SingleTaskRunnerCmdOption.CLUSTER_CONFIG_FILE_PATH;
-import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.SingleTaskRunnerCmdOption.JOB_ID;
-import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.SingleTaskRunnerCmdOption.WORK_UNIT_FILE_PATH;
-
 
 class SingleTaskRunnerMainOptions {
   private static final Logger logger = LoggerFactory.getLogger(SingleTaskRunnerMainOptions.class);
+  static final String CLUSTER_CONFIG_FILE_PATH = "cluster_config_file_path";
+  static final String WORK_UNIT_FILE_PATH = "work_unit_file_path";
+  static final String JOB_ID = "job_id";
   private static final ImmutableMap<String, String> OPTIONS_MAP = ImmutableMap
       .of(JOB_ID, "job id", WORK_UNIT_FILE_PATH, "work unit file path", CLUSTER_CONFIG_FILE_PATH,
           "cluster configuration file path");
