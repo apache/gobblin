@@ -83,9 +83,7 @@ class SingleTaskRunner {
     try {
       this.serviceManager.awaitHealthy(10, TimeUnit.SECONDS);
     } catch (final TimeoutException e) {
-      final String errMsg = "Timeout waiting for services to start.";
-      logger.error(errMsg, e);
-      throw new GobblinClusterException(errMsg, e);
+      throw new GobblinClusterException("Timeout waiting for services to start.", e);
     }
   }
 
@@ -95,7 +93,7 @@ class SingleTaskRunner {
     try {
       this.serviceManager.awaitStopped(1, TimeUnit.MINUTES);
     } catch (final TimeoutException e) {
-      logger.error("Wait for services to stop timed out.", e);
+      logger.error("Timeout waiting for services to shutdown.", e);
     }
   }
 
