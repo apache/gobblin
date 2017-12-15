@@ -18,7 +18,7 @@
 package org.apache.gobblin.util;
 
 public class SystemPropertiesWrapper {
-  public String get(String name) {
+  private String get(final String name) {
     return System.getProperty(name);
   }
 
