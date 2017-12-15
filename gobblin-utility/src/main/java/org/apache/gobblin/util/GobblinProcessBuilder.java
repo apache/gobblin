@@ -23,7 +23,7 @@ import java.util.List;
 
 
 public class GobblinProcessBuilder {
-  public Process build(final List<String> command)
+  public Process start(final List<String> command)
       throws IOException {
     final ProcessBuilder processBuilder = new ProcessBuilder(command);
     processBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);

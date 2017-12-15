@@ -52,7 +52,7 @@ public class SingleTaskLauncherTest {
 
     final GobblinProcessBuilder processBuilder = mock(GobblinProcessBuilder.class);
     final Process mockProcess = mock(Process.class);
-    when(processBuilder.build(any())).thenReturn(mockProcess);
+    when(processBuilder.start(any())).thenReturn(mockProcess);
 
     final Path clusterConfPath = Paths.get(CLUSTER_CONFIG_CONF_PATH);
     final SingleTaskLauncher launcher =
@@ -65,7 +65,7 @@ public class SingleTaskLauncherTest {
         .asList("/javahome/bin/java", "-cp", TEST_CLASS_PATH,
             "org.apache.gobblin.cluster.SingleTaskRunnerMain", "--cluster_config_file_path",
             CLUSTER_CONFIG_CONF_PATH, "--job_id", JOB_ID, "--work_unit_file_path", WORK_UNIT_PATH));
-    verify(processBuilder).build(expectedInput);
+    verify(processBuilder).start(expectedInput);
     assertThat(process).isEqualTo(mockProcess);
   }
 }
