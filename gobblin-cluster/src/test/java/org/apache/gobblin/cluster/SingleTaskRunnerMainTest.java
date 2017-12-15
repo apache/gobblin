@@ -31,7 +31,8 @@ import static org.mockito.Mockito.verify;
 public class SingleTaskRunnerMainTest {
 
   @Test
-  public void testRun() {
+  public void testRun()
+      throws Exception {
     final SingleTaskRunnerBuilder builder = spy(SingleTaskRunnerBuilder.class);
     final SingleTaskRunner taskRunner = mock(SingleTaskRunner.class);
     doReturn(taskRunner).when(builder).createSingleTaskRunner();
