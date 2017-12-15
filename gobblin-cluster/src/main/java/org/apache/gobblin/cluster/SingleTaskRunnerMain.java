@@ -17,15 +17,15 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Charsets;
-
-import org.apache.gobblin.util.JvmUtils;
 
 
 class SingleTaskRunnerMain {
@@ -37,9 +37,8 @@ class SingleTaskRunnerMain {
     this.builder = builder;
   }
 
-  public static void main(final String[] args)
-      throws Exception {
-    logger.info(JvmUtils.getJvmInputArguments());
+  public static void main(final String[] args) {
+    logger.info("SingleTaskRunnerMain starting. args: " + Arrays.toString(args));
     final SingleTaskRunnerMain runnerMain = new SingleTaskRunnerMain(new SingleTaskRunnerBuilder());
     try {
       runnerMain.run(args);
@@ -49,12 +48,14 @@ class SingleTaskRunnerMain {
     }
   }
 
-  void run(final String[] args) {
+  void run(final String[] args)
+      throws IOException, InterruptedException {
     final OutputStreamWriter streamWriter = new OutputStreamWriter(System.out, Charsets.UTF_8);
     final PrintWriter writer = new PrintWriter(streamWriter, true);
     final SingleTaskRunnerMainOptions options = new SingleTaskRunnerMainOptions(args, writer);
     final SingleTaskRunner runner =
-        this.builder.setClusterConfigFilePath(options.getClusterConfigFilePath()).setJobId(options.getJobId())
+        this.builder.setClusterConfigFilePath(options.getClusterConfigFilePath())
+            .setJobId(options.getJobId())
             .setWorkUnitFilePath(options.getWorkUnitFilePath())
             .createSingleTaskRunner();
     runner.run();
