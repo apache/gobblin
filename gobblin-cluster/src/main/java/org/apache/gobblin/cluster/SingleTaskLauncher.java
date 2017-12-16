@@ -100,22 +100,21 @@ class SingleTaskLauncher {
     }
 
     private void addClusterConfigPath() {
-      this.cmd.add(formatParam(CLUSTER_CONFIG_FILE_PATH));
-      this.cmd.add(SingleTaskLauncher.this.clusterConfigFilePath.toString());
+      addOneOption(CLUSTER_CONFIG_FILE_PATH,
+          SingleTaskLauncher.this.clusterConfigFilePath.toString());
     }
 
     private void addWorkUnitPath() {
-      this.cmd.add(formatParam(WORK_UNIT_FILE_PATH));
-      this.cmd.add(this.workUnitFilePath.toString());
+      addOneOption(WORK_UNIT_FILE_PATH, this.workUnitFilePath.toString());
     }
 
     private void addJobId() {
-      this.cmd.add(formatParam(JOB_ID));
-      this.cmd.add(this.jobId);
+      addOneOption(JOB_ID, this.jobId);
     }
 
-    private String formatParam(final String param) {
-      return "--" + param;
+    private void addOneOption(final String key, final String value) {
+      this.cmd.add("--" + key);
+      this.cmd.add(value);
     }
   }
 }
