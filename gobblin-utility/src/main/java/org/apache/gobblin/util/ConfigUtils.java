@@ -19,6 +19,7 @@ package org.apache.gobblin.util;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,6 +54,7 @@ import org.apache.gobblin.password.PasswordManager;
  * Utility class for dealing with {@link Config} objects.
  */
 public class ConfigUtils {
+  private final FileUtils fileUtils;
 
   /**
    * List of keys that should be excluded when converting to typesafe config.
@@ -65,6 +67,16 @@ public class ConfigUtils {
    * property keys. This is used during Properties -> Config -> Properties conversion since
    * typesafe config does not allow such properties. */
   public static final String STRIP_SUFFIX = ".ROOT_VALUE";
+
+  public ConfigUtils(FileUtils fileUtils) {
+    this.fileUtils = fileUtils;
+  }
+
+  public void saveConfigToFile(final Config config, final Path destPath)
+      throws IOException {
+    final String configAsHoconString = config.root().render();
+    this.fileUtils.saveToFile(configAsHoconString, destPath);
+  }
 
   /**
    * Convert a given {@link Config} instance to a {@link Properties} instance.
