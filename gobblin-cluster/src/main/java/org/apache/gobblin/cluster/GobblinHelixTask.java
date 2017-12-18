@@ -69,7 +69,7 @@ public class GobblinHelixTask implements Task {
   private String jobKey;
   private Path workUnitFilePath;
 
-  private SingleHelixTask task;
+  private SingleTask task;
 
   public GobblinHelixTask(TaskCallbackContext taskCallbackContext, FileSystem fs, Path appWorkDir,
       TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores)
@@ -81,7 +81,8 @@ public class GobblinHelixTask implements Task {
     Path jobStateFilePath = constructJobStateFilePath(appWorkDir);
 
     this.task =
-        new SingleHelixTask(this.jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder, stateStores);
+        new SingleTask(this.jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder,
+            stateStores);
   }
 
   private Path constructJobStateFilePath(Path appWorkDir) {
@@ -93,7 +94,8 @@ public class GobblinHelixTask implements Task {
     this.jobName = configMap.get(ConfigurationKeys.JOB_NAME_KEY);
     this.jobId = configMap.get(ConfigurationKeys.JOB_ID_KEY);
     this.jobKey = Long.toString(Id.parse(this.jobId).getSequence());
-    this.workUnitFilePath = new Path(configMap.get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH));
+    this.workUnitFilePath =
+        new Path(configMap.get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH));
   }
 
   @Override
