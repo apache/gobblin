@@ -54,7 +54,7 @@ class SingleTaskRunner {
   private final String workUnitFilePath;
   private final Config clusterConfig;
   private final Path appWorkPath;
-  private SingleHelixTask task;
+  private SingleTask task;
   private TaskExecutor taskExecutor;
   private GobblinHelixTaskStateTracker taskStateTracker;
   private ServiceManager serviceManager;
@@ -114,9 +114,8 @@ class SingleTaskRunner {
 
     final TaskAttemptBuilder taskAttemptBuilder = getTaskAttemptBuilder(stateStores);
 
-    this.task =
-        new SingleHelixTask(this.jobId, new Path(this.workUnitFilePath), jobStateFilePath, fs,
-            taskAttemptBuilder, stateStores);
+    this.task = new SingleTask(this.jobId, new Path(this.workUnitFilePath), jobStateFilePath, fs,
+        taskAttemptBuilder, stateStores);
   }
 
   private TaskAttemptBuilder getTaskAttemptBuilder(final StateStores stateStores) {
