@@ -20,6 +20,8 @@ package org.apache.gobblin.util;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
@@ -43,8 +45,29 @@ import com.typesafe.config.ConfigValueFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 
 public class ConfigUtilsTest {
+
+  @Test
+  public void testSaveConfigToFile()
+      throws IOException {
+    FileUtils fileUtils = new FileUtils();
+    ConfigUtils configUtils = new ConfigUtils(fileUtils);
+    ImmutableMap<String, String> configMap = ImmutableMap.of("k1", "v1", "k2", "v2");
+    Config config = ConfigFactory.parseMap(configMap);
+    Path destPath = Paths.get("test-config-file.txt");
+
+    configUtils.saveConfigToFile(config, destPath);
+    Config restoredConfig = ConfigFactory.parseFile(destPath.toFile());
+
+    assertThat(restoredConfig.getString("k1")).isEqualTo("v1");
+    assertThat(restoredConfig.getString("k2")).isEqualTo("v2");
+
+    java.nio.file.Files.deleteIfExists(destPath);
+  }
+
 
   @Test
   public void testPropertiesToConfig() {
