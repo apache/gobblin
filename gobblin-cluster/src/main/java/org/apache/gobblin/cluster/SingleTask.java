@@ -44,9 +44,9 @@ import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.SerializationUtils;
 
 
-public class SingleHelixTask {
+public class SingleTask {
 
-  private static final Logger _logger = LoggerFactory.getLogger(SingleHelixTask.class);
+  private static final Logger _logger = LoggerFactory.getLogger(SingleTask.class);
 
   private GobblinMultiTaskAttempt _taskattempt;
   private String _jobId;
@@ -56,7 +56,7 @@ public class SingleHelixTask {
   private TaskAttemptBuilder _taskAttemptBuilder;
   private StateStores _stateStores;
 
-  SingleHelixTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
+  SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
       TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores) {
     _jobId = jobId;
     _workUnitFilePath = workUnitFilePath;
