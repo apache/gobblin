@@ -24,14 +24,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class SystemPropertiesWrapperTest {
 
+  final SystemPropertiesWrapper propertiesWrapper = new SystemPropertiesWrapper();
+
   @Test
   public void testGetJavaHome() {
-    final SystemPropertiesWrapper propertiesWrapper = new SystemPropertiesWrapper();
-    final String home = propertiesWrapper.getJavaHome();
-    // It's hard to assert where the java JRE home directory is used to launch this process.
+    final String home = this.propertiesWrapper.getJavaHome();
+    // It's hard to assert which java JRE home directory is used to launch this process.
     // This test is designed to print out the actual value for debugging and demonstration
     // purposes.
     System.out.println(home);
     assertThat(home).isNotEmpty();
+  }
+
+  @Test
+  public void testGetJavaClassPath() {
+    final String classPath = this.propertiesWrapper.getJavaClassPath();
+    // It's hard to assert what classpath is used to launch this process.
+    // This test is designed to print out the actual value for debugging and demonstration
+    // purposes.
+    System.out.println(classPath);
+    assertThat(classPath).isNotEmpty();
   }
 }
