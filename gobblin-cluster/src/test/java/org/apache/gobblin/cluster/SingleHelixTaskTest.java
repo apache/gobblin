@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.apache.helix.task.TaskResult;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
@@ -34,82 +35,67 @@ import static org.mockito.Mockito.when;
 
 
 public class SingleHelixTaskTest {
+  private static final String WORK_UNIT_FILE_PATH = "work-unit.wu";
+  private static final String JOB_ID = "1";
+  private Process mockProcess;
+  private SingleTaskLauncher mockLauncher;
+  private SingleHelixTask task;
+
+  @BeforeMethod
+  public void setUp() {
+    this.mockLauncher = mock(SingleTaskLauncher.class);
+    this.mockProcess = mock(Process.class);
+  }
+
   @Test
   public void successTaskProcessShouldResultInCompletedStatus()
       throws IOException, InterruptedException {
-    final SingleTaskLauncher mockLauncher = mock(SingleTaskLauncher.class);
-    final Process mockProcess = mock(Process.class);
-    when(mockLauncher.launch(any(), any())).thenReturn(mockProcess);
-    when(mockProcess.waitFor()).thenReturn(0);
-    final ImmutableMap<String, String> configMap = ImmutableMap
-        .of("job.name", "testJob", "job.id", "1", "gobblin.cluster.work.unit.file.path",
-            "work-unit.wu");
-
-    final SingleHelixTask task = new SingleHelixTask(mockLauncher, configMap);
-    final TaskResult result = task.run();
+    when(this.mockProcess.waitFor()).thenReturn(0);
+    final TaskResult result = createAndRunTask();
 
     assertThat(result.getStatus()).isEqualTo(TaskResult.Status.COMPLETED);
-    final Path expectedPath = Paths.get("work-unit.wu");
-    verify(mockLauncher).launch("1", expectedPath);
-    verify(mockProcess).waitFor();
+    final Path expectedPath = Paths.get(WORK_UNIT_FILE_PATH);
+    verify(this.mockLauncher).launch(JOB_ID, expectedPath);
+    verify(this.mockProcess).waitFor();
   }
 
   @Test
   public void failedTaskProcessShouldResultInFailedStatus()
       throws IOException, InterruptedException {
-    final SingleTaskLauncher mockLauncher = mock(SingleTaskLauncher.class);
-    final Process mockProcess = mock(Process.class);
-    when(mockLauncher.launch(any(), any())).thenReturn(mockProcess);
-    when(mockProcess.waitFor()).thenReturn(1);
-    final ImmutableMap<String, String> configMap =
-        ImmutableMap.of("gobblin.cluster.work.unit.file.path", "work-unit.wu");
+    when(this.mockProcess.waitFor()).thenReturn(1);
 
-    final SingleHelixTask task = new SingleHelixTask(mockLauncher, configMap);
-    final TaskResult result = task.run();
+    final TaskResult result = createAndRunTask();
 
     assertThat(result.getStatus()).isEqualTo(TaskResult.Status.FAILED);
-  }
-
-  @Test
-  public void interruptedProcessShouldResultInCanceledStatus()
-      throws IOException, InterruptedException {
-    final TaskResult result = createTaskWithException(new InterruptedException());
-
-    assertThat(result.getStatus()).isEqualTo(TaskResult.Status.CANCELED);
   }
 
   @Test
   public void NonInterruptedExceptionShouldResultInFailedStatus()
       throws IOException, InterruptedException {
-    final TaskResult result = createTaskWithException(new RuntimeException());
+    when(this.mockProcess.waitFor()).thenThrow(new RuntimeException());
+
+    final TaskResult result = createAndRunTask();
 
     assertThat(result.getStatus()).isEqualTo(TaskResult.Status.FAILED);
-  }
-
-  private TaskResult createTaskWithException(final Exception exceptionToThrow)
-      throws InterruptedException, IOException {
-    final SingleTaskLauncher mockLauncher = mock(SingleTaskLauncher.class);
-    final Process mockProcess = mock(Process.class);
-    when(mockLauncher.launch(any(), any())).thenReturn(mockProcess);
-    when(mockProcess.waitFor()).thenThrow(exceptionToThrow);
-    final ImmutableMap<String, String> configMap =
-        ImmutableMap.of("gobblin.cluster.work.unit.file.path", "work-unit.wu");
-
-    final SingleHelixTask task = new SingleHelixTask(mockLauncher, configMap);
-    return task.run();
   }
 
   @Test
   public void testCancel()
       throws IOException {
-    final SingleTaskLauncher mockLauncher = mock(SingleTaskLauncher.class);
-    final Process mockProcess = mock(Process.class);
-    when(mockLauncher.launch(any(), any())).thenReturn(mockProcess);
-    final ImmutableMap<String, String> configMap =
-        ImmutableMap.of("gobblin.cluster.work.unit.file.path", "work-unit.wu");
+    createAndRunTask();
+    this.task.cancel();
 
-    final SingleHelixTask task = new SingleHelixTask(mockLauncher, configMap);
-    task.cancel();
-    verify(mockProcess).destroyForcibly();
+    verify(this.mockProcess).destroyForcibly();
+  }
+
+  private TaskResult createAndRunTask()
+      throws IOException {
+    when(this.mockLauncher.launch(any(), any())).thenReturn(this.mockProcess);
+    final ImmutableMap<String, String> configMap = ImmutableMap
+        .of("job.name", "testJob", "job.id", JOB_ID, "gobblin.cluster.work.unit.file.path",
+            WORK_UNIT_FILE_PATH);
+
+    this.task = new SingleHelixTask(this.mockLauncher, configMap);
+    return this.task.run();
   }
 }

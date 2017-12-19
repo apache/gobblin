@@ -65,9 +65,6 @@ public class SingleHelixTask implements Task {
       } else {
         return new TaskResult(TaskResult.Status.FAILED, "Exit code: " + exitCode);
       }
-    } catch (final InterruptedException ie) {
-      logger.warn("SingleHelixTask interrupted", ie);
-      return new TaskResult(TaskResult.Status.CANCELED, "");
     } catch (final Throwable t) {
       logger.error("SingleHelixTask failed due to " + t.getMessage(), t);
       return new TaskResult(TaskResult.Status.FAILED, Throwables.getStackTraceAsString(t));
