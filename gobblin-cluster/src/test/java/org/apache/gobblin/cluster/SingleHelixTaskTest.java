@@ -35,11 +35,12 @@ import static org.mockito.Mockito.when;
 
 public class SingleHelixTaskTest {
   @Test
-  public void testRun()
+  public void successTaskProcessShouldResultInCompletedStatus()
       throws IOException, InterruptedException {
     final SingleTaskLauncher mockLauncher = mock(SingleTaskLauncher.class);
     final Process mockProcess = mock(Process.class);
     when(mockLauncher.launch(any(), any())).thenReturn(mockProcess);
+    when(mockProcess.waitFor()).thenReturn(0);
     final ImmutableMap<String, String> configMap = ImmutableMap
         .of("job.name", "testJob", "job.id", "1", "gobblin.cluster.work.unit.file.path",
             "work-unit.wu");
@@ -51,6 +52,22 @@ public class SingleHelixTaskTest {
     final Path expectedPath = Paths.get("work-unit.wu");
     verify(mockLauncher).launch("1", expectedPath);
     verify(mockProcess).waitFor();
+  }
+
+  @Test
+  public void failedTaskProcessShouldResultInFailedStatus()
+      throws IOException, InterruptedException {
+    final SingleTaskLauncher mockLauncher = mock(SingleTaskLauncher.class);
+    final Process mockProcess = mock(Process.class);
+    when(mockLauncher.launch(any(), any())).thenReturn(mockProcess);
+    when(mockProcess.waitFor()).thenReturn(1);
+    final ImmutableMap<String, String> configMap =
+        ImmutableMap.of("gobblin.cluster.work.unit.file.path", "work-unit.wu");
+
+    final SingleHelixTask task = new SingleHelixTask(mockLauncher, configMap);
+    final TaskResult result = task.run();
+
+    assertThat(result.getStatus()).isEqualTo(TaskResult.Status.FAILED);
   }
 
   @Test

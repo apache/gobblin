@@ -59,8 +59,12 @@ public class SingleHelixTask implements Task {
       logger.info(String
           .format("Waiting for a single task process to finish. job name: %s. job id: %s",
               this.jobName, this.jobId));
-      this.taskProcess.waitFor();
-      return new TaskResult(TaskResult.Status.COMPLETED, "");
+      int exitCode = this.taskProcess.waitFor();
+      if (exitCode == 0) {
+        return new TaskResult(TaskResult.Status.COMPLETED, "");
+      } else {
+        return new TaskResult(TaskResult.Status.FAILED, "Exit code: " + exitCode);
+      }
     } catch (final InterruptedException ie) {
       Thread.currentThread().interrupt();
       return new TaskResult(TaskResult.Status.CANCELED, "");
