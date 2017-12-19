@@ -57,7 +57,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  *
  * @author Yinan Li
  */
-@Test(groups = { "disabledOnTravis" })
+@Test(groups = { "gobblin.cluster" })
 public class GobblinClusterManagerTest implements HelixMessageTestBase {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinClusterManagerTest.class);
 
