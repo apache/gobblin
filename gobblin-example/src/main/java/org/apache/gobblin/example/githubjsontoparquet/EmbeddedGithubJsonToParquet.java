@@ -46,7 +46,7 @@ import groovy.util.logging.Slf4j;
 /**
  * Creates a CLI application for running app githubjsontoparquet.
  * Cli application takes two arguments:
- * 1st arg: Archive to pull ex: 2015-01-01-15 (yyyy-mm-dd-hh);
+ * 1st arg: Date time (yyyy-mm-dd-hh) of archive to pull, ex: 2015-01-01-25
  * 2nd arg: Work dir with filesystem URI (file:///home/someuser/somefolder)";
  * Run using:
  *  bin/gobblin run githubjsontoparquet 2017-12-14-15 file:///Users/someuser/somefolder
@@ -72,7 +72,7 @@ public class EmbeddedGithubJsonToParquet extends EmbeddedGobblin {
         throws JobTemplate.TemplateException, IOException {
       String[] args = cli.getArgs();
       if (args.length < 1) {
-        throw new RuntimeException("Unexpected number of arguments.");
+        throw new RuntimeException("Expected 2 arguments. " + getUsageString());
       }
       try {
         if (args.length == 2) {
@@ -86,7 +86,7 @@ public class EmbeddedGithubJsonToParquet extends EmbeddedGobblin {
 
     @Override
     public String getUsageString() {
-      return "1st arg: Archive to pull ex: 2015-01-01-15 (yyyy-mm-dd-hh); 2nd arg: Work dir with filesystem URI";
+      return "<Date time (yyyy-mm-dd-hh) of archive to pull> <Work dir with file system URI>";
     }
   }
 
@@ -126,11 +126,6 @@ public class EmbeddedGithubJsonToParquet extends EmbeddedGobblin {
     String fileUrl = String.format(GITHUB_ARCHIVE_URL_TEMPLATE, archiveDateAndHour);
     Path downloadDirPath = createDownloadDir(workDirUrl.getPath(), fileUrl);
     Path downloadFile = getAbsoluteDownloadFilePath(downloadDirPath, archiveDateAndHour);
-    if (downloadFile.toFile().exists()) {
-      Log.info(String.format("Skipping download for %s at %s because destination already exists", fileUrl,
-          downloadFile.toString()));
-      return;
-    }
     Log.info(String.format("Downloading %s at %s", fileUrl, downloadFile.toString()));
     downloadFile(fileUrl, downloadFile);
     Log.info(String.format("Download complete for %s at %s", fileUrl, downloadFile.toString()));
@@ -156,6 +151,12 @@ public class EmbeddedGithubJsonToParquet extends EmbeddedGobblin {
   }
 
   private void downloadFile(String fileUrl, Path destination) {
+    if (destination.toFile().exists()) {
+      Log.info(String.format("Skipping download for %s at %s because destination already exists", fileUrl,
+          destination.toString()));
+      return;
+    }
+
     try {
       URL archiveUrl = new URL(fileUrl);
       ReadableByteChannel rbc = Channels.newChannel(archiveUrl.openStream());
