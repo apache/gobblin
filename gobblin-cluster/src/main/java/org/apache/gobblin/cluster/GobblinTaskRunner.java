@@ -150,10 +150,10 @@ public class GobblinTaskRunner {
     this.applicationName = applicationName;
     this.applicationId = applicationId;
 
-    this.appWorkPath = initAppWorkDir(config, appWorkDirOptional);
-
     Configuration conf = HadoopUtils.newConfiguration();
     this.fs = buildFileSystem(config, conf);
+
+    this.appWorkPath = initAppWorkDir(config, appWorkDirOptional);
 
     this.config = saveConfigToFile(config);
 
