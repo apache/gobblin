@@ -122,7 +122,7 @@ public class GobblinTaskRunner {
 
   private final ServiceManager serviceManager;
 
-  private TaskStateModelFactory taskStateModelFactory;
+  private final TaskStateModelFactory taskStateModelFactory;
 
   private final Optional<ContainerMetrics> containerMetrics;
 
@@ -161,7 +161,7 @@ public class GobblinTaskRunner {
 
     this.containerMetrics = buildContainerMetrics();
 
-    registerHelixTaskFactory();
+    this.taskStateModelFactory = registerHelixTaskFactory();
 
     services.addAll(getServices());
     this.serviceManager = new ServiceManager(services);
@@ -182,7 +182,7 @@ public class GobblinTaskRunner {
         this.helixInstanceName, InstanceType.PARTICIPANT, zkConnectionString);
   }
 
-  private void registerHelixTaskFactory() {
+  private TaskStateModelFactory registerHelixTaskFactory() {
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
 
     boolean isRunTaskInSeparateProcessEnabled = getIsRunTaskInSeparateProcessEnabled();
@@ -195,9 +195,11 @@ public class GobblinTaskRunner {
     }
 
     taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME, taskFactory);
-    this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
+    TaskStateModelFactory taskStateModelFactory =
+        new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine()
-        .registerStateModelFactory("Task", this.taskStateModelFactory);
+        .registerStateModelFactory("Task", taskStateModelFactory);
+    return taskStateModelFactory;
   }
 
   private TaskFactory getInProcessTaskFactory() {
