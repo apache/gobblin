@@ -19,6 +19,7 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -75,9 +76,12 @@ import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskStateTracker;
 import org.apache.gobblin.runtime.services.JMXReportingService;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.FileUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.PathUtils;
+
+import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
 
 
 /**
@@ -108,6 +112,7 @@ import org.apache.gobblin.util.PathUtils;
 public class GobblinTaskRunner {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinTaskRunner.class);
+  static final java.nio.file.Path CLUSTER_CONF_PATH = Paths.get("generated-gobblin-cluster.conf");
 
   static final String GOBBLIN_TASK_FACTORY_NAME = "GobblinTaskFactory";
 
@@ -137,11 +142,15 @@ public class GobblinTaskRunner {
       String taskRunnerId, Config config, Optional<Path> appWorkDirOptional)
       throws Exception {
     this.helixInstanceName = helixInstanceName;
-    this.config = config;
     this.taskRunnerId = taskRunnerId;
 
     Configuration conf = HadoopUtils.newConfiguration();
-    this.fs = buildFileSystem(this.config, conf);
+    this.fs = buildFileSystem(config, conf);
+    Path appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
+        : GobblinClusterUtils
+            .getAppWorkDirPathFromConfig(config, this.fs, applicationName, applicationId);
+
+    this.config = saveConfigToFile(config, appWorkDir);
 
     String zkConnectionString =
         config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
@@ -155,10 +164,6 @@ public class GobblinTaskRunner {
 
     TaskExecutor taskExecutor = new TaskExecutor(properties);
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties);
-
-    Path appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
-        : GobblinClusterUtils
-            .getAppWorkDirPathFromConfig(config, this.fs, applicationName, applicationId);
 
     List<Service> services = Lists.newArrayList(taskExecutor, taskStateTracker,
         new JMXReportingService(
@@ -177,12 +182,40 @@ public class GobblinTaskRunner {
 
     // Register task factory for the Helix task state model
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
-    taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME,
-        new GobblinHelixTaskFactory(this.containerMetrics, taskExecutor, taskStateTracker, this.fs,
-            appWorkDir, stateStoreJobConfig, this.helixManager));
+
+    Boolean isRunTaskInSeparateProcessEnabled = getIsRunTaskInSeparateProcessEnabled();
+    TaskFactory taskFactory;
+    if (isRunTaskInSeparateProcessEnabled) {
+      LOGGER.info("Running a task in a separate process is enabled.");
+      taskFactory = new HelixTaskFactory(this.containerMetrics, CLUSTER_CONF_PATH);
+    } else {
+      taskFactory =
+          new GobblinHelixTaskFactory(this.containerMetrics, taskExecutor, taskStateTracker,
+              this.fs, appWorkDir, stateStoreJobConfig, this.helixManager);
+    }
+
+    taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME, taskFactory);
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine()
         .registerStateModelFactory("Task", this.taskStateModelFactory);
+  }
+
+  private Boolean getIsRunTaskInSeparateProcessEnabled() {
+    Boolean enabled = false;
+    if (this.config.hasPath(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS)) {
+      enabled =
+          this.config.getBoolean(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS);
+    }
+    return enabled;
+  }
+
+  private Config saveConfigToFile(Config config, Path appWorkDir)
+      throws IOException {
+    Config newConf =
+        config.withValue(CLUSTER_WORK_DIR, ConfigValueFactory.fromAnyRef(appWorkDir.toString()));
+    ConfigUtils configUtils = new ConfigUtils(new FileUtils());
+    configUtils.saveConfigToFile(newConf, CLUSTER_CONF_PATH);
+    return newConf;
   }
 
   /**

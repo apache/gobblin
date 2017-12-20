@@ -58,3 +58,6 @@ package-lock.json
 
 # generated java files
 **/gen-java/
+
+# generated config files by tests
+**/generated-gobblin-cluster.conf
