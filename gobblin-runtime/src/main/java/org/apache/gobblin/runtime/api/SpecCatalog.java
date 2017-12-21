@@ -19,10 +19,9 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
-import com.codahale.metrics.Gauge;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -32,7 +31,6 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
-import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
@@ -62,42 +60,41 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
   @Slf4j
   public static class StandardMetrics extends StandardMetricsBridge.StandardMetrics implements SpecCatalogListener {
     public static final String NUM_ACTIVE_SPECS_NAME = "numActiveSpecs";
-    public static final String NUM_ADDED_SPECS = "numAddedSpecs";
-    public static final String NUM_DELETED_SPECS = "numDeletedSpecs";
-    public static final String NUM_UPDATED_SPECS = "numUpdatedSpecs";
+    public static final String TOTAL_ADD_CALLS = "totalAddCalls";
+    public static final String TOTAL_DELETE_CALLS = "totalDeleteCalls";
+    public static final String TOTAL_UPDATE_CALLS = "totalUpdateCalls";
     public static final String TRACKING_EVENT_NAME = "SpecCatalogEvent";
     public static final String SPEC_ADDED_OPERATION_TYPE = "SpecAdded";
     public static final String SPEC_DELETED_OPERATION_TYPE = "SpecDeleted";
     public static final String SPEC_UPDATED_OPERATION_TYPE = "SpecUpdated";
     public static final String TIME_FOR_SPEC_CATALOG_GET = "timeForSpecCatalogGet";
-    public static final String HISTOGRAM_FOR_SPEC_ADD = "histogramForSpecAdd";
-    public static final String HISTOGRAM_FOR_SPEC_UPDATE = "histogramForSpecUpdate";
-    public static final String HISTOGRAM_FOR_SPEC_DELETE = "histogramForSpecDelete";
 
+
+    @Getter private final AtomicLong totalAddedSpecs;
+    @Getter private final AtomicLong totalDeletedSpecs;
+    @Getter private final AtomicLong totalUpdatedSpecs;
+    @Getter private final ContextAwareGauge<Long> totalAddCalls;
+    @Getter private final ContextAwareGauge<Long> totalDeleteCalls;
+    @Getter private final ContextAwareGauge<Long> totalUpdateCalls;
     @Getter private final ContextAwareGauge<Integer> numActiveSpecs;
-    @Getter private final ContextAwareCounter numAddedSpecs;
-    @Getter private final ContextAwareCounter numDeletedSpecs;
-    @Getter private final ContextAwareCounter numUpdatedSpecs;
+
     @Getter private final ContextAwareTimer timeForSpecCatalogGet;
-    @Getter private final ContextAwareHistogram histogramForSpecAdd;
-    @Getter private final ContextAwareHistogram histogramForSpecUpdate;
-    @Getter private final ContextAwareHistogram histogramForSpecDelete;
 
     public StandardMetrics(final SpecCatalog specCatalog) {
       MetricContext context = specCatalog.getMetricContext();
       this.timeForSpecCatalogGet = context.contextAwareTimer(TIME_FOR_SPEC_CATALOG_GET, 1, TimeUnit.MINUTES);
-      this.numAddedSpecs = context.contextAwareCounter(NUM_ADDED_SPECS);
-      this.numDeletedSpecs = context.contextAwareCounter(NUM_DELETED_SPECS);
-      this.numUpdatedSpecs = context.contextAwareCounter(NUM_UPDATED_SPECS);
+      this.totalAddedSpecs = new AtomicLong(0);
+      this.totalDeletedSpecs = new AtomicLong(0);
+      this.totalUpdatedSpecs = new AtomicLong(0);
       this.numActiveSpecs = context.newContextAwareGauge(NUM_ACTIVE_SPECS_NAME,  ()->{
           long startTime = System.currentTimeMillis();
           int size = specCatalog.getSpecs().size();
           updateGetSpecTime(startTime);
           return size;
       });
-      this.histogramForSpecAdd = context.contextAwareHistogram(HISTOGRAM_FOR_SPEC_ADD, 1, TimeUnit.MINUTES);
-      this.histogramForSpecUpdate = context.contextAwareHistogram(HISTOGRAM_FOR_SPEC_UPDATE, 1, TimeUnit.MINUTES);
-      this.histogramForSpecDelete = context.contextAwareHistogram(HISTOGRAM_FOR_SPEC_DELETE, 1, TimeUnit.MINUTES);
+      this.totalAddCalls = context.newContextAwareGauge(TOTAL_ADD_CALLS, ()->this.totalAddedSpecs.get());
+      this.totalUpdateCalls = context.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedSpecs.get());
+      this.totalDeleteCalls = context.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedSpecs.get());
     }
 
     public void updateGetSpecTime(long startTime) {
@@ -107,17 +104,12 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
 
     @Override
     public Collection<ContextAwareGauge<?>> getGauges() {
-      return Collections.singleton(this.numActiveSpecs);
+      return ImmutableList.of(numActiveSpecs, totalAddCalls, totalUpdateCalls, totalDeleteCalls);
     }
 
     @Override
     public Collection<ContextAwareCounter> getCounters() {
-      return ImmutableList.of(numAddedSpecs, numDeletedSpecs, numUpdatedSpecs);
-    }
-
-    @Override
-    public Collection<ContextAwareHistogram> getHistograms() {
-      return ImmutableList.of(histogramForSpecAdd, histogramForSpecDelete, histogramForSpecUpdate);
+      return ImmutableList.of();
     }
 
     @Override
@@ -126,8 +118,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     }
 
     @Override public void onAddSpec(Spec addedSpec) {
-      this.numAddedSpecs.inc();
-      this.histogramForSpecAdd.update(1);
+      this.totalAddedSpecs.incrementAndGet();
       submitTrackingEvent(addedSpec, SPEC_ADDED_OPERATION_TYPE);
     }
 
@@ -145,20 +136,18 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
               .put(GobblinMetricsKeys.SPEC_VERSION_META, specSpecVersion)
               .build())
           .build();
-      this.numAddedSpecs.getContext().submitEvent(e);
+      this.totalAddCalls.getContext().submitEvent(e);
     }
 
     @Override
     public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
-      this.numDeletedSpecs.inc();
-      this.histogramForSpecDelete.update(1);
+      this.totalDeletedSpecs.incrementAndGet();
       submitTrackingEvent(deletedSpecURI, deletedSpecVersion, SPEC_DELETED_OPERATION_TYPE);
     }
 
     @Override
     public void onUpdateSpec(Spec updatedSpec) {
-      this.numUpdatedSpecs.inc();
-      this.histogramForSpecUpdate.update(1);
+      this.totalUpdatedSpecs.incrementAndGet();
       submitTrackingEvent(updatedSpec, SPEC_UPDATED_OPERATION_TYPE);
     }
   }

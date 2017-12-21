@@ -20,15 +20,13 @@ package org.apache.gobblin.cluster;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
@@ -36,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -143,18 +140,18 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   private class Metrics extends StandardMetrics {
 
-    private final ContextAwareCounter numJobsLaunched;
-    private final ContextAwareCounter numJobsCompleted;
-    private final ContextAwareCounter numJobsCommitted;
-    private final ContextAwareCounter numJobsFailed;
-    private final ContextAwareCounter numJobsCancelled;
-    private final ContextAwareHistogram histogramJobsLaunched;
-    private final ContextAwareHistogram histogramJobsCompleted;
-    private final ContextAwareHistogram histogramJobsCommitted;
-    private final ContextAwareHistogram histogramJobsFailed;
-    private final ContextAwareHistogram histogramJobsCancelled;
-
+    private final AtomicLong totalJobsLaunched;
+    private final AtomicLong totalJobsCompleted;
+    private final AtomicLong totalJobsCommitted;
+    private final AtomicLong totalJobsFailed;
+    private final AtomicLong totalJobsCancelled;
+    private final ContextAwareGauge<Long> numJobsLaunched;
+    private final ContextAwareGauge<Long> numJobsCompleted;
+    private final ContextAwareGauge<Long> numJobsCommitted;
+    private final ContextAwareGauge<Long> numJobsFailed;
+    private final ContextAwareGauge<Long> numJobsCancelled;
     private final ContextAwareGauge<Integer> numJobsRunning;
+
     private final ContextAwareTimer timeForJobCompletion;
     private final ContextAwareTimer timeForJobFailure;
     private final ContextAwareTimer timeBeforeJobScheduling;
@@ -162,21 +159,19 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     public Metrics(final MetricContext metricContext) {
       // All historical counters
-      this.numJobsLaunched = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED_COUNTER);
-      this.numJobsCompleted = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED_COUNTER);
-      this.numJobsCommitted = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED_COUNTER);
-      this.numJobsFailed = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED_COUNTER);
-      this.numJobsCancelled = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED_COUNTER);
+      this.totalJobsLaunched = new AtomicLong(0);
+      this.totalJobsCompleted = new AtomicLong(0);
+      this.totalJobsCommitted = new AtomicLong(0);
+      this.totalJobsFailed = new AtomicLong(0);
+      this.totalJobsCancelled = new AtomicLong(0);
 
-      // Counters within last 1 minute
-      this.histogramJobsLaunched = metricContext.contextAwareHistogram(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED_HISTOGRAM, 1, TimeUnit.MINUTES);
-      this.histogramJobsCompleted = metricContext.contextAwareHistogram(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED_HISTOGRAM, 1, TimeUnit.MINUTES);
-      this.histogramJobsCommitted = metricContext.contextAwareHistogram(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED_HISTOGRAM, 1, TimeUnit.MINUTES);
-      this.histogramJobsFailed = metricContext.contextAwareHistogram(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED_HISTOGRAM, 1, TimeUnit.MINUTES);
-      this.histogramJobsCancelled = metricContext.contextAwareHistogram(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED_HISTOGRAM, 1, TimeUnit.MINUTES);
-
-      this.numJobsRunning = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING_GAUGE,
-          ()->(int)(Metrics.this.numJobsLaunched.getCount() - Metrics.this.numJobsCompleted.getCount()));
+      this.numJobsLaunched = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED, ()->this.totalJobsLaunched.get());
+      this.numJobsCompleted = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED, ()->this.totalJobsCompleted.get());
+      this.numJobsCommitted = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED, ()->this.totalJobsCommitted.get());
+      this.numJobsFailed = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED, ()->this.totalJobsFailed.get());
+      this.numJobsCancelled = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED, ()->this.totalJobsCancelled.get());
+      this.numJobsRunning = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING,
+          ()->(int)(Metrics.this.totalJobsLaunched.get() - Metrics.this.totalJobsCompleted.get()));
 
       this.timeForJobCompletion = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_COMPLETION, 1, TimeUnit.MINUTES);
       this.timeForJobFailure = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_FAILURE,1, TimeUnit.MINUTES);
@@ -201,28 +196,17 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     @Override
     public Collection<ContextAwareGauge<?>> getGauges() {
-      return Collections.singleton(numJobsRunning);
+      return ImmutableList.of(numJobsRunning, numJobsLaunched, numJobsCompleted, numJobsCommitted, numJobsFailed, numJobsCancelled);
     }
 
     @Override
     public Collection<ContextAwareCounter> getCounters() {
-      List<ContextAwareCounter> counters = Lists.newArrayList();
-      counters.add(numJobsLaunched);
-      counters.add(numJobsCompleted);
-      counters.add(numJobsCommitted);
-      counters.add(numJobsFailed);
-      counters.add(numJobsCancelled);
-      return counters;
+      return ImmutableList.of();
     }
 
     @Override
     public Collection<ContextAwareTimer> getTimers() {
       return ImmutableList.of(timeForJobCompletion, timeForJobFailure, timeBeforeJobScheduling, timeBeforeJobLaunching);
-    }
-
-    @Override
-    public Collection<ContextAwareHistogram> getHistograms() {
-      return ImmutableList.of(histogramJobsCompleted, histogramJobsLaunched, histogramJobsFailed, histogramJobsCancelled, histogramJobsCommitted);
     }
   }
 
@@ -239,7 +223,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       super.onJobPrepare(jobContext);
       jobContext.getJobState().setProp(START_TIME, Long.toString(System.nanoTime()));
       if (GobblinHelixJobScheduler.this.isInstrumentationEnabled()) {
-        metrics.numJobsLaunched.inc();
+        metrics.totalJobsLaunched.incrementAndGet();
       }
     }
 
@@ -249,13 +233,13 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       super.onJobCompletion(jobContext);
       long startTime = jobContext.getJobState().getPropAsLong(START_TIME);
       if (GobblinHelixJobScheduler.this.isInstrumentationEnabled()) {
-        metrics.numJobsCompleted.inc();
+        metrics.totalJobsCompleted.incrementAndGet();
         Instrumented.updateTimer(Optional.of(metrics.timeForJobCompletion), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         if (jobContext.getJobState().getState() == JobState.RunningState.FAILED) {
-            metrics.numJobsFailed.inc();
+            metrics.totalJobsFailed.incrementAndGet();
             Instrumented.updateTimer(Optional.of(metrics.timeForJobFailure), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         } else {
-            metrics.numJobsCommitted.inc();
+            metrics.totalJobsCommitted.incrementAndGet();
         }
       }
     }
@@ -265,7 +249,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         throws Exception {
       super.onJobCancellation(jobContext);
       if (GobblinHelixJobScheduler.this.isInstrumentationEnabled()) {
-        metrics.numJobsCancelled.inc();
+        metrics.totalJobsCancelled.incrementAndGet();
       }
     }
 
