@@ -126,9 +126,7 @@ public class EmbeddedGithubJsonToParquet extends EmbeddedGobblin {
     String fileUrl = String.format(GITHUB_ARCHIVE_URL_TEMPLATE, archiveDateAndHour);
     Path downloadDirPath = createDownloadDir(workDirUrl.getPath(), fileUrl);
     Path downloadFile = getAbsoluteDownloadFilePath(downloadDirPath, archiveDateAndHour);
-    Log.info(String.format("Downloading %s at %s", fileUrl, downloadFile.toString()));
     downloadFile(fileUrl, downloadFile);
-    Log.info(String.format("Download complete for %s at %s", fileUrl, downloadFile.toString()));
   }
 
   private Path getAbsoluteDownloadFilePath(Path downloadDirPath, String archiveDateAndHour) {
@@ -161,7 +159,9 @@ public class EmbeddedGithubJsonToParquet extends EmbeddedGobblin {
       URL archiveUrl = new URL(fileUrl);
       ReadableByteChannel rbc = Channels.newChannel(archiveUrl.openStream());
       FileOutputStream fos = new FileOutputStream(String.valueOf(destination));
+      Log.info(String.format("Downloading %s at %s", fileUrl, destination.toString()));
       fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+      Log.info(String.format("Download complete for %s at %s", fileUrl, destination.toString()));
     } catch (IOException e) {
       e.printStackTrace();
     }
