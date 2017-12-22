@@ -63,7 +63,7 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
   private static final Logger LOGGER = LoggerFactory.getLogger(FSJobCatalog.class);
   public static final String CONF_EXTENSION = ".conf";
   private static final String FS_SCHEME = "FS";
-  private final MutableStandardMetrics mutableMetrics;
+  protected final MutableStandardMetrics mutableMetrics;
   /**
    * Initialize the JobCatalog, fetch all jobs in jobConfDirPath.
    * @param sysConfig
