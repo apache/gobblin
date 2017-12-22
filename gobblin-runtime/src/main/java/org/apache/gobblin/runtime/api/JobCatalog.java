@@ -75,6 +75,7 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     public static final String JOB_DELETED_OPERATION_TYPE = "JobDeleted";
     public static final String JOB_UPDATED_OPERATION_TYPE = "JobUpdated";
 
+    private final MetricContext metricsContext;
     @Getter private final AtomicLong totalAddedJobs;
     @Getter private final AtomicLong totalDeletedJobs;
     @Getter private final AtomicLong totalUpdatedJobs;
@@ -85,16 +86,16 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     @Getter private final ContextAwareGauge<Integer> numActiveJobs;
 
     public StandardMetrics(final JobCatalog jobCatalog) {
-      MetricContext context = jobCatalog.getMetricContext();
+      this.metricsContext = jobCatalog.getMetricContext();
       this.totalAddedJobs = new AtomicLong(0);
       this.totalDeletedJobs = new AtomicLong(0);
       this.totalUpdatedJobs = new AtomicLong(0);
 
-      this.timeForJobCatalogGet = context.contextAwareTimer(TIME_FOR_JOB_CATALOG_GET, 1, TimeUnit.MINUTES);
-      this.totalAddCalls = context.newContextAwareGauge(TOTAL_ADD_CALLS, ()->this.totalAddedJobs.get());
-      this.totalUpdateCalls = context.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedJobs.get());
-      this.totalDeleteCalls = context.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedJobs.get());
-      this.numActiveJobs = context.newContextAwareGauge(NUM_ACTIVE_JOBS_NAME, ()->{
+      this.timeForJobCatalogGet = metricsContext.contextAwareTimer(TIME_FOR_JOB_CATALOG_GET, 1, TimeUnit.MINUTES);
+      this.totalAddCalls = metricsContext.newContextAwareGauge(TOTAL_ADD_CALLS, ()->this.totalAddedJobs.get());
+      this.totalUpdateCalls = metricsContext.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedJobs.get());
+      this.totalDeleteCalls = metricsContext.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedJobs.get());
+      this.numActiveJobs = metricsContext.newContextAwareGauge(NUM_ACTIVE_JOBS_NAME, ()->{
           long startTime = System.currentTimeMillis();
           int size = jobCatalog.getJobs().size();
           updateGetJobTime(startTime);
@@ -126,7 +127,7 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
               .put(GobblinMetricsKeys.JOB_SPEC_VERSION_META, jobSpecVersion)
               .build())
           .build();
-      this.totalAddCalls.getContext().submitEvent(e);
+      this.metricsContext.submitEvent(e);
     }
 
     @Override

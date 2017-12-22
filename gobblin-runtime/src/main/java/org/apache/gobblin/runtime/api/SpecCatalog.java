@@ -69,7 +69,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     public static final String SPEC_UPDATED_OPERATION_TYPE = "SpecUpdated";
     public static final String TIME_FOR_SPEC_CATALOG_GET = "timeForSpecCatalogGet";
 
-
+    private final MetricContext metricsContext;
     @Getter private final AtomicLong totalAddedSpecs;
     @Getter private final AtomicLong totalDeletedSpecs;
     @Getter private final AtomicLong totalUpdatedSpecs;
@@ -81,20 +81,20 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     @Getter private final ContextAwareTimer timeForSpecCatalogGet;
 
     public StandardMetrics(final SpecCatalog specCatalog) {
-      MetricContext context = specCatalog.getMetricContext();
-      this.timeForSpecCatalogGet = context.contextAwareTimer(TIME_FOR_SPEC_CATALOG_GET, 1, TimeUnit.MINUTES);
+      this.metricsContext = specCatalog.getMetricContext();
+      this.timeForSpecCatalogGet = metricsContext.contextAwareTimer(TIME_FOR_SPEC_CATALOG_GET, 1, TimeUnit.MINUTES);
       this.totalAddedSpecs = new AtomicLong(0);
       this.totalDeletedSpecs = new AtomicLong(0);
       this.totalUpdatedSpecs = new AtomicLong(0);
-      this.numActiveSpecs = context.newContextAwareGauge(NUM_ACTIVE_SPECS_NAME,  ()->{
+      this.numActiveSpecs = metricsContext.newContextAwareGauge(NUM_ACTIVE_SPECS_NAME,  ()->{
           long startTime = System.currentTimeMillis();
           int size = specCatalog.getSpecs().size();
           updateGetSpecTime(startTime);
           return size;
       });
-      this.totalAddCalls = context.newContextAwareGauge(TOTAL_ADD_CALLS, ()->this.totalAddedSpecs.get());
-      this.totalUpdateCalls = context.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedSpecs.get());
-      this.totalDeleteCalls = context.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedSpecs.get());
+      this.totalAddCalls = metricsContext.newContextAwareGauge(TOTAL_ADD_CALLS, ()->this.totalAddedSpecs.get());
+      this.totalUpdateCalls = metricsContext.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedSpecs.get());
+      this.totalDeleteCalls = metricsContext.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedSpecs.get());
     }
 
     public void updateGetSpecTime(long startTime) {
@@ -136,7 +136,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
               .put(GobblinMetricsKeys.SPEC_VERSION_META, specSpecVersion)
               .build())
           .build();
-      this.totalAddCalls.getContext().submitEvent(e);
+      this.metricsContext.submitEvent(e);
     }
 
     @Override
