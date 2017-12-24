@@ -37,17 +37,12 @@ public interface JobExecutionLauncher extends Instrumentable {
   StandardMetrics getMetrics();
 
   public static class StandardMetrics {
-    public static final String NUM_JOBS_LAUNCHED_COUNTER = "numJobsLaunched";
-    public static final String NUM_JOBS_COMPLETED_COUNTER = "numJobsCompleted";
-    public static final String NUM_JOBS_COMMITTED_COUNTER = "numJobsCommitted";
-    public static final String NUM_JOBS_FAILED_COUNTER = "numJobsFailed";
-    public static final String NUM_JOBS_CANCELLED_COUNTER = "numJobsCancelled";
-    public static final String NUM_JOBS_RUNNING_GAUGE = "numJobsRunning";
-    public static final String NUM_JOBS_LAUNCHED_HISTOGRAM = "histogramJobsLaunched";
-    public static final String NUM_JOBS_COMPLETED_HISTOGRAM = "histogramJobsCompleted";
-    public static final String NUM_JOBS_COMMITTED_HISTOGRAM = "histogramJobsCommitted";
-    public static final String NUM_JOBS_FAILED_HISTOGRAM = "histogramJobsFailed";
-    public static final String NUM_JOBS_CANCELLED_HISTOGRAM = "histogramJobsCancelled";
+    public static final String NUM_JOBS_LAUNCHED = "numJobsLaunched";
+    public static final String NUM_JOBS_COMPLETED = "numJobsCompleted";
+    public static final String NUM_JOBS_COMMITTED = "numJobsCommitted";
+    public static final String NUM_JOBS_FAILED = "numJobsFailed";
+    public static final String NUM_JOBS_CANCELLED = "numJobsCancelled";
+    public static final String NUM_JOBS_RUNNING = "numJobsRunning";
 
     public static final String TIMER_FOR_JOB_COMPLETION = "timerForJobCompletion";
     public static final String TIMER_FOR_JOB_FAILURE = "timerForJobFailure";
@@ -70,12 +65,12 @@ public interface JobExecutionLauncher extends Instrumentable {
     @Getter private final ContextAwareGauge<Integer> numJobsRunning;
 
     public StandardMetrics(final JobExecutionLauncher parent) {
-      this.numJobsLaunched = parent.getMetricContext().contextAwareCounter(NUM_JOBS_LAUNCHED_COUNTER);
-      this.numJobsCompleted = parent.getMetricContext().contextAwareCounter(NUM_JOBS_COMPLETED_COUNTER);
-      this.numJobsCommitted = parent.getMetricContext().contextAwareCounter(NUM_JOBS_COMMITTED_COUNTER);
-      this.numJobsFailed = parent.getMetricContext().contextAwareCounter(NUM_JOBS_FAILED_COUNTER);
-      this.numJobsCancelled = parent.getMetricContext().contextAwareCounter(NUM_JOBS_CANCELLED_COUNTER);
-      this.numJobsRunning = parent.getMetricContext().newContextAwareGauge(NUM_JOBS_RUNNING_GAUGE,
+      this.numJobsLaunched = parent.getMetricContext().contextAwareCounter(NUM_JOBS_LAUNCHED);
+      this.numJobsCompleted = parent.getMetricContext().contextAwareCounter(NUM_JOBS_COMPLETED);
+      this.numJobsCommitted = parent.getMetricContext().contextAwareCounter(NUM_JOBS_COMMITTED);
+      this.numJobsFailed = parent.getMetricContext().contextAwareCounter(NUM_JOBS_FAILED);
+      this.numJobsCancelled = parent.getMetricContext().contextAwareCounter(NUM_JOBS_CANCELLED);
+      this.numJobsRunning = parent.getMetricContext().newContextAwareGauge(NUM_JOBS_RUNNING,
             new Gauge<Integer>() {
               @Override public Integer getValue() {
                 return (int)(StandardMetrics.this.getNumJobsLaunched().getCount() -
