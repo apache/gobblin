@@ -21,6 +21,7 @@ state.store.dir="${work.dir}/store"
 writer.destination.type=HDFS
 writer.output.format=PARQUET
 writer.fs.uri=${fs.uri}
+writer.partitioner.class=org.apache.gobblin.example.githubjsontoparquet.GithubDataEventTypesPartitioner
 writer.builder.class=org.apache.gobblin.writer.ParquetDataWriterBuilder
 data.publisher.fs.uri=${fs.uri}
 data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher

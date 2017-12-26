@@ -20,6 +20,8 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.parquet.ParquetGroup;
 import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 
 
@@ -27,7 +29,7 @@ import org.apache.gobblin.writer.partitioner.WriterPartitioner;
  * Partitioner for github json records based on 'PARTITION_KEY' key.
  * @author tilakpatidar
  */
-public class GithubDataEventTypesPartitioner implements WriterPartitioner<GenericRecord> {
+public class GithubDataEventTypesPartitioner implements WriterPartitioner<ParquetGroup> {
 
   private static final String SCHEMA_STRING = "schemaString";
   private static final Schema SCHEMA =
@@ -35,15 +37,18 @@ public class GithubDataEventTypesPartitioner implements WriterPartitioner<Generi
           .type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
   private static final String PARTITION_KEY = "type";
 
+  public GithubDataEventTypesPartitioner(State state, int numBranches, int branchId) {
+  }
+
   @Override
   public Schema partitionSchema() {
     return SCHEMA;
   }
 
   @Override
-  public GenericRecord partitionForRecord(GenericRecord record) {
+  public GenericRecord partitionForRecord(ParquetGroup record) {
     GenericRecord partition = new GenericData.Record(SCHEMA);
-    partition.put(SCHEMA_STRING, record.get(PARTITION_KEY).toString().replace("\"",""));
+    partition.put(SCHEMA_STRING, record.getString(PARTITION_KEY, 0).replace("\"", ""));
     return partition;
   }
 }
