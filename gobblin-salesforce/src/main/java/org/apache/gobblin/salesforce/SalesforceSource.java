@@ -188,16 +188,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       throw new RuntimeException("Unexpected empty partition list");
     }
 
-    // If the last group is used as the last partition point
-    if (count == 0) {
-      // Exchange the last partition point with global high watermark
-      partitionPoints.set(partitionPoints.size() - 1, Long.toString(expectedHighWatermark));
-    } else {
+    if (count > 0) {
       // Summarize last group
       statistics.addValue(count);
-      // Add global high watermark as last point
-      partitionPoints.add(Long.toString(expectedHighWatermark));
     }
+
+    // Add global high watermark as last point
+    partitionPoints.add(Long.toString(expectedHighWatermark));
 
     log.info("Dynamic partitioning statistics: ");
     log.info("data: " + Arrays.toString(statistics.getValues()));

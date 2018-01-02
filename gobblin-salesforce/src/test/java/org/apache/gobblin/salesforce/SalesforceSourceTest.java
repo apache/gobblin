@@ -22,6 +22,20 @@ import org.testng.annotations.Test;
 
 public class SalesforceSourceTest {
   @Test
+  void testGenerateSpecifiedPartitionFromSinglePointHistogram() {
+    SalesforceSource.Histogram histogram = new SalesforceSource.Histogram();
+    histogram.add(new SalesforceSource.HistogramGroup("2014-02-13-00:00:00", 10));
+    SalesforceSource source = new SalesforceSource();
+
+    long expectedHighWatermark = 20170407152123L;
+    long lowWatermark = 20140213000000L;
+    int maxPartitions = 2;
+    String expectedPartitions = "20140213000000,20170407152123";
+    String actualPartitions = source.generateSpecifiedPartitions(histogram, 1, maxPartitions, lowWatermark, expectedHighWatermark);
+    Assert.assertEquals(actualPartitions, expectedPartitions);
+  }
+
+  @Test
   void testGenerateSpecifiedPartition() {
     SalesforceSource.Histogram histogram = new SalesforceSource.Histogram();
     for (String group: HISTOGRAM.split(", ")) {
