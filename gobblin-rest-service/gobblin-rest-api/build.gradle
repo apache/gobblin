@@ -31,7 +31,7 @@ artifacts {
   archives mainDataTemplateJar
 }
 
-if (rootProject.ext.publishToMaven) {
+if (rootProject.ext.publishToMaven || rootProject.ext.publishToNexus) {
   configure(uploadArchives.repositories.mavenDeployer) {
     addFilter('gobblin-rest-api-rest-client') {artifact, file ->
       artifact.name == 'gobblin-rest-api-rest-client'
