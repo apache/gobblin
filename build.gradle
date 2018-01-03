@@ -129,6 +129,9 @@ apply from: 'gradle/scripts/sourcesJar.gradle'
 
 apply from: 'gradle/scripts/mavenPublishing.gradle'
 apply from: 'gradle/scripts/javaVersionCheck.gradle'
+
+apply from: 'gradle/scripts/rat.gradle'
+
 task wrapper(type: Wrapper) { gradleVersion = '2.13' }
 
 /*
@@ -142,4 +145,70 @@ allprojects {
       it.codegenClasspath += files("${System.getProperty('java.home')}/../lib/tools.jar")
     }
   }
+}
+
+rat {
+  excludes = [
+    '**/.git/**',
+    '**/.gradle/**',
+    '**/.project',
+    '**/.factorypath',
+    '**/.settings/**',
+    '**/.classpath',
+    '**/*.iml',
+    '**/*.iws',
+    '**/*.ipr',
+    '**/.rubyversion',
+    'gradle/wrapper/**',
+    '.reviewboardrc',
+    'gradlew',
+    '**/changes.md',
+    '**/README.md',
+    '**/.ruby-version',
+    'CONTRIBUTORS',
+    'RELEASE.md',
+    '**/.DS_Store/**',
+    '**/.gitignore',
+    '**/build/**',
+    '**/target/**',
+    '**/bin/**',
+    '**/test-output/**',
+    '**/Gemfile.lock',
+    '**/*.tsv',
+    '**/*.csv',
+    '**/*.svg',
+    '**/*.groovy',
+    '**/*.yml',
+    '**/*.properties',
+    '**/*.conf',
+    '**/*.xml',
+    '**/*.md',
+    '**/*.json',
+    '**/*.avsc',
+    '**/*.ddl',
+    '**/*.dml',
+    '**/*.txt',
+    '**/*.pull',
+    '**/*.job',
+    '**/Dockerfile',
+    '**/file*',
+    '**/*.epf',
+    '**/*.pdsc',
+    '**/*.yml',
+    '**/*.inc',
+    '**/*.py',
+    '**/*.gradle',
+    '**/*.css',
+    '**/*.sh',
+    '**/META-INF/**',
+    '**/*.avro',
+    '**/*.txt.*',
+    '**/*.json.*',
+    '**/migrationConfig',
+    '**/*.key',
+    '**/grok/**',
+    '**/WebmasterPerformanceTuningMetrics',
+    '**/*.template',
+    '**/package-list'
+  ]
 }
