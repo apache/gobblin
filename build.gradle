@@ -22,6 +22,8 @@ buildscript {
   apply from: 'gradle/scripts/defaultBuildProperties.gradle'
   apply from: 'gradle/scripts/computeVersions.gradle'
 
+  apply from: file('gradle/scripts/buildscript.gradle'), to: buildscript
+
   buildscript.repositories.addAll(project.repositories)
 
   dependencies {
@@ -128,9 +130,11 @@ apply from: 'gradle/scripts/javadoc.gradle'
 apply from: 'gradle/scripts/sourcesJar.gradle'
 
 apply from: 'gradle/scripts/mavenPublishing.gradle'
+apply from: 'gradle/scripts/nexusPublishing.gradle'
 apply from: 'gradle/scripts/javaVersionCheck.gradle'
 
 apply from: 'gradle/scripts/rat.gradle'
+apply from: 'gradle/scripts/release.gradle'
 
 task wrapper(type: Wrapper) { gradleVersion = '2.13' }
 
@@ -209,6 +213,9 @@ rat {
     '**/grok/**',
     '**/WebmasterPerformanceTuningMetrics',
     '**/*.template',
+    '**/mainGeneratedRest/**',
+    '**/mainGeneratedDataTemplate/**',
+    '**/gen-java/**',
     '**/package-list'
   ]
 }
