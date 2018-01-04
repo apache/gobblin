@@ -57,7 +57,6 @@ task sourceRelease(type: Tar, dependsOn: prepare_release_config) {
         // don't include gradle.properties because we use a modified version
         exclude "gradle.properties"
         exclude '**/build'
-        exclude 'buildSrc'
         exclude '.gradle'
         exclude '.github'
         exclude 'maven-sonatype'
