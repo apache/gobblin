@@ -113,7 +113,6 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
   @Override
   protected void startUp() throws Exception {
-    LOGGER.error("HERE");
     LOGGER.info("Starting the " + AWSJobConfigurationManager.class.getSimpleName());
 
     LOGGER.info(String.format("Scheduling the job configuration refresh task with an interval of %d second(s)",
