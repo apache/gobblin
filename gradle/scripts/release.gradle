@@ -25,9 +25,11 @@ project(':') {
 def isRelease = ext.release.toBoolean()
 
 def releaseVersion = project.version
-if (!isRelease) {
-    releaseVersion += "-SNAPSHOT"
-}
+println String.format("Release Version: %s", releaseVersion)
+// GOBBLIN-355 Disable until downstream does not fix
+// if (!isRelease) {
+//     releaseVersion += "-SNAPSHOT"
+// }
 
 // Modify the gradle.properties to indicate whether this is a release.  This results in the
 // source releases generating artifacts without -SNAPSHOT appended to the version when they are
