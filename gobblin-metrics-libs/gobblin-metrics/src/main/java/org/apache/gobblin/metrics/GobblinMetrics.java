@@ -26,6 +26,7 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.metrics.reporter.FileFailureEventReporter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -417,7 +418,7 @@ public class GobblinMetrics {
         scheduledReporter.start(reportInterval, reportTimeUnit);
       }
     } catch (Exception e) {
-      LOGGER.error("Metrics reporting cannot be started due to {}", e);
+      LOGGER.error("Metrics reporting cannot be started due to {}", ExceptionUtils.getFullStackTrace(e));
       throw e;
     }
 
@@ -454,6 +455,9 @@ public class GobblinMetrics {
       this.codahaleReportersCloser.close();
     } catch (IOException ioe) {
       LOGGER.error("Failed to close metric output stream for job " + this.id, ioe);
+    } catch (Exception e) {
+      LOGGER.error("Failed to close metric output stream for job {} due to {}", this.id, ExceptionUtils.getFullStackTrace(e));
+      throw e;
     }
 
     this.metricsReportingStarted = false;
