@@ -42,12 +42,15 @@ import org.apache.gobblin.kafka.schemareg.HttpClientFactory;
 import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
 import org.apache.gobblin.util.AvroUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * An implementation of {@link KafkaSchemaRegistry}.
  *
  * @author Ziyang Liu
  */
+@Slf4j
 public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaAvroSchemaRegistry.class);
@@ -85,7 +88,20 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
     GenericObjectPoolConfig config = new GenericObjectPoolConfig();
     config.setMaxTotal(objPoolSize);
     config.setMaxIdle(objPoolSize);
-    this.httpClientPool = new GenericObjectPool<>(new HttpClientFactory(), config);
+
+    HttpClientFactory factory = new HttpClientFactory();
+
+    if (this.props.containsKey(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_SO_TIMEOUT)) {
+      String soTimeout = this.props.getProperty(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_SO_TIMEOUT);
+      factory.setSoTimeout(Integer.parseInt(soTimeout));
+    }
+
+    if (this.props.containsKey(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_CONN_TIMEOUT)) {
+      String connTimeout = this.props.getProperty(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_CONN_TIMEOUT);
+      factory.setConnTimeout(Integer.parseInt(connTimeout));
+    }
+
+    this.httpClientPool = new GenericObjectPool<>(factory, config);
   }
 
   /**
@@ -123,18 +139,35 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
     String schemaUrl = KafkaAvroSchemaRegistry.this.url + GET_RESOURCE_BY_TYPE + topic;
 
     LOG.debug("Fetching from URL : " + schemaUrl);
-
+    int retryInterval = Integer.parseInt(this.props.getProperty(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_RETRY_INTERVAL_IN_MILLIS, Integer.toString(5000)));
+    int retryTimes = Integer.parseInt(this.props.getProperty(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_RETRY_TIMES, Integer.toString(10)));
     GetMethod get = new GetMethod(schemaUrl);
 
-    int statusCode;
-    String schemaString;
+    int statusCode = -1;
+    String schemaString = "";
     HttpClient httpClient = this.borrowClient();
+    int loop = 0;
+
     try {
-      statusCode = httpClient.executeMethod(get);
-      schemaString = get.getResponseBodyAsString();
+      while (++loop <= retryTimes) {
+        try {
+          statusCode = httpClient.executeMethod(get);
+          schemaString = get.getResponseBodyAsString();
+          break;
+        } catch (Exception e) {
+          if (loop >= retryTimes) {
+            throw e;
+          } else {
+            log.error("Exception when fetching schema : {}", e.toString());
+            Thread.sleep(retryInterval);
+          }
+        }
+      }
     } catch (HttpException e) {
       throw new RuntimeException(e);
     } catch (IOException e) {
+      throw new RuntimeException(e);
+    } catch (InterruptedException e) {
       throw new RuntimeException(e);
     } finally {
       get.releaseConnection();

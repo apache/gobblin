@@ -22,6 +22,8 @@ import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 
+import lombok.Setter;
+
 
 /**
  * An implementation of {@link BasePooledObjectFactory} for {@link HttpClient}.
@@ -30,9 +32,25 @@ import org.apache.commons.pool2.impl.DefaultPooledObject;
  */
 public class HttpClientFactory extends BasePooledObjectFactory<HttpClient>{
 
+  @Setter private int soTimeout = -1;
+  @Setter private int connTimeout = -1;
+
+  public HttpClientFactory() {
+  }
+
   @Override
   public HttpClient create() throws Exception {
-    return new HttpClient();
+
+    HttpClient client = new HttpClient();
+    if (soTimeout >= 0) {
+      client.getParams().setSoTimeout(soTimeout);
+    }
+
+    if (connTimeout >= 0) {
+      client.getHttpConnectionManager().getParams().setConnectionTimeout(connTimeout);
+    }
+
+    return client;
   }
 
   @Override
