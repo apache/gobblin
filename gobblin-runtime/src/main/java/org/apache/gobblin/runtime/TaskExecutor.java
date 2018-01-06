@@ -136,28 +136,30 @@ public class TaskExecutor extends AbstractIdleService {
     Preconditions.checkArgument(queuedTaskTimeMaxAge > 0, "Queued task time max age should be positive");
 
     // Currently a fixed-size thread pool is used to execute tasks. We probably need to revisit this later.
-    this.taskExecutor = Executors.newScheduledThreadPool(
+    this.taskExecutor = ExecutorsUtils.loggingDecorator(Executors.newScheduledThreadPool(
         taskExecutorThreadPoolSize,
-        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("TaskExecutor-%d")));
+        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("TaskExecutor-%d"))));
 
     this.retryIntervalInSeconds = retryIntervalInSeconds;
     this.queuedTaskTimeMaxSize = queuedTaskTimeMaxSize;
     this.queuedTaskTimeMaxAge = queuedTaskTimeMaxAge;
 
-    this.forkExecutor = new ThreadPoolExecutor(
-        // The core thread pool size is equal to that of the task executor as there's at least one fork per task
-        taskExecutorThreadPoolSize,
-        // The fork executor thread pool size is essentially unbounded. This is to make sure all forks of
-        // a task get a thread to run so all forks of the task are making progress. This is necessary since
-        // otherwise the parent task will be blocked if the record queue (bounded) of some fork is full and
-        // that fork has not yet started to run because of no available thread. The task cannot proceed in
-        // this case because it has to make sure every records go to every forks.
-        Integer.MAX_VALUE,
-        0L,
-        TimeUnit.MILLISECONDS,
-        // The work queue is a SynchronousQueue. This essentially forces a new thread to be created for each fork.
-        new SynchronousQueue<Runnable>(),
-        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("ForkExecutor-%d")));
+    this.forkExecutor = ExecutorsUtils.loggingDecorator(
+        new ThreadPoolExecutor(
+            // The core thread pool size is equal to that of the task
+            // executor as there's at least one fork per task
+            taskExecutorThreadPoolSize,
+            // The fork executor thread pool size is essentially unbounded. This is to make sure all forks of
+            // a task get a thread to run so all forks of the task are making progress. This is necessary since
+            // otherwise the parent task will be blocked if the record queue (bounded) of some fork is full and
+            // that fork has not yet started to run because of no available thread. The task cannot proceed in
+            // this case because it has to make sure every records go to every forks.
+            Integer.MAX_VALUE,
+            0L,
+            TimeUnit.MILLISECONDS,
+            // The work queue is a SynchronousQueue. This essentially forces a new thread to be created for each fork.
+            new SynchronousQueue<Runnable>(),
+            ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("ForkExecutor-%d"))));
   }
 
   /**
