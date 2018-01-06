@@ -26,6 +26,7 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.metrics.reporter.FileFailureEventReporter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -393,30 +394,36 @@ public class GobblinMetrics {
         .getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY, ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
     ScheduledReporter.setReportingInterval(properties, reportInterval, reportTimeUnit);
 
-    // Build and start the JMX reporter
-    buildJmxMetricReporter(properties);
-    if (this.jmxReporter.isPresent()) {
-      LOGGER.info("Will start reporting metrics to JMX");
-      this.jmxReporter.get().start();
-    }
+    try {
+      // Build and start the JMX reporter
+      buildJmxMetricReporter(properties);
+      if (this.jmxReporter.isPresent()) {
+        LOGGER.info("Will start reporting metrics to JMX");
+        this.jmxReporter.get().start();
+      }
 
-    // Build all other reporters
-    buildFileMetricReporter(properties);
-    buildKafkaMetricReporter(properties);
-    buildGraphiteMetricReporter(properties);
-    buildInfluxDBMetricReporter(properties);
-    buildCustomMetricReporters(properties);
-    buildFileFailureEventReporter(properties);
+      // Build all other reporters
+      buildFileMetricReporter(properties);
+      buildKafkaMetricReporter(properties);
+      buildGraphiteMetricReporter(properties);
+      buildInfluxDBMetricReporter(properties);
+      buildCustomMetricReporters(properties);
+      buildFileFailureEventReporter(properties);
 
-    // Start reporters that implement org.apache.gobblin.metrics.report.ScheduledReporter
-    RootMetricContext.get().startReporting();
+      // Start reporters that implement org.apache.gobblin.metrics.report.ScheduledReporter
+      RootMetricContext.get().startReporting();
 
-    // Start reporters that implement com.codahale.metrics.ScheduledReporter
-    for (com.codahale.metrics.ScheduledReporter scheduledReporter : this.codahaleScheduledReporters) {
-      scheduledReporter.start(reportInterval, reportTimeUnit);
+      // Start reporters that implement com.codahale.metrics.ScheduledReporter
+      for (com.codahale.metrics.ScheduledReporter scheduledReporter : this.codahaleScheduledReporters) {
+        scheduledReporter.start(reportInterval, reportTimeUnit);
+      }
+    } catch (Exception e) {
+      LOGGER.error("Metrics reporting cannot be started due to {}", ExceptionUtils.getFullStackTrace(e));
+      throw e;
     }
 
     this.metricsReportingStarted = true;
+    LOGGER.info("Metrics reporting has been started: GobblinMetrics {}", this.hashCode());
   }
 
   /**
@@ -427,6 +434,8 @@ public class GobblinMetrics {
       LOGGER.warn("Metric reporting has not started yet");
       return;
     }
+
+    LOGGER.info("Metrics reporting will be stopped: GobblinMetrics {}", this.hashCode());
 
     // Stop the JMX reporter
     if (this.jmxReporter.isPresent()) {
@@ -446,9 +455,13 @@ public class GobblinMetrics {
       this.codahaleReportersCloser.close();
     } catch (IOException ioe) {
       LOGGER.error("Failed to close metric output stream for job " + this.id, ioe);
+    } catch (Exception e) {
+      LOGGER.error("Failed to close metric output stream for job {} due to {}", this.id, ExceptionUtils.getFullStackTrace(e));
+      throw e;
     }
 
     this.metricsReportingStarted = false;
+    LOGGER.info("Metrics reporting stopped successfully");
   }
 
   private void buildFileMetricReporter(Properties properties) {
