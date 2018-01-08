@@ -21,6 +21,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
+import org.apache.gobblin.broker.gobblin_scopes.TaskScopeInstance;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
@@ -30,6 +35,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.typesafe.config.ConfigFactory;
 
 
 /**
@@ -45,21 +51,22 @@ public class LineageEventTest {
     final String branch = "branch";
 
     State state0 = new State();
+    LineageInfo lineageInfo = getLineageInfo();
     DatasetDescriptor source = new DatasetDescriptor(kafka, topic);
-    LineageInfo.setSource(source, state0);
+    lineageInfo.setSource(source, state0);
     DatasetDescriptor destination00 = new DatasetDescriptor(hdfs, "/data/dbchanges");
     destination00.addMetadata(branch, "0");
-    LineageInfo.putDestination(destination00, 0, state0);
+    lineageInfo.putDestination(destination00, 0, state0);
     DatasetDescriptor destination01 = new DatasetDescriptor(mysql, "kafka.testTopic");
     destination01.addMetadata(branch, "1");
-    LineageInfo.putDestination(destination01, 1, state0);
+    lineageInfo.putDestination(destination01, 1, state0);
 
     Map<String, LineageEventBuilder> events = LineageInfo.load(state0);
     verify(events.get("0"), topic, source, destination00);
     verify(events.get("1"), topic, source, destination01);
 
     State state1 = new State();
-    LineageInfo.setSource(source, state1);
+    lineageInfo.setSource(source, state1);
     List<State> states = Lists.newArrayList();
     states.add(state0);
     states.add(state1);
@@ -73,7 +80,7 @@ public class LineageEventTest {
     // There are 3 full fledged lineage events
     DatasetDescriptor destination12 = new DatasetDescriptor(mysql, "kafka.testTopic2");
     destination12.addMetadata(branch, "2");
-    LineageInfo.putDestination(destination12, 2, state1);
+    lineageInfo.putDestination(destination12, 2, state1);
     eventsList = LineageInfo.load(states);
     Assert.assertTrue(eventsList.size() == 3);
     Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), events.get("0"));
@@ -83,10 +90,10 @@ public class LineageEventTest {
 
     // There 5 lineage events put, but only 4 unique lineage events
     DatasetDescriptor destination10 = destination12;
-    LineageInfo.putDestination(destination10, 0, state1);
+    lineageInfo.putDestination(destination10, 0, state1);
     DatasetDescriptor destination11 = new DatasetDescriptor("hive", "kafka.testTopic1");
     destination11.addMetadata(branch, "1");
-    LineageInfo.putDestination(destination11, 1, state1);
+    lineageInfo.putDestination(destination11, 1, state1);
     eventsList = LineageInfo.load(states);
     Assert.assertTrue(eventsList.size() == 4);
     Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), events.get("0"));
@@ -108,6 +115,21 @@ public class LineageEventTest {
       }
     }
     return null;
+  }
+
+  private LineageInfo getLineageInfo() {
+    SharedResourcesBroker<GobblinScopeTypes> instanceBroker = SharedResourcesBrokerFactory
+        .createDefaultTopLevelBroker(ConfigFactory.empty(), GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBroker<GobblinScopeTypes> jobBroker = instanceBroker
+        .newSubscopedBuilder(new JobScopeInstance("LineageEventTest", String.valueOf(System.currentTimeMillis())))
+        .build();
+    SharedResourcesBroker<GobblinScopeTypes> taskBroker = jobBroker
+        .newSubscopedBuilder(new TaskScopeInstance("LineageEventTestTask" + String.valueOf(System.currentTimeMillis())))
+        .build();
+    LineageInfo obj1 = LineageInfo.getLineageInfo(jobBroker).get();
+    LineageInfo obj2 = LineageInfo.getLineageInfo(taskBroker).get();
+    Assert.assertTrue(obj1 == obj2);
+    return obj2;
   }
 
   private void verify(LineageEventBuilder event, String name, DatasetDescriptor source, DatasetDescriptor destination) {

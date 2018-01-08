@@ -19,8 +19,10 @@ import org.apache.gobblin.gradle.BuildProperties
 import org.apache.gobblin.gradle.BuildProperty
 
 def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
-    .register(new BuildProperty("artifactRepository", "https://oss.sonatype.org/service/local/staging/deploy/maven2/", "Maven repository to publish artifacts"))
-    .register(new BuildProperty("artifactSnapshotRepository", "https://oss.sonatype.org/content/repositories/snapshots/", "Maven repository to publish artifacts"))
+    .register(new BuildProperty("sonatypeArtifactRepository", "https://oss.sonatype.org/service/local/staging/deploy/maven2/", "Maven repository to publish artifacts"))
+    .register(new BuildProperty("sonatypeArtifactSnapshotRepository", "https://oss.sonatype.org/content/repositories/snapshots/", "Maven repository to publish artifacts"))
+    .register(new BuildProperty("nexusArtifactRepository", "https://repository.apache.org/service/local/staging/deploy/maven2", "Maven repository to publish artifacts"))
+    .register(new BuildProperty("nexusArtifactSnapshotRepository", "https://repository.apache.org/content/repositories/snapshots", "Maven repository to publish artifacts"))
     .register(new BuildProperty("avroVersion", "1.8.1", "Avro dependencies version"))
     .register(new BuildProperty("awsVersion", "1.11.8", "AWS dependencies version"))
     .register(new BuildProperty("bytemanVersion", "2.2.1", "Byteman dependencies version"))
@@ -35,6 +37,7 @@ def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     .register(new BuildProperty("kafka09Version", "0.9.0.1", "Kafka 0.9 dependencies version"))
     .register(new BuildProperty("pegasusVersion", "11.0.0", "Pegasus dependencies version"))
     .register(new BuildProperty("publishToMaven", false, "Enable publishing of artifacts to a central Maven repository"))
+    .register(new BuildProperty("publishToNexus", false, "Enable publishing of artifacts to Nexus"))
     .register(new BuildProperty("salesforceVersion", "37.0.3", "Salesforce dependencies version"))
 
 task buildProperties(description: 'Lists main properties that can be used to customize the build') << {
@@ -47,8 +50,10 @@ BUILD_PROPERTIES.ensureDefined('gobblinFlavor')
 // Compiler compatibility
 BUILD_PROPERTIES.ensureDefined('jdkVersion')
 
-BUILD_PROPERTIES.ensureDefined('artifactRepository')
-BUILD_PROPERTIES.ensureDefined('artifactSnapshotRepository')
+BUILD_PROPERTIES.ensureDefined('sonatypeArtifactRepository')
+BUILD_PROPERTIES.ensureDefined('sonatypeArtifactSnapshotRepository')
+BUILD_PROPERTIES.ensureDefined('nexusArtifactRepository')
+BUILD_PROPERTIES.ensureDefined('nexusArtifactSnapshotRepository')
 BUILD_PROPERTIES.ensureDefined('doNotSignArtifacts')
 
 // Library dependencies versions

@@ -94,9 +94,9 @@ public class TestInMemoryJobCatalog {
 
     cat.put(js1_1);
     Assert.assertEquals(cat.getMetrics().getNumActiveJobs().getValue().intValue(), 1);
-    Assert.assertEquals(cat.getMetrics().getNumAddedJobs().getCount(), 1);
-    Assert.assertEquals(cat.getMetrics().getNumUpdatedJobs().getCount(), 0);
-    Assert.assertEquals(cat.getMetrics().getNumDeletedJobs().getCount(), 0);
+    Assert.assertEquals(cat.getMetrics().getTotalAddCalls().getValue().longValue(), 1);
+    Assert.assertEquals(cat.getMetrics().getTotalUpdateCalls().getValue().longValue(), 0);
+    Assert.assertEquals(cat.getMetrics().getTotalDeleteCalls().getValue().longValue(), 0);
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
@@ -109,9 +109,9 @@ public class TestInMemoryJobCatalog {
 
     cat.put(js1_2);
     Assert.assertEquals(cat.getMetrics().getNumActiveJobs().getValue().intValue(), 1);
-    Assert.assertEquals(cat.getMetrics().getNumAddedJobs().getCount(), 1);
-    Assert.assertEquals(cat.getMetrics().getNumUpdatedJobs().getCount(), 1);
-    Assert.assertEquals(cat.getMetrics().getNumDeletedJobs().getCount(), 0);
+    Assert.assertEquals(cat.getMetrics().getTotalAddCalls().getValue().longValue(), 1);
+    Assert.assertEquals(cat.getMetrics().getTotalUpdateCalls().getValue().longValue(), 1);
+    Assert.assertEquals(cat.getMetrics().getTotalDeleteCalls().getValue().longValue(), 0);
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
@@ -124,9 +124,9 @@ public class TestInMemoryJobCatalog {
 
     cat.put(js2);
     Assert.assertEquals(cat.getMetrics().getNumActiveJobs().getValue().intValue(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumAddedJobs().getCount(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumUpdatedJobs().getCount(), 1);
-    Assert.assertEquals(cat.getMetrics().getNumDeletedJobs().getCount(), 0);
+    Assert.assertEquals(cat.getMetrics().getTotalAddCalls().getValue().longValue(), 2);
+    Assert.assertEquals(cat.getMetrics().getTotalUpdateCalls().getValue().longValue(), 1);
+    Assert.assertEquals(cat.getMetrics().getTotalDeleteCalls().getValue().longValue(), 0);
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
@@ -139,9 +139,9 @@ public class TestInMemoryJobCatalog {
 
     cat.put(js1_3);
     Assert.assertEquals(cat.getMetrics().getNumActiveJobs().getValue().intValue(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumAddedJobs().getCount(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumUpdatedJobs().getCount(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumDeletedJobs().getCount(), 0);
+    Assert.assertEquals(cat.getMetrics().getTotalAddCalls().getValue().longValue(), 2);
+    Assert.assertEquals(cat.getMetrics().getTotalUpdateCalls().getValue().longValue(), 2);
+    Assert.assertEquals(cat.getMetrics().getTotalDeleteCalls().getValue().longValue(), 0);
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
@@ -154,9 +154,9 @@ public class TestInMemoryJobCatalog {
 
     cat.remove(js2.getUri());
     Assert.assertEquals(cat.getMetrics().getNumActiveJobs().getValue().intValue(), 1);
-    Assert.assertEquals(cat.getMetrics().getNumAddedJobs().getCount(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumUpdatedJobs().getCount(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumDeletedJobs().getCount(), 1);
+    Assert.assertEquals(cat.getMetrics().getTotalAddCalls().getValue().longValue(), 2);
+    Assert.assertEquals(cat.getMetrics().getTotalUpdateCalls().getValue().longValue(), 2);
+    Assert.assertEquals(cat.getMetrics().getTotalDeleteCalls().getValue().longValue(), 1);
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
@@ -169,15 +169,15 @@ public class TestInMemoryJobCatalog {
 
     cat.remove(new URI("test:dummy_job"));
     Assert.assertEquals(cat.getMetrics().getNumActiveJobs().getValue().intValue(), 1);
-    Assert.assertEquals(cat.getMetrics().getNumAddedJobs().getCount(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumUpdatedJobs().getCount(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumDeletedJobs().getCount(), 1);
+    Assert.assertEquals(cat.getMetrics().getTotalAddCalls().getValue().longValue(), 2);
+    Assert.assertEquals(cat.getMetrics().getTotalUpdateCalls().getValue().longValue(), 2);
+    Assert.assertEquals(cat.getMetrics().getTotalDeleteCalls().getValue().longValue(), 1);
 
     cat.remove(js1_3.getUri());
     Assert.assertEquals(cat.getMetrics().getNumActiveJobs().getValue().intValue(), 0);
-    Assert.assertEquals(cat.getMetrics().getNumAddedJobs().getCount(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumUpdatedJobs().getCount(), 2);
-    Assert.assertEquals(cat.getMetrics().getNumDeletedJobs().getCount(), 2);
+    Assert.assertEquals(cat.getMetrics().getTotalAddCalls().getValue().longValue(), 2);
+    Assert.assertEquals(cat.getMetrics().getTotalUpdateCalls().getValue().longValue(), 2);
+    Assert.assertEquals(cat.getMetrics().getTotalDeleteCalls().getValue().longValue(), 2);
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),

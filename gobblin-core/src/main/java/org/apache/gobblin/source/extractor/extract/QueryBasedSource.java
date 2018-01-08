@@ -47,7 +47,6 @@ import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
-import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.source.extractor.partition.Partition;
@@ -92,6 +91,8 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
    *    EXTRACT_TABLE_NAME_KEY = as specified in job config
    */
   public static final Integer CURRENT_WORK_UNIT_STATE_VERSION = 3;
+
+  protected Optional<LineageInfo> lineageInfo;
 
   /** A class that encapsulates a source entity (aka dataset) to be processed */
   @Data
@@ -168,6 +169,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     initLogger(state);
+    lineageInfo = LineageInfo.getLineageInfo(state.getBroker());
 
     List<WorkUnit> workUnits = Lists.newArrayList();
 

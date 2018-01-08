@@ -21,7 +21,7 @@ import java.util.concurrent.locks.ReentrantLock
 // Set group for Maven
 allprojects {
   if (!project.hasProperty('group') || project.group.length() == 0) {
-    project.ext.group = 'com.linkedin.gobblin'
+    project.ext.group = 'org.apache.gobblin'
     project.group = project.ext.group
   }
 }
@@ -65,16 +65,16 @@ gradle.taskGraph.afterTask {
 }
 
 ext.pomAttributes = {
-  name "${project.name}"
   packaging 'jar'
   // optionally artifactId can be defined here
-  description 'Gobblin Ingestion Framework'
-  url 'https://github.com/linkedin/gobblin/'
+  name 'Apache Gobblin (incubating)'
+  description 'A distributed data integration framework for streaming and batch data ecosystems.'
+  url 'https://gobblin.apache.org/'
 
   scm {
-    connection 'scm:git:git@github.com:linkedin/gobblin.git'
-    developerConnection 'scm:git:git@github.com:linkedin/gobblin.git'
-    url 'git@github.com:linkedin/gobblin.git'
+    url 'https://git-wip-us.apache.org/repos/asf?p=incubator-gobblin.git;a=tree'
+    connection 'scm:http://git-wip-us.apache.org/repos/asf/incubator-gobblin.git'
+    developerConnection 'scm:https://git-wip-us.apache.org/repos/asf/incubator-gobblin.git'
   }
 
   licenses {
@@ -141,10 +141,10 @@ subprojects {
         mavenInstaller {
           mavenLocal()
           pom.project {
-            name "${project.name}"
             packaging 'jar'
-            description 'Gobblin Ingestion Framework'
-            url 'https://github.com/linkedin/gobblin/'
+            name 'Apache Gobblin (incubating)'
+            description 'A distributed data integration framework for streaming and batch data ecosystems.'
+            url 'https://gobblin.apache.org/'
           }
         }
       }
@@ -165,11 +165,11 @@ subprojects {
               }
             }
 
-            repository(url: rootProject.artifactRepository) {
+            repository(url: rootProject.sonatypeArtifactRepository) {
               authentication(userName: rootProject.ext.ossrhUsername, password: rootProject.ext.ossrhPassword)
             }
 
-            snapshotRepository(url: rootProject.artifactSnapshotRepository) {
+            snapshotRepository(url: rootProject.sonatypeArtifactSnapshotRepository) {
               authentication(userName: rootProject.ext.ossrhUsername, password: rootProject.ext.ossrhPassword)
             }
 

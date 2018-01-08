@@ -236,10 +236,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       try {
         // #HELIX-0.6.7-WORKAROUND
         // working around helix 0.6.7 job delete issue with custom taskDriver
+        LOGGER.info("Cancelling job {} in Helix", this.jobContext.getJobId());
         GobblinHelixTaskDriver taskDriver = new GobblinHelixTaskDriver(this.helixManager);
         taskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
+        LOGGER.info("Job {} in cancelled Helix", this.jobContext.getJobId());
       } catch (IllegalArgumentException e) {
-        LOGGER.warn(String.format("Failed to cleanup job %s in Helix", this.jobContext.getJobId()), e);
+        LOGGER.warn("Failed to cancel job {} in Helix", this.jobContext.getJobId(), e);
       }
     }
   }

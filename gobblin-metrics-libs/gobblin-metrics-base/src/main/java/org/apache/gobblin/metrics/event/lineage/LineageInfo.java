@@ -22,18 +22,29 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.DatasetResolver;
 import org.apache.gobblin.dataset.DatasetResolverFactory;
 import org.apache.gobblin.dataset.NoopDatasetResolver;
+import org.apache.gobblin.metrics.broker.LineageInfoFactory;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -53,6 +64,7 @@ import org.apache.gobblin.dataset.NoopDatasetResolver;
  * <p>
  *   The general flow is:
  *   <ol>
+ *     <li> get a {@link LineageInfo} instance with {@link LineageInfo#getLineageInfo(SharedResourcesBroker)}</li>
  *     <li> source sets its {@link DatasetDescriptor} to each work unit </li>
  *     <li> destination puts its {@link DatasetDescriptor} to the work unit </li>
  *     <li> load and send all lineage events from all states </li>
@@ -62,11 +74,22 @@ import org.apache.gobblin.dataset.NoopDatasetResolver;
  */
 @Slf4j
 public final class LineageInfo {
+  private static final String DATASET_RESOLVER_FACTORY = "datasetResolverFactory";
+  private static final String DATASET_RESOLVER_CONFIG_NAMESPACE = "datasetResolver";
+
   private static final String BRANCH = "branch";
   private static final Gson GSON = new Gson();
   private static final String NAME_KEY = "name";
 
-  private LineageInfo() {
+  private static final Config FALLBACK =
+      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put(DATASET_RESOLVER_FACTORY, NoopDatasetResolver.FACTORY)
+          .build());
+
+  private final DatasetResolver resolver;
+
+  public LineageInfo(Config config) {
+    resolver = getResolver(config.withFallback(FALLBACK));
   }
 
   /**
@@ -80,8 +103,7 @@ public final class LineageInfo {
    * @param state state about a {@link org.apache.gobblin.source.workunit.WorkUnit}
    *
    */
-  public static void setSource(DatasetDescriptor source, State state) {
-    DatasetResolver resolver = getResolver(state);
+  public void setSource(DatasetDescriptor source, State state) {
     DatasetDescriptor descriptor = resolver.resolve(source, state);
     if (descriptor == null) {
       return;
@@ -100,14 +122,13 @@ public final class LineageInfo {
    *   the method is implemented to be threadsafe
    * </p>
    */
-  public static void putDestination(DatasetDescriptor destination, int branchId, State state) {
+  public void putDestination(DatasetDescriptor destination, int branchId, State state) {
     if (!hasLineageInfo(state)) {
       log.warn("State has no lineage info but branch " + branchId + " puts a destination: " + GSON.toJson(destination));
       return;
     }
     log.debug(String.format("Put destination %s for branch %d", GSON.toJson(destination), branchId));
     synchronized (state.getProp(getKey(NAME_KEY))) {
-      DatasetResolver resolver = getResolver(state);
       DatasetDescriptor descriptor = resolver.resolve(destination, state);
       if (descriptor == null) {
         return;
@@ -193,19 +214,38 @@ public final class LineageInfo {
     return Joiner.on('.').join(LineageEventBuilder.LIENAGE_EVENT_NAMESPACE, state.getProp(getKey(NAME_KEY)));
   }
 
+
+  /**
+   * Try to get a {@link LineageInfo} instance from the given {@link SharedResourcesBroker}
+   */
+  public static Optional<LineageInfo> getLineageInfo(@Nullable SharedResourcesBroker<GobblinScopeTypes> broker) {
+    if (broker == null) {
+      log.warn("Null broker. Will not track data lineage");
+      return Optional.absent();
+    }
+
+    try {
+      LineageInfo lineageInfo = broker.getSharedResource(new LineageInfoFactory(), EmptyKey.INSTANCE);
+      return Optional.of(lineageInfo);
+    } catch (NotConfiguredException e) {
+      log.warn("Fail to get LineageInfo instance from broker. Will not track data lineage", e);
+      return Optional.absent();
+    }
+  }
+
   /**
    * Get the configured {@link DatasetResolver} from {@link State}
    */
-  public static DatasetResolver getResolver(State state) {
-    String resolverFactory = state.getProp(DatasetResolverFactory.CLASS);
-    if (resolverFactory == null) {
+  public static DatasetResolver getResolver(Config config) {
+    String resolverFactory = config.getString(DATASET_RESOLVER_FACTORY);
+    if (resolverFactory.equals(NoopDatasetResolver.FACTORY)) {
       return NoopDatasetResolver.INSTANCE;
     }
 
     DatasetResolver resolver = NoopDatasetResolver.INSTANCE;
     try {
       DatasetResolverFactory factory = (DatasetResolverFactory) Class.forName(resolverFactory).newInstance();
-      resolver = factory.createResolver(state);
+      resolver = factory.createResolver(ConfigUtils.getConfigOrEmpty(config, DATASET_RESOLVER_CONFIG_NAMESPACE));
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
       log.error(String.format("Fail to create a DatasetResolver with factory class %s", resolverFactory));
     }

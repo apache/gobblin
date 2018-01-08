@@ -18,11 +18,14 @@
 package org.apache.gobblin.azkaban;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Properties;
 
 import azkaban.jobExecutor.AbstractJob;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
 
 import org.apache.log4j.Logger;
 
@@ -34,12 +37,17 @@ import org.apache.gobblin.compaction.listeners.CompactorListenerCreationExceptio
 import org.apache.gobblin.compaction.listeners.CompactorListenerFactory;
 import org.apache.gobblin.compaction.ReflectionCompactorFactory;
 import org.apache.gobblin.compaction.listeners.ReflectionCompactorListenerFactory;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
  * A class for launching a Gobblin MR job for compaction through Azkaban.
+ * @deprecated use {@link AzkabanJobLauncher} and {@link org.apache.gobblin.compaction.source.CompactionSource}
  */
+@Deprecated
 public class AzkabanCompactionJobLauncher extends AbstractJob {
 
   private static final Logger LOG = Logger.getLogger(AzkabanCompactionJobLauncher.class);
@@ -51,6 +59,18 @@ public class AzkabanCompactionJobLauncher extends AbstractJob {
     super(jobId, LOG);
     this.properties = new Properties();
     this.properties.putAll(props);
+
+    // load dynamic configuration and add them to the job properties
+    Config propsAsConfig = ConfigUtils.propertiesToConfig(props);
+    DynamicConfigGenerator dynamicConfigGenerator =
+        DynamicConfigGeneratorFactory.createDynamicConfigGenerator(propsAsConfig);
+    Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig(propsAsConfig);
+
+    // add the dynamic config to the job config
+    for (Map.Entry<String, ConfigValue> entry : dynamicConfig.entrySet()) {
+      this.properties.put(entry.getKey(), entry.getValue().unwrapped().toString());
+    }
+
     this.compactor = getCompactor(getCompactorFactory(), getCompactorListener(getCompactorListenerFactory()));
   }
 

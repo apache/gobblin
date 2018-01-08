@@ -1,0 +1,180 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+project(':') {
+    apply plugin: 'base'
+    apply plugin: 'signing'
+}
+
+def isRelease = ext.release.toBoolean()
+
+def releaseVersion = project.version
+println String.format("Release Version: %s", releaseVersion)
+// GOBBLIN-355 Disable until downstream does not fix
+// if (!isRelease) {
+//     releaseVersion += "-SNAPSHOT"
+// }
+
+// Modify the gradle.properties to indicate whether this is a release.  This results in the
+// source releases generating artifacts without -SNAPSHOT appended to the version when they are
+// built.
+task prepare_release_config(type: Copy) {
+    from "$rootDir/gradle.properties"
+    into "$rootDir"
+    rename { filename ->
+        filename + ".release" }
+    filter { line ->
+        if (isRelease && line.startsWith("release=")) {
+            "release=true"
+        }
+        else {
+            line
+        }
+    }
+}
+
+task sourceRelease(type: Tar, dependsOn: prepare_release_config) {
+    description = "Build a source release, specifically excluding the build directories and gradle wrapper files"
+    compression = Compression.GZIP
+
+    baseName "apache-gobblin-incubating-sources-${releaseVersion}"
+
+    from(project.rootDir) {
+        // don't include gradle.properties because we use a modified version
+        exclude "gradle.properties"
+        exclude '**/build'
+        exclude '.gradle'
+        // excluding gradlew and related jar because of: https://issues.apache.org/jira/browse/LEGAL-288
+        exclude 'gradlew'
+        exclude 'gradlew.bat'
+        exclude 'gradle/wrapper/gradle-wrapper.jar'
+        exclude 'gradle/wrapper/gradle-wrapper.properties'
+        exclude '.github'
+        exclude 'maven-sonatype'
+        exclude 'travis'
+        exclude '.classpath*'
+        exclude '.project*'
+        exclude '.settings'
+        exclude '**/.idea'
+        exclude '**/*.iml'
+        exclude '**/*.iws'
+        exclude '**/*.ipr'
+        exclude '**/.classpath'
+        exclude '**/.project'
+        exclude '**/.settings'
+        exclude '**/*.swp'
+        exclude '**/*.swo'
+        exclude '**/*.log'
+        exclude '**/build/'
+        exclude '**/.gradle'
+        exclude 'test-output'
+        exclude '**/test-output'
+        exclude 'dist'
+        exclude 'target'
+        exclude 'tmp'
+        exclude 'out'
+        exclude '**/out'
+        exclude 'output'
+        exclude 'gobblin-test/basicTest'
+        exclude 'gobblin-test/jobOutput'
+        exclude 'gobblin-test/state-store'
+        exclude 'gobblin-tesTaskt/metrics'
+        exclude 'gobblin-test/byteman'
+        exclude 'gobblin-test/locks'
+        exclude 'gobblin-test/mr-jobs'
+        exclude '**/mainGeneratedDataTemplate'
+        exclude '**/mainGeneratedRest'
+        exclude 'gobblin-dist'
+        exclude 'metastore_db'
+        exclude 'GobblinKey_*.pem'
+        exclude 'node_modules'
+        exclude 'package-lock.json'
+        exclude '**/gen-java'
+        exclude '**/generated-gobblin-cluster.conf'
+    }
+
+    // rename gradle.properties.release to gradle.properties
+    rename { filename ->
+        if (filename.equals("gradle.properties.release")) {
+            "gradle.properties"
+        }
+        else {
+            filename
+        }
+    }
+
+    into(baseName)
+
+    // Set destination directory.
+    destinationDir = file("${project.buildDir}/distribution/source")
+
+    archiveName = "${baseName}.tgz"
+    doLast {
+        ant.checksum file:"$destinationDir/$archiveName", algorithm: "MD5", fileext: ".md5"
+        ant.checksum file:"$destinationDir/$archiveName", algorithm: "SHA-512", fileext: ".sha512"
+    }
+}
+
+// Signing requires a user ~/.gradle/gradle.properties file with signing information.
+// See: http://www.gradle.org/docs/current/userguide/signing_plugin.html
+signing {
+    // Sign the source archive if the proper configuration is in place to do so.  Otherwise
+    // skip the signing process (it isn't required).  This archive can be manually signed if
+    // needed.
+    required false
+    sign sourceRelease
+}
+
+task release(dependsOn: signSourceRelease)
+
+// Publishing to Apache's Maven repository (Nexus). To install the archives in the
+// local repository, run the 'install' task.
+//subprojects {
+//    apply plugin: 'nexus'
+//
+//    nexus {
+//        attachSources = false
+//        attachTests = false
+//        attachJavadoc = false
+//        sign = true
+//        repositoryUrl = 'https://repository.apache.org/service/local/staging/deploy/maven2'
+//        snapshotRepositoryUrl = 'https://repository.apache.org/content/repositories/snapshots'
+//    }
+//
+//    modifyPom {
+//        project {
+//            name 'Apache Gobblin (incubating)'
+//            description 'A distributed data integration framework for streaming and batch data ecosystems.'
+//            url 'https://gobblin.apache.org/'
+//
+//            scm {
+//                url 'https://git-wip-us.apache.org/repos/asf?p=incubator-gobblin.git;a=tree'
+//                connection 'scm:http://git-wip-us.apache.org/repos/asf/incubator-gobblin.git'
+//                developerConnection 'scm:https://git-wip-us.apache.org/repos/asf/incubator-gobblin.git'
+//            }
+//
+//            licenses {
+//                license {
+//                    name 'The Apache Software License, Version 2.0'
+//                    url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+//                }
+//            }
+//        }
+//    }
+//}

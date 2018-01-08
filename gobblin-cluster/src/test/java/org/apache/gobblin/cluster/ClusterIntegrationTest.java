@@ -72,10 +72,23 @@ public class ClusterIntegrationTest {
   private TestingServer _testingZKServer;
   private GobblinTaskRunner _worker;
   private GobblinClusterManager _manager;
+  private boolean _runTaskInSeparateProcess;
 
 
   @Test
   public void simpleJobShouldComplete() throws Exception {
+    runSimpleJobAndVerifyResult();
+  }
+
+  @Test
+  public void simpleJobShouldCompleteInTaskIsolationMode()
+      throws Exception {
+    _runTaskInSeparateProcess = true;
+    runSimpleJobAndVerifyResult();
+  }
+
+  private void runSimpleJobAndVerifyResult()
+      throws Exception {
     init();
     startCluster();
     waitForAndVerifyOutputFiles();
@@ -138,6 +151,9 @@ public class ClusterIntegrationTest {
     String zkConnectionString = _testingZKServer.getConnectString();
     configMap.put(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY, zkConnectionString);
     configMap.put(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR, _workPath.toString());
+    if (_runTaskInSeparateProcess) {
+      configMap.put(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS, "true");
+    }
     Config config = ConfigFactory.parseMap(configMap);
     return config;
   }
