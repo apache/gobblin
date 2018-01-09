@@ -387,6 +387,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private void cleanupWorkingDirectory() throws IOException {
     LOGGER.info("Deleting persisted work units for job " + this.jobContext.getJobId());
     stateStores.wuStateStore.delete(this.jobContext.getJobId());
+
+    // delete the directory that stores the task state files
+    stateStores.taskStateStore.delete(outputTaskStateDir.getName());
+
     LOGGER.info("Deleting job state file for job " + this.jobContext.getJobId());
     Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
     this.fs.delete(jobStateFilePath, false);
