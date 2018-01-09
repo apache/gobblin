@@ -186,7 +186,7 @@ public class GobblinHelixTaskDriver {
     removeJobStateFromQueue(queueName, jobName);
 
     // Delete the job from property store
-    removeJobContext(_propertyStore, jobName);
+    removeJobContext(_propertyStore, namespacedJobName);
   }
 
   /** Remove the job name from the DAG from the queue configuration */
