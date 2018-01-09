@@ -276,7 +276,7 @@ public class GobblinHelixJobLauncherTest {
     Assert.assertEquals(testListener.getCompletes().get() == 1, true);
   }
 
-  public void testJobContextCleanup() throws Exception {
+  public void testJobCleanup() throws Exception {
     final ConcurrentHashMap<String, Boolean> runningMap = new ConcurrentHashMap<>();
 
     final Properties properties = generateJobProperties(this.baseConfig, "3", "_1504201348473");
@@ -302,6 +302,18 @@ public class GobblinHelixJobLauncherTest {
 
     // job context should have been deleted
     Assert.assertNull(jobContext);
+
+    // check that workunit and taskstate directory for the job are cleaned up
+    final File workunitsDir =
+        new File(this.appWorkDir + File.separator + GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME
+        + File.separator + jobIdKey);
+
+    final File taskstatesDir =
+        new File(this.appWorkDir + File.separator + GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME
+            + File.separator + jobIdKey);
+
+    Assert.assertFalse(workunitsDir.exists());
+    Assert.assertFalse(taskstatesDir.exists());
   }
 
   @AfterClass
