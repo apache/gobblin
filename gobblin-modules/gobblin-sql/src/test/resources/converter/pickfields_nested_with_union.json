@@ -1,0 +1,262 @@
+[
+  {
+    "jdbcEntryData": {
+      "created": {
+        "columnName": "created",
+        "val": "Mar 16, 260028968 8:26:42 AM"
+      },
+      "date_of_birth": {
+        "columnName": "date_of_birth",
+        "val": "Nov 9, 156054460"
+      },
+      "favorite_color": {
+        "columnName": "favorite_color",
+        "val": "\ufffdhxqpwvxrf"
+      },
+      "favorite_number": {
+        "columnName": "favorite_number",
+        "val": 826032918
+      },
+      "last_modified": {
+        "columnName": "last_modified",
+        "val": "11:40:28 AM"
+      },
+      "name": {
+        "columnName": "name",
+        "val": "btnzlrfptk"
+      },
+      "nested1_nested1_int": {
+        "columnName": "nested1_nested1_int",
+        "val": -36788251
+      },
+      "nested1_nested1_string": {
+        "columnName": "nested1_nested1_string",
+        "val": "gji\u001a\u0000sujkj"
+      },
+      "nested1_nested2_union_nested2_int": {
+        "columnName": "nested1_nested2_union_nested2_int",
+        "val": 1026040670
+      },
+      "nested1_nested2_union_nested2_string": {
+        "columnName": "nested1_nested2_union_nested2_string",
+        "val": "yobzdadkgk"
+      }
+    }
+  },
+  {
+    "jdbcEntryData": {
+      "created": {
+        "columnName": "created",
+        "val": "Mar 1, 44159318 6:48:36 AM"
+      },
+      "date_of_birth": {
+        "columnName": "date_of_birth",
+        "val": "Oct 30, 37257357"
+      },
+      "favorite_color": {
+        "columnName": "favorite_color",
+        "val": "x\n\tjhrpgyd"
+      },
+      "favorite_number": {
+        "columnName": "favorite_number",
+        "val": 1816171539
+      },
+      "last_modified": {
+        "columnName": "last_modified",
+        "val": "11:12:03 AM"
+      },
+      "name": {
+        "columnName": "name",
+        "val": "\u000f\rpkgrlgio"
+      },
+      "nested1_nested1_int": {
+        "columnName": "nested1_nested1_int",
+        "val": -50507635
+      },
+      "nested1_nested1_string": {
+        "columnName": "nested1_nested1_string",
+        "val": "q\u000f?uspbscf"
+      },
+      "nested1_nested2_union_nested2_int": {
+        "columnName": "nested1_nested2_union_nested2_int"
+      },
+      "nested1_nested2_union_nested2_string": {
+        "columnName": "nested1_nested2_union_nested2_string"
+      }
+    }
+  },
+  {
+    "jdbcEntryData": {
+      "created": {
+        "columnName": "created",
+        "val": "May 23, 245250508 1:58:49 PM"
+      },
+      "date_of_birth": {
+        "columnName": "date_of_birth",
+        "val": "May 18, 19258563"
+      },
+      "favorite_color": {
+        "columnName": "favorite_color",
+        "val": "lyuuuympyg"
+      },
+      "favorite_number": {
+        "columnName": "favorite_number",
+        "val": 1866476467
+      },
+      "last_modified": {
+        "columnName": "last_modified",
+        "val": "06:06:40 PM"
+      },
+      "name": {
+        "columnName": "name",
+        "val": "g?pbkpjrxh"
+      },
+      "nested1_nested1_int": {
+        "columnName": "nested1_nested1_int",
+        "val": 1327904823
+      },
+      "nested1_nested1_string": {
+        "columnName": "nested1_nested1_string",
+        "val": "kxqmrenntu"
+      },
+      "nested1_nested2_union_nested2_int": {
+        "columnName": "nested1_nested2_union_nested2_int"
+      },
+      "nested1_nested2_union_nested2_string": {
+        "columnName": "nested1_nested2_union_nested2_string"
+      }
+    }
+  },
+  {
+    "jdbcEntryData": {
+      "created": {
+        "columnName": "created",
+        "val": "Apr 4, 191920606 4:43:12 AM"
+      },
+      "date_of_birth": {
+        "columnName": "date_of_birth",
+        "val": "Nov 28, 45307313"
+      },
+      "favorite_color": {
+        "columnName": "favorite_color",
+        "val": "\ufffddgasutgtx"
+      },
+      "favorite_number": {
+        "columnName": "favorite_number",
+        "val": -1553608691
+      },
+      "last_modified": {
+        "columnName": "last_modified",
+        "val": "04:57:46 PM"
+      },
+      "name": {
+        "columnName": "name",
+        "val": "gqmcmimbhp"
+      },
+      "nested1_nested1_int": {
+        "columnName": "nested1_nested1_int",
+        "val": -351781782
+      },
+      "nested1_nested1_string": {
+        "columnName": "nested1_nested1_string",
+        "val": "o\u001ac\u0000bmefwh"
+      },
+      "nested1_nested2_union_nested2_int": {
+        "columnName": "nested1_nested2_union_nested2_int",
+        "val": -1596923241
+      },
+      "nested1_nested2_union_nested2_string": {
+        "columnName": "nested1_nested2_union_nested2_string",
+        "val": "dbcczapozw"
+      }
+    }
+  },
+  {
+    "jdbcEntryData": {
+      "created": {
+        "columnName": "created",
+        "val": "Jul 21, 147872408 4:41:15 PM"
+      },
+      "date_of_birth": {
+        "columnName": "date_of_birth",
+        "val": "Nov 30, 255744028"
+      },
+      "favorite_color": {
+        "columnName": "favorite_color",
+        "val": "pfzharskmy"
+      },
+      "favorite_number": {
+        "columnName": "favorite_number",
+        "val": -170051651
+      },
+      "last_modified": {
+        "columnName": "last_modified",
+        "val": "03:06:25 PM"
+      },
+      "name": {
+        "columnName": "name",
+        "val": "f\u000fwszbxhzm"
+      },
+      "nested1_nested1_int": {
+        "columnName": "nested1_nested1_int",
+        "val": -1126087353
+      },
+      "nested1_nested1_string": {
+        "columnName": "nested1_nested1_string",
+        "val": "mjwmnevxer"
+      },
+      "nested1_nested2_union_nested2_int": {
+        "columnName": "nested1_nested2_union_nested2_int",
+        "val": -1722304492
+      },
+      "nested1_nested2_union_nested2_string": {
+        "columnName": "nested1_nested2_union_nested2_string",
+        "val": "h\rwdawizsu"
+      }
+    }
+  },
+  {
+    "jdbcEntryData": {
+      "created": {
+        "columnName": "created",
+        "val": "Oct 20, 207522867 12:30:46 PM"
+      },
+      "date_of_birth": {
+        "columnName": "date_of_birth",
+        "val": "Jan 28, 271070413"
+      },
+      "favorite_color": {
+        "columnName": "favorite_color",
+        "val": "\u000fcgsqjdabu"
+      },
+      "favorite_number": {
+        "columnName": "favorite_number",
+        "val": -2132346518
+      },
+      "last_modified": {
+        "columnName": "last_modified",
+        "val": "07:06:38 PM"
+      },
+      "name": {
+        "columnName": "name",
+        "val": "k\n\tngmvhpe"
+      },
+      "nested1_nested1_int": {
+        "columnName": "nested1_nested1_int",
+        "val": -1330607161
+      },
+      "nested1_nested1_string": {
+        "columnName": "nested1_nested1_string",
+        "val": "ubbhpssdeh"
+      },
+      "nested1_nested2_union_nested2_int": {
+        "columnName": "nested1_nested2_union_nested2_int",
+        "val": 992907867
+      },
+      "nested1_nested2_union_nested2_string": {
+        "columnName": "nested1_nested2_union_nested2_string",
+        "val": "jk?jknvxkw"
+      }
+    }
+  }
+]
