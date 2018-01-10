@@ -99,9 +99,9 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
       // and corresponding event/notification should be sent in the task level.
       for (WorkUnitState workUnitState : previousWorkUnitStates) {
         if (workUnitState.getWorkingState() == WorkUnitState.WorkingState.FAILED
-            && workUnitState.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY) < maxRetryTimes + 1 ) {
-          log.info("Dataset " + workUnitState.getProp(DATASET_URN) + " is failed previously, retrying for the "
-              + workUnitState.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY) + " time");
+            && (!workUnitState.contains(ConfigurationKeys.TASK_RETRIES_KEY) ||
+            workUnitState.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY) < maxRetryTimes + 1 )) {
+          log.info("Dataset " + workUnitState.getProp(DATASET_URN) + " is failed previously, retrying...");
           WorkUnit retryWorkUnit = new WorkUnit(workUnitState.getWorkunit());
           failedPreviousWorkUnits.add(retryWorkUnit);
         }
