@@ -151,6 +151,42 @@ public class DatePartitionedAvroFileExtractorTest {
   }
 
   @Test
+  public void testJobStateNotCopiedToWorkUnit() {
+
+    DatePartitionedAvroFileSource source = new DatePartitionedAvroFileSource();
+
+    SourceState state = new SourceState();
+    state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
+    state.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, SOURCE_ENTITY);
+    state.setProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY, OUTPUT_DIR + Path.SEPARATOR + SOURCE_ENTITY);
+    state.setProp(ConfigurationKeys.SOURCE_ENTITY, SOURCE_ENTITY);
+    state.setProp(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS, 2);
+
+    state.setProp("date.partitioned.source.partition.pattern", DATE_PATTERN);
+    state.setProp("date.partitioned.source.min.watermark.value", DateTimeFormat.forPattern(DATE_PATTERN).print(
+        this.startDateTime.minusMinutes(1)));
+    state.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, TableType.SNAPSHOT_ONLY);
+    state.setProp("date.partitioned.source.partition.prefix", PREFIX);
+    state.setProp("date.partitioned.source.partition.suffix", SUFFIX);
+
+    String dummyKey = "dummy.job.config";
+    state.setProp(dummyKey, "dummy");
+
+    List<WorkUnit> workunits = source.getWorkunits(state);
+
+    Assert.assertEquals(workunits.size(), 4);
+    for(WorkUnit wu : workunits) {
+      if (wu instanceof MultiWorkUnit) {
+        for (WorkUnit workUnit : ((MultiWorkUnit) wu).getWorkUnits()) {
+          Assert.assertFalse(workUnit.contains(dummyKey));
+        }
+      } else {
+        Assert.assertFalse(wu.contains(dummyKey));
+      }
+    }
+  }
+
+  @Test
   public void testReadPartitionsByMinute() throws IOException, DataRecordException {
 
     DatePartitionedAvroFileSource source = new DatePartitionedAvroFileSource();
