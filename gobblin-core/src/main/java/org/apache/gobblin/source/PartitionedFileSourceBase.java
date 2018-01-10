@@ -249,15 +249,14 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
 
   private Extract getExtractForFile(PartitionAwareFileRetriever.FileInfo file,
       String topicName,
-      SourceState partitionState,
+      String namespace,
       Map<Long, Extract> extractMap) {
     Extract extract = extractMap.get(file.getWatermarkMsSinceEpoch());
 
     if (extract == null) {
       // Create an extract object for the dayPath
 
-      extract = partitionState
-          .createExtract(this.tableType, partitionState.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), topicName);
+      extract = new Extract(this.tableType, namespace, topicName);
 
       LOG.info("Created extract: " + extract.getExtractId() + " for path " + topicName);
       extractMap.put(file.getWatermarkMsSinceEpoch(), extract);
@@ -277,23 +276,20 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
           retriever.getFilesToProcess(this.lowWaterMark, this.maxFilesPerJob - this.fileCount);
       Collections.sort(filesToPull);
       String topicName = this.sourceDir.getName();
+      String namespace = this.sourceState.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
 
-      SourceState partitionState = new SourceState();
-
-      partitionState.addAll(this.sourceState);
-      partitionState.setProp(ConfigurationKeys.SOURCE_ENTITY, topicName);
       Map<Long, Extract> extractMap = new HashMap<>();
       for (PartitionAwareFileRetriever.FileInfo file : filesToPull) {
-        Extract extract = getExtractForFile(file, topicName, partitionState, extractMap);
+        Extract extract = getExtractForFile(file, topicName, namespace, extractMap);
 
         LOG.info("Will process file " + file.getFilePath());
 
-        partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, file.getFilePath());
-        partitionState.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
-        partitionState.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
-        partitionState.setProp(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_KEY, file.getWatermarkMsSinceEpoch());
-
-        WorkUnit singleWorkUnit = partitionState.createWorkUnit(extract);
+        WorkUnit singleWorkUnit = WorkUnit.create(extract);
+        singleWorkUnit.setProp(ConfigurationKeys.SOURCE_ENTITY, topicName);
+        singleWorkUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, file.getFilePath());
+        singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
+        singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
+        singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_KEY, file.getWatermarkMsSinceEpoch());
 
         multiWorkUnitWeightedQueue.addWorkUnit(singleWorkUnit, file.getFileSize());
 
