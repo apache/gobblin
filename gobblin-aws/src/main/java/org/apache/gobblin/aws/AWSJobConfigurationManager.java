@@ -139,7 +139,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
     // .. we can replace this logic with config store
     if (this.jobArchiveRetriever.isPresent() && this.jobConfDirPath.isPresent()) {
       // Download the zip file
-      final String zipFile = this.jobArchiveRetriever.get().retrieve(this.jobConfDirPath.get());
+      final String zipFile = this.jobArchiveRetriever.get().retrieve(this.config, this.jobConfDirPath.get());
 
       final String extractedPullFilesPath = appendSlash(this.jobConfDirPath.get()) + "files";
 
@@ -252,15 +252,15 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
   }
 
   private interface JobArchiveRetriever {
-    String retrieve(String targetDir) throws IOException;
+    String retrieve(Config config, String targetDir) throws IOException;
   }
 
   @Value
-  private class LegacyJobArchiveRetriever implements JobArchiveRetriever {
+  private static class LegacyJobArchiveRetriever implements JobArchiveRetriever {
     String uri;
 
     @Override
-    public String retrieve(String targetDir) throws IOException {
+    public String retrieve(Config config, String targetDir) throws IOException {
       final String zipFile = appendSlash(targetDir) +
               StringUtils.substringAfterLast(this.uri, File.separator);
       LOGGER.debug("Downloading to zip: " + zipFile + " from uri: " + uri);
@@ -270,12 +270,12 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
   }
 
   @Value
-  private class HadoopJobArchiveRetriever implements JobArchiveRetriever {
+  private static class HadoopJobArchiveRetriever implements JobArchiveRetriever {
     String fsUri;
     String path;
 
     @Override
-    public String retrieve(String targetDir) throws IOException {
+    public String retrieve(Config config, String targetDir) throws IOException {
       URI uri = URI.create(this.fsUri);
       FileSystem fs = FileSystem.get(uri, HadoopUtils.getConfFromState(ConfigUtils.configToState(config)));
 
