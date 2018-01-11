@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URL;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -58,6 +60,8 @@ import org.apache.gobblin.util.SchedulerUtils;
 
 import static org.apache.gobblin.aws.GobblinAWSUtils.appendSlash;
 
+import lombok.Value;
+
 
 /**
  * Class for managing AWS Gobblin job configurations.
@@ -77,8 +81,9 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
   private static final long DEFAULT_JOB_CONF_REFRESH_INTERVAL = 60;
 
-  private Optional<String> jobConfSourceFileFsUri;
-  private Optional<String> jobConfSourceFilePath;
+  private Optional<JobArchiveRetriever> jobArchiveRetriever;
+//  private Optional<String> jobConfSourceFileFsUri;
+//  private Optional<String> jobConfSourceFilePath;
   private Map<String, Properties> jobConfFiles;
 
   private final long refreshIntervalInSeconds;
@@ -103,12 +108,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
     this.jobConfDirPath =
         config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
             .of(config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
-    this.jobConfSourceFileFsUri =
-        config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_FS_URI_KEY) ? Optional
-            .of(config.getString(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_FS_URI_KEY)) : Optional.<String>absent();
-    this.jobConfSourceFilePath =
-            config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_PATH_KEY) ? Optional
-                    .of(config.getString(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_PATH_KEY)) : Optional.<String>absent();
+    this.jobArchiveRetriever = this.getJobArchiveRetriever(config);
   }
 
   @Override
@@ -139,17 +139,9 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
     // TODO: Eventually when config store supports job files as well
     // .. we can replace this logic with config store
-    if (this.jobConfSourceFileFsUri.isPresent() && this.jobConfSourceFilePath.isPresent() && this.jobConfDirPath.isPresent()) {
-
-      URI uri = URI.create(this.jobConfSourceFileFsUri.get());
-      FileSystem fs = FileSystem.get(uri, HadoopUtils.getConfFromState(ConfigUtils.configToState(config)));
-
+    if (this.jobArchiveRetriever.isPresent() && this.jobConfDirPath.isPresent()) {
       // Download the zip file
-      final Path sourceFile = new Path(jobConfSourceFilePath.get());
-      final String zipFile = appendSlash(this.jobConfDirPath.get()) +
-              StringUtils.substringAfterLast(this.jobConfSourceFilePath.get(), File.separator);
-      LOGGER.debug("Downloading to zip: " + zipFile + " from uri: " + sourceFile);
-      fs.copyToLocalFile(sourceFile, new Path(zipFile));
+      final String zipFile = this.jobArchiveRetriever.get().retrieve(this.jobConfDirPath.get());
 
       final String extractedPullFilesPath = appendSlash(this.jobConfDirPath.get()) + "files";
 
@@ -242,5 +234,59 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
   @Override
   protected void shutDown() throws Exception {
     GobblinAWSUtils.shutdownExecutorService(this.getClass(), this.fetchJobConfExecutor, LOGGER);
+  }
+
+  private Optional<JobArchiveRetriever> getJobArchiveRetriever(Config config) {
+    if (config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_FS_URI_KEY) &&
+            config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_PATH_KEY)) {
+      return Optional.of(new HadoopJobArchiveRetriever(config.getString(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_FS_URI_KEY),
+              config.getString(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_PATH_KEY)));
+    }
+
+    if (config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_S3_URI_KEY)) {
+      LOGGER.warn("GobblinAWSConfigurationKeys.JOB_CONF_S3_URI_KEY is deprecated.  " +
+              "Switch to GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_FS_URI_KEY and " +
+              "GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_PATH_KEY.");
+      return Optional.of(new LegacyJobArchiveRetriever(config.getString(GobblinAWSConfigurationKeys.JOB_CONF_S3_URI_KEY)));
+    }
+
+    return Optional.absent();
+  }
+
+  private interface JobArchiveRetriever {
+    String retrieve(String targetDir) throws IOException;
+  }
+
+  @Value
+  private class LegacyJobArchiveRetriever implements JobArchiveRetriever {
+    String uri;
+
+    @Override
+    public String retrieve(String targetDir) throws IOException {
+      final String zipFile = appendSlash(targetDir) +
+              StringUtils.substringAfterLast(this.uri, File.separator);
+      LOGGER.debug("Downloading to zip: " + zipFile + " from uri: " + uri);
+      FileUtils.copyURLToFile(new URL(this.uri), new File(zipFile));
+      return zipFile;
+    }
+  }
+
+  @Value
+  private class HadoopJobArchiveRetriever implements JobArchiveRetriever {
+    String fsUri;
+    String path;
+
+    @Override
+    public String retrieve(String targetDir) throws IOException {
+      URI uri = URI.create(this.fsUri);
+      FileSystem fs = FileSystem.get(uri, HadoopUtils.getConfFromState(ConfigUtils.configToState(config)));
+
+      final Path sourceFile = new Path(path);
+      final String zipFile = appendSlash(targetDir) +
+              StringUtils.substringAfterLast(this.path, File.separator);
+      LOGGER.debug("Downloading to zip: " + zipFile + " from uri: " + sourceFile);
+      fs.copyToLocalFile(sourceFile, new Path(zipFile));
+      return zipFile;
+    }
   }
 }
