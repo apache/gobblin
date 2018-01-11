@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.BooleanUtils;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -113,6 +114,9 @@ import lombok.NoArgsConstructor;
 public class Task implements TaskIFace {
 
   private static final Logger LOG = LoggerFactory.getLogger(Task.class);
+
+  private static final String TASK_STATE = "taskState";
+  private static final String FAILED_TASK_EVENT = "failedTask";
 
   private final String jobId;
   private final String taskId;
@@ -448,6 +452,7 @@ public class Task implements TaskIFace {
           }
         } catch (Exception e) {
           if (!(e instanceof DataConversionException) && !(e.getCause() instanceof DataConversionException)) {
+            LOG.error("Processing record incurs an unexpected exception: ", e);
             throw new RuntimeException(e.getCause());
           }
           errRecords++;
@@ -511,6 +516,12 @@ public class Task implements TaskIFace {
     LOG.error(String.format("Task %s failed", this.taskId), t);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
     this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(t));
+
+    // Send task failure event
+    FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_TASK_EVENT);
+    failureEvent.setRootCause(t);
+    failureEvent.addMetadata(TASK_STATE, this.taskState.toString());
+    failureEvent.submit(taskContext.getTaskMetrics().getMetricContext());
   }
 
   /**

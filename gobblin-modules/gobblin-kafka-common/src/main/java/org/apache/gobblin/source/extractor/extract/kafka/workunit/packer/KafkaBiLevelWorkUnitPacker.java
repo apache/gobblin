@@ -41,7 +41,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  * algorithm (used by the second level) may not achieve a good balance if the number of items
  * is less than 3 times the number of bins.
  *
- * In the second level, these grouped {@link WorkUnit}s are assembled into {@link MultiWorkunit}s
+ * In the second level, these grouped {@link WorkUnit}s are assembled into {@link MultiWorkUnit}s
  * using worst-fit-decreasing.
  *
  * Bi-level bin packing has two advantages: (1) reduce the number of small output files since it tends to pack
@@ -78,7 +78,6 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
         addWorkUnitsToMultiWorkUnit(workUnitsForTopic, mwuGroup);
         mwuGroups.add(mwuGroup);
       } else {
-
         // Use best-fit-decreasing to group workunits for a topic into multiple groups.
         mwuGroups.addAll(bestFitDecreasingBinPacking(workUnitsForTopic, avgGroupSize));
       }

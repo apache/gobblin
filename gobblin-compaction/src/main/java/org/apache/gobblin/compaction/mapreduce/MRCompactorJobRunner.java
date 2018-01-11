@@ -19,6 +19,7 @@ package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.math3.primes.Primes;
@@ -40,6 +42,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.TaskCompletionEvent;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.joda.time.DateTime;
@@ -321,9 +324,12 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         this.configureJob(job);
         this.submitAndWait(job);
         if (shouldPublishData(compactionTimestamp)) {
+          // remove all invalid empty files due to speculative task execution
+          List<Path> goodPaths = CompactionAvroJobConfigurator.removeFailedPaths(job, this.dataset.outputTmpPath(), this.tmpFs);
+
           if (!this.recompactAllData && this.recompactFromDestPaths) {
             // append new files without deleting output directory
-            addFilesInTmpPathToOutputPath();
+            addGoodFilesToOutputPath(goodPaths);
             // clean up late data from outputLateDirectory, which has been set to inputPath
             deleteFilesByPaths(this.dataset.inputPaths());
           } else {
@@ -351,7 +357,6 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
       throw Throwables.propagate(t);
     }
   }
-
 
   /**
    * For regular compactions, compaction timestamp is the time the compaction job starts.
@@ -603,9 +608,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     HadoopUtils.movePath (MRCompactorJobRunner.this.tmpFs, this.dataset.outputTmpPath(), FileSystem.get(this.dataset.outputPath().getParent().toUri(), this.fs.getConf()), this.dataset.outputPath(), false, this.fs.getConf()) ;
   }
 
-  private void addFilesInTmpPathToOutputPath () throws IOException {
-    List<Path> paths = this.getApplicableFilePaths(this.dataset.outputTmpPath(), this.tmpFs);
-    for (Path path: paths) {
+  private void addGoodFilesToOutputPath (List<Path> goodPaths) throws IOException {
+    for (Path path: goodPaths) {
       String fileName = path.getName();
       LOG.info(String.format("Adding %s to %s", path.toString(), this.dataset.outputPath()));
       Path outPath = MRCompactorJobRunner.this.lateOutputRecordCountProvider.constructLateFilePath(fileName,

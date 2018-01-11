@@ -95,11 +95,6 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
   protected void startUp() throws Exception {
     LOGGER.info("Starting the " + StreamingJobConfigurationManager.class.getSimpleName());
 
-    // if the instance consumer is a service then need to start it to consume job specs
-    if (this.specConsumer instanceof Service) {
-      ((Service) this.specConsumer).startAsync().awaitRunning();
-    }
-
     // submit command to fetch job specs
     this.fetchJobSpecExecutor.execute(new Runnable() {
       @Override
@@ -116,6 +111,15 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
         }
       }
     });
+
+    // if the instance consumer is a service then need to start it to consume job specs
+    // IMPORTANT: StreamingKafkaSpecConsumer needs to be launched after a fetching thread is created.
+    //            This is because StreamingKafkaSpecConsumer will invoke addListener(new JobSpecListener()) during startup,
+    //            which will push job specs into a blocking queue _jobSpecQueue. A fetching thread will help to consume the
+    //            blocking queue to prevent a hanging issue.
+    if (this.specConsumer instanceof Service) {
+      ((Service) this.specConsumer).startAsync().awaitRunning();
+    }
   }
 
   private void fetchJobSpecs() throws ExecutionException, InterruptedException {

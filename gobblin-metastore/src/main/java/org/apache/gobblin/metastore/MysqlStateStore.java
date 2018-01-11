@@ -104,7 +104,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       "CREATE TABLE IF NOT EXISTS $TABLE$ (store_name varchar(100) CHARACTER SET latin1 not null,"
           + "table_name varchar(667) CHARACTER SET latin1 not null,"
           + " modified_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
-          + " state mediumblob, primary key(store_name, table_name))";
+          + " state longblob, primary key(store_name, table_name))";
 
   private final String UPSERT_JOB_STATE_SQL;
   private final String SELECT_JOB_STATE_SQL;

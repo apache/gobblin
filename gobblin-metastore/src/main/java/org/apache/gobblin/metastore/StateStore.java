@@ -202,7 +202,7 @@ public interface StateStore<T extends State> {
       throws IOException;
 
   /**
-   * Gets metadata for all tables matching the input
+   * Gets entry managers for all tables matching the input
    * @param predicate Predicate used to filter tables. To allow state stores to push down predicates, use native extensions
    *                  of {@link StateStorePredicate}.
    * @return A list of all {@link StateStoreEntryManager}s matching the predicate.

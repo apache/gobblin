@@ -48,7 +48,8 @@ public class OutputStreamEventReporter extends EventReporter {
   private static final Logger LOGGER = LoggerFactory.getLogger(OutputStreamEventReporter.class);
   private static final int CONSOLE_WIDTH = 80;
 
-  private final PrintStream output;
+  protected PrintStream output;
+
   protected final AvroSerializer<GobblinTrackingEvent> serializer;
   private final ByteArrayOutputStream outputBuffer;
   private final PrintStream outputBufferPrintStream;

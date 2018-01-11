@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -54,7 +55,7 @@ public class TopologyCatalogTest {
   private static final String SPEC_STORE_PARENT_DIR = "/tmp";
   private static final String SPEC_STORE_DIR = "/tmp/topologyTestSpecStore";
   private static final String SPEC_DESCRIPTION = "Test Topology Spec";
-  private static final String SPEC_VERSION = "1";
+  private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
 
   private ServiceBasedAppLauncher serviceLauncher;
   private TopologyCatalog topologyCatalog;

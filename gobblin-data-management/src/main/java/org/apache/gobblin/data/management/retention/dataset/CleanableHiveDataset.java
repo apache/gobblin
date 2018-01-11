@@ -28,6 +28,7 @@ import java.util.Set;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
@@ -66,7 +67,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Slf4j
 @SuppressWarnings({ "rawtypes", "unchecked" })
 @Getter
-public class CleanableHiveDataset extends HiveDataset implements CleanableDataset {
+public class CleanableHiveDataset extends HiveDataset implements CleanableDataset, FileSystemDataset {
 
   private static final String SHOULD_DELETE_DATA_KEY = "gobblin.retention.hive.shouldDeleteData";
   private static final String SHOULD_DELETE_DATA_DEFAULT = Boolean.toString(false);

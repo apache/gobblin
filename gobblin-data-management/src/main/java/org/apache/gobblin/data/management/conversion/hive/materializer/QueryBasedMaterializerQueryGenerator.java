@@ -54,6 +54,7 @@ public class QueryBasedMaterializerQueryGenerator extends HiveMaterializerQueryG
 
   @Override
   public List<String> generateQueries() {
+    ensureParentOfStagingPathExists();
     return Lists.newArrayList(HiveConverterUtils.generateStagingCTASStatement(
         new HiveDatasetFinder.DbAndTable(this.outputDatabaseName, this.stagingTableName),
         this.sourceQuery,

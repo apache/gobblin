@@ -20,7 +20,9 @@ package org.apache.gobblin.data.management.copy;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
@@ -134,12 +136,30 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       FileStatus file = filesInSource.get(path);
       Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), nonGlobSearchPath);
       Path thisTargetPath = new Path(configuration.getPublishDir(), filePathRelativeToSearchPath);
-
-      copyableFiles.add(CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
+      CopyableFile copyableFile = CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
           .fileSet(datasetURN()).datasetOutputPath(thisTargetPath.toString())
           .ancestorsOwnerAndPermission(CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(this.fs,
               file.getPath().getParent(), nonGlobSearchPath, configuration))
-          .build());
+          .build();
+
+      /*
+       * By default, the raw Gobblin dataset for CopyableFile lineage is its parent folder
+       * if itself is not a folder
+       */
+      boolean isDir = file.isDirectory();
+
+      Path fullSourcePath = Path.getPathWithoutSchemeAndAuthority(file.getPath());
+      String sourceDataset = isDir ? fullSourcePath.toString() : fullSourcePath.getParent().toString();
+      DatasetDescriptor source = new DatasetDescriptor(this.fs.getScheme(), sourceDataset);
+      source.addMetadata(DatasetConstants.FS_URI, this.fs.getUri().toString());
+      copyableFile.setSourceDataset(source);
+
+      String destinationDataset = isDir ? thisTargetPath.toString() : thisTargetPath.getParent().toString();
+      DatasetDescriptor destination = new DatasetDescriptor(targetFs.getScheme(), destinationDataset);
+      destination.addMetadata(DatasetConstants.FS_URI, targetFs.getUri().toString());
+      copyableFile.setDestinationDataset(destination);
+
+      copyableFiles.add(copyableFile);
     }
     copyEntities.addAll(this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles));
 

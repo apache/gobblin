@@ -1,0 +1,856 @@
+{
+  "schemaWithArrayOfMaps": [
+    {
+      "columnName": "b",
+      "dataType": {
+        "type": "array",
+        "items": {
+          "dataType": {
+            "type": "map",
+            "values": "string"
+          }
+        }
+      }
+    },
+    {
+      "type": "array",
+      "items": {
+        "type": "map",
+        "values": {
+          "type": "string",
+          "source.type": "string"
+        },
+        "source.type": "map"
+      },
+      "source.type": "array"
+    }
+  ],
+  "schemaWithArrayOfRecords": [
+    {
+      "columnName": "b",
+      "dataType": {
+        "type": "array",
+        "items": {
+          "dataType": {
+            "type": "record",
+            "namespace": "org.foo",
+            "values": [
+              {
+                "columnName": "name",
+                "dataType": {
+                  "type": "string"
+                }
+              },
+              {
+                "columnName": "c",
+                "dataType": {
+                  "type": "long"
+                }
+              },
+              {
+                "columnName": "cc",
+                "dataType": {
+                  "type": "array",
+                  "items": "int"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "array",
+      "items": {
+        "type": "record",
+        "doc": "",
+        "fields": [
+          {
+            "name": "name",
+            "type": {
+              "type": "string",
+              "source.type": "string"
+            },
+            "doc": "",
+            "source.type": "string"
+          },
+          {
+            "name": "c",
+            "type": {
+              "type": "long",
+              "source.type": "long"
+            },
+            "doc": "",
+            "source.type": "long"
+          },
+          {
+            "name": "cc",
+            "type": {
+              "type": "array",
+              "items": {
+                "type": "int",
+                "source.type": "int"
+              },
+              "source.type": "array"
+            },
+            "doc": "",
+            "source.type": "array"
+          }
+        ],
+        "source.type": "record"
+      },
+      "source.type": "array"
+    }
+  ],
+  "schemaWithRecord": [
+    {
+      "columnName": "b",
+      "dataType": {
+        "type": "record",
+        "values": [
+          {
+            "columnName": "c",
+            "dataType": {
+              "type": "string"
+            }
+          },
+          {
+            "columnName": "d",
+            "dataType": {
+              "type": "int"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "record",
+      "doc": "",
+      "fields": [
+        {
+          "name": "c",
+          "type": {
+            "type": "string",
+            "source.type": "string"
+          },
+          "doc": "",
+          "source.type": "string"
+        },
+        {
+          "name": "d",
+          "type": {
+            "type": "int",
+            "source.type": "int"
+          },
+          "doc": "",
+          "source.type": "int"
+        }
+      ],
+      "source.type": "record"
+    }
+  ],
+  "schemaWithArrayOfInts": [
+    {
+      "columnName": "b",
+      "dataType": {
+        "type": "array",
+        "items": "int"
+      }
+    },
+    {
+      "type": "array",
+      "items": {
+        "type": "int",
+        "source.type": "int"
+      },
+      "source.type": "array"
+    }
+  ],
+  "schemaWithArrayOfEnums": [
+    {
+      "columnName": "b",
+      "dataType": {
+        "type": "array",
+        "items": {
+          "dataType": {
+            "type": "enum",
+            "namespace": "org.foo",
+            "name": "choice",
+            "symbols": [
+              "YES",
+              "NO"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "array",
+      "items": {
+        "type": "enum",
+        "name": "choice",
+        "doc": "",
+        "symbols": [
+          "YES",
+          "NO"
+        ],
+        "source.type": "enum"
+      },
+      "source.type": "array"
+    }
+  ],
+  "schemaWithMap": [
+    {
+      "columnName": "b",
+      "dataType": {
+        "type": "map",
+        "values": "string"
+      }
+    },
+    {
+      "type": "map",
+      "values": {
+        "type": "string",
+        "source.type": "string"
+      },
+      "source.type": "map"
+    }
+  ],
+  "schemaWithMapOfRecords": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "map",
+        "values": {
+          "dataType": {
+            "type": "record",
+            "values": [
+              {
+                "columnName": "name",
+                "dataType": {
+                  "type": "string"
+                }
+              },
+              {
+                "columnName": "age",
+                "dataType": {
+                  "type": "int"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "map",
+      "values": {
+        "type": "record",
+        "doc": "",
+        "fields": [
+          {
+            "name": "name",
+            "type": {
+              "type": "string",
+              "source.type": "string"
+            },
+            "doc": "",
+            "source.type": "string"
+          },
+          {
+            "name": "age",
+            "type": {
+              "type": "int",
+              "source.type": "int"
+            },
+            "doc": "",
+            "source.type": "int"
+          }
+        ],
+        "source.type": "record"
+      },
+      "source.type": "map"
+    }
+  ],
+  "schemaWithMapOfArrays": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "map",
+        "values": {
+          "dataType": {
+            "type": "array",
+            "items": "int"
+          }
+        }
+      }
+    },
+    {
+      "type": "map",
+      "values": {
+        "type": "array",
+        "items": {
+          "type": "int",
+          "source.type": "int"
+        },
+        "source.type": "array"
+      },
+      "source.type": "map"
+    }
+  ],
+  "schemaWithMapOfEnum": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "map",
+        "values": {
+          "dataType": {
+            "type": "enum",
+            "name": "choice",
+            "symbols": [
+              "YES",
+              "NO"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "map",
+      "values": {
+        "type": "enum",
+        "name": "choice",
+        "doc": "",
+        "symbols": [
+          "YES",
+          "NO"
+        ],
+        "source.type": "enum"
+      },
+      "source.type": "map"
+    }
+  ],
+  "schemaWithRecordOfMap": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "record",
+        "values": [
+          {
+            "columnName": "someperson",
+            "dataType": {
+              "type": "map",
+              "values": "string"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "record",
+      "doc": "",
+      "fields": [
+        {
+          "name": "someperson",
+          "type": {
+            "type": "map",
+            "values": {
+              "type": "string",
+              "source.type": "string"
+            },
+            "source.type": "map"
+          },
+          "doc": "",
+          "source.type": "map"
+        }
+      ],
+      "source.type": "record"
+    }
+  ],
+  "schemaWithRecordOfArray": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "record",
+        "values": [
+          {
+            "columnName": "someperson",
+            "dataType": {
+              "type": "array",
+              "items": "int"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "record",
+      "doc": "",
+      "fields": [
+        {
+          "name": "someperson",
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "int",
+              "source.type": "int"
+            },
+            "source.type": "array"
+          },
+          "doc": "",
+          "source.type": "array"
+        }
+      ],
+      "source.type": "record"
+    }
+  ],
+  "schemaWithRecordOfEnum": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "record",
+        "values": [
+          {
+            "columnName": "someperson",
+            "dataType": {
+              "name": "choice",
+              "type": "enum",
+              "symbols": [
+                "YES",
+                "NO"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "record",
+      "doc": "",
+      "fields": [
+        {
+          "name": "someperson",
+          "type": {
+            "type": "enum",
+            "name": "choice",
+            "doc": "",
+            "symbols": [
+              "YES",
+              "NO"
+            ],
+            "source.type": "enum"
+          },
+          "doc": "",
+          "source.type": "enum"
+        }
+      ],
+      "source.type": "record"
+    }
+  ],
+  "schemaWithMapValuesAsJsonArray": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "record",
+        "values": [
+          {
+            "columnName": "someperson",
+            "dataType": {
+              "type": "map",
+              "values": [
+                "string"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "schemaWithMapValuesAsJsonNull": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "record",
+        "values": [
+          {
+            "columnName": "someperson",
+            "dataType": {
+              "type": "map",
+              "values": null
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "schemaWithRecordOfRecord": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "record",
+        "values": [
+          {
+            "columnName": "someperson",
+            "dataType": {
+              "name": "choice",
+              "type": "record",
+              "values": [
+                {
+                  "columnName": "s",
+                  "dataType": {
+                    "type": "int"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "record",
+      "doc": "",
+      "fields": [
+        {
+          "name": "someperson",
+          "type": {
+            "type": "record",
+            "name": "choice",
+            "doc": "",
+            "fields": [
+              {
+                "name": "s",
+                "type": {
+                  "type": "int",
+                  "source.type": "int"
+                },
+                "doc": "",
+                "source.type": "int"
+              }
+            ],
+            "source.type": "record"
+          },
+          "doc": "",
+          "source.type": "record"
+        }
+      ],
+      "source.type": "record"
+    }
+  ],
+  "schemaWithRecordOfRecordCheckNamespace": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "record",
+        "name": "myrecord",
+        "values": [
+          {
+            "columnName": "someperson",
+            "dataType": {
+              "name": "choice",
+              "type": "record",
+              "values": [
+                {
+                  "columnName": "s",
+                  "dataType": {
+                    "type": "int"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "record",
+      "name": "myrecord",
+      "namespace": "namespace.person",
+      "doc": "",
+      "fields": [
+        {
+          "name": "someperson",
+          "type": {
+            "type": "record",
+            "name": "choice",
+            "namespace": "namespace.person.myrecord",
+            "doc": "",
+            "fields": [
+              {
+                "name": "s",
+                "type": {
+                  "type": "int",
+                  "source.type": "int"
+                },
+                "doc": "",
+                "source.type": "int"
+              }
+            ],
+            "source.type": "record"
+          },
+          "doc": "",
+          "source.type": "record"
+        }
+      ],
+      "source.type": "record"
+    }
+  ],
+  "schemaWithRecordOfEnumCheckNamespace": [
+    {
+      "columnName": "persons",
+      "dataType": {
+        "type": "record",
+        "name": "myrecord",
+        "values": [
+          {
+            "columnName": "someperson",
+            "dataType": {
+              "name": "choice",
+              "type": "enum",
+              "symbols": [
+                "YES",
+                "NO"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "record",
+      "name": "myrecord",
+      "namespace": "namespace.something",
+      "doc": "",
+      "fields": [
+        {
+          "name": "someperson",
+          "type": {
+            "type": "enum",
+            "name": "choice",
+            "namespace": "namespace.something.myrecord",
+            "doc": "",
+            "symbols": [
+              "YES",
+              "NO"
+            ],
+            "source.type": "enum"
+          },
+          "doc": "",
+          "source.type": "enum"
+        }
+      ],
+      "source.type": "record"
+    }
+  ],
+  "schemaWithUnion": [
+    {
+      "columnName": "b",
+      "dataType": {
+        "type": [
+          "null",
+          "string"
+        ]
+      }
+    },
+    [
+      {
+        "type": "null",
+        "source.type": "null"
+      },
+      {
+        "type": "string",
+        "source.type": "string"
+      }
+    ]
+  ],
+  "schemaWithComplexUnion": [
+    {
+      "columnName": "b",
+      "dataType": {
+        "type": [
+          "null",
+          {
+            "dataType": {
+              "type": "enum",
+              "name": "someenum",
+              "symbols": [
+                "HELL",
+                "BELLS"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    [
+      {
+        "type": "null",
+        "source.type": "null"
+      },
+      {
+        "type": "enum",
+        "name": "someenum",
+        "doc": "",
+        "symbols": [
+          "HELL",
+          "BELLS"
+        ],
+        "source.type": "enum"
+      }
+    ]
+  ],
+  "schemaWithIsNullable": [
+    {
+      "columnName": "b",
+      "isNullable": true,
+      "dataType": {
+        "type": "string"
+      }
+    },
+    [
+      "null",
+      {
+        "type": "string",
+        "source.type": "string"
+      }
+    ]
+  ],
+  "schemaWithRecordIsNullable": [
+    {
+      "columnName": "b",
+      "isNullable": true,
+      "dataType": {
+        "name": "first_record",
+        "type": "record",
+        "values": [
+          {
+            "columnName": "c",
+            "isNullable": true,
+            "dataType": {
+              "name": "second_record",
+              "type": "record",
+              "values": [
+                {
+                  "columnName": "d",
+                  "dataType": {
+                    "type": "string",
+                    "isNullable": true
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    [
+      "null",
+      {
+        "type": "record",
+        "name": "first_record",
+        "namespace": "namespace.something",
+        "doc": "",
+        "fields": [
+          {
+            "name": "c",
+            "type": [
+              "null",
+              {
+                "type": "record",
+                "name": "second_record",
+                "namespace": "namespace.something.first_record",
+                "doc": "",
+                "fields": [
+                  {
+                    "name": "d",
+                    "type": {
+                      "type": "string",
+                      "source.type": "string"
+                    },
+                    "doc": "",
+                    "source.type": "string"
+                  }
+                ],
+                "source.type": "record"
+              }
+            ],
+            "doc": "",
+            "default": null,
+            "source.type": "record"
+          }
+        ],
+        "source.type": "record"
+      }
+    ]
+  ],
+  "schemaWithMapIsNullable": [
+    {
+      "columnName": "b",
+      "isNullable": true,
+      "dataType": {
+        "type": "map",
+        "values": "int"
+      }
+    },
+    [
+      "null",
+      {
+        "type": "map",
+        "values": {
+          "type": "int",
+          "source.type": "int"
+        },
+        "source.type": "map"
+      }
+    ]
+  ],
+  "schemaWithEnumIsNullable": [
+    {
+      "columnName": "b",
+      "isNullable": true,
+      "dataType": {
+        "type": "enum",
+        "name": "choice",
+        "symbols": [
+          "YES",
+          "NO"
+        ]
+      }
+    },
+    [
+      "null",
+      {
+        "type": "enum",
+        "name": "choice",
+        "namespace": "something",
+        "doc": "",
+        "symbols": [
+          "YES",
+          "NO"
+        ],
+        "source.type": "enum"
+      }
+    ]
+  ],
+  "schemaWithArrayIsNullable": [
+    {
+      "columnName": "b",
+      "isNullable": true,
+      "dataType": {
+        "type": "array",
+        "items": "int"
+      }
+    },
+    [
+      "null",
+      {
+        "type": "array",
+        "items": {
+          "type": "int",
+          "source.type": "int"
+        },
+        "source.type": "array"
+      }
+    ]
+  ]
+}

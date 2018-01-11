@@ -40,10 +40,13 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.TaskCompletionEvent;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 
 /**
@@ -83,30 +86,36 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       boolean appendDeltaOutput = this.state.getPropAsBoolean(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED,
               MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
 
-      // Obtain record count from input file names
-      // We are not getting record count from map-reduce counter because in next run, the threshold (delta record)
-      // calculation is based on the input file names.
+      Job job = this.configurator.getConfiguredJob();
+
       long newTotalRecords = 0;
       long oldTotalRecords = helper.readRecordCount(new Path (result.getDstAbsoluteDir()));
       long executeCount = helper.readExecutionCount (new Path (result.getDstAbsoluteDir()));
+
+      List<Path> goodPaths = CompactionAvroJobConfigurator.removeFailedPaths(job, tmpPath, this.fs);
+
       if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
                 MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
                 FsPermission.getDefault());
         WriterUtils.mkdirsWithRecursivePermission(this.fs, dstPath, permission);
         // append files under mr output to destination
-        List<Path> paths = DatasetHelper.getApplicableFilePaths(fs, tmpPath, Lists.newArrayList("avro"));
-        for (Path path: paths) {
-          String fileName = path.getName();
-          log.info(String.format("Adding %s to %s", path.toString(), dstPath));
+        for (Path filePath: goodPaths) {
+          String fileName = filePath.getName();
+          log.info(String.format("Adding %s to %s", filePath.toString(), dstPath));
           Path outPath = new Path (dstPath, fileName);
 
-          if (!this.fs.rename(path, outPath)) {
+          if (!this.fs.rename(filePath, outPath)) {
             throw new IOException(
-                    String.format("Unable to move %s to %s", path.toString(), outPath.toString()));
+                    String.format("Unable to move %s to %s", filePath.toString(), outPath.toString()));
           }
         }
 
+        // Obtain record count from input file names.
+        // We don't get record count from map-reduce counter because in the next run, the threshold (delta record)
+        // calculation is based on the input file names. By pre-defining which input folders are involved in the
+        // MR execution, it is easy to track how many files are involved in MR so far, thus calculating the number of total records
+        // (all previous run + current run) is possible.
         newTotalRecords = this.configurator.getFileNameRecordCount();
       } else {
         this.fs.delete(dstPath, true);
@@ -120,8 +129,10 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
                   String.format("Unable to move %s to %s", tmpPath, dstPath));
         }
 
-        // get record count from map reduce job counter
-        Job job = this.configurator.getConfiguredJob();
+        // Obtain record count from map reduce job counter
+        // We don't get record count from file name because tracking which files are actually involved in the MR execution can
+        // be hard. This is due to new minutely data is rolled up to hourly folder but from daily compaction perspective we are not
+        // able to tell which file are newly added (because we simply pass all hourly folders to MR job instead of individual files).
         Counter counter = job.getCounters().findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
         newTotalRecords = counter.getValue();
       }
@@ -129,6 +140,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       State compactState = helper.loadState(new Path (result.getDstAbsoluteDir()));
       compactState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
       compactState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executeCount + 1));
+      compactState.setProp(CompactionSlaEventHelper.MR_JOB_ID, this.configurator.getConfiguredJob().getJobID().toString());
       helper.saveState(new Path (result.getDstAbsoluteDir()), compactState);
 
       log.info("Updating record count from {} to {} in {} [{}]", oldTotalRecords, newTotalRecords, dstPath, executeCount + 1);
@@ -138,11 +150,14 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(),
             CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords),
             CompactionSlaEventHelper.PREV_RECORD_COUNT_TOTAL, Long.toString(oldTotalRecords),
-            CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executeCount + 1));
+            CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executeCount + 1),
+            CompactionSlaEventHelper.MR_JOB_ID, this.configurator.getConfiguredJob().getJobID().toString());
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_RECORD_COUNT_EVENT, eventMetadataMap);
       }
     }
   }
+
+
 
   public void addEventSubmitter(EventSubmitter eventSubmitter) {
     this.eventSubmitter = eventSubmitter;

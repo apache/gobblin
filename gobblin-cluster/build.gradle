@@ -50,11 +50,14 @@ dependencies {
   compile externalDependency.findBugsAnnotations
   compile externalDependency.helix
 
+  runtime project(":gobblin-modules:gobblin-service-kafka")
+
   testCompile project(":gobblin-example")
 
   testCompile externalDependency.testng
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
+  testCompile externalDependency.assertj
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

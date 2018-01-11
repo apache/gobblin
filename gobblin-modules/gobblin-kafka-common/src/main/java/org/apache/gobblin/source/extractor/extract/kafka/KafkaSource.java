@@ -30,6 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +54,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.extract.EventBasedSource;
 import org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
 import org.apache.gobblin.source.extractor.limiter.LimiterConfigurationKeys;
@@ -101,7 +104,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final String ALL_TOPICS = "all";
   public static final String AVG_RECORD_SIZE = "avg.record.size";
   public static final String AVG_RECORD_MILLIS = "avg.record.millis";
-  public static final String GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS = "org.apache.gobblin.kafka.consumerClient.class";
+  public static final String GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS = "gobblin.kafka.consumerClient.class";
   public static final String GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION =
       "gobblin.kafka.extract.allowTableTypeAndNamspaceCustomization";
   public static final String DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS =
@@ -132,11 +135,14 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private Extract.TableType tableType;
   private String extractNamespace;
   private boolean isFullExtract;
+  private String kafkaBrokers;
   private boolean shouldEnableDatasetStateStore;
   private AtomicBoolean isDatasetStateEnabled = new AtomicBoolean(false);
   private Set<String> topicsToProcess;
 
   private MetricContext metricContext;
+
+  protected Optional<LineageInfo> lineageInfo;
 
   private List<String> getLimiterExtractorReportKeys() {
     List<String> keyNames = new ArrayList<>();
@@ -158,6 +164,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     this.metricContext = Instrumented.getMetricContext(state, KafkaSource.class);
+    this.lineageInfo = LineageInfo.getLineageInfo(state.getBroker());
 
     Map<String, List<WorkUnit>> workUnits = Maps.newConcurrentMap();
     if (state.getPropAsBoolean(KafkaSource.GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION)) {
@@ -172,7 +179,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       extractNamespace = KafkaSource.DEFAULT_NAMESPACE_NAME;
     }
     isFullExtract = state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY);
-
+    kafkaBrokers = state.getProp(ConfigurationKeys.KAFKA_BROKERS, "");
     this.shouldEnableDatasetStateStore = state.getPropAsBoolean(GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE,
         DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE);
 
@@ -538,10 +545,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     }
 
     WorkUnit workUnit = WorkUnit.create(extract);
-    if (topicSpecificState.isPresent()) {
-      workUnit.addAll(topicSpecificState.get());
-    }
-
     workUnit.setProp(TOPIC_NAME, partition.getTopicName());
     addDatasetUrnOptionally(workUnit);
     workUnit.setProp(PARTITION_ID, partition.getId());
@@ -549,6 +552,14 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     workUnit.setProp(LEADER_HOSTANDPORT, partition.getLeader().getHostAndPort().toString());
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, offsets.getStartOffset());
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, offsets.getLatestOffset());
+
+    // Add lineage info
+    DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_KAFKA, partition.getTopicName());
+    source.addMetadata(DatasetConstants.BROKERS, kafkaBrokers);
+    if (this.lineageInfo.isPresent()) {
+      this.lineageInfo.get().setSource(source, workUnit);
+    }
+
     LOG.info(String.format("Created workunit for partition %s: lowWatermark=%d, highWatermark=%d, range=%d", partition,
         offsets.getStartOffset(), offsets.getLatestOffset(), offsets.getLatestOffset() - offsets.getStartOffset()));
 

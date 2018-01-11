@@ -1,0 +1,919 @@
+{
+  "emptyJson": [
+    {},
+    [],
+    {}
+  ],
+  "jsonWithNullValue": [
+    {
+      "a": null
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "null"
+        }
+      }
+    ],
+    {
+      "a": null
+    }
+  ],
+  "jsonWithFloat": [
+    {
+      "a": 0.8
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "float"
+        }
+      }
+    ],
+    {
+      "a": 0.8
+    }
+  ],
+  "jsonWithBytes": [
+    {
+      "a": "\\u00FF"
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "bytes"
+        }
+      }
+    ],
+    {
+      "a": "\\u00FF"
+    }
+  ],
+  "jsonWithExtraFieldsThanSchema": [
+    {
+      "a": 1,
+      "b": 6
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "int"
+        }
+      }
+    ],
+    {
+      "a": 1
+    }
+  ],
+  "jsonWithCompleteFieldsInSchema": [
+    {
+      "a": "somename",
+      "b": 6
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      }
+    ],
+    {
+      "a": "somename"
+    }
+  ],
+  "jsonWithBooleanValue": [
+    {
+      "a": "somename",
+      "b": true
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "boolean"
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": true
+    }
+  ],
+  "jsonWithArrayOfInts": [
+    {
+      "a": "somename",
+      "b": [
+        1,
+        2,
+        3
+      ]
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "array",
+          "items": "int"
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "jsonWithSingleKVMapAsValue": [
+    {
+      "a": {
+        "b": "somename"
+      }
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "map",
+          "values": "string"
+        }
+      }
+    ],
+    {
+      "a": {
+        "b": "somename"
+      }
+    }
+  ],
+  "jsonWithTwoKVMaps": [
+    {
+      "a": {
+        "b": "somename",
+        "count": 6
+      }
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "record",
+          "values": [
+            {
+              "columnName": "b",
+              "dataType": {
+                "type": "string"
+              }
+            },
+            {
+              "columnName": "count",
+              "dataType": {
+                "type": "int"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    {
+      "a": {
+        "b": "somename",
+        "count": 6
+      }
+    }
+  ],
+  "jsonWithArrayOfSingleKVMap": [
+    {
+      "a": "somename",
+      "b": [
+        {
+          "c": "1"
+        },
+        {
+          "d": "1"
+        }
+      ]
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "array",
+          "items": {
+            "dataType": {
+              "type": "map",
+              "values": "string"
+            }
+          }
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": [
+        {
+          "c": "1"
+        },
+        {
+          "d": "1"
+        }
+      ]
+    }
+  ],
+  "jsonWithArrayOfTwoRecords": [
+    {
+      "a": "somename",
+      "b": [
+        {
+          "name": "me",
+          "c": 1
+        },
+        {
+          "name": "me",
+          "c": 1
+        }
+      ]
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "array",
+          "items": {
+            "dataType": {
+              "type": "record",
+              "values": [
+                {
+                  "columnName": "name",
+                  "dataType": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "columnName": "c",
+                  "dataType": {
+                    "type": "long"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": [
+        {
+          "name": "me",
+          "c": 1
+        },
+        {
+          "name": "me",
+          "c": 1
+        }
+      ]
+    }
+  ],
+  "jsonWithArrayOfTwoMap": [
+    {
+      "a": "somename",
+      "b": [
+        {
+          "d": "1"
+        },
+        {
+          "d": "1"
+        }
+      ]
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "array",
+          "items": {
+            "dataType": {
+              "type": "map",
+              "values": "string"
+            }
+          }
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": [
+        {
+          "d": "1"
+        },
+        {
+          "d": "1"
+        }
+      ]
+    }
+  ],
+  "jsonWithRecord": [
+    {
+      "a": "somename",
+      "b": {
+        "c": "1",
+        "d": 1
+      }
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "record",
+          "values": [
+            {
+              "columnName": "c",
+              "dataType": {
+                "type": "string"
+              }
+            },
+            {
+              "columnName": "d",
+              "dataType": {
+                "type": "int"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": {
+        "c": "1",
+        "d": 1
+      }
+    }
+  ],
+  "jsonWithRecordInSchemaButNotInData": [
+    {
+      "a": "somename",
+      "b": {}
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "record",
+          "values": [
+            {
+              "columnName": "c",
+              "dataType": {
+                "type": "string"
+              }
+            },
+            {
+              "columnName": "d",
+              "dataType": {
+                "type": "int"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": {
+        "c": null,
+        "d": null
+      }
+    }
+  ],
+  "jsonWithFixedType": [
+    {
+      "a": 1,
+      "b": "hello"
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "int"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "fixed",
+          "size": 5,
+          "name": "otp"
+        }
+      }
+    ],
+    {
+      "a": 1,
+      "b": "hello"
+    }
+  ],
+  "jsonWithEnums": [
+    {
+      "a": "somename",
+      "b": "HELL"
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "enum",
+          "symbols": [
+            "HELL",
+            "BELLS"
+          ]
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": "HELL"
+    }
+  ],
+  "jsonWithMapOfRecords": [
+    {
+      "persons": {
+        "someperson": {
+          "name": "someone",
+          "age": 11
+        },
+        "otherperson": {
+          "name": "someoneelse",
+          "age": 12
+        }
+      }
+    },
+    [
+      {
+        "columnName": "persons",
+        "dataType": {
+          "type": "map",
+          "values": {
+            "dataType": {
+              "type": "record",
+              "values": [
+                {
+                  "columnName": "name",
+                  "dataType": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "columnName": "age",
+                  "dataType": {
+                    "type": "int"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    {
+      "persons": {
+        "someperson": {
+          "name": "someone",
+          "age": 11
+        },
+        "otherperson": {
+          "name": "someoneelse",
+          "age": 12
+        }
+      }
+    }
+  ],
+  "jsonWithMapOfArray": [
+    {
+      "persons": {
+        "someperson": [
+          10,
+          20
+        ],
+        "otherperson": [
+          20,
+          50
+        ]
+      }
+    },
+    [
+      {
+        "columnName": "persons",
+        "dataType": {
+          "type": "map",
+          "values": {
+            "dataType": {
+              "type": "array",
+              "items": "int"
+            }
+          }
+        }
+      }
+    ],
+    {
+      "persons": {
+        "someperson": [
+          10,
+          20
+        ],
+        "otherperson": [
+          20,
+          50
+        ]
+      }
+    }
+  ],
+  "jsonWithMapOfEnum": [
+    {
+      "persons": {
+        "someperson": "YES",
+        "otherperson": "NO"
+      }
+    },
+    [
+      {
+        "columnName": "persons",
+        "dataType": {
+          "type": "map",
+          "values": {
+            "dataType": {
+              "name": "choice",
+              "type": "enum",
+              "symbols": [
+                "YES",
+                "NO"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    {
+      "persons": {
+        "someperson": "YES",
+        "otherperson": "NO"
+      }
+    }
+  ],
+  "jsonWithRecordContainingArray": [
+    {
+      "persons": {
+        "someperson": [
+          10,
+          20
+        ]
+      }
+    },
+    [
+      {
+        "columnName": "persons",
+        "dataType": {
+          "type": "record",
+          "values": [
+            {
+              "columnName": "someperson",
+              "dataType": {
+                "type": "array",
+                "items": "int"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    {
+      "persons": {
+        "someperson": [
+          10,
+          20
+        ]
+      }
+    }
+  ],
+  "jsonWithRecordContainingEnums": [
+    {
+      "persons": {
+        "someperson": "YES"
+      }
+    },
+    [
+      {
+        "columnName": "persons",
+        "dataType": {
+          "type": "record",
+          "values": [
+            {
+              "columnName": "someperson",
+              "dataType": {
+                "name": "choice",
+                "type": "enum",
+                "symbols": [
+                  "YES",
+                  "NO"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    {
+      "persons": {
+        "someperson": "YES"
+      }
+    }
+  ],
+  "jsonWithRecordContainingMap": [
+    {
+      "persons": {
+        "someperson": {
+          "1": "2"
+        }
+      }
+    },
+    [
+      {
+        "columnName": "persons",
+        "dataType": {
+          "type": "record",
+          "values": [
+            {
+              "columnName": "someperson",
+              "dataType": {
+                "type": "map",
+                "values": "string"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    {
+      "persons": {
+        "someperson": {
+          "1": "2"
+        }
+      }
+    }
+  ],
+  "jsonWithArrayOfMapContainingRecord": [
+    {
+      "a": "somename",
+      "b": [
+        {
+          "d": {
+            "age": "10"
+          }
+        },
+        {
+          "d": {
+            "age": "1"
+          }
+        }
+      ]
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "array",
+          "items": {
+            "dataType": {
+              "type": "map",
+              "values": {
+                "dataType": {
+                  "type": "record",
+                  "values": [
+                    {
+                      "columnName": "age",
+                      "dataType": {
+                        "type": "int"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": [
+        {
+          "d": {
+            "age": "10"
+          }
+        },
+        {
+          "d": {
+            "age": "1"
+          }
+        }
+      ]
+    }
+  ],
+  "jsonWithMapOfMap": [
+    {
+      "persons": {
+        "someperson": "5"
+      }
+    },
+    [
+      {
+        "columnName": "persons",
+        "dataType": {
+          "type": "map",
+          "values": {
+            "dataType": {
+              "type": "map",
+              "values": "string"
+            }
+          }
+        }
+      }
+    ],
+    {
+      "persons": {
+        "someperson": "5"
+      }
+    }
+  ],
+  "jsonWithArrayOfNulls": [
+    {
+      "b": [
+        null,
+        null
+      ]
+    },
+    [
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "array",
+          "items": "null"
+        }
+      }
+    ],
+    {
+      "b": [
+        null,
+        null
+      ]
+    }
+  ],
+  "jsonWithUnionType": [
+    {
+      "b": "hello"
+    },
+    [
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    ],
+    {
+      "b": "hello"
+    }
+  ],
+  "jsonWithUnionNullAndEnums": [
+    {
+      "a": "somename",
+      "b": "HELL"
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": [
+            "null",
+            {
+              "dataType": {
+                "type": "enum",
+                "symbols": [
+                  "HELL",
+                  "BELLS"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": "HELL"
+    }
+  ],
+  "jsonWithUnionNullAndEnums1": [
+    {
+      "a": "somename",
+      "b": null
+    },
+    [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "string"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": [
+            "null",
+            {
+              "dataType": {
+                "type": "enum",
+                "symbols": [
+                  "HELL",
+                  "BELLS"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    {
+      "a": "somename",
+      "b": null
+    }
+  ]
+}

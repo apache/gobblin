@@ -22,33 +22,36 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import org.apache.gobblin.commit.CommitSequence;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.lineage.LineageException;
-import org.apache.gobblin.lineage.LineageInfo;
-import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
-import org.apache.gobblin.publisher.NoopPublisher;
 import org.apache.gobblin.publisher.UnpublishedHandling;
 import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -57,11 +60,14 @@ import lombok.extern.slf4j.Slf4j;
  * {@link DataPublisher#publish(Collection)}. This class is thread-safe if and only if the implementation of
  * {@link DataPublisher} used is also thread-safe.
  */
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 final class SafeDatasetCommit implements Callable<Void> {
 
   private static final Object GLOBAL_LOCK = new Object();
+
+  private static final String DATASET_STATE = "datasetState";
+  private static final String FAILED_DATASET_EVENT = "failedDataset";
 
   private final boolean shouldCommitDataInJob;
   private final boolean isJobCancelled;
@@ -71,6 +77,8 @@ final class SafeDatasetCommit implements Callable<Void> {
   private final boolean isMultithreaded;
   private final JobContext jobContext;
 
+  private MetricContext metricContext;
+
   @Override
   public Void call()
       throws Exception {
@@ -78,6 +86,8 @@ final class SafeDatasetCommit implements Callable<Void> {
       log.info(this.datasetUrn + " have been committed.");
       return null;
     }
+    metricContext = Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class);
+
     finalizeDatasetStateBeforeCommit(this.datasetState);
     Class<? extends DataPublisher> dataPublisherClass;
     try (Closer closer = Closer.create()) {
@@ -96,6 +106,8 @@ final class SafeDatasetCommit implements Callable<Void> {
       log.error("Failed to instantiate data publisher for dataset %s of job %s.", this.datasetUrn,
           this.jobContext.getJobId(), roe);
       throw new RuntimeException(roe);
+    } finally {
+      maySubmitFailureEvent(datasetState);
     }
 
     if (this.isJobCancelled) {
@@ -159,6 +171,8 @@ final class SafeDatasetCommit implements Callable<Void> {
     } finally {
       try {
         finalizeDatasetState(datasetState, datasetUrn);
+        maySubmitFailureEvent(datasetState);
+        maySubmitLineageEvent(datasetState);
         if (commitSequenceBuilder.isPresent()) {
           buildAndExecuteCommitSequence(commitSequenceBuilder.get(), datasetState, datasetUrn);
           datasetState.setState(JobState.RunningState.COMMITTED);
@@ -176,33 +190,51 @@ final class SafeDatasetCommit implements Callable<Void> {
     return null;
   }
 
-  private void submitLineageEvent(Collection<TaskState> states) {
-    if (states.size() == 0) {
-      return;
+  private void maySubmitFailureEvent(JobState.DatasetState datasetState) {
+    if (datasetState.getState() == JobState.RunningState.FAILED) {
+      FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_DATASET_EVENT);
+      failureEvent.addMetadata(DATASET_STATE, datasetState.toString());
+      failureEvent.submit(metricContext);
     }
+  }
 
-    TaskState oneWorkUnitState = states.iterator().next();
-    if (oneWorkUnitState.contains(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE) && oneWorkUnitState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE).equals(
-        NoopPublisher.class.getName())) {
-      // if no publisher configured, each task should be responsible for sending lineage event.
+  private void maySubmitLineageEvent(JobState.DatasetState datasetState) {
+    Collection<TaskState> allStates = datasetState.getTaskStates();
+    Collection<TaskState> states = Lists.newArrayList();
+    // Filter out failed states or states that don't have lineage info
+    for (TaskState state : allStates) {
+      if (state.getWorkingState() == WorkUnitState.WorkingState.COMMITTED &&
+          LineageInfo.hasLineageInfo(state)) {
+        states.add(state);
+      }
+    }
+    if (states.size() == 0) {
+      log.info("Will not submit lineage events as no state contains lineage info");
       return;
     }
 
     try {
-      // Aggregate states by lineage.dataset.urn, in case datasetUrn may be set to empty so that all task states falls into one empty dataset.
-      // FixMe: once all dataset.urn attribues are set properly, we don't need this aggregation.
-      Collection<Collection<State>> datasetStates = LineageInfo.aggregateByDatasetUrn(states).values();
-      for (Collection<State> dataState: datasetStates) {
-        Collection<LineageInfo> branchLineages = LineageInfo.load(dataState, LineageInfo.Level.All);
-        EventSubmitter submitter = new EventSubmitter.Builder(Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class),
-            LineageInfo.LINEAGE_NAME_SPACE).build();
-        for (LineageInfo info: branchLineages) {
-          submitter.submit(info.getId(), info.getLineageMetaData());
+      if (StringUtils.isEmpty(datasetUrn)) {
+        // This dataset may contain different kinds of LineageEvent
+        for (Map.Entry<String, Collection<TaskState>> entry : aggregateByLineageEvent(states).entrySet()) {
+          submitLineageEvent(entry.getKey(), entry.getValue());
         }
+      } else {
+        submitLineageEvent(datasetUrn, states);
       }
-    } catch (LineageException e) {
-      log.error ("Lineage event submission failed due to :" + e.toString());
+    } finally {
+      // Purge lineage info from all states
+      for (TaskState taskState : allStates) {
+        LineageInfo.purgeLineageInfo(taskState);
+      }
     }
+  }
+
+  private void submitLineageEvent(String dataset, Collection<TaskState> states) {
+    Collection<LineageEventBuilder> events = LineageInfo.load(states);
+    // Send events
+    events.forEach(event -> event.submit(metricContext));
+    log.info(String.format("Submitted %d lineage events for dataset %s", events.size(), dataset));
   }
 
   /**
@@ -222,7 +254,6 @@ final class SafeDatasetCommit implements Callable<Void> {
 
     try {
       publisher.publish(taskStates);
-      submitLineageEvent(taskStates);
     } catch (Throwable t) {
       log.error("Failed to commit dataset", t);
       setTaskFailureException(taskStates, t);
@@ -391,5 +422,16 @@ final class SafeDatasetCommit implements Callable<Void> {
     log.info("Creating " + DatasetStateCommitStep.class.getSimpleName() + " for dataset " + datasetUrn);
     return Optional.of(new DatasetStateCommitStep.Builder<>().withProps(datasetState).withDatasetUrn(datasetUrn)
         .withDatasetState(datasetState).build());
+  }
+
+  private static Map<String, Collection<TaskState>> aggregateByLineageEvent(Collection<TaskState> states) {
+    Map<String, Collection<TaskState>> statesByEvents = Maps.newHashMap();
+    for (TaskState state : states) {
+      String eventName = LineageInfo.getFullEventName(state);
+      Collection<TaskState> statesForEvent = statesByEvents.computeIfAbsent(eventName, k -> Lists.newArrayList());
+      statesForEvent.add(state);
+    }
+
+    return statesByEvents;
   }
 }

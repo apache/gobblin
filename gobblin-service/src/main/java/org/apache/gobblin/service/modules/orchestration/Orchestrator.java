@@ -138,8 +138,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   /** {@inheritDoc} */
   @Override
   public void onAddSpec(Spec addedSpec) {
-    _log.info("New Spec detected: " + addedSpec);
-
     if (addedSpec instanceof TopologySpec) {
       _log.info("New Spec detected of type TopologySpec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
@@ -178,6 +176,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   public void orchestrate(Spec spec) throws Exception {
+    // Add below waiting because TopologyCatalog and FlowCatalog service can be launched at the same time
+    this.topologyCatalog.get().getInitComplete().await();
+
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
       Map<Spec, SpecExecutor> specExecutorInstanceMap = specCompiler.compileFlow(spec);
@@ -195,7 +196,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           producer = specsToExecute.getValue().getProducer().get();
           Spec jobSpec = specsToExecute.getKey();
 
-          _log.info(String.format("Going to orchestrate JobSpc: %s on Executor: %s", jobSpec, producer));
+          _log.info(String.format("Going to orchestrate JobSpec: %s on Executor: %s", jobSpec, producer));
           producer.addSpec(jobSpec);
         } catch(Exception e) {
           _log.error("Cannot successfully setup spec: " + specsToExecute.getKey() + " on executor: " + producer +
@@ -208,6 +209,38 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
     Instrumented.markMeter(this.flowOrchestrationSuccessFulMeter);
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+  }
+
+  public void remove(Spec spec) {
+    // TODO: Evolve logic to cache and reuse previously compiled JobSpecs
+    // .. this will work for Identity compiler but not always for multi-hop.
+    // Note: Current logic assumes compilation is consistent between all executions
+    if (spec instanceof FlowSpec) {
+      Map<Spec, SpecExecutor> specExecutorInstanceMap = specCompiler.compileFlow(spec);
+
+      if (specExecutorInstanceMap.isEmpty()) {
+        _log.warn("Cannot determine an executor to delete Spec: " + spec);
+        return;
+      }
+
+      // Delete all compiled JobSpecs on their respective Executor
+      for (Map.Entry<Spec, SpecExecutor> specsToDelete : specExecutorInstanceMap.entrySet()) {
+        // Delete this spec on selected executor
+        SpecProducer producer = null;
+        try {
+          producer = specsToDelete.getValue().getProducer().get();
+          Spec jobSpec = specsToDelete.getKey();
+
+          _log.info(String.format("Going to delete JobSpec: %s on Executor: %s", jobSpec, producer));
+          producer.deleteSpec(jobSpec.getUri());
+        } catch(Exception e) {
+          _log.error("Cannot successfully delete spec: " + specsToDelete.getKey() + " on executor: " + producer +
+              " for flow: " + spec, e);
+        }
+      }
+    } else {
+      throw new RuntimeException("Spec not of type FlowSpec, cannot delete: " + spec);
+    }
   }
 
   @Nonnull

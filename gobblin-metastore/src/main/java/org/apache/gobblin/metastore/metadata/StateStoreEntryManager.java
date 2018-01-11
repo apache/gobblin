@@ -28,6 +28,7 @@ import lombok.Data;
 
 /**
  * Contains metadata about an entry in a {@link StateStore}.
+ * Exposes access to the {@link StateStore} that contains the entry.
  * @param <T> type of {@link State} that can be read from this entry.
  */
 @Data
@@ -41,7 +42,7 @@ public abstract class StateStoreEntryManager<T extends State> {
   /** {@link StateStore} where this entry exists. */
   private final StateStore stateStore;
 
-  private final long getTimestamp() {
+  public final long getTimestamp() {
     if (this.timestamp <= 0) {
       throw new RuntimeException("Timestamp is not reliable.");
     }

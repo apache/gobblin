@@ -16,6 +16,8 @@
  */
 package org.apache.gobblin.crypto;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.Security;
@@ -34,6 +36,7 @@ import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRingCollection;
+import org.bouncycastle.openpgp.PGPSignatureList;
 import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.jcajce.JcaPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
@@ -41,6 +44,7 @@ import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBu
 import org.bouncycastle.openpgp.operator.jcajce.JcePBEDataDecryptorFactoryBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePublicKeyDataDecryptorFactoryBuilder;
+import org.bouncycastle.util.io.Streams;
 
 
 /**
@@ -113,23 +117,35 @@ public class GPGFileDecryptor {
       throw new IllegalArgumentException("secret key for message not found.");
     }
 
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
     try (InputStream clear = pbe.getDataStream(
         new JcePublicKeyDataDecryptorFactoryBuilder().setProvider(BouncyCastleProvider.PROVIDER_NAME).build(sKey))) {
 
       JcaPGPObjectFactory pgpFact = new JcaPGPObjectFactory(clear);
       Object pgpfObject = pgpFact.nextObject();
 
-      if (pgpfObject instanceof PGPCompressedData) {
-        PGPCompressedData cData = (PGPCompressedData) pgpfObject;
-        pgpFact = new JcaPGPObjectFactory(cData.getDataStream());
+      while (pgpfObject != null) {
+        if (pgpfObject instanceof PGPCompressedData) {
+          PGPCompressedData cData = (PGPCompressedData) pgpfObject;
+          pgpFact = new JcaPGPObjectFactory(cData.getDataStream());
+          pgpfObject = pgpFact.nextObject();
+        }
+
+        if (pgpfObject instanceof PGPLiteralData) {
+          Streams.pipeAll(((PGPLiteralData) pgpfObject).getInputStream(), outputStream);
+        } else if (pgpfObject instanceof PGPOnePassSignatureList) {
+          throw new PGPException("encrypted message contains PGPOnePassSignatureList message - not literal data.");
+        } else if (pgpfObject instanceof PGPSignatureList) {
+          throw new PGPException("encrypted message contains PGPSignatureList message - not literal data.");
+        } else {
+          throw new PGPException("message is not a simple encrypted file - type unknown.");
+        }
         pgpfObject = pgpFact.nextObject();
-        PGPLiteralData ld = (PGPLiteralData) pgpfObject;
-        return ld.getInputStream();
-      } else if (pgpfObject instanceof PGPOnePassSignatureList) {
-        throw new PGPException("encrypted message contains a signed message - not literal data.");
-      } else {
-        throw new PGPException("message is not a simple encrypted file - type unknown.");
       }
+      return new ByteArrayInputStream(outputStream.toByteArray());
+    } finally {
+      outputStream.close();
     }
   }
 

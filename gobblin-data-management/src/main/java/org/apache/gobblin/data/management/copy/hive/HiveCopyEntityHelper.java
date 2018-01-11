@@ -56,6 +56,8 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
@@ -759,5 +761,20 @@ public class HiveCopyEntityHelper {
 
   public FileSystem getTargetFileSystem() {
     return this.targetFs;
+  }
+
+  /**
+   * Set the source and destination datasets of a copyable file
+   */
+  void setCopyableFileDatasets(CopyableFile copyableFile) {
+    String sourceTable = dataset.getTable().getDbName() + "." + dataset.getTable().getTableName();
+    DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
+    source.addMetadata(DatasetConstants.FS_URI, dataset.getFs().getUri().toString());
+    copyableFile.setSourceDataset(source);
+
+    String destinationTable = this.getTargetDatabase() + "." + this.getTargetTable();
+    DatasetDescriptor destination = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destinationTable);
+    destination.addMetadata(DatasetConstants.FS_URI, this.getTargetFs().getUri().toString());
+    copyableFile.setDestinationDataset(destination);
   }
 }

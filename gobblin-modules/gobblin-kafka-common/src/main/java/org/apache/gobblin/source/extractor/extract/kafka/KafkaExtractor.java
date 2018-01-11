@@ -235,19 +235,10 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       LOG.info("Pulling topic " + this.topicName);
       this.currentPartitionIdx = 0;
     } else {
-      this.stopwatch.stop();
-      if (this.currentPartitionRecordCount != 0) {
-        double avgMillisForCurrentPartition =
-            (double) this.stopwatch.elapsed(TimeUnit.MILLISECONDS) / (double) this.currentPartitionRecordCount;
-        this.avgMillisPerRecord.put(this.getCurrentPartition(), avgMillisForCurrentPartition);
-
-        long avgRecordSize = this.currentPartitionTotalSize / this.currentPartitionRecordCount;
-        this.avgRecordSizes.put(this.getCurrentPartition(), avgRecordSize);
-      }
+      computeAvgMillisPerRecordForCurrentPartition();
       this.currentPartitionIdx++;
       this.currentPartitionRecordCount = 0;
       this.currentPartitionTotalSize = 0;
-      this.stopwatch.reset();
     }
 
     this.messageIterator = null;
@@ -258,6 +249,19 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       switchMetricContextToCurrentPartition();
     }
     this.stopwatch.start();
+  }
+
+  private void computeAvgMillisPerRecordForCurrentPartition() {
+    this.stopwatch.stop();
+    if (this.currentPartitionRecordCount != 0) {
+      double avgMillisForCurrentPartition =
+          (double) this.stopwatch.elapsed(TimeUnit.MILLISECONDS) / (double) this.currentPartitionRecordCount;
+      this.avgMillisPerRecord.put(this.getCurrentPartition(), avgMillisForCurrentPartition);
+
+      long avgRecordSize = this.currentPartitionTotalSize / this.currentPartitionRecordCount;
+      this.avgRecordSizes.put(this.getCurrentPartition(), avgRecordSize);
+    }
+    this.stopwatch.reset();
   }
 
   private void switchMetricContextToCurrentPartition() {
@@ -312,6 +316,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   @Override
   public void close() throws IOException {
+
+    computeAvgMillisPerRecordForCurrentPartition();
 
     Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap = Maps.newHashMap();
 

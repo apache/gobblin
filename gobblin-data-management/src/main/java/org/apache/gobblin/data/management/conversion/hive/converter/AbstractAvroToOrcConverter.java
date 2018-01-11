@@ -136,6 +136,10 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
   public static final String HIVE_DATASET_DESTINATION_SKIP_SETGROUP = "hive.dataset.destination.skip.setGroup";
   public static final boolean DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP = false;
 
+  public static final String HIVE_DATASET_DESTINATION_GROUP_NAME = "hive.dataset.destination.groupName";
+  public static final String HIVE_DATASET_STAGING_GROUP_NAME = "hive.dataset.staging.groupName";
+
+
 
   /**
    * If set to true, a set format DDL will be separate from add partition DDL
@@ -276,14 +280,33 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             getConversionConfig().getDestinationDataPath()), sourceDataPermission));
       } else {
         this.fs.setPermission(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission);
-        // Set the same group as source
+
+        // Explicitly set group name for destination location if specified otherwise preserve source group name
+        String destinationGroupName;
+        if (workUnit.contains(HIVE_DATASET_DESTINATION_GROUP_NAME)) {
+          destinationGroupName = workUnit.getProp(HIVE_DATASET_DESTINATION_GROUP_NAME);
+        } else {
+          destinationGroupName = sourceDataFileStatus.getGroup();
+        }
         if (!workUnit.getPropAsBoolean(HIVE_DATASET_DESTINATION_SKIP_SETGROUP,
             DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP)) {
-          this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), null,
-              sourceDataFileStatus.getGroup());
+          this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), null, destinationGroupName);
         }
         log.info(String.format("Created %s with permissions %s and group %s", new Path(getConversionConfig()
             .getDestinationDataPath()), sourceDataPermission, sourceDataFileStatus.getGroup()));
+
+        // Explicitly set group name for staging directory if specified
+        if (workUnit.contains(HIVE_DATASET_STAGING_GROUP_NAME)) {
+          String stagingGroupName = workUnit.getProp(HIVE_DATASET_STAGING_GROUP_NAME);
+          log.info("Setting staging directory group name as " + stagingGroupName);
+          this.fs.mkdirs(new Path(getOrcStagingDataLocation(orcStagingTableName)));
+          this.fs.setOwner(new Path(getOrcStagingDataLocation(orcStagingTableName)), null, stagingGroupName);
+
+          // Staging directory will be renamed to getOrcDataLocation() and hence it's group name should match
+          // with the group name of the staging directory
+          this.fs.mkdirs(new Path(getOrcDataLocation()));
+          this.fs.setOwner(new Path(getOrcDataLocation()), null, stagingGroupName);
+        }
       }
     } catch (IOException e) {
       Throwables.propagate(e);

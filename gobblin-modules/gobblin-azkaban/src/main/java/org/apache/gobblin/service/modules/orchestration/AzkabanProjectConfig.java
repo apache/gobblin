@@ -86,7 +86,7 @@ public class AzkabanProjectConfig {
     this.failIfJarNotFound = ConfigUtils.getBoolean(config, ServiceAzkabanConfigKeys.AZKABAN_PROJECT_ZIP_FAIL_IF_JARNOTFOUND_KEY, false);
   }
 
-  private String constructProjectName(JobSpec jobSpec, Config config) {
+  public static String constructProjectName(JobSpec jobSpec, Config config) {
     String projectNamePrefix = ConfigUtils.getString(config, ServiceAzkabanConfigKeys.AZKABAN_PROJECT_NAME_PREFIX_KEY, "");
     String projectNamePostfix = null == jobSpec.getUri() ? "" :
         jobSpec.getUri().toString().replaceAll("_", "-").replaceAll("[^A-Za-z0-9\\-]", "_");

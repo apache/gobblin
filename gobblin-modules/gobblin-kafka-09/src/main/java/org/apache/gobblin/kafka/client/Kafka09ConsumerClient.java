@@ -17,16 +17,11 @@
 package org.apache.gobblin.kafka.client;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.regex.Pattern;
-
-import javax.annotation.Nonnull;
-
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -38,17 +33,22 @@ import org.apache.kafka.common.TopicPartition;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
+import javax.annotation.Nonnull;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.DatasetFilterUtils;
 
 
 /**
@@ -65,32 +65,47 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
   private static final String KAFKA_09_CLIENT_SESSION_TIMEOUT_KEY = "session.timeout.ms";
   private static final String KAFKA_09_CLIENT_KEY_DESERIALIZER_CLASS_KEY = "key.deserializer";
   private static final String KAFKA_09_CLIENT_VALUE_DESERIALIZER_CLASS_KEY = "value.deserializer";
+  private static final String KAFKA_09_CLIENT_GROUP_ID = "group.id";
 
   private static final String KAFKA_09_DEFAULT_ENABLE_AUTO_COMMIT = Boolean.toString(false);
   private static final String KAFKA_09_DEFAULT_KEY_DESERIALIZER =
       "org.apache.kafka.common.serialization.StringDeserializer";
+  private static final String KAFKA_09_DEFAULT_GROUP_ID = "kafka09";
 
   public static final String GOBBLIN_CONFIG_KEY_DESERIALIZER_CLASS_KEY = CONFIG_PREFIX
       + KAFKA_09_CLIENT_KEY_DESERIALIZER_CLASS_KEY;
   public static final String GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY = CONFIG_PREFIX
       + KAFKA_09_CLIENT_VALUE_DESERIALIZER_CLASS_KEY;
 
+  private static final Config FALLBACK =
+      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put(KAFKA_09_CLIENT_ENABLE_AUTO_COMMIT_KEY, KAFKA_09_DEFAULT_ENABLE_AUTO_COMMIT)
+          .put(KAFKA_09_CLIENT_KEY_DESERIALIZER_CLASS_KEY, KAFKA_09_DEFAULT_KEY_DESERIALIZER)
+          .put(KAFKA_09_CLIENT_GROUP_ID, KAFKA_09_DEFAULT_GROUP_ID)
+          .build());
+
   private final Consumer<K, V> consumer;
 
   private Kafka09ConsumerClient(Config config) {
     super(config);
     Preconditions.checkArgument(config.hasPath(GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY),
-        "Missing required property " + GOBBLIN_CONFIG_KEY_DESERIALIZER_CLASS_KEY);
+        "Missing required property " + GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY);
+
     Properties props = new Properties();
     props.put(KAFKA_09_CLIENT_BOOTSTRAP_SERVERS_KEY, Joiner.on(",").join(super.brokers));
-    props.put(KAFKA_09_CLIENT_ENABLE_AUTO_COMMIT_KEY, KAFKA_09_DEFAULT_ENABLE_AUTO_COMMIT);
     props.put(KAFKA_09_CLIENT_SESSION_TIMEOUT_KEY, super.socketTimeoutMillis);
-    props.put(KAFKA_09_CLIENT_KEY_DESERIALIZER_CLASS_KEY,
-        ConfigUtils.getString(config, GOBBLIN_CONFIG_KEY_DESERIALIZER_CLASS_KEY, KAFKA_09_DEFAULT_KEY_DESERIALIZER));
-    props.put(KAFKA_09_CLIENT_VALUE_DESERIALIZER_CLASS_KEY,
-        config.getString(GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY));
-    this.consumer = new KafkaConsumer<>(props);
 
+    // grab all the config under "source.kafka" and add the defaults as fallback.
+    Config baseConfig = ConfigUtils.getConfigOrEmpty(config, CONFIG_NAMESPACE).withFallback(FALLBACK);
+    // get the "source.kafka.consumerConfig" config for extra config to pass along to Kafka with a fallback to the
+    // shared config that start with "gobblin.kafka.sharedConfig"
+    Config specificConfig = ConfigUtils.getConfigOrEmpty(baseConfig, CONSUMER_CONFIG).withFallback(
+        ConfigUtils.getConfigOrEmpty(config, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+    // The specific config overrides settings in the base config
+    Config scopedConfig = specificConfig.withFallback(baseConfig.withoutPath(CONSUMER_CONFIG));
+    props.putAll(ConfigUtils.configToProperties(scopedConfig));
+
+    this.consumer = new KafkaConsumer<>(props);
   }
 
   public Kafka09ConsumerClient(Config config, Consumer<K, V> consumer) {
@@ -112,12 +127,20 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
 
   @Override
   public long getEarliestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException {
-    throw new UnsupportedOperationException("getEarliestOffset and getLatestOffset is not supported by Kafka-09");
+    TopicPartition topicPartition = new TopicPartition(partition.getTopicName(), partition.getId());
+    this.consumer.assign(Collections.singletonList(topicPartition));
+    this.consumer.seekToBeginning(topicPartition);
+
+    return this.consumer.position(topicPartition);
   }
 
   @Override
   public long getLatestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException {
-    throw new UnsupportedOperationException("getEarliestOffset and getLatestOffset is not supported by Kafka-09");
+    TopicPartition topicPartition = new TopicPartition(partition.getTopicName(), partition.getId());
+    this.consumer.assign(Collections.singletonList(topicPartition));
+    this.consumer.seekToEnd(topicPartition);
+
+    return this.consumer.position(topicPartition);
   }
 
   @Override

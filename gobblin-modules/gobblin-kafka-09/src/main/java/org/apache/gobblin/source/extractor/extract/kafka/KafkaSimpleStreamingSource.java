@@ -46,7 +46,6 @@ import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 
-
 /**
  * A {@link EventBasedSource} implementation for a simple streaming kafka extractor.
  *
@@ -66,6 +65,8 @@ public class KafkaSimpleStreamingSource<S, D> extends EventBasedSource<S, Record
    */
   public static final String TOPIC_KEY_DESERIALIZER = "gobblin.streaming.kafka.topic.key.deserializer";
   public static final String TOPIC_VALUE_DESERIALIZER = "gobblin.streaming.kafka.topic.value.deserializer";
+
+  public static final String KAFKA_CONSUMER_CONFIG_PREFIX = "gobblin.streaming.kafka.consumerConfig";
 
   /**
    * Private config keys used to pass data into work unit state
@@ -103,6 +104,12 @@ public class KafkaSimpleStreamingSource<S, D> extends EventBasedSource<S, Record
     props.put("key.deserializer", config.getString(TOPIC_KEY_DESERIALIZER));
     Preconditions.checkArgument(config.hasPath(TOPIC_VALUE_DESERIALIZER));
     props.put("value.deserializer", config.getString(TOPIC_VALUE_DESERIALIZER));
+
+    // pass along any config scoped under source.kafka.config
+    // one use case of this is to pass SSL configuration
+    Config scopedConfig = ConfigUtils.getConfigOrEmpty(config, KAFKA_CONSUMER_CONFIG_PREFIX);
+    props.putAll(ConfigUtils.configToProperties(scopedConfig));
+
     Consumer consumer = null;
     try {
       consumer = new KafkaConsumer<>(props);

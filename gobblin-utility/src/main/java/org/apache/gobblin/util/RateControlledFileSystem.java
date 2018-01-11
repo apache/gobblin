@@ -78,7 +78,7 @@ public class RateControlledFileSystem extends ThrottledFileSystem {
   }
 
   public RateControlledFileSystem(FileSystem fs, final long limitPerSecond) {
-    super(fs, null);
+    super(fs, null, null);
     this.limitPerSecond = limitPerSecond;
     this.callableLimiter = new Callable<RateBasedLimiter>() {
       @Override

@@ -236,10 +236,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       try {
         // #HELIX-0.6.7-WORKAROUND
         // working around helix 0.6.7 job delete issue with custom taskDriver
+        LOGGER.info("Cancelling job {} in Helix", this.jobContext.getJobId());
         GobblinHelixTaskDriver taskDriver = new GobblinHelixTaskDriver(this.helixManager);
         taskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
+        LOGGER.info("Job {} in cancelled Helix", this.jobContext.getJobId());
       } catch (IllegalArgumentException e) {
-        LOGGER.warn(String.format("Failed to cleanup job %s in Helix", this.jobContext.getJobId()), e);
+        LOGGER.warn("Failed to cancel job {} in Helix", this.jobContext.getJobId(), e);
       }
     }
   }
@@ -385,6 +387,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private void cleanupWorkingDirectory() throws IOException {
     LOGGER.info("Deleting persisted work units for job " + this.jobContext.getJobId());
     stateStores.wuStateStore.delete(this.jobContext.getJobId());
+
+    // delete the directory that stores the task state files
+    stateStores.taskStateStore.delete(outputTaskStateDir.getName());
+
     LOGGER.info("Deleting job state file for job " + this.jobContext.getJobId());
     Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
     this.fs.delete(jobStateFilePath, false);

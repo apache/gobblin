@@ -187,15 +187,15 @@ public class ZookeeperBasedJobLock implements ListenableJobLock {
               case LOST:
                 log.warn("Lost connection with zookeeper");
                 for (Map.Entry<String, JobLockEventListener> lockEventListener : lockEventListeners.entrySet()) {
-                  log.warn("Informing job %s that lock was lost", lockEventListener.getKey());
+                  log.warn("Informing job {} that lock was lost", lockEventListener.getKey());
                   lockEventListener.getValue().onLost();
                 }
                 break;
               case SUSPENDED:
-                log.warn("Lost connection with zookeeper");
+                log.warn("Suspended connection with zookeeper");
                 for (Map.Entry<String, JobLockEventListener> lockEventListener : lockEventListeners.entrySet()) {
-                  log.warn("Informing job %s that lock was lost", lockEventListener.getKey());
-                    lockEventListener.getValue().onLost();
+                  log.warn("Informing job {} that lock was suspended", lockEventListener.getKey());
+                  lockEventListener.getValue().onLost();
                 }
                 break;
               case CONNECTED:

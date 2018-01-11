@@ -77,11 +77,12 @@ public class NonObservingFSJobCatalog extends FSJobCatalog {
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     Preconditions.checkNotNull(jobSpec);
     try {
+      long startTime = System.currentTimeMillis();
       Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobSpec.getUri());
       boolean isUpdate = fs.exists(jobSpecPath);
 
       materializedJobSpec(jobSpecPath, jobSpec, this.fs);
-
+      this.mutableMetrics.updatePutJobTime(startTime);
       if (isUpdate) {
         this.listeners.onUpdateJob(jobSpec);
       } else {
@@ -103,12 +104,13 @@ public class NonObservingFSJobCatalog extends FSJobCatalog {
   public synchronized void remove(URI jobURI) {
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     try {
+      long startTime = System.currentTimeMillis();
       JobSpec jobSpec = getJobSpec(jobURI);
-
       Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobURI);
 
       if (fs.exists(jobSpecPath)) {
         fs.delete(jobSpecPath, false);
+        this.mutableMetrics.updateRemoveJobTime(startTime);
       } else {
         LOGGER.warn("No file with URI:" + jobSpecPath + " is found. Deletion failed.");
       }

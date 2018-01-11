@@ -61,7 +61,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   protected final SpecCatalogListenersList listeners;
   protected final Logger log;
   protected final MetricContext metricContext;
-  protected final FlowCatalog.StandardMetrics metrics;
+  protected final MutableStandardMetrics metrics;
   protected final SpecStore specStore;
 
   private final ClassAliasResolver<SpecStore> aliasResolver;
@@ -87,7 +87,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(FlowCatalog.class.getSimpleName()).build();
-      this.metrics = new StandardMetrics(this);
+      this.metrics = new MutableStandardMetrics(this);
+      this.addListener(this.metrics);
     }
     else {
       this.metricContext = null;
@@ -133,7 +134,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    /**************************************************/
 
   protected void notifyAllListeners() {
-    for (Spec spec : getSpecs()) {
+    for (Spec spec : getSpecsWithTimeUpdate()) {
       this.listeners.onAddSpec(spec);
     }
   }
@@ -144,7 +145,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     this.listeners.addListener(specListener);
 
     if (state() == State.RUNNING) {
-      for (Spec spec : getSpecs()) {
+      for (Spec spec : getSpecsWithTimeUpdate()) {
         SpecCatalogListener.AddSpecCallback addJobCallback = new SpecCatalogListener.AddSpecCallback(spec);
         this.listeners.callbackOneListener(addJobCallback, specListener);
       }
@@ -192,7 +193,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   @Override
-  public StandardMetrics getMetrics() {
+  public SpecCatalog.StandardMetrics getMetrics() {
     return this.metrics;
   }
 
@@ -206,6 +207,25 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       return specStore.getSpecs();
     } catch (IOException e) {
       throw new RuntimeException("Cannot retrieve Specs from Spec store", e);
+    }
+  }
+
+  public Collection<Spec> getSpecsWithTimeUpdate() {
+    try {
+      long startTime = System.currentTimeMillis();
+      Collection<Spec> specs = specStore.getSpecs();
+      this.metrics.updateGetSpecTime(startTime);
+      return specs;
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve Specs from Spec store", e);
+    }
+  }
+
+  public boolean exists(URI uri) {
+    try {
+      return specStore.exists(uri);
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve Spec from Spec store for URI: " + uri, e);
     }
   }
 
@@ -224,17 +244,13 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
 
+      long startTime = System.currentTimeMillis();
       log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", spec.getUri(),
           ((FlowSpec) spec).getConfigAsProperties()));
-      if (specStore.exists(spec.getUri())) {
-        specStore.updateSpec(spec);
-        this.listeners.onUpdateSpec(spec);
-      } else {
-        specStore.addSpec(spec);
-        this.listeners.onAddSpec(spec);
-      }
-
-    } catch (IOException | SpecNotFoundException e) {
+      specStore.addSpec(spec);
+      metrics.updatePutSpecTime(startTime);
+      this.listeners.onAddSpec(spec);
+    } catch (IOException e) {
       throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
   }
@@ -244,13 +260,13 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     try {
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(uri);
-
+      long startTime = System.currentTimeMillis();
       log.info(String.format("Removing FlowSpec with URI: %s", uri));
-      Spec spec = specStore.getSpec(uri);
-      this.listeners.onDeleteSpec(spec.getUri(), spec.getVersion());
       specStore.deleteSpec(uri);
+      this.metrics.updateRemoveSpecTime(startTime);
+      this.listeners.onDeleteSpec(uri, FlowSpec.Builder.DEFAULT_VERSION);
 
-    } catch (IOException | SpecNotFoundException e) {
+    } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
     }
   }

@@ -18,6 +18,8 @@
 package org.apache.gobblin.runtime;
 
 import java.io.IOException;
+import java.net.URI;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -26,6 +28,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.WriterUtils;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -48,7 +54,6 @@ import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
-import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.CommitSequence;
 import org.apache.gobblin.commit.CommitSequenceStore;
@@ -830,6 +835,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           throw new RuntimeException("Work unit streams do not support cleaning staging data per task.");
         }
       } else {
+        if (jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_OLD_JOBS_DATA, ConfigurationKeys.DEFAULT_CLEANUP_OLD_JOBS_DATA)) {
+          JobLauncherUtils.cleanUpOldJobData(jobState, LOG, jobContext.getStagingDirProvided(), jobContext.getOutputDirProvided());
+        }
         JobLauncherUtils.cleanJobStagingData(jobState, LOG);
       }
     } catch (Throwable t) {
@@ -838,6 +846,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
+
+
+  private static String getJobIdPrefix(String jobId) {
+    return jobId.substring(0, jobId.lastIndexOf(Id.Job.SEPARATOR) + 1);
+  }
   /**
    * Cleanup the job's task staging data. This is not doing anything in case job succeeds
    * and data is successfully committed because the staging data has already been moved

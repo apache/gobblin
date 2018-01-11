@@ -34,6 +34,7 @@ import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHiv
 import org.apache.gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.hadoop.fs.Path;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -80,10 +81,20 @@ public abstract class HiveMaterializerQueryGenerator implements QueryGenerator {
   /**
    * Returns hive queries to be run as a part of a hive task.
    * This does not include publish queries.
-   * @return
    */
   @Override
   public abstract List<String> generateQueries();
+
+  protected void ensureParentOfStagingPathExists() {
+    try {
+      Path parentStagingPath = new Path(this.stagingDataLocation).getParent();
+      if (!this.fs.exists(parentStagingPath)) {
+        this.fs.mkdirs(parentStagingPath);
+      }
+    } catch (IOException ioe) {
+      throw new RuntimeException(ioe);
+    }
+  }
 
   /**
    * Retuens a QueryBasedHivePublishEntity which includes publish level queries and cleanup commands.

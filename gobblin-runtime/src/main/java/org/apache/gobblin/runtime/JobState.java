@@ -554,11 +554,7 @@ public class JobState extends SourceState {
   public void toJson(JsonWriter jsonWriter, boolean keepConfig)
       throws IOException {
     jsonWriter.beginObject();
-
-    jsonWriter.name("job name").value(this.getJobName()).name("job id").value(this.getJobId()).name("job state")
-        .value(this.getState().name()).name("start time").value(this.getStartTime()).name("end time")
-        .value(this.getEndTime()).name("duration").value(this.getDuration()).name("tasks").value(this.getTaskCount())
-        .name("completed tasks").value(this.getCompletedTasks());
+    writeStateSummary(jsonWriter);
 
     jsonWriter.name("task states");
     jsonWriter.beginArray();
@@ -576,6 +572,19 @@ public class JobState extends SourceState {
     }
 
     jsonWriter.endObject();
+  }
+
+  /**
+   * Write a summary to the json document
+   *
+   * @param jsonWriter a {@link com.google.gson.stream.JsonWriter}
+   *                   used to write the json document
+   */
+  protected void writeStateSummary(JsonWriter jsonWriter) throws IOException {
+    jsonWriter.name("job name").value(this.getJobName()).name("job id").value(this.getJobId()).name("job state")
+        .value(this.getState().name()).name("start time").value(this.getStartTime()).name("end time")
+        .value(this.getEndTime()).name("duration").value(this.getDuration()).name("tasks").value(this.getTaskCount())
+        .name("completed tasks").value(this.getCompletedTasks());
   }
 
   protected void propsToJson(JsonWriter jsonWriter)
@@ -804,6 +813,13 @@ public class JobState extends SourceState {
     @Override
     public void overrideWith(Properties properties) {
       throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected void writeStateSummary(JsonWriter jsonWriter)
+        throws IOException {
+      super.writeStateSummary(jsonWriter);
+      jsonWriter.name("datasetUrn").value(getDatasetUrn());
     }
   }
 }

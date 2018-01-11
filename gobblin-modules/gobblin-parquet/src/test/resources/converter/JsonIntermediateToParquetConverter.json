@@ -1,0 +1,223 @@
+{
+  "simplePrimitiveTypes": {
+    "record": {
+      "a": 5,
+      "b": 5.0,
+      "c": 8.0,
+      "d": true,
+      "e": "somestring"
+    },
+    "schema": [
+      {
+        "columnName": "a",
+        "dataType": {
+          "type": "int"
+        }
+      },
+      {
+        "columnName": "b",
+        "dataType": {
+          "type": "float"
+        }
+      },
+      {
+        "columnName": "c",
+        "dataType": {
+          "type": "double"
+        }
+      },
+      {
+        "columnName": "d",
+        "dataType": {
+          "type": "boolean"
+        }
+      },
+      {
+        "columnName": "e",
+        "dataType": {
+          "type": "string"
+        }
+      }
+    ],
+    "expectedRecord": "a: 5 ; b: 5.0 ; c: 8.0 ; d: true ; e: somestring ; ",
+    "expectedSchema": "message test_table{ ; required int32 a ;  ; required float b ;  ; required double c ;  ; required boolean d ;  ; required binary e (UTF8) ;  ; } ; "
+  },
+  "array": {
+    "record": {
+      "somearray": [
+        1,
+        2,
+        3
+      ],
+      "somearray1": [
+        1,
+        2,
+        3
+      ],
+      "somearray2": [
+        1.0,
+        2.0,
+        3.0
+      ],
+      "somearray3": [
+        1.0,
+        2.0,
+        3.0
+      ],
+      "somearray4": [
+        true,
+        false,
+        true
+      ],
+      "somearray5": [
+        "hello",
+        "world"
+      ]
+    },
+    "schema": [
+      {
+        "columnName": "somearray",
+        "dataType": {
+          "type": "array",
+          "items": "int"
+        }
+      },
+      {
+        "columnName": "somearray1",
+        "dataType": {
+          "type": "array",
+          "items": "long"
+        }
+      },
+      {
+        "columnName": "somearray2",
+        "dataType": {
+          "type": "array",
+          "items": "float"
+        }
+      },
+      {
+        "columnName": "somearray3",
+        "dataType": {
+          "type": "array",
+          "items": "double"
+        }
+      },
+      {
+        "columnName": "somearray4",
+        "dataType": {
+          "type": "array",
+          "items": "boolean"
+        }
+      },
+      {
+        "columnName": "somearray5",
+        "dataType": {
+          "type": "array",
+          "items": "string"
+        }
+      }
+    ],
+    "expectedRecord": "somearray ;  item:1 ;  item:2 ;  item:3 ; somearray1 ;  item:1 ;  item:2 ;  item:3 ; somearray2 ;  item:1.0 ;  item:2.0 ;  item:3.0 ; somearray3 ;  item:1.0 ;  item:2.0 ;  item:3.0 ; somearray4 ;  item:true ;  item:false ;  item:true ; somearray5 ;  item:hello ;  item:world ; ",
+    "expectedSchema": "message test_table {  ;  required group somearray {  ; repeated int32 item ;  ; } ;  required groupsomearray1 {  ; repeated int64 item ;  ; } ;  required groupsomearray2 {  ; repeated float item ;  ; } ;  required groupsomearray3 {  ; repeated double item ;  ; } ;  required groupsomearray4 {  ; repeated boolean item ;  ; } ;  required groupsomearray5 {  ; repeated binary item(UTF8) ;  ; } ; } ; "
+  },
+  "enum": {
+    "record": {
+      "some_enum": "HELLO"
+    },
+    "schema": [
+      {
+        "columnName": "some_enum",
+        "dataType": {
+          "type": "enum",
+          "symbols": [
+            "HELLO",
+            "WORLD"
+          ]
+        }
+      }
+    ],
+    "expectedRecord": "some_enum : HELLO ;",
+    "expectedSchema": "message test_table { ; required binary some_enum (UTF8) ;; } ;"
+  },
+  "record": {
+    "record": {
+      "some_record": {
+        "name": "me",
+        "age": 22,
+        "some_array": [
+          3,
+          4,
+          5
+        ]
+      }
+    },
+    "schema": [
+      {
+        "columnName": "some_record",
+        "dataType": {
+          "type": "record",
+          "values": [
+            {
+              "columnName": "name",
+              "dataType": {
+                "type": "string"
+              }
+            },
+            {
+              "columnName": "age",
+              "dataType": {
+                "type": "long"
+              }
+            },
+            {
+              "columnName": "some_array",
+              "dataType": {
+                "type": "array",
+                "items": "int"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "expectedRecord": "some_record ; name:me ; age:22 ; some_array ; item:3 ; item:4 ; item:5 ;",
+    "expectedSchema": "message test_table {  ; required group some_record {  ; required binary name (UTF8) ;  ; required int64 age ;  ; required group some_array {  ; repeated int32 item ; ; } ; } ;  } ; "
+  },
+  "map": {
+    "schema": [
+      {
+        "columnName": "cityToCountry",
+        "dataType": {
+          "type": "map",
+          "values": "string"
+        }
+      }
+    ],
+    "record": {
+      "cityToCountry": {
+        "ny": "US",
+        "london": "UK",
+        "delhi": "India"
+      }
+    },
+    "expectedRecord": "cityToCountry; map; key:ny;value:US; map; key:london;value:UK; map; key:delhi;value:India;",
+    "expectedSchema": "message test_table {  ;   required groupcityToCountry {  ;  repeated group map {  ;   required binary key (UTF8) ;   ;   required binary value (UTF8) ;   ;  } ;  } ;  } ;"
+  },
+  "nullValueInOptionalField": {
+    "record": {
+      "a": null
+    },
+    "schema": [
+      {
+        "columnName": "a",
+        "isNullable": true,
+        "dataType": {
+          "type": "int"
+        }
+      }
+    ],
+    "expectedRecord": "",
+    "expectedSchema": "message test_table {; optional int32 a ;; };"
+  }
+}

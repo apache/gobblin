@@ -168,28 +168,27 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
 
       // Distribute the files across the workunits
       for (int fileOffset = 0; fileOffset < filesToPull.size(); fileOffset += filesPerPartition) {
-        SourceState partitionState = new SourceState();
-        partitionState.addAll(state);
+        // Use extract table name to create extract
+        Extract extract = new Extract(tableType, nameSpaceName, extractTableName);
+        WorkUnit workUnit = WorkUnit.create(extract);
 
         // Eventually these setters should be integrated with framework support for generalized watermark handling
-        partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT,
+        workUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT,
             StringUtils.join(effectiveSnapshot, ","));
 
         List<String> partitionFilesToPull = filesToPull.subList(fileOffset,
             fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition);
-        partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL,
+        workUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL,
             StringUtils.join(partitionFilesToPull, ","));
         if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, false)) {
           if (partitionFilesToPull.size() != 1) {
             throw new RuntimeException("Cannot preserve the file name if a workunit is given multiple files");
           }
-          partitionState.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR,
-              partitionState.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
+          workUnit.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR,
+              workUnit.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
         }
 
-        // Use extract table name to create extract
-        Extract extract = partitionState.createExtract(tableType, nameSpaceName, extractTableName);
-        workUnits.add(partitionState.createWorkUnit(extract));
+        workUnits.add(workUnit);
       }
 
       log.info("Total number of work units for the current run: " + (workUnits.size() - previousWorkUnitsForRetry.size()));
@@ -215,10 +214,11 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
       results = this.fsHelper.ls(path);
       for (int i = 0; i < results.size(); i++) {
         URI uri = new URI(results.get(i));
-        File file = uri.isAbsolute()?
-            new File(uri) : new File(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY), uri.toString());
-
-        String filePath = file.getAbsolutePath();
+        String filePath = uri.toString();
+        if (!uri.isAbsolute()) {
+          File file = new File(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY), uri.toString());
+          filePath = file.getAbsolutePath();
+        }
         results.set(i, filePath + this.splitPattern + this.fsHelper.getFileMTime(filePath));
       }
     } catch (FileBasedHelperException | URISyntaxException e) {

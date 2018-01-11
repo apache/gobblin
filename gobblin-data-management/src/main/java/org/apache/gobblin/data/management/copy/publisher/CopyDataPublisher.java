@@ -18,6 +18,8 @@
 package org.apache.gobblin.data.management.copy.publisher;
 
 
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import java.io.IOException;
 import java.net.URI;
@@ -27,7 +29,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -81,6 +82,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   private final FileSystem fs;
   protected final EventSubmitter eventSubmitter;
   protected final RecoveryHelper recoveryHelper;
+  protected final Optional<LineageInfo> lineageInfo;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -93,6 +95,15 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
    */
   public CopyDataPublisher(State state) throws IOException {
     super(state);
+    // Extract LineageInfo from state
+    if (state instanceof SourceState) {
+      lineageInfo = LineageInfo.getLineageInfo(((SourceState) state).getBroker());
+    } else if (state instanceof WorkUnitState) {
+      lineageInfo = LineageInfo.getLineageInfo(((WorkUnitState) state).getTaskBrokerNullable());
+    } else {
+      lineageInfo = Optional.absent();
+    }
+
     String uri = this.state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     this.fs = FileSystem.get(URI.create(uri), WriterUtils.getFsConfiguration(state));
 
@@ -209,8 +220,13 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
           // Dataset Output path is injected in each copyableFile.
           // This can be optimized by having a dataset level equivalent class for copyable entities
           // and storing dataset related information, e.g. dataset output path, there.
-          if (!fileSetRoot.isPresent()) {
+
+          // Currently datasetOutputPath is only present for hive datasets.
+          if (!fileSetRoot.isPresent() && copyableFile.getDatasetOutputPath() != null) {
             fileSetRoot = Optional.of(copyableFile.getDatasetOutputPath());
+          }
+          if (lineageInfo.isPresent()) {
+            lineageInfo.get().putDestination(copyableFile.getDestinationDataset(), 0, wus);
           }
         }
         if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {

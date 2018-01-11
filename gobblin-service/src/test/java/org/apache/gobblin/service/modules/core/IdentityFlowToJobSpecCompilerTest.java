@@ -65,7 +65,7 @@ public class IdentityFlowToJobSpecCompilerTest {
 
   private static final String SPEC_STORE_PARENT_DIR = "/tmp/orchestrator/";
   private static final String SPEC_DESCRIPTION = "Test Orchestrator";
-  private static final String SPEC_VERSION = "1";
+  private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
   private static final String TOPOLOGY_SPEC_STORE_DIR = "/tmp/orchestrator/topologyTestSpecStore_" + System.currentTimeMillis();
   private static final String FLOW_SPEC_STORE_DIR = "/tmp/orchestrator/flowTestSpecStore_" + System.currentTimeMillis();
 
@@ -145,7 +145,7 @@ public class IdentityFlowToJobSpecCompilerTest {
           FLOW_SPEC_STORE_DIR))
           .withConfig(config)
           .withDescription("dummy description")
-          .withVersion("1")
+          .withVersion(SPEC_VERSION)
           .withTemplate(new URI(TEST_TEMPLATE_URI));
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);

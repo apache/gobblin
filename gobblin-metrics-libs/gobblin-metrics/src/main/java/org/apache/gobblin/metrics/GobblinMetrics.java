@@ -26,6 +26,8 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.gobblin.metrics.reporter.FileFailureEventReporter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -392,29 +394,36 @@ public class GobblinMetrics {
         .getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY, ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
     ScheduledReporter.setReportingInterval(properties, reportInterval, reportTimeUnit);
 
-    // Build and start the JMX reporter
-    buildJmxMetricReporter(properties);
-    if (this.jmxReporter.isPresent()) {
-      LOGGER.info("Will start reporting metrics to JMX");
-      this.jmxReporter.get().start();
-    }
+    try {
+      // Build and start the JMX reporter
+      buildJmxMetricReporter(properties);
+      if (this.jmxReporter.isPresent()) {
+        LOGGER.info("Will start reporting metrics to JMX");
+        this.jmxReporter.get().start();
+      }
 
-    // Build all other reporters
-    buildFileMetricReporter(properties);
-    buildKafkaMetricReporter(properties);
-    buildGraphiteMetricReporter(properties);
-    buildInfluxDBMetricReporter(properties);
-    buildCustomMetricReporters(properties);
+      // Build all other reporters
+      buildFileMetricReporter(properties);
+      buildKafkaMetricReporter(properties);
+      buildGraphiteMetricReporter(properties);
+      buildInfluxDBMetricReporter(properties);
+      buildCustomMetricReporters(properties);
+      buildFileFailureEventReporter(properties);
 
-    // Start reporters that implement org.apache.gobblin.metrics.report.ScheduledReporter
-    RootMetricContext.get().startReporting();
+      // Start reporters that implement org.apache.gobblin.metrics.report.ScheduledReporter
+      RootMetricContext.get().startReporting();
 
-    // Start reporters that implement com.codahale.metrics.ScheduledReporter
-    for (com.codahale.metrics.ScheduledReporter scheduledReporter : this.codahaleScheduledReporters) {
-      scheduledReporter.start(reportInterval, reportTimeUnit);
+      // Start reporters that implement com.codahale.metrics.ScheduledReporter
+      for (com.codahale.metrics.ScheduledReporter scheduledReporter : this.codahaleScheduledReporters) {
+        scheduledReporter.start(reportInterval, reportTimeUnit);
+      }
+    } catch (Exception e) {
+      LOGGER.error("Metrics reporting cannot be started due to {}", ExceptionUtils.getFullStackTrace(e));
+      throw e;
     }
 
     this.metricsReportingStarted = true;
+    LOGGER.info("Metrics reporting has been started: GobblinMetrics {}", this.hashCode());
   }
 
   /**
@@ -425,6 +434,8 @@ public class GobblinMetrics {
       LOGGER.warn("Metric reporting has not started yet");
       return;
     }
+
+    LOGGER.info("Metrics reporting will be stopped: GobblinMetrics {}", this.hashCode());
 
     // Stop the JMX reporter
     if (this.jmxReporter.isPresent()) {
@@ -444,9 +455,13 @@ public class GobblinMetrics {
       this.codahaleReportersCloser.close();
     } catch (IOException ioe) {
       LOGGER.error("Failed to close metric output stream for job " + this.id, ioe);
+    } catch (Exception e) {
+      LOGGER.error("Failed to close metric output stream for job {} due to {}", this.id, ExceptionUtils.getFullStackTrace(e));
+      throw e;
     }
 
     this.metricsReportingStarted = false;
+    LOGGER.info("Metrics reporting stopped successfully");
   }
 
   private void buildFileMetricReporter(Properties properties) {
@@ -491,13 +506,52 @@ public class GobblinMetrics {
       }
 
       OutputStream output = append ? fs.append(metricLogFile) : fs.create(metricLogFile, true);
+      // Add metrics reporter
       OutputStreamReporter.Factory.newBuilder().outputTo(output).build(properties);
+      // Set up events reporter at the same time!!
       this.codahaleScheduledReporters.add(this.codahaleReportersCloser
           .register(OutputStreamEventReporter.forContext(RootMetricContext.get()).outputTo(output).build()));
 
       LOGGER.info("Will start reporting metrics to directory " + metricsLogDir);
     } catch (IOException ioe) {
       LOGGER.error("Failed to build file metric reporter for job " + this.id, ioe);
+    }
+  }
+
+  private void buildFileFailureEventReporter(Properties properties) {
+    if (!properties.containsKey(ConfigurationKeys.FAILURE_LOG_DIR_KEY)) {
+      LOGGER.error(
+          "Not reporting failure to log files because " + ConfigurationKeys.FAILURE_LOG_DIR_KEY + " is undefined");
+      return;
+    }
+
+    try {
+      String fsUri = properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
+      FileSystem fs = FileSystem.get(URI.create(fsUri), new Configuration());
+
+      // Each job gets its own log subdirectory
+      Path failureLogDir = new Path(properties.getProperty(ConfigurationKeys.FAILURE_LOG_DIR_KEY), this.getName());
+      if (!fs.exists(failureLogDir) && !fs.mkdirs(failureLogDir)) {
+        LOGGER.error("Failed to create failure log directory for metrics " + this.getName());
+        return;
+      }
+
+      // Add a suffix to file name if specified in properties.
+      String metricsFileSuffix =
+          properties.getProperty(ConfigurationKeys.METRICS_FILE_SUFFIX, ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
+      if (!Strings.isNullOrEmpty(metricsFileSuffix) && !metricsFileSuffix.startsWith(".")) {
+        metricsFileSuffix = "." + metricsFileSuffix;
+      }
+
+      // Each job run gets its own failure log file
+      Path failureLogFile =
+          new Path(failureLogDir, this.id + metricsFileSuffix + ".failure.log");
+      this.codahaleScheduledReporters.add(this.codahaleReportersCloser
+          .register(new FileFailureEventReporter(RootMetricContext.get(), fs, failureLogFile)));
+
+      LOGGER.info("Will start reporting failure to directory " + failureLogDir);
+    } catch (IOException ioe) {
+      LOGGER.error("Failed to build file failure event reporter for job " + this.id, ioe);
     }
   }
 

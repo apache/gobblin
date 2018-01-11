@@ -21,6 +21,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -53,13 +54,14 @@ public class ThrottledFileSystem extends FileSystemInstrumentation {
    * Factory for {@link ThrottledFileSystem}.
    */
   public static class Factory<S extends ScopeType<S>> extends FileSystemInstrumentationFactory<S> {
+    private static final String SERVICE_NAME_CONF_KEY = "gobblin.broker.filesystem.limiterServiceName";
     @Override
     public FileSystem instrumentFileSystem(FileSystem fs, SharedResourcesBroker<S> broker,
         ConfigView<S, FileSystemKey> config) {
       try {
-        Limiter limiter =
-            broker.getSharedResource(new SharedLimiterFactory<S>(), new FileSystemLimiterKey(config.getKey().getUri()));
-        return new ThrottledFileSystem(fs, limiter);
+        String serviceName = ConfigUtils.getString(config.getConfig(), SERVICE_NAME_CONF_KEY, "");
+        Limiter limiter = broker.getSharedResource(new SharedLimiterFactory<S>(), new FileSystemLimiterKey(config.getKey().getUri()));
+        return new ThrottledFileSystem(fs, limiter, serviceName);
       } catch (NotConfiguredException nce) {
         throw new RuntimeException(nce);
       }
@@ -72,10 +74,12 @@ public class ThrottledFileSystem extends FileSystemInstrumentation {
   public static final int LISTING_FILES_PER_PERMIT = 100;
 
   private final Limiter limiter;
+  private final String serviceName;
 
-  public ThrottledFileSystem(FileSystem fs, Limiter limiter) {
+  public ThrottledFileSystem(FileSystem fs, Limiter limiter, String serviceName) {
     super(fs);
     this.limiter = limiter;
+    this.serviceName = serviceName;
   }
 
   @Override
@@ -183,6 +187,10 @@ public class ThrottledFileSystem extends FileSystemInstrumentation {
 
   protected Limiter getRateLimiter() {
     return this.limiter;
+  }
+
+  public String getServiceName() {
+    return this.serviceName;
   }
 
   @Override

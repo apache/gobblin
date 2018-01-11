@@ -17,17 +17,15 @@
 
 package org.apache.gobblin.data.management.retention.dataset;
 
-import org.apache.gobblin.dataset.Dataset;
-import org.apache.gobblin.dataset.FileSystemDataset;
-
 import java.io.IOException;
+import org.apache.gobblin.dataset.Dataset;
 
 
 /**
  * An abstraction for a set of files where a simple {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy}
  * can be applied.
  */
-public interface CleanableDataset extends Dataset, FileSystemDataset {
+public interface CleanableDataset extends Dataset {
 
   /**
    * Cleans the {@link CleanableDataset}. In general, this means to apply a

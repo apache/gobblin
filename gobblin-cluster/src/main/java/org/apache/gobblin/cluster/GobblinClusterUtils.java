@@ -17,13 +17,14 @@
 
 package org.apache.gobblin.cluster;
 
+import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
+
+import com.typesafe.config.Config;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
-import org.apache.gobblin.annotation.Alpha;
 
 @Alpha
 public class GobblinClusterUtils {
@@ -48,6 +49,14 @@ public class GobblinClusterUtils {
    * @return the cluster application working directory {@link Path}
    */
   public static Path getAppWorkDirPath(FileSystem fs, String applicationName, String applicationId) {
+    return new Path(fs.getHomeDirectory(), getAppWorkDirPath(applicationName, applicationId));
+  }
+
+  public static Path getAppWorkDirPathFromConfig(Config config, FileSystem fs,
+      String applicationName, String applicationId) {
+    if (config.hasPath(CLUSTER_WORK_DIR)) {
+      return new Path(config.getString(CLUSTER_WORK_DIR));
+    }
     return new Path(fs.getHomeDirectory(), getAppWorkDirPath(applicationName, applicationId));
   }
 

@@ -137,19 +137,19 @@ public class HiveSource implements Source {
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
   public static final Splitter COMMA_BASED_SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
 
-  private MetricContext metricContext;
-  private EventSubmitter eventSubmitter;
-  private AvroSchemaManager avroSchemaManager;
+  protected MetricContext metricContext;
+  protected EventSubmitter eventSubmitter;
+  protected AvroSchemaManager avroSchemaManager;
 
-  private HiveUnitUpdateProvider updateProvider;
-  private HiveSourceWatermarker watermarker;
-  private IterableDatasetFinder<HiveDataset> datasetFinder;
-  private List<WorkUnit> workunits;
-  private long maxLookBackTime;
-  private long beginGetWorkunitsTime;
-  private List<String> ignoreDataPathIdentifierList;
+  protected HiveUnitUpdateProvider updateProvider;
+  protected HiveSourceWatermarker watermarker;
+  protected IterableDatasetFinder<HiveDataset> datasetFinder;
+  protected List<WorkUnit> workunits;
+  protected long maxLookBackTime;
+  protected long beginGetWorkunitsTime;
+  protected List<String> ignoreDataPathIdentifierList;
 
-  private final ClassAliasResolver<HiveBaseExtractorFactory> classAliasResolver =
+  protected final ClassAliasResolver<HiveBaseExtractorFactory> classAliasResolver =
       new ClassAliasResolver<>(HiveBaseExtractorFactory.class);
 
   @Override
@@ -219,7 +219,7 @@ public class HiveSource implements Source {
   }
 
 
-  private void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset) throws IOException {
+  protected void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset) throws IOException {
     // Create workunits for tables
     try {
 
@@ -280,7 +280,7 @@ public class HiveSource implements Source {
     return hiveWorkUnit;
   }
 
-  private void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client) throws IOException {
+  protected void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client) throws IOException {
 
     long tableProcessTime = new DateTime().getMillis();
     this.watermarker.onTableProcessBegin(hiveDataset.getTable(), tableProcessTime);
@@ -386,10 +386,13 @@ public class HiveSource implements Source {
 
   /**
    * Check if workunit needs to be created. Returns <code>true</code> If the
-   * <code>updateTime</code> is greater than the <code>lowWatermark</code>.
+   * <code>updateTime</code> is greater than the <code>lowWatermark</code> and <code>maxLookBackTime</code>
    * <code>createTime</code> is not used. It exists for backward compatibility
    */
   protected boolean shouldCreateWorkunit(long createTime, long updateTime, LongWatermark lowWatermark) {
+    if (new DateTime(updateTime).isBefore(this.maxLookBackTime)) {
+      return false;
+    }
     return new DateTime(updateTime).isAfter(lowWatermark.getValue());
   }
 
@@ -422,7 +425,7 @@ public class HiveSource implements Source {
   }
 
   // Convert createTime from seconds to milliseconds
-  private static long getCreateTime(Table table) {
+  protected static long getCreateTime(Table table) {
     return TimeUnit.MILLISECONDS.convert(table.getTTable().getCreateTime(), TimeUnit.SECONDS);
   }
 

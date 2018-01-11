@@ -19,7 +19,6 @@ package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -66,6 +65,7 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.WatermarkInterval;
@@ -118,6 +118,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   public MetricContext metricContext;
 
+  protected Optional<LineageInfo> lineageInfo;
+
   /**
    * <ul>
    * Does the following:
@@ -139,6 +141,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public List<WorkUnit> getWorkunits(final SourceState state) {
 
     this.metricContext = Instrumented.getMetricContext(state, CopySource.class);
+    this.lineageInfo = LineageInfo.getLineageInfo(state.getBroker());
 
     try {
 
@@ -299,6 +302,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           setWorkUnitWatermark(workUnit, watermarkGenerator, copyEntity);
           computeAndSetWorkUnitGuid(workUnit);
           workUnitsForPartition.add(workUnit);
+          addLineageInfo(copyEntity, workUnit);
         }
 
         this.workUnitList.putAll(this.fileSet, workUnitsForPartition);
@@ -307,6 +311,22 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       } catch (IOException ioe) {
         throw new RuntimeException("Failed to generate work units for dataset " + this.copyableDataset.datasetURN(),
             ioe);
+      }
+    }
+  }
+
+  private void addLineageInfo(CopyEntity copyEntity, WorkUnit workUnit) {
+    if (copyEntity instanceof CopyableFile) {
+      CopyableFile copyableFile = (CopyableFile) copyEntity;
+      /*
+       * In Gobblin Distcp, the source and target path info of a CopyableFile are determined by its dataset found by
+       * a DatasetFinder. Consequently, the source and destination dataset for the CopyableFile lineage are expected
+       * to be set by the same logic
+       */
+      if (lineageInfo.isPresent() &&
+          copyableFile.getSourceDataset() != null &&
+          copyableFile.getDestinationDataset() != null) {
+        lineageInfo.get().setSource(copyableFile.getSourceDataset(), workUnit);
       }
     }
   }

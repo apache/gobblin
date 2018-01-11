@@ -105,8 +105,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     // Since we are going to change status to isActive=true, schedule all flows
     if (isActive) {
+      // Need to set active first; otherwise in the STANDBY->ACTIVE transition,
+      // the onAddSpec will forward specs to the leader, which is itself.
+      this.isActive = isActive;
       if (this.flowCatalog.isPresent()) {
-        Collection<Spec> specs = this.flowCatalog.get().getSpecs();
+        Collection<Spec> specs = this.flowCatalog.get().getSpecsWithTimeUpdate();
         for (Spec spec : specs) {
           onAddSpec(spec);
         }
@@ -117,11 +120,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       for (Spec spec : this.scheduledFlowSpecs.values()) {
         onDeleteSpec(spec.getUri(), spec.getVersion());
       }
+      // Need to set active at the end; otherwise in the ACTIVE->STANDBY transition,
+      // the onDeleteSpec will forward specs to the leader, which is itself.
+      this.isActive = isActive;
     }
-
-    // Change status after invoking addition / removal of specs, or else they will use isActive
-    // .. to exhibit behavior for updated iActive value
-    this.isActive = isActive;
   }
 
   @Override
@@ -129,8 +131,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     super.startUp();
   }
 
+  /**
+   * Synchronize the job scheduling because the same flowSpec can be scheduled by different threads.
+   */
   @Override
-  public void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
+  public synchronized void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
     Map<String, Object> additionalJobDataMap = Maps.newHashMap();
     additionalJobDataMap.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC,
         this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)));
@@ -162,7 +167,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       return;
     }
 
-    _log.info("New Spec detected: " + addedSpec);
+    _log.info("New Flow Spec detected: " + addedSpec);
 
     if (addedSpec instanceof FlowSpec) {
       if (!isActive && helixManager.isPresent()) {
@@ -224,8 +229,15 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
 
     try {
-      this.scheduledFlowSpecs.remove(deletedSpecURI.toString());
-      unscheduleJob(deletedSpecURI.toString());
+      Spec deletedSpec = this.scheduledFlowSpecs.get(deletedSpecURI.toString());
+      if (null != deletedSpec) {
+        this.orchestrator.remove(deletedSpec);
+        this.scheduledFlowSpecs.remove(deletedSpecURI.toString());
+        unscheduleJob(deletedSpecURI.toString());
+      } else {
+        _log.warn(String.format("Spec with URI: %s was not found in cache. May be it was cleaned, if not please "
+                + "clean it manually", deletedSpecURI));
+      }
     } catch (JobException e) {
       _log.warn(String.format("Spec with URI: %s was not unscheduled cleaning",
           deletedSpecURI), e);
