@@ -52,7 +52,10 @@ class SingleTaskLauncher {
       throws IOException {
     final SingleTaskLauncher.CmdBuilder cmdBuilder = this.new CmdBuilder(jobId, workUnitFilePath);
     final List<String> command = cmdBuilder.build();
-    logger.info("Launching a task process. cmd: " + command);
+    logger.info("Launching a task process.");
+
+    // The -cp parameter list can be very long.
+    logger.debug("cmd: " + command);
     final Process taskProcess = this.processBuilder.start(command);
 
     return taskProcess;
