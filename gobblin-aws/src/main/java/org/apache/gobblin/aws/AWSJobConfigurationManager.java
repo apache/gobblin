@@ -33,12 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +41,12 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinHelixJobScheduler;
@@ -82,8 +82,6 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
   private static final long DEFAULT_JOB_CONF_REFRESH_INTERVAL = 60;
 
   private Optional<JobArchiveRetriever> jobArchiveRetriever;
-//  private Optional<String> jobConfSourceFileFsUri;
-//  private Optional<String> jobConfSourceFilePath;
   private Map<String, Properties> jobConfFiles;
 
   private final long refreshIntervalInSeconds;
