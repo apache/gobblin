@@ -56,11 +56,13 @@ public class FileListUtils {
     }
   };
 
-  public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path) throws IOException {
+  public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path)
+      throws IOException {
     return listFilesRecursively(fs, path, NO_OP_PATH_FILTER);
   }
 
-  public static List<FileStatus> listFilesRecursively(FileSystem fs, Iterable<Path> paths) throws IOException {
+  public static List<FileStatus> listFilesRecursively(FileSystem fs, Iterable<Path> paths)
+      throws IOException {
     List<FileStatus> results = Lists.newArrayList();
     for (Path path : paths) {
       results.addAll(listFilesRecursively(fs, path));
@@ -118,7 +120,8 @@ public class FileListUtils {
    * {@link PathFilter} will only be applied to files.
    */
   public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path, PathFilter fileFilter,
-      boolean applyFilterToDirectories) throws IOException {
+      boolean applyFilterToDirectories)
+      throws IOException {
     return listFilesRecursivelyHelper(fs, Lists.newArrayList(), fs.getFileStatus(path), fileFilter,
         applyFilterToDirectories, false);
   }
@@ -127,8 +130,8 @@ public class FileListUtils {
       FileStatus fileStatus, PathFilter fileFilter, boolean applyFilterToDirectories, boolean includeEmptyDirectories)
       throws FileNotFoundException, IOException {
     if (fileStatus.isDirectory()) {
-      for (FileStatus status : fs.listStatus(fileStatus.getPath(),
-          applyFilterToDirectories ? fileFilter : NO_OP_PATH_FILTER)) {
+      for (FileStatus status : fs
+          .listStatus(fileStatus.getPath(), applyFilterToDirectories ? fileFilter : NO_OP_PATH_FILTER)) {
         if (status.isDirectory()) {
           // Number of files collected before diving into the directory
           int numFilesBefore = files.size();
@@ -157,11 +160,13 @@ public class FileListUtils {
   /**
    * Method to list out all files, or directory if no file exists, under a specified path.
    */
-  public static List<FileStatus> listMostNestedPathRecursively(FileSystem fs, Path path) throws IOException {
+  public static List<FileStatus> listMostNestedPathRecursively(FileSystem fs, Path path)
+      throws IOException {
     return listMostNestedPathRecursively(fs, path, NO_OP_PATH_FILTER);
   }
 
-  public static List<FileStatus> listMostNestedPathRecursively(FileSystem fs, Iterable<Path> paths) throws IOException {
+  public static List<FileStatus> listMostNestedPathRecursively(FileSystem fs, Iterable<Path> paths)
+      throws IOException {
     List<FileStatus> results = Lists.newArrayList();
     for (Path path : paths) {
       results.addAll(listMostNestedPathRecursively(fs, path));
@@ -180,7 +185,8 @@ public class FileListUtils {
   }
 
   private static List<FileStatus> listMostNestedPathRecursivelyHelper(FileSystem fs, List<FileStatus> files,
-      FileStatus fileStatus, PathFilter fileFilter) throws IOException {
+      FileStatus fileStatus, PathFilter fileFilter)
+      throws IOException {
     if (fileStatus.isDirectory()) {
       FileStatus[] curFileStatus = fs.listStatus(fileStatus.getPath());
       if (ArrayUtils.isEmpty(curFileStatus)) {

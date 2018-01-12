@@ -143,13 +143,11 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       FileStatus file = filesInSource.get(path);
       Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), nonGlobSearchPath);
       Path thisTargetPath = new Path(configuration.getPublishDir(), filePathRelativeToSearchPath);
-      CopyableFile copyableFile = CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
-          .fileSet(datasetURN())
-          .datasetOutputPath(thisTargetPath.toString())
-          .ancestorsOwnerAndPermission(
-              CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(),
-                  nonGlobSearchPath, configuration))
-          .build();
+      CopyableFile copyableFile =
+          CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration).fileSet(datasetURN())
+              .datasetOutputPath(thisTargetPath.toString()).ancestorsOwnerAndPermission(CopyableFile
+              .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(), nonGlobSearchPath,
+                  configuration)).build();
 
       /*
        * By default, the raw Gobblin dataset for CopyableFile lineage is its parent folder
@@ -183,10 +181,11 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   }
 
   @VisibleForTesting
-  protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
+  protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter)
+      throws IOException {
     try {
-      return FileListUtils.listFilesToCopyAtPath(fs, path, fileFilter, applyFilterToDirectories,
-          includeEmptyDirectories);
+      return FileListUtils
+          .listFilesToCopyAtPath(fs, path, fileFilter, applyFilterToDirectories, includeEmptyDirectories);
     } catch (FileNotFoundException fnfe) {
       return Lists.newArrayList();
     }
@@ -211,7 +210,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   }
 
   private static boolean sameFile(FileStatus fileInSource, FileStatus fileInTarget) {
-    return fileInTarget.getLen() == fileInSource.getLen()
-        && fileInSource.getModificationTime() <= fileInTarget.getModificationTime();
+    return fileInTarget.getLen() == fileInSource.getLen() && fileInSource.getModificationTime() <= fileInTarget
+        .getModificationTime();
   }
 }
