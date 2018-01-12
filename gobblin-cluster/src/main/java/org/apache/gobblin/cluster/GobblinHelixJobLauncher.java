@@ -126,6 +126,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final ConcurrentHashMap<String, Boolean> runningMap;
   private final StateStores stateStores;
   private final Config jobConfig;
+  private final long jobQueueDeleteTimeoutSeconds;
 
   public GobblinHelixJobLauncher(Properties jobProps, final HelixManager helixManager, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap)
@@ -149,6 +150,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
     jobConfig = ConfigUtils.propertiesToConfig(jobProps);
+
+    this.jobQueueDeleteTimeoutSeconds = ConfigUtils.getLong(jobConfig, GobblinClusterConfigurationKeys.HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS);
 
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
@@ -240,7 +244,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         GobblinHelixTaskDriver taskDriver = new GobblinHelixTaskDriver(this.helixManager);
         taskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
         LOGGER.info("Job {} in cancelled Helix", this.jobContext.getJobId());
-      } catch (IllegalArgumentException e) {
+
+        taskDriver.deleteWorkflow(this.helixQueueName, this.jobQueueDeleteTimeoutSeconds);
+      } catch (InterruptedException | IllegalArgumentException e) {
         LOGGER.warn("Failed to cancel job {} in Helix", this.jobContext.getJobId(), e);
       }
     }

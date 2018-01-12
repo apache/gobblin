@@ -26,6 +26,7 @@ import org.apache.helix.AccessOption;
 import org.apache.helix.ConfigAccessor;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.PropertyPathConfig;
 import org.apache.helix.PropertyType;
@@ -267,5 +268,33 @@ public class GobblinHelixTaskDriver {
     if (!_propertyStore.update(queuePropertyPath, updater, AccessOption.PERSISTENT)) {
       LOG.warn("Fail to remove job state for job " + namespacedJobName + " from queue " + queueName);
     }
+  }
+
+  /**
+   * Delete the workflow
+   *
+   * @param workflow  The workflow name
+   * @param timeout   The timeout for deleting the workflow/queue in seconds
+   */
+  public void deleteWorkflow(String workflow, long timeout) throws InterruptedException {
+    _taskDriver.delete(workflow);
+
+    long endTime = System.currentTimeMillis() + (timeout * 1000);
+
+    // check for completion of deletion request
+    while (System.currentTimeMillis() <= endTime) {
+      WorkflowContext workflowContext = _taskDriver.getWorkflowContext(workflow);
+
+      if (workflowContext != null) {
+        Thread.sleep(1000);
+      } else {
+        // Successfully deleted
+        return;
+      }
+    }
+
+    // Failed to complete deletion within timeout
+    throw new HelixException(String
+        .format("Fail to delete the workflow/queue %s within %d seconds.", workflow, timeout));
   }
 }
