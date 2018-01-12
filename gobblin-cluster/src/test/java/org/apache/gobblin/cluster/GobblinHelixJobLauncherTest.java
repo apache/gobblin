@@ -40,6 +40,8 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.task.TaskDriver;
+import org.apache.helix.task.WorkflowConfig;
+import org.apache.helix.task.WorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -302,6 +304,13 @@ public class GobblinHelixJobLauncherTest {
 
     // job context should have been deleted
     Assert.assertNull(jobContext);
+
+    // job queue should have been deleted
+    WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(jobName);
+    Assert.assertNull(workflowConfig);
+
+    WorkflowContext workflowContext = taskDriver.getWorkflowContext(jobName);
+    Assert.assertNull(workflowContext);
 
     // check that workunit and taskstate directory for the job are cleaned up
     final File workunitsDir =
