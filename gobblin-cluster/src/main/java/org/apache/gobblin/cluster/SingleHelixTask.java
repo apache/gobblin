@@ -61,8 +61,13 @@ public class SingleHelixTask implements Task {
               this.jobName, this.jobId));
       int exitCode = this.taskProcess.waitFor();
       if (exitCode == 0) {
+        logger.info(String
+            .format("Task process finished. job name: %s. job id: %s", this.jobName, this.jobId));
         return new TaskResult(TaskResult.Status.COMPLETED, "");
       } else {
+        logger.warn(String
+            .format("Task process failed with exitcode (%d). job name: %s. job id: %s", exitCode,
+                this.jobName, this.jobId));
         return new TaskResult(TaskResult.Status.FAILED, "Exit code: " + exitCode);
       }
     } catch (final Throwable t) {
