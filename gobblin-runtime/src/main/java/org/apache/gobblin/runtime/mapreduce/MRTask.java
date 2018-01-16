@@ -62,6 +62,7 @@ public class MRTask extends BaseAbstractTask {
 
   private final TaskContext taskContext;
   private final EventSubmitter eventSubmitter;
+  protected Job mrJob;
 
   public MRTask(TaskContext taskContext) {
     super(taskContext);
@@ -95,6 +96,7 @@ public class MRTask extends BaseAbstractTask {
       job.submit();
       this.eventSubmitter.submit(Events.MR_JOB_STARTED_EVENT, Events.JOB_URL, job.getTrackingURL());
       job.waitForCompletion(false);
+      this.mrJob = job;
 
       if (job.isSuccessful()) {
         this.eventSubmitter.submit(Events.MR_JOB_SUCCESSFUL, Events.JOB_URL, job.getTrackingURL());
