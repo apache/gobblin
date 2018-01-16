@@ -55,6 +55,7 @@ public class CopyConfiguration {
    * Include empty directories in the source for copy
    */
   public static final String INCLUDE_EMPTY_DIRECTORIES = COPY_PREFIX + ".includeEmptyDirectories";
+  public static final String APPLY_FILTER_TO_DIRECTORIES = COPY_PREFIX + ".applyFilterToDirectories";
 
   public static final String PRIORITIZER_ALIAS_KEY = PRIORITIZATION_PREFIX + ".prioritizerAlias";
   public static final String MAX_COPY_PREFIX = PRIORITIZATION_PREFIX + ".maxCopy";
@@ -101,7 +102,7 @@ public class CopyConfiguration {
 
       this.targetGroup =
           properties.containsKey(DESTINATION_GROUP_KEY) ? Optional.of(properties.getProperty(DESTINATION_GROUP_KEY))
-              : Optional.<String> absent();
+              : Optional.<String>absent();
       this.preserve = PreserveAttributes.fromMnemonicString(properties.getProperty(PRESERVE_ATTRIBUTES_KEY));
       Path publishDirTmp = new Path(properties.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR));
       if (!publishDirTmp.isAbsolute()) {
@@ -113,9 +114,8 @@ public class CopyConfiguration {
       if (properties.containsKey(PRIORITIZER_ALIAS_KEY)) {
         try {
           this.prioritizer = Optional.of(GobblinConstructorUtils.<FileSetComparator>invokeLongestConstructor(
-              new ClassAliasResolver(FileSetComparator.class).resolveClass(properties.getProperty(
-                  PRIORITIZER_ALIAS_KEY)),
-              properties));
+              new ClassAliasResolver(FileSetComparator.class).resolveClass(
+                  properties.getProperty(PRIORITIZER_ALIAS_KEY)), properties));
         } catch (ReflectiveOperationException roe) {
           throw new RuntimeException("Could not build prioritizer.", roe);
         }
@@ -138,5 +138,4 @@ public class CopyConfiguration {
   public Config getPrioritizationConfig() {
     return ConfigUtils.getConfigOrEmpty(this.config, PRIORITIZATION_PREFIX);
   }
-
 }
