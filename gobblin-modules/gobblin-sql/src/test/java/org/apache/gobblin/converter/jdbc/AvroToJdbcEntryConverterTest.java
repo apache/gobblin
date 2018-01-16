@@ -32,13 +32,18 @@ import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.reflect.Type;
 import java.net.URISyntaxException;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -49,8 +54,14 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 
 @Test(groups = {"gobblin.converter"})
 public class AvroToJdbcEntryConverterTest {
@@ -195,9 +206,46 @@ public class AvroToJdbcEntryConverterTest {
         JdbcEntryData actualData = converter.convertRecord(actualSchema, srcDataFileReader.next(), workUnitState).iterator().next();
         entries.add(actualData);
       }
-      JsonElement actualSerialized = new Gson().toJsonTree(entries);
+
+      final JsonSerializer<JdbcEntryDatum> datumSer = new JsonSerializer<JdbcEntryDatum>() {
+        @Override
+        public JsonElement serialize(JdbcEntryDatum datum, Type typeOfSrc, JsonSerializationContext context) {
+          JsonObject jso = new JsonObject();
+          if (datum.getVal() == null) {
+            jso.add(datum.getColumnName(), null);
+            return jso;
+          }
+
+          if (datum.getVal() instanceof Date) {
+            jso.addProperty(datum.getColumnName(), ((Date) datum.getVal()).getTime());
+          } else if (datum.getVal() instanceof Timestamp) {
+            jso.addProperty(datum.getColumnName(), ((Timestamp) datum.getVal()).getTime());
+          } else if (datum.getVal() instanceof Time) {
+            jso.addProperty(datum.getColumnName(), ((Time) datum.getVal()).getTime());
+          } else {
+            jso.addProperty(datum.getColumnName(), datum.getVal().toString());
+          }
+          return jso;
+        }
+      };
+
+      JsonSerializer<JdbcEntryData> serializer = new JsonSerializer<JdbcEntryData>() {
+        @Override
+        public JsonElement serialize(JdbcEntryData src, Type typeOfSrc, JsonSerializationContext context) {
+          JsonArray arr = new JsonArray();
+          for (JdbcEntryDatum datum : src) {
+            arr.add(datumSer.serialize(datum, datum.getClass(), context));
+          }
+          return arr;
+        }
+      };
+
+      Gson gson = new GsonBuilder().registerTypeAdapter(JdbcEntryData.class, serializer).serializeNulls().create();
+
+      JsonElement actualSerialized = gson.toJsonTree(entries);
       JsonElement expectedSerialized =
           new JsonParser().parse(new InputStreamReader(getClass().getResourceAsStream("/converter/pickfields_nested_with_union.json")));
+
       Assert.assertEquals(actualSerialized, expectedSerialized);
     }
 

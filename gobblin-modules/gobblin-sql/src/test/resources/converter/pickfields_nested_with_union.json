@@ -1,262 +1,194 @@
 [
-  {
-    "jdbcEntryData": {
-      "created": {
-        "columnName": "created",
-        "val": "Mar 16, 260028968 8:26:42 AM"
+   [
+      {
+         "created":-8205952289873597770
       },
-      "date_of_birth": {
-        "columnName": "date_of_birth",
-        "val": "Nov 9, 156054460"
+      {
+         "date_of_birth":4924540963523509391
       },
-      "favorite_color": {
-        "columnName": "favorite_color",
-        "val": "\ufffdhxqpwvxrf"
+      {
+         "favorite_color":"�hxqpwvxrf"
       },
-      "favorite_number": {
-        "columnName": "favorite_number",
-        "val": 826032918
+      {
+         "favorite_number":"826032918"
       },
-      "last_modified": {
-        "columnName": "last_modified",
-        "val": "11:40:28 AM"
+      {
+         "last_modified":5532738755424028468
       },
-      "name": {
-        "columnName": "name",
-        "val": "btnzlrfptk"
+      {
+         "name":"btnzlrfptk"
       },
-      "nested1_nested1_int": {
-        "columnName": "nested1_nested1_int",
-        "val": -36788251
+      {
+         "nested1_nested1_int":"-36788251"
       },
-      "nested1_nested1_string": {
-        "columnName": "nested1_nested1_string",
-        "val": "gji\u001a\u0000sujkj"
+      {
+         "nested1_nested1_string":"gji\u001a\u0000sujkj"
       },
-      "nested1_nested2_union_nested2_int": {
-        "columnName": "nested1_nested2_union_nested2_int",
-        "val": 1026040670
+      {
+         "nested1_nested2_union_nested2_int":"1026040670"
       },
-      "nested1_nested2_union_nested2_string": {
-        "columnName": "nested1_nested2_union_nested2_string",
-        "val": "yobzdadkgk"
+      {
+         "nested1_nested2_union_nested2_string":"yobzdadkgk"
       }
-    }
-  },
-  {
-    "jdbcEntryData": {
-      "created": {
-        "columnName": "created",
-        "val": "Mar 1, 44159318 6:48:36 AM"
+   ],
+   [
+      {
+         "created":-1393624224378683129
       },
-      "date_of_birth": {
-        "columnName": "date_of_birth",
-        "val": "Oct 30, 37257357"
+      {
+         "date_of_birth":-1175814878817216371
       },
-      "favorite_color": {
-        "columnName": "favorite_color",
-        "val": "x\n\tjhrpgyd"
+      {
+         "favorite_color":"x\n\tjhrpgyd"
       },
-      "favorite_number": {
-        "columnName": "favorite_number",
-        "val": 1816171539
+      {
+         "favorite_number":"1816171539"
       },
-      "last_modified": {
-        "columnName": "last_modified",
-        "val": "11:12:03 AM"
+      {
+         "last_modified":8404219756951923781
       },
-      "name": {
-        "columnName": "name",
-        "val": "\u000f\rpkgrlgio"
+      {
+         "name":"\u000f\rpkgrlgio"
       },
-      "nested1_nested1_int": {
-        "columnName": "nested1_nested1_int",
-        "val": -50507635
+      {
+         "nested1_nested1_int":"-50507635"
       },
-      "nested1_nested1_string": {
-        "columnName": "nested1_nested1_string",
-        "val": "q\u000f?uspbscf"
+      {
+         "nested1_nested1_string":"q\u000f?uspbscf"
       },
-      "nested1_nested2_union_nested2_int": {
-        "columnName": "nested1_nested2_union_nested2_int"
+      {
+         "nested1_nested2_union_nested2_int":null
       },
-      "nested1_nested2_union_nested2_string": {
-        "columnName": "nested1_nested2_union_nested2_string"
+      {
+         "nested1_nested2_union_nested2_string":null
       }
-    }
-  },
-  {
-    "jdbcEntryData": {
-      "created": {
-        "columnName": "created",
-        "val": "May 23, 245250508 1:58:49 PM"
+   ],
+   [
+      {
+         "created":-7739579554682470032
       },
-      "date_of_birth": {
-        "columnName": "date_of_birth",
-        "val": "May 18, 19258563"
+      {
+         "date_of_birth":-607816151590576707
       },
-      "favorite_color": {
-        "columnName": "favorite_color",
-        "val": "lyuuuympyg"
+      {
+         "favorite_color":"lyuuuympyg"
       },
-      "favorite_number": {
-        "columnName": "favorite_number",
-        "val": 1866476467
+      {
+         "favorite_number":"1866476467"
       },
-      "last_modified": {
-        "columnName": "last_modified",
-        "val": "06:06:40 PM"
+      {
+         "last_modified":-941580389512399179
       },
-      "name": {
-        "columnName": "name",
-        "val": "g?pbkpjrxh"
+      {
+         "name":"g?pbkpjrxh"
       },
-      "nested1_nested1_int": {
-        "columnName": "nested1_nested1_int",
-        "val": 1327904823
+      {
+         "nested1_nested1_int":"1327904823"
       },
-      "nested1_nested1_string": {
-        "columnName": "nested1_nested1_string",
-        "val": "kxqmrenntu"
+      {
+         "nested1_nested1_string":"kxqmrenntu"
       },
-      "nested1_nested2_union_nested2_int": {
-        "columnName": "nested1_nested2_union_nested2_int"
+      {
+         "nested1_nested2_union_nested2_int":null
       },
-      "nested1_nested2_union_nested2_string": {
-        "columnName": "nested1_nested2_union_nested2_string"
+      {
+         "nested1_nested2_union_nested2_string":null
       }
-    }
-  },
-  {
-    "jdbcEntryData": {
-      "created": {
-        "columnName": "created",
-        "val": "Apr 4, 191920606 4:43:12 AM"
+   ],
+   [
+      {
+         "created":-6056615843637407776
       },
-      "date_of_birth": {
-        "columnName": "date_of_birth",
-        "val": "Nov 28, 45307313"
+      {
+         "date_of_birth":-1429852167829293715
       },
-      "favorite_color": {
-        "columnName": "favorite_color",
-        "val": "\ufffddgasutgtx"
+      {
+         "favorite_color":"�dgasutgtx"
       },
-      "favorite_number": {
-        "columnName": "favorite_number",
-        "val": -1553608691
+      {
+         "favorite_number":"-1553608691"
       },
-      "last_modified": {
-        "columnName": "last_modified",
-        "val": "04:57:46 PM"
+      {
+         "last_modified":450932180461066816
       },
-      "name": {
-        "columnName": "name",
-        "val": "gqmcmimbhp"
+      {
+         "name":"gqmcmimbhp"
       },
-      "nested1_nested1_int": {
-        "columnName": "nested1_nested1_int",
-        "val": -351781782
+      {
+         "nested1_nested1_int":"-351781782"
       },
-      "nested1_nested1_string": {
-        "columnName": "nested1_nested1_string",
-        "val": "o\u001ac\u0000bmefwh"
+      {
+         "nested1_nested1_string":"o\u001ac\u0000bmefwh"
       },
-      "nested1_nested2_union_nested2_int": {
-        "columnName": "nested1_nested2_union_nested2_int",
-        "val": -1596923241
+      {
+         "nested1_nested2_union_nested2_int":"-1596923241"
       },
-      "nested1_nested2_union_nested2_string": {
-        "columnName": "nested1_nested2_union_nested2_string",
-        "val": "dbcczapozw"
+      {
+         "nested1_nested2_union_nested2_string":"dbcczapozw"
       }
-    }
-  },
-  {
-    "jdbcEntryData": {
-      "created": {
-        "columnName": "created",
-        "val": "Jul 21, 147872408 4:41:15 PM"
+   ],
+   [
+      {
+         "created":-4666560421015124885
       },
-      "date_of_birth": {
-        "columnName": "date_of_birth",
-        "val": "Nov 30, 255744028"
+      {
+         "date_of_birth":-8070729844977385755
       },
-      "favorite_color": {
-        "columnName": "favorite_color",
-        "val": "pfzharskmy"
+      {
+         "favorite_color":"pfzharskmy"
       },
-      "favorite_number": {
-        "columnName": "favorite_number",
-        "val": -170051651
+      {
+         "favorite_number":"-170051651"
       },
-      "last_modified": {
-        "columnName": "last_modified",
-        "val": "03:06:25 PM"
+      {
+         "last_modified":-7703151747036814734
       },
-      "name": {
-        "columnName": "name",
-        "val": "f\u000fwszbxhzm"
+      {
+         "name":"f\u000fwszbxhzm"
       },
-      "nested1_nested1_int": {
-        "columnName": "nested1_nested1_int",
-        "val": -1126087353
+      {
+         "nested1_nested1_int":"-1126087353"
       },
-      "nested1_nested1_string": {
-        "columnName": "nested1_nested1_string",
-        "val": "mjwmnevxer"
+      {
+         "nested1_nested1_string":"mjwmnevxer"
       },
-      "nested1_nested2_union_nested2_int": {
-        "columnName": "nested1_nested2_union_nested2_int",
-        "val": -1722304492
+      {
+         "nested1_nested2_union_nested2_int":"-1722304492"
       },
-      "nested1_nested2_union_nested2_string": {
-        "columnName": "nested1_nested2_union_nested2_string",
-        "val": "h\rwdawizsu"
+      {
+         "nested1_nested2_union_nested2_string":"h\rwdawizsu"
       }
-    }
-  },
-  {
-    "jdbcEntryData": {
-      "created": {
-        "columnName": "created",
-        "val": "Oct 20, 207522867 12:30:46 PM"
+   ],
+   [
+      {
+         "created":6548727010966246856
       },
-      "date_of_birth": {
-        "columnName": "date_of_birth",
-        "val": "Jan 28, 271070413"
+      {
+         "date_of_birth":8554093846897734514
       },
-      "favorite_color": {
-        "columnName": "favorite_color",
-        "val": "\u000fcgsqjdabu"
+      {
+         "favorite_color":"\u000fcgsqjdabu"
       },
-      "favorite_number": {
-        "columnName": "favorite_number",
-        "val": -2132346518
+      {
+         "favorite_number":"-2132346518"
       },
-      "last_modified": {
-        "columnName": "last_modified",
-        "val": "07:06:38 PM"
+      {
+         "last_modified":3298280474340398482
       },
-      "name": {
-        "columnName": "name",
-        "val": "k\n\tngmvhpe"
+      {
+         "name":"k\n\tngmvhpe"
       },
-      "nested1_nested1_int": {
-        "columnName": "nested1_nested1_int",
-        "val": -1330607161
+      {
+         "nested1_nested1_int":"-1330607161"
       },
-      "nested1_nested1_string": {
-        "columnName": "nested1_nested1_string",
-        "val": "ubbhpssdeh"
+      {
+         "nested1_nested1_string":"ubbhpssdeh"
       },
-      "nested1_nested2_union_nested2_int": {
-        "columnName": "nested1_nested2_union_nested2_int",
-        "val": 992907867
+      {
+         "nested1_nested2_union_nested2_int":"992907867"
       },
-      "nested1_nested2_union_nested2_string": {
-        "columnName": "nested1_nested2_union_nested2_string",
-        "val": "jk?jknvxkw"
+      {
+         "nested1_nested2_union_nested2_string":"jk?jknvxkw"
       }
-    }
-  }
+   ]
 ]
