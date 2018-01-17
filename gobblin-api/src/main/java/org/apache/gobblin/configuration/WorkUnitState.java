@@ -81,6 +81,7 @@ public class WorkUnitState extends State {
     SUCCESSFUL,
     COMMITTED,
     FAILED,
+    ROLLOVERED,
     CANCELLED,
     SKIPPED
   }
