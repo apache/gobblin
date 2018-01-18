@@ -56,6 +56,9 @@ class SingleTaskLauncher {
 
     // The -cp parameter list can be very long.
     logger.debug("cmd: " + command);
+    final String completeCmdLine = String.join(" ", command);
+    logger.debug("cmd line: \n" + completeCmdLine);
+
     final Process taskProcess = this.processBuilder.start(command);
 
     return taskProcess;
