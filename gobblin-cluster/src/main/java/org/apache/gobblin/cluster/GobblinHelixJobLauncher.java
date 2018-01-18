@@ -132,6 +132,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap)
       throws Exception {
     super(jobProps, addAdditionalMetadataTags(jobProps, metadataTags));
+    LOGGER.debug("GobblinHelixJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
 
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
@@ -269,6 +270,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
       Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
       SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
+
+      LOGGER.debug("GobblinHelixJobLauncher.createJob: jobStateFilePath {}, jobState {} jobProperties {}",
+          jobStateFilePath, this.jobContext.getJobState().toString(), this.jobContext.getJobState().getProperties());
     }
 
     JobConfig.Builder jobConfigBuilder = new JobConfig.Builder();
@@ -439,6 +443,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_NAME,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
     metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_EXECUTION_ID, jobExecutionId));
+
+    LOGGER.debug("GobblinHelixJobLauncher.addAdditionalMetadataTags: metadataTags {}", metadataTags);
 
     return metadataTags;
   }
