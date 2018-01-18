@@ -40,6 +40,8 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.task.TaskDriver;
+import org.apache.helix.task.WorkflowConfig;
+import org.apache.helix.task.WorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -283,13 +285,19 @@ public class GobblinHelixJobLauncherTest {
     final GobblinHelixJobLauncher gobblinHelixJobLauncher =
         new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap);
 
+    final Properties properties2 = generateJobProperties(this.baseConfig, "33", "_1504201348474");
+    final GobblinHelixJobLauncher gobblinHelixJobLauncher2 =
+        new GobblinHelixJobLauncher(properties2, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap);
+
     gobblinHelixJobLauncher.launchJob(null);
+    gobblinHelixJobLauncher2.launchJob(null);
 
     final TaskDriver taskDriver = new TaskDriver(this.helixManager);
 
     final String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     final String jobIdKey = properties.getProperty(ConfigurationKeys.JOB_ID_KEY);
     final String jobContextName = jobName + "_" + jobIdKey;
+    final String jobName2 = properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY);
 
     org.apache.helix.task.JobContext jobContext = taskDriver.getJobContext(jobContextName);
 
@@ -302,6 +310,23 @@ public class GobblinHelixJobLauncherTest {
 
     // job context should have been deleted
     Assert.assertNull(jobContext);
+
+    // job queue should have been deleted
+    WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(jobName);
+    Assert.assertNull(workflowConfig);
+
+    WorkflowContext workflowContext = taskDriver.getWorkflowContext(jobName);
+    Assert.assertNull(workflowContext);
+
+    // second job queue with shared prefix should not be deleted when the first job queue is cleaned up
+    workflowConfig  = taskDriver.getWorkflowConfig(jobName2);
+    Assert.assertNotNull(workflowConfig);
+
+    gobblinHelixJobLauncher2.close();
+
+    // job queue deleted after close
+    workflowConfig  = taskDriver.getWorkflowConfig(jobName2);
+    Assert.assertNull(workflowConfig);
 
     // check that workunit and taskstate directory for the job are cleaned up
     final File workunitsDir =

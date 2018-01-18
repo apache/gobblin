@@ -165,6 +165,9 @@ public class GobblinTaskRunner {
 
     services.addAll(getServices());
     this.serviceManager = new ServiceManager(services);
+
+    logger.debug("GobblinTaskRunner: applicationName {}, helixInstanceName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
+        applicationName, helixInstanceName, applicationId, taskRunnerId, config, appWorkDirOptional);
   }
 
   private Path initAppWorkDir(Config config, Optional<Path> appWorkDirOptional) {

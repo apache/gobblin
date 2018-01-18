@@ -16,8 +16,7 @@
  */
 package org.apache.gobblin.cluster;
 
-import com.google.common.base.Joiner;
-
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -26,7 +25,9 @@ import org.apache.helix.AccessOption;
 import org.apache.helix.ConfigAccessor;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
+import org.apache.helix.PropertyKey;
 import org.apache.helix.PropertyPathConfig;
 import org.apache.helix.PropertyType;
 import org.apache.helix.ZNRecord;
@@ -34,9 +35,11 @@ import org.apache.helix.manager.zk.ZKHelixAdmin;
 import org.apache.helix.manager.zk.ZKHelixDataAccessor;
 import org.apache.helix.manager.zk.ZkBaseDataAccessor;
 import org.apache.helix.manager.zk.ZkClient;
+import org.apache.helix.model.IdealState;
 import org.apache.helix.store.HelixPropertyStore;
 import org.apache.helix.store.zk.ZkHelixPropertyStore;
 import org.apache.helix.task.JobDag;
+import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskConstants;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskState;
@@ -44,6 +47,9 @@ import org.apache.helix.task.TaskUtil;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
 import org.apache.log4j.Logger;
+
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 
 /**
  * #HELIX-0.6.7-WORKAROUND
@@ -267,5 +273,92 @@ public class GobblinHelixTaskDriver {
     if (!_propertyStore.update(queuePropertyPath, updater, AccessOption.PERSISTENT)) {
       LOG.warn("Fail to remove job state for job " + namespacedJobName + " from queue " + queueName);
     }
+  }
+
+  /**
+   * Trigger a controller pipeline execution for a given resource.
+   *
+   * @param accessor Helix data accessor
+   * @param resource the name of the resource changed to triggering the execution
+   */
+  private void invokeRebalance(HelixDataAccessor accessor, String resource) {
+    // The pipeline is idempotent, so touching an ideal state is enough to trigger a pipeline run
+    LOG.info("invoke rebalance for " + resource);
+    PropertyKey key = accessor.keyBuilder().idealStates(resource);
+    IdealState is = accessor.getProperty(key);
+    if (is != null && is.getStateModelDefRef().equals(TaskConstants.STATE_MODEL_NAME)) {
+      if (!accessor.updateProperty(key, is)) {
+        LOG.warn("Failed to invoke rebalance on resource " + resource);
+      }
+    } else {
+      LOG.warn("Can't find ideal state or ideal state is not for right type for " + resource);
+    }
+  }
+
+  /** Helper function to change target state for a given workflow */
+  private void setSingleWorkflowTargetState(String workflowName, final TargetState state) {
+    LOG.info("Set " + workflowName + " to target state " + state);
+    DataUpdater<ZNRecord> updater = new DataUpdater<ZNRecord>() {
+      @Override
+      public ZNRecord update(ZNRecord currentData) {
+        if (currentData != null) {
+          // Only update target state for non-completed workflows
+          String finishTime = currentData.getSimpleField(WorkflowContext.FINISH_TIME);
+          if (finishTime == null || finishTime.equals(String.valueOf(WorkflowContext.UNFINISHED))) {
+            currentData.setSimpleField(WorkflowConfig.WorkflowConfigProperty.TargetState.name(),
+                state.name());
+          } else {
+            LOG.info("TargetState DataUpdater: ignore to update target state " + finishTime);
+          }
+        } else {
+          LOG.error("TargetState DataUpdater: Fails to update target state ");
+        }
+        return currentData;
+      }
+    };
+    List<DataUpdater<ZNRecord>> updaters = Lists.newArrayList();
+    List<String> paths = Lists.newArrayList();
+
+    PropertyKey cfgKey = TaskUtil.getWorkflowConfigKey(_accessor, workflowName);
+    if (_accessor.getProperty(cfgKey) != null) {
+      paths.add(_accessor.keyBuilder().resourceConfig(workflowName).getPath());
+      updaters.add(updater);
+      _accessor.updateChildren(paths, updaters, AccessOption.PERSISTENT);
+      invokeRebalance(_accessor, workflowName);
+    } else {
+      LOG.error("Configuration path " + cfgKey + " not found!");
+    }
+  }
+
+  /**
+   * Delete the workflow
+   *
+   * @param workflow  The workflow name
+   * @param timeout   The timeout for deleting the workflow/queue in seconds
+   */
+  public void deleteWorkflow(String workflow, long timeout) throws InterruptedException {
+    // #HELIX-0.6.7-WORKAROUND
+    // Helix 0.6.7 has a bug where TaskDriver.delete(workflow) will delete all resources with a
+    // workflow as the prefix. Work around the bug by pulling in the code from TaskDriver and calling
+    // setSingleWorkflowTargetState directly to bypass the prefix matching code.
+    setSingleWorkflowTargetState(workflow, TargetState.DELETE);
+
+    long endTime = System.currentTimeMillis() + (timeout * 1000);
+
+    // check for completion of deletion request
+    while (System.currentTimeMillis() <= endTime) {
+      WorkflowContext workflowContext = _taskDriver.getWorkflowContext(workflow);
+
+      if (workflowContext != null) {
+        Thread.sleep(1000);
+      } else {
+        // Successfully deleted
+        return;
+      }
+    }
+
+    // Failed to complete deletion within timeout
+    throw new HelixException(String
+        .format("Fail to delete the workflow/queue %s within %d seconds.", workflow, timeout));
   }
 }

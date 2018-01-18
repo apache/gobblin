@@ -46,7 +46,7 @@ public class GobblinMetricsRegistry {
 
   private static final GobblinMetricsRegistry GLOBAL_INSTANCE = new GobblinMetricsRegistry();
 
-  private final Cache<String, GobblinMetrics> metricsCache = CacheBuilder.newBuilder().softValues().build();
+  private final Cache<String, GobblinMetrics> metricsCache = CacheBuilder.newBuilder().build();
 
   private GobblinMetricsRegistry() {
     // Do nothing

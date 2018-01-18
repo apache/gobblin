@@ -15,26 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.aws;
+package org.apache.gobblin.metrics;
 
+import java.util.Properties;
+
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 
+@Test
+public class GobblinMetricsTest {
 
-/**
- * Unit tests for {@link AWSJobConfigurationManager}.
- *
- * @author Abhishek Tiwari
- */
-@Test(groups = { "gobblin.aws" })
-public class AWSJobConfigurationManagerTest extends BaseAWSJobConfigurationManagerTest {
-  @Override
-  protected Config getConfig(String jobConfZipUri) {
-    return ConfigFactory.empty()
-        .withValue(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_FS_URI_KEY, ConfigValueFactory.fromAnyRef("file:///"))
-        .withValue(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_PATH_KEY, ConfigValueFactory.fromAnyRef(jobConfZipUri));
+  /**
+   * Test the {@link GobblinMetrics} instance is removed from {@link GobblinMetricsRegistry} when
+   * it stops metrics reporting
+   */
+  public void testStopReportingMetrics() {
+    String id = getClass().getSimpleName() + "-" + System.currentTimeMillis();
+    GobblinMetrics gobblinMetrics = GobblinMetrics.get(id);
+    gobblinMetrics.startMetricReporting(new Properties());
+    Assert.assertEquals(GobblinMetricsRegistry.getInstance().get(id).get(), gobblinMetrics);
+
+    gobblinMetrics.stopMetricsReporting();
+    Assert.assertFalse(GobblinMetricsRegistry.getInstance().get(id).isPresent());
   }
 }

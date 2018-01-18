@@ -30,11 +30,10 @@ import com.typesafe.config.ConfigValueFactory;
  * @author Abhishek Tiwari
  */
 @Test(groups = { "gobblin.aws" })
-public class AWSJobConfigurationManagerTest extends BaseAWSJobConfigurationManagerTest {
+public class LegacyAWSJobConfigurationManagerTest extends BaseAWSJobConfigurationManagerTest {
   @Override
   protected Config getConfig(String jobConfZipUri) {
     return ConfigFactory.empty()
-        .withValue(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_FS_URI_KEY, ConfigValueFactory.fromAnyRef("file:///"))
-        .withValue(GobblinAWSConfigurationKeys.JOB_CONF_SOURCE_FILE_PATH_KEY, ConfigValueFactory.fromAnyRef(jobConfZipUri));
+            .withValue(GobblinAWSConfigurationKeys.JOB_CONF_S3_URI_KEY, ConfigValueFactory.fromAnyRef(jobConfZipUri));
   }
 }
