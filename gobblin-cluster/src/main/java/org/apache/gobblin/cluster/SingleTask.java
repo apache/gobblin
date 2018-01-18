@@ -73,6 +73,9 @@ public class SingleTask {
     JobState jobState = getJobState();
     Config jobConfig = getConfigFromJobState(jobState);
 
+    _logger.debug("SingleTask.run: jobId {} workUnitFilePath {} jobStateFilePath {} jobState {} jobConfig {}",
+        _jobId, _workUnitFilePath, _jobStateFilePath, jobState, jobConfig);
+
     try (SharedResourcesBroker<GobblinScopeTypes> globalBroker = SharedResourcesBrokerFactory
         .createDefaultTopLevelBroker(jobConfig, GobblinScopeTypes.GLOBAL.defaultScopeInstance())) {
       SharedResourcesBroker<GobblinScopeTypes> jobBroker = getJobBroker(jobState, globalBroker);
