@@ -423,19 +423,19 @@ public class GobblinMetrics {
     }
 
     this.metricsReportingStarted = true;
-    LOGGER.info("Metrics reporting has been started: GobblinMetrics {}", this.hashCode());
+    LOGGER.info("Metrics reporting has been started: GobblinMetrics {}", this.toString());
   }
 
   /**
    * Stop metric reporting.
    */
   public void stopMetricsReporting() {
+    LOGGER.info("Metrics reporting will be stopped: GobblinMetrics {}", this.toString());
+
     if (!this.metricsReportingStarted) {
       LOGGER.warn("Metric reporting has not started yet");
       return;
     }
-
-    LOGGER.info("Metrics reporting will be stopped: GobblinMetrics {}", this.hashCode());
 
     // Stop the JMX reporter
     if (this.jmxReporter.isPresent()) {
@@ -461,6 +461,8 @@ public class GobblinMetrics {
     }
 
     this.metricsReportingStarted = false;
+    // Remove from the cache registry
+    GobblinMetrics.remove(id);
     LOGGER.info("Metrics reporting stopped successfully");
   }
 

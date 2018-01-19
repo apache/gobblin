@@ -304,14 +304,14 @@ public class GobblinHelixTaskDriver {
         if (currentData != null) {
           // Only update target state for non-completed workflows
           String finishTime = currentData.getSimpleField(WorkflowContext.FINISH_TIME);
-          if (finishTime == null || finishTime.equals(WorkflowContext.UNFINISHED)) {
+          if (finishTime == null || finishTime.equals(String.valueOf(WorkflowContext.UNFINISHED))) {
             currentData.setSimpleField(WorkflowConfig.WorkflowConfigProperty.TargetState.name(),
                 state.name());
           } else {
             LOG.info("TargetState DataUpdater: ignore to update target state " + finishTime);
           }
         } else {
-          LOG.error("TargetState DataUpdater: Fails to update target state " + currentData);
+          LOG.error("TargetState DataUpdater: Fails to update target state ");
         }
         return currentData;
       }
