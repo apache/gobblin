@@ -45,7 +45,7 @@ public class RolloverTask extends BaseAbstractTask {
   }
 
   /**
-   * ROLLOVERED represents that current task won't be executed while it will be resumed in the next execution if quota
+   * ROLLOVER represents that current task won't be executed while it will be resumed in the next execution if quota
    * permitted.
    */
   public void commit() {
