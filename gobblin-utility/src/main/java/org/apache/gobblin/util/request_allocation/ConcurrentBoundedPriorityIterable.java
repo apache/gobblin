@@ -65,12 +65,23 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
   private int requestsRefused = 0;
   private int requestsEvicted = 0;
 
+  //These are for submitting alertable events
+  @Getter
+  private List<T> requestsExceedingAvailableResourcePool = Lists.newArrayList();
+  @Getter
+  private List<T> requestsRejectedWithLowPriority = Lists.newArrayList();
+  @Getter
+  private List<T> requestsRejectedDueToInsufficientEviction = Lists.newArrayList();
+  @Getter
+  private List<T> requestsDropped = Lists.newArrayList();
+
   // These are ResourceRequirements for temporary use to avoid instantiation costs
   private final ResourceRequirement candidateRequirement;
   private final ResourceRequirement tmpRequirement;
   private final ResourceRequirement reuse;
 
-  public ConcurrentBoundedPriorityIterable(final Comparator<? super T> prioritizer, ResourceEstimator<T> resourceEstimator, ResourcePool pool) {
+  public ConcurrentBoundedPriorityIterable(final Comparator<? super T> prioritizer,
+      ResourceEstimator<T> resourceEstimator, ResourcePool pool) {
 
     this.estimator = resourceEstimator;
     this.resourcePool = pool;
@@ -94,7 +105,8 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
    */
   private class AllDifferentComparator implements Comparator<AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T>> {
     @Override
-    public int compare(AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T> t1, AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T> t2) {
+    public int compare(AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T> t1,
+        AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T> t2) {
       int providedComparison = ConcurrentBoundedPriorityIterable.this.comparator.compare(t1.getT(), t2.getT());
       if (providedComparison != 0) {
         return providedComparison;
@@ -111,12 +123,13 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
    */
   public boolean add(T t) {
     if (this.closed) {
-      throw new RuntimeException(ConcurrentBoundedPriorityIterable.class.getSimpleName() + " is no longer accepting requests!");
+      throw new RuntimeException(
+          ConcurrentBoundedPriorityIterable.class.getSimpleName() + " is no longer accepting requests!");
     }
 
-    AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T>
-        newElement = new AllocatedRequestsIteratorBase.RequestWithResourceRequirement<>(t,
-        this.estimator.estimateRequirement(t, this.resourcePool));
+    AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T> newElement =
+        new AllocatedRequestsIteratorBase.RequestWithResourceRequirement<>(t,
+            this.estimator.estimateRequirement(t, this.resourcePool));
     boolean addedWorkunits = addImpl(newElement);
     if (!addedWorkunits) {
       this.rejectedElement = true;
@@ -132,21 +145,25 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
     if (this.resourcePool.exceedsHardBound(newElement.getResourceRequirement(), false)) {
       // item does not fit even in empty pool
       log.warn(String.format("Request %s is larger than the available resource pool. If the pool is not expanded, "
-          + "it will never be selected. Request: %s.", newElement.getT(),
+              + "it will never be selected. Request: %s.", newElement.getT(),
           this.resourcePool.stringifyRequirement(newElement.getResourceRequirement())));
+      this.requestsExceedingAvailableResourcePool.add(newElement.getT());
       this.requestsRefused++;
       return false;
     }
 
     ResourceRequirement candidateRequirement =
-        ResourceRequirement.add(this.currentRequirement, newElement.getResourceRequirement(), this.candidateRequirement);
+        ResourceRequirement.add(this.currentRequirement, newElement.getResourceRequirement(),
+            this.candidateRequirement);
 
     if (this.resourcePool.exceedsHardBound(candidateRequirement, false)) {
 
       if (this.comparator.compare(this.elements.last().getT(), newElement.getT()) <= 0) {
-        log.debug("Request {} does not fit in resource pool and is lower priority than current lowest priority request. "
-            + "Rejecting", newElement.getT());
+        log.debug(
+            "Request {} does not fit in resource pool and is lower priority than current lowest priority request. "
+                + "Rejecting", newElement.getT());
         this.requestsRefused++;
+        this.requestsRejectedWithLowPriority.add(newElement.getT());
         return false;
       }
 
@@ -156,9 +173,9 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
 
       for (AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T> dropCandidate : this.elements.descendingSet()) {
         if (this.comparator.compare(dropCandidate.getT(), newElement.getT()) <= 0) {
-          log.debug("Cannot evict enough requests to fit request {}. "
-              + "Rejecting", newElement.getT());
+          log.debug("Cannot evict enough requests to fit request {}. " + "Rejecting", newElement.getT());
           this.requestsRefused++;
+          this.requestsRejectedDueToInsufficientEviction.add(newElement.getT());
           return false;
         }
         this.tmpRequirement.subtract(dropCandidate.getResourceRequirement());
@@ -172,6 +189,7 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
       for (AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T> drop : toDrop) {
         log.debug("Evicting request {}.", drop.getT());
         this.requestsEvicted++;
+        this.requestsDropped.add(drop.getT());
         this.elements.remove(drop);
         this.currentRequirement.subtract(drop.getResourceRequirement());
       }
@@ -205,12 +223,15 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
     StringBuilder messageBuilder = new StringBuilder("Statistics for ").
         append(ConcurrentBoundedPriorityIterable.class.getSimpleName()).append(": {");
     messageBuilder.append(this.resourcePool).append(", ");
-    messageBuilder.append("totalResourcesUsed: ").append(this.resourcePool.stringifyRequirement(this.currentRequirement))
+    messageBuilder.append("totalResourcesUsed: ")
+        .append(this.resourcePool.stringifyRequirement(this.currentRequirement))
         .append(", ");
-    messageBuilder.append("maxRequirementPerDimension: ").append(this.resourcePool.stringifyRequirement(this.maxResourceRequirement))
+    messageBuilder.append("maxRequirementPerDimension: ")
+        .append(this.resourcePool.stringifyRequirement(this.maxResourceRequirement))
         .append(", ");
     messageBuilder.append("requestsOffered: ").append(this.requestsOffered).append(", ");
-    messageBuilder.append("requestsAccepted: ").append(this.requestsOffered - this.requestsEvicted - this.requestsRefused)
+    messageBuilder.append("requestsAccepted: ")
+        .append(this.requestsOffered - this.requestsEvicted - this.requestsRefused)
         .append(", ");
     messageBuilder.append("requestsRefused: ").append(this.requestsRefused).append(", ");
     messageBuilder.append("requestsEvicted: ").append(this.requestsEvicted);
@@ -228,5 +249,4 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
     this.closed = true;
     return this.elements.iterator();
   }
-
 }

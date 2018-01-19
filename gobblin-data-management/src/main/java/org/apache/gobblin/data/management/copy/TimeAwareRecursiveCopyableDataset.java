@@ -18,12 +18,14 @@
 package org.apache.gobblin.data.management.copy;
 
 import com.google.common.collect.Lists;
+
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -83,7 +85,8 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   }
 
   @Override
-  protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
+  protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter)
+      throws IOException {
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern(datePattern);
     LocalDateTime endDate = LocalDateTime.now();
     LocalDateTime startDate = endDate.minusDays(lookbackDays);
