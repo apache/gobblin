@@ -19,9 +19,11 @@ package org.apache.gobblin.data.management.source;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.Spliterator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -64,6 +66,9 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
 
   private static final String DATASET_URN = "gobblin.source.loopingDatasetFinderSource.datasetUrn";
   private static final String PARTITION_URN = "gobblin.source.loopingDatasetFinderSource.partitionUrn";
+
+  // WORK_UNIT_ORDINAL is used to identify the latest workunit processed in previous execution,
+  // Since the order is Lexicographical when executing.
   private static final String WORK_UNIT_ORDINAL = "gobblin.source.loopingDatasetFinderSource.workUnitOrdinal";
   protected static final String END_OF_DATASETS_KEY = "gobblin.source.loopingDatasetFinderSource.endOfDatasets";
 
@@ -82,43 +87,74 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
     return Lists.newArrayList(getWorkunitStream(state).getMaterializedWorkUnitCollection());
   }
 
+  /**
+   * Collect all failed workunit in previous run into a set.
+   *
+   * Workunits that exceed max retry limit will not be added into failedPreviousWorkUnits
+   * and rollovered into next quota-available execution.
+   *
+   * @param retriedUrns Track all dataset/partition's urns that is included in the retried workunits, so that in the
+   *                    case where the number of remaining dataset/partitions are less than the maximum number of
+   *                    workunits can be processed by single execution, a retried workunit won't be processed twice
+   */
+  private List<WorkUnit> getPreviousFailedWorkUnits(List<WorkUnitState> previousWorkUnitStates, int maxRetries,
+      Set<String> retriedUrns) {
+    List<WorkUnit> failedPreviousWorkUnits = new ArrayList<>();
+    for (WorkUnitState workUnitState : previousWorkUnitStates) {
+      if ((workUnitState.getWorkingState() == WorkUnitState.WorkingState.FAILED
+          || workUnitState.getWorkingState() == WorkUnitState.WorkingState.ROLLOVER)) {
+        if (!workUnitState.contains(ConfigurationKeys.TASK_RETRIES_KEY)
+            || workUnitState.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY) < maxRetries + 1) {
+          log.info("Dataset " + workUnitState.getProp(DATASET_URN) + " is failed previously, retrying...");
+          WorkUnit retryWorkUnit = new WorkUnit(workUnitState.getWorkunit());
+          failedPreviousWorkUnits.add(retryWorkUnit);
+          retriedUrns.add(
+              workUnitState.getWorkunit().contains(PARTITION_URN) ? workUnitState.getWorkunit().getProp(PARTITION_URN)
+                  : workUnitState.getWorkunit().getProp(DATASET_URN));
+        } else {
+          log.warn("Dataset " + workUnitState.getProp(DATASET_URN) + " exceeds retry limit : " + maxRetries);
+        }
+      }
+    }
+    return failedPreviousWorkUnits;
+  }
+
+  /**
+   * Searching for workunit with maximum ordinal.
+   * @param previousWorkUnitStates
+   * @return
+   */
+  private Optional<WorkUnitState> getMaxWorkUnitState(List<WorkUnitState> previousWorkUnitStates) {
+    int tempWorkUnitOrdinal = 0;
+    Optional<WorkUnitState> optionalMaxWorkUnit = Optional.empty();
+    for (WorkUnitState workUnitState : previousWorkUnitStates) {
+      try {
+        if (workUnitState.getPropAsInt(WORK_UNIT_ORDINAL) > tempWorkUnitOrdinal) {
+          optionalMaxWorkUnit = Optional.of(workUnitState);
+          tempWorkUnitOrdinal = workUnitState.getPropAsInt(WORK_UNIT_ORDINAL);
+        }
+      } catch (NumberFormatException nfe) {
+        throw new RuntimeException(
+            "Work units in state store are corrupted! Missing or malformed " + WORK_UNIT_ORDINAL);
+      }
+    }
+    return optionalMaxWorkUnit;
+  }
+
   @Override
   public WorkUnitStream getWorkunitStream(SourceState state) {
     try {
       int maxWorkUnits = state.getPropAsInt(MAX_WORK_UNITS_PER_RUN_KEY, MAX_WORK_UNITS_PER_RUN);
 
       List<WorkUnitState> previousWorkUnitStates = state.getPreviousWorkUnitStates();
-      int tempWorkUnitOrdinal = 0;
-      Optional<WorkUnitState> optionalMaxWorkUnit = Optional.empty();
-      List<WorkUnit> failedPreviousWorkUnits = new ArrayList<>();
-      int maxRetryTimes = state.contains(ConfigurationKeys.MAX_TASK_CROSSEXECUTION_TASK_RETRIES_KEY) ? state
+      Set<String> retryUrns = Collections.emptySet();
+      int maxRetries = state.contains(ConfigurationKeys.MAX_TASK_CROSSEXECUTION_TASK_RETRIES_KEY) ? state
           .getPropAsInt(ConfigurationKeys.MAX_TASK_CROSSEXECUTION_TASK_RETRIES_KEY)
           : ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES;
 
-      // Searching for workunit with maximum ordinal meanwhile collect all failed workunit in previous run.
-      // These two processes should not influent each other.
-
-      // Workunits that exceed max retry limit will not be added into failedPreviousWorkUnits
-      // and rollovered into next quota-available execution.
-      for (WorkUnitState workUnitState : previousWorkUnitStates) {
-        if ((workUnitState.getWorkingState() == WorkUnitState.WorkingState.FAILED
-            || workUnitState.getWorkingState() == WorkUnitState.WorkingState.ROLLOVERED) && (
-            !workUnitState.contains(ConfigurationKeys.TASK_RETRIES_KEY)
-                || workUnitState.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY) < maxRetryTimes + 1)) {
-          log.info("Dataset " + workUnitState.getProp(DATASET_URN) + " is failed previously, retrying...");
-          WorkUnit retryWorkUnit = new WorkUnit(workUnitState.getWorkunit());
-          failedPreviousWorkUnits.add(retryWorkUnit);
-        }
-        try {
-          if (workUnitState.getPropAsInt(WORK_UNIT_ORDINAL) > tempWorkUnitOrdinal) {
-            optionalMaxWorkUnit = Optional.of(workUnitState);
-            tempWorkUnitOrdinal = workUnitState.getPropAsInt(WORK_UNIT_ORDINAL);
-          }
-        } catch (NumberFormatException nfe) {
-          throw new RuntimeException(
-              "Work units in state store are corrupted! Missing or malformed " + WORK_UNIT_ORDINAL);
-        }
-      }
+      List<WorkUnit> failedPreviousWorkUnits =
+          getPreviousFailedWorkUnits(previousWorkUnitStates, maxRetries, retryUrns);
+      Optional<WorkUnitState> optionalMaxWorkUnit = getMaxWorkUnitState(previousWorkUnitStates);
 
       String previousDatasetUrnWatermark = null;
       String previousPartitionUrnWatermark = null;
@@ -128,14 +164,13 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
       }
 
       IterableDatasetFinder datasetsFinder = createDatasetsFinder(state);
-
       Stream<Dataset> datasetStream =
           datasetsFinder.getDatasetsStream(Spliterator.SORTED, this.lexicographicalComparator);
       datasetStream = sortStreamLexicographically(datasetStream);
 
       return new BasicWorkUnitStream.Builder(
           new DeepIterator(datasetStream.iterator(), previousDatasetUrnWatermark, previousPartitionUrnWatermark,
-              maxWorkUnits, failedPreviousWorkUnits.iterator())).setFiniteStream(true).build();
+              maxWorkUnits, failedPreviousWorkUnits.iterator(), retryUrns)).setFiniteStream(true).build();
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
     }
@@ -147,6 +182,7 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
    */
   private class DeepIterator extends AbstractIterator<WorkUnit> {
     private final Iterator<WorkUnit> retryWorkUnits;
+    private final Set<String> retryUrns;
     private final Iterator<Dataset> baseIterator;
     private final int maxWorkUnits;
 
@@ -157,10 +193,12 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
      * @param retryWorkUnits mainly designed for previously-failed workunit to be retried in new execution.
      */
     public DeepIterator(Iterator<Dataset> baseIterator, String previousDatasetUrnWatermark,
-        String previousPartitionUrnWatermark, int maxWorkUnits, Iterator<WorkUnit> retryWorkUnits) {
+        String previousPartitionUrnWatermark, int maxWorkUnits, Iterator<WorkUnit> retryWorkUnits,
+        Set<String> retryUrns) {
       this.maxWorkUnits = maxWorkUnits;
       this.baseIterator = baseIterator;
       this.retryWorkUnits = retryWorkUnits;
+      this.retryUrns = retryUrns;
 
       Dataset equalDataset =
           advanceUntilLargerThan(Iterators.peekingIterator(this.baseIterator), previousDatasetUrnWatermark);
@@ -204,29 +242,34 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
 
     @Override
     protected WorkUnit computeNext() {
-      if (retryWorkUnits.hasNext()) {
-        WorkUnit addtionWorkUnit = retryWorkUnits.next();
-        generatedWorkUnits++;
-        if (generatedWorkUnits <= this.maxWorkUnits) {
-          int previousRetryCount = addtionWorkUnit.contains(ConfigurationKeys.TASK_RETRIES_KEY) ?
-              addtionWorkUnit.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY) + 1 : 1;
-          addtionWorkUnit.setProp(ConfigurationKeys.TASK_RETRIES_KEY, previousRetryCount);
-          return addtionWorkUnit;
-        } else {
+      if (this.generatedWorkUnits >= this.maxWorkUnits) {
+        if (retryWorkUnits.hasNext()) {
           //For the case where retryWorkUnits.size() > maxWorkUnits, we need to keep track of retryWorkunits that aren't
           //able to fit in a single execution, by committing their state thereby being recognizable in next execution.
+          WorkUnit addtionWorkUnit = retryWorkUnits.next();
           TaskUtils.setTaskFactoryClass(addtionWorkUnit, RolloverTask.Factory.class);
           return addtionWorkUnit;
+        } else {
+          return endOfData();
         }
       }
 
-      if (this.generatedWorkUnits >= this.maxWorkUnits) {
-        return endOfData();
+      if (retryWorkUnits.hasNext()) {
+        WorkUnit workUnit = retryWorkUnits.next();
+        int previousRetryCount = workUnit.contains(ConfigurationKeys.TASK_RETRIES_KEY) ?
+            workUnit.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY) + 1 : 1;
+        workUnit.setProp(ConfigurationKeys.TASK_RETRIES_KEY, previousRetryCount);
+        generatedWorkUnits++;
+        return workUnit;
       }
 
       while (this.baseIterator.hasNext() || this.currentPartitionIterator.hasNext()) {
         if (this.currentPartitionIterator != null && this.currentPartitionIterator.hasNext()) {
           PartitionableDataset.DatasetPartition partition = this.currentPartitionIterator.next();
+          // For partition appeared in retryUrns, just skip.
+          if (retryUrns.contains(partition.getUrn())) {
+            continue;
+          }
           WorkUnit workUnit = workUnitForDatasetPartition(partition);
           addDatasetInfoToWorkUnit(workUnit, partition.getDataset(), this.generatedWorkUnits++);
           addPartitionInfoToWorkUnit(workUnit, partition);
@@ -234,6 +277,10 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
         }
 
         Dataset dataset = this.baseIterator.next();
+        // For dataset appeared in retryUrns, just skip.
+        if (retryUrns.contains(dataset.getUrn())) {
+          continue;
+        }
         if (drilldownIntoPartitions && dataset instanceof PartitionableDataset) {
           this.currentPartitionIterator = getPartitionIterator((PartitionableDataset) dataset);
         } else {

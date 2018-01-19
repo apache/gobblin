@@ -31,12 +31,12 @@ public class RolloverTask extends BaseAbstractTask {
    * if quota permitted.
    */
   public void commit() {
-    this.workingState = WorkUnitState.WorkingState.ROLLOVERED;
+    this.workingState = WorkUnitState.WorkingState.ROLLOVER;
   }
 
   @Override
   public void run() {
-    this.workingState = WorkUnitState.WorkingState.ROLLOVERED;
+    this.workingState = WorkUnitState.WorkingState.ROLLOVER;
   }
 
   /**
