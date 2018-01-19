@@ -61,3 +61,5 @@ package-lock.json
 
 # generated config files by tests
 **/generated-gobblin-cluster.conf
+
+temp/
