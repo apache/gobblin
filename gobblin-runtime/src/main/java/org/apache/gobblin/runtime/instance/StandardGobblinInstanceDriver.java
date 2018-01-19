@@ -129,10 +129,11 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
   protected void startUp() throws Exception {
     getLog().info("Starting driver ...");
     if (null != _subservices) {
-      getLog().info("Starting subservices");
+      getLog().info("Starting subservices. Timeout is {} ms", getInstanceCfg().getStartTimeoutMs());
+      long startTime = System.currentTimeMillis();
       _subservices.startAsync();
       _subservices.awaitHealthy(getInstanceCfg().getStartTimeoutMs(), TimeUnit.MILLISECONDS);
-      getLog().info("All subservices have been started.");
+      getLog().info("All subservices have been started. Time waited is {} ms", System.currentTimeMillis() - startTime);
     }
     else {
       getLog().info("No subservices found.");
