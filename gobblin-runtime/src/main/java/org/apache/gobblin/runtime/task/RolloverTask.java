@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.runtime.task;
 
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -7,10 +24,11 @@ import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
+
 /**
- * Mostly used in the case when failedTasks from previous persisted state store is exceeding the maximum number
- * of workunits that can be handled by a single execution.
- * In such case, failed-but-to-retry workunits needs to be rolled over to next execution.
+ * Mostly used in the case when failedTasks from previous persisted state store is exceeding the maximum number of
+ * workunits that can be handled by a single execution. In such case, failed-but-to-retry workunits needs to be rolled
+ * over to next execution.
  */
 public class RolloverTask extends BaseAbstractTask {
   private RolloverTask(TaskContext taskContext) {
@@ -27,8 +45,8 @@ public class RolloverTask extends BaseAbstractTask {
   }
 
   /**
-   * ROLLOVERED represents that current task won't be executed while it will be resumed in the next execution
-   * if quota permitted.
+   * ROLLOVERED represents that current task won't be executed while it will be resumed in the next execution if quota
+   * permitted.
    */
   public void commit() {
     this.workingState = WorkUnitState.WorkingState.ROLLOVER;
