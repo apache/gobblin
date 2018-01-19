@@ -20,6 +20,7 @@ package org.apache.gobblin.data.management.source;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -108,9 +109,10 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
           log.info("Dataset " + workUnitState.getProp(DATASET_URN) + " is failed previously, retrying...");
           WorkUnit retryWorkUnit = new WorkUnit(workUnitState.getWorkunit());
           failedPreviousWorkUnits.add(retryWorkUnit);
-          retriedUrns.add(
-              workUnitState.getWorkunit().contains(PARTITION_URN) ? workUnitState.getWorkunit().getProp(PARTITION_URN)
-                  : workUnitState.getWorkunit().getProp(DATASET_URN));
+          String retriedUrn = workUnitState.getWorkunit().contains(PARTITION_URN) ? retryWorkUnit.getProp(PARTITION_URN)
+              : retryWorkUnit.getProp(DATASET_URN);
+          log.info("The workunit: " + retriedUrn + " is added into retry bucket.");
+          retriedUrns.add(retriedUrn);
         } else {
           log.warn("Dataset " + workUnitState.getProp(DATASET_URN) + " exceeds retry limit : " + maxRetries);
         }
@@ -147,7 +149,7 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
       int maxWorkUnits = state.getPropAsInt(MAX_WORK_UNITS_PER_RUN_KEY, MAX_WORK_UNITS_PER_RUN);
 
       List<WorkUnitState> previousWorkUnitStates = state.getPreviousWorkUnitStates();
-      Set<String> retryUrns = Collections.emptySet();
+      Set<String> retryUrns = new HashSet<>();
       int maxRetries = state.contains(ConfigurationKeys.MAX_TASK_CROSSEXECUTION_TASK_RETRIES_KEY) ? state
           .getPropAsInt(ConfigurationKeys.MAX_TASK_CROSSEXECUTION_TASK_RETRIES_KEY)
           : ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES;
