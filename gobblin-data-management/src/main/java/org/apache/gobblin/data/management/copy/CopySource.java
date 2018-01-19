@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -29,6 +31,8 @@ import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.util.request_allocation.PriorityIterableBasedRequestAllocator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -112,11 +116,21 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String SIMULATE = CopyConfiguration.COPY_PREFIX + ".simulate";
   public static final String MAX_SIZE_MULTI_WORKUNITS = CopyConfiguration.COPY_PREFIX + ".binPacking.maxSizePerBin";
   public static final String MAX_WORK_UNITS_PER_BIN = CopyConfiguration.COPY_PREFIX + ".binPacking.maxWorkUnitsPerBin";
+  public static final String REQUESTS_EXCEEDING_AVAILABLE_RESOURCE_POOL_EVENT_NAME =
+      "RequestsExceedingAvailableResourcePoolEvent";
+  public static final String REQUESTS_DROPPED_EVENT_NAME = "RequestsDroppedEvent";
+  public static final String REQUESTS_REJECTED_DUE_TO_INSUFFICIENT_EVICTION_EVENT_NAME =
+      "RequestsRejectedDueToInsufficientEvictionEvent";
+  public static final String REQUESTS_REJECTED_WITH_LOW_PRIORITY_EVENT_NAME = "RequestsRejectedWithLowPriorityEvent";
+  public static final String FILESET_NAME="fileset.name";
+  public static final String FILESET_TOTAL_ENTITIES = "fileset.total.entities";
+  public static final String FILESET_TOTAL_SIZE_IN_BYTES = "fileset.total.size";
 
   private static final String WORK_UNIT_WEIGHT = CopyConfiguration.COPY_PREFIX + ".workUnitWeight";
   private final WorkUnitWeighter weighter = new FieldWeighter(WORK_UNIT_WEIGHT);
 
   public MetricContext metricContext;
+  public EventSubmitter _eventSubmitter;
 
   protected Optional<LineageInfo> lineageInfo;
 
@@ -145,7 +159,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
     try {
 
-      DeprecationUtils.renameDeprecatedKeys(state, CopyConfiguration.MAX_COPY_PREFIX + "." + CopyResourcePool.ENTITIES_KEY,
+      DeprecationUtils.renameDeprecatedKeys(state,
+          CopyConfiguration.MAX_COPY_PREFIX + "." + CopyResourcePool.ENTITIES_KEY,
           Lists.newArrayList(MAX_FILES_COPIED_KEY));
 
       final FileSystem sourceFs = HadoopUtils.getSourceFileSystem(state);
@@ -153,8 +168,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       state.setProp(SlaEventKeys.SOURCE_URI, sourceFs.getUri());
       state.setProp(SlaEventKeys.DESTINATION_URI, targetFs.getUri());
 
-      log.info("Identified source file system at {} and target file system at {}.",
-          sourceFs.getUri(), targetFs.getUri());
+      log.info("Identified source file system at {} and target file system at {}.", sourceFs.getUri(),
+          targetFs.getUri());
 
       long maxSizePerBin = state.getPropAsLong(MAX_SIZE_MULTI_WORKUNITS, 0);
       long maxWorkUnitsPerMultiWorkUnit = state.getPropAsLong(MAX_WORK_UNITS_PER_BIN, 50);
@@ -165,9 +180,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
-      DatasetsFinder<CopyableDatasetBase> datasetFinder = DatasetUtils
-          .instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
-              new EventSubmitter.Builder(this.metricContext, CopyConfiguration.COPY_PREFIX).build(), state);
+      this._eventSubmitter = new EventSubmitter.Builder(this.metricContext, CopyConfiguration.COPY_PREFIX).build();
+      DatasetsFinder<CopyableDatasetBase> datasetFinder =
+          DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
+              this._eventSubmitter, state);
 
       IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder =
           datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
@@ -176,15 +192,19 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       Iterator<CopyableDatasetRequestor> requestorIteratorWithNulls =
           Iterators.transform(iterableDatasetFinder.getDatasetsIterator(),
               new CopyableDatasetRequestor.Factory(targetFs, copyConfiguration, log));
-      Iterator<CopyableDatasetRequestor> requestorIterator = Iterators.filter(requestorIteratorWithNulls,
-          Predicates.<CopyableDatasetRequestor>notNull());
+      Iterator<CopyableDatasetRequestor> requestorIterator =
+          Iterators.filter(requestorIteratorWithNulls, Predicates.<CopyableDatasetRequestor>notNull());
 
       final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitsMap =
           Multimaps.<FileSet<CopyEntity>, WorkUnit>synchronizedSetMultimap(
               HashMultimap.<FileSet<CopyEntity>, WorkUnit>create());
 
       RequestAllocator<FileSet<CopyEntity>> allocator = createRequestAllocator(copyConfiguration, maxThreads);
-      Iterator<FileSet<CopyEntity>> prioritizedFileSets = allocator.allocateRequests(requestorIterator, copyConfiguration.getMaxToCopy());
+      Iterator<FileSet<CopyEntity>> prioritizedFileSets =
+          allocator.allocateRequests(requestorIterator, copyConfiguration.getMaxToCopy());
+
+      //Submit alertable events for unfulfilled requests
+      submitUnfulfilledRequestEvents(allocator);
 
       Iterator<Callable<Void>> callableIterator =
           Iterators.transform(prioritizedFileSets, new Function<FileSet<CopyEntity>, Callable<Void>>() {
@@ -197,10 +217,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           });
 
       try {
-        List<Future<Void>> futures = new IteratorExecutor<>(callableIterator,
-            maxThreads,
-            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Copy-file-listing-pool-%d")))
-            .execute();
+        List<Future<Void>> futures = new IteratorExecutor<>(callableIterator, maxThreads,
+            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log),
+                Optional.of("Copy-file-listing-pool-%d"))).execute();
 
         for (Future<Void> future : futures) {
           try {
@@ -232,7 +251,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       }
 
       List<? extends WorkUnit> workUnits =
-          new WorstFitDecreasingBinPacking(maxSizePerBin).pack(Lists.newArrayList(workUnitsMap.values()), this.weighter);
+          new WorstFitDecreasingBinPacking(maxSizePerBin).pack(Lists.newArrayList(workUnitsMap.values()),
+              this.weighter);
       log.info(String.format(
           "Bin packed work units. Initial work units: %d, packed work units: %d, max weight per bin: %d, "
               + "max work units per bin: %d.", workUnitsMap.size(), workUnits.size(), maxSizePerBin,
@@ -243,11 +263,46 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     }
   }
 
-  private RequestAllocator<FileSet<CopyEntity>> createRequestAllocator(CopyConfiguration copyConfiguration, int maxThreads) {
+  private void submitUnfulfilledRequestEventsHelper(List<FileSet<CopyEntity>> fileSetList, String eventName) {
+    for (FileSet<CopyEntity> fileSet : fileSetList) {
+      GobblinTrackingEvent event = GobblinTrackingEvent.newBuilder()
+          .setName(eventName)
+          .setNamespace(CopySource.class.getName())
+          .setMetadata(ImmutableMap.<String, String>builder().put(ConfigurationKeys.DATASET_URN_KEY,
+              fileSet.getDataset().getUrn())
+              .put(FILESET_TOTAL_ENTITIES, Integer.toString(fileSet.getTotalEntities()))
+              .put(FILESET_TOTAL_SIZE_IN_BYTES, Long.toString(fileSet.getTotalSizeInBytes()))
+              .put(FILESET_NAME,fileSet.getName())
+              .build())
+          .build();
+      this.metricContext.submitEvent(event);
+    }
+  }
+
+  private void submitUnfulfilledRequestEvents(RequestAllocator<FileSet<CopyEntity>> allocator) {
+    if (PriorityIterableBasedRequestAllocator.class.isAssignableFrom(allocator.getClass())) {
+      PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>> priorityIterableBasedRequestAllocator =
+          (PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>>) allocator;
+      submitUnfulfilledRequestEventsHelper(
+          priorityIterableBasedRequestAllocator.getRequestsExceedingAvailableResourcePool(),
+          REQUESTS_EXCEEDING_AVAILABLE_RESOURCE_POOL_EVENT_NAME);
+      submitUnfulfilledRequestEventsHelper(
+          priorityIterableBasedRequestAllocator.getRequestsRejectedDueToInsufficientEviction(),
+          REQUESTS_REJECTED_DUE_TO_INSUFFICIENT_EVICTION_EVENT_NAME);
+      submitUnfulfilledRequestEventsHelper(priorityIterableBasedRequestAllocator.getRequestsRejectedWithLowPriority(),
+          REQUESTS_REJECTED_WITH_LOW_PRIORITY_EVENT_NAME);
+      submitUnfulfilledRequestEventsHelper(priorityIterableBasedRequestAllocator.getRequestsDropped(),
+          REQUESTS_DROPPED_EVENT_NAME);
+    }
+  }
+
+  private RequestAllocator<FileSet<CopyEntity>> createRequestAllocator(CopyConfiguration copyConfiguration,
+      int maxThreads) {
     Optional<FileSetComparator> prioritizer = copyConfiguration.getPrioritizer();
 
     RequestAllocatorConfig.Builder<FileSet<CopyEntity>> configBuilder =
-        RequestAllocatorConfig.builder(new FileSetResourceEstimator()).allowParallelization(maxThreads)
+        RequestAllocatorConfig.builder(new FileSetResourceEstimator())
+            .allowParallelization(maxThreads)
             .withLimitedScopeConfig(copyConfiguration.getPrioritizationConfig());
 
     if (!prioritizer.isPresent()) {
@@ -323,9 +378,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
        * a DatasetFinder. Consequently, the source and destination dataset for the CopyableFile lineage are expected
        * to be set by the same logic
        */
-      if (lineageInfo.isPresent() &&
-          copyableFile.getSourceDataset() != null &&
-          copyableFile.getDestinationDataset() != null) {
+      if (lineageInfo.isPresent() && copyableFile.getSourceDataset() != null
+          && copyableFile.getDestinationDataset() != null) {
         lineageInfo.get().setSource(copyableFile.getSourceDataset(), workUnit);
       }
     }
@@ -338,8 +392,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * @throws IOException
    */
   @Override
-  public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state)
-      throws IOException {
+  public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state) throws IOException {
 
     Class<?> copyEntityClass = getCopyEntityClass(state);
 
@@ -350,8 +403,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     return new EmptyExtractor<>("empty");
   }
 
-  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf, WorkUnitState state)
-      throws IOException {
+  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf,
+      WorkUnitState state) throws IOException {
     return new FileAwareInputStreamExtractor(fs, cf, state);
   }
 
@@ -363,9 +416,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * @deprecated use {@link HadoopUtils#getSourceFileSystem(State)}.
    */
   @Deprecated
-  protected FileSystem getSourceFileSystem(State state)
-      throws IOException {
-    Configuration conf = HadoopUtils.getConfFromState(state, Optional.of(ConfigurationKeys.SOURCE_FILEBASED_ENCRYPTED_CONFIG_PATH));
+  protected FileSystem getSourceFileSystem(State state) throws IOException {
+    Configuration conf =
+        HadoopUtils.getConfFromState(state, Optional.of(ConfigurationKeys.SOURCE_FILEBASED_ENCRYPTED_CONFIG_PATH));
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
     return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
@@ -374,8 +427,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * @deprecated use {@link HadoopUtils#getWriterFileSystem(State, int, int)}.
    */
   @Deprecated
-  private static FileSystem getTargetFileSystem(State state)
-      throws IOException {
+  private static FileSystem getTargetFileSystem(State state) throws IOException {
     return HadoopUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
   }
 
@@ -388,10 +440,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     workUnit.setProp(WORK_UNIT_WEIGHT, Long.toString(weight));
   }
 
-  private static void computeAndSetWorkUnitGuid(WorkUnit workUnit)
-      throws IOException {
-    Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ? workUnit
-        .getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) : "");
+  private static void computeAndSetWorkUnitGuid(WorkUnit workUnit) throws IOException {
+    Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ? workUnit.getProp(
+        ConfigurationKeys.CONVERTER_CLASSES_KEY) : "");
     setWorkUnitGuid(workUnit, guid.append(deserializeCopyEntity(workUnit)));
   }
 
@@ -410,8 +461,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * @return A byte array guid.
    * @throws IOException
    */
-  public static Optional<Guid> getWorkUnitGuid(State state)
-      throws IOException {
+  public static Optional<Guid> getWorkUnitGuid(State state) throws IOException {
     if (state.contains(WORK_UNIT_GUID)) {
       return Optional.of(Guid.deserialize(state.getProp(WORK_UNIT_GUID)));
     }
@@ -426,8 +476,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     state.setProp(COPY_ENTITY_CLASS, copyEntity.getClass().getName());
   }
 
-  public static Class<?> getCopyEntityClass(State state)
-      throws IOException {
+  public static Class<?> getCopyEntityClass(State state) throws IOException {
     try {
       return Class.forName(state.getProp(COPY_ENTITY_CLASS));
     } catch (ClassNotFoundException cnfe) {
@@ -456,11 +505,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     return CopyableDatasetMetadata.deserialize(state.getProp(SERIALIZED_COPYABLE_DATASET));
   }
 
-  private void setWorkUnitWatermark(WorkUnit workUnit, Optional<CopyableFileWatermarkGenerator> watermarkGenerator, CopyEntity copyEntity)
-      throws IOException {
-    if (copyEntity instanceof  CopyableFile) {
+  private void setWorkUnitWatermark(WorkUnit workUnit, Optional<CopyableFileWatermarkGenerator> watermarkGenerator,
+      CopyEntity copyEntity) throws IOException {
+    if (copyEntity instanceof CopyableFile) {
       Optional<WatermarkInterval> watermarkIntervalOptional =
-          CopyableFileWatermarkHelper.getCopyableFileWatermark((CopyableFile)copyEntity, watermarkGenerator);
+          CopyableFileWatermarkHelper.getCopyableFileWatermark((CopyableFile) copyEntity, watermarkGenerator);
       if (watermarkIntervalOptional.isPresent()) {
         workUnit.setWatermarkInterval(watermarkIntervalOptional.get());
       }
