@@ -103,7 +103,7 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
         if (workUnitState.contains(ConfigurationKeys.TASK_RETRIES_KEY)) {
           currentRetryCount = workUnitState.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY);
         }
-        if (currentRetryCount < maxRetries) {
+        if (currentRetryCount < maxRetries && currentRetryCount > 0 ) {
           log.info("Dataset " + workUnitState.getProp(DATASET_URN) + " is failed previously, retrying for the "
               + currentRetryCount + " times ");
           // workUnitState.getWorkunit() return an ImmutableWorkUnit which doesn't support resetting the configuration,
@@ -161,13 +161,12 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
       int maxWorkUnits = state.getPropAsInt(MAX_WORK_UNITS_PER_RUN_KEY, MAX_WORK_UNITS_PER_RUN);
 
       List<WorkUnitState> previousWorkUnitStates = state.getPreviousWorkUnitStates();
-      Set<String> retryUrns = new HashSet<>();
       int maxRetries = state.contains(ConfigurationKeys.MAX_TASK_CROSSEXECUTION_TASK_RETRIES_KEY) ? state
           .getPropAsInt(ConfigurationKeys.MAX_TASK_CROSSEXECUTION_TASK_RETRIES_KEY)
           : ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES;
 
       List<WorkUnit> failedPreviousWorkUnits = getPreviousFailedWorkUnits(previousWorkUnitStates, maxRetries);
-      retryUrns = populateUrnSetwithPreviousFailedWorkUnit(failedPreviousWorkUnits);
+      Set<String> retryUrns = populateUrnSetwithPreviousFailedWorkUnit(failedPreviousWorkUnits);
       Optional<WorkUnitState> optionalMaxWorkUnit = getMaxWorkUnitState(previousWorkUnitStates);
 
       String previousDatasetUrnWatermark = null;
@@ -260,9 +259,9 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
         if (retryWorkUnits.hasNext()) {
           //For the case where retryWorkUnits.size() > maxWorkUnits, we need to keep track of retryWorkunits that aren't
           //able to fit in a single execution, by committing their state thereby being recognizable in next execution.
-          WorkUnit addtionalWorkUnit = retryWorkUnits.next();
-          TaskUtils.setTaskFactoryClass(addtionalWorkUnit, RolloverTask.Factory.class);
-          return addtionalWorkUnit;
+          WorkUnit additionalWorkUnit = retryWorkUnits.next();
+          TaskUtils.setTaskFactoryClass(additionalWorkUnit, RolloverTask.Factory.class);
+          return additionalWorkUnit;
         } else {
           return endOfData();
         }
