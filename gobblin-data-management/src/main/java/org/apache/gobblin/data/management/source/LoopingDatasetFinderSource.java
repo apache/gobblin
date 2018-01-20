@@ -103,9 +103,8 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
         if (workUnitState.contains(ConfigurationKeys.TASK_RETRIES_KEY)) {
           currentRetryCount = workUnitState.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY);
         }
-        if (currentRetryCount < maxRetries && currentRetryCount > 0 ) {
-          log.info("Dataset " + workUnitState.getProp(DATASET_URN) + " is failed previously, retrying for the "
-              + currentRetryCount + " times ");
+        if (currentRetryCount < maxRetries ) {
+          log.info("Dataset " + workUnitState.getProp(DATASET_URN) + " is failed previously, retry...");
           // workUnitState.getWorkunit() return an ImmutableWorkUnit which doesn't support resetting the configuration,
           // since we need to reset retryCount it is necessary to re-instantiate it.
           WorkUnit retryWorkUnit = new WorkUnit(workUnitState.getWorkunit());
