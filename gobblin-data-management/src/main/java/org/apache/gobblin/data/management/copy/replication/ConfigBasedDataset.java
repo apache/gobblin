@@ -23,6 +23,16 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableDataset;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -36,31 +46,17 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopyEntity;
-import org.apache.gobblin.data.management.copy.CopyableDataset;
-import org.apache.gobblin.data.management.copy.CopyableFile;
-import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
-import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
-import org.apache.gobblin.data.management.dataset.DatasetUtils;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Extends {@link CopyableDataset} to represent data replication dataset based on {@link Config}
+ * <p>
+ * Detail logics <ul> <li>Picked the preferred topology <li>Based on current running cluster and CopyMode (push or pull)
+ * pick the routes <li>Based on optimization policy to pick the CopyFrom and CopyTo pair <li>Generated the CopyEntity
+ * based on CopyFrom and CopyTo pair </ul>
  *
- * Detail logics
- * <ul>
- *  <li>Picked the preferred topology
- *  <li>Based on current running cluster and CopyMode (push or pull) pick the routes
- *  <li>Based on optimization policy to pick the CopyFrom and CopyTo pair
- *  <li>Generated the CopyEntity based on CopyFrom and CopyTo pair
- * </ul>
  * @author mitu
- *
  */
 
 @Slf4j
@@ -68,27 +64,27 @@ public class ConfigBasedDataset implements CopyableDataset {
 
   private final Properties props;
   private final CopyRoute copyRoute;
-  private final ReplicationConfiguration rc;
+  private final ReplicationConfiguration replicationConfiguration;
   private String datasetURN;
   private boolean watermarkEnabled;
 
   public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute) {
     this.props = props;
     this.copyRoute = copyRoute;
-    this.rc = rc;
+    this.replicationConfiguration = rc;
     calculateDatasetURN();
-    this.watermarkEnabled = Boolean.parseBoolean
-        (this.props.getProperty(ConfigBasedDatasetsFinder.WATERMARK_ENABLE, "true"));
+    this.watermarkEnabled =
+        Boolean.parseBoolean(this.props.getProperty(ConfigBasedDatasetsFinder.WATERMARK_ENABLE, "true"));
   }
 
   public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute, String datasetURN) {
     this.props = props;
     this.copyRoute = copyRoute;
-    this.rc = rc;
+    this.replicationConfiguration = rc;
     this.datasetURN = datasetURN;
   }
 
-  private void calculateDatasetURN(){
+  private void calculateDatasetURN() {
     EndPoint e = this.copyRoute.getCopyTo();
     if (e instanceof HadoopFsEndPoint) {
       HadoopFsEndPoint copyTo = (HadoopFsEndPoint) e;
@@ -127,7 +123,7 @@ public class ConfigBasedDataset implements CopyableDataset {
         log.info(
             "No need to copy as destination watermark >= source watermark with source watermark {}, for dataset with metadata {}",
             copyFromRaw.getWatermark().isPresent() ? copyFromRaw.getWatermark().get().toJson() : "N/A",
-            this.rc.getMetaData());
+            this.replicationConfiguration.getMetaData());
         return copyableFiles;
       }
     }
@@ -151,8 +147,8 @@ public class ConfigBasedDataset implements CopyableDataset {
 
     Set<FileStatus> copyFromFileStatuses = Sets.newHashSet(Collections2.filter(allFilesInSource, predicate));
     Map<Path, FileStatus> copyToFileMap = Maps.newHashMap();
-    for(FileStatus f: allFilesInTarget){
-      if(pathFilter.accept(f.getPath())){
+    for (FileStatus f : allFilesInTarget) {
+      if (pathFilter.accept(f.getPath())) {
         copyToFileMap.put(PathUtils.getPathWithoutSchemeAndAuthority(f.getPath()), f);
       }
     }
@@ -161,7 +157,7 @@ public class ConfigBasedDataset implements CopyableDataset {
 
     boolean watermarkMetadataCopied = false;
 
-    boolean deleteTargetIfNotExistOnSource = rc.isDeleteTargetIfNotExistOnSource();
+    boolean deleteTargetIfNotExistOnSource = replicationConfiguration.isDeleteTargetIfNotExistOnSource();
 
     for (FileStatus originFileStatus : copyFromFileStatuses) {
       Path relative = PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(originFileStatus.getPath()),
@@ -177,17 +173,16 @@ public class ConfigBasedDataset implements CopyableDataset {
       if (copyToFileMap.containsKey(newPath) && copyToFileMap.get(newPath).getLen() == originFileStatus.getLen()
           && copyToFileMap.get(newPath).getModificationTime() > originFileStatus.getModificationTime()) {
         log.debug("Copy from timestamp older than copy to timestamp, skipped copy {} for dataset with metadata {}",
-            originFileStatus.getPath(), this.rc.getMetaData());
+            originFileStatus.getPath(), this.replicationConfiguration.getMetaData());
       } else {
         // need to remove those files in the target File System
         if (copyToFileMap.containsKey(newPath)) {
           deletedPaths.add(newPath);
         }
 
-        copyableFiles
-            .add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, copyToFs.makeQualified(newPath), copyConfiguration)
-                .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build());
-
+        copyableFiles.add(CopyableFile
+            .fromOriginAndDestination(copyFromFs, originFileStatus, copyToFs.makeQualified(newPath), copyConfiguration)
+            .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build());
       }
 
       // clean up already checked paths
@@ -202,18 +197,17 @@ public class ConfigBasedDataset implements CopyableDataset {
     // delete old files first
     if (!deletedPaths.isEmpty()) {
       DeleteFileCommitStep deleteCommitStep = DeleteFileCommitStep.fromPaths(copyToFs, deletedPaths, this.props);
-      copyableFiles.add(new PrePublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String> newHashMap(),
-          deleteCommitStep, 0));
+      copyableFiles.add(
+          new PrePublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String>newHashMap(), deleteCommitStep,
+              0));
     }
 
     // generate the watermark file even if watermark checking is disabled. Make sure it can come into functional once disired.
     if ((!watermarkMetadataCopied) && copyFrom.getWatermark().isPresent()) {
-      copyableFiles.add(new PostPublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String> newHashMap(),
+      copyableFiles.add(new PostPublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String>newHashMap(),
           new WatermarkMetadataGenerationCommitStep(copyTo.getFsURI().toString(), copyTo.getDatasetPath(),
-              copyFrom.getWatermark().get()),
-          1));
+              copyFrom.getWatermark().get()), 1));
     }
     return copyableFiles;
   }
-
 }

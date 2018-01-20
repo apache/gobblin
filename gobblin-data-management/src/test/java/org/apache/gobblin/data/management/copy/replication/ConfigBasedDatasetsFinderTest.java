@@ -99,9 +99,9 @@ public class ConfigBasedDatasetsFinderTest {
     patternList.add(pattern1);
     patternList.add(pattern2);
 
-    Assert.assertFalse(configBasedMultiDatasets.blacklistFilteringHelper(configBasedDataset, Optional.of(patternList)));
-    Assert.assertFalse(configBasedMultiDatasets.blacklistFilteringHelper(configBasedDataset2, Optional.of(patternList)));
-    Assert.assertTrue(configBasedMultiDatasets.blacklistFilteringHelper(configBasedDataset3, Optional.of(patternList)));
+    Assert.assertFalse(configBasedMultiDatasets.isDatasetSurviveBlacklistFiltering(configBasedDataset, Optional.of(patternList)));
+    Assert.assertFalse(configBasedMultiDatasets.isDatasetSurviveBlacklistFiltering(configBasedDataset2, Optional.of(patternList)));
+    Assert.assertTrue(configBasedMultiDatasets.isDatasetSurviveBlacklistFiltering(configBasedDataset3, Optional.of(patternList)));
 
 
   }

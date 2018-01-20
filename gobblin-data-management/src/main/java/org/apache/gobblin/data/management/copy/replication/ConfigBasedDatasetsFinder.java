@@ -102,11 +102,14 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
 
 
   protected final String storeRoot;
+
+  // commonRoot represents the root node in ConfigStore, the accessor of which
+  // is reponsible to collect all leaf-level nodes as the potential dataset to manipulate.
   protected final Path commonRoot;
   protected final Path whitelistTag;
   protected final Optional<List<Path>> blacklistTags;
   protected final ConfigClient configClient;
-  protected final Properties props;
+  protected final Properties jobProps;
   private final int threadPoolSize;
 
   /**
@@ -148,11 +151,11 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
     }
 
     configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
-    this.props = jobProps;
+    this.jobProps = jobProps;
 
 
-    if (props.containsKey(JOB_LEVEL_BLACKLIST)) {
-      this.blacklistPatterns = Optional.of(Splitter.on(",").omitEmptyStrings().splitToList(props.getProperty(JOB_LEVEL_BLACKLIST)));
+    if (jobProps.containsKey(JOB_LEVEL_BLACKLIST)) {
+      this.blacklistPatterns = Optional.of(Splitter.on(",").omitEmptyStrings().splitToList(jobProps.getProperty(JOB_LEVEL_BLACKLIST)));
     } else {
       this.blacklistPatterns = Optional.absent();
     }
@@ -265,6 +268,7 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
     if (leafDatasets.isEmpty()) {
       return ImmutableList.of();
     }
+    log.debug(String.format("[ConfigBasedDatasetsFinder] Find %d in the commonRoot:%s", leafDatasets.size(), this.commonRoot));
 
     // Parallel execution for copyDataset for performance consideration.
     final List<Dataset> result = new CopyOnWriteArrayList<>();
@@ -272,12 +276,13 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
         Iterators.transform(leafDatasets.iterator(), new Function<URI, Callable<Void>>() {
           @Override
           public Callable<Void> apply(final URI datasetURI) {
-            return findDatasetsCallable(configClient, datasetURI, props, blacklistPatterns, result);
+            log.debug("[ConfigBasedDatasetsFinder] Try to search ConfigBasedDatasets for datasetURI:" + datasetURI);
+            return findDatasetsCallable(configClient, datasetURI, jobProps, blacklistPatterns, result);
           }
         });
 
     this.executeItertorExecutor(callableIterator);
-    log.info("found {} datasets in ConfigBasedDatasetsFinder", result.size());
+    log.debug("found {} datasets in ConfigBasedDatasetsFinder", result.size());
     return result;
   }
 
@@ -307,7 +312,7 @@ public abstract class ConfigBasedDatasetsFinder implements DatasetsFinder {
   }
 
   protected abstract Callable<Void> findDatasetsCallable(final ConfigClient confClient,
-      final URI u, final Properties p, Optional<List<String>> blacklistPatterns,
+      final URI datasetUri, final Properties p, Optional<List<String>> blacklistPatterns,
       final Collection<Dataset> datasets);
 
 }

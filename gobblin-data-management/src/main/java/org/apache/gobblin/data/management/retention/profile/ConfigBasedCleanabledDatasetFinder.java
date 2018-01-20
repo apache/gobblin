@@ -46,6 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ConfigBasedCleanabledDatasetFinder extends ConfigBasedDatasetsFinder{
 
   public FileSystem fileSystem;
+  // Used for cleaning only.
   public static final String DATASET_PATH = ConfigurationKeys.CONFIG_BASED_PREFIX + ".fullDatasetPath";
 
   public ConfigBasedCleanabledDatasetFinder(FileSystem fs, Properties jobProps) throws IOException{
@@ -54,12 +55,12 @@ public class ConfigBasedCleanabledDatasetFinder extends ConfigBasedDatasetsFinde
   }
 
   protected Callable<Void> findDatasetsCallable(final ConfigClient confClient,
-      final URI u, final Properties p, Optional<List<String>> blacklistURNs, final Collection<Dataset> datasets) {
+      final URI datasetUri, final Properties p, Optional<List<String>> blacklistURNs, final Collection<Dataset> datasets) {
     return new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         // Process each {@link Config}, find dataset and add those into the datasets
-        Config c = confClient.getConfig(u);
+        Config c = confClient.getConfig(datasetUri);
         Dataset datasetForConfig =
             new ConfigurableCleanableDataset(fileSystem, p, new Path(c.getString(DATASET_PATH)), c, log);
         datasets.add(datasetForConfig);
