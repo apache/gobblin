@@ -96,30 +96,39 @@ public class TaskExecutor extends AbstractIdleService {
   private long lastCalculationTime = 0;
 
   // The total number of tasks currently queued and queued over the historical lookback period.
+  @Getter
   private AtomicInteger queuedTaskCount = new AtomicInteger();
 
   // The total number of tasks currently queued.
+  @Getter
   private AtomicInteger currentQueuedTaskCount = new AtomicInteger();
 
   // The total number of tasks queued over the historical lookback period.
+  @Getter
   private AtomicInteger historicalQueuedTaskCount = new AtomicInteger();
 
   // The total time tasks have currently been in the queue and were in the queue during the historical lookback period.
+  @Getter
   private AtomicLong queuedTaskTotalTime = new AtomicLong();
 
   // The total time tasks have currently been in the queue.
+  @Getter
   private AtomicLong currentQueuedTaskTotalTime = new AtomicLong();
 
   // The total time tasks have been in the queue during the historical lookback period.
+  @Getter
   private AtomicLong historicalQueuedTaskTotalTime = new AtomicLong();
 
   // Count of running tasks.
+  @Getter
   private final Counter runningTaskCount = new Counter();
 
   // Count of failed tasks.
+  @Getter
   private final Meter successfulTaskCount = new Meter();
 
   // Count of failed tasks.
+  @Getter
   private final Meter failedTaskCount = new Meter();
 
   // The metric set exposed from the task executor.
