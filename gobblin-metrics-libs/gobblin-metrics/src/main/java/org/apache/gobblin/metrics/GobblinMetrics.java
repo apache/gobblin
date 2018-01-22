@@ -394,6 +394,8 @@ public class GobblinMetrics {
         .getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY, ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
     ScheduledReporter.setReportingInterval(properties, reportInterval, reportTimeUnit);
 
+    long startTime = System.currentTimeMillis();
+
     try {
       // Build and start the JMX reporter
       buildJmxMetricReporter(properties);
@@ -423,7 +425,8 @@ public class GobblinMetrics {
     }
 
     this.metricsReportingStarted = true;
-    LOGGER.info("Metrics reporting has been started: GobblinMetrics {}", this.toString());
+    LOGGER.info("Metrics reporting has been started in {} ms: GobblinMetrics {}",
+        System.currentTimeMillis() - startTime, this.toString());
   }
 
   /**
