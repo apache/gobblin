@@ -63,6 +63,9 @@ public class GobblinClusterConfigurationKeys {
   public static final String JOB_CONF_PATH_KEY = GOBBLIN_CLUSTER_PREFIX + "job.conf.path";
   public static final String INPUT_WORK_UNIT_DIR_NAME = "_workunits";
   public static final String OUTPUT_TASK_STATE_DIR_NAME = "_taskstates";
+  // This is the directory to store job.state files when a state store is used.
+  // Note that a .job.state file is not the same thing as a .jst file.
+  public static final String JOB_STATE_DIR_NAME = "_jobstates";
   public static final String TAR_GZ_FILE_SUFFIX = ".tar.gz";
 
   // Other misc configuration properties.

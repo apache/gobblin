@@ -92,8 +92,9 @@ public class TestStressTestingSource {
     long endTimeNano = System.nanoTime();
 
     long timeSpentMicro = (endTimeNano - startTimeNano)/(1000);
-    // check that there is less than 2 second difference between expected and actual time spent
-    Assert.assertTrue(Math.abs(timeSpentMicro - (COMPUTE_TIME_MICRO * NUM_RECORDS)) < (2000000));
+    // check that there is less than 5 second difference between expected and actual time spent
+    Assert.assertTrue(Math.abs(timeSpentMicro - (COMPUTE_TIME_MICRO * NUM_RECORDS)) < (5000000),
+        "Time spent " + timeSpentMicro);
   }
 
   @Test
@@ -127,7 +128,8 @@ public class TestStressTestingSource {
 
     long timeSpentMicro = (endTimeNano - startTimeNano)/(1000);
     // check that there is less than 2 second difference between expected and actual time spent
-    Assert.assertTrue(Math.abs(timeSpentMicro - (SLEEP_TIME_MICRO * NUM_RECORDS)) < (2000000));
+    Assert.assertTrue(Math.abs(timeSpentMicro - (SLEEP_TIME_MICRO * NUM_RECORDS)) < (2000000),
+        "Time spent " + timeSpentMicro);
   }
 
   @Test
@@ -163,6 +165,7 @@ public class TestStressTestingSource {
 
     long timeSpentMicro = (endTimeNano - startTimeNano)/(1000);
     // check that there is less than 1 second difference between expected and actual time spent
-    Assert.assertTrue(Math.abs(timeSpentMicro - (RUN_DURATION_SECS * 1000000)) < (1000000));
+    Assert.assertTrue(Math.abs(timeSpentMicro - (RUN_DURATION_SECS * 1000000)) < (1000000),
+        "Time spent " + timeSpentMicro);
   }
 }
