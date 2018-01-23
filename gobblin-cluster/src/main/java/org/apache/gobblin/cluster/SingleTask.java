@@ -97,8 +97,18 @@ public class SingleTask {
 
   private JobState getJobState()
       throws java.io.IOException {
-    JobState jobState = new JobState();
-    SerializationUtils.deserializeState(_fs, _jobStateFilePath, jobState);
+    JobState jobState;
+
+    // read the state from the state store if present, otherwise deserialize directly from the file
+    if (_stateStores.haveJobStateStore()) {
+      jobState = _stateStores.getJobStateStore().get(_jobStateFilePath.getParent().getName(),
+          _jobStateFilePath.getName(),
+          _jobStateFilePath.getParent().getName());
+    } else {
+      jobState = new JobState();
+      SerializationUtils.deserializeState(_fs, _jobStateFilePath, jobState);
+    }
+
     return jobState;
   }
 
@@ -109,9 +119,9 @@ public class SingleTask {
     WorkUnit workUnit;
 
     if (_workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
-      workUnit = _stateStores.mwuStateStore.getAll(storeName, fileName).get(0);
+      workUnit = _stateStores.getMwuStateStore().getAll(storeName, fileName).get(0);
     } else {
-      workUnit = _stateStores.wuStateStore.getAll(storeName, fileName).get(0);
+      workUnit = _stateStores.getWuStateStore().getAll(storeName, fileName).get(0);
     }
 
     // The list of individual WorkUnits (flattened) to run

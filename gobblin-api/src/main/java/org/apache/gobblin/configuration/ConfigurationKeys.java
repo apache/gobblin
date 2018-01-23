@@ -54,6 +54,9 @@ public class ConfigurationKeys {
   public static final String INTERMEDIATE_STATE_STORE_TYPE_KEY = INTERMEDIATE_STATE_STORE_PREFIX + ".state.store.type";
   public static final String DEFAULT_STATE_STORE_TYPE = "fs";
   public static final String STATE_STORE_TYPE_NOOP = "noop";
+  // are the job.state files stored using the state store?
+  public static final String JOB_STATE_IN_STATE_STORE = "state.store.jobStateInStateStore";
+  public static final boolean DEFAULT_JOB_STATE_IN_STATE_STORE = false;
 
   public static final String CONFIG_RUNTIME_PREFIX = "gobblin.config.runtime.";
   // Root directory where task state files are stored
