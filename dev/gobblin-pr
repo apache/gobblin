@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
@@ -37,6 +37,10 @@ import subprocess
 import sys
 import textwrap
 
+# Print current SSL version, commented and left around for debugging
+# import ssl
+# print(ssl.OPENSSL_VERSION)
+
 # Python 3 compatibility
 try:
     import urllib2 as urllib
@@ -48,13 +52,13 @@ if sys.version_info[0] == 3:
 try:
     import click
 except ImportError:
-    print("Could not find the click library. Run 'sudo pip install click' to install.")
+    print("Could not find the click library. Run 'sudo pip3 install click' to install.")
     sys.exit(-1)
 
 try:
     import keyring
 except ImportError:
-    print("Could not find the keyring library. Run 'sudo pip install keyring' to install.")
+    print("Could not find the keyring library. Run 'sudo pip3 install keyring' to install.")
     sys.exit(-1)
 
 # Location of your Gobblin git development area
@@ -532,7 +536,7 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     except ImportError:
         raise PRToolError(
             "Could not find jira-python library; exiting. Run "
-            "'sudo pip install jira' to install.")
+            "'sudo pip3 install jira' to install.")
 
     if merge_branches is None:
         merge_branches = []
