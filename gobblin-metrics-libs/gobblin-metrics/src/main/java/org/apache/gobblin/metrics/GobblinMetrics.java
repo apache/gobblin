@@ -394,6 +394,8 @@ public class GobblinMetrics {
         .getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY, ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
     ScheduledReporter.setReportingInterval(properties, reportInterval, reportTimeUnit);
 
+    long startTime = System.currentTimeMillis();
+
     try {
       // Build and start the JMX reporter
       buildJmxMetricReporter(properties);
@@ -423,7 +425,8 @@ public class GobblinMetrics {
     }
 
     this.metricsReportingStarted = true;
-    LOGGER.info("Metrics reporting has been started: GobblinMetrics {}", this.toString());
+    LOGGER.info("Metrics reporting has been started in {} ms: GobblinMetrics {}",
+        System.currentTimeMillis() - startTime, this.toString());
   }
 
   /**
@@ -751,8 +754,13 @@ public class GobblinMetrics {
       if (CustomCodahaleReporterFactory.class.isAssignableFrom(clazz)) {
         CustomCodahaleReporterFactory customCodahaleReporterFactory =
             ((CustomCodahaleReporterFactory) clazz.getConstructor().newInstance());
-        com.codahale.metrics.ScheduledReporter scheduledReporter = this.codahaleReportersCloser
-            .register(customCodahaleReporterFactory.newScheduledReporter(RootMetricContext.get(), properties));
+        com.codahale.metrics.ScheduledReporter scheduledReporter =
+            customCodahaleReporterFactory.newScheduledReporter(RootMetricContext.get(), properties);
+        if (scheduledReporter == null) {
+          LOGGER.warn("Factory {} returns a null scheduledReporter", clazz.getSimpleName());
+          return;
+        }
+        this.codahaleReportersCloser.register(scheduledReporter);
         String reporterSinkMsg = reporterSink.isPresent()?"to " + reporterSink.get():"";
         LOGGER.info("Will start reporting metrics " + reporterSinkMsg + " using " + reporterClass);
         this.codahaleScheduledReporters.add(scheduledReporter);
