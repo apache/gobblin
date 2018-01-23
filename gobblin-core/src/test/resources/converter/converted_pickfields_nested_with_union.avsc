@@ -1,0 +1,47 @@
+{
+  "type": "record",
+  "name": "User",
+  "namespace": "example.avro",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "favorite_number",
+      "type": [
+        "int",
+        "null"
+      ]
+    },
+    {
+      "name": "nested1",
+      "type": {
+        "type": "record",
+        "name": "dummy_nested1",
+        "fields": [
+          {
+            "name": "nested1_string",
+            "type": "string"
+          },
+          {
+            "name": "nested2_union",
+            "type": [
+              "null",
+              {
+                "type": "record",
+                "name": "dummy_nested2",
+                "fields": [
+                  {
+                    "name": "nested2_string",
+                    "type": "string"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
