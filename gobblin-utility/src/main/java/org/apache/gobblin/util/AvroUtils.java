@@ -411,13 +411,12 @@ public class AvroUtils {
   public static Schema getDirectorySchema(Path directory, FileSystem fs, boolean latest) throws IOException {
     Schema schema = null;
     try (Closer closer = Closer.create()) {
-      List<FileStatus> files = getDirectorySchemaHelper(directory, fs);
-      if (files == null || files.size() == 0) {
+      FileStatus sampleFile = getAvroFileSampleInDirectory(directory, fs, latest);
+      if (sampleFile == null ) {
         LOG.warn("There is no previous avro file in the directory: " + directory);
       } else {
-        FileStatus file = latest ? files.get(0) : files.get(files.size() - 1);
-        LOG.debug("Path to get the avro schema: " + file);
-        FsInput fi = new FsInput(file.getPath(), fs.getConf());
+        LOG.debug("Path to get the avro schema: " + sampleFile);
+        FsInput fi = new FsInput(sampleFile.getPath(), fs.getConf());
         GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<>();
         schema = closer.register(new DataFileReader<>(fi, genReader)).getSchema();
       }
@@ -439,28 +438,49 @@ public class AvroUtils {
     return getDirectorySchema(directory, FileSystem.get(conf), latest);
   }
 
-  private static List<FileStatus> getDirectorySchemaHelper(Path directory, FileSystem fs) throws IOException {
-    List<FileStatus> files = Lists.newArrayList();
+  /**
+   * Get a representative sample of avro file in a directory to fetch the schema.
+   * @param directory Target directory.
+   * @param fs The fs that target directory is sitting on.
+   * @param latest returns newest .avro file within target folder if it is set to true.
+   * @throws IOException
+   */
+  public static FileStatus getAvroFileSampleInDirectory(Path directory, FileSystem fs, boolean latest) throws IOException {
     if (fs.exists(directory)) {
-      getAllNestedAvroFiles(fs.getFileStatus(directory), files, fs);
-      if (files.size() > 0) {
-        Collections.sort(files, FileListUtils.LATEST_MOD_TIME_ORDER);
-      }
+      return getAvroFileSampleInDirectoryHelper(fs.getFileStatus(directory), fs, latest, Long.MIN_VALUE);
+    } else {
+      LOG.info("The directory " + directory + " doesn't exist");
+      return null;
     }
-    return files;
   }
 
-  private static void getAllNestedAvroFiles(FileStatus dir, List<FileStatus> files, FileSystem fs) throws IOException {
+  /**
+   * Recursively traverse the directory and return a avro sample.
+   * Instead of sorting all avro files found in the directory, save the memory by compare the modTime on-the-fly,
+   * since DFS is unavoidable.
+   */
+  private static FileStatus getAvroFileSampleInDirectoryHelper(FileStatus dir, FileSystem fs, boolean latest,
+      long modTime) throws IOException {
+    FileStatus avroFileStatus = null;
     if (dir.isDirectory()) {
       FileStatus[] filesInDir = fs.listStatus(dir.getPath());
       if (filesInDir != null) {
         for (FileStatus f : filesInDir) {
-          getAllNestedAvroFiles(f, files, fs);
+          FileStatus tmpAvroFileStatus = getAvroFileSampleInDirectoryHelper(f, fs, latest, modTime);
+          if (tmpAvroFileStatus != null) {
+            if (!latest) {
+              return tmpAvroFileStatus;
+            } else if (tmpAvroFileStatus.getModificationTime() > modTime){
+              modTime = tmpAvroFileStatus.getModificationTime();
+              avroFileStatus = tmpAvroFileStatus;
+            }
+          }
         }
       }
     } else if (dir.getPath().getName().endsWith(AVRO_SUFFIX)) {
-      files.add(dir);
+      return dir;
     }
+    return avroFileStatus;
   }
 
   /**
