@@ -71,7 +71,12 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskStateTracker;
 import org.apache.gobblin.runtime.services.JMXReportingService;
@@ -80,6 +85,9 @@ import org.apache.gobblin.util.FileUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.PathUtils;
+
+import javax.annotation.Nonnull;
+import lombok.Getter;
 
 import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
 
@@ -109,7 +117,7 @@ import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER
  * @author Yinan Li
  */
 @Alpha
-public class GobblinTaskRunner {
+public class GobblinTaskRunner implements StandardMetricsBridge {
 
   private static final Logger logger = LoggerFactory.getLogger(GobblinTaskRunner.class);
   static final java.nio.file.Path CLUSTER_CONF_PATH = Paths.get("generated-gobblin-cluster.conf");
@@ -141,9 +149,11 @@ public class GobblinTaskRunner {
   private final String applicationName;
   private final String applicationId;
   private final Path appWorkPath;
+  private final MetricContext metricContext;
+  private final StandardMetricsBridge.StandardMetrics metrics;
 
-  public GobblinTaskRunner(String applicationName, String helixInstanceName, String applicationId,
-      String taskRunnerId, Config config, Optional<Path> appWorkDirOptional)
+  public GobblinTaskRunner(String applicationName, String helixInstanceName, String applicationId, String taskRunnerId,
+      Config config, Optional<Path> appWorkDirOptional)
       throws Exception {
     this.helixInstanceName = helixInstanceName;
     this.taskRunnerId = taskRunnerId;
@@ -161,8 +171,10 @@ public class GobblinTaskRunner {
 
     this.containerMetrics = buildContainerMetrics();
 
-    this.taskStateModelFactory = registerHelixTaskFactory();
-
+    TaskFactoryBuilder builder = new TaskFactoryBuilder(this.config);
+    this.taskStateModelFactory = createTaskStateModelFactory(builder.build());
+    this.metrics = builder.getTaskMetrics();
+    this.metricContext = builder.getMetricContext();
     services.addAll(getServices());
     this.serviceManager = new ServiceManager(services);
 
@@ -185,19 +197,46 @@ public class GobblinTaskRunner {
         this.helixInstanceName, InstanceType.PARTICIPANT, zkConnectionString);
   }
 
-  private TaskStateModelFactory registerHelixTaskFactory() {
-    Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
-
-    boolean isRunTaskInSeparateProcessEnabled = getIsRunTaskInSeparateProcessEnabled();
-    TaskFactory taskFactory;
-    if (isRunTaskInSeparateProcessEnabled) {
-      logger.info("Running a task in a separate process is enabled.");
-      taskFactory = new HelixTaskFactory(this.containerMetrics, CLUSTER_CONF_PATH);
-    } else {
-      taskFactory = getInProcessTaskFactory();
+  private class TaskFactoryBuilder {
+    private final boolean isRunTaskInSeparateProcessEnabled;
+    private final TaskFactory taskFactory;
+    @Getter
+    private final MetricContext metricContext;
+    @Getter
+    private StandardMetricsBridge.StandardMetrics taskMetrics;
+    public TaskFactoryBuilder(Config config) {
+      isRunTaskInSeparateProcessEnabled = getIsRunTaskInSeparateProcessEnabled(config);
+      metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
+      if (isRunTaskInSeparateProcessEnabled) {
+        logger.info("Running a task in a separate process is enabled.");
+        taskFactory = new HelixTaskFactory(GobblinTaskRunner.this.containerMetrics, CLUSTER_CONF_PATH);
+        taskMetrics = new GobblinTaskRunnerMetrics.JvmTaskRunnerMetrics();
+      } else {
+        Properties properties = ConfigUtils.configToProperties(config);
+        TaskExecutor taskExecutor = new TaskExecutor(properties);
+        taskFactory = getInProcessTaskFactory(taskExecutor);
+        taskMetrics = new GobblinTaskRunnerMetrics.InProcessTaskRunnerMetrics(taskExecutor, metricContext);
+      }
     }
 
-    taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME, taskFactory);
+    public TaskFactory build(){
+      return taskFactory;
+    }
+
+    private Boolean getIsRunTaskInSeparateProcessEnabled(Config config) {
+      Boolean enabled = false;
+      if (config.hasPath(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS)) {
+        enabled = config.getBoolean(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS);
+      }
+      return enabled;
+    }
+  }
+
+  public TaskStateModelFactory createTaskStateModelFactory(TaskFactory factory) {
+
+    Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
+
+    taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME, factory);
     TaskStateModelFactory taskStateModelFactory =
         new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine()
@@ -205,14 +244,13 @@ public class GobblinTaskRunner {
     return taskStateModelFactory;
   }
 
-  private TaskFactory getInProcessTaskFactory() {
+  private TaskFactory getInProcessTaskFactory(TaskExecutor taskExecutor) {
     Properties properties = ConfigUtils.configToProperties(this.config);
     URI rootPathUri = PathUtils.getRootPath(this.appWorkPath).toUri();
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(properties)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
             ConfigValueFactory.fromAnyRef(rootPathUri.toString()));
 
-    TaskExecutor taskExecutor = new TaskExecutor(properties);
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties);
 
     services.add(taskExecutor);
@@ -224,15 +262,6 @@ public class GobblinTaskRunner {
         new GobblinHelixTaskFactory(this.containerMetrics, taskExecutor, taskStateTracker, this.fs,
             this.appWorkPath, stateStoreJobConfig, this.helixManager);
     return taskFactory;
-  }
-
-  private Boolean getIsRunTaskInSeparateProcessEnabled() {
-    Boolean enabled = false;
-    if (this.config.hasPath(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS)) {
-      enabled =
-          this.config.getBoolean(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS);
-    }
-    return enabled;
   }
 
   private Config saveConfigToFile(Config config)
@@ -369,6 +398,37 @@ public class GobblinTaskRunner {
     } else {
       return Optional.absent();
     }
+  }
+
+  @Override
+  public StandardMetrics getStandardMetrics() {
+    return this.metrics;
+  }
+
+  @Nonnull
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return GobblinMetrics.isEnabled(this.config);
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return null;
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
   }
 
   /**
