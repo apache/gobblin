@@ -20,6 +20,8 @@ package org.apache.gobblin.data.management.copy.replication;
 import java.io.IOException;
 import java.net.URI;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -28,9 +30,14 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.util.HadoopUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.fs.PathFilter;
+
 
 @Slf4j
+@Getter @Setter
 public abstract class HadoopFsEndPoint implements EndPoint{
+  private PathFilter pathFilter;
+  private boolean applyFilterToDirectories;
 
   /**
    *
@@ -80,4 +87,5 @@ public abstract class HadoopFsEndPoint implements EndPoint{
   public boolean isDatasetAvailable(Path datasetPath) {
     return isPathAvailable(datasetPath);
   }
+
 }

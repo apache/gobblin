@@ -71,14 +71,21 @@ public class ConfigBasedDataset implements CopyableDataset {
   private final ReplicationConfiguration rc;
   private String datasetURN;
   private boolean watermarkEnabled;
+  private final PathFilter pathFilter;
+
+  //Apply filter to directories
+  private final boolean applyFilterToDirectories;
 
   public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute) {
     this.props = props;
     this.copyRoute = copyRoute;
     this.rc = rc;
     calculateDatasetURN();
-    this.watermarkEnabled = Boolean.parseBoolean
-        (this.props.getProperty(ConfigBasedDatasetsFinder.WATERMARK_ENABLE, "true"));
+    this.watermarkEnabled =
+        Boolean.parseBoolean(this.props.getProperty(ConfigBasedDatasetsFinder.WATERMARK_ENABLE, "true"));
+    this.pathFilter = DatasetUtils.instantiatePathFilter(this.props);
+    this.applyFilterToDirectories =
+        Boolean.parseBoolean(this.props.getProperty(CopyConfiguration.APPLY_FILTER_TO_DIRECTORIES, "false"));
   }
 
   public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute, String datasetURN) {
@@ -86,9 +93,12 @@ public class ConfigBasedDataset implements CopyableDataset {
     this.copyRoute = copyRoute;
     this.rc = rc;
     this.datasetURN = datasetURN;
+    this.pathFilter = DatasetUtils.instantiatePathFilter(this.props);
+    this.applyFilterToDirectories =
+        Boolean.parseBoolean(this.props.getProperty(CopyConfiguration.APPLY_FILTER_TO_DIRECTORIES, "false"));
   }
 
-  private void calculateDatasetURN(){
+  private void calculateDatasetURN() {
     EndPoint e = this.copyRoute.getCopyTo();
     if (e instanceof HadoopFsEndPoint) {
       HadoopFsEndPoint copyTo = (HadoopFsEndPoint) e;
@@ -120,6 +130,14 @@ public class ConfigBasedDataset implements CopyableDataset {
       return copyableFiles;
     }
 
+    //For {@link HadoopFsEndPoint}s, set pathfilter and applyFilterToDirectories
+    HadoopFsEndPoint copyFrom = (HadoopFsEndPoint) copyFromRaw;
+    HadoopFsEndPoint copyTo = (HadoopFsEndPoint) copyToRaw;
+    copyFrom.setPathFilter(pathFilter);
+    copyFrom.setApplyFilterToDirectories(applyFilterToDirectories);
+    copyTo.setPathFilter(pathFilter);
+    copyTo.setApplyFilterToDirectories(applyFilterToDirectories);
+
     if (this.watermarkEnabled) {
       if ((!copyFromRaw.getWatermark().isPresent() && copyToRaw.getWatermark().isPresent()) || (
           copyFromRaw.getWatermark().isPresent() && copyToRaw.getWatermark().isPresent()
@@ -132,8 +150,6 @@ public class ConfigBasedDataset implements CopyableDataset {
       }
     }
 
-    HadoopFsEndPoint copyFrom = (HadoopFsEndPoint) copyFromRaw;
-    HadoopFsEndPoint copyTo = (HadoopFsEndPoint) copyToRaw;
     Configuration conf = HadoopUtils.newConfiguration();
     FileSystem copyFromFs = FileSystem.get(copyFrom.getFsURI(), conf);
     FileSystem copyToFs = FileSystem.get(copyTo.getFsURI(), conf);
@@ -141,20 +157,10 @@ public class ConfigBasedDataset implements CopyableDataset {
     Collection<FileStatus> allFilesInSource = copyFrom.getFiles();
     Collection<FileStatus> allFilesInTarget = copyTo.getFiles();
 
-    final PathFilter pathFilter = DatasetUtils.instantiatePathFilter(this.props);
-    Predicate<FileStatus> predicate = new Predicate<FileStatus>() {
-      @Override
-      public boolean apply(FileStatus input) {
-        return pathFilter.accept(input.getPath());
-      }
-    };
-
-    Set<FileStatus> copyFromFileStatuses = Sets.newHashSet(Collections2.filter(allFilesInSource, predicate));
+    Set<FileStatus> copyFromFileStatuses = Sets.newHashSet(allFilesInSource);
     Map<Path, FileStatus> copyToFileMap = Maps.newHashMap();
-    for(FileStatus f: allFilesInTarget){
-      if(pathFilter.accept(f.getPath())){
-        copyToFileMap.put(PathUtils.getPathWithoutSchemeAndAuthority(f.getPath()), f);
-      }
+    for (FileStatus f : allFilesInTarget) {
+      copyToFileMap.put(PathUtils.getPathWithoutSchemeAndAuthority(f.getPath()), f);
     }
 
     Collection<Path> deletedPaths = Lists.newArrayList();
@@ -184,10 +190,11 @@ public class ConfigBasedDataset implements CopyableDataset {
           deletedPaths.add(newPath);
         }
 
-        copyableFiles
-            .add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, copyToFs.makeQualified(newPath), copyConfiguration)
-                .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build());
-
+        copyableFiles.add(
+            CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, copyToFs.makeQualified(newPath),
+                copyConfiguration)
+                .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString())
+                .build());
       }
 
       // clean up already checked paths
@@ -202,18 +209,17 @@ public class ConfigBasedDataset implements CopyableDataset {
     // delete old files first
     if (!deletedPaths.isEmpty()) {
       DeleteFileCommitStep deleteCommitStep = DeleteFileCommitStep.fromPaths(copyToFs, deletedPaths, this.props);
-      copyableFiles.add(new PrePublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String> newHashMap(),
-          deleteCommitStep, 0));
+      copyableFiles.add(
+          new PrePublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String>newHashMap(), deleteCommitStep,
+              0));
     }
 
     // generate the watermark file even if watermark checking is disabled. Make sure it can come into functional once disired.
     if ((!watermarkMetadataCopied) && copyFrom.getWatermark().isPresent()) {
-      copyableFiles.add(new PostPublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String> newHashMap(),
+      copyableFiles.add(new PostPublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String>newHashMap(),
           new WatermarkMetadataGenerationCommitStep(copyTo.getFsURI().toString(), copyTo.getDatasetPath(),
-              copyFrom.getWatermark().get()),
-          1));
+              copyFrom.getWatermark().get()), 1));
     }
     return copyableFiles;
   }
-
 }
