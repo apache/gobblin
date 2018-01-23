@@ -34,8 +34,9 @@ import org.apache.hadoop.fs.PathFilter;
 
 
 @Slf4j
-@Getter @Setter
-public abstract class HadoopFsEndPoint implements EndPoint{
+@Getter
+@Setter
+public abstract class HadoopFsEndPoint implements EndPoint {
   private PathFilter pathFilter;
   private boolean applyFilterToDirectories;
 
@@ -63,7 +64,7 @@ public abstract class HadoopFsEndPoint implements EndPoint{
    * @param path The path to be checked. For fs availability checking, just use "/"
    * @return If the filesystem/path exists or not.
    */
-  public boolean isPathAvailable(Path path){
+  public boolean isPathAvailable(Path path) {
     try {
       Configuration conf = HadoopUtils.newConfiguration();
       FileSystem fs = FileSystem.get(this.getFsURI(), conf);
@@ -87,5 +88,4 @@ public abstract class HadoopFsEndPoint implements EndPoint{
   public boolean isDatasetAvailable(Path datasetPath) {
     return isPathAvailable(datasetPath);
   }
-
 }

@@ -73,8 +73,7 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   }
 
   @Override
-  public synchronized Collection<FileStatus> getFiles()
-      throws IOException {
+  public synchronized Collection<FileStatus> getFiles() throws IOException {
     if (filesInitialized) {
       return this.allFileStatus;
     }
@@ -90,7 +89,8 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
     //ReplicationDataValidPathPicker.getValidPaths(fs, this.rc.getPath(), this.rdc);
 
     for (Path p : validPaths) {
-      this.allFileStatus.addAll(FileListUtils.listFilesRecursively(fs, p, super.getPathFilter(),super.isApplyFilterToDirectories()));
+      this.allFileStatus.addAll(
+          FileListUtils.listFilesRecursively(fs, p, super.getPathFilter(), super.isApplyFilterToDirectories()));
     }
     return this.allFileStatus;
   }
