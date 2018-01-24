@@ -42,7 +42,6 @@ import org.apache.gobblin.source.extractor.Watermark;
 import org.apache.gobblin.util.FileListUtils;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.fs.PathFilter;
 
 
 @Slf4j

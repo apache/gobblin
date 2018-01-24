@@ -22,7 +22,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -37,7 +36,6 @@ import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.util.FileListUtils;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.fs.PathFilter;
 
 
 @Slf4j
