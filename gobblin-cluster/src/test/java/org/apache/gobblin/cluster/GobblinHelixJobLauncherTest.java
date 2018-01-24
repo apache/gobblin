@@ -121,6 +121,7 @@ public class GobblinHelixJobLauncherTest {
                    ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
         .withValue(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL,
             ConfigValueFactory.fromAnyRef(sourceJsonFile.getAbsolutePath()))
+        .withValue(ConfigurationKeys.JOB_STATE_IN_STATE_STORE, ConfigValueFactory.fromAnyRef("true"))
         .resolve();
 
     String zkConnectingString = baseConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
@@ -339,6 +340,11 @@ public class GobblinHelixJobLauncherTest {
 
     Assert.assertFalse(workunitsDir.exists());
     Assert.assertFalse(taskstatesDir.exists());
+
+    // check that job.state file is cleaned up
+    final File jobStateFile = new File(GobblinClusterUtils.getJobStateFilePath(true, this.appWorkDir, jobIdKey).toString());
+
+    Assert.assertFalse(jobStateFile.exists());
   }
 
   @AfterClass

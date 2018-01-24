@@ -78,15 +78,12 @@ public class GobblinHelixTask implements Task {
     this.taskConfig = taskCallbackContext.getTaskConfig();
     getInfoFromTaskConfig();
 
-    Path jobStateFilePath = constructJobStateFilePath(appWorkDir);
+    Path jobStateFilePath =
+        GobblinClusterUtils.getJobStateFilePath(stateStores.haveJobStateStore(), appWorkDir, this.jobId);
 
     this.task =
         new SingleTask(this.jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder,
             stateStores);
-  }
-
-  private Path constructJobStateFilePath(Path appWorkDir) {
-    return new Path(appWorkDir, this.jobId + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
   }
 
   private void getInfoFromTaskConfig() {

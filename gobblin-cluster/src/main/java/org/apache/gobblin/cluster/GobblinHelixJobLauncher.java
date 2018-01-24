@@ -162,13 +162,14 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     this.stateStores = new StateStores(stateStoreJobConfig, appWorkDir,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
-        GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
+        GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME, appWorkDir,
+        GobblinClusterConfigurationKeys.JOB_STATE_DIR_NAME);
 
     URI fsUri = URI.create(jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.fs = FileSystem.get(fsUri, new Configuration());
 
     this.taskStateCollectorService = new TaskStateCollectorService(jobProps, this.jobContext.getJobState(),
-        this.eventBus, this.stateStores.taskStateStore, outputTaskStateDir);
+        this.eventBus, this.stateStores.getTaskStateStore(), outputTaskStateDir);
 
     if (Task.getExecutionModel(ConfigUtils.configToState(jobConfig)).equals(ExecutionModel.STREAMING)) {
       // Fix-up Ideal State with a custom rebalancer that will re-balance long-running jobs
@@ -268,8 +269,17 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
       }
 
-      Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
-      SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
+      Path jobStateFilePath;
+
+      // write the job.state using the state store if present, otherwise serialize directly to the file
+      if (this.stateStores.haveJobStateStore()) {
+        jobStateFilePath = GobblinClusterUtils.getJobStateFilePath(true, this.appWorkDir, this.jobContext.getJobId());
+        this.stateStores.getJobStateStore().put(jobStateFilePath.getParent().getName(), jobStateFilePath.getName(),
+            this.jobContext.getJobState());
+      } else {
+        jobStateFilePath = GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
+        SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
+      }
 
       LOGGER.debug("GobblinHelixJobLauncher.createJob: jobStateFilePath {}, jobState {} jobProperties {}",
           jobStateFilePath, this.jobContext.getJobState().toString(), this.jobContext.getJobState().getProperties());
@@ -355,10 +365,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     if (workUnit instanceof MultiWorkUnit) {
       workUnitFileName += MULTI_WORK_UNIT_FILE_EXTENSION;
-      stateStore = stateStores.mwuStateStore;
+      stateStore = stateStores.getMwuStateStore();
     } else {
       workUnitFileName += WORK_UNIT_FILE_EXTENSION;
-      stateStore = stateStores.wuStateStore;
+      stateStore = stateStores.getWuStateStore();
     }
 
     Path workUnitFile = new Path(workUnitFileDir, workUnitFileName);
@@ -396,14 +406,19 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    */
   private void cleanupWorkingDirectory() throws IOException {
     LOGGER.info("Deleting persisted work units for job " + this.jobContext.getJobId());
-    stateStores.wuStateStore.delete(this.jobContext.getJobId());
+    stateStores.getWuStateStore().delete(this.jobContext.getJobId());
 
     // delete the directory that stores the task state files
-    stateStores.taskStateStore.delete(outputTaskStateDir.getName());
+    stateStores.getTaskStateStore().delete(outputTaskStateDir.getName());
 
     LOGGER.info("Deleting job state file for job " + this.jobContext.getJobId());
-    Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
-    this.fs.delete(jobStateFilePath, false);
+
+    if (this.stateStores.haveJobStateStore()) {
+      this.stateStores.getJobStateStore().delete(this.jobContext.getJobId());
+    } else {
+      Path jobStateFilePath = GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
+      this.fs.delete(jobStateFilePath, false);
+    }
   }
 
   /**

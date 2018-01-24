@@ -79,14 +79,15 @@ public class GobblinHelixTaskFactory implements TaskFactory {
     this.fs = fs;
     this.appWorkDir = appWorkDir;
     this.stateStores = new StateStores(config, appWorkDir, GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME,
-        appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
+        appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME, appWorkDir,
+        GobblinClusterConfigurationKeys.JOB_STATE_DIR_NAME);
     this.taskAttemptBuilder = createTaskAttemptBuilder();
   }
 
   private TaskAttemptBuilder createTaskAttemptBuilder() {
     TaskAttemptBuilder builder = new TaskAttemptBuilder(this.taskStateTracker, this.taskExecutor);
     builder.setContainerId(this.helixManager.getInstanceName());
-    builder.setTaskStateStore(this.stateStores.taskStateStore);
+    builder.setTaskStateStore(this.stateStores.getTaskStateStore());
 
     return builder;
   }
