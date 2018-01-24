@@ -39,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
-public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
+public class SourceHadoopFsEndPoint extends HadoopFsEndPoint {
 
   @Getter
   private final HadoopFsReplicaConfig rc;
@@ -57,8 +57,8 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
   }
 
   @Override
-  public synchronized Collection<FileStatus> getFiles() throws IOException{
-    if(!this.initialized){
+  public synchronized Collection<FileStatus> getFiles() throws IOException {
+    if (!this.initialized) {
       this.getWatermark();
     }
     return this.allFileStatus;
@@ -66,7 +66,7 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
 
   @Override
   public synchronized Optional<ComparableWatermark> getWatermark() {
-    if(this.initialized) {
+    if (this.initialized) {
       return this.cachedWatermark;
     }
     try {
@@ -74,8 +74,9 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
 
       Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(this);
-      for(Path p: validPaths){
-        this.allFileStatus.addAll(FileListUtils.listFilesRecursively(fs, p));
+      for (Path p : validPaths) {
+        this.allFileStatus.addAll(
+            FileListUtils.listFilesRecursively(fs, p, super.getPathFilter(), super.isApplyFilterToDirectories()));
       }
 
       for (FileStatus f : this.allFileStatus) {
@@ -115,8 +116,11 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this.getClass()).add("is source", this.isSource()).add("end point name", this.getEndPointName())
-        .add("hadoopfs config", this.rc).toString();
+    return Objects.toStringHelper(this.getClass())
+        .add("is source", this.isSource())
+        .add("end point name", this.getEndPointName())
+        .add("hadoopfs config", this.rc)
+        .toString();
   }
 
   @Override
@@ -125,7 +129,7 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
   }
 
   @Override
-  public Path getDatasetPath(){
+  public Path getDatasetPath() {
     return this.rc.getPath();
   }
 
@@ -139,18 +143,23 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj)
+    if (this == obj) {
       return true;
-    if (obj == null)
+    }
+    if (obj == null) {
       return false;
-    if (getClass() != obj.getClass())
+    }
+    if (getClass() != obj.getClass()) {
       return false;
+    }
     SourceHadoopFsEndPoint other = (SourceHadoopFsEndPoint) obj;
     if (rc == null) {
-      if (other.rc != null)
+      if (other.rc != null) {
         return false;
-    } else if (!rc.equals(other.rc))
+      }
+    } else if (!rc.equals(other.rc)) {
       return false;
+    }
     return true;
   }
 }
