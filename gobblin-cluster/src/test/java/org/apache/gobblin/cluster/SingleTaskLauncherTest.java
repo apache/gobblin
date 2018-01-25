@@ -28,6 +28,8 @@ import org.testng.annotations.Test;
 import org.apache.gobblin.util.GobblinProcessBuilder;
 import org.apache.gobblin.util.SystemPropertiesWrapper;
 
+import com.typesafe.config.ConfigFactory;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -56,7 +58,7 @@ public class SingleTaskLauncherTest {
 
     final Path clusterConfPath = Paths.get(CLUSTER_CONFIG_CONF_PATH);
     final SingleTaskLauncher launcher =
-        new SingleTaskLauncher(processBuilder, propertiesWrapper, clusterConfPath);
+        new SingleTaskLauncher(processBuilder, propertiesWrapper, clusterConfPath, ConfigFactory.empty());
 
     final Path workUnitPath = Paths.get(WORK_UNIT_PATH);
     final Process process = launcher.launch(JOB_ID, workUnitPath);
