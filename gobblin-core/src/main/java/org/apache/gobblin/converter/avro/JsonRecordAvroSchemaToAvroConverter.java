@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
@@ -42,18 +43,12 @@ import com.google.common.base.Splitter;
 public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase<SI, JsonObject> {
 
   private static final Splitter SPLITTER_ON_COMMA = Splitter.on(',').trimResults().omitEmptyStrings();
-
-  public static final String AVRO_SCHEMA_KEY = "converter.avroSchema";
-  public static final String IGNORE_FIELDS = "converter.ignoreFields";
-
   private Schema schema;
   private List<String> ignoreFields;
 
   public ToAvroConverterBase<SI, JsonObject> init(WorkUnitState workUnit) {
     super.init(workUnit);
-    Preconditions.checkArgument(workUnit.contains(AVRO_SCHEMA_KEY));
-    this.schema = new Schema.Parser().parse(workUnit.getProp(AVRO_SCHEMA_KEY));
-    this.ignoreFields = SPLITTER_ON_COMMA.splitToList(workUnit.getProp(IGNORE_FIELDS, ""));
+    this.ignoreFields = SPLITTER_ON_COMMA.splitToList(workUnit.getProp(ConfigurationKeys.CONVERTER_IGNORE_FIELDS, ""));
     return this;
   }
 
@@ -62,6 +57,8 @@ public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase
    */
   @Override
   public Schema convertSchema(SI inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+    Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_AVRO_SCHEMA_KEY));
+    this.schema = new Schema.Parser().parse(workUnit.getProp(ConfigurationKeys.CONVERTER_AVRO_SCHEMA_KEY));
     return this.schema;
   }
 

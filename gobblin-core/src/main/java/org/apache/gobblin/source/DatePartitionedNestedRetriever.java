@@ -201,7 +201,7 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
     return new PathFilter() {
       @Override
       public boolean accept(Path path) {
-        return path.getName().endsWith(extension);
+        return path.getName().endsWith(extension) && !path.getName().equals(ConfigurationKeys.DEFAULT_SCHEMA_FILENAME);
       }
     };
   }
