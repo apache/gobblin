@@ -192,7 +192,7 @@ public class GobblinTaskRunner {
     TaskFactory taskFactory;
     if (isRunTaskInSeparateProcessEnabled) {
       logger.info("Running a task in a separate process is enabled.");
-      taskFactory = new HelixTaskFactory(this.containerMetrics, CLUSTER_CONF_PATH);
+      taskFactory = new HelixTaskFactory(this.containerMetrics, CLUSTER_CONF_PATH, config);
     } else {
       taskFactory = getInProcessTaskFactory();
     }
