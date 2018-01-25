@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.gobblin.util.GobblinProcessBuilder;
 import org.apache.gobblin.util.SystemPropertiesWrapper;
 
+import com.typesafe.config.Config;
+
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainOptions.CLUSTER_CONFIG_FILE_PATH;
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainOptions.JOB_ID;
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainOptions.WORK_UNIT_FILE_PATH;
@@ -40,12 +42,14 @@ class SingleTaskLauncher {
   private final GobblinProcessBuilder processBuilder;
   private final SystemPropertiesWrapper propertiesWrapper;
   private final Path clusterConfigFilePath;
+  private final Config sysConfig;
 
   SingleTaskLauncher(final GobblinProcessBuilder processBuilder,
-      final SystemPropertiesWrapper propertiesWrapper, final Path clusterConfigFilePath) {
+      final SystemPropertiesWrapper propertiesWrapper, final Path clusterConfigFilePath, Config sysConfig) {
     this.processBuilder = processBuilder;
     this.propertiesWrapper = propertiesWrapper;
     this.clusterConfigFilePath = clusterConfigFilePath;
+    this.sysConfig = sysConfig;
   }
 
   Process launch(final String jobId, final Path workUnitFilePath)
@@ -94,7 +98,12 @@ class SingleTaskLauncher {
 
     private void addClassPath() {
       this.cmd.add("-cp");
-      final String classPath = SingleTaskLauncher.this.propertiesWrapper.getJavaClassPath();
+      String classPath;
+      if (sysConfig.hasPath(GobblinClusterConfigurationKeys.TASK_CLASSPATH)) {
+        classPath = sysConfig.getString(GobblinClusterConfigurationKeys.TASK_CLASSPATH);
+      } else {
+        classPath = SingleTaskLauncher.this.propertiesWrapper.getJavaClassPath();
+      }
       this.cmd.add(classPath);
     }
 

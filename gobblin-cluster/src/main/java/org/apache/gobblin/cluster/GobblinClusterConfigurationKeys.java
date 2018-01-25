@@ -30,8 +30,11 @@ public class GobblinClusterConfigurationKeys {
 
   public static final String GOBBLIN_CLUSTER_PREFIX = "gobblin.cluster.";
 
+  // Task separation properties
   public static final String ENABLE_TASK_IN_SEPARATE_PROCESS =
       GOBBLIN_CLUSTER_PREFIX + "enableTaskInSeparateProcess";
+  public static final String TASK_CLASSPATH =
+      GOBBLIN_CLUSTER_PREFIX + "task.classpath";
 
   // General Gobblin Cluster application configuration properties.
   public static final String APPLICATION_NAME_OPTION_NAME = "app_name";
