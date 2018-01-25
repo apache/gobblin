@@ -80,6 +80,7 @@ class SingleTaskLauncher {
     List<String> build() {
       addJavaBin();
       addClassPath();
+      addLogConfig();
       addClassName();
       addOptions();
       return this.cmd;
@@ -94,6 +95,13 @@ class SingleTaskLauncher {
       final String javaHomeDir = SingleTaskLauncher.this.propertiesWrapper.getJavaHome();
       final Path javaBinPath = Paths.get(javaHomeDir, "bin", "java");
       this.cmd.add(javaBinPath.toString());
+    }
+
+    private void addLogConfig() {
+      if (sysConfig.hasPath(GobblinClusterConfigurationKeys.TASK_LOG_CONFIG)) {
+        String logConfig = sysConfig.getString(GobblinClusterConfigurationKeys.TASK_LOG_CONFIG);
+        this.cmd.add(logConfig);
+      }
     }
 
     private void addClassPath() {
