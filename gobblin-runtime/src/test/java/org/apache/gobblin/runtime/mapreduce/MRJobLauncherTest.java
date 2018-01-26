@@ -20,7 +20,10 @@ package org.apache.gobblin.runtime.mapreduce;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
@@ -37,14 +40,17 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.capability.Capability;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.DynamicConfigGenerator;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.runtime.JobLauncherTestHelper;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.util.limiter.BaseLimiterType;
@@ -360,6 +366,55 @@ public class MRJobLauncherTest extends BMNGRunner {
     }
   }
 
+  @Test
+  public void testLaunchJobWithNonThreadsafeDataPublisher() throws Exception {
+    final Logger log = LoggerFactory.getLogger(getClass().getName() + ".testLaunchJobWithNonThreadsafeDataPublisher");
+    log.info("in");
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithNonThreadsafeDataPublisher");
+    jobProps.setProperty(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE, TestNonThreadsafeDataPublisher.class.getName());
+
+    // make sure the count starts from 0
+    TestNonThreadsafeDataPublisher.instantiatedCount.set(0);
+
+    try {
+      this.jobLauncherTestHelper.runTestWithMultipleDatasets(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+
+    // A different  publisher is used for each dataset
+    Assert.assertEquals(TestNonThreadsafeDataPublisher.instantiatedCount.get(), 4);
+
+    log.info("out");
+  }
+
+  @Test
+  public void testLaunchJobWithThreadsafeDataPublisher() throws Exception {
+    final Logger log = LoggerFactory.getLogger(getClass().getName() + ".testLaunchJobWithThreadsafeDataPublisher");
+    log.info("in");
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithThreadsafeDataPublisher");
+    jobProps.setProperty(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE, TestThreadsafeDataPublisher.class.getName());
+
+    // make sure the count starts from 0
+    TestThreadsafeDataPublisher.instantiatedCount.set(0);
+
+    try {
+      this.jobLauncherTestHelper.runTestWithMultipleDatasets(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+
+    // The same publisher is used for all the data sets
+    Assert.assertEquals(TestThreadsafeDataPublisher.instantiatedCount.get(), 1);
+
+    log.info("out");
+  }
+
+
   @AfterClass(alwaysRun = true)
   public void tearDown() throws IOException {
     if (testMetastoreDatabase != null) {
@@ -388,6 +443,54 @@ public class MRJobLauncherTest extends BMNGRunner {
     public Config generateDynamicConfig(Config config) {
       return ConfigFactory.parseMap(ImmutableMap.of(JobLauncherTestHelper.DYNAMIC_KEY1,
           JobLauncherTestHelper.DYNAMIC_VALUE1));
+    }
+  }
+
+  public static class TestNonThreadsafeDataPublisher extends DataPublisher {
+    // for counting how many times the object is instantiated in the test case
+    static AtomicInteger instantiatedCount = new AtomicInteger(0);
+
+    public TestNonThreadsafeDataPublisher(State state) {
+      super(state);
+      instantiatedCount.incrementAndGet();
+    }
+
+    @Override
+    public void initialize() throws IOException {
+    }
+
+    @Override
+    public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
+      for (WorkUnitState workUnitState : states) {
+        // Upon successfully committing the data to the final output directory, set states
+        // of successful tasks to COMMITTED. leaving states of unsuccessful ones unchanged.
+        // This makes sense to the COMMIT_ON_PARTIAL_SUCCESS policy.
+        workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+      }
+    }
+
+    @Override
+    public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
+    }
+
+    @Override
+    public void close() throws IOException {
+    }
+
+    @Override
+    public boolean supportsCapability(Capability c, Map<String, Object> properties) {
+      return c == DataPublisher.REUSABLE;
+    }
+  }
+
+  public static class TestThreadsafeDataPublisher extends TestNonThreadsafeDataPublisher {
+    public TestThreadsafeDataPublisher(State state) {
+      super(state);
+    }
+
+    @Override
+    public boolean supportsCapability(Capability c, Map<String, Object> properties) {
+      return (c == Capability.THREADSAFE || c == DataPublisher.REUSABLE);
     }
   }
 }

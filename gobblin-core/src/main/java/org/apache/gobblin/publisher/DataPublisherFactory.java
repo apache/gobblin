@@ -54,6 +54,16 @@ public class DataPublisherFactory<S extends ScopeType<S>>
     }
   }
 
+  /**
+   * Is the publisher cacheable in the SharedResourcesBroker?
+   * @param publisher
+   * @return true if cacheable, else false
+   */
+  public static boolean isPublisherCacheable(DataPublisher publisher) {
+    // only threadsafe publishers are cacheable. non-threadsafe publishers are marked immediately for invalidation
+    return publisher.supportsCapability(Capability.THREADSAFE, Collections.EMPTY_MAP);
+  }
+
   @Override
   public String getName() {
     return FACTORY_NAME;
@@ -75,7 +85,7 @@ public class DataPublisherFactory<S extends ScopeType<S>>
       // by the broker.
       // Otherwise, it is not shareable, so return it as an immediately invalidated resource that will only be returned
       // once from the broker.
-      if (publisher.supportsCapability(Capability.THREADSAFE, Collections.EMPTY_MAP)) {
+      if (isPublisherCacheable(publisher)) {
         return new ResourceInstance<>(publisher);
       } else {
         return new ImmediatelyInvalidResourceEntry<>(publisher);
