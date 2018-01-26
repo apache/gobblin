@@ -44,6 +44,7 @@ import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.publisher.DataPublisherFactory;
 import org.apache.gobblin.publisher.UnpublishedHandling;
 import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
@@ -133,9 +134,23 @@ final class SafeDatasetCommit implements Callable<Void> {
             }
             generateCommitSequenceBuilder(this.datasetState, entry.getValue());
           } else {
-            DataPublisher publisher = taskFactory == null ? closer
-                .register(DataPublisher.getInstance(dataPublisherClass, this.jobContext.getJobState()))
-                : taskFactory.createDataPublisher(this.datasetState);
+            DataPublisher publisher;
+
+            if (taskFactory == null) {
+              publisher = DataPublisherFactory.get(dataPublisherClass.getName(), this.jobContext.getJobState(),
+                  this.jobContext.getJobBroker());
+
+              // non-threadsafe publishers are not shareable and are not retained in the broker, so register them with
+              // the closer
+              if (!DataPublisherFactory.isPublisherCacheable(publisher)) {
+                closer.register(publisher);
+              }
+            } else {
+              // NOTE: sharing of publishers is not supported when they are instantiated through the TaskFactory.
+              // This should be revisited if sharing is required.
+              publisher = taskFactory.createDataPublisher(this.datasetState);
+            }
+
             if (this.isJobCancelled) {
               if (publisher.canBeSkipped()) {
                 log.warn(publisher.getClass() + " will be skipped.");
@@ -160,11 +175,7 @@ final class SafeDatasetCommit implements Callable<Void> {
           this.datasetState.setState(JobState.RunningState.COMMITTED);
         }
       }
-    } catch (ReflectiveOperationException roe) {
-      log.error(String.format("Failed to instantiate data publisher for dataset %s of job %s.", this.datasetUrn,
-          this.jobContext.getJobId()), roe);
-      throw new RuntimeException(roe);
-    } catch (Throwable throwable) {
+    }  catch (Throwable throwable) {
       log.error(String.format("Failed to commit dataset state for dataset %s of job %s", this.datasetUrn,
           this.jobContext.getJobId()), throwable);
       throw new RuntimeException(throwable);
