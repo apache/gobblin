@@ -19,7 +19,6 @@ package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -33,7 +32,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
-import org.apache.gobblin.capability.Capability;
 import org.apache.gobblin.commit.CommitSequence;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.commit.DeliverySemantics;
@@ -144,10 +142,12 @@ final class SafeDatasetCommit implements Callable<Void> {
 
               // non-threadsafe publishers are not shareable and are not retained in the broker, so register them with
               // the closer
-              if (!publisher.supportsCapability(Capability.THREADSAFE, Collections.EMPTY_MAP)) {
+              if (!DataPublisherFactory.isPublisherCacheable(publisher)) {
                 closer.register(publisher);
               }
             } else {
+              // NOTE: sharing of publishers is not supported when they are instantiated through the TaskFactory.
+              // This should be revisited if sharing is required.
               publisher = taskFactory.createDataPublisher(this.datasetState);
             }
 
