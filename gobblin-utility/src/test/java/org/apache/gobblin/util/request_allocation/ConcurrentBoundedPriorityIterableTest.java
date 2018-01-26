@@ -35,7 +35,7 @@ public class ConcurrentBoundedPriorityIterableTest {
   public void test() throws Exception {
 
     ConcurrentBoundedPriorityIterable<String> iterable = new ConcurrentBoundedPriorityIterable<>(new MyComparator(),
-        new MyEstimator(), ResourcePool.builder().maxResource(MEMORY, 100.).build());
+        new MyEstimator(), "min",ResourcePool.builder().maxResource(MEMORY, 100.).build());
 
     // doesn't fit
     Assert.assertFalse(iterable.add("a-500"));

@@ -144,6 +144,7 @@ public class CopySourceTest {
     state.setProp(CopySource.MAX_CONCURRENT_LISTING_SERVICES,2);
     state.setProp(CopyConfiguration.MAX_COPY_PREFIX+".size","50");
     state.setProp(CopyConfiguration.MAX_COPY_PREFIX+".copyEntities",2);
+    state.setProp(CopyConfiguration.STORE_REJECTED_REQUESTS,"all");
     state.setProp(ConfigurationKeys.METRICS_CUSTOM_BUILDERS,"org.apache.gobblin.metrics.ConsoleEventReporterFactory");
 
     CopySource source = new CopySource();

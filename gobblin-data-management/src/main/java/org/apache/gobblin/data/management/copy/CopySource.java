@@ -31,6 +31,7 @@ import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 
+import lombok.Getter;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.util.request_allocation.PriorityIterableBasedRequestAllocator;
 import org.apache.hadoop.conf.Configuration;
@@ -130,7 +131,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   private final WorkUnitWeighter weighter = new FieldWeighter(WORK_UNIT_WEIGHT);
 
   public MetricContext metricContext;
-  public EventSubmitter _eventSubmitter;
+  public EventSubmitter eventSubmitter;
 
   protected Optional<LineageInfo> lineageInfo;
 
@@ -180,10 +181,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
-      this._eventSubmitter = new EventSubmitter.Builder(this.metricContext, CopyConfiguration.COPY_PREFIX).build();
+      this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, CopyConfiguration.COPY_PREFIX).build();
       DatasetsFinder<CopyableDatasetBase> datasetFinder =
           DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
-              this._eventSubmitter, state);
+              this.eventSubmitter, state);
 
       IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder =
           datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
@@ -198,6 +199,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitsMap =
           Multimaps.<FileSet<CopyEntity>, WorkUnit>synchronizedSetMultimap(
               HashMultimap.<FileSet<CopyEntity>, WorkUnit>create());
+
 
       RequestAllocator<FileSet<CopyEntity>> allocator = createRequestAllocator(copyConfiguration, maxThreads);
       Iterator<FileSet<CopyEntity>> prioritizedFileSets =
@@ -299,10 +301,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   private RequestAllocator<FileSet<CopyEntity>> createRequestAllocator(CopyConfiguration copyConfiguration,
       int maxThreads) {
     Optional<FileSetComparator> prioritizer = copyConfiguration.getPrioritizer();
-
     RequestAllocatorConfig.Builder<FileSet<CopyEntity>> configBuilder =
         RequestAllocatorConfig.builder(new FileSetResourceEstimator())
             .allowParallelization(maxThreads)
+            .storeRejectedRequests(copyConfiguration.getStoreRejectedRequestsSetting())
             .withLimitedScopeConfig(copyConfiguration.getPrioritizationConfig());
 
     if (!prioritizer.isPresent()) {

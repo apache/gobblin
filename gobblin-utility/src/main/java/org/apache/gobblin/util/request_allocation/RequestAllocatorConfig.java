@@ -34,6 +34,7 @@ public class RequestAllocatorConfig<T extends Request<T>> {
   private final ResourceEstimator<T> resourceEstimator;
   private final int allowedThreads;
   private Config limitedScopeConfig;
+  private String storeRejectedRequestsSetting;
 
   public static <T extends Request<T>> Builder<T> builder(ResourceEstimator<T> resourceEstimator) {
     return new Builder<>(resourceEstimator);
@@ -44,6 +45,7 @@ public class RequestAllocatorConfig<T extends Request<T>> {
     private final ResourceEstimator<T> resourceEstimator;
     private int allowedThreads = 1;
     private Config limitedScopeConfig;
+    private String storeRejectedRequestsSetting;
 
     public Builder(ResourceEstimator<T> resourceEstimator) {
       this.resourceEstimator = resourceEstimator;
@@ -68,11 +70,16 @@ public class RequestAllocatorConfig<T extends Request<T>> {
       return this;
     }
 
+    public Builder<T> storeRejectedRequests(String storeRejectedRequestsSetting) {
+      this.storeRejectedRequestsSetting = storeRejectedRequestsSetting;
+      return this;
+    }
+
     public RequestAllocatorConfig<T> build() {
       if (this.limitedScopeConfig == null) {
         this.limitedScopeConfig = ConfigFactory.empty();
       }
-      return new RequestAllocatorConfig<>(this.prioritizer, this.resourceEstimator, this.allowedThreads, this.limitedScopeConfig);
+      return new RequestAllocatorConfig<>(this.prioritizer, this.resourceEstimator, this.allowedThreads, this.limitedScopeConfig, this.storeRejectedRequestsSetting);
     }
   }
 

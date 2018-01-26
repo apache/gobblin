@@ -58,7 +58,7 @@ public abstract class PriorityIterableBasedRequestAllocator<T extends Request<T>
       ResourcePool resourcePool) {
     final ConcurrentBoundedPriorityIterable<T> iterable =
         new ConcurrentBoundedPriorityIterable<>(this.configuration.getPrioritizer(),
-            this.configuration.getResourceEstimator(), resourcePool);
+            this.configuration.getResourceEstimator(), this.configuration.getStoreRejectedRequestsSetting(), resourcePool);
 
     final Iterator<T> joinIterator = getJoinIterator(requestors, iterable);
 

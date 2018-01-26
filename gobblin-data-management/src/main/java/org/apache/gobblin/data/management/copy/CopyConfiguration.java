@@ -65,6 +65,10 @@ public class CopyConfiguration {
 
   public static final String ABORT_ON_SINGLE_DATASET_FAILURE = COPY_PREFIX + ".abortOnSingleDatasetFailure";
 
+  /*
+   * Config to store different classes of rejected requests. Possible values are "all","none", or "min" (default).
+   */
+  public static final String STORE_REJECTED_REQUESTS = COPY_PREFIX + ".store.rejected.requests";
   /**
    * User supplied directory where files should be published. This value is identical for all datasets in the distcp job.
    */
@@ -81,6 +85,7 @@ public class CopyConfiguration {
   private final FileSystem targetFs;
   private final Optional<FileSetComparator> prioritizer;
   private final ResourcePool maxToCopy;
+  private final String storeRejectedRequestsSetting;
 
   private final Config config;
 
@@ -123,6 +128,8 @@ public class CopyConfiguration {
         this.prioritizer = Optional.absent();
       }
       this.maxToCopy = CopyResourcePool.fromConfig(ConfigUtils.getConfigOrEmpty(this.config, MAX_COPY_PREFIX));
+
+      this.storeRejectedRequestsSetting = properties.getProperty(CopyConfiguration.STORE_REJECTED_REQUESTS,"min");
 
       this.abortOnSingleDatasetFailure = false;
       if (this.config.hasPath(ABORT_ON_SINGLE_DATASET_FAILURE)) {
