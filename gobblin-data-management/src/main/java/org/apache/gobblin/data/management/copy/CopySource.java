@@ -17,8 +17,17 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.base.Predicates;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Multimaps;
+import com.google.common.collect.SetMultimap;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -31,21 +40,8 @@ import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 
-import lombok.Getter;
-import org.apache.gobblin.metrics.GobblinTrackingEvent;
-import org.apache.gobblin.util.request_allocation.PriorityIterableBasedRequestAllocator;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicates;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Multimaps;
-import com.google.common.collect.SetMultimap;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
@@ -67,6 +63,7 @@ import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.dataset.IterableDatasetFinderImpl;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -89,12 +86,13 @@ import org.apache.gobblin.util.guid.Guid;
 import org.apache.gobblin.util.request_allocation.GreedyAllocator;
 import org.apache.gobblin.util.request_allocation.HierarchicalAllocator;
 import org.apache.gobblin.util.request_allocation.HierarchicalPrioritizer;
+import org.apache.gobblin.util.request_allocation.PriorityIterableBasedRequestAllocator;
 import org.apache.gobblin.util.request_allocation.RequestAllocator;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorUtils;
 
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 
 
 /**
@@ -199,7 +197,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitsMap =
           Multimaps.<FileSet<CopyEntity>, WorkUnit>synchronizedSetMultimap(
               HashMultimap.<FileSet<CopyEntity>, WorkUnit>create());
-
 
       RequestAllocator<FileSet<CopyEntity>> allocator = createRequestAllocator(copyConfiguration, maxThreads);
       Iterator<FileSet<CopyEntity>> prioritizedFileSets =

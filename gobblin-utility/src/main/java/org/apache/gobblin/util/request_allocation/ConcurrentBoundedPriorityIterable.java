@@ -77,9 +77,7 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
   private List<T> requestsDropped = Lists.newArrayList();
 
   public enum StoreRejectedRequestsConfig {
-    ALL,
-    MIN,
-    NONE
+    ALL, MIN, NONE
   }
 
   // These are ResourceRequirements for temporary use to avoid instantiation costs
@@ -156,7 +154,7 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
       log.warn(String.format("Request %s is larger than the available resource pool. If the pool is not expanded, "
               + "it will never be selected. Request: %s.", newElement.getT(),
           this.resourcePool.stringifyRequirement(newElement.getResourceRequirement())));
-      if(!this.storeRejectedRequestsSetting.equals(StoreRejectedRequestsConfig.NONE.name().toLowerCase())) {
+      if (!this.storeRejectedRequestsSetting.equals(StoreRejectedRequestsConfig.NONE.name().toLowerCase())) {
         this.requestsExceedingAvailableResourcePool.add(newElement.getT());
       }
       this.requestsRefused++;
@@ -174,7 +172,7 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
             "Request {} does not fit in resource pool and is lower priority than current lowest priority request. "
                 + "Rejecting", newElement.getT());
         this.requestsRefused++;
-        if(this.storeRejectedRequestsSetting.equals(StoreRejectedRequestsConfig.ALL.name().toLowerCase())) {
+        if (this.storeRejectedRequestsSetting.equals(StoreRejectedRequestsConfig.ALL.name().toLowerCase())) {
           this.requestsRejectedWithLowPriority.add(newElement.getT());
         }
         return false;
@@ -188,7 +186,7 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
         if (this.comparator.compare(dropCandidate.getT(), newElement.getT()) <= 0) {
           log.debug("Cannot evict enough requests to fit request {}. " + "Rejecting", newElement.getT());
           this.requestsRefused++;
-          if(this.storeRejectedRequestsSetting.equals(StoreRejectedRequestsConfig.ALL.name().toLowerCase())) {
+          if (this.storeRejectedRequestsSetting.equals(StoreRejectedRequestsConfig.ALL.name().toLowerCase())) {
             this.requestsRejectedDueToInsufficientEviction.add(newElement.getT());
           }
           return false;
@@ -204,7 +202,7 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
       for (AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T> drop : toDrop) {
         log.debug("Evicting request {}.", drop.getT());
         this.requestsEvicted++;
-        if(this.storeRejectedRequestsSetting.equals(StoreRejectedRequestsConfig.ALL.name().toLowerCase())) {
+        if (this.storeRejectedRequestsSetting.equals(StoreRejectedRequestsConfig.ALL.name().toLowerCase())) {
           this.requestsDropped.add(drop.getT());
         }
         this.elements.remove(drop);

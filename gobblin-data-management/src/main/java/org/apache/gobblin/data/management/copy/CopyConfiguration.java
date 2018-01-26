@@ -129,7 +129,7 @@ public class CopyConfiguration {
       }
       this.maxToCopy = CopyResourcePool.fromConfig(ConfigUtils.getConfigOrEmpty(this.config, MAX_COPY_PREFIX));
 
-      this.storeRejectedRequestsSetting = properties.getProperty(CopyConfiguration.STORE_REJECTED_REQUESTS,"min");
+      this.storeRejectedRequestsSetting = properties.getProperty(CopyConfiguration.STORE_REJECTED_REQUESTS, "min");
 
       this.abortOnSingleDatasetFailure = false;
       if (this.config.hasPath(ABORT_ON_SINGLE_DATASET_FAILURE)) {

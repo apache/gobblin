@@ -79,7 +79,8 @@ public class RequestAllocatorConfig<T extends Request<T>> {
       if (this.limitedScopeConfig == null) {
         this.limitedScopeConfig = ConfigFactory.empty();
       }
-      return new RequestAllocatorConfig<>(this.prioritizer, this.resourceEstimator, this.allowedThreads, this.limitedScopeConfig, this.storeRejectedRequestsSetting);
+      return new RequestAllocatorConfig<>(this.prioritizer, this.resourceEstimator, this.allowedThreads,
+          this.limitedScopeConfig, this.storeRejectedRequestsSetting);
     }
   }
 
@@ -89,5 +90,4 @@ public class RequestAllocatorConfig<T extends Request<T>> {
       return 0;
     }
   }
-
 }

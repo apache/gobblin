@@ -17,12 +17,9 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Predicates;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Multimaps;
-import com.google.common.collect.SetMultimap;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -30,8 +27,10 @@ import java.util.Iterator;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.data.management.copy.watermark.CopyableFileWatermarkGenerator;
-import org.apache.gobblin.data.management.copy.watermark.CopyableFileWatermarkHelper;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.data.management.partition.CopyableDatasetRequestor;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.dataset.DatasetsFinder;
@@ -40,26 +39,23 @@ import org.apache.gobblin.dataset.IterableDatasetFinderImpl;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.request_allocation.PriorityIterableBasedRequestAllocator;
-import org.apache.gobblin.util.request_allocation.RequestAllocator;
+
 import org.apache.hadoop.fs.FileSystem;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.data.management.dataset.DatasetUtils;
-import org.apache.gobblin.source.workunit.Extract;
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.util.JobLauncherUtils;
 
 @Slf4j
 public class CopySourceTest {
 
   @Test
-  public void testCopySource()
-      throws Exception {
+  public void testCopySource() throws Exception {
 
     SourceState state = new SourceState();
 
@@ -86,8 +82,7 @@ public class CopySourceTest {
   }
 
   @Test
-  public void testPartitionableDataset()
-      throws Exception {
+  public void testPartitionableDataset() throws Exception {
 
     SourceState state = new SourceState();
 
@@ -141,26 +136,27 @@ public class CopySourceTest {
     state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/target/dir");
     state.setProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY,
         TestCopyablePartitionableDatasedFinder.class.getCanonicalName());
-    state.setProp(CopySource.MAX_CONCURRENT_LISTING_SERVICES,2);
-    state.setProp(CopyConfiguration.MAX_COPY_PREFIX+".size","50");
-    state.setProp(CopyConfiguration.MAX_COPY_PREFIX+".copyEntities",2);
-    state.setProp(CopyConfiguration.STORE_REJECTED_REQUESTS,"all");
-    state.setProp(ConfigurationKeys.METRICS_CUSTOM_BUILDERS,"org.apache.gobblin.metrics.ConsoleEventReporterFactory");
+    state.setProp(CopySource.MAX_CONCURRENT_LISTING_SERVICES, 2);
+    state.setProp(CopyConfiguration.MAX_COPY_PREFIX + ".size", "50");
+    state.setProp(CopyConfiguration.MAX_COPY_PREFIX + ".copyEntities", 2);
+    state.setProp(CopyConfiguration.STORE_REJECTED_REQUESTS, "all");
+    state.setProp(ConfigurationKeys.METRICS_CUSTOM_BUILDERS, "org.apache.gobblin.metrics.ConsoleEventReporterFactory");
 
     CopySource source = new CopySource();
 
     final FileSystem sourceFs = HadoopUtils.getSourceFileSystem(state);
     final FileSystem targetFs = HadoopUtils.getWriterFileSystem(state, 1, 0);
 
-    int maxThreads = state.getPropAsInt(CopySource.MAX_CONCURRENT_LISTING_SERVICES, CopySource.DEFAULT_MAX_CONCURRENT_LISTING_SERVICES);
+    int maxThreads = state.getPropAsInt(CopySource.MAX_CONCURRENT_LISTING_SERVICES,
+        CopySource.DEFAULT_MAX_CONCURRENT_LISTING_SERVICES);
 
     final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
     MetricContext metricContext = Instrumented.getMetricContext(state, CopySource.class);
     EventSubmitter eventSubmitter = new EventSubmitter.Builder(metricContext, CopyConfiguration.COPY_PREFIX).build();
     DatasetsFinder<CopyableDatasetBase> datasetFinder =
-        DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, CopySource.DEFAULT_DATASET_PROFILE_CLASS_KEY,
-            eventSubmitter, state);
+        DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs,
+            CopySource.DEFAULT_DATASET_PROFILE_CLASS_KEY, eventSubmitter, state);
 
     IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder =
         datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
@@ -175,20 +171,20 @@ public class CopySourceTest {
     Method m = CopySource.class.getDeclaredMethod("createRequestAllocator", CopyConfiguration.class, int.class);
     m.setAccessible(true);
     PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>> allocator =
-        (PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>>) m.invoke(source,copyConfiguration,maxThreads);
+        (PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>>) m.invoke(source, copyConfiguration, maxThreads);
     Iterator<FileSet<CopyEntity>> prioritizedFileSets =
         allocator.allocateRequests(requestorIterator, copyConfiguration.getMaxToCopy());
     List<FileSet<CopyEntity>> fileSetList = allocator.getRequestsExceedingAvailableResourcePool();
-    Assert.assertEquals(fileSetList.size(),2);
+    Assert.assertEquals(fileSetList.size(), 2);
 
     FileSet<CopyEntity> fileSet = fileSetList.get(0);
-    Assert.assertEquals(fileSet.getDataset().getUrn(),"/test");
-    Assert.assertEquals(fileSet.getTotalEntities(),5);
-    Assert.assertEquals(fileSet.getTotalSizeInBytes(),50);
+    Assert.assertEquals(fileSet.getDataset().getUrn(), "/test");
+    Assert.assertEquals(fileSet.getTotalEntities(), 5);
+    Assert.assertEquals(fileSet.getTotalSizeInBytes(), 50);
 
     fileSet = fileSetList.get(1);
-    Assert.assertEquals(fileSet.getDataset().getUrn(),"/test");
-    Assert.assertEquals(fileSet.getTotalEntities(),5);
-    Assert.assertEquals(fileSet.getTotalSizeInBytes(),50);
+    Assert.assertEquals(fileSet.getDataset().getUrn(), "/test");
+    Assert.assertEquals(fileSet.getTotalEntities(), 5);
+    Assert.assertEquals(fileSet.getTotalSizeInBytes(), 50);
   }
 }
