@@ -65,8 +65,8 @@ public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
       }});
 
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
-    if (!previousDatasetStates.isEmpty()) {
-      JobState.DatasetState previousDatasetState = previousDatasetStates.get(0);
+
+    for (JobState.DatasetState previousDatasetState : previousDatasetStates) {
       datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
     }
 

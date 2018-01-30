@@ -69,8 +69,8 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
         getAll(jobName, "%" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX, true);
 
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
-    if (!previousDatasetStates.isEmpty()) {
-      JobState.DatasetState previousDatasetState = previousDatasetStates.get(0);
+
+    for (JobState.DatasetState previousDatasetState : previousDatasetStates) {
       datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
     }
 

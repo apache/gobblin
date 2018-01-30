@@ -46,6 +46,7 @@ public class MysqlDatasetStateStoreTest {
   private static final String TEST_JOB_ID = "TestJob1";
   private static final String TEST_TASK_ID_PREFIX = "TestTask-";
   private static final String TEST_DATASET_URN = "TestDataset";
+  private static final String TEST_DATASET_URN2 = "TestDataset2";
 
   private StateStore<JobState> dbJobStateStore;
   private DatasetStateStore<JobState.DatasetState> dbDatasetStateStore;
@@ -154,6 +155,13 @@ public class MysqlDatasetStateStoreTest {
     }
 
     dbDatasetStateStore.persistDatasetState(TEST_DATASET_URN, datasetState);
+
+    // persist a second dataset state to test that retrieval of multiple dataset states works
+    datasetState.setDatasetUrn(TEST_DATASET_URN2);
+    datasetState.setId(TEST_DATASET_URN2);
+    datasetState.setDuration(2000);
+
+    dbDatasetStateStore.persistDatasetState(TEST_DATASET_URN2, datasetState);
   }
 
   @Test(dependsOnMethods = "testPersistDatasetState")
@@ -183,7 +191,7 @@ public class MysqlDatasetStateStoreTest {
   public void testGetPreviousDatasetStatesByUrns() throws IOException {
     Map<String, JobState.DatasetState> datasetStatesByUrns =
         dbDatasetStateStore.getLatestDatasetStatesByUrns(TEST_JOB_NAME);
-    Assert.assertEquals(datasetStatesByUrns.size(), 1);
+    Assert.assertEquals(datasetStatesByUrns.size(), 2);
 
     JobState.DatasetState datasetState = datasetStatesByUrns.get(TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN);
@@ -193,6 +201,15 @@ public class MysqlDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getStartTime(), this.startTime);
     Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(datasetState.getDuration(), 1000);
+
+    datasetState = datasetStatesByUrns.get(TEST_DATASET_URN2);
+    Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN2);
+    Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
+    Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
+    Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
+    Assert.assertEquals(datasetState.getStartTime(), this.startTime);
+    Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
+    Assert.assertEquals(datasetState.getDuration(), 2000);
   }
 
   @Test(dependsOnMethods = "testGetPreviousDatasetStatesByUrns")
