@@ -187,12 +187,11 @@ public class ConfigBasedDataset implements CopyableDataset {
         if (copyToFileMap.containsKey(newPath)) {
           deletedPaths.add(newPath);
         }
-
-        copyableFiles.add(
-            CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, copyToFs.makeQualified(newPath),
-                copyConfiguration)
-                .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString())
-                .build());
+        CopyableFile copyableFile = CopyableFile
+            .fromOriginAndDestination(copyFromFs, originFileStatus, copyToFs.makeQualified(newPath), copyConfiguration)
+            .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build();
+        CopyableFile.setFsDatasets(copyableFile, copyFromFs, copyConfiguration);
+        copyableFiles.add(copyableFile);
       }
 
       // clean up already checked paths
