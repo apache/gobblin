@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Collection;
@@ -149,7 +150,9 @@ public class PullFileLoaderTest {
   @Test void testJobLoadingOrder() throws Exception {
     Properties sysProps = new Properties();
     FileSystem fs = FileSystem.getLocal(new Configuration());
-    Path localBasePath = new Path(Files.createTempDir().getAbsolutePath(), "PullFileLoaderTestDir");
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    Path localBasePath = new Path(tmpDir.getAbsolutePath(), "PullFileLoaderTestDir");
     fs.mkdirs(localBasePath);
 
     for (int i=5; i>0; i--) {
