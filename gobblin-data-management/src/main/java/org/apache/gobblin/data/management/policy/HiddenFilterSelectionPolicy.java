@@ -38,7 +38,7 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 public class HiddenFilterSelectionPolicy implements VersionSelectionPolicy<FileSystemDatasetVersion> {
   public static final String HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY = "selection.hiddenFilter.hiddenFilePrefix";
-  public static final String[] DEFAULT_HIDDEN_FILE_PREFIXES = {".", "_"};
+  private static final String[] DEFAULT_HIDDEN_FILE_PREFIXES = {".", "_"};
   private List<String> hiddenFilePrefixes;
 
   public HiddenFilterSelectionPolicy(Config config) {
