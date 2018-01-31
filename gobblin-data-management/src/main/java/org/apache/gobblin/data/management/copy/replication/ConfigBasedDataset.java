@@ -190,7 +190,7 @@ public class ConfigBasedDataset implements CopyableDataset {
         CopyableFile copyableFile = CopyableFile
             .fromOriginAndDestination(copyFromFs, originFileStatus, copyToFs.makeQualified(newPath), copyConfiguration)
             .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build();
-        CopyableFile.setFsDatasets(copyableFile, copyFromFs, copyConfiguration);
+        copyableFile.setFsDatasets(copyFromFs, copyToFs);
         copyableFiles.add(copyableFile);
       }
 

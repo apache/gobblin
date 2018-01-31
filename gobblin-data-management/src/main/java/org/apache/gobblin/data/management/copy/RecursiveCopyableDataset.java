@@ -146,7 +146,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
               .datasetOutputPath(thisTargetPath.toString()).ancestorsOwnerAndPermission(CopyableFile
               .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(), nonGlobSearchPath,
                   configuration)).build();
-      CopyableFile.setFsDatasets(copyableFile, this.fs, configuration);
+      copyableFile.setFsDatasets(this.fs, targetFs);
       copyableFiles.add(copyableFile);
     }
     copyEntities.addAll(this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles));

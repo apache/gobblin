@@ -105,14 +105,12 @@ public class CopyableFileTest {
     String destinationPath = "/data/databases/destination/profile";
     when(targetFs.getUri()).thenReturn(new URI(targetFsUri));
     when(targetFs.getScheme()).thenReturn("file");
-    CopyConfiguration copyConfiguration = mock(CopyConfiguration.class);
-    when(copyConfiguration.getTargetFs()).thenReturn(targetFs);
 
     // Test when source file is not a directory
     FileStatus origin = new FileStatus(0l, false, 0, 0l, 0l, new Path(originPath));
     CopyableFile copyableFile = new CopyableFile(origin, new Path(destinationPath), null, null, null,
         PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "");
-    CopyableFile.setFsDatasets(copyableFile, originFs, copyConfiguration);
+    copyableFile.setFsDatasets(originFs, targetFs);
     DatasetDescriptor source = copyableFile.getSourceDataset();
     Assert.assertEquals(source.getName(), "/data/databases/source");
     Assert.assertEquals(source.getPlatform(), "hdfs");
@@ -128,7 +126,7 @@ public class CopyableFileTest {
     origin = new FileStatus(0l, true, 0, 0l, 0l, new Path(originPath));
     copyableFile = new CopyableFile(origin, new Path(destinationPath), null, null, null,
         PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "");
-    CopyableFile.setFsDatasets(copyableFile, originFs, copyConfiguration);
+    copyableFile.setFsDatasets(originFs, targetFs);
     source = copyableFile.getSourceDataset();
     Assert.assertEquals(source.getName(), "/data/databases/source/profile");
     Assert.assertEquals(source.getPlatform(), "hdfs");
