@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.copy;
 
 import org.apache.gobblin.data.management.partition.File;
 import org.apache.gobblin.data.management.copy.PreserveAttributes.Option;
+import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.guid.Guid;
@@ -113,6 +114,30 @@ public class CopyableFile extends CopyEntity implements File {
     this.originTimestamp = originTimestamp;
     this.upstreamTimestamp = upstreamTimestamp;
     this.datasetOutputPath = datasetOutputPath;
+  }
+
+  /**
+   * Set file system based source and destination dataset for this {@link CopyableFile}
+   *
+   * @param originFs {@link FileSystem} where this {@link CopyableFile} origins
+   * @param targetFs {@link FileSystem} where this {@link CopyableFile} is copied to
+   */
+  public void setFsDatasets(FileSystem originFs, FileSystem targetFs) {
+    /*
+     * By default, the raw Gobblin dataset for CopyableFile lineage is its parent folder
+     * if itself is not a folder
+     */
+    boolean isDir = origin.isDirectory();
+
+    Path fullSourcePath = Path.getPathWithoutSchemeAndAuthority(origin.getPath());
+    String sourceDatasetName = isDir ? fullSourcePath.toString() : fullSourcePath.getParent().toString();
+    sourceDataset = new DatasetDescriptor(originFs.getScheme(), sourceDatasetName);
+    sourceDataset.addMetadata(DatasetConstants.FS_URI, originFs.getUri().toString());
+
+    Path fullDestinationPath = Path.getPathWithoutSchemeAndAuthority(destination);
+    String destinationDatasetName = isDir ? fullDestinationPath.toString() : fullDestinationPath.getParent().toString();
+    destinationDataset = new DatasetDescriptor(targetFs.getScheme(), destinationDatasetName);
+    destinationDataset.addMetadata(DatasetConstants.FS_URI, targetFs.getUri().toString());
   }
 
   /**
