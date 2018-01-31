@@ -17,7 +17,13 @@
 
 package org.apache.gobblin.data.management.policy;
 
+import com.google.common.collect.ImmutableMap;
+
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -48,11 +54,17 @@ public class HiddenFilterSelectionPolicyTest {
     Path path2 = new Path("/data/dataset/versions/version2");
     pathSet.add(path2.toString());
     Path path3 = new Path("/data/dataset/.temp/tmpPath");
+    Path path4 = new Path("/data/dataset/_temp/tmpPath");
+
     versionList.add(new TimestampedDatasetVersion(new DateTime(), path1));
     versionList.add(new TimestampedDatasetVersion(new DateTime(), path2));
     versionList.add(new TimestampedDatasetVersion(new DateTime(), path3));
+    versionList.add(new TimestampedDatasetVersion(new DateTime(), path4));
 
-    HiddenFilterSelectionPolicy policy = new HiddenFilterSelectionPolicy();
+    List<String> hiddenFilePrefixes = Arrays.asList("_", ".");
+    Config config = ConfigFactory.parseMap(
+        ImmutableMap.of(HiddenFilterSelectionPolicy.HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY, hiddenFilePrefixes));
+    HiddenFilterSelectionPolicy policy = new HiddenFilterSelectionPolicy(config);
     Collection<FileSystemDatasetVersion> selectedVersions = policy.listSelectedVersions(versionList);
     Assert.assertEquals(selectedVersions.size(), 2);
     for (FileSystemDatasetVersion version : selectedVersions) {

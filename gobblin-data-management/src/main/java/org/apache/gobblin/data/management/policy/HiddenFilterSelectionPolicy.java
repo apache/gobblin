@@ -21,6 +21,8 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 
+import com.typesafe.config.Config;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -34,17 +36,27 @@ import org.apache.hadoop.fs.Path;
  * Select dataset versions that pass the hidden path filter i.e. accept paths that do not have sub-dirs whose names start with "." or "_".
  */
 public class HiddenFilterSelectionPolicy implements VersionSelectionPolicy<FileSystemDatasetVersion> {
-  private static final String[] HIDDEN_FILE_PREFIX = {"_", "."};
+  public static final String HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY="selection.hiddenFilter.hiddenFilePrefix";
+  public static final String[] DEFAULT_HIDDEN_FILE_PREFIXES = {".","_"};
+  private List<String> hiddenFilePrefixes;
 
-  @Override
-  public Class<? extends DatasetVersion> versionClass() {
-    return DatasetVersion.class;
+  public HiddenFilterSelectionPolicy(Config config) {
+    if(config.hasPath(HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY)) {
+      this.hiddenFilePrefixes = config.getStringList(HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY);
+    } else {
+      this.hiddenFilePrefixes = Arrays.asList(DEFAULT_HIDDEN_FILE_PREFIXES);
+    }
   }
 
-  boolean isPathHidden(Path path) {
+  @Override
+  public Class<? extends FileSystemDatasetVersion> versionClass() {
+    return FileSystemDatasetVersion.class;
+  }
+
+  private boolean isPathHidden(Path path) {
     while (path != null) {
       String name = path.getName();
-      for (String prefix : HIDDEN_FILE_PREFIX) {
+      for (String prefix : this.hiddenFilePrefixes) {
         if (name.startsWith(prefix)) {
           return true;
         }
