@@ -24,21 +24,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.*;
-
 import com.google.common.collect.ImmutableMap;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
-import org.apache.hadoop.fs.Path;
 
 
 public class HiddenFilterSelectionPolicyTest {
