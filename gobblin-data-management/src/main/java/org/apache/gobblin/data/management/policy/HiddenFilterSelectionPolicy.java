@@ -17,32 +17,33 @@
 
 package org.apache.gobblin.data.management.policy;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.Lists;
-
-import com.typesafe.config.Config;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.gobblin.data.management.version.DatasetVersion;
-import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /*
  * Select dataset versions that pass the hidden path filter i.e. accept paths that do not have sub-dirs whose names start with "." or "_".
  */
 public class HiddenFilterSelectionPolicy implements VersionSelectionPolicy<FileSystemDatasetVersion> {
-  public static final String HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY="selection.hiddenFilter.hiddenFilePrefix";
-  public static final String[] DEFAULT_HIDDEN_FILE_PREFIXES = {".","_"};
+  public static final String HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY = "selection.hiddenFilter.hiddenFilePrefix";
+  public static final String[] DEFAULT_HIDDEN_FILE_PREFIXES = {".", "_"};
   private List<String> hiddenFilePrefixes;
 
   public HiddenFilterSelectionPolicy(Config config) {
-    if(config.hasPath(HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY)) {
-      this.hiddenFilePrefixes = config.getStringList(HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY);
+    if (config.hasPath(HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY)) {
+      this.hiddenFilePrefixes = ConfigUtils.getStringList(config, HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY);
     } else {
       this.hiddenFilePrefixes = Arrays.asList(DEFAULT_HIDDEN_FILE_PREFIXES);
     }

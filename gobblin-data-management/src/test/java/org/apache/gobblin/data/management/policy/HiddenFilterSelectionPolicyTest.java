@@ -17,23 +17,12 @@
 
 package org.apache.gobblin.data.management.policy;
 
-import com.google.common.collect.ImmutableMap;
-
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
-import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
-import org.apache.hadoop.fs.Path;
 
 import org.joda.time.DateTime;
 
@@ -42,8 +31,16 @@ import org.testng.annotations.Test;
 
 import static org.testng.Assert.*;
 
+import com.google.common.collect.ImmutableMap;
 
-@Slf4j
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
+import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.hadoop.fs.Path;
+
+
 public class HiddenFilterSelectionPolicyTest {
   @Test
   public void testListSelectedVersions() throws Exception {
@@ -62,15 +59,22 @@ public class HiddenFilterSelectionPolicyTest {
     versionList.add(new TimestampedDatasetVersion(new DateTime(), path4));
 
     List<String> hiddenFilePrefixes = Arrays.asList("_", ".");
-    Config config = ConfigFactory.parseMap(
+    List<Config> configList = new ArrayList<>();
+    Config config1 = ConfigFactory.parseMap(
         ImmutableMap.of(HiddenFilterSelectionPolicy.HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY, hiddenFilePrefixes));
-    HiddenFilterSelectionPolicy policy = new HiddenFilterSelectionPolicy(config);
-    Collection<FileSystemDatasetVersion> selectedVersions = policy.listSelectedVersions(versionList);
-    Assert.assertEquals(selectedVersions.size(), 2);
-    for (FileSystemDatasetVersion version : selectedVersions) {
-      Set<Path> paths = version.getPaths();
-      for (Path path : paths) {
-        Assert.assertTrue(pathSet.contains(path.toString()));
+    configList.add(config1);
+    Config config2 = ConfigFactory.parseMap(
+        ImmutableMap.of(HiddenFilterSelectionPolicy.HIDDEN_FILTER_HIDDEN_FILE_PREFIX_KEY, "_,."));
+    configList.add(config2);
+    for (Config config : configList) {
+      HiddenFilterSelectionPolicy policy = new HiddenFilterSelectionPolicy(config);
+      Collection<FileSystemDatasetVersion> selectedVersions = policy.listSelectedVersions(versionList);
+      Assert.assertEquals(selectedVersions.size(), 2);
+      for (FileSystemDatasetVersion version : selectedVersions) {
+        Set<Path> paths = version.getPaths();
+        for (Path path : paths) {
+          Assert.assertTrue(pathSet.contains(path.toString()));
+        }
       }
     }
   }
