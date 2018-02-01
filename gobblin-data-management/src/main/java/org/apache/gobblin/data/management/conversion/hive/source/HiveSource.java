@@ -238,7 +238,7 @@ public class HiveSource implements Source {
         return;
       }
 
-      if (shouldCreateWorkunit(getCreateTime(hiveDataset.getTable()), updateTime, lowWatermark)) {
+      if (shouldCreateWorkunit(hiveDataset.getTable(), lowWatermark)) {
 
         log.info(String.format(
             "Creating workunit for table %s as updateTime %s or createTime %s is greater than low watermark %s",
@@ -381,6 +381,13 @@ public class HiveSource implements Source {
   protected boolean shouldCreateWorkunit(Partition sourcePartition, LongWatermark lowWatermark) throws UpdateNotFoundException {
     long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
     long createTime = getCreateTime(sourcePartition);
+    return shouldCreateWorkunit(createTime, updateTime, lowWatermark);
+  }
+
+  protected boolean shouldCreateWorkunit(Table table, LongWatermark lowWatermark)
+      throws UpdateNotFoundException {
+    long updateTime = this.updateProvider.getUpdateTime(table);
+    long createTime = getCreateTime(table);
     return shouldCreateWorkunit(createTime, updateTime, lowWatermark);
   }
 
