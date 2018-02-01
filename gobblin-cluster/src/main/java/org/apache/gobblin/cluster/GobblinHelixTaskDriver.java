@@ -16,54 +16,23 @@
  */
 package org.apache.gobblin.cluster;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.I0Itec.zkclient.DataUpdater;
-import org.apache.helix.AccessOption;
 import org.apache.helix.ConfigAccessor;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
-import org.apache.helix.PropertyKey;
-import org.apache.helix.PropertyPathConfig;
-import org.apache.helix.PropertyType;
 import org.apache.helix.ZNRecord;
-import org.apache.helix.manager.zk.ZKHelixAdmin;
-import org.apache.helix.manager.zk.ZKHelixDataAccessor;
-import org.apache.helix.manager.zk.ZkBaseDataAccessor;
-import org.apache.helix.manager.zk.ZkClient;
-import org.apache.helix.model.IdealState;
 import org.apache.helix.store.HelixPropertyStore;
-import org.apache.helix.store.zk.ZkHelixPropertyStore;
-import org.apache.helix.task.JobDag;
 import org.apache.helix.task.TargetState;
-import org.apache.helix.task.TaskConstants;
 import org.apache.helix.task.TaskDriver;
-import org.apache.helix.task.TaskState;
-import org.apache.helix.task.TaskUtil;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
-import org.apache.log4j.Logger;
-
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 
 /**
  * #HELIX-0.6.7-WORKAROUND
  * Replacement TaskDriver methods to workaround bugs and changes in behavior for the 0.6.7 upgrade
  */
 public class GobblinHelixTaskDriver {
-  /** For logging */
-  private static final Logger LOG = Logger.getLogger(GobblinHelixTaskDriver.class);
-
-  private final HelixDataAccessor _accessor;
-  private final ConfigAccessor _cfgAccessor;
-  private final HelixPropertyStore<ZNRecord> _propertyStore;
-  private final HelixAdmin _admin;
-  private final String _clusterName;
   private final TaskDriver _taskDriver;
 
   public GobblinHelixTaskDriver(HelixManager manager) {
@@ -71,23 +40,8 @@ public class GobblinHelixTaskDriver {
         .getConfigAccessor(), manager.getHelixPropertyStore(), manager.getClusterName());
   }
 
-  public GobblinHelixTaskDriver(ZkClient client, String clusterName) {
-    this(client, new ZkBaseDataAccessor<ZNRecord>(client), clusterName);
-  }
-
-  public GobblinHelixTaskDriver(ZkClient client, ZkBaseDataAccessor<ZNRecord> baseAccessor, String clusterName) {
-    this(new ZKHelixAdmin(client), new ZKHelixDataAccessor(clusterName, baseAccessor),
-        new ConfigAccessor(client), new ZkHelixPropertyStore<ZNRecord>(baseAccessor,
-            PropertyPathConfig.getPath(PropertyType.PROPERTYSTORE, clusterName), null), clusterName);
-  }
-
   public GobblinHelixTaskDriver(HelixAdmin admin, HelixDataAccessor accessor, ConfigAccessor cfgAccessor,
       HelixPropertyStore<ZNRecord> propertyStore, String clusterName) {
-    _admin = admin;
-    _accessor = accessor;
-    _cfgAccessor = cfgAccessor;
-    _propertyStore = propertyStore;
-    _clusterName = clusterName;
     _taskDriver = new TaskDriver(admin, accessor, cfgAccessor, propertyStore, clusterName);
   }
 
