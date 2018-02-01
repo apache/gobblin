@@ -20,7 +20,6 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -60,8 +59,8 @@ import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
+import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskDriver;
-import org.apache.helix.task.TaskUtil;
 import org.apache.helix.task.WorkflowConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -261,21 +260,17 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
         // Clean up existing jobs
         TaskDriver taskDriver = new TaskDriver(this.helixManager);
-        GobblinHelixTaskDriver gobblinHelixTaskDriver = new GobblinHelixTaskDriver(this.helixManager);
         Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
 
         for (Map.Entry<String, WorkflowConfig> entry : workflows.entrySet()) {
           String queueName = entry.getKey();
           WorkflowConfig workflowConfig = entry.getValue();
 
-          for (String namespacedJobName : workflowConfig.getJobDag().getAllNodes()) {
-            String jobName = TaskUtil.getDenamespacedJobName(queueName, namespacedJobName);
-            LOGGER.info("job {} found for queue {} ", jobName, queueName);
+          // request delete if not already requested
+          if (workflowConfig.getTargetState() != TargetState.DELETE) {
+            taskDriver.delete(queueName);
 
-            // #HELIX-0.6.7-WORKAROUND
-            // working around 0.6.7 delete job issue for queues with IN_PROGRESS state
-            gobblinHelixTaskDriver.deleteJob(queueName, jobName);
-            LOGGER.info("deleted job {} from queue {}", jobName, queueName);
+            LOGGER.info("Requested delete of queue {}", queueName);
           }
         }
 
