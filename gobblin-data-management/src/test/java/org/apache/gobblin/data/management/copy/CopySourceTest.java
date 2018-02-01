@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Iterators;
-
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -27,6 +24,13 @@ import java.util.Iterator;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterators;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
@@ -45,17 +49,13 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.request_allocation.PriorityIterableBasedRequestAllocator;
 
-import org.apache.hadoop.fs.FileSystem;
-
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
 
 @Slf4j
 public class CopySourceTest {
 
   @Test
-  public void testCopySource() throws Exception {
+  public void testCopySource()
+      throws Exception {
 
     SourceState state = new SourceState();
 
@@ -82,7 +82,8 @@ public class CopySourceTest {
   }
 
   @Test
-  public void testPartitionableDataset() throws Exception {
+  public void testPartitionableDataset()
+      throws Exception {
 
     SourceState state = new SourceState();
 
@@ -147,23 +148,23 @@ public class CopySourceTest {
     final FileSystem sourceFs = HadoopUtils.getSourceFileSystem(state);
     final FileSystem targetFs = HadoopUtils.getWriterFileSystem(state, 1, 0);
 
-    int maxThreads = state.getPropAsInt(CopySource.MAX_CONCURRENT_LISTING_SERVICES,
-        CopySource.DEFAULT_MAX_CONCURRENT_LISTING_SERVICES);
+    int maxThreads = state
+        .getPropAsInt(CopySource.MAX_CONCURRENT_LISTING_SERVICES, CopySource.DEFAULT_MAX_CONCURRENT_LISTING_SERVICES);
 
     final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
     MetricContext metricContext = Instrumented.getMetricContext(state, CopySource.class);
     EventSubmitter eventSubmitter = new EventSubmitter.Builder(metricContext, CopyConfiguration.COPY_PREFIX).build();
-    DatasetsFinder<CopyableDatasetBase> datasetFinder =
-        DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs,
-            CopySource.DEFAULT_DATASET_PROFILE_CLASS_KEY, eventSubmitter, state);
+    DatasetsFinder<CopyableDatasetBase> datasetFinder = DatasetUtils
+        .instantiateDatasetFinder(state.getProperties(), sourceFs, CopySource.DEFAULT_DATASET_PROFILE_CLASS_KEY,
+            eventSubmitter, state);
 
     IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder =
         datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
             : new IterableDatasetFinderImpl<>(datasetFinder);
 
-    Iterator<CopyableDatasetRequestor> requestorIteratorWithNulls =
-        Iterators.transform(iterableDatasetFinder.getDatasetsIterator(),
+    Iterator<CopyableDatasetRequestor> requestorIteratorWithNulls = Iterators
+        .transform(iterableDatasetFinder.getDatasetsIterator(),
             new CopyableDatasetRequestor.Factory(targetFs, copyConfiguration, log));
     Iterator<CopyableDatasetRequestor> requestorIterator =
         Iterators.filter(requestorIteratorWithNulls, Predicates.<CopyableDatasetRequestor>notNull());

@@ -22,14 +22,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.TreeSet;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.slf4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
-
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -161,9 +161,8 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
       return false;
     }
 
-    ResourceRequirement candidateRequirement =
-        ResourceRequirement.add(this.currentRequirement, newElement.getResourceRequirement(),
-            this.candidateRequirement);
+    ResourceRequirement candidateRequirement = ResourceRequirement
+        .add(this.currentRequirement, newElement.getResourceRequirement(), this.candidateRequirement);
 
     if (this.resourcePool.exceedsHardBound(candidateRequirement, false)) {
 
@@ -182,7 +181,8 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
 
       this.currentRequirement.copyInto(this.tmpRequirement);
 
-      for (AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T> dropCandidate : this.elements.descendingSet()) {
+      for (AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T> dropCandidate : this.elements
+          .descendingSet()) {
         if (this.comparator.compare(dropCandidate.getT(), newElement.getT()) <= 0) {
           log.debug("Cannot evict enough requests to fit request {}. " + "Rejecting", newElement.getT());
           this.requestsRefused++;
@@ -239,15 +239,12 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
         append(ConcurrentBoundedPriorityIterable.class.getSimpleName()).append(": {");
     messageBuilder.append(this.resourcePool).append(", ");
     messageBuilder.append("totalResourcesUsed: ")
-        .append(this.resourcePool.stringifyRequirement(this.currentRequirement))
-        .append(", ");
+        .append(this.resourcePool.stringifyRequirement(this.currentRequirement)).append(", ");
     messageBuilder.append("maxRequirementPerDimension: ")
-        .append(this.resourcePool.stringifyRequirement(this.maxResourceRequirement))
-        .append(", ");
+        .append(this.resourcePool.stringifyRequirement(this.maxResourceRequirement)).append(", ");
     messageBuilder.append("requestsOffered: ").append(this.requestsOffered).append(", ");
     messageBuilder.append("requestsAccepted: ")
-        .append(this.requestsOffered - this.requestsEvicted - this.requestsRefused)
-        .append(", ");
+        .append(this.requestsOffered - this.requestsEvicted - this.requestsRefused).append(", ");
     messageBuilder.append("requestsRefused: ").append(this.requestsRefused).append(", ");
     messageBuilder.append("requestsEvicted: ").append(this.requestsEvicted);
     messageBuilder.append("}");

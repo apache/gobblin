@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.util.request_allocation;
 
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterators;
-
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -29,11 +25,15 @@ import java.util.concurrent.ExecutionException;
 import lombok.AccessLevel;
 import lombok.Getter;
 
+import org.slf4j.Logger;
+
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.collect.Iterators;
+
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
-
-import org.slf4j.Logger;
 
 
 public abstract class PriorityIterableBasedRequestAllocator<T extends Request<T>> implements RequestAllocator<T> {
@@ -79,7 +79,8 @@ public abstract class PriorityIterableBasedRequestAllocator<T extends Request<T>
             public Callable<Void> apply(final T input) {
               return new Callable<Void>() {
                 @Override
-                public Void call() throws Exception {
+                public Void call()
+                    throws Exception {
                   iterable.add(input);
                   return null;
                 }

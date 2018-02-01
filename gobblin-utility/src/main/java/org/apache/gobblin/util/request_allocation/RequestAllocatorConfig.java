@@ -20,11 +20,11 @@ package org.apache.gobblin.util.request_allocation;
 import java.io.Serializable;
 import java.util.Comparator;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 
 @AllArgsConstructor
@@ -45,7 +45,7 @@ public class RequestAllocatorConfig<T extends Request<T>> {
     private final ResourceEstimator<T> resourceEstimator;
     private int allowedThreads = 1;
     private Config limitedScopeConfig;
-    private String storeRejectedRequestsSetting;
+    private String storeRejectedRequestsSetting = "min";
 
     public Builder(ResourceEstimator<T> resourceEstimator) {
       this.resourceEstimator = resourceEstimator;
