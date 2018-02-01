@@ -24,6 +24,7 @@ import java.io.Reader;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -167,7 +168,7 @@ public class PullFileLoader {
 
   private List<Config> getSortedConfigs(List<ConfigWithTimeStamp> configsWithTimeStamps) {
     List<Config> sortedConfigs = Lists.newArrayList();
-    Collections.sort(configsWithTimeStamps);
+    Collections.sort(configsWithTimeStamps, (config1, config2) -> (config1.timeStamp > config2.timeStamp) ? 1 : -1);
     for (ConfigWithTimeStamp configWithTimeStamp : configsWithTimeStamps) {
       sortedConfigs.add(configWithTimeStamp.config);
     }
@@ -309,18 +310,13 @@ public class PullFileLoader {
     }
   }
 
-  private class ConfigWithTimeStamp implements Comparable {
+  private static class ConfigWithTimeStamp {
     long timeStamp;
     Config config;
 
     public ConfigWithTimeStamp(long timeStamp, Config config) {
       this.timeStamp = timeStamp;
       this.config = config;
-    }
-
-    @Override
-    public int compareTo(Object otherConfigWithTimeStamp) {
-      return (int)(timeStamp - ((ConfigWithTimeStamp)otherConfigWithTimeStamp).timeStamp);
     }
   }
 }
