@@ -49,6 +49,7 @@ public class MRTask extends BaseAbstractTask {
     public static final String MR_JOB_STARTED_EVENT = "MRJobStarted";
     public static final String MR_JOB_SUCCESSFUL = "MRJobSuccessful";
     public static final String MR_JOB_FAILED = "MRJobFailed";
+    public static final String MR_JOB_SKIPPED = "MRJobSkipped";
 
     public static final String JOB_URL = "jobTrackingUrl";
     public static final String FAILURE_CONTEXT = "failureContext";
@@ -93,6 +94,14 @@ public class MRTask extends BaseAbstractTask {
     try {
       Job job = createJob();
 
+      if (job == null) {
+        log.info("No MR job created. Skipping.");
+        this.workingState = WorkUnitState.WorkingState.SUCCESSFUL;
+        this.eventSubmitter.submit(Events.MR_JOB_SKIPPED);
+        onSkippedMRJob();
+        return;
+      }
+
       job.submit();
       this.eventSubmitter.submit(Events.MR_JOB_STARTED_EVENT, Events.JOB_URL, job.getTrackingURL());
       job.waitForCompletion(false);
@@ -116,6 +125,10 @@ public class MRTask extends BaseAbstractTask {
     return Maps.newHashMap();
   }
 
+  /**
+   * Create the {@link Job} to run in this task.
+   * @return the {@link Job} to run. If this method returns null, no job will be run and the task will be marked as successful.
+   */
   protected Job createJob() throws IOException {
     Job job = Job.getInstance(new Configuration());
     for (Map.Entry<Object, Object> entry : this.taskContext.getTaskState().getProperties().entrySet()) {
@@ -125,6 +138,13 @@ public class MRTask extends BaseAbstractTask {
       }
     }
     return job;
+  }
+
+  /**
+   * Called when a job is skipped (because {@link #createJob()} returned null).
+   */
+  protected void onSkippedMRJob() {
+    // do nothing
   }
 
 }
