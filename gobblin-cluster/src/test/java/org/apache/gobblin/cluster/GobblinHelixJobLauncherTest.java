@@ -307,6 +307,9 @@ public class GobblinHelixJobLauncherTest {
 
     gobblinHelixJobLauncher.close();
 
+    // job queue deleted asynchronously after close
+    waitForQueueCleanup(taskDriver, jobName);
+
     jobContext = taskDriver.getJobContext(jobContextName);
 
     // job context should have been deleted
@@ -325,7 +328,9 @@ public class GobblinHelixJobLauncherTest {
 
     gobblinHelixJobLauncher2.close();
 
-    // job queue deleted after close
+    // job queue deleted asynchronously after close
+    waitForQueueCleanup(taskDriver, jobName2);
+
     workflowConfig  = taskDriver.getWorkflowConfig(jobName2);
     Assert.assertNull(workflowConfig);
 
@@ -357,5 +362,20 @@ public class GobblinHelixJobLauncherTest {
     } finally {
       this.closer.close();
     }
+  }
+
+   private void waitForQueueCleanup(TaskDriver taskDriver, String queueName) {
+     for (int i = 0; i < 60; i++) {
+       WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(queueName);
+
+       if (workflowConfig == null) {
+         break;
+       }
+
+       try {
+         Thread.sleep(1000);
+       } catch (InterruptedException e) {
+       }
+     }
   }
 }
