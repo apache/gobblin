@@ -192,10 +192,10 @@ public class PullFileLoader {
           if (status.isDirectory()) {
             pullFiles.addAll(loadPullFilesRecursivelyHelper(status.getPath(), fallback, loadGlobalProperties));
           } else if (this.javaPropsPullFileFilter.accept(status.getPath())) {
-            log.info("modification time of {} is {}", status.getPath(), status.getModificationTime());
+            log.debug("modification time of {} is {}", status.getPath(), status.getModificationTime());
             pullFiles.add(new ConfigWithTimeStamp(status.getModificationTime(), loadJavaPropsWithFallback(status.getPath(), fallback).resolve()));
           } else if (this.hoconPullFileFilter.accept(status.getPath())) {
-            log.info("modification time of {} is {}", status.getPath(), status.getModificationTime());
+            log.debug("modification time of {} is {}", status.getPath(), status.getModificationTime());
             pullFiles.add(new ConfigWithTimeStamp(status.getModificationTime(), loadHoconConfigAtPath(status.getPath()).withFallback(fallback).resolve()));
           }
         } catch (IOException ioe) {
