@@ -35,6 +35,7 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Either;
 
 import kafka.message.MessageAndMetadata;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -51,7 +52,9 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
 
   private final MutableJobCatalog jobCatalog;
+  @Getter
   private Counter newSpecs;
+  @Getter
   private Counter remmovedSpecs;
 
   /**
