@@ -21,6 +21,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import org.apache.gobblin.source.extractor.hadoop.HadoopFsHelper;
 import org.apache.hadoop.fs.FileSystem;
@@ -65,7 +66,7 @@ public class SimpleJsonExtractor implements Extractor<String, JsonObject> {
     // Source is responsible to set SOURCE_FILEBASED_FILES_TO_PULL
     this.fs = fsHelper.getFileSystem();
     InputStreamReader isr = new InputStreamReader(this.fs.open(
-        new Path(workUnitState.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL))));
+        new Path(workUnitState.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL))), StandardCharsets.UTF_8);
 
     this.bufferedReader =
         this.closer.register(new BufferedReader(isr));
