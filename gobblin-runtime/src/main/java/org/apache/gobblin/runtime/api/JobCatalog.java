@@ -95,12 +95,7 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
       this.totalAddCalls = metricsContext.newContextAwareGauge(TOTAL_ADD_CALLS, ()->this.totalAddedJobs.get());
       this.totalUpdateCalls = metricsContext.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedJobs.get());
       this.totalDeleteCalls = metricsContext.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedJobs.get());
-      this.numActiveJobs = metricsContext.newContextAwareGauge(NUM_ACTIVE_JOBS_NAME, ()->{
-          long startTime = System.currentTimeMillis();
-          int size = jobCatalog.getJobs().size();
-          updateGetJobTime(startTime);
-          return size;
-      });
+      this.numActiveJobs = metricsContext.newContextAwareGauge(NUM_ACTIVE_JOBS_NAME, ()->(int)(totalAddedJobs.get() - totalDeletedJobs.get()));
     }
 
     public void updateGetJobTime(long startTime) {
