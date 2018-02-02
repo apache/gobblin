@@ -153,6 +153,9 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private MutableJobCatalog jobCatalog;
   @Getter
   private GobblinHelixJobScheduler jobScheduler;
+  @Getter
+  private JobConfigurationManager jobConfigurationManager;
+  
   private final String clusterName;
   private final Config config;
   private final MetricContext metricContext;
@@ -209,7 +212,8 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     this.jobScheduler = buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
         schedulerService);
     this.applicationLauncher.addService(this.jobScheduler);
-    this.applicationLauncher.addService(buildJobConfigurationManager(config));
+    this.jobConfigurationManager = buildJobConfigurationManager(config);
+    this.applicationLauncher.addService(this.jobConfigurationManager);
   }
 
   /**
