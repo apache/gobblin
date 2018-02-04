@@ -25,6 +25,7 @@ import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -140,7 +141,8 @@ public class CopySourceTest {
     state.setProp(CopySource.MAX_CONCURRENT_LISTING_SERVICES, 2);
     state.setProp(CopyConfiguration.MAX_COPY_PREFIX + ".size", "50");
     state.setProp(CopyConfiguration.MAX_COPY_PREFIX + ".copyEntities", 2);
-    state.setProp(CopyConfiguration.STORE_REJECTED_REQUESTS, "all");
+    state.setProp(CopyConfiguration.STORE_REJECTED_REQUESTS_KEY,
+        RequestAllocatorConfig.StoreRejectedRequestsConfig.ALL.name().toLowerCase());
     state.setProp(ConfigurationKeys.METRICS_CUSTOM_BUILDERS, "org.apache.gobblin.metrics.ConsoleEventReporterFactory");
 
     CopySource source = new CopySource();

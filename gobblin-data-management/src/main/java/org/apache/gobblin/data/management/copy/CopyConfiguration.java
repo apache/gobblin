@@ -23,6 +23,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+import org.apache.gobblin.util.request_allocation.ConcurrentBoundedPriorityIterable;
+import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -68,7 +70,10 @@ public class CopyConfiguration {
   /*
    * Config to store different classes of rejected requests. Possible values are "all","none", or "min" (default).
    */
-  public static final String STORE_REJECTED_REQUESTS = COPY_PREFIX + ".store.rejected.requests";
+  public static final String STORE_REJECTED_REQUESTS_KEY = COPY_PREFIX + ".store.rejected.requests";
+  public static final String DEFAULT_STORE_REJECTED_REQUESTS =
+      RequestAllocatorConfig.StoreRejectedRequestsConfig.MIN.name();
+
   /**
    * User supplied directory where files should be published. This value is identical for all datasets in the distcp job.
    */
@@ -129,7 +134,8 @@ public class CopyConfiguration {
       }
       this.maxToCopy = CopyResourcePool.fromConfig(ConfigUtils.getConfigOrEmpty(this.config, MAX_COPY_PREFIX));
 
-      this.storeRejectedRequestsSetting = properties.getProperty(CopyConfiguration.STORE_REJECTED_REQUESTS, "min");
+      this.storeRejectedRequestsSetting =
+          properties.getProperty(CopyConfiguration.STORE_REJECTED_REQUESTS_KEY, DEFAULT_STORE_REJECTED_REQUESTS);
 
       this.abortOnSingleDatasetFailure = false;
       if (this.config.hasPath(ABORT_ON_SINGLE_DATASET_FAILURE)) {

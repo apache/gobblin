@@ -36,6 +36,10 @@ public class RequestAllocatorConfig<T extends Request<T>> {
   private Config limitedScopeConfig;
   private String storeRejectedRequestsSetting;
 
+  public enum StoreRejectedRequestsConfig {
+    ALL, MIN, NONE
+  }
+
   public static <T extends Request<T>> Builder<T> builder(ResourceEstimator<T> resourceEstimator) {
     return new Builder<>(resourceEstimator);
   }
@@ -45,7 +49,7 @@ public class RequestAllocatorConfig<T extends Request<T>> {
     private final ResourceEstimator<T> resourceEstimator;
     private int allowedThreads = 1;
     private Config limitedScopeConfig;
-    private String storeRejectedRequestsSetting = "min";
+    private String storeRejectedRequestsSetting = StoreRejectedRequestsConfig.MIN.name();
 
     public Builder(ResourceEstimator<T> resourceEstimator) {
       this.resourceEstimator = resourceEstimator;
