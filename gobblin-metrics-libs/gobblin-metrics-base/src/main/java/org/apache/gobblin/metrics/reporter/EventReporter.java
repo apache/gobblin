@@ -129,8 +129,8 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
             event, this.getClass().getCanonicalName());
       }
     } catch (InterruptedException ie) {
-      log.warn(String.format("Enqueuing of event %s at reporter with class %s was interrupted.", event,
-          this.getClass().getCanonicalName()), ie);
+      log.warn("Enqueuing of event {} at reporter with class {} was interrupted.", event,
+          this.getClass().getCanonicalName(), ie);
     }
   }
 
