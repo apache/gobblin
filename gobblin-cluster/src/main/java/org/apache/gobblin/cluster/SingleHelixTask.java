@@ -66,7 +66,7 @@ public class SingleHelixTask implements Task {
       } else {
         logger.warn("Task process failed with exitcode ({}). job name: {}. job id: {}", exitCode,
             this.jobName, this.jobId);
-        return new TaskResult(TaskResult.Status.FAILED, "Exit code: " + exitCode);
+        return new TaskResult(TaskResult.Status.FATAL_FAILED, "Exit code: " + exitCode);
       }
     } catch (final Throwable t) {
       logger.error("SingleHelixTask failed due to " + t.getMessage(), t);
