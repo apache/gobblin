@@ -23,6 +23,8 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -74,7 +76,7 @@ public class PullFileLoader {
 
   public static final String PROPERTY_DELIMITER_PARSING_ENABLED_KEY = "property.parsing.enablekey";
   public static final boolean DEFAULT_PROPERTY_DELIMITER_PARSING_ENABLED_KEY = false;
-  
+
   private final Path rootDirectory;
   private final FileSystem fs;
   private final ExtensionFilter javaPropsPullFileFilter;
@@ -145,28 +147,36 @@ public class PullFileLoader {
   }
 
   /**
-   * Find and load all pull files under a base {@link Path} recursively.
+   * Find and load all pull files under a base {@link Path} recursively in an order sorted by last modified date.
    * @param path base {@link Path} where pull files should be found recursively.
    * @param sysProps A {@link Config} used as fallback.
    * @param loadGlobalProperties if true, will also load at most one *.properties file per directory from the
    *          {@link #rootDirectory} to the pull file {@link Path} for each pull file.
    * @return The loaded {@link Config}s.
    */
-  public Collection<Config> loadPullFilesRecursively(Path path, Config sysProps, boolean loadGlobalProperties) {
+  public List<Config> loadPullFilesRecursively(Path path, Config sysProps, boolean loadGlobalProperties) {
     try {
       Config fallback = sysProps;
       if (loadGlobalProperties && PathUtils.isAncestor(this.rootDirectory, path.getParent())) {
         fallback = loadAncestorGlobalConfigs(path.getParent(), fallback);
       }
-      return loadPullFilesRecursivelyHelper(path, fallback, loadGlobalProperties);
+      return getSortedConfigs(loadPullFilesRecursivelyHelper(path, fallback, loadGlobalProperties));
     } catch (IOException ioe) {
       return Lists.newArrayList();
     }
   }
 
-  private Collection<Config> loadPullFilesRecursivelyHelper(Path path, Config fallback, boolean loadGlobalProperties) {
-    List<Config> pullFiles = Lists.newArrayList();
+  private List<Config> getSortedConfigs(List<ConfigWithTimeStamp> configsWithTimeStamps) {
+    List<Config> sortedConfigs = Lists.newArrayList();
+    Collections.sort(configsWithTimeStamps, (config1, config2) -> (config1.timeStamp > config2.timeStamp) ? 1 : -1);
+    for (ConfigWithTimeStamp configWithTimeStamp : configsWithTimeStamps) {
+      sortedConfigs.add(configWithTimeStamp.config);
+    }
+    return sortedConfigs;
+  }
 
+  private List<ConfigWithTimeStamp> loadPullFilesRecursivelyHelper(Path path, Config fallback, boolean loadGlobalProperties) {
+    List<ConfigWithTimeStamp> pullFiles = Lists.newArrayList();
     try {
       if (loadGlobalProperties) {
         fallback = findAndLoadGlobalConfigInDirectory(path, fallback);
@@ -183,9 +193,11 @@ public class PullFileLoader {
           if (status.isDirectory()) {
             pullFiles.addAll(loadPullFilesRecursivelyHelper(status.getPath(), fallback, loadGlobalProperties));
           } else if (this.javaPropsPullFileFilter.accept(status.getPath())) {
-            pullFiles.add(loadJavaPropsWithFallback(status.getPath(), fallback).resolve());
+            log.debug("modification time of {} is {}", status.getPath(), status.getModificationTime());
+            pullFiles.add(new ConfigWithTimeStamp(status.getModificationTime(), loadJavaPropsWithFallback(status.getPath(), fallback).resolve()));
           } else if (this.hoconPullFileFilter.accept(status.getPath())) {
-            pullFiles.add(loadHoconConfigAtPath(status.getPath()).withFallback(fallback).resolve());
+            log.debug("modification time of {} is {}", status.getPath(), status.getModificationTime());
+            pullFiles.add(new ConfigWithTimeStamp(status.getModificationTime(), loadHoconConfigAtPath(status.getPath()).withFallback(fallback).resolve()));
           }
         } catch (IOException ioe) {
           // Failed to load specific subpath, try with the other subpaths in this directory
@@ -298,4 +310,13 @@ public class PullFileLoader {
     }
   }
 
+  private static class ConfigWithTimeStamp {
+    long timeStamp;
+    Config config;
+
+    public ConfigWithTimeStamp(long timeStamp, Config config) {
+      this.timeStamp = timeStamp;
+      this.config = config;
+    }
+  }
 }

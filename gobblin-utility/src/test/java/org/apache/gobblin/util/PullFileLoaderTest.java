@@ -17,8 +17,11 @@
 
 package org.apache.gobblin.util;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
@@ -28,6 +31,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -139,6 +143,36 @@ public class PullFileLoaderTest {
     Assert.assertEquals(pullFile.entrySet().size(), 4);
   }
 
+  /**
+   * Tests to verify job written first to the job catalog is picked up first.
+   * @throws Exception
+   */
+  @Test void testJobLoadingOrder() throws Exception {
+    Properties sysProps = new Properties();
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    Path localBasePath = new Path(tmpDir.getAbsolutePath(), "PullFileLoaderTestDir");
+    fs.mkdirs(localBasePath);
+
+    for (int i=5; i>0; i--) {
+      String job = localBasePath.toString() + "/job" + i + ".conf";
+      PrintWriter writer = new PrintWriter(job, "UTF-8");
+      writer.println("key=job" + i + "_val");
+      writer.close();
+      Thread.sleep(1000);
+    }
+
+    List<Config> configs =
+        loader.loadPullFilesRecursively(localBasePath, ConfigUtils.propertiesToConfig(sysProps), false);
+
+    int i = 5;
+    for (Config config : configs) {
+      Assert.assertEquals(config.getString("key"), "job" + i + "_val");
+      i--;
+    }
+  }
+
   @Test
   public void testJobLoadingWithSysPropsAndGlobalProps() throws Exception {
     Path path;
@@ -230,7 +264,7 @@ public class PullFileLoaderTest {
     pullFile = loader.loadPullFile(path, cfg, false);
     Assert.assertEquals(pullFile.getString("json.property.key"), pullFile.getString("json.property.key1"));
   }
-  
+
   private Config pullFileFromPath(Collection<Config> configs, Path path) throws IOException {
     for (Config config : configs) {
       if (config.getString(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY).equals(path.toString())) {
