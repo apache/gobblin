@@ -44,6 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PostgresqlExtractor extends JdbcExtractor {
+  private static final String CONNECTION_DATABASE = "source.conn.database";
   private static final String POSTGRES_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss";
   private static final String POSTGRES_DATE_FORMAT = "yyyy-MM-dd";
   private static final String POSTGRES_HOUR_FORMAT = "HH";
@@ -168,7 +169,8 @@ public class PostgresqlExtractor extends JdbcExtractor {
   public String getConnectionUrl() {
     String host = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     String port = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
-    String database = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
+    String database = this.workUnitState.getProp(CONNECTION_DATABASE);
+
     return "jdbc:postgresql://" + host.trim() + ":" + port + "/" + database.trim();
   }
 
@@ -182,13 +184,15 @@ public class PostgresqlExtractor extends JdbcExtractor {
   public Map<String, String> getDataTypeMap() {
     Map<String, String> dataTypeMap =
         ImmutableMap.<String, String>builder().put("tinyint", "int").put("smallint", "int").put("mediumint", "int")
-            .put("int", "int").put("bigint", "long").put("float", "float").put("double", "double")
-            .put("decimal", "double").put("numeric", "double").put("date", "date").put("timestamp", "timestamp")
+            .put("integer", "int").put("int", "int").put("bigint", "long").put("float", "float").put("double", "double")
+            .put("double precision", "double").put("decimal", "double").put("numeric", "double").put("date", "date").put("timestamp", "timestamp")
+            .put("timestamp without time zone", "timestamp").put("timestamp with time zone", "timestamp")
             .put("datetime", "timestamp").put("time", "time").put("char", "string").put("varchar", "string")
             .put("varbinary", "string").put("text", "string").put("tinytext", "string").put("mediumtext", "string")
-            .put("longtext", "string").put("blob", "string").put("tinyblob", "string").put("mediumblob", "string")
+            .put("character varying", "string").put("longtext", "string").put("blob", "string").put("tinyblob", "string").put("mediumblob", "string")
             .put("longblob", "string").put("enum", "string").build();
     return dataTypeMap;
+
   }
 
   @Override
