@@ -66,7 +66,7 @@ public class SingleHelixTaskTest {
 
     final TaskResult result = createAndRunTask();
 
-    assertThat(result.getStatus()).isEqualTo(TaskResult.Status.FAILED);
+    assertThat(result.getStatus()).isEqualTo(TaskResult.Status.FATAL_FAILED);
   }
 
   @Test
