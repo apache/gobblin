@@ -483,6 +483,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // Set the overall job state to FAILED if the job failed to process any dataset
         if (datasetState.getState() == JobState.RunningState.FAILED) {
           jobState.setState(JobState.RunningState.FAILED);
+          LOG.warn("At least one dataset state is FAILED. Setting job state to FAILED.");
           break;
         }
       }
