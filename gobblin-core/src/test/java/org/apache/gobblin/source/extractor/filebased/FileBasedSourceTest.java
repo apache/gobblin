@@ -76,6 +76,8 @@ public class FileBasedSourceTest {
         state.setProp(PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE, "2017-11");
         state.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, "snapshot_only");
         state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "file:///");
+        state.setProp(ConfigurationKeys.SCHEMA_IN_SOURCE_DIR, "true");
+        state.setProp(ConfigurationKeys.SCHEMA_FILENAME, "metadata.json");
     }
 
     private static class DummyFileBasedSource extends FileBasedSource<String, String> {
