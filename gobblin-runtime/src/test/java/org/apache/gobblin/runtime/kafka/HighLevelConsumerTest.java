@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime.kafka;
 
+import java.io.File;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
@@ -24,9 +25,11 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.job_monitor.MockKafkaStream;
 
 
@@ -35,6 +38,10 @@ public class HighLevelConsumerTest {
   public static Config getSimpleConfig(Optional<String> prefix) {
     Properties properties = new Properties();
     properties.put(getConfigKey(prefix, "zookeeper.connect"), "zookeeper");
+    properties.put(ConfigurationKeys.STATE_STORE_ENABLED, "true");
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    properties.put(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, tmpDir.toString());
 
     return ConfigFactory.parseProperties(properties);
   }
