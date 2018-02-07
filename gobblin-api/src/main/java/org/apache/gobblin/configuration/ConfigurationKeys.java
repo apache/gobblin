@@ -454,8 +454,8 @@ public class ConfigurationKeys {
    * Configuration properties used by the extractor.
    */
   public static final String SOURCE_ENTITY = "source.entity";
-  public static final String SCHEMA_IN_SOURCE_DIR = "schema.in.data.dir";
-  public static final Boolean DEFAULT_SCHEMA_IN_SOURCE_DIR = false;
+  public static final String SCHEMA_IN_SOURCE_DIR = "schema.in.source.dir";
+  public static final boolean DEFAULT_SCHEMA_IN_SOURCE_DIR = false;
   public static final String SCHEMA_FILENAME = "schema.filename";
   public static final String DEFAULT_SCHEMA_FILENAME = "metadata.json";
 
