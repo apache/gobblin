@@ -36,7 +36,7 @@ public class ImmediatelyInvalidResourceEntry<T> extends ResourceInstance<T> {
   }
 
   @Override
-  public T getResource() {
+  public synchronized T getResource() {
     // mark the object as invalid before returning so that a new one will be created on the next
     // request from the factory
     this.valid = false;
@@ -52,5 +52,18 @@ public class ImmediatelyInvalidResourceEntry<T> extends ResourceInstance<T> {
   @Override
   public void onInvalidate() {
     // these type of resource cannot be closed on invalidation since the lifetime can't be determined
+  }
+
+  /**
+   * This method is synchronized so that the validity check and validity change is atomic for callers of this method.
+   * @return
+   */
+  @Override
+  public synchronized T getResourceIfValid() {
+    if (this.valid) {
+      return getResource();
+    } else {
+      return null;
+    }
   }
 }
