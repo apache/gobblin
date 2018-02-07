@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.gobblin.util.GobblinProcessBuilder;
 import org.apache.gobblin.util.SystemPropertiesWrapper;
 
+import com.typesafe.config.Config;
+
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainOptions.CLUSTER_CONFIG_FILE_PATH;
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainOptions.JOB_ID;
 import static org.apache.gobblin.cluster.SingleTaskRunnerMainOptions.WORK_UNIT_FILE_PATH;
@@ -40,12 +42,14 @@ class SingleTaskLauncher {
   private final GobblinProcessBuilder processBuilder;
   private final SystemPropertiesWrapper propertiesWrapper;
   private final Path clusterConfigFilePath;
+  private final Config sysConfig;
 
   SingleTaskLauncher(final GobblinProcessBuilder processBuilder,
-      final SystemPropertiesWrapper propertiesWrapper, final Path clusterConfigFilePath) {
+      final SystemPropertiesWrapper propertiesWrapper, final Path clusterConfigFilePath, Config sysConfig) {
     this.processBuilder = processBuilder;
     this.propertiesWrapper = propertiesWrapper;
     this.clusterConfigFilePath = clusterConfigFilePath;
+    this.sysConfig = sysConfig;
   }
 
   Process launch(final String jobId, final Path workUnitFilePath)
@@ -55,7 +59,9 @@ class SingleTaskLauncher {
     logger.info("Launching a task process.");
 
     // The -cp parameter list can be very long.
-    logger.debug("cmd: " + command);
+    final String completeCmdLine = String.join(" ", command);
+    logger.debug("cmd line:\n{}", completeCmdLine);
+
     final Process taskProcess = this.processBuilder.start(command);
 
     return taskProcess;
@@ -74,6 +80,7 @@ class SingleTaskLauncher {
     List<String> build() {
       addJavaBin();
       addClassPath();
+      addLogConfig();
       addClassName();
       addOptions();
       return this.cmd;
@@ -90,9 +97,21 @@ class SingleTaskLauncher {
       this.cmd.add(javaBinPath.toString());
     }
 
+    private void addLogConfig() {
+      if (sysConfig.hasPath(GobblinClusterConfigurationKeys.TASK_LOG_CONFIG)) {
+        String logConfig = sysConfig.getString(GobblinClusterConfigurationKeys.TASK_LOG_CONFIG);
+        this.cmd.add(logConfig);
+      }
+    }
+
     private void addClassPath() {
       this.cmd.add("-cp");
-      final String classPath = SingleTaskLauncher.this.propertiesWrapper.getJavaClassPath();
+      String classPath;
+      if (sysConfig.hasPath(GobblinClusterConfigurationKeys.TASK_CLASSPATH)) {
+        classPath = sysConfig.getString(GobblinClusterConfigurationKeys.TASK_CLASSPATH);
+      } else {
+        classPath = SingleTaskLauncher.this.propertiesWrapper.getJavaClassPath();
+      }
       this.cmd.add(classPath);
     }
 

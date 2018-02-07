@@ -164,7 +164,14 @@ public class GobblinTaskRunner {
     this.taskStateModelFactory = registerHelixTaskFactory();
 
     services.addAll(getServices());
-    this.serviceManager = new ServiceManager(services);
+    if (services.isEmpty()) {
+      this.serviceManager = null;
+    } else {
+      this.serviceManager = new ServiceManager(services);
+    }
+
+    logger.debug("GobblinTaskRunner: applicationName {}, helixInstanceName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
+        applicationName, helixInstanceName, applicationId, taskRunnerId, config, appWorkDirOptional);
   }
 
   private Path initAppWorkDir(Config config, Optional<Path> appWorkDirOptional) {
@@ -189,7 +196,7 @@ public class GobblinTaskRunner {
     TaskFactory taskFactory;
     if (isRunTaskInSeparateProcessEnabled) {
       logger.info("Running a task in a separate process is enabled.");
-      taskFactory = new HelixTaskFactory(this.containerMetrics, CLUSTER_CONF_PATH);
+      taskFactory = new HelixTaskFactory(this.containerMetrics, CLUSTER_CONF_PATH, config);
     } else {
       taskFactory = getInProcessTaskFactory();
     }
@@ -260,8 +267,10 @@ public class GobblinTaskRunner {
               this.taskRunnerId);
     }
 
-    this.serviceManager.startAsync();
-    this.serviceManager.awaitStopped();
+    if (this.serviceManager != null) {
+      this.serviceManager.startAsync();
+      this.serviceManager.awaitStopped();
+    }
   }
 
   public synchronized void stop() {
@@ -279,10 +288,7 @@ public class GobblinTaskRunner {
     }
 
     try {
-      // Give the services 5 minutes to stop to ensure that we are responsive to shutdown requests
-      this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.MINUTES);
-    } catch (TimeoutException te) {
-      logger.error("Timeout in stopping the service manager", te);
+      stopServices();
     } finally {
       this.taskStateModelFactory.shutdown();
 
@@ -290,6 +296,17 @@ public class GobblinTaskRunner {
     }
 
     this.isStopped = true;
+  }
+
+  private void stopServices() {
+    if (this.serviceManager != null) {
+      try {
+        // Give the services 5 minutes to stop to ensure that we are responsive to shutdown requests
+        this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.MINUTES);
+      } catch (TimeoutException te) {
+        logger.error("Timeout in stopping the service manager", te);
+      }
+    }
   }
 
   /**

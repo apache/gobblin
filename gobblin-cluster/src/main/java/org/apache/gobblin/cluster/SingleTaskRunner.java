@@ -38,7 +38,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.util.ConfigUtils;
@@ -106,11 +105,13 @@ class SingleTaskRunner {
 
   private void getSingleHelixTask()
       throws IOException {
-    final Path jobStateFilePath = getJobStateFilePath();
     final FileSystem fs = getFileSystem();
     final StateStores stateStores = new StateStores(this.clusterConfig, this.appWorkPath,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, this.appWorkPath,
-        GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
+        GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME, this.appWorkPath,
+        GobblinClusterConfigurationKeys.JOB_STATE_DIR_NAME);
+    final Path jobStateFilePath =
+        GobblinClusterUtils.getJobStateFilePath(stateStores.haveJobStateStore(), this.appWorkPath, this.jobId);
 
     final TaskAttemptBuilder taskAttemptBuilder = getTaskAttemptBuilder(stateStores);
 
@@ -122,7 +123,7 @@ class SingleTaskRunner {
     final TaskAttemptBuilder taskAttemptBuilder =
         new TaskAttemptBuilder(this.taskStateTracker, this.taskExecutor);
     // No container id is set. Use the default.
-    taskAttemptBuilder.setTaskStateStore(stateStores.taskStateStore);
+    taskAttemptBuilder.setTaskStateStore(stateStores.getTaskStateStore());
     return taskAttemptBuilder;
   }
 
@@ -133,13 +134,6 @@ class SingleTaskRunner {
 
     final List<Service> services = Lists.newArrayList(this.taskExecutor, this.taskStateTracker);
     this.serviceManager = new ServiceManager(services);
-  }
-
-  private Path getJobStateFilePath() {
-    final String jobStateFileName = this.jobId + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME;
-    final Path jobStateFilePath = new Path(this.appWorkPath, jobStateFileName);
-    logger.info("job state file path: " + jobStateFilePath);
-    return jobStateFilePath;
   }
 
   private FileSystem getFileSystem()

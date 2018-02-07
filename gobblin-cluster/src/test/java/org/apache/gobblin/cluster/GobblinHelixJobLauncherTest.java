@@ -40,6 +40,8 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.task.TaskDriver;
+import org.apache.helix.task.WorkflowConfig;
+import org.apache.helix.task.WorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -119,6 +121,7 @@ public class GobblinHelixJobLauncherTest {
                    ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
         .withValue(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL,
             ConfigValueFactory.fromAnyRef(sourceJsonFile.getAbsolutePath()))
+        .withValue(ConfigurationKeys.JOB_STATE_IN_STATE_STORE, ConfigValueFactory.fromAnyRef("true"))
         .resolve();
 
     String zkConnectingString = baseConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
@@ -283,13 +286,19 @@ public class GobblinHelixJobLauncherTest {
     final GobblinHelixJobLauncher gobblinHelixJobLauncher =
         new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap);
 
+    final Properties properties2 = generateJobProperties(this.baseConfig, "33", "_1504201348474");
+    final GobblinHelixJobLauncher gobblinHelixJobLauncher2 =
+        new GobblinHelixJobLauncher(properties2, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap);
+
     gobblinHelixJobLauncher.launchJob(null);
+    gobblinHelixJobLauncher2.launchJob(null);
 
     final TaskDriver taskDriver = new TaskDriver(this.helixManager);
 
     final String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     final String jobIdKey = properties.getProperty(ConfigurationKeys.JOB_ID_KEY);
     final String jobContextName = jobName + "_" + jobIdKey;
+    final String jobName2 = properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY);
 
     org.apache.helix.task.JobContext jobContext = taskDriver.getJobContext(jobContextName);
 
@@ -298,10 +307,32 @@ public class GobblinHelixJobLauncherTest {
 
     gobblinHelixJobLauncher.close();
 
+    // job queue deleted asynchronously after close
+    waitForQueueCleanup(taskDriver, jobName);
+
     jobContext = taskDriver.getJobContext(jobContextName);
 
     // job context should have been deleted
     Assert.assertNull(jobContext);
+
+    // job queue should have been deleted
+    WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(jobName);
+    Assert.assertNull(workflowConfig);
+
+    WorkflowContext workflowContext = taskDriver.getWorkflowContext(jobName);
+    Assert.assertNull(workflowContext);
+
+    // second job queue with shared prefix should not be deleted when the first job queue is cleaned up
+    workflowConfig  = taskDriver.getWorkflowConfig(jobName2);
+    Assert.assertNotNull(workflowConfig);
+
+    gobblinHelixJobLauncher2.close();
+
+    // job queue deleted asynchronously after close
+    waitForQueueCleanup(taskDriver, jobName2);
+
+    workflowConfig  = taskDriver.getWorkflowConfig(jobName2);
+    Assert.assertNull(workflowConfig);
 
     // check that workunit and taskstate directory for the job are cleaned up
     final File workunitsDir =
@@ -314,6 +345,11 @@ public class GobblinHelixJobLauncherTest {
 
     Assert.assertFalse(workunitsDir.exists());
     Assert.assertFalse(taskstatesDir.exists());
+
+    // check that job.state file is cleaned up
+    final File jobStateFile = new File(GobblinClusterUtils.getJobStateFilePath(true, this.appWorkDir, jobIdKey).toString());
+
+    Assert.assertFalse(jobStateFile.exists());
   }
 
   @AfterClass
@@ -326,5 +362,20 @@ public class GobblinHelixJobLauncherTest {
     } finally {
       this.closer.close();
     }
+  }
+
+   private void waitForQueueCleanup(TaskDriver taskDriver, String queueName) {
+     for (int i = 0; i < 60; i++) {
+       WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(queueName);
+
+       if (workflowConfig == null) {
+         break;
+       }
+
+       try {
+         Thread.sleep(1000);
+       } catch (InterruptedException e) {
+       }
+     }
   }
 }

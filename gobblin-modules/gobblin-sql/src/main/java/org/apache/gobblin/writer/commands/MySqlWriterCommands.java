@@ -40,7 +40,7 @@ import com.google.common.collect.ImmutableMap;
 public class MySqlWriterCommands implements JdbcWriterCommands {
   private static final Logger LOG = LoggerFactory.getLogger(MySqlWriterCommands.class);
 
-  private static final String CREATE_TABLE_SQL_FORMAT = "CREATE TABLE %s.%s SELECT * FROM %s.%s WHERE 1=2";
+  private static final String CREATE_TABLE_SQL_FORMAT = "CREATE TABLE %s.%s LIKE %s.%s";
   private static final String SELECT_SQL_FORMAT = "SELECT COUNT(*) FROM %s.%s";
   private static final String TRUNCATE_TABLE_FORMAT = "TRUNCATE TABLE %s.%s";
   private static final String DROP_TABLE_SQL_FORMAT = "DROP TABLE %s.%s";

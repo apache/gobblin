@@ -30,17 +30,14 @@ import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
-import org.apache.helix.IdealStateChangeListener;
-import org.apache.helix.NotificationContext;
-import org.apache.helix.model.IdealState;
-import org.apache.helix.task.GobblinJobRebalancer;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
+import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskUtil;
+import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,11 +123,13 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final ConcurrentHashMap<String, Boolean> runningMap;
   private final StateStores stateStores;
   private final Config jobConfig;
+  private final long jobQueueDeleteTimeoutSeconds;
 
   public GobblinHelixJobLauncher(Properties jobProps, final HelixManager helixManager, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap)
       throws Exception {
     super(jobProps, addAdditionalMetadataTags(jobProps, metadataTags));
+    LOGGER.debug("GobblinHelixJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
 
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
@@ -150,6 +149,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     jobConfig = ConfigUtils.propertiesToConfig(jobProps);
 
+    this.jobQueueDeleteTimeoutSeconds = ConfigUtils.getLong(jobConfig, GobblinClusterConfigurationKeys.HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS);
+
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
             new URI(appWorkDir.toUri().getScheme(), null, appWorkDir.toUri().getHost(),
@@ -157,43 +159,14 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     this.stateStores = new StateStores(stateStoreJobConfig, appWorkDir,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
-        GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
+        GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME, appWorkDir,
+        GobblinClusterConfigurationKeys.JOB_STATE_DIR_NAME);
 
     URI fsUri = URI.create(jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.fs = FileSystem.get(fsUri, new Configuration());
 
     this.taskStateCollectorService = new TaskStateCollectorService(jobProps, this.jobContext.getJobState(),
-        this.eventBus, this.stateStores.taskStateStore, outputTaskStateDir);
-
-    if (Task.getExecutionModel(ConfigUtils.configToState(jobConfig)).equals(ExecutionModel.STREAMING)) {
-      // Fix-up Ideal State with a custom rebalancer that will re-balance long-running jobs
-      final String clusterName =
-          ConfigUtils.getString(jobConfig, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, "");
-      final String rebalancerToReplace = "org.apache.helix.task.JobRebalancer";
-      final String rebalancerClassDesired = GobblinJobRebalancer.class.getName();
-      final String jobResourceName = this.jobResourceName;
-
-      if (!clusterName.isEmpty()) {
-        this.helixManager.addIdealStateChangeListener(new IdealStateChangeListener() {
-          @Override
-          public void onIdealStateChange(List<IdealState> list, NotificationContext notificationContext) {
-            HelixAdmin helixAdmin = helixManager.getClusterManagmentTool();
-            for (String resource : helixAdmin.getResourcesInCluster(clusterName)) {
-              if (resource.equals(jobResourceName)) {
-                IdealState idealState = helixAdmin.getResourceIdealState(clusterName, resource);
-                if (idealState != null) {
-                  String rebalancerClassFound = idealState.getRebalancerClassName();
-                  if (rebalancerToReplace.equals(rebalancerClassFound)) {
-                    idealState.setRebalancerClassName(rebalancerClassDesired);
-                    helixAdmin.setResourceIdealState(clusterName, resource, idealState);
-                  }
-                }
-              }
-            }
-          }
-        });
-      }
-    }
+        this.eventBus, this.stateStores.getTaskStateStore(), outputTaskStateDir);
   }
 
   @Override
@@ -234,12 +207,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   protected void executeCancellation() {
     if (this.jobSubmitted) {
       try {
-        // #HELIX-0.6.7-WORKAROUND
-        // working around helix 0.6.7 job delete issue with custom taskDriver
-        LOGGER.info("Cancelling job {} in Helix", this.jobContext.getJobId());
-        GobblinHelixTaskDriver taskDriver = new GobblinHelixTaskDriver(this.helixManager);
-        taskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
-        LOGGER.info("Job {} in cancelled Helix", this.jobContext.getJobId());
+        this.helixTaskDriver.delete(this.helixQueueName);
       } catch (IllegalArgumentException e) {
         LOGGER.warn("Failed to cancel job {} in Helix", this.jobContext.getJobId(), e);
       }
@@ -261,8 +229,20 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
       }
 
-      Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
-      SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
+      Path jobStateFilePath;
+
+      // write the job.state using the state store if present, otherwise serialize directly to the file
+      if (this.stateStores.haveJobStateStore()) {
+        jobStateFilePath = GobblinClusterUtils.getJobStateFilePath(true, this.appWorkDir, this.jobContext.getJobId());
+        this.stateStores.getJobStateStore().put(jobStateFilePath.getParent().getName(), jobStateFilePath.getName(),
+            this.jobContext.getJobState());
+      } else {
+        jobStateFilePath = GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
+        SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
+      }
+
+      LOGGER.debug("GobblinHelixJobLauncher.createJob: jobStateFilePath {}, jobState {} jobProperties {}",
+          jobStateFilePath, this.jobContext.getJobState().toString(), this.jobContext.getJobState().getProperties());
     }
 
     JobConfig.Builder jobConfigBuilder = new JobConfig.Builder();
@@ -273,6 +253,11 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     jobConfigBuilder.setNumConcurrentTasksPerInstance(ConfigUtils.getInt(jobConfig,
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT));
+
+    if (Task.getExecutionModel(ConfigUtils.configToState(jobConfig)).equals(ExecutionModel.STREAMING)) {
+      jobConfigBuilder.setRebalanceRunningTask(true);
+    }
+
     return jobConfigBuilder;
   }
 
@@ -280,18 +265,27 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    * Submit a job to run.
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
+    WorkflowConfig workflowConfig = this.helixTaskDriver.getWorkflowConfig(this.helixManager, this.helixQueueName);
+
+    // If the queue is present, but in delete state then wait for cleanup before recreating the queue
+    if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
+      GobblinHelixTaskDriver gobblinHelixTaskDriver = new GobblinHelixTaskDriver(this.helixManager);
+      gobblinHelixTaskDriver.deleteWorkflow(this.helixQueueName, this.jobQueueDeleteTimeoutSeconds);
+      // if we get here then the workflow was successfully deleted
+      workflowConfig = null;
+    }
+
     // Create one queue for each job with the job name being the queue name
-    if (null == this.helixTaskDriver.getWorkflowConfig(this.helixManager, this.helixQueueName)) {
-      JobQueue jobQueue = new JobQueue.Builder(this.helixQueueName).build();
-      this.helixTaskDriver.createQueue(jobQueue);
-      LOGGER.info("Created job queue {}", this.helixQueueName);
+    if (workflowConfig == null) {
+        JobQueue jobQueue = new JobQueue.Builder(this.helixQueueName).build();
+        this.helixTaskDriver.createQueue(jobQueue);
+        LOGGER.info("Created job queue {}", this.helixQueueName);
     } else {
       LOGGER.info("Job queue {} already exists", this.helixQueueName);
     }
 
     // Put the job into the queue
     this.helixTaskDriver.enqueueJob(this.jobContext.getJobName(), this.jobContext.getJobId(), jobConfigBuilder);
-
   }
 
   public void launchJob(@Nullable JobListener jobListener)
@@ -345,10 +339,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     if (workUnit instanceof MultiWorkUnit) {
       workUnitFileName += MULTI_WORK_UNIT_FILE_EXTENSION;
-      stateStore = stateStores.mwuStateStore;
+      stateStore = stateStores.getMwuStateStore();
     } else {
       workUnitFileName += WORK_UNIT_FILE_EXTENSION;
-      stateStore = stateStores.wuStateStore;
+      stateStore = stateStores.getWuStateStore();
     }
 
     Path workUnitFile = new Path(workUnitFileDir, workUnitFileName);
@@ -386,14 +380,19 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    */
   private void cleanupWorkingDirectory() throws IOException {
     LOGGER.info("Deleting persisted work units for job " + this.jobContext.getJobId());
-    stateStores.wuStateStore.delete(this.jobContext.getJobId());
+    stateStores.getWuStateStore().delete(this.jobContext.getJobId());
 
     // delete the directory that stores the task state files
-    stateStores.taskStateStore.delete(outputTaskStateDir.getName());
+    stateStores.getTaskStateStore().delete(outputTaskStateDir.getName());
 
     LOGGER.info("Deleting job state file for job " + this.jobContext.getJobId());
-    Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
-    this.fs.delete(jobStateFilePath, false);
+
+    if (this.stateStores.haveJobStateStore()) {
+      this.stateStores.getJobStateStore().delete(this.jobContext.getJobId());
+    } else {
+      Path jobStateFilePath = GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
+      this.fs.delete(jobStateFilePath, false);
+    }
   }
 
   /**
@@ -433,6 +432,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_NAME,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
     metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_EXECUTION_ID, jobExecutionId));
+
+    LOGGER.debug("GobblinHelixJobLauncher.addAdditionalMetadataTags: metadataTags {}", metadataTags);
 
     return metadataTags;
   }

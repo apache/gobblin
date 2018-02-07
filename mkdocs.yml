@@ -28,6 +28,7 @@ pages:
         - State Management and Watermarks: user-guide/State-Management-and-Watermarks.md
         - Fork Operator: user-guide/Working-with-the-ForkOperator.md
         - Configuration Glossary: user-guide/Configuration-Properties-Glossary.md
+        - Source schema and Converters: user-guide/Source-schema-and-Converters.md
         - Partitioned Writers: user-guide/Partitioned-Writers.md
         - Monitoring: user-guide/Monitoring.md
         - Template: user-guide/Gobblin-template.md
@@ -63,6 +64,7 @@ pages:
         - Wikipedia: sources/WikipediaSource.md
     - Record Sinks:
         - Avro HDFS: sinks/AvroHdfsDataWriter.md
+        - Parquet HDFS: sinks/ParquetHdfsDataWriter.md
         - HDFS Byte array: sinks/SimpleBytesWriter.md
         - Console: sinks/ConsoleWriter.md
         - Couchbase: sinks/Couchbase-Writer.md

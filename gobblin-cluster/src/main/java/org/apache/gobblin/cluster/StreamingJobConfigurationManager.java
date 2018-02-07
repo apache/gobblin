@@ -45,6 +45,8 @@ import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.runtime.api.SpecConsumer;
 
+import lombok.Getter;
+
 
 /**
  * A {@link JobConfigurationManager} that fetches job specs from a {@link SpecConsumer} in a loop
@@ -56,6 +58,7 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
   private final ExecutorService fetchJobSpecExecutor;
 
+  @Getter
   private final SpecConsumer specConsumer;
 
   private final long stopTimeoutSeconds;

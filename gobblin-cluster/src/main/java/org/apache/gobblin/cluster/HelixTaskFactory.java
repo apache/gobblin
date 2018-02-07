@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.util.GobblinProcessBuilder;
 import org.apache.gobblin.util.SystemPropertiesWrapper;
@@ -49,7 +50,7 @@ public class HelixTaskFactory implements TaskFactory {
   private final Optional<Counter> newTasksCounter;
   private final SingleTaskLauncher launcher;
 
-  public HelixTaskFactory(Optional<ContainerMetrics> containerMetrics, Path clusterConfPath) {
+  public HelixTaskFactory(Optional<ContainerMetrics> containerMetrics, Path clusterConfPath, Config sysConfig) {
     this.containerMetrics = containerMetrics;
     if (this.containerMetrics.isPresent()) {
       this.newTasksCounter = Optional
@@ -58,7 +59,7 @@ public class HelixTaskFactory implements TaskFactory {
       this.newTasksCounter = Optional.absent();
     }
     launcher = new SingleTaskLauncher(new GobblinProcessBuilder(), new SystemPropertiesWrapper(),
-        clusterConfPath);
+        clusterConfPath, sysConfig);
   }
 
   @Override

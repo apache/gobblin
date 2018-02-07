@@ -20,9 +20,12 @@ package org.apache.gobblin.converter.jdbc;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.avro.Schema;
@@ -36,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -68,6 +72,11 @@ import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
 public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema, GenericRecord, JdbcEntryData> {
 
   public static final String CONVERTER_AVRO_JDBC_DATE_FIELDS = "converter.avro.jdbc.date_fields";
+  private static final String AVRO_NESTED_COLUMN_DELIMITER = ".";
+  private static final String JDBC_FLATTENED_COLUMN_DELIMITER = "_";
+  private static final String AVRO_NESTED_COLUMN_DELIMITER_REGEX_COMPATIBLE = "\\.";
+  private static final Splitter AVRO_RECORD_LEVEL_SPLITTER = Splitter.on(AVRO_NESTED_COLUMN_DELIMITER).omitEmptyStrings();
+
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroToJdbcEntryConverter.class);
   private static final Map<Type, JdbcType> AVRO_TYPE_JDBC_TYPE_MAPPING =
@@ -83,6 +92,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
       ImmutableSet.<Type> builder()
         .addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.keySet())
         .add(Type.UNION)
+        .add(Type.RECORD)
         .build();
   private static final Set<JdbcType> JDBC_SUPPORTED_TYPES =
       ImmutableSet.<JdbcType> builder()
@@ -93,7 +103,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
         .build();
 
   private Optional<Map<String, String>> avroToJdbcColPairs = Optional.absent();
-  private Optional<Map<String, String>> jdbcToAvroColPairs = Optional.absent();
+  private Map<String, String> jdbcToAvroColPairs = new HashMap<>();
 
   public AvroToJdbcEntryConverter() {
     super();
@@ -128,7 +138,6 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
           jdbcToAvroBuilder.put(entry.getValue().getAsString(), entry.getKey());
         }
         this.avroToJdbcColPairs = Optional.of((Map<String, String>) avroToJdbcBuilder.build());
-        this.jdbcToAvroColPairs = Optional.of((Map<String, String>) jdbcToAvroBuilder.build());
       }
     }
     return this;
@@ -139,7 +148,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
    *
    * Few precondition to the Avro schema
    * 1. Avro schema should have one entry type record at first depth.
-   * 2. Avro schema can recurse by having record inside record. As RDBMS structure is not recursive, this is not allowed.
+   * 2. Avro schema can recurse by having record inside record.
    * 3. Supported Avro primitive types and conversion
    *  boolean --> java.lang.Boolean
    *  int --> java.lang.Integer
@@ -150,9 +159,9 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
    *  string --> java.lang.String
    *  null: only allowed if it's within union (see complex types for more details)
    * 4. Supported Avro complex types
-   *  Records: Only first level depth can have Records type. Basically converter will peel out Records type and start with 2nd level.
+   *  Records: Supports nested record type as well.
    *  Enum --> java.lang.String
-   *  Unions --> Only allowed if it have one primitive type in it or null type with one primitive type where null will be ignored.
+   *  Unions --> Only allowed if it have one primitive type in it, along with Record type, or null type with one primitive type where null will be ignored.
    *  Once Union is narrowed down to one primitive type, it will follow conversion of primitive type above.
    * {@inheritDoc}
    *
@@ -167,6 +176,10 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
   @Override
   public JdbcEntrySchema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     LOG.info("Converting schema " + inputSchema);
+    Preconditions.checkArgument(Type.RECORD.equals(inputSchema.getType()),
+        "%s is expected for the first level element in Avro schema %s",
+        Type.RECORD, inputSchema);
+
     Map<String, Type> avroColumnType = flatten(inputSchema);
     String jsonStr = Preconditions.checkNotNull(workUnit.getProp(CONVERTER_AVRO_JDBC_DATE_FIELDS));
     java.lang.reflect.Type typeOfMap = new TypeToken<Map<String, JdbcType>>() {}.getType();
@@ -175,7 +188,8 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
 
     List<JdbcEntryMetaDatum> jdbcEntryMetaData = Lists.newArrayList();
     for (Map.Entry<String, Type> avroEntry : avroColumnType.entrySet()) {
-      String colName = tryConvertColumn(avroEntry.getKey(), this.avroToJdbcColPairs);
+      String colName = tryConvertAvroColNameToJdbcColName(avroEntry.getKey());
+
       JdbcType JdbcType = dateColumnMapping.get(colName);
       if (JdbcType == null) {
         JdbcType = AVRO_TYPE_JDBC_TYPE_MAPPING.get(avroEntry.getValue());
@@ -190,14 +204,35 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
     return converted;
   }
 
-  private static String tryConvertColumn(String key, Optional<Map<String, String>> mapping) {
-    if (!mapping.isPresent()) {
-      return key;
+  /**
+   * Convert Avro column name to JDBC column name. If name mapping is defined, follow it. Otherwise, just return avro column name,
+   * while replacing nested column delimiter, dot, to underscore.
+   * This method also updates, mapping from JDBC column name to Avro column name for reverse look up.
+   * @param avroColName
+   * @return
+   */
+  private String tryConvertAvroColNameToJdbcColName(String avroColName) {
+    if (!avroToJdbcColPairs.isPresent()) {
+      String converted = avroColName.replaceAll(AVRO_NESTED_COLUMN_DELIMITER_REGEX_COMPATIBLE, JDBC_FLATTENED_COLUMN_DELIMITER);
+      jdbcToAvroColPairs.put(converted, avroColName);
+      return converted;
     }
 
-    String converted = mapping.get().get(key);
-    return converted != null ? converted : key;
+    String converted = avroToJdbcColPairs.get().get(avroColName);
+    converted = converted != null ? converted : avroColName;
+    jdbcToAvroColPairs.put(converted, avroColName);
+    return converted;
   }
+
+  /**
+   * Provides JDBC column name based on Avro column name. It's a one liner method but contains knowledge on where the mapping is.
+   * @param colName
+   * @return
+   */
+  private String convertJdbcColNameToAvroColName(String colName) {
+    return Preconditions.checkNotNull(jdbcToAvroColPairs.get(colName));
+  }
+
 
   /**
    * Flattens Avro's (possibly recursive) structure and provides field name and type.
@@ -208,41 +243,44 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
    */
   private static Map<String, Type> flatten(Schema schema) throws SchemaConversionException {
     Map<String, Type> flattened = new LinkedHashMap<>();
-    if (!Type.RECORD.equals(schema.getType())) {
-      throw new SchemaConversionException(
-          Type.RECORD + " is expected for the first level element in Avro schema " + schema);
-    }
+    Schema recordSchema = determineType(schema);
 
-    for (Field f : schema.getFields()) {
-      produceFlattenedHelper(f.schema(), f, flattened);
+    Preconditions.checkArgument(Type.RECORD.equals(recordSchema.getType()), "%s is expected. Schema: %s",
+        Type.RECORD, recordSchema);
+
+    for (Field f : recordSchema.getFields()) {
+      produceFlattenedHelper(f, flattened);
     }
     return flattened;
   }
 
-  private static void produceFlattenedHelper(Schema schema, Field field, Map<String, Type> flattened)
+  private static void produceFlattenedHelper(Field field, Map<String, Type> flattened)
       throws SchemaConversionException {
-    if (Type.RECORD.equals(schema.getType())) {
-      throw new SchemaConversionException(Type.RECORD + " is only allowed for first level.");
+    Schema actualSchema = determineType(field.schema());
+    if (Type.RECORD.equals(actualSchema.getType())) {
+      Map<String, Type> map = flatten(actualSchema);
+      for (Entry<String, Type> entry : map.entrySet()) {
+        String key = String.format("%s" + AVRO_NESTED_COLUMN_DELIMITER + "%s", field.name(), entry.getKey());
+        Type existing = flattened.put(key, entry.getValue());
+        Preconditions.checkArgument(existing == null, "Duplicate name detected in Avro schema. Field: " + key);
+      }
+      return;
     }
 
-    Type t = determineType(schema);
-    if (field == null) {
-      throw new IllegalArgumentException("Invalid Avro schema, no name has been assigned to " + schema);
-    }
-    Type existing = flattened.put(field.name(), t);
+    Type existing = flattened.put(field.name(), actualSchema.getType());
     if (existing != null) {
       //No duplicate name allowed when flattening (not considering name space we don't have any assumption between namespace and actual database field name)
       throw new SchemaConversionException("Duplicate name detected in Avro schema. " + field.name());
     }
   }
 
-  private static Type determineType(Schema schema) throws SchemaConversionException {
+  private static Schema determineType(Schema schema) throws SchemaConversionException {
     if (!AVRO_SUPPORTED_TYPES.contains(schema.getType())) {
       throw new SchemaConversionException(schema.getType() + " is not supported");
     }
 
     if (!Type.UNION.equals(schema.getType())) {
-      return schema.getType();
+      return schema;
     }
 
     //For UNION, only supported avro type with NULL is allowed.
@@ -251,20 +289,13 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
       throw new SchemaConversionException("More than two types are not supported " + schemas);
     }
 
-    Type t = null;
     for (Schema s : schemas) {
       if (Type.NULL.equals(s.getType())) {
         continue;
       }
-      if (t == null) {
-        t = s.getType();
-      } else {
-        throw new SchemaConversionException("Union type of " + schemas + " is not supported.");
-      }
+      return s;
     }
-    if (t != null) {
-      return t;
-    }
+
     throw new SchemaConversionException("Cannot determine type of " + schema);
   }
 
@@ -276,12 +307,14 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
     }
     List<JdbcEntryDatum> jdbcEntryData = Lists.newArrayList();
     for (JdbcEntryMetaDatum entry : outputSchema) {
-      final String colName = entry.getColumnName();
+      final String jdbcColName = entry.getColumnName();
       final JdbcType jdbcType = entry.getJdbcType();
-      final Object val = record.get(tryConvertColumn(colName, this.jdbcToAvroColPairs));
+
+      String avroColName = convertJdbcColNameToAvroColName(jdbcColName);
+      final Object val = avroRecordValueGet(record, AVRO_RECORD_LEVEL_SPLITTER.split(avroColName).iterator());
 
       if (val == null) {
-        jdbcEntryData.add(new JdbcEntryDatum(colName, null));
+        jdbcEntryData.add(new JdbcEntryDatum(jdbcColName, null));
         continue;
       }
 
@@ -291,35 +324,23 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
 
       switch (jdbcType) {
         case VARCHAR:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, val.toString()));
+          jdbcEntryData.add(new JdbcEntryDatum(jdbcColName, val.toString()));
           continue;
         case INTEGER:
         case BOOLEAN:
         case BIGINT:
         case FLOAT:
         case DOUBLE:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, val));
+          jdbcEntryData.add(new JdbcEntryDatum(jdbcColName, val));
           continue;
-        //        case BOOLEAN:
-        //          jdbcEntryData.add(new JdbcEntryDatum(colName, Boolean.valueOf((boolean) val)));
-        //          continue;
-        //        case BIGINT:
-        //          jdbcEntryData.add(new JdbcEntryDatum(colName, Long.valueOf((long) val)));
-        //          continue;
-        //        case FLOAT:
-        //          jdbcEntryData.add(new JdbcEntryDatum(colName, Float.valueOf((float) val)));
-        //          continue;
-        //        case DOUBLE:
-        //          jdbcEntryData.add(new JdbcEntryDatum(colName, Double.valueOf((double) val)));
-        //          continue;
         case DATE:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, new Date((long) val)));
+          jdbcEntryData.add(new JdbcEntryDatum(jdbcColName, new Date((long) val)));
           continue;
         case TIME:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, new Time((long) val)));
+          jdbcEntryData.add(new JdbcEntryDatum(jdbcColName, new Time((long) val)));
           continue;
         case TIMESTAMP:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, new Timestamp((long) val)));
+          jdbcEntryData.add(new JdbcEntryDatum(jdbcColName, new Timestamp((long) val)));
           continue;
         default:
           throw new DataConversionException(jdbcType + " is not supported");
@@ -332,6 +353,23 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
     return new SingleRecordIterable<>(converted);
   }
 
+  private Object avroRecordValueGet(GenericRecord record, Iterator<String> recordNameIterator) {
+    String name = recordNameIterator.next();
+    Object val = record.get(name);
+    if (val == null) {
+      //Either leaf value is null or nested Record (represented as UNION) is null
+      return null;
+    }
+    if (!recordNameIterator.hasNext()) {
+      //Leaf
+      return val;
+    }
+
+    //Recurse
+    return avroRecordValueGet((GenericRecord) val, recordNameIterator);
+  }
+
+  @Override
   public ConverterInitializer getInitializer(State state, WorkUnitStream workUnits, int branches, int branchId) {
     JdbcWriterCommandsFactory factory = new JdbcWriterCommandsFactory();
     if (workUnits.isSafeToMaterialize()) {

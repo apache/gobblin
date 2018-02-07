@@ -23,8 +23,10 @@ import java.util.Map;
 import java.util.Properties;
 
 import java.util.UUID;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
@@ -37,9 +39,11 @@ import org.quartz.UnableToInterruptJobException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -77,9 +81,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Getter
   protected volatile boolean isActive;
 
-  public GobblinServiceJobScheduler(Config config, Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog,
-      Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator, SchedulerService schedulerService,
-      Optional<Logger> log) throws Exception {
+  public GobblinServiceJobScheduler(Config config, Optional<HelixManager> helixManager,
+      Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator,
+      SchedulerService schedulerService, Optional<Logger> log)
+      throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -90,12 +95,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.scheduledFlowSpecs = Maps.newHashMap();
   }
 
-  public GobblinServiceJobScheduler(Config config, Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog,
-      Optional<TopologyCatalog> topologyCatalog, SchedulerService schedulerService, Optional<Logger> log) throws Exception {
+  public GobblinServiceJobScheduler(Config config, Optional<HelixManager> helixManager,
+      Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, SchedulerService schedulerService,
+      Optional<Logger> log)
+      throws Exception {
     this(config, helixManager, flowCatalog, topologyCatalog, new Orchestrator(config, topologyCatalog, log),
         schedulerService, log);
   }
-
 
   public synchronized void setActive(boolean isActive) {
     if (this.isActive == isActive) {
@@ -111,7 +117,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       if (this.flowCatalog.isPresent()) {
         Collection<Spec> specs = this.flowCatalog.get().getSpecsWithTimeUpdate();
         for (Spec spec : specs) {
-          onAddSpec(spec);
+          //Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
+          if (spec instanceof FlowSpec) {
+            Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
+            onAddSpec(modifiedSpec);
+          } else {
+            onAddSpec(spec);
+          }
         }
       }
     }
@@ -126,8 +138,19 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
   }
 
+  @VisibleForTesting
+  protected static Spec disableFlowRunImmediatelyOnStart(FlowSpec spec) {
+    Properties properties = spec.getConfigAsProperties();
+    properties.setProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false");
+    Config config = ConfigFactory.parseProperties(properties);
+    FlowSpec flowSpec = new FlowSpec(spec.getUri(), spec.getVersion(), spec.getDescription(), config, properties,
+        spec.getTemplateURIs(), spec.getChildSpecs());
+    return flowSpec;
+  }
+
   @Override
-  protected void startUp() throws Exception {
+  protected void startUp()
+      throws Exception {
     super.startUp();
   }
 
@@ -135,7 +158,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * Synchronize the job scheduling because the same flowSpec can be scheduled by different threads.
    */
   @Override
-  public synchronized void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
+  public synchronized void scheduleJob(Properties jobProps, JobListener jobListener)
+      throws JobException {
     Map<String, Object> additionalJobDataMap = Maps.newHashMap();
     additionalJobDataMap.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC,
         this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)));
@@ -148,7 +172,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   }
 
   @Override
-  public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
+  public void runJob(Properties jobProps, JobListener jobListener)
+      throws JobException {
     try {
       Spec flowSpec = this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
       this.orchestrator.orchestrate(flowSpec);
@@ -185,10 +210,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         jobConfig.setProperty(ConfigurationKeys.JOB_GROUP_KEY,
             ((FlowSpec) addedSpec).getConfig().getValue(ConfigurationKeys.FLOW_GROUP_KEY).toString());
         jobConfig.setProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
-            ConfigUtils.getString(((FlowSpec) addedSpec).getConfig(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,"false"));
-        if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)
-            && StringUtils.isNotBlank(flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY))) {
-          jobConfig.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
+            ConfigUtils.getString(((FlowSpec) addedSpec).getConfig(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"));
+        if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) && StringUtils
+            .isNotBlank(flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY))) {
+          jobConfig.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY,
+              flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
         }
 
         this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
@@ -223,8 +249,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     if (!isActive && helixManager.isPresent()) {
       _log.info("Scheduler running in slave mode, forward Spec delete via Helix message to master: " + deletedSpecURI);
-      HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE, deletedSpecURI.toString() + ":" +
-              deletedSpecVersion, UUID.randomUUID().toString(), InstanceType.CONTROLLER, helixManager.get(), _log);
+      HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE,
+          deletedSpecURI.toString() + ":" + deletedSpecVersion, UUID.randomUUID().toString(), InstanceType.CONTROLLER,
+          helixManager.get(), _log);
       return;
     }
 
@@ -235,12 +262,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         this.scheduledFlowSpecs.remove(deletedSpecURI.toString());
         unscheduleJob(deletedSpecURI.toString());
       } else {
-        _log.warn(String.format("Spec with URI: %s was not found in cache. May be it was cleaned, if not please "
-                + "clean it manually", deletedSpecURI));
+        _log.warn(String.format(
+            "Spec with URI: %s was not found in cache. May be it was cleaned, if not please " + "clean it manually",
+            deletedSpecURI));
       }
     } catch (JobException e) {
-      _log.warn(String.format("Spec with URI: %s was not unscheduled cleaning",
-          deletedSpecURI), e);
+      _log.warn(String.format("Spec with URI: %s was not unscheduled cleaning", deletedSpecURI), e);
     }
   }
 
