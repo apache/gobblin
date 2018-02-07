@@ -17,9 +17,16 @@
 package org.apache.gobblin.publisher;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -93,6 +100,47 @@ public class DataPublisherFactoryTest {
     Assert.assertTrue(publisher1.supportsCapability(DataPublisher.REUSABLE, Collections.EMPTY_MAP));
     Assert.assertTrue(publisher1.supportsCapability(Capability.THREADSAFE, Collections.EMPTY_MAP));
   }
+
+  @Test()
+  public void testMultiThreadedGetNonThreadSafePublisher()
+      throws InterruptedException, ExecutionException, IOException {
+    SharedResourcesBroker broker =
+        SharedResourcesBrokerFactory.<SimpleScopeType>createDefaultTopLevelBroker(ConfigFactory.empty(),
+            SimpleScopeType.GLOBAL.defaultScopeInstance());
+
+    ExecutorService service = Executors.newFixedThreadPool(40);
+    List<Future<?>> futures = new ArrayList<>();
+
+    for (int i = 0; i < 100000; i++) {
+      futures.add(service.submit(new GetNonThreadSafePublisher(broker)));
+    }
+
+    for (Future f: futures) {
+      f.get();
+    }
+    service.shutdown();
+    service.awaitTermination(100, TimeUnit.SECONDS);
+  }
+
+  private static class GetNonThreadSafePublisher implements Runnable {
+    private final SharedResourcesBroker broker;
+    private static long count = 0;
+
+    GetNonThreadSafePublisher(SharedResourcesBroker broker) {
+      this.broker = broker;
+    }
+
+    @Override
+    public void run() {
+      try {
+        DataPublisher publisher1 = DataPublisherFactory.get(TestNonThreadsafeDataPublisher.class.getName(), null, this.broker);
+        Assert.assertNotNull(publisher1);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
 
   private static class TestNonThreadsafeDataPublisher extends DataPublisher {
     public TestNonThreadsafeDataPublisher(State state) {
