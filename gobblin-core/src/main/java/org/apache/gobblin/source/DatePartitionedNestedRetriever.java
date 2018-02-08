@@ -72,6 +72,8 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
   private HadoopFsHelper helper;
   private final String expectedExtension;
   private Duration leadTimeDuration;
+  private boolean schemaInSourceDir;
+  private String schemaFile;
 
   public DatePartitionedNestedRetriever(String expectedExtension) {
     this.expectedExtension = expectedExtension;
@@ -91,6 +93,10 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
     this.sourceDir = new Path(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY));
     this.leadTimeDuration = PartitionAwareFileRetrieverUtils.getLeadTimeDurationFromConfig(state);
     this.helper = new HadoopFsHelper(state);
+    this.schemaInSourceDir = state.getPropAsBoolean(ConfigurationKeys.SCHEMA_IN_SOURCE_DIR,
+        ConfigurationKeys.DEFAULT_SCHEMA_IN_SOURCE_DIR);
+    this.schemaFile = this.schemaInSourceDir ? state.getProp(ConfigurationKeys.SCHEMA_FILENAME,
+        ConfigurationKeys.DEFAULT_SCHEMA_FILENAME) : "";
   }
 
   @Override
@@ -201,7 +207,8 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
     return new PathFilter() {
       @Override
       public boolean accept(Path path) {
-        return path.getName().endsWith(extension);
+        return path.getName().endsWith(extension) &&
+            !(schemaInSourceDir && path.getName().equals(schemaFile)) ;
       }
     };
   }

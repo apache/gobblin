@@ -302,6 +302,8 @@ public class ConfigurationKeys {
   public static final String CONVERTER_AVRO_FIELD_PICK_FIELDS = "converter.avro.fields";
   public static final String CONVERTER_AVRO_JDBC_ENTRY_FIELDS_PAIRS = "converter.avro.jdbc.entry_fields_pairs";
   public static final String CONVERTER_SKIP_FAILED_RECORD = "converter.skipFailedRecord";
+  public static final String CONVERTER_AVRO_SCHEMA_KEY = "converter.avroSchema";
+  public static final String CONVERTER_IGNORE_FIELDS = "converter.ignoreFields";
 
   /**
    * Fork operator configuration properties.
@@ -452,6 +454,10 @@ public class ConfigurationKeys {
    * Configuration properties used by the extractor.
    */
   public static final String SOURCE_ENTITY = "source.entity";
+  public static final String SCHEMA_IN_SOURCE_DIR = "schema.in.source.dir";
+  public static final boolean DEFAULT_SCHEMA_IN_SOURCE_DIR = false;
+  public static final String SCHEMA_FILENAME = "schema.filename";
+  public static final String DEFAULT_SCHEMA_FILENAME = "metadata.json";
 
   // Comma-separated source entity names
   public static final String SOURCE_ENTITIES = "source.entities";
