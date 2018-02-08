@@ -21,16 +21,20 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.DatePartitionedJsonFileSource;
+import org.apache.gobblin.source.PartitionedFileSourceBase;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
 import java.io.IOException;
 import java.util.List;
+
 
 @Test
 public class FileBasedSourceTest {
@@ -55,6 +59,25 @@ public class FileBasedSourceTest {
             Assert.assertEquals("No 'source.filebased.fs.snapshot' found on state of prior job",
                 e.getMessage());
         }
+    }
+
+    @Test void numberOfWorkUnits() throws IOException {
+        SourceState sourceState = new SourceState();
+        DatePartitionedJsonFileSource source = new DatePartitionedJsonFileSource();
+        initState(sourceState);
+        List<WorkUnit> workUnits = source.getWorkunits(sourceState);
+        Assert.assertEquals(3, workUnits.size());
+    }
+
+    private void initState(State state) {
+        state.setProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY,
+            new Path(getClass().getResource("/source").toString()).toString());
+        state.setProp(PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_PATTERN, "yyyy-MM");
+        state.setProp(PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE, "2017-11");
+        state.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, "snapshot_only");
+        state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "file:///");
+        state.setProp(ConfigurationKeys.SCHEMA_IN_SOURCE_DIR, "true");
+        state.setProp(ConfigurationKeys.SCHEMA_FILENAME, "metadata.json");
     }
 
     private static class DummyFileBasedSource extends FileBasedSource<String, String> {

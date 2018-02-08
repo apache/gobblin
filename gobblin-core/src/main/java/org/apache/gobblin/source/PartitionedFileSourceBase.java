@@ -69,7 +69,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
   public static final String DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.suffix";
 
-  static final String DATE_PARTITIONED_SOURCE_PARTITION_PATTERN =
+  public static final String DATE_PARTITIONED_SOURCE_PARTITION_PATTERN =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.pattern";
 
   public static final String DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY =
@@ -99,7 +99,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
   * If this parameter is not specified the job will start reading data from
   * the beginning of Unix time.
   */
-  private static final String DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE =
+  public static final String DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE =
       DATE_PARTITIONED_SOURCE_PREFIX + ".min.watermark.value";
 
   /**
@@ -291,6 +291,11 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
         singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
         singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_KEY, file.getWatermarkMsSinceEpoch());
 
+        if (this.sourceState.getPropAsBoolean(ConfigurationKeys.SCHEMA_IN_SOURCE_DIR,
+            ConfigurationKeys.DEFAULT_SCHEMA_IN_SOURCE_DIR)) {
+          addSchemaFile(file, singleWorkUnit);
+        }
+
         multiWorkUnitWeightedQueue.addWorkUnit(singleWorkUnit, file.getFileSize());
 
         this.fileCount++;
@@ -299,6 +304,17 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
       LOG.info("Total number of files extracted for the current run: " + filesToPull.size());
     } catch (IOException e) {
       Throwables.propagate(e);
+    }
+  }
+
+  private void addSchemaFile(PartitionAwareFileRetriever.FileInfo dataFile, WorkUnit workUnit)
+      throws IOException {
+    Path schemaFile = new Path(new Path(dataFile.getFilePath()).getParent(),
+        workUnit.getProp(ConfigurationKeys.SCHEMA_FILENAME, ConfigurationKeys.DEFAULT_SCHEMA_FILENAME));
+    if (fs.exists(schemaFile)) {
+      workUnit.setProp(ConfigurationKeys.SOURCE_SCHEMA, schemaFile.toString());
+    } else {
+      throw new IOException("Schema file " + schemaFile + " does not exist.");
     }
   }
 
