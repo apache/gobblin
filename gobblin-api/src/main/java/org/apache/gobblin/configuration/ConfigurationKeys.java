@@ -108,6 +108,8 @@ public class ConfigurationKeys {
   public static final String SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY = "scheduler.wait.for.job.completion";
   public static final String DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION = Boolean.TRUE.toString();
 
+  public static final String HELIX_JOB_TIMEOUT_ENABLED_KEY = "job.timeout.enabled";
+  public static final String DEFAULT_HELIX_JOB_TIMEOUT_ENABLED = "false";
   public static final String HELIX_JOB_TIMEOUT_SECONDS = "job.timeout.seconds";
   public static final String DEFAULT_HELIX_JOB_TIMEOUT_SECONDS = "10800";
 

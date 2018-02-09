@@ -364,11 +364,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private void waitForJobCompletion()  throws InterruptedException {
     LOGGER.info("Waiting for job to complete...");
-    long timeoutInSeconds;
-    timeoutInSeconds = Long.parseLong(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
+    boolean timeoutEnabled = Boolean.parseBoolean(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
+        ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
+    long timeoutInSeconds = Long.parseLong(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
         ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
     long endTime = System.currentTimeMillis() + timeoutInSeconds*1000;
-    while (System.currentTimeMillis() <= endTime) {
+    while (!timeoutEnabled || System.currentTimeMillis() <= endTime) {
       WorkflowContext workflowContext = TaskDriver.getWorkflowContext(this.helixManager, this.helixQueueName);
       if (workflowContext != null) {
         org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(this.jobResourceName);
