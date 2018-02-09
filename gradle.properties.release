@@ -15,13 +15,23 @@
 # limitations under the License.
 #
 
-avro.schema.url=gobblin-core/src/test/resources/serde/serde.avsc
-source.hadoop.file.input.paths=gobblin-core/src/test/resources/serde/serde.avro
-serde.serializer.type=gobblin.converter.serde.OrcSerDeWrapper
-serde.serializer.input.format.type=org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
-serde.serializer.output.format.type=org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat
-serde.deserializer.type=AVRO
-writer.staging.dir=gobblin-core/src/test/resources/serde/output-staging
-writer.output.dir=gobblin-core/src/test/resources/serde/output
-writer.file.name=serde-output.orc
-writer.file.path=.
+# Long-running Gradle process speeds up local builds
+# To stop the daemon run 'ligradle --stop'
+org.gradle.daemon=true
+
+# Configures only relevant projects to speed up the configuration of large projects
+# Useful when specific project/task is invoked
+org.gradle.configureondemand=true
+
+# Gradle will run tasks from subprojects in parallel
+# Higher CPU usage, faster builds
+org.gradle.parallel=true
+
+# Allows generation of idea/eclipse metadata for a specific subproject and its upstream project dependencies
+ide.recursive=true
+
+# Apache release specific
+version=0.12.0
+group=org.apache.gobblin
+release=false
+
