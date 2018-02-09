@@ -330,7 +330,11 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   /**
    * A naive implementation of generating a jobSpec's URI within a multi-hop logical Flow.
    */
-  public static URI jobSpecURIGenerator(FlowSpec flowSpec, ServiceNode sourceNode, ServiceNode targetNode) {
+  @Override
+  public URI jobSpecURIGenerator(Object... objects) {
+    FlowSpec flowSpec = (FlowSpec) objects[0];
+    ServiceNode sourceNode = (ServiceNode) objects[1];
+    ServiceNode targetNode = (ServiceNode) objects[2];
     try {
       return new URI(JobSpec.Builder.DEFAULT_JOB_CATALOG_SCHEME, flowSpec.getUri().getAuthority(),
           StringUtils.appendIfMissing(StringUtils.prependIfMissing(flowSpec.getUri().getPath(), "/"),"/")

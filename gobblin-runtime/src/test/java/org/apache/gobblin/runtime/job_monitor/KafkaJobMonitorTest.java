@@ -19,7 +19,6 @@ package org.apache.gobblin.runtime.job_monitor;
 
 import java.net.URI;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -29,6 +28,7 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumerTest;
 
 

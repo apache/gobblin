@@ -104,7 +104,6 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   @Override
   protected void processMessage(MessageAndMetadata<byte[], byte[]> message) {
     try {
-
       Collection<Either<JobSpec, URI>> parsedCollection = parseJobSpec(message.message());
       for (Either<JobSpec, URI> parsedMessage : parsedCollection) {
         if (parsedMessage instanceof Either.Left) {
@@ -115,12 +114,13 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
           this.jobCatalog.remove(((Either.Right<JobSpec, URI>) parsedMessage).getRight());
 
           // Refer FlowConfigsResources:delete to understand the pattern of flow URI
+          // FlowToJobSpec Compilers use the flowSpecURI to derive jobSpecURI
           String[] uriTokens = ((URI)(((Either.Right) parsedMessage).getRight())).getPath().split("/");
           if (uriTokens.length == 3) {
-            String flowName = uriTokens[2];
+            String jobName = uriTokens[2];
             // Delete the job state if it is a delete spec request
             if (this.datasetStateStore != null) {
-              this.datasetStateStore.delete(flowName);
+              this.datasetStateStore.delete(jobName);
             }
           }
         }
