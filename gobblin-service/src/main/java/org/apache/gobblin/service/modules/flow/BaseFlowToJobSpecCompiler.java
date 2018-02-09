@@ -269,6 +269,17 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   }
 
   /**
+   * It returns the template uri for job.
+   * This method can be overridden by derived FlowToJobSpecCompiler classes.
+   * @param flowSpec
+   * @return template URI
+   */
+  protected URI jobSpecTemplateURIGenerator(FlowSpec flowSpec) {
+    // For now only first template uri will be honored for Identity
+    return flowSpec.getTemplateURIs().get().iterator().next();
+  }
+
+  /**
    * Ideally each edge has its own eligible template repository(Based on {@link SpecExecutor})
    * to pick templates from.
    *
