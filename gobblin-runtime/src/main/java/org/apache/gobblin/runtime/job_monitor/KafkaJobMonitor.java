@@ -26,6 +26,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
@@ -50,8 +52,9 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public static final String KAFKA_AUTO_OFFSET_RESET_KEY = KAFKA_JOB_MONITOR_PREFIX + ".auto.offset.reset";
   public static final String KAFKA_AUTO_OFFSET_RESET_SMALLEST = "smallest";
   public static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
-
+  private DatasetStateStore datasetStateStore;
   private final MutableJobCatalog jobCatalog;
+
   @Getter
   private Counter newSpecs;
   @Getter
@@ -67,6 +70,15 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config) {
     super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1);
     this.jobCatalog = catalog;
+    try {
+      if (config.hasPath(ConfigurationKeys.STATE_STORE_ENABLED) &&
+          config.getBoolean(ConfigurationKeys.STATE_STORE_ENABLED) &&
+          config.hasPath(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY)) {
+        this.datasetStateStore = DatasetStateStore.buildDatasetStateStore(config);
+      }
+    } catch (IOException e) {
+      log.warn("DatasetStateStore could not be created.");
+    }
   }
 
   @Override
@@ -100,6 +112,17 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
         } else if (parsedMessage instanceof Either.Right) {
           this.remmovedSpecs.inc();
           this.jobCatalog.remove(((Either.Right<JobSpec, URI>) parsedMessage).getRight());
+
+          // Refer FlowConfigsResources:delete to understand the pattern of flow URI
+          // FlowToJobSpec Compilers use the flowSpecURI to derive jobSpecURI
+          String[] uriTokens = ((URI)(((Either.Right) parsedMessage).getRight())).getPath().split("/");
+          if (uriTokens.length == 3) {
+            String jobName = uriTokens[2];
+            // Delete the job state if it is a delete spec request
+            if (this.datasetStateStore != null) {
+              this.datasetStateStore.delete(jobName);
+            }
+          }
         }
       }
     } catch (IOException ioe) {

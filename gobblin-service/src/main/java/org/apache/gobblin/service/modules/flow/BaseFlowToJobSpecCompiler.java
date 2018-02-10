@@ -211,7 +211,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
    */
   protected JobSpec jobSpecGenerator(FlowSpec flowSpec) {
     JobSpec jobSpec;
-    JobSpec.Builder jobSpecBuilder = JobSpec.builder(flowSpec.getUri())
+    JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSpecURIGenerator(flowSpec))
         .withConfig(flowSpec.getConfig())
         .withDescription(flowSpec.getDescription())
         .withVersion(flowSpec.getVersion());
@@ -251,6 +251,32 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     // Reset properties in Spec from Config
     jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobSpec.getConfig()));
     return jobSpec;
+  }
+
+  /**
+   * It can receive multiple number of parameters, needed to generate a unique URI.
+   * Implementation is flowSpecCompiler dependent.
+   * This method should return URI which has job name at third place, when split by "/"
+   * e.g. /flowGroup/flowName
+   *      /flowGroup/flowName/sourceNode-targetNode
+   * SafeDatasetCommit creates state store using this name and
+   * {@link org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor} extract job name to find the state store path.
+   * @param objects
+   * @return
+   */
+  public  URI jobSpecURIGenerator(Object... objects) {
+    return ((FlowSpec)objects[0]).getUri();
+  }
+
+  /**
+   * It returns the template uri for job.
+   * This method can be overridden by derived FlowToJobSpecCompiler classes.
+   * @param flowSpec
+   * @return template URI
+   */
+  protected URI jobSpecTemplateURIGenerator(FlowSpec flowSpec) {
+    // For now only first template uri will be honored for Identity
+    return flowSpec.getTemplateURIs().get().iterator().next();
   }
 
   /**
