@@ -318,6 +318,15 @@ public class WorkUnit extends State {
     return value;
   }
 
+  @Override
+  public String getProp(String key, String def) {
+    String value = super.getProp(key);
+    if (value == null) {
+      value = this.extract.getProp(key, def);
+    }
+    return value;
+  }
+
   /**
    * Set the low watermark of this {@link WorkUnit}.
    *
@@ -358,5 +367,15 @@ public class WorkUnit extends State {
     int result = super.hashCode();
     result = prime * result + ((this.extract == null) ? 0 : this.extract.hashCode());
     return result;
+  }
+
+  public String getOutputFilePath() {
+    String namespace = getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, "");
+    String table = getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "");
+    String extractId = getProp(ConfigurationKeys.EXTRACT_EXTRACT_ID_KEY, "");
+    boolean isFull =  Boolean.parseBoolean(getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY));
+
+    return namespace.replaceAll("\\.", "/") + "/" + table + "/" + extractId + "_"
+        + (isFull ? "full" : "append");
   }
 }
