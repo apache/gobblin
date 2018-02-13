@@ -104,6 +104,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final String ALL_TOPICS = "all";
   public static final String AVG_RECORD_SIZE = "avg.record.size";
   public static final String AVG_RECORD_MILLIS = "avg.record.millis";
+  public static final String PREVIOUS_LATEST_OFFSET = "previousLatestOffset";
+  public static final String OFFSET_FETCH_EPOCH_TIME = "offsetFetchEpochTime";
+  public static final String PREVIOUS_OFFSET_FETCH_EPOCH_TIME = "previousOffsetFetchEpochTime";
   public static final String GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS = "gobblin.kafka.consumerClient.class";
   public static final String GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION =
       "gobblin.kafka.extract.allowTableTypeAndNamspaceCustomization";
@@ -116,6 +119,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
+  private final Map<KafkaPartition, Long> previousExpectedHighWatermarks = Maps.newConcurrentMap();
+  private final Map<KafkaPartition, Long> previousOffsetFetchEpochTimes = Maps.newConcurrentMap();
 
   private final Set<KafkaPartition> partitionsToBeProcessed = Sets.newConcurrentHashSet();
 
@@ -298,7 +303,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       Map<String, State> topicSpecificStateMap, SourceState state) {
 
     // in case the previous offset not been set
-    getAllPreviousOffsets(state);
+    getAllPreviousOffsetState(state);
 
     // For each partition that has a previous offset, create an empty WorkUnit for it if
     // it is not in this.partitionsToBeProcessed.
@@ -309,6 +314,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         if (!this.isDatasetStateEnabled.get() || this.topicsToProcess.contains(topicName)) {
           long previousOffset = entry.getValue();
           WorkUnit emptyWorkUnit = createEmptyWorkUnit(partition, previousOffset,
+              this.previousOffsetFetchEpochTimes.get(partition),
               Optional.fromNullable(topicSpecificStateMap.get(partition.getTopicName())));
 
           if (workUnits.containsKey(topicName)) {
@@ -368,6 +374,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     boolean failedToGetKafkaOffsets = false;
 
     try (Timer.Context context = this.metricContext.timer(OFFSET_FETCH_TIMER).time()) {
+      offsets.setOffsetFetchEpochTime(System.currentTimeMillis());
       offsets.setEarliestOffset(this.kafkaConsumerClient.get().getEarliestOffset(partition));
       offsets.setLatestOffset(this.kafkaConsumerClient.get().getLatestOffset(partition));
     } catch (KafkaOffsetRetrievalFailureException e) {
@@ -375,9 +382,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     }
 
     long previousOffset = 0;
+    long previousOffsetFetchEpochTime = 0;
     boolean previousOffsetNotFound = false;
     try {
       previousOffset = getPreviousOffsetForPartition(partition, state);
+      offsets.setPreviousLatestOffset(getPreviousExpectedHighWatermark(partition, state));
+      previousOffsetFetchEpochTime = getPreviousOffsetFetchEpochTimeForPartition(partition, state);
+      offsets.setPreviousOffsetFetchEpochTime(previousOffsetFetchEpochTime);
     } catch (PreviousOffsetNotFoundException e) {
       previousOffsetNotFound = true;
     }
@@ -392,7 +403,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       LOG.warn(String
           .format("Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
               partition));
-      return previousOffsetNotFound ? null : createEmptyWorkUnit(partition, previousOffset, topicSpecificState);
+      return previousOffsetNotFound ? null : createEmptyWorkUnit(partition, previousOffset, previousOffsetFetchEpochTime,
+          topicSpecificState);
     }
 
     if (shouldMoveToLatestOffset(partition, state)) {
@@ -444,7 +456,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           offsets.startAtEarliestOffset();
         } else {
           LOG.warn(offsetOutOfRangeMsg + "This partition will be skipped.");
-          return createEmptyWorkUnit(partition, previousOffset, topicSpecificState);
+          return createEmptyWorkUnit(partition, previousOffset, previousOffsetFetchEpochTime, topicSpecificState);
         }
       }
     }
@@ -452,10 +464,24 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     return getWorkUnitForTopicPartition(partition, offsets, topicSpecificState);
   }
 
+  private long getPreviousOffsetFetchEpochTimeForPartition(KafkaPartition partition, SourceState state)
+      throws PreviousOffsetNotFoundException {
+
+    getAllPreviousOffsetState(state);
+
+    if (this.previousOffsetFetchEpochTimes.containsKey(partition)) {
+      return this.previousOffsetFetchEpochTimes.get(partition);
+    }
+
+    throw new PreviousOffsetNotFoundException(String
+        .format("Previous offset fetch epoch time for topic %s, partition %s not found.", partition.getTopicName(),
+            partition.getId()));
+  }
+
   private long getPreviousOffsetForPartition(KafkaPartition partition, SourceState state)
       throws PreviousOffsetNotFoundException {
 
-    getAllPreviousOffsets(state);
+    getAllPreviousOffsetState(state);
 
     if (this.previousOffsets.containsKey(partition)) {
       return this.previousOffsets.get(partition);
@@ -464,12 +490,28 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         .format("Previous offset for topic %s, partition %s not found.", partition.getTopicName(), partition.getId()));
   }
 
-  // need to be synchronized as this.previousOffsets need to be initialized once
-  private synchronized void getAllPreviousOffsets(SourceState state) {
+  private long getPreviousExpectedHighWatermark(KafkaPartition partition, SourceState state)
+      throws PreviousOffsetNotFoundException {
+
+    getAllPreviousOffsetState(state);
+
+    if (this.previousExpectedHighWatermarks.containsKey(partition)) {
+      return this.previousExpectedHighWatermarks.get(partition);
+    }
+    throw new PreviousOffsetNotFoundException(String
+        .format("Previous expected high watermark for topic %s, partition %s not found.", partition.getTopicName(),
+            partition.getId()));
+  }
+
+  // need to be synchronized as this.previousOffsets, this.previousExpectedHighWatermarks, and
+  // this.previousOffsetFetchEpochTimes need to be initialized once
+  private synchronized void getAllPreviousOffsetState(SourceState state) {
     if (this.doneGettingAllPreviousOffsets) {
       return;
     }
     this.previousOffsets.clear();
+    this.previousExpectedHighWatermarks.clear();
+    this.previousOffsetFetchEpochTimes.clear();
     Map<String, Iterable<WorkUnitState>> workUnitStatesByDatasetUrns = state.getPreviousWorkUnitStatesByDatasetUrns();
 
     if (!workUnitStatesByDatasetUrns.isEmpty() &&
@@ -481,13 +523,26 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
       List<KafkaPartition> partitions = KafkaUtils.getPartitions(workUnitState);
       MultiLongWatermark watermark = workUnitState.getActualHighWatermark(MultiLongWatermark.class);
+      MultiLongWatermark previousExpectedHighWatermark =
+          workUnitState.getWorkunit().getExpectedHighWatermark(MultiLongWatermark.class);
       Preconditions.checkArgument(partitions.size() == watermark.size(), String
           .format("Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions,
               watermark));
+
       for (int i = 0; i < partitions.size(); i++) {
+        KafkaPartition partition = partitions.get(i);
+
         if (watermark.get(i) != ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
-          this.previousOffsets.put(partitions.get(i), watermark.get(i));
+          this.previousOffsets.put(partition, watermark.get(i));
         }
+
+        if (previousExpectedHighWatermark.get(i) != ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
+          this.previousExpectedHighWatermarks.put(partition, previousExpectedHighWatermark.get(i));
+        }
+
+        this.previousOffsetFetchEpochTimes.put(partition,
+          Long.valueOf(workUnitState.getProp(KafkaUtils.getPartitionPropName(KafkaSource.OFFSET_FETCH_EPOCH_TIME, i),
+              "0")));
       }
     }
 
@@ -511,12 +566,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   }
 
   // thread safe
-  private WorkUnit createEmptyWorkUnit(KafkaPartition partition, long previousOffset,
+  private WorkUnit createEmptyWorkUnit(KafkaPartition partition, long previousOffset, long previousFetchEpochTime,
       Optional<State> topicSpecificState) {
     Offsets offsets = new Offsets();
     offsets.setEarliestOffset(previousOffset);
     offsets.setLatestOffset(previousOffset);
     offsets.startAtEarliestOffset();
+    offsets.setOffsetFetchEpochTime(previousFetchEpochTime);
     return getWorkUnitForTopicPartition(partition, offsets, topicSpecificState);
   }
 
@@ -552,6 +608,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     workUnit.setProp(LEADER_HOSTANDPORT, partition.getLeader().getHostAndPort().toString());
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, offsets.getStartOffset());
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, offsets.getLatestOffset());
+    workUnit.setProp(PREVIOUS_OFFSET_FETCH_EPOCH_TIME, offsets.getPreviousOffsetFetchEpochTime());
+    workUnit.setProp(OFFSET_FETCH_EPOCH_TIME, offsets.getOffsetFetchEpochTime());
+    workUnit.setProp(PREVIOUS_LATEST_OFFSET, offsets.getPreviousLatestOffset());
 
     // Add lineage info
     DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_KAFKA, partition.getTopicName());
@@ -607,6 +666,18 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     @Getter
     @Setter
     private long latestOffset = 0;
+
+    @Getter
+    @Setter
+    private long offsetFetchEpochTime = 0;
+
+    @Getter
+    @Setter
+    private long previousOffsetFetchEpochTime = 0;
+
+    @Getter
+    @Setter
+    private long previousLatestOffset = 0;
 
     private void startAt(long offset)
         throws StartOffsetOutOfRangeException {
