@@ -62,6 +62,10 @@ public class WorkUnitState extends State {
 
   private static final Gson GSON = new Gson();
 
+  public String getOutputFilePath() {
+    return this.workUnit.getOutputFilePath();
+  }
+
   /**
    * Runtime state of the {@link WorkUnit}.
    *
