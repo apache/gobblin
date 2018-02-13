@@ -209,12 +209,11 @@ public class WriterUtils {
   public static Path getDefaultWriterFilePath(State state, int numBranches, int branchId) {
     if (state instanceof WorkUnitState) {
       WorkUnitState workUnitState = (WorkUnitState) state;
-      return new Path(ForkOperatorUtils.getPathForBranch(workUnitState, workUnitState.getExtract().getOutputFilePath(),
+      return new Path(ForkOperatorUtils.getPathForBranch(workUnitState, workUnitState.getOutputFilePath(),
           numBranches, branchId));
-
     } else if (state instanceof WorkUnit) {
       WorkUnit workUnit = (WorkUnit) state;
-      return new Path(ForkOperatorUtils.getPathForBranch(workUnit, workUnit.getExtract().getOutputFilePath(),
+      return new Path(ForkOperatorUtils.getPathForBranch(workUnit, workUnit.getOutputFilePath(),
           numBranches, branchId));
     }
 
