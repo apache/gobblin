@@ -368,10 +368,9 @@ public class WorkUnit extends State {
   public String getOutputFilePath() {
     // Search for the properties in the workunit.
     // This search for the property first in State and then in the Extract of this workunit.
-    getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY);
-    String namespace = getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
-    String table = getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
-    String extractId = getProp(ConfigurationKeys.EXTRACT_EXTRACT_ID_KEY);
+    String namespace = getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, "");
+    String table = getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "");
+    String extractId = getProp(ConfigurationKeys.EXTRACT_EXTRACT_ID_KEY, "");
     // getPropAsBoolean and other similar methods are not overridden in WorkUnit class
     // Thus, to enable searching in WorkUnit's Extract, we use getProp, and not getPropAsBoolean
     boolean isFull =  Boolean.parseBoolean(getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY));

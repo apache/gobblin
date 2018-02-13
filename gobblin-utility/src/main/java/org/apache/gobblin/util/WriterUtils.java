@@ -211,8 +211,6 @@ public class WriterUtils {
       WorkUnitState workUnitState = (WorkUnitState) state;
       return new Path(ForkOperatorUtils.getPathForBranch(workUnitState, workUnitState.getOutputFilePath(),
           numBranches, branchId));
-
-
     } else if (state instanceof WorkUnit) {
       WorkUnit workUnit = (WorkUnit) state;
       return new Path(ForkOperatorUtils.getPathForBranch(workUnit, workUnit.getOutputFilePath(),
