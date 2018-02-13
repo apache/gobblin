@@ -101,8 +101,8 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
   // MySQL key length limit is 767 bytes
   private static final String CREATE_JOB_STATE_TABLE_TEMPLATE =
-      "CREATE TABLE IF NOT EXISTS $TABLE$ (store_name varchar(100) CHARACTER SET latin1 not null,"
-          + "table_name varchar(667) CHARACTER SET latin1 not null,"
+      "CREATE TABLE IF NOT EXISTS $TABLE$ (store_name varchar(100) CHARACTER SET latin1 COLLATE latin1_bin not null,"
+          + "table_name varchar(667) CHARACTER SET latin1 COLLATE latin1_bin not null,"
           + " modified_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
           + " state longblob, primary key(store_name, table_name))";
 
