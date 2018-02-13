@@ -43,9 +43,11 @@ public class MysqlDatasetStateStoreTest {
 
   private static final String TEST_STATE_STORE = "TestStateStore";
   private static final String TEST_JOB_NAME = "TestJob";
+  private static final String TEST_JOB_NAME_LOWER = "testjob";
   private static final String TEST_JOB_ID = "TestJob1";
   private static final String TEST_TASK_ID_PREFIX = "TestTask-";
   private static final String TEST_DATASET_URN = "TestDataset";
+  private static final String TEST_DATASET_URN_LOWER = "testdataset";
   private static final String TEST_DATASET_URN2 = "TestDataset2";
 
   private StateStore<JobState> dbJobStateStore;
@@ -109,6 +111,13 @@ public class MysqlDatasetStateStoreTest {
     dbJobStateStore.put(TEST_JOB_NAME,
         MysqlDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + MysqlDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
         jobState);
+
+    // for testing a colliding lowercase job name
+    jobState.setJobName(TEST_JOB_NAME_LOWER);
+    jobState.setProp("lower", "case");
+    dbJobStateStore.put(TEST_JOB_NAME_LOWER,
+        MysqlDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + MysqlDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
+        jobState);
   }
 
   @Test(dependsOnMethods = "testPersistJobState")
@@ -119,6 +128,8 @@ public class MysqlDatasetStateStoreTest {
 
     Assert.assertEquals(jobState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
+    Assert.assertEquals(jobState.getProp("foo"), "bar");
+    Assert.assertNotEquals(jobState.getProp("lower"), "case");
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(jobState.getStartTime(), this.startTime);
     Assert.assertEquals(jobState.getEndTime(), this.startTime + 1000);
@@ -132,6 +143,15 @@ public class MysqlDatasetStateStoreTest {
       Assert.assertEquals(taskState.getId(), TEST_TASK_ID_PREFIX + i);
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
     }
+
+    jobState = dbJobStateStore.get(TEST_JOB_NAME_LOWER,
+        dbDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + dbDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
+        TEST_JOB_ID);
+
+    Assert.assertEquals(jobState.getJobName(), TEST_JOB_NAME_LOWER);
+    Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
+    Assert.assertEquals(jobState.getProp("foo"), "bar");
+    Assert.assertEquals(jobState.getProp("lower"), "case");
   }
 
   @Test(dependsOnMethods = "testGetJobState")
@@ -162,6 +182,13 @@ public class MysqlDatasetStateStoreTest {
     datasetState.setDuration(2000);
 
     dbDatasetStateStore.persistDatasetState(TEST_DATASET_URN2, datasetState);
+
+    // persist a colliding lowercase dataset state to test that retrieval is case sensitive
+    datasetState.setDatasetUrn(TEST_DATASET_URN_LOWER);
+    datasetState.setId(TEST_DATASET_URN_LOWER );
+    datasetState.setDuration(3000);
+
+    dbDatasetStateStore.persistDatasetState(TEST_DATASET_URN_LOWER, datasetState);
   }
 
   @Test(dependsOnMethods = "testPersistDatasetState")
@@ -191,7 +218,7 @@ public class MysqlDatasetStateStoreTest {
   public void testGetPreviousDatasetStatesByUrns() throws IOException {
     Map<String, JobState.DatasetState> datasetStatesByUrns =
         dbDatasetStateStore.getLatestDatasetStatesByUrns(TEST_JOB_NAME);
-    Assert.assertEquals(datasetStatesByUrns.size(), 2);
+    Assert.assertEquals(datasetStatesByUrns.size(), 3);
 
     JobState.DatasetState datasetState = datasetStatesByUrns.get(TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN);
@@ -210,6 +237,15 @@ public class MysqlDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getStartTime(), this.startTime);
     Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(datasetState.getDuration(), 2000);
+
+    datasetState = datasetStatesByUrns.get(TEST_DATASET_URN_LOWER);
+    Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN_LOWER);
+    Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
+    Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
+    Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
+    Assert.assertEquals(datasetState.getStartTime(), this.startTime);
+    Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
+    Assert.assertEquals(datasetState.getDuration(), 3000);
   }
 
   @Test(dependsOnMethods = "testGetPreviousDatasetStatesByUrns")
