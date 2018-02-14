@@ -61,6 +61,12 @@ except ImportError:
     print("Could not find the keyring library. Run 'sudo pip3 install keyring' to install.")
     sys.exit(-1)
 
+try:
+    import jira.client
+except ImportError:
+    print("Could not find jira-python library; exiting. Run 'sudo pip3 install jira' to install.")
+    sys.exit(-1)
+
 # Location of your Gobblin git development area
 GOBBLIN_GIT_LOCATION = os.environ.get(
     "GOBBLIN_GIT",
@@ -531,12 +537,6 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     jira_id: an Gobblin JIRA id, either an integer or a string with the form
         GOBBLIN-X. If not provided, the user will be prompted to provide one.
     """
-    try:
-        import jira.client
-    except ImportError:
-        raise PRToolError(
-            "Could not find jira-python library; exiting. Run "
-            "'sudo pip3 install jira' to install.")
 
     if merge_branches is None:
         merge_branches = []
