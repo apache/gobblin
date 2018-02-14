@@ -49,6 +49,12 @@ try:
 except ImportError:
     print("Could not find the keyring library. Run 'sudo pip install keyring' to install.")
     sys.exit(-1)
+
+try:
+    import jira.client
+except ImportError:
+    print("Could not find jira-python library; exiting. Run 'sudo pip install jira' to install.")
+    sys.exit(-1)
     
 JIRA_BASE = "https://issues.apache.org/jira/browse"
 JIRA_API_BASE = "https://issues.apache.org/jira"
@@ -87,12 +93,6 @@ def update_jira_issue(fix_version):
 
     fix_version: the version to assign to the Gobblin JIRAs.
     """
-    try:
-        import jira.client
-    except ImportError:
-        print("Could not find jira-python library; exiting. Run "
-            "'sudo pip install jira' to install.")
-        sys.exit(-1)
 
     # ASF JIRA username
     JIRA_USERNAME = os.environ.get("JIRA_USERNAME", '')
