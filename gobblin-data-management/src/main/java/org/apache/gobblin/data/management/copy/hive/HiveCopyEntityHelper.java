@@ -200,6 +200,8 @@ public class HiveCopyEntityHelper {
     REPLACE_PARTITIONS,
     /** Deregister target table, do NOT delete its files, and create a new table with correct values. */
     REPLACE_TABLE,
+    /** A combination of {@link #REPLACE_TABLE} and {@link #REPLACE_PARTITIONS}*/
+    REPLACE_TABLE_AND_PARTITIONS,
     /** Keep the target table as registered while updating the file location */
     UPDATE_TABLE,
     /** Abort copying of conflict table. */
