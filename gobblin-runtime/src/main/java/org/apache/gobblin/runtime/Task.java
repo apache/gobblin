@@ -365,11 +365,13 @@ public class Task implements TaskIFace {
     } catch (Throwable t) {
       failTask(t);
     } finally {
-      if (this.taskFuture == null || !this.taskFuture.isCancelled()) {
-        this.taskStateTracker.onTaskRunCompletion(this);
-        completeShutdown();
-      } else {
-        LOG.info("will not decrease count down latch as this task is cancelled");
+      synchronized (this.taskFuture) {
+        if (this.taskFuture == null || !this.taskFuture.isCancelled()) {
+          this.taskStateTracker.onTaskRunCompletion(this);
+          completeShutdown();
+        } else {
+          LOG.info("will not decrease count down latch as this task is cancelled");
+        }
       }
     }
   }
@@ -963,12 +965,14 @@ public class Task implements TaskIFace {
    * @return
    */
   public boolean cancel() {
-    if (this.taskFuture != null && this.taskFuture.cancel(true)) {
-      this.taskStateTracker.onTaskRunCompletion(this);
-      this.completeShutdown();
-      return true;
-    } else {
-      return false;
+    synchronized (this.taskFuture) {
+      if (this.taskFuture != null && this.taskFuture.cancel(true)) {
+        this.taskStateTracker.onTaskRunCompletion(this);
+        this.completeShutdown();
+        return true;
+      } else {
+        return false;
+      }
     }
   }
 }
