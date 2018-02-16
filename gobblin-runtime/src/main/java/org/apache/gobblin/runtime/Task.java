@@ -365,7 +365,7 @@ public class Task implements TaskIFace {
     } catch (Throwable t) {
       failTask(t);
     } finally {
-      synchronized (this.taskFuture) {
+      synchronized (this) {
         if (this.taskFuture == null || !this.taskFuture.isCancelled()) {
           this.taskStateTracker.onTaskRunCompletion(this);
           completeShutdown();
@@ -964,15 +964,13 @@ public class Task implements TaskIFace {
    * return true if the task is successfully cancelled.
    * @return
    */
-  public boolean cancel() {
-    synchronized (this.taskFuture) {
-      if (this.taskFuture != null && this.taskFuture.cancel(true)) {
-        this.taskStateTracker.onTaskRunCompletion(this);
-        this.completeShutdown();
-        return true;
-      } else {
-        return false;
-      }
+  public synchronized boolean cancel() {
+    if (this.taskFuture != null && this.taskFuture.cancel(true)) {
+      this.taskStateTracker.onTaskRunCompletion(this);
+      this.completeShutdown();
+      return true;
+    } else {
+      return false;
     }
   }
 }
