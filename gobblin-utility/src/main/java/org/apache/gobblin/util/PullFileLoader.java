@@ -168,16 +168,7 @@ public class PullFileLoader {
 
   private List<Config> getSortedConfigs(List<ConfigWithTimeStamp> configsWithTimeStamps) {
     List<Config> sortedConfigs = Lists.newArrayList();
-    Collections.sort(configsWithTimeStamps, new Comparator<ConfigWithTimeStamp>() {
-      @Override
-      public int compare(ConfigWithTimeStamp o1, ConfigWithTimeStamp o2) {
-        if (o1.timeStamp == o2.timeStamp) {
-          return 0;
-        } else {
-          return (int) (o1.timeStamp - o2.timeStamp);
-        }
-      }
-    });
+    Collections.sort(configsWithTimeStamps, Comparator.comparingLong(o -> o.timeStamp));
     for (ConfigWithTimeStamp configWithTimeStamp : configsWithTimeStamps) {
       sortedConfigs.add(configWithTimeStamp.config);
     }
