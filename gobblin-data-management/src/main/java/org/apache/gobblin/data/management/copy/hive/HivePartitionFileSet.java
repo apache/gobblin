@@ -96,7 +96,8 @@ public class HivePartitionFileSet extends HiveFileSet {
         try {
           checkPartitionCompatibility(targetPartition, this.existingTargetPartition.get());
         } catch (IOException ioe) {
-          if (hiveCopyEntityHelper.getExistingEntityPolicy() != HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_PARTITIONS) {
+          if (hiveCopyEntityHelper.getExistingEntityPolicy() != HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_PARTITIONS &&
+              hiveCopyEntityHelper.getExistingEntityPolicy() != HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_TABLE_AND_PARTITIONS) {
             log.error("Source and target partitions are not compatible. Aborting copy of partition " + this.partition,
                 ioe);
             return Lists.newArrayList();
