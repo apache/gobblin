@@ -369,6 +369,7 @@ public class Task implements TaskIFace {
         if (this.taskFuture == null || !this.taskFuture.isCancelled()) {
           this.taskStateTracker.onTaskRunCompletion(this);
           completeShutdown();
+          this.taskFuture = null;
         } else {
           LOG.info("will not decrease count down latch as this task is cancelled");
         }
