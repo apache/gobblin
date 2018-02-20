@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.annotation.concurrent.NotThreadSafe;
 
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.gobblin.metrics.event.FailureEventBuilder;
@@ -112,7 +111,6 @@ import lombok.NoArgsConstructor;
  * @author Yinan Li
  */
 @NoArgsConstructor(force = true)
-@NotThreadSafe
 public class Task implements TaskIFace {
 
   private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -959,7 +957,7 @@ public class Task implements TaskIFace {
     return true;
   }
 
-  public void setTaskFuture(Future<?> taskFuture) {
+  public synchronized void setTaskFuture(Future<?> taskFuture) {
     this.taskFuture = taskFuture;
   }
 
