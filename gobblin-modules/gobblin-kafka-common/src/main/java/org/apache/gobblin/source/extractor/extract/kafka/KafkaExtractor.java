@@ -69,7 +69,12 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   public static final String LOW_WATERMARK = "lowWatermark";
   public static final String ACTUAL_HIGH_WATERMARK = "actualHighWatermark";
   public static final String EXPECTED_HIGH_WATERMARK = "expectedHighWatermark";
+  public static final String ELAPSED_TIME = "elapsedTime";
+  public static final String PROCESSED_RECORD_COUNT = "processedRecordCount";
   public static final String AVG_RECORD_PULL_TIME = "avgRecordPullTime";
+  public static final String READ_RECORD_TIME = "readRecordTime";
+  public static final String DECODE_RECORD_TIME = "decodeRecordTime";
+  public static final String FETCH_MESSAGE_BUFFER_TIME = "fetchMessageBufferTime";
   public static final String GOBBLIN_KAFKA_NAMESPACE = "gobblin.kafka";
   public static final String KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME = "KafkaExtractorTopicMetadata";
 
@@ -87,6 +92,11 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   protected final Map<KafkaPartition, Integer> decodingErrorCount;
   private final Map<KafkaPartition, Double> avgMillisPerRecord;
   private final Map<KafkaPartition, Long> avgRecordSizes;
+  private final Map<KafkaPartition, Long> elapsedTime;
+  private final Map<KafkaPartition, Long> processedRecordCount;
+  private final Map<KafkaPartition, Long> decodeRecordTime;
+  private final Map<KafkaPartition, Long> fetchMessageBufferTime;
+  private final Map<KafkaPartition, Long> readRecordTime;
 
   private final Set<Integer> errorPartitions;
   private int undecodableMessageCount = 0;
@@ -95,6 +105,10 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   private int currentPartitionIdx = INITIAL_PARTITION_IDX;
   private long currentPartitionRecordCount = 0;
   private long currentPartitionTotalSize = 0;
+  private long currentPartitionFetchDuration = 0;
+  private long currentPartitionDecodeRecordTime = 0;
+  private long currentPartitionFetchMessageBufferTime = 0;
+  private long currentPartitionReadRecordTime = 0;
 
   public KafkaExtractor(WorkUnitState state) {
     super(state);
@@ -121,6 +135,11 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.decodingErrorCount = Maps.newHashMap();
     this.avgMillisPerRecord = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.avgRecordSizes = Maps.newHashMapWithExpectedSize(this.partitions.size());
+    this.elapsedTime = Maps.newHashMapWithExpectedSize(this.partitions.size());
+    this.processedRecordCount = Maps.newHashMapWithExpectedSize(this.partitions.size());
+    this.decodeRecordTime = Maps.newHashMapWithExpectedSize(this.partitions.size());
+    this.fetchMessageBufferTime = Maps.newHashMapWithExpectedSize(this.partitions.size());
+    this.readRecordTime = Maps.newHashMapWithExpectedSize(this.partitions.size());
 
     this.errorPartitions = Sets.newHashSet();
 
@@ -142,6 +161,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   @SuppressWarnings("unchecked")
   @Override
   public D readRecordImpl(D reuse) throws DataRecordException, IOException {
+    long readStartTime = System.nanoTime();
+
     while (!allPartitionsFinished()) {
       if (currentPartitionFinished()) {
         moveToNextPartition();
@@ -149,7 +170,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       }
       if (this.messageIterator == null || !this.messageIterator.hasNext()) {
         try {
+          long fetchStartTime = System.nanoTime();
           this.messageIterator = fetchNextMessageBuffer();
+          this.currentPartitionFetchMessageBufferTime += System.nanoTime() - fetchStartTime;
         } catch (Exception e) {
           LOG.error(String.format("Failed to fetch next message buffer for partition %s. Will skip this partition.",
               getCurrentPartition()), e);
@@ -178,6 +201,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
         this.nextWatermark.set(this.currentPartitionIdx, nextValidMessage.getNextOffset());
         try {
           D record = null;
+          // track time for decode/convert depending on the record type
+          long decodeStartTime = System.nanoTime();
+
           if (nextValidMessage instanceof ByteArrayBasedKafkaRecord) {
             record = decodeRecord((ByteArrayBasedKafkaRecord)nextValidMessage);
           } else if (nextValidMessage instanceof DecodeableKafkaRecord){
@@ -194,8 +220,10 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
                     + " or DecodeableKafkaRecord");
           }
 
+          this.currentPartitionDecodeRecordTime += System.nanoTime() - decodeStartTime;
           this.currentPartitionRecordCount++;
           this.currentPartitionTotalSize += nextValidMessage.getValueSizeInBytes();
+          this.currentPartitionReadRecordTime += System.nanoTime() - readStartTime;
           return record;
         } catch (Throwable t) {
           this.errorPartitions.add(this.currentPartitionIdx);
@@ -208,6 +236,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       }
     }
     LOG.info("Finished pulling topic " + this.topicName);
+
+    this.currentPartitionReadRecordTime += System.nanoTime() - readStartTime;
     return null;
   }
 
@@ -235,10 +265,13 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       LOG.info("Pulling topic " + this.topicName);
       this.currentPartitionIdx = 0;
     } else {
-      computeAvgMillisPerRecordForCurrentPartition();
+      updateStatisticsForCurrentPartition();
       this.currentPartitionIdx++;
       this.currentPartitionRecordCount = 0;
-      this.currentPartitionTotalSize = 0;
+      this.currentPartitionFetchDuration = 0;
+      this.currentPartitionDecodeRecordTime = 0;
+      this.currentPartitionFetchMessageBufferTime = 0;
+      this.currentPartitionReadRecordTime = 0;
     }
 
     this.messageIterator = null;
@@ -251,16 +284,25 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.stopwatch.start();
   }
 
-  private void computeAvgMillisPerRecordForCurrentPartition() {
+  private void updateStatisticsForCurrentPartition() {
     this.stopwatch.stop();
+
     if (this.currentPartitionRecordCount != 0) {
+      this.currentPartitionFetchDuration = this.stopwatch.elapsed(TimeUnit.MILLISECONDS);
       double avgMillisForCurrentPartition =
-          (double) this.stopwatch.elapsed(TimeUnit.MILLISECONDS) / (double) this.currentPartitionRecordCount;
+          (double) this.currentPartitionFetchDuration / (double) this.currentPartitionRecordCount;
       this.avgMillisPerRecord.put(this.getCurrentPartition(), avgMillisForCurrentPartition);
 
       long avgRecordSize = this.currentPartitionTotalSize / this.currentPartitionRecordCount;
       this.avgRecordSizes.put(this.getCurrentPartition(), avgRecordSize);
+
+      this.elapsedTime.put(this.getCurrentPartition(), this.currentPartitionFetchDuration);
+      this.processedRecordCount.put(this.getCurrentPartition(), this.currentPartitionRecordCount);
+      this.decodeRecordTime.put(this.getCurrentPartition(), this.currentPartitionDecodeRecordTime);
+      this.fetchMessageBufferTime.put(this.getCurrentPartition(), this.currentPartitionFetchMessageBufferTime);
+      this.readRecordTime.put(this.getCurrentPartition(), this.currentPartitionReadRecordTime);
     }
+
     this.stopwatch.reset();
   }
 
@@ -317,7 +359,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   @Override
   public void close() throws IOException {
 
-    computeAvgMillisPerRecordForCurrentPartition();
+    updateStatisticsForCurrentPartition();
 
     Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap = Maps.newHashMap();
 
@@ -336,7 +378,36 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       tagsForPartition.put(PARTITION, Integer.toString(partition.getId()));
       tagsForPartition.put(LOW_WATERMARK, Long.toString(this.lowWatermark.get(i)));
       tagsForPartition.put(ACTUAL_HIGH_WATERMARK, Long.toString(this.nextWatermark.get(i)));
+      // These are used to compute the load factor,
+      // gobblin consumption rate relative to the kafka production rate.
+      // The gobblin rate is computed as (processed record count/elapsed time)
+      // The kafka rate is computed as (expected high watermark - previous latest offset) /
+      // (current offset fetch epoch time - previous offset fetch epoch time).
       tagsForPartition.put(EXPECTED_HIGH_WATERMARK, Long.toString(this.highWatermark.get(i)));
+      tagsForPartition.put(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME,
+          this.workUnitState.getProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME,
+              i)));
+      tagsForPartition.put(KafkaSource.OFFSET_FETCH_EPOCH_TIME,
+          this.workUnitState.getProp(KafkaUtils.getPartitionPropName(KafkaSource.OFFSET_FETCH_EPOCH_TIME, i)));
+      tagsForPartition.put(KafkaSource.PREVIOUS_LATEST_OFFSET,
+          this.workUnitState.getProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_LATEST_OFFSET, i)));
+
+      if (this.processedRecordCount.containsKey(partition)) {
+        tagsForPartition.put(PROCESSED_RECORD_COUNT, Long.toString(this.processedRecordCount.get(partition)));
+        tagsForPartition.put(ELAPSED_TIME, Long.toString(this.elapsedTime.get(partition)));
+        tagsForPartition.put(DECODE_RECORD_TIME, Long.toString(TimeUnit.NANOSECONDS.toMillis(
+            this.decodeRecordTime.get(partition))));
+        tagsForPartition.put(FETCH_MESSAGE_BUFFER_TIME, Long.toString(TimeUnit.NANOSECONDS.toMillis(
+            this.fetchMessageBufferTime.get(partition))));
+        tagsForPartition.put(READ_RECORD_TIME, Long.toString(TimeUnit.NANOSECONDS.toMillis(
+            this.readRecordTime.get(partition))));
+      } else {
+        tagsForPartition.put(PROCESSED_RECORD_COUNT, "0");
+        tagsForPartition.put(ELAPSED_TIME, "0");
+        tagsForPartition.put(DECODE_RECORD_TIME, "0");
+        tagsForPartition.put(FETCH_MESSAGE_BUFFER_TIME, "0");
+        tagsForPartition.put(READ_RECORD_TIME, "0");
+      }
 
       tagsForPartitionsMap.put(partition, tagsForPartition);
     }
