@@ -43,16 +43,17 @@ public class CompositeJobListener extends AbstractJobListener {
 
   @Override
   public void onJobPrepare(JobContext jobContext) throws Exception {
-    String exceptions = "";
+    StringBuffer buf = new StringBuffer();
     for (JobListener listener: listeners) {
       try {
         listener.onJobPrepare(jobContext);
       } catch (Exception e) {
-        exceptions += listener.getClass().getName() + ":" + e.toString();
+        buf.append(listener.getClass().getName() + ":" + e.toString());
         log.error(ExceptionUtils.getFullStackTrace(e));
       }
     }
 
+    String exceptions = buf.toString();
     if (!exceptions.isEmpty()) {
       throw new RuntimeException(exceptions);
     }
@@ -60,16 +61,17 @@ public class CompositeJobListener extends AbstractJobListener {
 
   @Override
   public void onJobStart(JobContext jobContext) throws Exception {
-    String exceptions = "";
+    StringBuffer buf = new StringBuffer();
     for (JobListener listener: listeners) {
       try {
         listener.onJobStart(jobContext);
       } catch (Exception e) {
-        exceptions += listener.getClass().getName() + ":" + e.toString();
+        buf.append(listener.getClass().getName() + ":" + e.toString());
         log.error(ExceptionUtils.getFullStackTrace(e));
       }
     }
 
+    String exceptions = buf.toString();
     if (!exceptions.isEmpty()) {
       throw new RuntimeException(exceptions);
     }
@@ -77,16 +79,17 @@ public class CompositeJobListener extends AbstractJobListener {
 
   @Override
   public void onJobCompletion(JobContext jobContext) throws Exception {
-    String exceptions = "";
+    StringBuffer buf = new StringBuffer();
     for (JobListener listener: listeners) {
       try {
         listener.onJobCompletion(jobContext);
       } catch (Exception e) {
-        exceptions += listener.getClass().getName() + ":" + e.toString();
+        buf.append(listener.getClass().getName() + ":" + e.toString());
         log.error(ExceptionUtils.getFullStackTrace(e));
       }
     }
 
+    String exceptions = buf.toString();
     if (!exceptions.isEmpty()) {
       throw new RuntimeException(exceptions);
     }
@@ -94,16 +97,17 @@ public class CompositeJobListener extends AbstractJobListener {
 
   @Override
   public void onJobCancellation(JobContext jobContext) throws Exception {
-    String exceptions = "";
+    StringBuffer buf = new StringBuffer();
     for (JobListener listener: listeners) {
       try {
         listener.onJobCancellation(jobContext);
       } catch (Exception e) {
-        exceptions += listener.getClass().getName() + ":" + e.toString();
+        buf.append(listener.getClass().getName() + ":" + e.toString());
         log.error(ExceptionUtils.getFullStackTrace(e));
       }
     }
 
+    String exceptions = buf.toString();
     if (!exceptions.isEmpty()) {
       throw new RuntimeException(exceptions);
     }
@@ -111,20 +115,19 @@ public class CompositeJobListener extends AbstractJobListener {
 
   @Override
   public void onJobFailure(JobContext jobContext) throws Exception {
-    String exceptions = "";
+    StringBuffer buf = new StringBuffer();
     for (JobListener listener: listeners) {
       try {
         listener.onJobFailure(jobContext);
       } catch (Exception e) {
-        exceptions += listener.getClass().getName() + ":" + e.toString();
+        buf.append(listener.getClass().getName() + ":" + e.toString());
         log.error(ExceptionUtils.getFullStackTrace(e));
       }
     }
 
+    String exceptions = buf.toString();
     if (!exceptions.isEmpty()) {
       throw new RuntimeException(exceptions);
     }
   }
-
-
 }
