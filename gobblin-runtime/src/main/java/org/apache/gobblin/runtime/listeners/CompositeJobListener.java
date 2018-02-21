@@ -19,13 +19,16 @@ package org.apache.gobblin.runtime.listeners;
 
 import java.util.List;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.runtime.JobContext;
 
 import com.google.common.collect.Lists;
 
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
+@Slf4j
 @AllArgsConstructor
 public class CompositeJobListener extends AbstractJobListener {
   private List<JobListener> listeners = Lists.newArrayList();
@@ -46,6 +49,7 @@ public class CompositeJobListener extends AbstractJobListener {
         listener.onJobPrepare(jobContext);
       } catch (Exception e) {
         exceptions += listener.getClass().getName() + ":" + e.toString();
+        log.error(ExceptionUtils.getFullStackTrace(e));
       }
     }
 
@@ -62,6 +66,7 @@ public class CompositeJobListener extends AbstractJobListener {
         listener.onJobStart(jobContext);
       } catch (Exception e) {
         exceptions += listener.getClass().getName() + ":" + e.toString();
+        log.error(ExceptionUtils.getFullStackTrace(e));
       }
     }
 
@@ -78,6 +83,7 @@ public class CompositeJobListener extends AbstractJobListener {
         listener.onJobCompletion(jobContext);
       } catch (Exception e) {
         exceptions += listener.getClass().getName() + ":" + e.toString();
+        log.error(ExceptionUtils.getFullStackTrace(e));
       }
     }
 
@@ -94,6 +100,7 @@ public class CompositeJobListener extends AbstractJobListener {
         listener.onJobCancellation(jobContext);
       } catch (Exception e) {
         exceptions += listener.getClass().getName() + ":" + e.toString();
+        log.error(ExceptionUtils.getFullStackTrace(e));
       }
     }
 
@@ -110,6 +117,7 @@ public class CompositeJobListener extends AbstractJobListener {
         listener.onJobFailure(jobContext);
       } catch (Exception e) {
         exceptions += listener.getClass().getName() + ":" + e.toString();
+        log.error(ExceptionUtils.getFullStackTrace(e));
       }
     }
 
