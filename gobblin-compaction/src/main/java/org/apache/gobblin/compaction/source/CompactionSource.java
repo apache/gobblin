@@ -75,6 +75,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTimeUtils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -94,6 +95,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 public class CompactionSource implements WorkUnitStreamSource<String, String> {
+  public static final String COMPACTION_INIT_TIME = "compaction.init.time";
   private CompactionSuite suite;
   private Path tmpJobDir;
   private FileSystem fs;
@@ -108,6 +110,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   public WorkUnitStream getWorkunitStream(SourceState state) {
     try {
       fs = getSourceFileSystem(state);
+      state.setProp(COMPACTION_INIT_TIME, DateTimeUtils.currentTimeMillis());
       suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
 
       initRequestAllocator(state);
@@ -433,7 +436,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     }
   }
 
-  protected FileSystem getSourceFileSystem(State state)
+  public static FileSystem getSourceFileSystem(State state)
           throws IOException {
     Configuration conf = HadoopUtils.getConfFromState(state);
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
