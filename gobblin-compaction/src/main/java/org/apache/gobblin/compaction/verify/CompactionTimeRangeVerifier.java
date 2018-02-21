@@ -21,6 +21,7 @@ import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
+import org.apache.gobblin.compaction.source.CompactionSource;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import lombok.AllArgsConstructor;
@@ -50,19 +51,19 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
       CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
       DateTime folderTime = result.getTime();
       DateTimeZone timeZone = DateTimeZone.forID(this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
-      DateTime current = new DateTime(timeZone);
+      DateTime compactionStartTime = new DateTime(this.state.getPropAsLong(CompactionSource.COMPACTION_INIT_TIME), timeZone);
       PeriodFormatter formatter = new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
               .appendSuffix("h").toFormatter();
 
       // get earliest time
       String maxTimeAgoStr = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
       Period maxTimeAgo = formatter.parsePeriod(maxTimeAgoStr);
-      earliest = current.minus(maxTimeAgo);
+      earliest = compactionStartTime.minus(maxTimeAgo);
 
       // get latest time
       String minTimeAgoStr = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
       Period minTimeAgo = formatter.parsePeriod(minTimeAgoStr);
-      latest = current.minus(minTimeAgo);
+      latest = compactionStartTime.minus(minTimeAgo);
 
       if (earliest.isBefore(folderTime) && latest.isAfter(folderTime)) {
         log.debug("{} falls in the user defined time range", dataset.datasetRoot());
