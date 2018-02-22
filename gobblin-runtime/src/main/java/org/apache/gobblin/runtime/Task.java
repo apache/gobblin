@@ -869,7 +869,9 @@ public class Task implements TaskIFace {
       if (failedForkIds.size() == 0) {
         // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
         // as the data publisher will do that upon successful data publishing.
-        this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+        if (this.taskState.getWorkingState() != WorkUnitState.WorkingState.FAILED) {
+          this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+        }
       } else {
         failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
       }
@@ -903,8 +905,10 @@ public class Task implements TaskIFace {
         if (shouldPublishDataInTask()) {
           // If data should be published by the task, publish the data and set the task state to COMMITTED.
           // Task data can only be published after all forks have been closed by closer.close().
-          publishTaskData();
-          this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+          if (this.taskState.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL) {
+            publishTaskData();
+            this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+          }
         }
       } catch (IOException ioe) {
         failTask(ioe);
