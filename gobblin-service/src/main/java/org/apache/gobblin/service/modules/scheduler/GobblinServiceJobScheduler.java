@@ -28,7 +28,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 import org.quartz.DisallowConcurrentExecution;
@@ -62,6 +61,7 @@ import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
