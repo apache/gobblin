@@ -150,6 +150,7 @@ public class Task implements TaskIFace {
   private final AtomicBoolean shutdownRequested;
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
+  private Future<?> taskFuture;
 
   /**
    * Instantiate a new {@link Task}.
@@ -364,8 +365,15 @@ public class Task implements TaskIFace {
     } catch (Throwable t) {
       failTask(t);
     } finally {
-      this.taskStateTracker.onTaskRunCompletion(this);
-      completeShutdown();
+      synchronized (this) {
+        if (this.taskFuture == null || !this.taskFuture.isCancelled()) {
+          this.taskStateTracker.onTaskRunCompletion(this);
+          completeShutdown();
+          this.taskFuture = null;
+        } else {
+          LOG.info("will not decrease count down latch as this task is cancelled");
+        }
+      }
     }
   }
 
@@ -951,5 +959,23 @@ public class Task implements TaskIFace {
       }
     }
     return true;
+  }
+
+  public synchronized void setTaskFuture(Future<?> taskFuture) {
+    this.taskFuture = taskFuture;
+  }
+
+  /**
+   * return true if the task is successfully cancelled.
+   * @return
+   */
+  public synchronized boolean cancel() {
+    if (this.taskFuture != null && this.taskFuture.cancel(true)) {
+      this.taskStateTracker.onTaskRunCompletion(this);
+      this.completeShutdown();
+      return true;
+    } else {
+      return false;
+    }
   }
 }

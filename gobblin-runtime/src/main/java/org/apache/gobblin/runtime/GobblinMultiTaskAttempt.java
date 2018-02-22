@@ -202,8 +202,16 @@ public class GobblinMultiTaskAttempt {
       task.shutdown();
     }
 
-    for (Task task: this.tasks) {
+    for (Task task : this.tasks) {
       task.awaitShutdown(1000);
+    }
+
+    for (Task task : this.tasks) {
+      if (task.cancel()) {
+        log.info("Task {} cancelled.", task.getTaskId());
+      } else {
+        log.info("Task {} could not be cancelled.", task.getTaskId());
+      }
     }
   }
 
@@ -343,8 +351,8 @@ public class GobblinMultiTaskAttempt {
       // Create a new task from the work unit and submit the task to run
       Task task = createTaskRunnable(workUnitState, countDownLatch);
       this.taskStateTracker.registerNewTask(task);
+      task.setTaskFuture(this.taskExecutor.submit(task));
       tasks.add(task);
-      this.taskExecutor.execute(task);
     }
 
     new EventSubmitter.Builder(JobMetrics.get(this.jobId).getMetricContext(), "gobblin.runtime").build()
