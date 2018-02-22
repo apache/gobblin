@@ -61,6 +61,7 @@ import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -222,7 +223,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
           _log.info("Scheduling flow spec: " + addedSpec);
           scheduleJob(jobConfig, null);
-          if (jobConfig.containsKey(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)) {
+          if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
             _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
             this.jobExecutor.execute(new NonScheduledJobRunner(jobConfig, null));
           }
