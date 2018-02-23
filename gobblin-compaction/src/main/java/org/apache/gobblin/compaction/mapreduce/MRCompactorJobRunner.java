@@ -127,6 +127,11 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   public static final String COMPACTION_JOB_USE_PRIME_REDUCERS = COMPACTION_JOB_PREFIX + "use.prime.reducers";
   public static final boolean DEFAULT_COMPACTION_JOB_USE_PRIME_REDUCERS = true;
 
+  // Compression enable, codec and type parameters
+  public static final String MAPREDUCE_OUTPUT_FILEOUTPUTFORMAT_COMPRESS = COMPACTION_JOB_PREFIX + "mapreduce.output.fileoutputformat.compress";
+  public static final String MAPREDUCE_OUTPUT_FILEOUTPUTFORMAT_COMPRESS_CODEC = COMPACTION_JOB_PREFIX + "mapreduce.output.fileoutputformat.compress.codec";
+  public static final String MAPREDUCE_OUTPUT_FILEOUTPUTFORMAT_COMPRESS_TYPE = COMPACTION_JOB_PREFIX + "mapreduce.output.fileoutputformat.compress.type";
+
   public static final String HADOOP_JOB_NAME = "Gobblin MR Compaction";
   private static final long MR_JOB_CHECK_COMPLETE_INTERVAL_MS = 5000;
   private final boolean isRetryEnabled;
@@ -275,17 +280,30 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   public void run() {
     Configuration conf = HadoopUtils.getConfFromState(this.dataset.jobProps());
 
-    // Turn on mapreduce output compression by default
-    if (conf.get("mapreduce.output.fileoutputformat.compress") == null && conf.get("mapred.output.compress") == null) {
-      conf.setBoolean("mapreduce.output.fileoutputformat.compress", true);
-    }
-
-    // Disable delegation token cancellation by default
-    if (conf.get("mapreduce.job.complete.cancel.delegation.tokens") == null) {
-      conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
-    }
-
     try {
+      boolean compression = getCompression();
+      String compression_type = getCompressionType();
+      String compression_codec = getCompressionCodec();
+
+      conf.setBoolean("mapreduce.output.fileoutputformat.compress", compression);
+      LOG.info("Compression set to " + compression);
+
+      if (compression) {
+        if (compression_codec != null) {
+          conf.set("mapreduce.output.fileoutputformat.compress.codec", compression_codec);
+          LOG.info("Compression codec set to " + compression_codec);
+        }
+        if (compression_type != null) {
+          conf.set("mapreduce.output.fileoutputformat.compress.type", compression_type);
+          LOG.info("Compression type set to " + compression_type);
+        }
+      }
+
+      // Disable delegation token cancellation by default
+      if (conf.get("mapreduce.job.complete.cancel.delegation.tokens") == null) {
+        conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
+      }
+
       DateTime compactionTimestamp = getCompactionTimestamp();
       LOG.info("MR Compaction Job Timestamp " + compactionTimestamp.getMillis());
       if (this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, false)) {
@@ -356,6 +374,30 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     } catch (Throwable t) {
       throw Throwables.propagate(t);
     }
+  }
+
+  private String getCompressionCodec() throws IOException {
+    return this.dataset.jobProps().getProp(MAPREDUCE_OUTPUT_FILEOUTPUTFORMAT_COMPRESS_CODEC, null);
+  }
+
+  private String getCompressionType() throws IOException {
+    return this.dataset.jobProps().getProp(MAPREDUCE_OUTPUT_FILEOUTPUTFORMAT_COMPRESS_TYPE, null);
+  }
+
+  private boolean getCompression() throws IOException {
+    Configuration conf = HadoopUtils.getConfFromState(this.dataset.jobProps());
+    boolean compression = true;
+
+    if (this.dataset.jobProps().getProp(MAPREDUCE_OUTPUT_FILEOUTPUTFORMAT_COMPRESS) != null) {
+      compression = this.dataset.jobProps().getPropAsBoolean(MAPREDUCE_OUTPUT_FILEOUTPUTFORMAT_COMPRESS);
+    }
+    else {
+      // Turn on mapreduce output compression by default
+      if (conf.get("mapreduce.output.fileoutputformat.compress") == null && conf.get("mapred.output.compress") == null) {
+        compression = true;
+      }
+    }
+    return compression;
   }
 
   /**
