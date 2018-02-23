@@ -79,11 +79,19 @@ class SingleTaskLauncher {
 
     List<String> build() {
       addJavaBin();
+      addJavaOptions();
       addClassPath();
       addLogConfig();
       addClassName();
       addOptions();
       return this.cmd;
+    }
+
+    private void addJavaOptions() {
+      if (sysConfig.hasPath(GobblinClusterConfigurationKeys.TASK_JAVA_OPTIONS)) {
+        final String javaOptions = sysConfig.getString(GobblinClusterConfigurationKeys.TASK_JAVA_OPTIONS);
+        this.cmd.add(javaOptions);
+      }
     }
 
     private void addClassName() {
