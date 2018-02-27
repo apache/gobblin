@@ -39,6 +39,8 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricSet;
+import com.codahale.metrics.SlidingTimeWindowReservoir;
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
@@ -75,12 +77,15 @@ public class TaskExecutor extends AbstractIdleService {
   private final ExecutorService forkExecutor;
 
   // Task retry interval
+  @Getter
   private final long retryIntervalInSeconds;
 
   // The maximum number of items in the queued task time map.
+  @Getter
   private final int queuedTaskTimeMaxSize;
 
   // The maximum age of the items in the queued task time map.
+  @Getter
   private final long queuedTaskTimeMaxAge ;
 
   // Map of queued task ids to queue times.  The key is the task id, the value is the time the task was queued.  If the
@@ -96,31 +101,43 @@ public class TaskExecutor extends AbstractIdleService {
   private long lastCalculationTime = 0;
 
   // The total number of tasks currently queued and queued over the historical lookback period.
+  @Getter
   private AtomicInteger queuedTaskCount = new AtomicInteger();
 
   // The total number of tasks currently queued.
+  @Getter
   private AtomicInteger currentQueuedTaskCount = new AtomicInteger();
 
   // The total number of tasks queued over the historical lookback period.
+  @Getter
   private AtomicInteger historicalQueuedTaskCount = new AtomicInteger();
 
   // The total time tasks have currently been in the queue and were in the queue during the historical lookback period.
+  @Getter
   private AtomicLong queuedTaskTotalTime = new AtomicLong();
 
   // The total time tasks have currently been in the queue.
+  @Getter
   private AtomicLong currentQueuedTaskTotalTime = new AtomicLong();
 
   // The total time tasks have been in the queue during the historical lookback period.
+  @Getter
   private AtomicLong historicalQueuedTaskTotalTime = new AtomicLong();
 
   // Count of running tasks.
+  @Getter
   private final Counter runningTaskCount = new Counter();
 
   // Count of failed tasks.
+  @Getter
   private final Meter successfulTaskCount = new Meter();
 
   // Count of failed tasks.
+  @Getter
   private final Meter failedTaskCount = new Meter();
+
+  @Getter
+  private final Timer taskCreateAndRunTimer;
 
   // The metric set exposed from the task executor.
   private final TaskExecutorQueueMetricSet metricSet = new TaskExecutorQueueMetricSet();
@@ -129,7 +146,7 @@ public class TaskExecutor extends AbstractIdleService {
    * Constructor used internally.
    */
   private TaskExecutor(int taskExecutorThreadPoolSize, int coreRetryThreadPoolSize, long retryIntervalInSeconds,
-                       int queuedTaskTimeMaxSize, long queuedTaskTimeMaxAge) {
+                       int queuedTaskTimeMaxSize, long queuedTaskTimeMaxAge, int timerWindowSize) {
     Preconditions.checkArgument(taskExecutorThreadPoolSize > 0, "Task executor thread pool size should be positive");
     Preconditions.checkArgument(retryIntervalInSeconds > 0, "Task retry interval should be positive");
     Preconditions.checkArgument(queuedTaskTimeMaxSize > 0, "Queued task time max size should be positive");
@@ -143,6 +160,7 @@ public class TaskExecutor extends AbstractIdleService {
     this.retryIntervalInSeconds = retryIntervalInSeconds;
     this.queuedTaskTimeMaxSize = queuedTaskTimeMaxSize;
     this.queuedTaskTimeMaxAge = queuedTaskTimeMaxAge;
+    this.taskCreateAndRunTimer = new Timer(new SlidingTimeWindowReservoir(timerWindowSize, TimeUnit.MINUTES));
 
     this.forkExecutor = ExecutorsUtils.loggingDecorator(
         new ThreadPoolExecutor(
@@ -175,7 +193,9 @@ public class TaskExecutor extends AbstractIdleService {
         Integer.parseInt(properties.getProperty(ConfigurationKeys.QUEUED_TASK_TIME_MAX_SIZE,
             Integer.toString(ConfigurationKeys.DEFAULT_QUEUED_TASK_TIME_MAX_SIZE))),
         Long.parseLong(properties.getProperty(ConfigurationKeys.QUEUED_TASK_TIME_MAX_AGE,
-            Long.toString(ConfigurationKeys.DEFAULT_QUEUED_TASK_TIME_MAX_AGE))));
+            Long.toString(ConfigurationKeys.DEFAULT_QUEUED_TASK_TIME_MAX_AGE))),
+        Integer.parseInt(properties.getProperty(ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
+            Integer.toString(ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES))));
   }
 
   /**
@@ -191,7 +211,9 @@ public class TaskExecutor extends AbstractIdleService {
         conf.getInt(ConfigurationKeys.QUEUED_TASK_TIME_MAX_SIZE,
             ConfigurationKeys.DEFAULT_QUEUED_TASK_TIME_MAX_SIZE),
         conf.getLong(ConfigurationKeys.QUEUED_TASK_TIME_MAX_AGE,
-            ConfigurationKeys.DEFAULT_QUEUED_TASK_TIME_MAX_AGE));
+            ConfigurationKeys.DEFAULT_QUEUED_TASK_TIME_MAX_AGE),
+        conf.getInt(ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
+            ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES));
   }
 
   @Override
@@ -430,7 +452,12 @@ public class TaskExecutor extends AbstractIdleService {
 
     private void onStart(long startTime) {
       Long queueTime = queuedTasks.remove(this.underlyingTask.getTaskId());
+      long workUnitCreationTime = this.underlyingTask.getTaskContext().getTaskState().getPropAsLong(ConfigurationKeys.WORK_UNIT_CREATION_TIME_IN_MILLIS, 0);
       long timeInQueue = startTime - queueTime;
+      long timeSinceWorkUnitCreation = startTime - workUnitCreationTime;
+
+      taskCreateAndRunTimer.update(timeSinceWorkUnitCreation, TimeUnit.MILLISECONDS);
+
       LOG.debug(String.format("Task %s started. Saving queued time of %d ms to history.", underlyingTask.getTaskId(), timeInQueue));
       queuedTaskTimeHistorical.putIfAbsent(System.currentTimeMillis(), timeInQueue);
       runningTaskCount.inc();

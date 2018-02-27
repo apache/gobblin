@@ -183,6 +183,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   @Override
   protected void runWorkUnits(List<WorkUnit> workUnits) throws Exception {
     try {
+      long workUnitStartTime = System.currentTimeMillis();
+      workUnits.forEach((k) -> k.setProp(ConfigurationKeys.WORK_UNIT_CREATION_TIME_IN_MILLIS, workUnitStartTime));
+
       // Start the output TaskState collector service
       this.taskStateCollectorService.startAsync().awaitRunning();
 

@@ -18,14 +18,17 @@
 package org.apache.gobblin.instrumented;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
-import org.apache.gobblin.metrics.ContextAwareCounter;
-import org.apache.gobblin.metrics.ContextAwareGauge;
-import org.apache.gobblin.metrics.ContextAwareHistogram;
-import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.gobblin.metrics.ContextAwareTimer;
+import org.apache.gobblin.metrics.ContextAwareMetric;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricSet;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 
 
 /**
@@ -35,30 +38,30 @@ public interface StandardMetricsBridge extends Instrumentable {
 
   StandardMetrics getStandardMetrics();
 
-  public class StandardMetrics {
+  default void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
+  }
+
+  default void switchMetricContext(List<Tag<?>> tags) {
+    throw new UnsupportedOperationException();
+  }
+
+  default List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
+    return ImmutableList.of();
+  }
+
+  public class StandardMetrics implements MetricSet {
 
     public String getName() {
       return this.getClass().getName();
     }
 
-    public Collection<ContextAwareGauge<?>> getGauges() {
+    public Collection<ContextAwareMetric> getContextAwareMetrics() {
       return ImmutableList.of();
     }
 
-    public Collection<ContextAwareCounter> getCounters() {
-      return ImmutableList.of();
-    }
-
-    public Collection<ContextAwareMeter> getMeters() {
-      return ImmutableList.of();
-    }
-
-    public Collection<ContextAwareTimer> getTimers() {
-      return ImmutableList.of();
-    }
-
-    public Collection<ContextAwareHistogram> getHistograms() {
-      return ImmutableList.of();
+    public Map<String, Metric> getMetrics() {
+      return Maps.newHashMap();
     }
   }
 }

@@ -46,8 +46,10 @@ public interface JobExecutionLauncher extends Instrumentable {
 
     public static final String TIMER_FOR_JOB_COMPLETION = "timerForJobCompletion";
     public static final String TIMER_FOR_JOB_FAILURE = "timerForJobFailure";
+    public static final String TIMER_FOR_JOB_COMMIT = "timerForJobCommit";
     public static final String TIMER_BEFORE_JOB_SCHEDULING = "timerBeforeJobScheduling";
     public static final String TIMER_BEFORE_JOB_LAUNCHING = "timerBeforeJobLaunching";
+    public static final String TIMER_BETWEEN_JOB_SCHEDULING_AND_LAUNCHING = "timerBetwenJobSchedulingAndLaunching";
 
     public static final String EXECUTOR_ACTIVE_COUNT = "executorActiveCount";
     public static final String EXECUTOR_MAX_POOL_SIZE = "executorMaximumPoolSize";

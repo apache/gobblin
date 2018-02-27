@@ -19,18 +19,19 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
@@ -103,18 +104,14 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     }
 
     @Override
-    public Collection<ContextAwareGauge<?>> getGauges() {
-      return ImmutableList.of(numActiveSpecs, totalAddCalls, totalUpdateCalls, totalDeleteCalls);
-    }
-
-    @Override
-    public Collection<ContextAwareCounter> getCounters() {
-      return ImmutableList.of();
-    }
-
-    @Override
-    public Collection<ContextAwareTimer> getTimers() {
-      return ImmutableList.of(this.timeForSpecCatalogGet);
+    public Collection<ContextAwareMetric> getContextAwareMetrics() {
+      List<ContextAwareMetric> list = Lists.newArrayList();
+      list.add(numActiveSpecs);
+      list.add(totalAddCalls);
+      list.add(totalUpdateCalls);
+      list.add(totalDeleteCalls);
+      list.add(timeForSpecCatalogGet);
+      return list;
     }
 
     @Override public void onAddSpec(Spec addedSpec) {

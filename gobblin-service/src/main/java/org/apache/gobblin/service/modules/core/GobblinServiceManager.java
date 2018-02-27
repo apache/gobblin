@@ -21,6 +21,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.service.FlowId;
@@ -463,21 +464,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     return false;
   }
 
-  @Override
-  public List<Tag<?>> generateTags(State state) {
-    return null;
-  }
-
-  @Override
-  public void switchMetricContext(List<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void switchMetricContext(MetricContext context) {
-    throw new UnsupportedOperationException();
-  }
-
   private class Metrics extends StandardMetrics {
     public static final String SERVICE_LEADERSHIP_CHANGE = "serviceLeadershipChange";
     private ContextAwareHistogram serviceLeadershipChange;
@@ -486,7 +472,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     }
 
     @Override
-    public Collection<ContextAwareHistogram> getHistograms() {
+    public Collection<ContextAwareMetric> getContextAwareMetrics() {
       return ImmutableList.of(this.serviceLeadershipChange);
     }
   }

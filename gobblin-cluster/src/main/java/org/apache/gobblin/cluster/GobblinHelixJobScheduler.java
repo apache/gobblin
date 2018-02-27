@@ -28,13 +28,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
@@ -47,7 +47,7 @@ import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareCounter;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinMetrics;
@@ -121,21 +121,6 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   }
 
   @Override
-  public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
-    return null;
-  }
-
-  @Override
-  public void switchMetricContext(List<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void switchMetricContext(MetricContext context) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public StandardMetrics getStandardMetrics() {
     return metrics;
   }
@@ -156,8 +141,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     private final ContextAwareTimer timeForJobCompletion;
     private final ContextAwareTimer timeForJobFailure;
+    private final ContextAwareTimer timeForJobCommit;
     private final ContextAwareTimer timeBeforeJobScheduling;
     private final ContextAwareTimer timeBeforeJobLaunching;
+    private final ContextAwareTimer timeBetwenJobSchedulingAndLaunching;
 
     private final ThreadPoolExecutor threadPoolExecutor;
     private final ContextAwareGauge<Integer> executorActiveCount;
@@ -169,6 +156,11 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     public Metrics(final MetricContext metricContext) {
       // Thread executor reference from job scheduler
       this.threadPoolExecutor = (ThreadPoolExecutor)GobblinHelixJobScheduler.this.jobExecutor;
+
+      // timer duration setup
+      int windowSize = ConfigUtils.getInt(ConfigUtils.propertiesToConfig(GobblinHelixJobScheduler.this.properties),
+          ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
+          ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
 
       // All historical counters
       this.totalJobsLaunched = new AtomicLong(0);
@@ -185,10 +177,12 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       this.numJobsRunning = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING,
           ()->(int)(Metrics.this.totalJobsLaunched.get() - Metrics.this.totalJobsCompleted.get()));
 
-      this.timeForJobCompletion = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_COMPLETION, 1, TimeUnit.MINUTES);
-      this.timeForJobFailure = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_FAILURE,1, TimeUnit.MINUTES);
-      this.timeBeforeJobScheduling = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_SCHEDULING, 1, TimeUnit.MINUTES);
-      this.timeBeforeJobLaunching = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_LAUNCHING, 1, TimeUnit.MINUTES);
+      this.timeForJobCompletion = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_COMPLETION, windowSize, TimeUnit.MINUTES);
+      this.timeForJobFailure = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_FAILURE, windowSize, TimeUnit.MINUTES);
+      this.timeForJobCommit = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_COMMIT, windowSize, TimeUnit.MINUTES);
+      this.timeBeforeJobScheduling = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_SCHEDULING, windowSize, TimeUnit.MINUTES);
+      this.timeBeforeJobLaunching = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_LAUNCHING, windowSize, TimeUnit.MINUTES);
+      this.timeBetwenJobSchedulingAndLaunching = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BETWEEN_JOB_SCHEDULING_AND_LAUNCHING, windowSize, TimeUnit.MINUTES);
 
       // executor metrics
       this.executorActiveCount = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_ACTIVE_COUNT, ()->this.threadPoolExecutor.getActiveCount());
@@ -208,14 +202,18 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       Instrumented.updateTimer(Optional.of(timeBeforeJobLaunching), System.currentTimeMillis() - jobCreationTime, TimeUnit.MILLISECONDS);
     }
 
+    private void updateTimeBetweenJobSchedulingAndJobLaunching (long scheduledTime, long launchingTime) {
+      Instrumented.updateTimer(Optional.of(timeBetwenJobSchedulingAndLaunching), launchingTime - scheduledTime, TimeUnit.MILLISECONDS);
+    }
+
     @Override
     public String getName() {
       return GobblinHelixJobScheduler.class.getName();
     }
 
     @Override
-    public Collection<ContextAwareGauge<?>> getGauges() {
-      List<ContextAwareGauge<?>> list = Lists.newArrayList();
+    public Collection<ContextAwareMetric> getContextAwareMetrics() {
+      List<ContextAwareMetric> list = Lists.newArrayList();
       list.add(numJobsRunning);
       list.add(numJobsLaunched);
       list.add(numJobsCompleted);
@@ -227,17 +225,13 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       list.add(executorPoolSize);
       list.add(executorCorePoolSize);
       list.add(executorQueueSize);
+      list.add(timeForJobCompletion);
+      list.add(timeForJobFailure);
+      list.add(timeForJobCommit);
+      list.add(timeBeforeJobScheduling);
+      list.add(timeBeforeJobLaunching);
+      list.add(timeBetwenJobSchedulingAndLaunching);
       return list;
-    }
-
-    @Override
-    public Collection<ContextAwareCounter> getCounters() {
-      return ImmutableList.of();
-    }
-
-    @Override
-    public Collection<ContextAwareTimer> getTimers() {
-      return ImmutableList.of(timeForJobCompletion, timeForJobFailure, timeBeforeJobScheduling, timeBeforeJobLaunching);
     }
   }
 
@@ -271,6 +265,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
             Instrumented.updateTimer(Optional.of(metrics.timeForJobFailure), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         } else {
             metrics.totalJobsCommitted.incrementAndGet();
+            Instrumented.updateTimer(Optional.of(metrics.timeForJobCommit), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         }
       }
     }
@@ -382,17 +377,20 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     private final String jobUri;
     private final Properties jobConfig;
     private final JobListener jobListener;
+    private final Long creationTimeInMillis;
 
     public NonScheduledJobRunner(String jobUri, Properties jobConfig, JobListener jobListener) {
       this.jobUri = jobUri;
       this.jobConfig = jobConfig;
       this.jobListener = jobListener;
+      this.creationTimeInMillis = System.currentTimeMillis();
     }
 
     @Override
     public void run() {
       try {
         ((MetricsTrackingListener)jobListener).metrics.updateTimeBeforeJobLaunching(this.jobConfig);
+        ((MetricsTrackingListener)jobListener).metrics.updateTimeBetweenJobSchedulingAndJobLaunching(this.creationTimeInMillis, System.currentTimeMillis());
         GobblinHelixJobScheduler.this.runJob(this.jobConfig, this.jobListener);
 
         // remove non-scheduled job catalog once done so it won't be re-executed

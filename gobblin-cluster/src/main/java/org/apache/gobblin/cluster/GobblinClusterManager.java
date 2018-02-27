@@ -40,6 +40,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.hadoop.conf.Configuration;
@@ -155,7 +156,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private GobblinHelixJobScheduler jobScheduler;
   @Getter
   private JobConfigurationManager jobConfigurationManager;
-  
+
   private final String clusterName;
   private final Config config;
   private final MetricContext metricContext;
@@ -557,21 +558,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     return GobblinMetrics.isEnabled(ConfigUtils.configToProperties(this.config));
   }
 
-  @Override
-  public List<Tag<?>> generateTags(State state) {
-    return ImmutableList.of();
-  }
-
-  @Override
-  public void switchMetricContext(List<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void switchMetricContext(MetricContext context) {
-    throw new UnsupportedOperationException();
-  }
-
   /**
    * A custom implementation of {@link LiveInstanceChangeListener}.
    */
@@ -598,7 +584,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     }
 
     @Override
-    public Collection<ContextAwareHistogram> getHistograms() {
+    public Collection<ContextAwareMetric> getContextAwareMetrics() {
       return ImmutableList.of(this.clusterLeadershipChange);
     }
   }

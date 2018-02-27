@@ -34,6 +34,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
@@ -238,7 +239,8 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
           StreamingKafkaSpecConsumer.this._jobMonitor.getMessageParseFailures().getCount():0;
     }
 
-    public Collection<ContextAwareGauge<?>> getGauges() {
+    @Override
+    public Collection<ContextAwareMetric> getContextAwareMetrics() {
       List list = Lists.newArrayList();
       list.add(jobSpecQueueSize);
       list.add(jobSpecEnq);
@@ -263,20 +265,5 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   @Override
   public boolean isInstrumentationEnabled() {
     return _isInstrumentedEnabled;
-  }
-
-  @Override
-  public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
-    return ImmutableList.of();
-  }
-
-  @Override
-  public void switchMetricContext(List<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void switchMetricContext(MetricContext context) {
-    throw new UnsupportedOperationException();
   }
 }

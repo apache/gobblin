@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 
 import com.google.common.base.Optional;
@@ -72,9 +73,9 @@ public interface MutableSpecCatalog extends SpecCatalog {
     }
 
     @Override
-    public Collection<ContextAwareTimer> getTimers() {
-      Collection<ContextAwareTimer> all = new ArrayList<>();
-      all.addAll(super.getTimers());
+    public Collection<ContextAwareMetric> getContextAwareMetrics() {
+      Collection<ContextAwareMetric> all = new ArrayList<>();
+      all.addAll(super.getContextAwareMetrics());
       all.add(this.timeForSpecCatalogPut);
       all.add(this.timeForSpecCatalogRemove);
       return all;
