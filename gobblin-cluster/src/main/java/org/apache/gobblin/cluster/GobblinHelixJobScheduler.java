@@ -132,12 +132,6 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     private final AtomicLong totalJobsCommitted;
     private final AtomicLong totalJobsFailed;
     private final AtomicLong totalJobsCancelled;
-    private final ContextAwareGauge<Long> numJobsLaunched;
-    private final ContextAwareGauge<Long> numJobsCompleted;
-    private final ContextAwareGauge<Long> numJobsCommitted;
-    private final ContextAwareGauge<Long> numJobsFailed;
-    private final ContextAwareGauge<Long> numJobsCancelled;
-    private final ContextAwareGauge<Integer> numJobsRunning;
 
     private final ContextAwareTimer timeForCompletedJobs;
     private final ContextAwareTimer timeForFailedJobs;
