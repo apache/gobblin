@@ -87,7 +87,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(FlowCatalog.class.getSimpleName()).build();
-      this.metrics = new MutableStandardMetrics(this);
+      this.metrics = new MutableStandardMetrics(this, Optional.of(config));
       this.addListener(this.metrics);
     }
     else {
