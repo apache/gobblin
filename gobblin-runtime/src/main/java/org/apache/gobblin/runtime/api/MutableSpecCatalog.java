@@ -61,13 +61,10 @@ public interface MutableSpecCatalog extends SpecCatalog {
     @Getter private final ContextAwareTimer timeForSpecCatalogRemove;
     public MutableStandardMetrics(SpecCatalog catalog, Optional<Config> sysConfig) {
       super(catalog, sysConfig);
-      // timer window size
-      int windowSize = sysConfig.isPresent()?
-          ConfigUtils.getInt(sysConfig.get(), ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES) :
-          ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES;
-
-      timeForSpecCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_PUT, windowSize, TimeUnit.MINUTES);
-      timeForSpecCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_REMOVE, windowSize, TimeUnit.MINUTES);
+      timeForSpecCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_PUT, this.timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      timeForSpecCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_REMOVE, this.timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      this.contextAwareMetrics.add(timeForSpecCatalogPut);
+      this.contextAwareMetrics.add(timeForSpecCatalogRemove);
     }
 
     public void updatePutSpecTime(long startTime) {
@@ -78,15 +75,6 @@ public interface MutableSpecCatalog extends SpecCatalog {
     public void updateRemoveSpecTime(long startTime) {
       log.info("updateRemoveSpecTime...");
       Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogRemove), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      Collection<ContextAwareMetric> all = new ArrayList<>();
-      all.addAll(super.getContextAwareMetrics());
-      all.add(this.timeForSpecCatalogPut);
-      all.add(this.timeForSpecCatalogRemove);
-      return all;
     }
   }
 }

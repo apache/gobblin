@@ -21,16 +21,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareGauge;
-import org.apache.gobblin.metrics.ContextAwareMetric;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.runtime.TaskExecutor;
-
 import com.codahale.metrics.Metric;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareMetric;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.runtime.TaskExecutor;
 
 
 public class GobblinTaskRunnerMetrics {
@@ -47,27 +46,20 @@ public class GobblinTaskRunnerMetrics {
     private static String SUCCESSFUL_TASK_COUNT = "successfulTaskCount";
     private static String RUNNING_TASK_COUNT = "runningTaskCount";
 
-    private final ContextAwareGauge<Long> currentQueuedTaskCount;
-    private final ContextAwareGauge<Long> currentQueuedTaskTotalTime;
-    private final ContextAwareGauge<Long> historicalQueuedTaskCount;
-    private final ContextAwareGauge<Long> historicalQueuedTaskTotalTime;
-    private final ContextAwareGauge<Long> queuedTaskCount;
-    private final ContextAwareGauge<Long> queuedTaskTotalTime;
-    private final ContextAwareGauge<Long> failedTaskCount;
-    private final ContextAwareGauge<Long> successfulTaskCount;
-    private final ContextAwareGauge<Long> runningTaskCount;
+    private final List<ContextAwareMetric> contextAwareMetrics;
 
     public InProcessTaskRunnerMetrics (TaskExecutor executor, MetricContext context) {
       taskExecutor = executor;
-      currentQueuedTaskCount = context.newContextAwareGauge(CURRENT_QUEUED_TASK_COUNT, ()->this.taskExecutor.getCurrentQueuedTaskCount().longValue());
-      currentQueuedTaskTotalTime = context.newContextAwareGauge(CURRENT_QUEUED_TASK_TOTAL_TIME, ()->this.taskExecutor.getCurrentQueuedTaskTotalTime().longValue());
-      historicalQueuedTaskCount = context.newContextAwareGauge(HISTORICAL_QUEUED_TASK_COUNT, ()->this.taskExecutor.getHistoricalQueuedTaskCount().longValue());
-      historicalQueuedTaskTotalTime = context.newContextAwareGauge(HISTORICAL_QUEUED_TASK_TOTAL_TIME, ()->this.taskExecutor.getHistoricalQueuedTaskTotalTime().longValue());
-      queuedTaskCount = context.newContextAwareGauge(QUEUED_TASK_COUNT, ()->this.taskExecutor.getQueuedTaskCount().longValue());
-      queuedTaskTotalTime = context.newContextAwareGauge(QUEUED_TASK_TOTAL_TIME, ()->this.taskExecutor.getQueuedTaskTotalTime().longValue());
-      failedTaskCount = context.newContextAwareGauge(FAILED_TASK_COUNT, ()->this.taskExecutor.getFailedTaskCount().getCount());
-      successfulTaskCount = context.newContextAwareGauge(SUCCESSFUL_TASK_COUNT, ()->this.taskExecutor.getSuccessfulTaskCount().getCount());
-      runningTaskCount = context.newContextAwareGauge(RUNNING_TASK_COUNT, ()->this.taskExecutor.getRunningTaskCount().getCount());
+      contextAwareMetrics = Lists.newArrayList();
+      contextAwareMetrics.add(context.newContextAwareGauge(CURRENT_QUEUED_TASK_COUNT, ()->this.taskExecutor.getCurrentQueuedTaskCount().longValue()));
+      contextAwareMetrics.add(context.newContextAwareGauge(CURRENT_QUEUED_TASK_TOTAL_TIME, ()->this.taskExecutor.getCurrentQueuedTaskTotalTime().longValue()));
+      contextAwareMetrics.add(context.newContextAwareGauge(HISTORICAL_QUEUED_TASK_COUNT, ()->this.taskExecutor.getHistoricalQueuedTaskCount().longValue()));
+      contextAwareMetrics.add(context.newContextAwareGauge(HISTORICAL_QUEUED_TASK_TOTAL_TIME, ()->this.taskExecutor.getHistoricalQueuedTaskTotalTime().longValue()));
+      contextAwareMetrics.add(context.newContextAwareGauge(QUEUED_TASK_COUNT, ()->this.taskExecutor.getQueuedTaskCount().longValue()));
+      contextAwareMetrics.add(context.newContextAwareGauge(QUEUED_TASK_TOTAL_TIME, ()->this.taskExecutor.getQueuedTaskTotalTime().longValue()));
+      contextAwareMetrics.add(context.newContextAwareGauge(FAILED_TASK_COUNT, ()->this.taskExecutor.getFailedTaskCount().getCount()));
+      contextAwareMetrics.add(context.newContextAwareGauge(SUCCESSFUL_TASK_COUNT, ()->this.taskExecutor.getSuccessfulTaskCount().getCount()));
+      contextAwareMetrics.add(context.newContextAwareGauge(RUNNING_TASK_COUNT, ()->this.taskExecutor.getRunningTaskCount().getCount()));
     }
 
     @Override
@@ -77,17 +69,7 @@ public class GobblinTaskRunnerMetrics {
 
     @Override
     public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      List list = Lists.newArrayList();
-      list.add(currentQueuedTaskCount);
-      list.add(currentQueuedTaskTotalTime);
-      list.add(historicalQueuedTaskCount);
-      list.add(historicalQueuedTaskTotalTime);
-      list.add(queuedTaskCount);
-      list.add(queuedTaskTotalTime);
-      list.add(failedTaskCount);
-      list.add(successfulTaskCount);
-      list.add(runningTaskCount);
-      return list;
+      return contextAwareMetrics;
     }
 
     @Override
@@ -97,7 +79,7 @@ public class GobblinTaskRunnerMetrics {
   }
 
   static class JvmTaskRunnerMetrics extends StandardMetricsBridge.StandardMetrics {
-    //TODO: add metrics to monitor the process execution status
+    //TODO: add metrics to monitor the process execution status (will be revisited after process isolation work is done)
     @Override
     public String getName() {
       return JvmTaskRunnerMetrics.class.getName();

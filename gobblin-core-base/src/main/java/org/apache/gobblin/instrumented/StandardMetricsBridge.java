@@ -21,15 +21,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.gobblin.metrics.ContextAwareMetric;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.Tag;
-
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricSet;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
+import org.apache.gobblin.metrics.ContextAwareMetric;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 
 /**
  * This interface indicates a class will expose its metrics to some external systems.

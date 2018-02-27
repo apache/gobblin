@@ -64,30 +64,18 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
 
   public JobCatalogBase(Optional<Logger> log, Optional<MetricContext> parentMetricContext,
       boolean instrumentationEnabled) {
-    this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-    this.listeners = new JobCatalogListenersList(log);
-    if (instrumentationEnabled) {
-      MetricContext realParentCtx =
-          parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
-      this.metricContext = realParentCtx.childBuilder(JobCatalog.class.getSimpleName()).build();
-      this.metrics = createStandardMetrics(Optional.absent());
-      this.addListener(this.metrics);
-    }
-    else {
-      this.metricContext = null;
-      this.metrics = null;
-    }
+    this(log, parentMetricContext, instrumentationEnabled, Optional.absent());
   }
 
   public JobCatalogBase(Optional<Logger> log, Optional<MetricContext> parentMetricContext,
-      boolean instrumentationEnabled, Config sysConfig) {
+      boolean instrumentationEnabled, Optional<Config> sysConfig) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.listeners = new JobCatalogListenersList(log);
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(JobCatalog.class.getSimpleName()).build();
-      this.metrics = createStandardMetrics(Optional.of(sysConfig));
+      this.metrics = createStandardMetrics(sysConfig);
       this.addListener(this.metrics);
     }
     else {

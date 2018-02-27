@@ -74,6 +74,8 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     public static final String TIME_FOR_SPEC_CATALOG_GET = "timeForSpecCatalogGet";
 
     private final MetricContext metricsContext;
+    protected final int timeWindowSizeInMinutes;
+    protected final List<ContextAwareMetric> contextAwareMetrics;
     @Getter private final AtomicLong totalAddedSpecs;
     @Getter private final AtomicLong totalDeletedSpecs;
     @Getter private final AtomicLong totalUpdatedSpecs;
@@ -85,12 +87,12 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     @Getter private final ContextAwareTimer timeForSpecCatalogGet;
 
     public StandardMetrics(final SpecCatalog specCatalog, Optional<Config> sysConfig) {
-      int windowSize = sysConfig.isPresent()?
+      this.timeWindowSizeInMinutes = sysConfig.isPresent()?
           ConfigUtils.getInt(sysConfig.get(), ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES) :
           ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES;
 
       this.metricsContext = specCatalog.getMetricContext();
-      this.timeForSpecCatalogGet = metricsContext.contextAwareTimer(TIME_FOR_SPEC_CATALOG_GET, windowSize, TimeUnit.MINUTES);
+      this.timeForSpecCatalogGet = metricsContext.contextAwareTimer(TIME_FOR_SPEC_CATALOG_GET, timeWindowSizeInMinutes, TimeUnit.MINUTES);
       this.totalAddedSpecs = new AtomicLong(0);
       this.totalDeletedSpecs = new AtomicLong(0);
       this.totalUpdatedSpecs = new AtomicLong(0);
@@ -103,6 +105,13 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
       this.totalAddCalls = metricsContext.newContextAwareGauge(TOTAL_ADD_CALLS, ()->this.totalAddedSpecs.get());
       this.totalUpdateCalls = metricsContext.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedSpecs.get());
       this.totalDeleteCalls = metricsContext.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedSpecs.get());
+
+      this.contextAwareMetrics = Lists.newArrayList();
+      this.contextAwareMetrics.add(numActiveSpecs);
+      this.contextAwareMetrics.add(totalAddCalls);
+      this.contextAwareMetrics.add(totalUpdateCalls);
+      this.contextAwareMetrics.add(totalDeleteCalls);
+      this.contextAwareMetrics.add(timeForSpecCatalogGet);
     }
 
     public void updateGetSpecTime(long startTime) {
@@ -112,13 +121,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
 
     @Override
     public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      List<ContextAwareMetric> list = Lists.newArrayList();
-      list.add(numActiveSpecs);
-      list.add(totalAddCalls);
-      list.add(totalUpdateCalls);
-      list.add(totalDeleteCalls);
-      list.add(timeForSpecCatalogGet);
-      return list;
+      return this.contextAwareMetrics;
     }
 
     @Override public void onAddSpec(Spec addedSpec) {

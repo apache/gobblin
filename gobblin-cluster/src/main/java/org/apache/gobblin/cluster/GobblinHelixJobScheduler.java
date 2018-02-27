@@ -139,20 +139,16 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     private final ContextAwareGauge<Long> numJobsCancelled;
     private final ContextAwareGauge<Integer> numJobsRunning;
 
-    private final ContextAwareTimer timeForJobCompletion;
-    private final ContextAwareTimer timeForJobFailure;
-    private final ContextAwareTimer timeForJobCommit;
+    private final ContextAwareTimer timeForCompletedJobs;
+    private final ContextAwareTimer timeForFailedJobs;
+    private final ContextAwareTimer timeForCommittedJobs;
     private final ContextAwareTimer timeBeforeJobScheduling;
     private final ContextAwareTimer timeBeforeJobLaunching;
     private final ContextAwareTimer timeBetwenJobSchedulingAndLaunching;
 
     private final ThreadPoolExecutor threadPoolExecutor;
-    private final ContextAwareGauge<Integer> executorActiveCount;
-    private final ContextAwareGauge<Integer> executorMaximumPoolSize;
-    private final ContextAwareGauge<Integer> executorPoolSize;
-    private final ContextAwareGauge<Integer> executorCorePoolSize;
-    private final ContextAwareGauge<Integer> executorQueueSize;
 
+    private final List<ContextAwareMetric> contextAwareMetrics;
     public Metrics(final MetricContext metricContext) {
       // Thread executor reference from job scheduler
       this.threadPoolExecutor = (ThreadPoolExecutor)GobblinHelixJobScheduler.this.jobExecutor;
@@ -168,28 +164,36 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       this.totalJobsCommitted = new AtomicLong(0);
       this.totalJobsFailed = new AtomicLong(0);
       this.totalJobsCancelled = new AtomicLong(0);
+      this.contextAwareMetrics = Lists.newArrayList();
 
-      this.numJobsLaunched = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED, ()->this.totalJobsLaunched.get());
-      this.numJobsCompleted = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED, ()->this.totalJobsCompleted.get());
-      this.numJobsCommitted = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED, ()->this.totalJobsCommitted.get());
-      this.numJobsFailed = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED, ()->this.totalJobsFailed.get());
-      this.numJobsCancelled = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED, ()->this.totalJobsCancelled.get());
-      this.numJobsRunning = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING,
-          ()->(int)(Metrics.this.totalJobsLaunched.get() - Metrics.this.totalJobsCompleted.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED, ()->this.totalJobsLaunched.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED, ()->this.totalJobsCompleted.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED, ()->this.totalJobsCommitted.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED, ()->this.totalJobsFailed.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED, ()->this.totalJobsCancelled.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING,
+          ()->(int)(Metrics.this.totalJobsLaunched.get() - Metrics.this.totalJobsCompleted.get())));
 
-      this.timeForJobCompletion = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_COMPLETION, windowSize, TimeUnit.MINUTES);
-      this.timeForJobFailure = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_FAILURE, windowSize, TimeUnit.MINUTES);
-      this.timeForJobCommit = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_COMMIT, windowSize, TimeUnit.MINUTES);
+      this.timeForCompletedJobs = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_COMPLETED_JOBS, windowSize, TimeUnit.MINUTES);
+      this.timeForFailedJobs = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_FAILED_JOBS, windowSize, TimeUnit.MINUTES);
+      this.timeForCommittedJobs = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_COMMITTED_JOBS, windowSize, TimeUnit.MINUTES);
       this.timeBeforeJobScheduling = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_SCHEDULING, windowSize, TimeUnit.MINUTES);
       this.timeBeforeJobLaunching = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_LAUNCHING, windowSize, TimeUnit.MINUTES);
       this.timeBetwenJobSchedulingAndLaunching = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BETWEEN_JOB_SCHEDULING_AND_LAUNCHING, windowSize, TimeUnit.MINUTES);
 
       // executor metrics
-      this.executorActiveCount = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_ACTIVE_COUNT, ()->this.threadPoolExecutor.getActiveCount());
-      this.executorMaximumPoolSize = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_MAX_POOL_SIZE, ()->this.threadPoolExecutor.getMaximumPoolSize());
-      this.executorPoolSize = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_POOL_SIZE, ()->this.threadPoolExecutor.getPoolSize());
-      this.executorCorePoolSize =  metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_CORE_POOL_SIZE, ()->this.threadPoolExecutor.getCorePoolSize());
-      this.executorQueueSize = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_QUEUE_SIZE, ()->this.threadPoolExecutor.getQueue().size());
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_ACTIVE_COUNT, ()->this.threadPoolExecutor.getActiveCount()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_MAX_POOL_SIZE, ()->this.threadPoolExecutor.getMaximumPoolSize()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_POOL_SIZE, ()->this.threadPoolExecutor.getPoolSize()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_CORE_POOL_SIZE, ()->this.threadPoolExecutor.getCorePoolSize()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_QUEUE_SIZE, ()->this.threadPoolExecutor.getQueue().size()));
+
+      this.contextAwareMetrics.add(timeForCommittedJobs);
+      this.contextAwareMetrics.add(timeForCompletedJobs);
+      this.contextAwareMetrics.add(timeForFailedJobs);
+      this.contextAwareMetrics.add(timeBeforeJobScheduling);
+      this.contextAwareMetrics.add(timeBeforeJobLaunching);
+      this.contextAwareMetrics.add(timeBetwenJobSchedulingAndLaunching);
     }
 
     private void updateTimeBeforeJobScheduling (Properties jobConfig) {
@@ -213,25 +217,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     @Override
     public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      List<ContextAwareMetric> list = Lists.newArrayList();
-      list.add(numJobsRunning);
-      list.add(numJobsLaunched);
-      list.add(numJobsCompleted);
-      list.add(numJobsCommitted);
-      list.add(numJobsFailed);
-      list.add(numJobsCancelled);
-      list.add(executorActiveCount);
-      list.add(executorMaximumPoolSize);
-      list.add(executorPoolSize);
-      list.add(executorCorePoolSize);
-      list.add(executorQueueSize);
-      list.add(timeForJobCompletion);
-      list.add(timeForJobFailure);
-      list.add(timeForJobCommit);
-      list.add(timeBeforeJobScheduling);
-      list.add(timeBeforeJobLaunching);
-      list.add(timeBetwenJobSchedulingAndLaunching);
-      return list;
+      return contextAwareMetrics;
     }
   }
 
@@ -259,13 +245,13 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       long startTime = jobContext.getJobState().getPropAsLong(START_TIME);
       if (GobblinHelixJobScheduler.this.isInstrumentationEnabled()) {
         metrics.totalJobsCompleted.incrementAndGet();
-        Instrumented.updateTimer(Optional.of(metrics.timeForJobCompletion), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+        Instrumented.updateTimer(Optional.of(metrics.timeForCompletedJobs), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         if (jobContext.getJobState().getState() == JobState.RunningState.FAILED) {
             metrics.totalJobsFailed.incrementAndGet();
-            Instrumented.updateTimer(Optional.of(metrics.timeForJobFailure), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+            Instrumented.updateTimer(Optional.of(metrics.timeForFailedJobs), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         } else {
             metrics.totalJobsCommitted.incrementAndGet();
-            Instrumented.updateTimer(Optional.of(metrics.timeForJobCommit), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+            Instrumented.updateTimer(Optional.of(metrics.timeForCommittedJobs), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         }
       }
     }

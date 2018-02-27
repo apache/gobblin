@@ -61,13 +61,10 @@ public interface MutableJobCatalog extends JobCatalog {
     @Getter private final ContextAwareTimer timeForJobCatalogRemove;
     public MutableStandardMetrics(JobCatalog catalog, Optional<Config> sysConfig) {
       super(catalog, sysConfig);
-      // timer window size
-      int windowSize = sysConfig.isPresent()?
-          ConfigUtils.getInt(sysConfig.get(), ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES) :
-          ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES;
-
-      timeForJobCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_JOB_CATALOG_PUT, windowSize, TimeUnit.MINUTES);
-      timeForJobCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_JOB_CATALOG_REMOVE, windowSize, TimeUnit.MINUTES);
+      timeForJobCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_JOB_CATALOG_PUT, timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      timeForJobCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_JOB_CATALOG_REMOVE, this.timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      this.contextAwareMetrics.add(timeForJobCatalogPut);
+      this.contextAwareMetrics.add(timeForJobCatalogRemove);
     }
 
     public void updatePutJobTime(long startTime) {
@@ -78,15 +75,6 @@ public interface MutableJobCatalog extends JobCatalog {
     public void updateRemoveJobTime(long startTime) {
       log.info("updateRemoveJobTime...");
       Instrumented.updateTimer(Optional.of(this.timeForJobCatalogRemove), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      Collection<ContextAwareMetric> all = new ArrayList<>();
-      all.addAll(super.getContextAwareMetrics());
-      all.add(this.timeForJobCatalogPut);
-      all.add(this.timeForJobCatalogRemove);
-      return all;
     }
   }
 }

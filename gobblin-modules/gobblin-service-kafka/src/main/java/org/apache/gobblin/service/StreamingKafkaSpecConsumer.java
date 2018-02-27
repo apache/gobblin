@@ -200,15 +200,10 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   }
 
   private class Metrics extends StandardMetricsBridge.StandardMetrics {
-    private ContextAwareGauge<Integer> jobSpecQueueSize;
-    private ContextAwareGauge<Long> jobSpecEnq;
-    private ContextAwareGauge<Long> jobSpecDeq;
-    private ContextAwareGauge<Long> jobSpecConsumed;
-    private ContextAwareGauge<Long> jobSpecParseFailures;
-
     private AtomicLong jobSpecEnqCount = new AtomicLong(0);
     private AtomicLong jobSpecDeqCount = new AtomicLong(0);
 
+    private final List<ContextAwareMetric> contextAwareMetrics;
     public static final String SPEC_CONSUMER_JOB_SPEC_QUEUE_SIZE = "specConsumerJobSpecQueueSize";
     public static final String SPEC_CONSUMER_JOB_SPEC_ENQ = "specConsumerJobSpecEnq";
     public static final String SPEC_CONSUMER_JOB_SPEC_DEQ = "specConsumerJobSpecDeq";
@@ -216,12 +211,13 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
     public static final String SPEC_CONSUMER_JOB_SPEC_PARSE_FAILURES = "specConsumerJobSpecParseFailures";
 
     public Metrics(MetricContext context) {
-      this.jobSpecQueueSize = context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_QUEUE_SIZE, ()->StreamingKafkaSpecConsumer.this._jobSpecQueue.size());
-      this.jobSpecEnq = context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_ENQ, ()->jobSpecEnqCount.get());
-      this.jobSpecDeq = context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_DEQ, ()->jobSpecDeqCount.get());
-      this.jobSpecConsumed = context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_CONSUMED,
-          ()->getNewSpecs() + getRemovedSpecs() + getMessageParseFailures());
-      this.jobSpecParseFailures = context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_PARSE_FAILURES, ()->getMessageParseFailures());
+      this.contextAwareMetrics = Lists.newArrayList();
+      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_QUEUE_SIZE, ()->StreamingKafkaSpecConsumer.this._jobSpecQueue.size()));
+      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_ENQ, ()->jobSpecEnqCount.get()));
+      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_DEQ, ()->jobSpecDeqCount.get()));
+      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_CONSUMED,
+          ()->getNewSpecs() + getRemovedSpecs() + getMessageParseFailures()));
+      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_PARSE_FAILURES, ()->getMessageParseFailures()));
     }
 
     private long getNewSpecs() {
@@ -241,13 +237,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
 
     @Override
     public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      List list = Lists.newArrayList();
-      list.add(jobSpecQueueSize);
-      list.add(jobSpecEnq);
-      list.add(jobSpecDeq);
-      list.add(jobSpecConsumed);
-      list.add(jobSpecParseFailures);
-      return list;
+      return this.contextAwareMetrics;
     }
   }
 
