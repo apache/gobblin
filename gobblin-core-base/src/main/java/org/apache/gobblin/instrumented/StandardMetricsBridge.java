@@ -24,6 +24,7 @@ import java.util.Map;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricSet;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import org.apache.gobblin.metrics.ContextAwareMetric;
@@ -54,7 +55,7 @@ public interface StandardMetricsBridge extends Instrumentable {
     protected final Map<String, Metric> rawMetrics;
 
     public StandardMetrics() {
-      this.contextAwareMetrics = ImmutableList.of();
+      this.contextAwareMetrics = Lists.newArrayList();
       this.rawMetrics = Maps.newHashMap();
     }
 
