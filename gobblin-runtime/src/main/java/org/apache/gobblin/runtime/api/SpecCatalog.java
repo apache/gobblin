@@ -19,21 +19,25 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -70,6 +74,8 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     public static final String TIME_FOR_SPEC_CATALOG_GET = "timeForSpecCatalogGet";
 
     private final MetricContext metricsContext;
+    protected final int timeWindowSizeInMinutes;
+
     @Getter private final AtomicLong totalAddedSpecs;
     @Getter private final AtomicLong totalDeletedSpecs;
     @Getter private final AtomicLong totalUpdatedSpecs;
@@ -80,9 +86,13 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
 
     @Getter private final ContextAwareTimer timeForSpecCatalogGet;
 
-    public StandardMetrics(final SpecCatalog specCatalog) {
+    public StandardMetrics(final SpecCatalog specCatalog, Optional<Config> sysConfig) {
+      this.timeWindowSizeInMinutes = sysConfig.isPresent()?
+          ConfigUtils.getInt(sysConfig.get(), ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES) :
+          ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES;
+
       this.metricsContext = specCatalog.getMetricContext();
-      this.timeForSpecCatalogGet = metricsContext.contextAwareTimer(TIME_FOR_SPEC_CATALOG_GET, 1, TimeUnit.MINUTES);
+      this.timeForSpecCatalogGet = metricsContext.contextAwareTimer(TIME_FOR_SPEC_CATALOG_GET, timeWindowSizeInMinutes, TimeUnit.MINUTES);
       this.totalAddedSpecs = new AtomicLong(0);
       this.totalDeletedSpecs = new AtomicLong(0);
       this.totalUpdatedSpecs = new AtomicLong(0);
@@ -95,26 +105,17 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
       this.totalAddCalls = metricsContext.newContextAwareGauge(TOTAL_ADD_CALLS, ()->this.totalAddedSpecs.get());
       this.totalUpdateCalls = metricsContext.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedSpecs.get());
       this.totalDeleteCalls = metricsContext.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedSpecs.get());
+
+      this.contextAwareMetrics.add(numActiveSpecs);
+      this.contextAwareMetrics.add(totalAddCalls);
+      this.contextAwareMetrics.add(totalUpdateCalls);
+      this.contextAwareMetrics.add(totalDeleteCalls);
+      this.contextAwareMetrics.add(timeForSpecCatalogGet);
     }
 
     public void updateGetSpecTime(long startTime) {
       log.info("updateGetSpecTime...");
       Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogGet), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public Collection<ContextAwareGauge<?>> getGauges() {
-      return ImmutableList.of(numActiveSpecs, totalAddCalls, totalUpdateCalls, totalDeleteCalls);
-    }
-
-    @Override
-    public Collection<ContextAwareCounter> getCounters() {
-      return ImmutableList.of();
-    }
-
-    @Override
-    public Collection<ContextAwareTimer> getTimers() {
-      return ImmutableList.of(this.timeForSpecCatalogGet);
     }
 
     @Override public void onAddSpec(Spec addedSpec) {

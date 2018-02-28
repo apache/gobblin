@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
@@ -63,13 +64,18 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
 
   public JobCatalogBase(Optional<Logger> log, Optional<MetricContext> parentMetricContext,
       boolean instrumentationEnabled) {
+    this(log, parentMetricContext, instrumentationEnabled, Optional.absent());
+  }
+
+  public JobCatalogBase(Optional<Logger> log, Optional<MetricContext> parentMetricContext,
+      boolean instrumentationEnabled, Optional<Config> sysConfig) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.listeners = new JobCatalogListenersList(log);
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(JobCatalog.class.getSimpleName()).build();
-      this.metrics = createStandardMetrics();
+      this.metrics = createStandardMetrics(sysConfig);
       this.addListener(this.metrics);
     }
     else {
@@ -78,8 +84,8 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
     }
   }
 
-  protected StandardMetrics createStandardMetrics() {
-    return new StandardMetrics(this);
+  protected StandardMetrics createStandardMetrics(Optional<Config> sysConfig) {
+    return new StandardMetrics(this, sysConfig);
   }
 
   @Override
