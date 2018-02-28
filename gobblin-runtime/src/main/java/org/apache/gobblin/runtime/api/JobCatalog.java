@@ -18,23 +18,27 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
 import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -76,6 +80,7 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     public static final String JOB_UPDATED_OPERATION_TYPE = "JobUpdated";
 
     private final MetricContext metricsContext;
+    protected final int timeWindowSizeInMinutes;
     @Getter private final AtomicLong totalAddedJobs;
     @Getter private final AtomicLong totalDeletedJobs;
     @Getter private final AtomicLong totalUpdatedJobs;
@@ -85,17 +90,28 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     @Getter private final ContextAwareGauge<Long> totalUpdateCalls;
     @Getter private final ContextAwareGauge<Integer> numActiveJobs;
 
-    public StandardMetrics(final JobCatalog jobCatalog) {
+    public StandardMetrics(final JobCatalog jobCatalog, Optional<Config> sysConfig) {
+      // timer window size
+      this.timeWindowSizeInMinutes = sysConfig.isPresent()?
+          ConfigUtils.getInt(sysConfig.get(), ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES) :
+          ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES;
+
       this.metricsContext = jobCatalog.getMetricContext();
       this.totalAddedJobs = new AtomicLong(0);
       this.totalDeletedJobs = new AtomicLong(0);
       this.totalUpdatedJobs = new AtomicLong(0);
 
-      this.timeForJobCatalogGet = metricsContext.contextAwareTimer(TIME_FOR_JOB_CATALOG_GET, 1, TimeUnit.MINUTES);
+      this.timeForJobCatalogGet = metricsContext.contextAwareTimer(TIME_FOR_JOB_CATALOG_GET, timeWindowSizeInMinutes, TimeUnit.MINUTES);
       this.totalAddCalls = metricsContext.newContextAwareGauge(TOTAL_ADD_CALLS, ()->this.totalAddedJobs.get());
       this.totalUpdateCalls = metricsContext.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedJobs.get());
       this.totalDeleteCalls = metricsContext.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedJobs.get());
       this.numActiveJobs = metricsContext.newContextAwareGauge(NUM_ACTIVE_JOBS_NAME, ()->(int)(totalAddedJobs.get() - totalDeletedJobs.get()));
+
+      this.contextAwareMetrics.add(timeForJobCatalogGet);
+      this.contextAwareMetrics.add(totalAddCalls);
+      this.contextAwareMetrics.add(totalDeleteCalls);
+      this.contextAwareMetrics.add(totalUpdateCalls);
+      this.contextAwareMetrics.add(numActiveJobs);
     }
 
     public void updateGetJobTime(long startTime) {
@@ -135,21 +151,6 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     public void onUpdateJob(JobSpec updatedJob) {
       this.totalUpdatedJobs.incrementAndGet();
       submitTrackingEvent(updatedJob, JOB_UPDATED_OPERATION_TYPE);
-    }
-
-    @Override
-    public Collection<ContextAwareGauge<?>> getGauges() {
-      return ImmutableList.of(totalAddCalls, totalDeleteCalls, totalUpdateCalls, numActiveJobs);
-    }
-
-    @Override
-    public Collection<ContextAwareCounter> getCounters() {
-      return ImmutableList.of();
-    }
-
-    @Override
-    public Collection<ContextAwareTimer> getTimers() {
-      return ImmutableList.of(timeForJobCatalogGet);
     }
   }
 }

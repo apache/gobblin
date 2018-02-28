@@ -21,6 +21,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.service.FlowId;
@@ -155,7 +156,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     }
     this.config = config;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
-    this.metrics = new Metrics(this.metricContext);
+    this.metrics = new Metrics(this.metricContext, this.config);
     this.serviceId = serviceId;
     this.serviceLauncher = new ServiceBasedAppLauncher(properties, serviceName);
 
@@ -463,31 +464,14 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     return false;
   }
 
-  @Override
-  public List<Tag<?>> generateTags(State state) {
-    return null;
-  }
-
-  @Override
-  public void switchMetricContext(List<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void switchMetricContext(MetricContext context) {
-    throw new UnsupportedOperationException();
-  }
-
   private class Metrics extends StandardMetrics {
     public static final String SERVICE_LEADERSHIP_CHANGE = "serviceLeadershipChange";
     private ContextAwareHistogram serviceLeadershipChange;
-    public Metrics(final MetricContext metricContext) {
-      serviceLeadershipChange = metricContext.contextAwareHistogram(SERVICE_LEADERSHIP_CHANGE, 1, TimeUnit.MINUTES);
-    }
 
-    @Override
-    public Collection<ContextAwareHistogram> getHistograms() {
-      return ImmutableList.of(this.serviceLeadershipChange);
+    public Metrics(final MetricContext metricContext, Config config) {
+      int timeWindowSizeInMinutes = ConfigUtils.getInt(config, ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
+      this.serviceLeadershipChange = metricContext.contextAwareHistogram(SERVICE_LEADERSHIP_CHANGE, timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      this.contextAwareMetrics.add(this.serviceLeadershipChange);
     }
   }
 

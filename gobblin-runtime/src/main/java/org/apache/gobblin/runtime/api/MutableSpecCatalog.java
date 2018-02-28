@@ -22,10 +22,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.ContextAwareTimer;
+import org.apache.gobblin.util.ConfigUtils;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -55,10 +59,12 @@ public interface MutableSpecCatalog extends SpecCatalog {
     public static final String TIME_FOR_SPEC_CATALOG_PUT = "timeForSpecCatalogPut";
     @Getter private final ContextAwareTimer timeForSpecCatalogPut;
     @Getter private final ContextAwareTimer timeForSpecCatalogRemove;
-    public MutableStandardMetrics(SpecCatalog catalog) {
-      super(catalog);
-      timeForSpecCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_PUT, 1, TimeUnit.MINUTES);
-      timeForSpecCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_REMOVE, 1, TimeUnit.MINUTES);
+    public MutableStandardMetrics(SpecCatalog catalog, Optional<Config> sysConfig) {
+      super(catalog, sysConfig);
+      timeForSpecCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_PUT, this.timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      timeForSpecCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_REMOVE, this.timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      this.contextAwareMetrics.add(timeForSpecCatalogPut);
+      this.contextAwareMetrics.add(timeForSpecCatalogRemove);
     }
 
     public void updatePutSpecTime(long startTime) {
@@ -69,15 +75,6 @@ public interface MutableSpecCatalog extends SpecCatalog {
     public void updateRemoveSpecTime(long startTime) {
       log.info("updateRemoveSpecTime...");
       Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogRemove), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public Collection<ContextAwareTimer> getTimers() {
-      Collection<ContextAwareTimer> all = new ArrayList<>();
-      all.addAll(super.getTimers());
-      all.add(this.timeForSpecCatalogPut);
-      all.add(this.timeForSpecCatalogRemove);
-      return all;
     }
   }
 }

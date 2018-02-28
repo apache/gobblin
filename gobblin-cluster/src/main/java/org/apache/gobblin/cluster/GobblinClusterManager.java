@@ -40,6 +40,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.hadoop.conf.Configuration;
@@ -155,7 +156,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private GobblinHelixJobScheduler jobScheduler;
   @Getter
   private JobConfigurationManager jobConfigurationManager;
-  
+
   private final String clusterName;
   private final Config config;
   private final MetricContext metricContext;
@@ -165,7 +166,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     this.clusterName = clusterName;
     this.config = config;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
-    this.metrics = new Metrics(this.metricContext);
+    this.metrics = new Metrics(this.metricContext, this.config);
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
@@ -557,21 +558,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     return GobblinMetrics.isEnabled(ConfigUtils.configToProperties(this.config));
   }
 
-  @Override
-  public List<Tag<?>> generateTags(State state) {
-    return ImmutableList.of();
-  }
-
-  @Override
-  public void switchMetricContext(List<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void switchMetricContext(MetricContext context) {
-    throw new UnsupportedOperationException();
-  }
-
   /**
    * A custom implementation of {@link LiveInstanceChangeListener}.
    */
@@ -588,18 +574,15 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private class Metrics extends StandardMetrics {
     public static final String CLUSTER_LEADERSHIP_CHANGE = "clusterLeadershipChange";
     private ContextAwareHistogram clusterLeadershipChange;
-    public Metrics(final MetricContext metricContext) {
-      clusterLeadershipChange = metricContext.contextAwareHistogram(CLUSTER_LEADERSHIP_CHANGE, 1, TimeUnit.MINUTES);
+    public Metrics(final MetricContext metricContext, final Config config) {
+      int timeWindowSizeInMinutes = ConfigUtils.getInt(config, ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
+      this.clusterLeadershipChange = metricContext.contextAwareHistogram(CLUSTER_LEADERSHIP_CHANGE, timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      this.contextAwareMetrics.add(clusterLeadershipChange);
     }
 
     @Override
     public String getName() {
       return GobblinClusterManager.class.getName();
-    }
-
-    @Override
-    public Collection<ContextAwareHistogram> getHistograms() {
-      return ImmutableList.of(this.clusterLeadershipChange);
     }
   }
 

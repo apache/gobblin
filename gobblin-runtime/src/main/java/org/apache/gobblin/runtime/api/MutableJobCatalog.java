@@ -22,10 +22,14 @@ import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.ContextAwareTimer;
+import org.apache.gobblin.util.ConfigUtils;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -55,10 +59,12 @@ public interface MutableJobCatalog extends JobCatalog {
     public static final String TIME_FOR_JOB_CATALOG_PUT = "timeForJobCatalogPut";
     @Getter private final ContextAwareTimer timeForJobCatalogPut;
     @Getter private final ContextAwareTimer timeForJobCatalogRemove;
-    public MutableStandardMetrics(JobCatalog catalog) {
-      super(catalog);
-      timeForJobCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_JOB_CATALOG_PUT, 1, TimeUnit.MINUTES);
-      timeForJobCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_JOB_CATALOG_REMOVE, 1, TimeUnit.MINUTES);
+    public MutableStandardMetrics(JobCatalog catalog, Optional<Config> sysConfig) {
+      super(catalog, sysConfig);
+      timeForJobCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_JOB_CATALOG_PUT, timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      timeForJobCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_JOB_CATALOG_REMOVE, this.timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      this.contextAwareMetrics.add(timeForJobCatalogPut);
+      this.contextAwareMetrics.add(timeForJobCatalogRemove);
     }
 
     public void updatePutJobTime(long startTime) {
@@ -69,15 +75,6 @@ public interface MutableJobCatalog extends JobCatalog {
     public void updateRemoveJobTime(long startTime) {
       log.info("updateRemoveJobTime...");
       Instrumented.updateTimer(Optional.of(this.timeForJobCatalogRemove), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public Collection<ContextAwareTimer> getTimers() {
-      Collection<ContextAwareTimer> all = new ArrayList<>();
-      all.addAll(super.getTimers());
-      all.add(this.timeForJobCatalogPut);
-      all.add(this.timeForJobCatalogRemove);
-      return all;
     }
   }
 }
