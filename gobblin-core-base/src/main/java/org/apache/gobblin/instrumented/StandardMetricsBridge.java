@@ -50,17 +50,24 @@ public interface StandardMetricsBridge extends Instrumentable {
   }
 
   public class StandardMetrics implements MetricSet {
+    protected final List<ContextAwareMetric> contextAwareMetrics;
+    protected final Map<String, Metric> rawMetrics;
+
+    public StandardMetrics() {
+      this.contextAwareMetrics = ImmutableList.of();
+      this.rawMetrics = Maps.newHashMap();
+    }
 
     public String getName() {
       return this.getClass().getName();
     }
 
     public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      return ImmutableList.of();
+      return contextAwareMetrics;
     }
 
     public Map<String, Metric> getMetrics() {
-      return Maps.newHashMap();
+      return rawMetrics;
     }
   }
 }

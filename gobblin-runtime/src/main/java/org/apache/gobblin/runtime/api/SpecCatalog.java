@@ -75,7 +75,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
 
     private final MetricContext metricsContext;
     protected final int timeWindowSizeInMinutes;
-    protected final List<ContextAwareMetric> contextAwareMetrics;
+
     @Getter private final AtomicLong totalAddedSpecs;
     @Getter private final AtomicLong totalDeletedSpecs;
     @Getter private final AtomicLong totalUpdatedSpecs;
@@ -106,7 +106,6 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
       this.totalUpdateCalls = metricsContext.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedSpecs.get());
       this.totalDeleteCalls = metricsContext.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedSpecs.get());
 
-      this.contextAwareMetrics = Lists.newArrayList();
       this.contextAwareMetrics.add(numActiveSpecs);
       this.contextAwareMetrics.add(totalAddCalls);
       this.contextAwareMetrics.add(totalUpdateCalls);
@@ -117,11 +116,6 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     public void updateGetSpecTime(long startTime) {
       log.info("updateGetSpecTime...");
       Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogGet), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      return this.contextAwareMetrics;
     }
 
     @Override public void onAddSpec(Spec addedSpec) {

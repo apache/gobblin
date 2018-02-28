@@ -142,7 +142,6 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     private final ThreadPoolExecutor threadPoolExecutor;
 
-    private final List<ContextAwareMetric> contextAwareMetrics;
     public Metrics(final MetricContext metricContext) {
       // Thread executor reference from job scheduler
       this.threadPoolExecutor = (ThreadPoolExecutor)GobblinHelixJobScheduler.this.jobExecutor;
@@ -158,7 +157,6 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       this.totalJobsCommitted = new AtomicLong(0);
       this.totalJobsFailed = new AtomicLong(0);
       this.totalJobsCancelled = new AtomicLong(0);
-      this.contextAwareMetrics = Lists.newArrayList();
 
       this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED, ()->this.totalJobsLaunched.get()));
       this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED, ()->this.totalJobsCompleted.get()));
@@ -207,11 +205,6 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     @Override
     public String getName() {
       return GobblinHelixJobScheduler.class.getName();
-    }
-
-    @Override
-    public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      return contextAwareMetrics;
     }
   }
 

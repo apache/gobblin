@@ -90,8 +90,6 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     @Getter private final ContextAwareGauge<Long> totalUpdateCalls;
     @Getter private final ContextAwareGauge<Integer> numActiveJobs;
 
-    protected final List<ContextAwareMetric> contextAwareMetrics;
-
     public StandardMetrics(final JobCatalog jobCatalog, Optional<Config> sysConfig) {
       // timer window size
       this.timeWindowSizeInMinutes = sysConfig.isPresent()?
@@ -109,7 +107,6 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
       this.totalDeleteCalls = metricsContext.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedJobs.get());
       this.numActiveJobs = metricsContext.newContextAwareGauge(NUM_ACTIVE_JOBS_NAME, ()->(int)(totalAddedJobs.get() - totalDeletedJobs.get()));
 
-      this.contextAwareMetrics = Lists.newArrayList();
       this.contextAwareMetrics.add(timeForJobCatalogGet);
       this.contextAwareMetrics.add(totalAddCalls);
       this.contextAwareMetrics.add(totalDeleteCalls);
@@ -154,11 +151,6 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     public void onUpdateJob(JobSpec updatedJob) {
       this.totalUpdatedJobs.incrementAndGet();
       submitTrackingEvent(updatedJob, JOB_UPDATED_OPERATION_TYPE);
-    }
-
-    @Override
-    public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      return contextAwareMetrics;
     }
   }
 }

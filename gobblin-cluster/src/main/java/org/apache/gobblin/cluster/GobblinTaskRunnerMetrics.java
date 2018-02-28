@@ -46,11 +46,8 @@ public class GobblinTaskRunnerMetrics {
     private static String SUCCESSFUL_TASK_COUNT = "successfulTaskCount";
     private static String RUNNING_TASK_COUNT = "runningTaskCount";
 
-    private final List<ContextAwareMetric> contextAwareMetrics;
-
     public InProcessTaskRunnerMetrics (TaskExecutor executor, MetricContext context) {
       taskExecutor = executor;
-      contextAwareMetrics = Lists.newArrayList();
       contextAwareMetrics.add(context.newContextAwareGauge(CURRENT_QUEUED_TASK_COUNT, ()->this.taskExecutor.getCurrentQueuedTaskCount().longValue()));
       contextAwareMetrics.add(context.newContextAwareGauge(CURRENT_QUEUED_TASK_TOTAL_TIME, ()->this.taskExecutor.getCurrentQueuedTaskTotalTime().longValue()));
       contextAwareMetrics.add(context.newContextAwareGauge(HISTORICAL_QUEUED_TASK_COUNT, ()->this.taskExecutor.getHistoricalQueuedTaskCount().longValue()));
@@ -60,21 +57,13 @@ public class GobblinTaskRunnerMetrics {
       contextAwareMetrics.add(context.newContextAwareGauge(FAILED_TASK_COUNT, ()->this.taskExecutor.getFailedTaskCount().getCount()));
       contextAwareMetrics.add(context.newContextAwareGauge(SUCCESSFUL_TASK_COUNT, ()->this.taskExecutor.getSuccessfulTaskCount().getCount()));
       contextAwareMetrics.add(context.newContextAwareGauge(RUNNING_TASK_COUNT, ()->this.taskExecutor.getRunningTaskCount().getCount()));
+
+      this.rawMetrics.put(ConfigurationKeys.WORK_UNIT_CREATION_AND_RUN_INTERVAL, this.taskExecutor.getTaskCreateAndRunTimer());
     }
 
     @Override
     public String getName() {
       return InProcessTaskRunnerMetrics.class.getName();
-    }
-
-    @Override
-    public Collection<ContextAwareMetric> getContextAwareMetrics() {
-      return contextAwareMetrics;
-    }
-
-    @Override
-    public Map<String, Metric> getMetrics() {
-      return ImmutableMap.of(ConfigurationKeys.WORK_UNIT_CREATION_AND_RUN_INTERVAL, this.taskExecutor.getTaskCreateAndRunTimer());
     }
   }
 
