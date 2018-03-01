@@ -121,7 +121,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
   @Override
   protected void startUp() throws Exception {
-    notifyAllListeners();
+    //Do nothing
   }
 
   @Override
