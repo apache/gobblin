@@ -18,10 +18,11 @@
 package org.apache.gobblin.data.management.source;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.Dataset;
@@ -31,6 +32,7 @@ import org.apache.gobblin.dataset.test.SimpleDatasetForTesting;
 import org.apache.gobblin.dataset.test.SimpleDatasetPartitionForTesting;
 import org.apache.gobblin.dataset.test.SimplePartitionableDatasetForTesting;
 import org.apache.gobblin.dataset.test.StaticDatasetsFinderForTesting;
+import org.apache.gobblin.runtime.task.FailedTask;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
@@ -174,6 +176,41 @@ public class LoopingDatasetFinderSourceTest {
     Assert.assertEquals(workUnits.get(1).getProp(DatasetFinderSourceTest.PARTITION_URN), "p1");
     Assert.assertEquals(workUnits.get(2).getProp(DatasetFinderSourceTest.DATASET_URN), "dataset2");
     Assert.assertEquals(workUnits.get(2).getProp(DatasetFinderSourceTest.PARTITION_URN), "p2");
+  }
+
+  @Test
+  public void testFailedWorkUnitRetry() {
+    IterableDatasetFinder finder = new StaticDatasetsFinderForTesting(Collections.emptyList());
+    MySource mySource = new MySource(true, finder);
+
+    // Limit 1 per run
+    SourceState sourceState = new SourceState();
+    sourceState.setProp(LoopingDatasetFinderSource.MAX_WORK_UNITS_PER_RUN_KEY, 3);
+
+    WorkUnit failedWorkUnit_1 = new FailedTask.FailedWorkUnit();
+    failedWorkUnit_1.setProp(LoopingDatasetFinderSource.DATASET_URN, "failed_dataset_1");
+    failedWorkUnit_1.setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, WorkUnitState.WorkingState.FAILED);
+
+    WorkUnit failedWorkUnit_2 = new FailedTask.FailedWorkUnit();
+    failedWorkUnit_2.setProp(LoopingDatasetFinderSource.DATASET_URN, "failed_dataset_2");
+    failedWorkUnit_2.setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, WorkUnitState.WorkingState.FAILED);
+
+    WorkUnit failedWorkUnit_3 = new FailedTask.FailedWorkUnit();
+    failedWorkUnit_3.setProp(LoopingDatasetFinderSource.DATASET_URN, "failed_dataset_3");
+    failedWorkUnit_3.setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, WorkUnitState.WorkingState.FAILED);
+
+    List<WorkUnit> workUnits = Lists.newArrayList(failedWorkUnit_1, failedWorkUnit_2, failedWorkUnit_3);
+    List<WorkUnitState> workUnitStates = workUnits.stream().map(WorkUnitState::new).collect(Collectors.toList());
+    SourceState sourceStateSpy = Mockito.spy(sourceState);
+    Mockito.doReturn(workUnitStates).when(sourceStateSpy).getPreviousWorkUnitStates();
+
+    WorkUnitStream workUnitStream = mySource.getWorkunitStream(sourceStateSpy);
+    workUnits = Lists.newArrayList(workUnitStream.getWorkUnits());
+
+    Assert.assertEquals(workUnits.size(), 3);
+    Assert.assertEquals(workUnits.get(0).getProp(LoopingDatasetFinderSource.DATASET_URN), "failed_dataset_1");
+    Assert.assertEquals(workUnits.get(1).getProp(LoopingDatasetFinderSource.DATASET_URN), "failed_dataset_2");
+    Assert.assertEquals(workUnits.get(2).getProp(LoopingDatasetFinderSource.DATASET_URN), "failed_dataset_3");
   }
 
   public static class MySource extends LoopingDatasetFinderSource<String, String> {

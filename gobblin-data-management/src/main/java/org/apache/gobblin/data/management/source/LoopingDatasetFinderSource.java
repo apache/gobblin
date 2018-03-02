@@ -65,7 +65,7 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
       "gobblin.source.loopingDatasetFinderSource.maxWorkUnitsPerRun";
   public static final int MAX_WORK_UNITS_PER_RUN = 10;
 
-  private static final String DATASET_URN = "gobblin.source.loopingDatasetFinderSource.datasetUrn";
+  public static final String DATASET_URN = "gobblin.source.loopingDatasetFinderSource.datasetUrn";
   private static final String PARTITION_URN = "gobblin.source.loopingDatasetFinderSource.partitionUrn";
 
   // WORK_UNIT_ORDINAL is used to identify the latest workunit processed in previous execution,
@@ -136,11 +136,18 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
 
   /**
    * Searching for workunit with maximum ordinal.
+   *
+   * There's a case that all previous workunits are failedWorkUnits so that none of that contains WORK_UNIT_ORDINAL.
+   * For this, we should avoid failedWorkUnits to be candidate of the workunit with highest water that is to be
+   * processed first in this loop.
    */
   private Optional<WorkUnitState> getMaxWorkUnitState(List<WorkUnitState> previousWorkUnitStates) {
     int maxWorkUnitOrdinalSeen = 0;
     Optional<WorkUnitState> optionalMaxWorkUnitState = Optional.empty();
     for (WorkUnitState workUnitState : previousWorkUnitStates) {
+      if (!workUnitState.contains(WORK_UNIT_ORDINAL)){
+        continue;
+      }
       try {
         if (workUnitState.getPropAsInt(WORK_UNIT_ORDINAL) > maxWorkUnitOrdinalSeen) {
           optionalMaxWorkUnitState = Optional.of(workUnitState);
