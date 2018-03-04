@@ -33,7 +33,7 @@ import kafka.producer.ProducerConfig;
 /**
  * Establishes a connection to a Kafka cluster and pushed byte messages to a specified topic.
  */
-public class KafkaPusher implements Pusher {
+public class KafkaPusher implements Pusher<byte[]> {
 
   private final String topic;
   private final ProducerCloseable<String, byte[]> producer;

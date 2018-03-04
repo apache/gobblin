@@ -24,10 +24,10 @@ import java.util.List;
 /**
  * Establish a connection to a Kafka cluster and push byte messages to a specified topic.
  */
-public interface Pusher extends Closeable {
+public interface Pusher<M> extends Closeable {
   /**
    * Push all byte array messages to the Kafka topic.
    * @param messages List of byte array messages to push to Kakfa.
    */
-  void pushMessages(List<byte[]> messages);
+  void pushMessages(List<M> messages);
 }
