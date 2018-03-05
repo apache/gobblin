@@ -152,6 +152,11 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
         // file is not pulled this run
       }
     }
+    // Update the snapshot from the previous run with the new files processed in this run
+    // Otherwise a corrupt file could cause re-processing of already processed files
+    for (WorkUnit workUnit : previousWorkUnitsForRetry) {
+      workUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT, StringUtils.join(effectiveSnapshot, ","));
+    }
 
     if (!filesToPull.isEmpty()) {
       logFilesToPull(filesToPull);
