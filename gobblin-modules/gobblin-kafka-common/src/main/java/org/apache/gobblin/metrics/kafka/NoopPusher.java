@@ -14,42 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.gobblin.metrics.reporter;
-
+package org.apache.gobblin.metrics.kafka;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Queue;
 
-import com.google.common.collect.Queues;
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 
-import org.apache.gobblin.metrics.kafka.Pusher;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * Mock instance of {@link org.apache.gobblin.metrics.kafka.Pusher} used for testing.
+ * This is a {@Pusher} class that ignores the messages
+ * @param <M> message type
  */
-public class MockKafkaPusher implements Pusher<byte[]> {
+@Slf4j
+public class NoopPusher<M> implements Pusher<M> {
+  public NoopPusher() {}
 
-  Queue<byte[]> messages = Queues.newLinkedBlockingQueue();
+  public NoopPusher(Config config) {}
 
-  public MockKafkaPusher() {
-  }
+  /**
+   * Constructor like the one in KafkaProducerPusher for compatibility
+   */
+  public NoopPusher(String brokers, String topic, Optional<Config> kafkaConfig) {}
+
+  public void pushMessages(List<M> messages) {}
 
   @Override
-  public void pushMessages(List<byte[]> messages) {
-    this.messages.addAll(messages);
-  }
-
-  @Override
-  public void close()
-      throws IOException {
-  }
-
-  public Iterator<byte[]> messageIterator() {
-    return this.messages.iterator();
-  }
-
+  public void close() throws IOException {}
 }
