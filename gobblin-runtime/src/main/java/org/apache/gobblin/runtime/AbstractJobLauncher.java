@@ -340,6 +340,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       TimingEvent launchJobTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.FULL_JOB_EXECUTION);
 
       try (Closer closer = Closer.create()) {
+        closer.register(this.jobContext);
         notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_PREPARE, new JobListenerAction() {
           @Override
           public void apply(JobListener jobListener, JobContext jobContext)

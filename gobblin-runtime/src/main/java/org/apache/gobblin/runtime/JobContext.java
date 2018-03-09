@@ -481,7 +481,6 @@ public class JobContext implements Closeable {
       throw new IOException(exc);
     }
     this.jobState.setState(JobState.RunningState.COMMITTED);
-    close();
   }
 
   @Override
