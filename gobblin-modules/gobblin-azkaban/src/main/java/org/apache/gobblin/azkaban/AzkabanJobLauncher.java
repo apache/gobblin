@@ -224,7 +224,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
         this.closer.register(new ServiceBasedAppLauncher(jobProps, "Azkaban-" + UUID.randomUUID()));
   }
 
-  private JobListener initJobListener() {
+  protected JobListener initJobListener() {
     CompositeJobListener compositeJobListener = new CompositeJobListener();
     List<String> listeners = new State(props).getPropAsList(GOBBLIN_CUSTOM_JOB_LISTENERS, EmailNotificationJobListener.class.getSimpleName());
     try {
