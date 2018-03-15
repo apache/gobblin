@@ -32,7 +32,7 @@ public class SerializedRecordToEncryptedSerializedRecordConverter extends Serial
   @Override
   protected StreamCodec buildEncryptor(WorkUnitState config) {
     Map<String, Object> encryptionConfig =
-        EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, getClass().getSimpleName(), config);
+        EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER_ENCRYPT, getClass().getSimpleName(), config);
     if (encryptionConfig == null) {
       throw new IllegalStateException("No encryption config specified in job - can't encrypt!");
     }

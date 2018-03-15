@@ -97,7 +97,7 @@ public class EncryptionConfigParserTest {
         "keyname");
     wuState.setProp(EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "abc.def", "foobar");
 
-    Map<String, Object> parsedProperties = EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, wuState);
+    Map<String, Object> parsedProperties = EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER_ENCRYPT, wuState);
     Assert.assertNotNull(parsedProperties, "Expected parser to only return one record");
     Assert.assertEquals(parsedProperties.size(), 4, "Did not expect abc.def to be picked up in config");
 
@@ -125,7 +125,7 @@ public class EncryptionConfigParserTest {
         "keyname");
     wuState.setProp(EncryptionConfigParser.CONVERTER_ENCRYPT_PREFIX + "abc.def", "foobar");
 
-    Map<String, Object> parsedProperties = EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, entityName, wuState);
+    Map<String, Object> parsedProperties = EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER_ENCRYPT, entityName, wuState);
     Assert.assertNotNull(parsedProperties, "Expected parser to only return one record");
     Assert.assertEquals(parsedProperties.size(), 4, "Did not expect abc.def to be picked up in config");
     Assert.assertEquals(EncryptionConfigParser.getEncryptionType(parsedProperties), "aes_rotating");

@@ -47,7 +47,7 @@ public abstract class StringFieldEncryptorConverter<SCHEMA, DATA> extends Conver
   public Converter<SCHEMA, SCHEMA, DATA, DATA> init(WorkUnitState workUnit) {
     super.init(workUnit);
     Map<String, Object> config = EncryptionConfigParser
-        .getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, getClass().getSimpleName(), workUnit);
+        .getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER_ENCRYPT, getClass().getSimpleName(), workUnit);
     encryptor = EncryptionFactory.buildStreamCryptoProvider(config);
 
     String fieldsToEncryptConfig = workUnit.getProp(FIELDS_TO_ENCRYPT_CONFIG_NAME, null);
