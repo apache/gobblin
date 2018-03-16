@@ -37,8 +37,8 @@ public class GobblinClusterConfigurationKeys {
       GOBBLIN_CLUSTER_PREFIX + "task.classpath";
   public static final String TASK_LOG_CONFIG =
       GOBBLIN_CLUSTER_PREFIX + "task.log.config";
-  public static final String TASK_JAVA_OPTIONS =
-      GOBBLIN_CLUSTER_PREFIX + "task.java.options";
+  public static final String TASK_JVM_OPTIONS =
+      GOBBLIN_CLUSTER_PREFIX + "task.jvm.options";
 
   // General Gobblin Cluster application configuration properties.
   public static final String APPLICATION_NAME_OPTION_NAME = "app_name";
