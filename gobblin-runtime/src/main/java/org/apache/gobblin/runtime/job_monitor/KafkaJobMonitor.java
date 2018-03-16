@@ -71,13 +71,9 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
     super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1);
     this.jobCatalog = catalog;
     try {
-      if (config.hasPath(ConfigurationKeys.STATE_STORE_ENABLED) &&
-          config.getBoolean(ConfigurationKeys.STATE_STORE_ENABLED) &&
-          config.hasPath(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY)) {
-        this.datasetStateStore = DatasetStateStore.buildDatasetStateStore(config);
-      }
-    } catch (IOException e) {
-      log.warn("DatasetStateStore could not be created.");
+      this.datasetStateStore = DatasetStateStore.buildDatasetStateStore(config);
+    } catch (Exception e) {
+      log.warn("DatasetStateStore could not be created.", e);
     }
   }
 
