@@ -19,6 +19,7 @@ package org.apache.gobblin.converter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metadata.types.Metadata;
 import org.apache.gobblin.type.RecordWithMetadata;
@@ -37,6 +38,7 @@ public class EnvelopedRecordWithMetadataToRecordWithMetadata extends Converter<S
 
   private static final String RECORD_KEY = "r";
   private static final String METADATA_KEY = "rMd";
+  private static final String METADATA_RECORD_KEY = "recordMetadata";
 
   private static final ObjectMapper objectMapper = new ObjectMapper().configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
   private static final JsonFactory jsonFactory = new JsonFactory();
@@ -57,13 +59,17 @@ public class EnvelopedRecordWithMetadataToRecordWithMetadata extends Converter<S
         parser.setCodec(objectMapper);
         JsonNode jsonNode = parser.readValueAsTree();
 
-        // record field is required
+        // extracts required record
         if (!jsonNode.has(RECORD_KEY)) {
           throw new DataConversionException("Input data does not have record.");
         }
         String record = jsonNode.get(RECORD_KEY).getTextValue();
 
-        Metadata md = objectMapper.readValue(jsonNode.get(METADATA_KEY), Metadata.class);
+        // Extract metadata field
+        Metadata md = new Metadata();
+        if (jsonNode.has(METADATA_KEY) && jsonNode.get(METADATA_KEY).has(METADATA_RECORD_KEY)) {
+          md.getRecordMetadata().putAll(objectMapper.readValue(jsonNode.get(METADATA_KEY).get(METADATA_RECORD_KEY), Map.class));
+        }
 
         return Collections.singleton(new RecordWithMetadata<>(record, md));
       }
