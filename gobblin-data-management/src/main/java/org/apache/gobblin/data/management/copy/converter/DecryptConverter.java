@@ -59,7 +59,7 @@ public class DecryptConverter extends DistcpConverter {
   @Override
   public Converter<String, String, FileAwareInputStream, FileAwareInputStream> init(WorkUnitState workUnit) {
     Map<String, Object> config =
-        EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, workUnit);
+        EncryptionConfigParser.getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER_ENCRYPT, workUnit);
 
    if (config == null) {
      // Backwards compatibility check: if no config was passed in via the standard config, revert back to GPG

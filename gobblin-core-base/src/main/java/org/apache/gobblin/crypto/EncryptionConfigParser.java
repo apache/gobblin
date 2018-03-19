@@ -52,6 +52,7 @@ public class EncryptionConfigParser {
    */
   static final String WRITER_ENCRYPT_PREFIX = ConfigurationKeys.WRITER_PREFIX + ".encrypt";
   static final String CONVERTER_ENCRYPT_PREFIX = "converter.encrypt";
+  static final String CONVERTER_DECRYPT_PREFIX = "converter.decrypt";
 
   public static final String ENCRYPTION_ALGORITHM_KEY = "algorithm";
   public static final String ENCRYPTION_KEYSTORE_PATH_KEY = "keystore_path";
@@ -72,7 +73,8 @@ public class EncryptionConfigParser {
    * enum maps entity type to a configuration prefix.
    */
   public enum EntityType {
-    CONVERTER(CONVERTER_ENCRYPT_PREFIX),
+    CONVERTER_ENCRYPT(CONVERTER_ENCRYPT_PREFIX),
+    CONVERTER_DECRYPT(CONVERTER_DECRYPT_PREFIX),
     WRITER(WRITER_ENCRYPT_PREFIX);
 
     private final String configPrefix;
