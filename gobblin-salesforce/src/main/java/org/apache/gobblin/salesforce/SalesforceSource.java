@@ -33,7 +33,9 @@ import java.util.Set;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
@@ -47,6 +49,9 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
@@ -101,6 +106,14 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   private static final Gson GSON = new Gson();
 
+  @VisibleForTesting
+  SalesforceSource() {}
+
+  @VisibleForTesting
+  SalesforceSource(LineageInfo lineageInfo) {
+    this.lineageInfo = Optional.of(lineageInfo);
+  }
+
   @Override
   public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
     try {
@@ -108,6 +121,15 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     } catch (ExtractPrepareException e) {
       log.error("Failed to prepare extractor", e);
       throw new IOException(e);
+    }
+  }
+
+  @Override
+  protected void addLineageSourceInfo(SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
+    DatasetDescriptor source =
+        new DatasetDescriptor(DatasetConstants.PLATFORM_SALESFORCE, entity.getSourceEntityName());
+    if (lineageInfo.isPresent()) {
+      lineageInfo.get().setSource(source, workUnit);
     }
   }
 
