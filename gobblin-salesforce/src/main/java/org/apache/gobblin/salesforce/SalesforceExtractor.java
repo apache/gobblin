@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
+import org.apache.gobblin.salesforce.SalesforceConfigurationKeys;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.methods.HttpGet;
@@ -98,7 +99,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   public static final String SALESFORCE_TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'.000Z'";
   private static final String SALESFORCE_DATE_FORMAT = "yyyy-MM-dd";
   private static final String SALESFORCE_HOUR_FORMAT = "HH";
-  private static final String SALESFORCE_SOAP_AUTH_SERVICE = "/services/Soap/u";
+  private static final String SALESFORCE_SOAP_SERVICE = "/services/Soap/u";
   private static final Gson GSON = new Gson();
   private static final int MAX_PK_CHUNKING_SIZE = 250000;
   private static final int MIN_PK_CHUNKING_SIZE = 100000;
@@ -641,7 +642,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       apiVersion = "29.0";
     }
 
-    String soapAuthEndPoint = hostName + SALESFORCE_SOAP_AUTH_SERVICE + "/" + apiVersion;
+    String soapAuthEndPoint = hostName + SALESFORCE_SOAP_SERVICE + "/" + apiVersion;
     try {
       ConnectorConfig partnerConfig = new ConnectorConfig();
       if (super.workUnitState.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL)
@@ -650,12 +651,29 @@ public class SalesforceExtractor extends RestApiExtractor {
             super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
       }
 
-      String securityToken = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
-      String password = PasswordManager.getInstance(this.workUnitState)
-          .readPassword(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
-      partnerConfig.setUsername(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME));
-      partnerConfig.setPassword(password + securityToken);
+      String accessToken = sfConnector.getAccessToken();
+
+      if (accessToken == null) {
+        boolean isConnectSuccess = sfConnector.connect();
+        if (isConnectSuccess) {
+          accessToken = sfConnector.getAccessToken();
+        }
+      }
+
+      if (accessToken != null) {
+        String serviceEndpoint = sfConnector.getInstanceUrl() + SALESFORCE_SOAP_SERVICE + "/" + apiVersion;
+        partnerConfig.setSessionId(accessToken);
+        partnerConfig.setServiceEndpoint(serviceEndpoint);
+      } else {
+        String securityToken = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
+        String password = PasswordManager.getInstance(this.workUnitState)
+            .readPassword(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+        partnerConfig.setUsername(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME));
+        partnerConfig.setPassword(password + securityToken);
+      }
+
       partnerConfig.setAuthEndpoint(soapAuthEndPoint);
+
       new PartnerConnection(partnerConfig);
       String soapEndpoint = partnerConfig.getServiceEndpoint();
       String restEndpoint = soapEndpoint.substring(0, soapEndpoint.indexOf("Soap/")) + "async/" + apiVersion;
