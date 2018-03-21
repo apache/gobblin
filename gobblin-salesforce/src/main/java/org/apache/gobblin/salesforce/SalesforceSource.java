@@ -157,33 +157,43 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       return super.generateWorkUnits(sourceEntity, state, previousWatermark);
     }
 
-    Partition partition = new Partitioner(state).getGlobalPartition(previousWatermark);
+    Partitioner partitioner = new Partitioner(state);
+    Partition partition = partitioner.getGlobalPartition(previousWatermark);
     Histogram histogram = getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
 
     // we should look if the count is too big, cut off early if count exceeds the limit, or bucket size is too large
+
+    Histogram histogramAdjust;
+
     // TODO: we should consider move this logic into getRefinedHistogram so that we can early terminate the search
-    Histogram histogramEarlyStop = new Histogram();
-    for (HistogramGroup group: histogram.getGroups()) {
-      if (histogramEarlyStop.getTotalRecordCount() + group.count > state.getPropAsLong(DYNAMIC_PROBING_TOTAL_RECORDS_LIMIT, DYNAMIC_PROBING_DEFAULT_TOTAL_RECORDS_LIMIT)) {
-        break;
+    if (partitioner.isRetriggeringEnabled()) {
+      histogramAdjust = new Histogram();
+      for (HistogramGroup group : histogram.getGroups()) {
+        if (histogramAdjust.getTotalRecordCount() + group.count > state
+            .getPropAsLong(DYNAMIC_PROBING_TOTAL_RECORDS_LIMIT, DYNAMIC_PROBING_DEFAULT_TOTAL_RECORDS_LIMIT)) {
+          break;
+        }
+        histogramAdjust.add(group);
+        if (histogramAdjust.getGroups().size() >= state
+            .getPropAsLong(DYNAMIC_PROBING_TOTAL_BUCKETS_LIMIT, DYNAMIC_PROBING_DEFAULT_TOTAL_BUCKETS_LIMIT)) {
+          break;
+        }
       }
-      histogramEarlyStop.add(group);
-      if (histogramEarlyStop.getGroups().size() >= state.getPropAsLong(DYNAMIC_PROBING_TOTAL_BUCKETS_LIMIT, DYNAMIC_PROBING_DEFAULT_TOTAL_BUCKETS_LIMIT)) {
-        break;
-      }
+    } else {
+      histogramAdjust = histogram;
     }
 
     long expectedHighWatermark = partition.getHighWatermark();
-    if (histogramEarlyStop.getGroups().size() < histogram.getGroups().size()) {
-      HistogramGroup lastPlusOne = histogram.get(histogramEarlyStop.getGroups().size());
+    if (histogramAdjust.getGroups().size() < histogram.getGroups().size()) {
+      HistogramGroup lastPlusOne = histogram.get(histogramAdjust.getGroups().size());
       expectedHighWatermark = Long.parseLong(Utils.toDateTimeFormat(lastPlusOne.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
       log.info("Terminated earlier with high watermark: " + expectedHighWatermark);
       this.earlyStopped = true;
     }
 
-    log.info("#############====> retriggering = " + this.earlyStopped);
+    log.info("Job {} has early-stop = {}", state.getProp(ConfigurationKeys.JOB_NAME_KEY), this.earlyStopped);
 
-    String specifiedPartitions = generateSpecifiedPartitions(histogramEarlyStop, minTargetPartitionSize, maxPartitions,
+    String specifiedPartitions = generateSpecifiedPartitions(histogramAdjust, minTargetPartitionSize, maxPartitions,
         partition.getLowWatermark(), expectedHighWatermark);
     state.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
     state.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, specifiedPartitions);

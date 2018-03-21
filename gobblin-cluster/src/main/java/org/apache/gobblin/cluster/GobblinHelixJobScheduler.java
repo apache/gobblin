@@ -274,7 +274,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       while (true) {
         JobLauncher jobLauncher = buildJobLauncher(jobProps);
         if (runJob(jobProps, jobListener, jobLauncher)) {
-          LOGGER.info("######### same job will be rerun");
+          LOGGER.info("Job {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
         } else {
           break;
         }
@@ -307,14 +307,14 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         while (true) {
           currentJobLauncher = buildJobLauncher(jobProps);;
           if (runJob(jobProps, jobListener, currentJobLauncher)) {
-            LOGGER.info("######### Job {} will be re-triggered", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+            LOGGER.info("Job {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
           } else {
             break;
           }
           currentJobLauncher = null;
         }
       } catch (Exception e) {
-        LOGGER.error("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+        LOGGER.error("Failed to run job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
         throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
       }
 

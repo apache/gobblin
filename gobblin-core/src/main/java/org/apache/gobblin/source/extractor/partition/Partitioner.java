@@ -199,10 +199,16 @@ public class Partitioner {
    * Generate the partitions based on the lists specified by the user in job config
    */
   private List<Partition> createUserSpecifiedPartitions() {
+
     List<Partition> partitions = new ArrayList<>();
 
     List<String> watermarkPoints = state.getPropAsList(USER_SPECIFIED_PARTITIONS);
     boolean isEarlyStop = state.getPropAsBoolean(EARLY_STOP);
+
+    if (isEarlyStop && isRetriggeringEnabled() && isFullDump()) {
+      throw new UnsupportedOperationException("We found early stop is required for this source, but full dump doesn't support this mode.");
+    }
+
     if (watermarkPoints == null || watermarkPoints.size() == 0 ) {
       LOG.info("There should be some partition points");
       long defaultWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
@@ -316,7 +322,7 @@ public class Partitioner {
   protected long getLowWatermark(ExtractType extractType, WatermarkType watermarkType, long previousWatermark,
       int deltaForNextWatermark) {
     long lowWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-    //TODO: always use previous watermark for retriggering
+
     if ((this.isFullDump() || this.isWatermarkOverride()) && !this.isRetriggeringEnabled()) {
       String timeZone =
           this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
