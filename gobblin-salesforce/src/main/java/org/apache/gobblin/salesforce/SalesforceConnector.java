@@ -102,13 +102,17 @@ public class SalesforceConnector extends RestApiConnector {
 
   @Override
   protected void addHeaders(HttpRequestBase httpRequest) {
-    if (this.accessToken != null) {
-      httpRequest.addHeader("Authorization", "Bearer " + this.accessToken);
+    if (refreshToken == null) {
+      super.addHeaders(httpRequest);
+    } else {
+      if (this.accessToken != null) {
+        httpRequest.addHeader("Authorization", "Bearer " + this.accessToken);
+      }
+      httpRequest.addHeader("Content-Type", "application/json");
     }
-    httpRequest.addHeader("Content-Type", "application/json");
   }
 
-  public static boolean isPasswordGrant(State state) {
+  static boolean isPasswordGrant(State state) {
     String userName = state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
     String securityToken = state.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
     return (userName != null &&  securityToken != null);
@@ -124,11 +128,11 @@ public class SalesforceConnector extends RestApiConnector {
     return StringUtils.removeEnd(getServiceBaseUrl(), "/") + StringUtils.removeEnd(resourcePath, "/");
   }
 
-  public String getAccessToken() {
+  String getAccessToken() {
     return accessToken;
   }
 
-  public String getInstanceUrl() {
+  String getInstanceUrl() {
     return instanceUrl;
   }
 }

@@ -115,7 +115,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   private boolean pullStatus = true;
   private String nextUrl;
 
-  protected BulkConnection bulkConnection = null;
+  private BulkConnection bulkConnection = null;
   private boolean bulkApiInitialRun = true;
   private JobInfo bulkJob = new JobInfo();
   private BufferedReader bulkBufferedReader = null;
