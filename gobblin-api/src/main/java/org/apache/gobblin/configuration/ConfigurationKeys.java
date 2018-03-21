@@ -112,8 +112,6 @@ public class ConfigurationKeys {
   public static final String DEFAULT_HELIX_JOB_TIMEOUT_ENABLED = "false";
   public static final String HELIX_JOB_TIMEOUT_SECONDS = "job.timeout.seconds";
   public static final String DEFAULT_HELIX_JOB_TIMEOUT_SECONDS = "10800";
-  public static final String JOB_RETRIGGER_ENABLED = "job.retrigger.enabled";
-  public static final boolean DEFAULT_JOB_RETRIGGER_ENABLED = false;
 
   /**
    * Task executor and state tracker configuration properties.
@@ -475,7 +473,8 @@ public class ConfigurationKeys {
   public static final String SOURCE_MAX_NUMBER_OF_PARTITIONS = "source.max.number.of.partitions";
   public static final String SOURCE_SKIP_FIRST_RECORD = "source.skip.first.record";
   public static final String SOURCE_COLUMN_NAME_CASE = "source.column.name.case";
-
+  public static final String SOURCE_EARLY_STOP_ENABLED = "source.earlyStop.enabled";
+  public static final boolean DEFAULT_SOURCE_EARLY_STOP_ENABLED = false;
   /**
    * Configuration properties used by the QueryBasedExtractor.
    */
@@ -585,7 +584,6 @@ public class ConfigurationKeys {
   public static final String DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "true";
   public static final String DEFAULT_COLUMN_NAME_CASE = "NOCHANGE";
   public static final int DEFAULT_SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE = 1000;
-
   public static final String FILEBASED_REPORT_STATUS_ON_COUNT = "filebased.report.status.on.count";
   public static final int DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT = 10000;
   public static final String DEFAULT_SOURCE_TIMEZONE = PST_TIMEZONE_NAME;

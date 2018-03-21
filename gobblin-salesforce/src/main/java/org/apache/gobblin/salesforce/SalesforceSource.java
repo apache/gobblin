@@ -86,8 +86,6 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
   private static final String DYNAMIC_PROBING_TOTAL_RECORDS_LIMIT = "salesforce.dynamicProbingTotalRecordsLimit";
   private static final long DYNAMIC_PROBING_DEFAULT_TOTAL_RECORDS_LIMIT = 250000 * 4;
-  private static final String DYNAMIC_PROBING_TOTAL_BUCKETS_LIMIT = "salesforce.dynamicProbingTotalBucketsLimit";
-  private static final long DYNAMIC_PROBING_DEFAULT_TOTAL_BUCKETS_LIMIT = 1000;
 
   private static final String ENABLE_DYNAMIC_PROBING = "salesforce.enableDynamicProbing";
   private static final String DYNAMIC_PROBING_LIMIT = "salesforce.dynamicProbingLimit";
@@ -166,7 +164,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     Histogram histogramAdjust;
 
     // TODO: we should consider move this logic into getRefinedHistogram so that we can early terminate the search
-    if (partitioner.isRetriggeringEnabled()) {
+    if (partitioner.isEarlyStopEnabled()) {
       histogramAdjust = new Histogram();
       for (HistogramGroup group : histogram.getGroups()) {
         if (histogramAdjust.getTotalRecordCount() + group.count > state
@@ -174,10 +172,6 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
           break;
         }
         histogramAdjust.add(group);
-        if (histogramAdjust.getGroups().size() >= state
-            .getPropAsLong(DYNAMIC_PROBING_TOTAL_BUCKETS_LIMIT, DYNAMIC_PROBING_DEFAULT_TOTAL_BUCKETS_LIMIT)) {
-          break;
-        }
       }
     } else {
       histogramAdjust = histogram;
@@ -197,7 +191,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         partition.getLowWatermark(), expectedHighWatermark);
     state.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
     state.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, specifiedPartitions);
-    state.setProp(Partitioner.EARLY_STOP, earlyStopped);
+    state.setProp(Partitioner.IS_EARLY_STOP, earlyStopped);
 
     return super.generateWorkUnits(sourceEntity, state, previousWatermark);
   }

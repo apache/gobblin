@@ -53,7 +53,7 @@ public class Partitioner {
   public static final String WATERMARKTIMEFORMAT = "yyyyMMddHHmmss";
   public static final String HAS_USER_SPECIFIED_PARTITIONS = "partitioner.hasUserSpecifiedPartitions";
   public static final String USER_SPECIFIED_PARTITIONS = "partitioner.userSpecifiedPartitions";
-  public static final String EARLY_STOP = "partitioner.earlyStop";
+  public static final String IS_EARLY_STOP = "partitioner.isEarlyStop";
 
   public static final Comparator<Partition> ascendingComparator = new Comparator<Partition>() {
     @Override
@@ -203,9 +203,9 @@ public class Partitioner {
     List<Partition> partitions = new ArrayList<>();
 
     List<String> watermarkPoints = state.getPropAsList(USER_SPECIFIED_PARTITIONS);
-    boolean isEarlyStop = state.getPropAsBoolean(EARLY_STOP);
+    boolean isEarlyStop = state.getPropAsBoolean(IS_EARLY_STOP);
 
-    if (isEarlyStop && isRetriggeringEnabled() && isFullDump()) {
+    if (isEarlyStop && isEarlyStopEnabled() && isFullDump()) {
       throw new UnsupportedOperationException("We found early stop is required for this source, but full dump doesn't support this mode.");
     }
 
@@ -246,7 +246,7 @@ public class Partitioner {
         ExtractType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
 
     // If it is early stop, we should not remove upper bounds
-    if ((isFullDump() || isSnapshot(extractType)) && !(isEarlyStop && isRetriggeringEnabled())) {
+    if ((isFullDump() || isSnapshot(extractType)) && !(isEarlyStop && isEarlyStopEnabled())) {
       // The upper bounds can be removed for last work unit
       partitions.add(new Partition(lowWatermark, highWatermark, true, false));
     } else {
@@ -303,8 +303,8 @@ public class Partitioner {
     }
   }
 
-  public boolean isRetriggeringEnabled () {
-    return this.state.getPropAsBoolean(ConfigurationKeys.JOB_RETRIGGER_ENABLED, ConfigurationKeys.DEFAULT_JOB_RETRIGGER_ENABLED);
+  public boolean isEarlyStopEnabled () {
+    return this.state.getPropAsBoolean(ConfigurationKeys.SOURCE_EARLY_STOP_ENABLED, ConfigurationKeys.DEFAULT_SOURCE_EARLY_STOP_ENABLED);
   }
 
   /**
@@ -323,7 +323,7 @@ public class Partitioner {
       int deltaForNextWatermark) {
     long lowWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
 
-    if ((this.isFullDump() || this.isWatermarkOverride()) && !this.isRetriggeringEnabled()) {
+    if ((this.isFullDump() || this.isWatermarkOverride()) && !this.isEarlyStopEnabled()) {
       String timeZone =
           this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
       /*

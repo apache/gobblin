@@ -270,18 +270,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
-    try {
-      while (true) {
-        JobLauncher jobLauncher = buildJobLauncher(jobProps);
-        if (runJob(jobProps, jobListener, jobLauncher)) {
-          LOGGER.info("Job {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
-        } else {
-          break;
-        }
-      }
-    } catch (Exception e) {
-      throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
-    }
+    new RetriggeringJobCallable(jobProps, jobListener).call();
   }
 
   public GobblinHelixJobLauncher buildJobLauncher(Properties jobProps)
@@ -305,7 +294,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     public Void call() throws JobException {
       try {
         while (true) {
-          currentJobLauncher = buildJobLauncher(jobProps);;
+          currentJobLauncher = buildJobLauncher(jobProps);
           if (runJob(jobProps, jobListener, currentJobLauncher)) {
             LOGGER.info("Job {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
           } else {
