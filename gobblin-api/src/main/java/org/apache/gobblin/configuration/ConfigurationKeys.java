@@ -112,6 +112,8 @@ public class ConfigurationKeys {
   public static final String DEFAULT_HELIX_JOB_TIMEOUT_ENABLED = "false";
   public static final String HELIX_JOB_TIMEOUT_SECONDS = "job.timeout.seconds";
   public static final String DEFAULT_HELIX_JOB_TIMEOUT_SECONDS = "10800";
+  public static final String JOB_RETRIGGER_ENABLED = "job.retrigger.enabled";
+  public static final boolean DEFAULT_JOB_RETRIGGER_ENABLED = false;
 
   /**
    * Task executor and state tracker configuration properties.

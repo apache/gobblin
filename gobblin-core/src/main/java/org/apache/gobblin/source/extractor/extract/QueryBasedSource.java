@@ -198,7 +198,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
         combinedState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_END_VALUE, previousWatermark);
       }
 
-      workUnits.addAll(generateWorkUnits(sourceEntity, state, previousWatermark));
+      workUnits.addAll(generateWorkUnits(sourceEntity, combinedState, previousWatermark));
     }
 
     log.info("Total number of workunits for the current run: " + workUnits.size());

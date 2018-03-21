@@ -19,13 +19,15 @@ package org.apache.gobblin.cluster;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.gobblin.util.ConfigUtils;
@@ -35,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -47,8 +48,6 @@ import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareMetric;
-import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
@@ -66,6 +65,7 @@ import org.apache.gobblin.scheduler.SchedulerService;
 
 
 import javax.annotation.Nonnull;
+import lombok.Getter;
 
 
 /**
@@ -78,11 +78,6 @@ import javax.annotation.Nonnull;
 public class GobblinHelixJobScheduler extends JobScheduler implements StandardMetricsBridge{
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobScheduler.class);
-
-  static final String HELIX_MANAGER_KEY = "helixManager";
-  static final String APPLICATION_WORK_DIR_KEY = "applicationWorkDir";
-  static final String METADATA_TAGS = "metadataTags";
-  static final String JOB_RUNNING_MAP = "jobRunningMap";
 
   private final Properties properties;
   private final HelixManager helixManager;
@@ -262,13 +257,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   @Override
   public void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
-    Map<String, Object> additionalJobDataMap = Maps.newHashMap();
-    additionalJobDataMap.put(HELIX_MANAGER_KEY, this.helixManager);
-    additionalJobDataMap.put(APPLICATION_WORK_DIR_KEY, this.appWorkDir);
-    additionalJobDataMap.put(METADATA_TAGS, this.metadataTags);
-    additionalJobDataMap.put(JOB_RUNNING_MAP, this.jobRunningMap);
     try {
-      scheduleJob(jobProps, jobListener, additionalJobDataMap, GobblinHelixJob.class);
+      scheduleJob(jobProps, jobListener, Maps.newHashMap(), GobblinHelixJob.class);
     } catch (Exception e) {
       throw new JobException("Failed to schedule job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     }
@@ -281,16 +271,102 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
-      JobLauncher jobLauncher = buildGobblinHelixJobLauncher(jobProps);
-      runJob(jobProps, jobListener, jobLauncher);
+      while (true) {
+        JobLauncher jobLauncher = buildJobLauncher(jobProps);
+        if (runJob(jobProps, jobListener, jobLauncher)) {
+          LOGGER.info("######### same job will be rerun");
+        } else {
+          break;
+        }
+      }
     } catch (Exception e) {
       throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     }
   }
 
-  private GobblinHelixJobLauncher buildGobblinHelixJobLauncher(Properties jobProps)
+  public GobblinHelixJobLauncher buildJobLauncher(Properties jobProps)
       throws Exception {
     return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
+  }
+
+  private class RetriggeringJobCallable implements Callable {
+    Properties jobProps;
+    JobListener jobListener;
+
+    public RetriggeringJobCallable(Properties jobProps, JobListener jobListener) {
+      this.jobProps = jobProps;
+      this.jobListener = jobListener;
+    }
+
+    @Getter
+    JobLauncher currentJobLauncher = null;
+
+    @Override
+    public Void call() throws JobException {
+      try {
+        while (true) {
+          currentJobLauncher = buildJobLauncher(jobProps);;
+          if (runJob(jobProps, jobListener, currentJobLauncher)) {
+            LOGGER.info("######### Job {} will be re-triggered", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+          } else {
+            break;
+          }
+          currentJobLauncher = null;
+        }
+      } catch (Exception e) {
+        LOGGER.error("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+        throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+      }
+
+      return null;
+    }
+  }
+
+  public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener) {
+    RetriggeringJobCallable retriggeringJob = new RetriggeringJobCallable(jobProps, jobListener);
+    final Future<?> future = this.jobExecutor.submit(retriggeringJob);
+    return new Future() {
+      @Override
+      public boolean cancel(boolean mayInterruptIfRunning) {
+        if (!GobblinHelixJobScheduler.this.isCancelRequested()) {
+          return false;
+        }
+        boolean result = true;
+        try {
+          JobLauncher jobLauncher = retriggeringJob.getCurrentJobLauncher();
+          if (jobLauncher != null) {
+            jobLauncher.cancelJob(jobListener);
+          }
+        } catch (JobException e) {
+          LOGGER.error("Failed to cancel job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+          result = false;
+        }
+        if (mayInterruptIfRunning) {
+          result &= future.cancel(true);
+        }
+        return result;
+      }
+
+      @Override
+      public boolean isCancelled() {
+        return future.isCancelled();
+      }
+
+      @Override
+      public boolean isDone() {
+        return future.isDone();
+      }
+
+      @Override
+      public Object get() throws InterruptedException, ExecutionException {
+        return future.get();
+      }
+
+      @Override
+      public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        return future.get(timeout, unit);
+      }
+    };
   }
 
   @Subscribe

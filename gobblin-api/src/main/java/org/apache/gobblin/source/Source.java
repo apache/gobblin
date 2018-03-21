@@ -94,4 +94,13 @@ public interface Source<S, D> {
    * @param state see {@link SourceState}
    */
   public abstract void shutdown(SourceState state);
+
+  /**
+   * Instead of handling all {@link WorkUnit}s in one run, some {@link Source} may choose to stop early in order to handle the
+   * proper workload, which can cause multiple runs after the initial run.
+   * @return If the same job needs to be re-triggered
+   */
+  public default boolean isRetriggerRequired() {
+    return false;
+  }
 }

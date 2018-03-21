@@ -67,4 +67,8 @@ public interface JobLauncher extends Closeable {
    */
   public void cancelJob(@Nullable JobListener jobListener)
       throws JobException;
+
+  public default boolean isRetriggerRequired() {
+    return false;
+  }
 }

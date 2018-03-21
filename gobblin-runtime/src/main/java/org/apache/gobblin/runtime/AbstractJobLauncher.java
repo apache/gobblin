@@ -887,6 +887,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
+  public boolean isRetriggerRequired() {
+    return this.jobContext.getSource().isRetriggerRequired();
+  }
+
   /**
    * Staging data cannot be cleaned if exactly once semantics is used, and the job has unfinished
    * commit sequences.

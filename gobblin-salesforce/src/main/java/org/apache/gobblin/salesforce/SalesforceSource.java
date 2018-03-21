@@ -84,6 +84,11 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   public static final boolean DEFAULT_USE_ALL_OBJECTS = false;
 
   private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
+  private static final String DYNAMIC_PROBING_TOTAL_RECORDS_LIMIT = "salesforce.dynamicProbingTotalRecordsLimit";
+  private static final long DYNAMIC_PROBING_DEFAULT_TOTAL_RECORDS_LIMIT = 250000 * 4;
+  private static final String DYNAMIC_PROBING_TOTAL_BUCKETS_LIMIT = "salesforce.dynamicProbingTotalBucketsLimit";
+  private static final long DYNAMIC_PROBING_DEFAULT_TOTAL_BUCKETS_LIMIT = 1000;
+
   private static final String ENABLE_DYNAMIC_PROBING = "salesforce.enableDynamicProbing";
   private static final String DYNAMIC_PROBING_LIMIT = "salesforce.dynamicProbingLimit";
   private static final int DEFAULT_DYNAMIC_PROBING_LIMIT = 1000;
@@ -105,6 +110,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   private static final String ZERO_TIME_SUFFIX = "-00:00:00";
 
   private static final Gson GSON = new Gson();
+  private boolean earlyStopped = false;
 
   @VisibleForTesting
   SalesforceSource(LineageInfo lineageInfo) {
@@ -119,6 +125,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       log.error("Failed to prepare extractor", e);
       throw new IOException(e);
     }
+  }
+
+  public boolean isRetriggerRequired() {
+    return earlyStopped;
   }
 
   @Override
@@ -150,10 +160,34 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     Partition partition = new Partitioner(state).getGlobalPartition(previousWatermark);
     Histogram histogram = getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
 
-    String specifiedPartitions = generateSpecifiedPartitions(histogram, minTargetPartitionSize, maxPartitions,
-        partition.getLowWatermark(), partition.getHighWatermark());
+    // we should look if the count is too big, cut off early if count exceeds the limit, or bucket size is too large
+    // TODO: we should consider move this logic into getRefinedHistogram so that we can early terminate the search
+    Histogram histogramEarlyStop = new Histogram();
+    for (HistogramGroup group: histogram.getGroups()) {
+      if (histogramEarlyStop.getTotalRecordCount() + group.count > state.getPropAsLong(DYNAMIC_PROBING_TOTAL_RECORDS_LIMIT, DYNAMIC_PROBING_DEFAULT_TOTAL_RECORDS_LIMIT)) {
+        break;
+      }
+      histogramEarlyStop.add(group);
+      if (histogramEarlyStop.getGroups().size() >= state.getPropAsLong(DYNAMIC_PROBING_TOTAL_BUCKETS_LIMIT, DYNAMIC_PROBING_DEFAULT_TOTAL_BUCKETS_LIMIT)) {
+        break;
+      }
+    }
+
+    long expectedHighWatermark = partition.getHighWatermark();
+    if (histogramEarlyStop.getGroups().size() < histogram.getGroups().size()) {
+      HistogramGroup lastPlusOne = histogram.get(histogramEarlyStop.getGroups().size());
+      expectedHighWatermark = Long.parseLong(Utils.toDateTimeFormat(lastPlusOne.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
+      log.info("Terminated earlier with high watermark: " + expectedHighWatermark);
+      this.earlyStopped = true;
+    }
+
+    log.info("#############====> retriggering = " + this.earlyStopped);
+
+    String specifiedPartitions = generateSpecifiedPartitions(histogramEarlyStop, minTargetPartitionSize, maxPartitions,
+        partition.getLowWatermark(), expectedHighWatermark);
     state.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
     state.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, specifiedPartitions);
+    state.setProp(Partitioner.EARLY_STOP, earlyStopped);
 
     return super.generateWorkUnits(sourceEntity, state, previousWatermark);
   }
@@ -183,7 +217,12 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         partitionPoints.add(Utils.toDateTimeFormat(group.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
       }
 
-      // Move the candidate to a new bucket if the attempted total is 2x of interval
+      /**
+       * Using greedy algorithm by keep adding group until it exceeds the interval size (x2)
+       * Proof: Assuming nth group violates 2 x interval size, then all groups from 0th to (n-1)th, plus nth group,
+       * will have total size larger or equal to interval x 2. Hence, we are saturating all intervals (with original size)
+       * without leaving any unused space in between. We could choose x3,x4... but it is not space efficient.
+       */
       if (count != 0 && count + group.count >= 2 * interval) {
         // Summarize current group
         statistics.addValue(count);
@@ -351,7 +390,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     // make a copy of the histogram list and add a dummy entry at the end to avoid special processing of the last group
     List<HistogramGroup> list = new ArrayList(histogram.getGroups());
-    Date hwmDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
+    Date hwmDate = Utils.toDate(partition.getHighWatermark(), Partitioner.WATERMARKTIMEFORMAT);
     list.add(new HistogramGroup(Utils.epochToDate(hwmDate.getTime(), SECONDS_FORMAT), 0));
 
     for (int i = 0; i < list.size() - 1; i++) {
@@ -521,6 +560,14 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     void add(Histogram histogram) {
       groups.addAll(histogram.getGroups());
       totalRecordCount += histogram.totalRecordCount;
+    }
+
+    HistogramGroup get(int idx) {
+      if (idx >= groups.size() || idx < 0) {
+        return null;
+      }
+
+      return this.groups.get(idx);
     }
 
     @Override
