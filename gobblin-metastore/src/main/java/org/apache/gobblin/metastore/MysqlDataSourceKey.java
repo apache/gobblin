@@ -27,7 +27,7 @@ import lombok.Getter;
 
 /**
  * {@link SharedResourceKey} for requesting {@link BasicDataSource}s from a
- * {@link org.apache.gobblin.broker.iface.SharedResourceFactory
+ * {@link org.apache.gobblin.broker.iface.SharedResourceFactory}
  */
 @Getter
 public class MysqlDataSourceKey implements SharedResourceKey {
