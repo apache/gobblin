@@ -185,12 +185,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     long expectedHighWatermark = partition.getHighWatermark();
     if (histogramAdjust.getGroups().size() < histogram.getGroups().size()) {
       HistogramGroup lastPlusOne = histogram.get(histogramAdjust.getGroups().size());
-      expectedHighWatermark = Long.parseLong(Utils.toDateTimeFormat(lastPlusOne.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
-      log.info("Terminated earlier with low watermark [{}] and high watermark [{}]", partition.getLowWatermark(), expectedHighWatermark);
+      long earlyStopHighWatermark = Long.parseLong(Utils.toDateTimeFormat(lastPlusOne.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
+      log.info("Job {} will be stopped earlier. [LW : {}, early-stop HW : {}, expected HW : {}]", state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), earlyStopHighWatermark, expectedHighWatermark);
       this.earlyStopped = true;
+      expectedHighWatermark = earlyStopHighWatermark;
+    } else {
+      log.info("Job {} will be finished in a single run. [LW : {}, expected HW : {}]", state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), expectedHighWatermark);
     }
-
-    log.info("Job {} has early-stop = {}", state.getProp(ConfigurationKeys.JOB_NAME_KEY), this.earlyStopped);
 
     String specifiedPartitions = generateSpecifiedPartitions(histogramAdjust, minTargetPartitionSize, maxPartitions,
         partition.getLowWatermark(), expectedHighWatermark);
