@@ -23,6 +23,7 @@ public class DatasetConstants {
   public static final String PLATFORM_HDFS = "hdfs";
   public static final String PLATFORM_KAFKA = "kafka";
   public static final String PLATFORM_HIVE = "hive";
+  public static final String PLATFORM_SALESFORCE = "salesforce";
   public static final String PLATFORM_MYSQL = "mysql";
 
   /** Common metadata */
