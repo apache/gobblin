@@ -53,7 +53,7 @@ public class Partitioner {
   public static final String WATERMARKTIMEFORMAT = "yyyyMMddHHmmss";
   public static final String HAS_USER_SPECIFIED_PARTITIONS = "partitioner.hasUserSpecifiedPartitions";
   public static final String USER_SPECIFIED_PARTITIONS = "partitioner.userSpecifiedPartitions";
-  public static final String IS_EARLY_STOP = "partitioner.isEarlyStop";
+  public static final String IS_EARLY_STOPPED = "partitioner.isEarlyStopped";
 
   public static final Comparator<Partition> ascendingComparator = new Comparator<Partition>() {
     @Override
@@ -203,7 +203,7 @@ public class Partitioner {
     List<Partition> partitions = new ArrayList<>();
 
     List<String> watermarkPoints = state.getPropAsList(USER_SPECIFIED_PARTITIONS);
-    boolean isEarlyStop = state.getPropAsBoolean(IS_EARLY_STOP);
+    boolean isEarlyStopped = state.getPropAsBoolean(IS_EARLY_STOPPED);
 
     if (watermarkPoints == null || watermarkPoints.size() == 0 ) {
       LOG.info("There should be some partition points");
@@ -242,7 +242,7 @@ public class Partitioner {
         ExtractType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
 
     // If it is early stop, we should not remove upper bounds
-    if ((isFullDump() || isSnapshot(extractType)) && !isEarlyStop) {
+    if ((isFullDump() || isSnapshot(extractType)) && !isEarlyStopped) {
       // The upper bounds can be removed for last work unit
       partitions.add(new Partition(lowWatermark, highWatermark, true, false));
     } else {

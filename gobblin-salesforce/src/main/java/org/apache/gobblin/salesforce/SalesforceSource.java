@@ -83,10 +83,6 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   public static final String USE_ALL_OBJECTS = "use.all.objects";
   public static final boolean DEFAULT_USE_ALL_OBJECTS = false;
 
-  private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
-  private static final String EARLY_STOP_TOTAL_RECORDS_LIMIT = "salesforce.earlyStopTotalRecordsLimit";
-  private static final long DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT = 5000;
-
   private static final String ENABLE_DYNAMIC_PROBING = "salesforce.enableDynamicProbing";
   private static final String DYNAMIC_PROBING_LIMIT = "salesforce.dynamicProbingLimit";
   private static final int DEFAULT_DYNAMIC_PROBING_LIMIT = 1000;
@@ -104,11 +100,15 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   private static final String PROBE_PARTITION_QUERY_TEMPLATE = "SELECT count(${column}) cnt FROM ${table} "
       + "WHERE ${column} ${greater} ${start} AND ${column} ${less} ${end}";
 
+  private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
+  private static final String EARLY_STOP_TOTAL_RECORDS_LIMIT = "salesforce.earlyStopTotalRecordsLimit";
+  private static final long DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT = DEFAULT_MIN_TARGET_PARTITION_SIZE * 4;
+
   private static final String SECONDS_FORMAT = "yyyy-MM-dd-HH:mm:ss";
   private static final String ZERO_TIME_SUFFIX = "-00:00:00";
 
   private static final Gson GSON = new Gson();
-  private boolean earlyStopped = false;
+  private boolean isEarlyStopped = false;
 
   @VisibleForTesting
   SalesforceSource(LineageInfo lineageInfo) {
@@ -127,7 +127,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   @Override
   public boolean isEarlyStopped() {
-    return earlyStopped;
+    return isEarlyStopped;
   }
 
   @Override
@@ -172,11 +172,11 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     if (isEarlyStopEnabled(state)) {
       histogramAdjust = new Histogram();
       for (HistogramGroup group : histogram.getGroups()) {
-        if (histogramAdjust.getTotalRecordCount() + group.count > state
+        histogramAdjust.add(group);
+        if (histogramAdjust.getTotalRecordCount() > state
             .getPropAsLong(EARLY_STOP_TOTAL_RECORDS_LIMIT, DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT)) {
           break;
         }
-        histogramAdjust.add(group);
       }
     } else {
       histogramAdjust = histogram;
@@ -187,7 +187,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       HistogramGroup lastPlusOne = histogram.get(histogramAdjust.getGroups().size());
       long earlyStopHighWatermark = Long.parseLong(Utils.toDateTimeFormat(lastPlusOne.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
       log.info("Job {} will be stopped earlier. [LW : {}, early-stop HW : {}, expected HW : {}]", state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), earlyStopHighWatermark, expectedHighWatermark);
-      this.earlyStopped = true;
+      this.isEarlyStopped = true;
       expectedHighWatermark = earlyStopHighWatermark;
     } else {
       log.info("Job {} will be finished in a single run. [LW : {}, expected HW : {}]", state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), expectedHighWatermark);
@@ -197,7 +197,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         partition.getLowWatermark(), expectedHighWatermark);
     state.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
     state.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, specifiedPartitions);
-    state.setProp(Partitioner.IS_EARLY_STOP, earlyStopped);
+    state.setProp(Partitioner.IS_EARLY_STOPPED, isEarlyStopped);
 
     return super.generateWorkUnits(sourceEntity, state, previousWatermark);
   }
