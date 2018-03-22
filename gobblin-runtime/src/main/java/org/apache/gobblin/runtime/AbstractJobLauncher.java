@@ -888,7 +888,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   public boolean isEarlyStopped() {
-    return this.jobContext.getSource().isRetriggerRequired();
+    return this.jobContext.getSource().isEarlyStopped();
   }
 
   /**
