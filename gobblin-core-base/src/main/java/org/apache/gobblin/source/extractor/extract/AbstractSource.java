@@ -140,7 +140,8 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
     return this.extractFactory.getUniqueExtract(type, namespace, table);
   }
 
-  public boolean isRetriggerRequired() {
+  @Override
+  public boolean isEarlyStopped() {
     return false;
   }
 }
