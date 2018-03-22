@@ -118,7 +118,7 @@ public class SourceDecorator<S, D> implements WorkUnitStreamSource<S, D>, Decora
   }
 
   @Override
-  public boolean isRetriggerRequired() {
-    return this.source.isRetriggerRequired();
+  public boolean isEarlyStopped() {
+    return this.source.isEarlyStopped();
   }
 }

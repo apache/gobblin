@@ -84,8 +84,8 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   public static final boolean DEFAULT_USE_ALL_OBJECTS = false;
 
   private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
-  private static final String DYNAMIC_PROBING_TOTAL_RECORDS_LIMIT = "salesforce.dynamicProbingTotalRecordsLimit";
-  private static final long DYNAMIC_PROBING_DEFAULT_TOTAL_RECORDS_LIMIT = 250000 * 4;
+  private static final String EARLY_STOP_TOTAL_RECORDS_LIMIT = "salesforce.earlyStopTotalRecordsLimit";
+  private static final long DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT = 250000 * 4;
 
   private static final String ENABLE_DYNAMIC_PROBING = "salesforce.enableDynamicProbing";
   private static final String DYNAMIC_PROBING_LIMIT = "salesforce.dynamicProbingLimit";
@@ -125,7 +125,8 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     }
   }
 
-  public boolean isRetriggerRequired() {
+  @Override
+  public boolean isEarlyStopped() {
     return earlyStopped;
   }
 
@@ -156,6 +157,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     }
 
     Partitioner partitioner = new Partitioner(state);
+    if (isEarlyStopEnabled(state) && partitioner.isFullDump()) {
+      throw new UnsupportedOperationException("Early stop mode cannot work with full dump mode.");
+    }
+
     Partition partition = partitioner.getGlobalPartition(previousWatermark);
     Histogram histogram = getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
 
@@ -164,11 +169,11 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     Histogram histogramAdjust;
 
     // TODO: we should consider move this logic into getRefinedHistogram so that we can early terminate the search
-    if (partitioner.isEarlyStopEnabled()) {
+    if (isEarlyStopEnabled(state)) {
       histogramAdjust = new Histogram();
       for (HistogramGroup group : histogram.getGroups()) {
         if (histogramAdjust.getTotalRecordCount() + group.count > state
-            .getPropAsLong(DYNAMIC_PROBING_TOTAL_RECORDS_LIMIT, DYNAMIC_PROBING_DEFAULT_TOTAL_RECORDS_LIMIT)) {
+            .getPropAsLong(EARLY_STOP_TOTAL_RECORDS_LIMIT, DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT)) {
           break;
         }
         histogramAdjust.add(group);
@@ -194,6 +199,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     state.setProp(Partitioner.IS_EARLY_STOP, earlyStopped);
 
     return super.generateWorkUnits(sourceEntity, state, previousWatermark);
+  }
+
+  private boolean isEarlyStopEnabled (State state) {
+    return state.getPropAsBoolean(ConfigurationKeys.SOURCE_EARLY_STOP_ENABLED, ConfigurationKeys.DEFAULT_SOURCE_EARLY_STOP_ENABLED);
   }
 
   String generateSpecifiedPartitions(Histogram histogram, int minTargetPartitionSize, int maxPartitions, long lowWatermark,
@@ -567,10 +576,6 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     }
 
     HistogramGroup get(int idx) {
-      if (idx >= groups.size() || idx < 0) {
-        return null;
-      }
-
       return this.groups.get(idx);
     }
 
@@ -606,7 +611,6 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     } catch (RestApiProcessingException e) {
       throw Throwables.propagate(e);
     }
-
   }
 
   private static Set<SourceEntity> getSourceEntities(String response) {

@@ -100,7 +100,7 @@ public interface Source<S, D> {
    * proper workload, which can cause multiple runs after the initial run.
    * @return If the same job needs to be re-triggered
    */
-  public default boolean isRetriggerRequired() {
+  public default boolean isEarlyStopped() {
     return false;
   }
 }

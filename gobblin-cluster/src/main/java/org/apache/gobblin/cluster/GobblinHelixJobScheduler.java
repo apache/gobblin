@@ -31,6 +31,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
@@ -273,6 +274,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     new RetriggeringJobCallable(jobProps, jobListener).call();
   }
 
+  @Override
   public GobblinHelixJobLauncher buildJobLauncher(Properties jobProps)
       throws Exception {
     return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
@@ -287,6 +289,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       this.jobListener = jobListener;
     }
 
+    private boolean isRetriggeringEnabled() {
+      return PropertiesUtils.getPropAsBoolean(jobProps, ConfigurationKeys.JOB_RETRIGGERING_ENABLED, ConfigurationKeys.DEFAULT_JOB_RETRIGGERING_ENABLED);
+    }
+
     @Getter
     JobLauncher currentJobLauncher = null;
 
@@ -295,7 +301,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       try {
         while (true) {
           currentJobLauncher = buildJobLauncher(jobProps);
-          if (runJob(jobProps, jobListener, currentJobLauncher)) {
+          boolean isEarlyStopped = runJob(jobProps, jobListener, currentJobLauncher);
+          boolean isRetriggerEnabled = this.isRetriggeringEnabled();
+          if (isEarlyStopped && isRetriggerEnabled) {
             LOGGER.info("Job {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
           } else {
             break;

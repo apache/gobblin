@@ -477,12 +477,12 @@ public class JobScheduler extends AbstractIdleService {
     try (Closer closer = Closer.create()) {
       closer.register(jobLauncher).launchJob(jobListener);
       boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-      boolean needRegrigger = jobLauncher.isRetriggerRequired();
-      if (!needRegrigger && runOnce && this.scheduledJobs.containsKey(jobName)) {
+      boolean isEarlyStopped = jobLauncher.isEarlyStopped();
+      if (!isEarlyStopped && runOnce && this.scheduledJobs.containsKey(jobName)) {
         this.scheduler.getScheduler().deleteJob(this.scheduledJobs.remove(jobName));
       }
 
-      return needRegrigger;
+      return isEarlyStopped;
 
     } catch (Throwable t) {
       throw new JobException("Failed to launch and run job " + jobName, t);

@@ -88,6 +88,10 @@ public class ConfigurationKeys {
   /**
    * Job scheduler configuration properties.
    */
+  // Job retriggering
+  public static final String JOB_RETRIGGERING_ENABLED = "job.retriggering.enabled";
+  public static final String DEFAULT_JOB_RETRIGGERING_ENABLED = "true";
+
   // Job executor thread pool size
   public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
   public static final int DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = 5;
@@ -475,6 +479,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_COLUMN_NAME_CASE = "source.column.name.case";
   public static final String SOURCE_EARLY_STOP_ENABLED = "source.earlyStop.enabled";
   public static final boolean DEFAULT_SOURCE_EARLY_STOP_ENABLED = false;
+
   /**
    * Configuration properties used by the QueryBasedExtractor.
    */

@@ -205,10 +205,6 @@ public class Partitioner {
     List<String> watermarkPoints = state.getPropAsList(USER_SPECIFIED_PARTITIONS);
     boolean isEarlyStop = state.getPropAsBoolean(IS_EARLY_STOP);
 
-    if (isEarlyStop && isEarlyStopEnabled() && isFullDump()) {
-      throw new UnsupportedOperationException("We found early stop is required for this source, but full dump doesn't support this mode.");
-    }
-
     if (watermarkPoints == null || watermarkPoints.size() == 0 ) {
       LOG.info("There should be some partition points");
       long defaultWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
@@ -246,7 +242,7 @@ public class Partitioner {
         ExtractType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
 
     // If it is early stop, we should not remove upper bounds
-    if ((isFullDump() || isSnapshot(extractType)) && !(isEarlyStop && isEarlyStopEnabled())) {
+    if ((isFullDump() || isSnapshot(extractType)) && !isEarlyStop) {
       // The upper bounds can be removed for last work unit
       partitions.add(new Partition(lowWatermark, highWatermark, true, false));
     } else {
@@ -303,10 +299,6 @@ public class Partitioner {
     }
   }
 
-  public boolean isEarlyStopEnabled () {
-    return this.state.getPropAsBoolean(ConfigurationKeys.SOURCE_EARLY_STOP_ENABLED, ConfigurationKeys.DEFAULT_SOURCE_EARLY_STOP_ENABLED);
-  }
-
   /**
    * Get low water mark:
    *  (1) Use {@link ConfigurationKeys#SOURCE_QUERYBASED_START_VALUE} iff it is a full dump (or watermark override is enabled)
@@ -323,7 +315,7 @@ public class Partitioner {
       int deltaForNextWatermark) {
     long lowWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
 
-    if ((this.isFullDump() || this.isWatermarkOverride()) && !this.isEarlyStopEnabled()) {
+    if (this.isFullDump() || this.isWatermarkOverride()) {
       String timeZone =
           this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
       /*
