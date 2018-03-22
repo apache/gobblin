@@ -78,6 +78,7 @@ public class DataPublisherFactory<S extends ScopeType<S>>
       State state = key.getState();
       Class<? extends DataPublisher> dataPublisherClass =  (Class<? extends DataPublisher>) Class
           .forName(publisherClassName);
+      log.info("Creating data publisher with class {} in scope {}. ", publisherClassName, config.getScope().toString());
 
       DataPublisher publisher = DataPublisher.getInstance(dataPublisherClass, state);
 
@@ -97,6 +98,6 @@ public class DataPublisherFactory<S extends ScopeType<S>>
 
   @Override
   public S getAutoScope(SharedResourcesBroker<S> broker, ConfigView<S, DataPublisherKey> config) {
-    return broker.selfScope().getType().rootScope();
+    return broker.selfScope().getType();
   }
 }
