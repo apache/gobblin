@@ -107,11 +107,8 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   private static final Gson GSON = new Gson();
 
   @VisibleForTesting
-  SalesforceSource() {}
-
-  @VisibleForTesting
   SalesforceSource(LineageInfo lineageInfo) {
-    this.lineageInfo = Optional.of(lineageInfo);
+    this.lineageInfo = Optional.fromNullable(lineageInfo);
   }
 
   @Override

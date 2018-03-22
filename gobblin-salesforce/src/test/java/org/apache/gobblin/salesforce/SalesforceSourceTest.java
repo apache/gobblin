@@ -18,11 +18,6 @@ package org.apache.gobblin.salesforce;
 
 import java.util.List;
 
-import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
-import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
-import org.apache.gobblin.broker.gobblin_scopes.TaskScopeInstance;
-import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.dataset.DatasetDescriptor;
@@ -41,15 +36,6 @@ public class SalesforceSourceTest {
   @Test
   void testSourceLineageInfo() {
     SourceState sourceState = new SourceState();
-    SharedResourcesBroker<GobblinScopeTypes> instanceBroker = SharedResourcesBrokerFactory
-        .createDefaultTopLevelBroker(ConfigFactory.empty(), GobblinScopeTypes.GLOBAL.defaultScopeInstance());
-    SharedResourcesBroker<GobblinScopeTypes> jobBroker = instanceBroker
-        .newSubscopedBuilder(new JobScopeInstance("LineageEventTest", String.valueOf(System.currentTimeMillis())))
-        .build();
-    sourceState.setBroker(jobBroker);
-    LineageInfo lineageInfo = LineageInfo.getLineageInfo(sourceState.getBroker()).get();
-    SalesforceSource source = new SalesforceSource(lineageInfo);
-
     sourceState.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, "salesforce");
     sourceState.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, "snapshot_append");
     sourceState.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
@@ -58,21 +44,21 @@ public class SalesforceSourceTest {
 
     QueryBasedSource.SourceEntity sourceEntity = QueryBasedSource.SourceEntity.fromSourceEntityName("contacts");
 
-
+    SalesforceSource source = new SalesforceSource(new LineageInfo(ConfigFactory.empty()));
     List<WorkUnit> workUnits = source.generateWorkUnits(sourceEntity, sourceState, 20140213000000L);
-    Assert.assertTrue(workUnits.size() == 1);
+    Assert.assertEquals(workUnits.size(), 1);
 
     DatasetDescriptor sourceDataset = new DatasetDescriptor("salesforce", "contacts");
     Gson gson = new Gson();
-    Assert.assertTrue(gson.toJson(sourceDataset).equals(workUnits.get(0).getProp("gobblin.event.lineage.source")));
-    Assert.assertTrue(workUnits.get(0).getProp("gobblin.event.lineage.name").equals("contacts"));
+    Assert.assertEquals(gson.toJson(sourceDataset), workUnits.get(0).getProp("gobblin.event.lineage.source"));
+    Assert.assertEquals(workUnits.get(0).getProp("gobblin.event.lineage.name"), "contacts");
   }
 
   @Test
   void testGenerateSpecifiedPartitionFromSinglePointHistogram() {
     SalesforceSource.Histogram histogram = new SalesforceSource.Histogram();
     histogram.add(new SalesforceSource.HistogramGroup("2014-02-13-00:00:00", 10));
-    SalesforceSource source = new SalesforceSource();
+    SalesforceSource source = new SalesforceSource(null);
 
     long expectedHighWatermark = 20170407152123L;
     long lowWatermark = 20140213000000L;
@@ -89,7 +75,7 @@ public class SalesforceSourceTest {
       String[] groupInfo = group.split("::");
       histogram.add(new SalesforceSource.HistogramGroup(groupInfo[0], Integer.parseInt(groupInfo[1])));
     }
-    SalesforceSource source = new SalesforceSource();
+    SalesforceSource source = new SalesforceSource(null);
 
     long expectedHighWatermark = 20170407152123L;
     long lowWatermark = 20140213000000L;
