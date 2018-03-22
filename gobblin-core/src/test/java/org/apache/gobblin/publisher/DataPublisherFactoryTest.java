@@ -43,6 +43,9 @@ import org.apache.gobblin.capability.Capability;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 
+import lombok.Getter;
+
+
 /**
  * Tests for DataPublisherFactory
  */
@@ -76,29 +79,41 @@ public class DataPublisherFactoryTest {
     SharedResourcesBroker<SimpleScopeType> localBroker1 =
         broker.newSubscopedBuilder(new SimpleScope<>(SimpleScopeType.LOCAL, "local1")).build();
 
-    DataPublisher publisher1 = DataPublisherFactory.get(TestThreadsafeDataPublisher.class.getName(), null, broker);
-    DataPublisher publisher2 = DataPublisherFactory.get(TestThreadsafeDataPublisher.class.getName(), null, broker);
+    TestThreadsafeDataPublisher publisher1 = (TestThreadsafeDataPublisher)DataPublisherFactory.get(TestThreadsafeDataPublisher.class.getName(), null, broker);
+    TestThreadsafeDataPublisher publisher2 = (TestThreadsafeDataPublisher)DataPublisherFactory.get(TestThreadsafeDataPublisher.class.getName(), null, broker);
 
     // should get the same publisher
     Assert.assertEquals(publisher1, publisher2);
 
-    DataPublisher publisher3 =
-        localBroker1.getSharedResource(new DataPublisherFactory<>(),
+    TestThreadsafeDataPublisher publisher3 =
+        (TestThreadsafeDataPublisher)localBroker1.getSharedResource(new DataPublisherFactory<>(),
             new DataPublisherKey(TestThreadsafeDataPublisher.class.getName(), null));
 
-    // should get the same publisher
-    Assert.assertEquals(publisher2, publisher3);
+    // should not get the same publisher
+    Assert.assertNotEquals(publisher2, publisher3);
 
-    DataPublisher publisher4 =
-        localBroker1.getSharedResourceAtScope(new DataPublisherFactory<>(),
+    TestThreadsafeDataPublisher publisher4 =
+        (TestThreadsafeDataPublisher)localBroker1.getSharedResourceAtScope(new DataPublisherFactory<>(),
             new DataPublisherKey(TestThreadsafeDataPublisher.class.getName(), null), SimpleScopeType.LOCAL);
 
-    // should get a different publisher
-    Assert.assertNotEquals(publisher3, publisher4);
+    // should get the same publisher
+    Assert.assertEquals(publisher3, publisher4);
 
     // Check capabilities
     Assert.assertTrue(publisher1.supportsCapability(DataPublisher.REUSABLE, Collections.EMPTY_MAP));
     Assert.assertTrue(publisher1.supportsCapability(Capability.THREADSAFE, Collections.EMPTY_MAP));
+
+    // Check data publisher is not closed
+    Assert.assertFalse(publisher1.isClosed());
+    Assert.assertFalse(publisher2.isClosed());
+    Assert.assertFalse(publisher3.isClosed());
+    Assert.assertFalse(publisher4.isClosed());
+    broker.close();
+    // Check all publishers are closed
+    Assert.assertTrue(publisher1.isClosed());
+    Assert.assertTrue(publisher2.isClosed());
+    Assert.assertTrue(publisher3.isClosed());
+    Assert.assertTrue(publisher4.isClosed());
   }
 
   @Test()
@@ -143,6 +158,9 @@ public class DataPublisherFactoryTest {
 
 
   private static class TestNonThreadsafeDataPublisher extends DataPublisher {
+    @Getter
+    private boolean isClosed = false;
+
     public TestNonThreadsafeDataPublisher(State state) {
       super(state);
     }
@@ -161,6 +179,7 @@ public class DataPublisherFactoryTest {
 
     @Override
     public void close() throws IOException {
+      isClosed = true;
     }
 
     @Override
