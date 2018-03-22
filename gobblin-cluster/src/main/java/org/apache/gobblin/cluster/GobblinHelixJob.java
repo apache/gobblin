@@ -17,15 +17,11 @@
 
 package org.apache.gobblin.cluster;
 
-import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.hadoop.fs.Path;
-import org.apache.helix.HelixManager;
 
 import org.quartz.InterruptableJob;
 import org.quartz.Job;
@@ -34,8 +30,6 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
@@ -56,24 +50,18 @@ public class GobblinHelixJob extends BaseGobblinJob implements InterruptableJob 
   @Override
   public void executeImpl(JobExecutionContext context) throws JobExecutionException {
     JobDataMap dataMap = context.getJobDetail().getJobDataMap();
-    ConcurrentHashMap runningMap = (ConcurrentHashMap)dataMap.get(GobblinHelixJobScheduler.JOB_RUNNING_MAP);
     final JobScheduler jobScheduler = (JobScheduler) dataMap.get(JobScheduler.JOB_SCHEDULER_KEY);
     // the properties may get mutated during job execution and the scheduler reuses it for the next round of scheduling,
     // so clone it
     final Properties jobProps = (Properties)((Properties) dataMap.get(JobScheduler.PROPERTIES_KEY)).clone();
     final JobListener jobListener = (JobListener) dataMap.get(JobScheduler.JOB_LISTENER_KEY);
-    HelixManager helixManager = (HelixManager) dataMap.get(GobblinHelixJobScheduler.HELIX_MANAGER_KEY);
-    Path appWorkDir = (Path) dataMap.get(GobblinHelixJobScheduler.APPLICATION_WORK_DIR_KEY);
-    @SuppressWarnings("unchecked")
-    List<? extends Tag<?>> eventMetadata = (List<? extends Tag<?>>) dataMap.get(GobblinHelixJobScheduler.METADATA_TAGS);
 
     try {
-      final JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, helixManager, appWorkDir, eventMetadata, runningMap);
       if (Boolean.valueOf(jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD,
               Boolean.toString(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT)))) {
-        jobScheduler.runJob(jobProps, jobListener, jobLauncher);
+        jobScheduler.runJob(jobProps, jobListener);
       } else {
-        cancellable = jobScheduler.scheduleJobImmediately(jobProps, jobListener, jobLauncher);
+        cancellable = jobScheduler.scheduleJobImmediately(jobProps, jobListener);
       }
     } catch (Throwable t) {
       throw new JobExecutionException(t);
