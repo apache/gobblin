@@ -176,6 +176,20 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     return basicDataSource;
   }
 
+  /**
+   * return an identifier for the data source based on the configuration
+   * @param config configuration
+   * @return a {@link String} to identify the data source
+   */
+  public static String getDataSourceId(Config config) {
+    PasswordManager passwordManager = PasswordManager.getInstance(ConfigUtils.configToProperties(config));
+
+    return ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
+        ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER) + "::"
+        + config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY) + "::"
+        + passwordManager.readPassword(config.getString(ConfigurationKeys.STATE_STORE_DB_USER_KEY));
+  }
+
   @Override
   public boolean create(String storeName) throws IOException {
     /* nothing to do since state will be stored as a new row in a DB table that has been validated */

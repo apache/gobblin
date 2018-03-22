@@ -16,25 +16,29 @@
  */
 package org.apache.gobblin.metastore;
 
+import org.apache.commons.dbcp.BasicDataSource;
+
 import com.typesafe.config.Config;
+
 import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
-import java.util.Properties;
-import org.apache.commons.dbcp.BasicDataSource;
 
 @Alias("mysql")
 public class MysqlStateStoreFactory implements StateStore.Factory {
   @Override
   public <T extends State> StateStore<T> createStateStore(Config config, Class<T> stateClass) {
-    BasicDataSource basicDataSource = MysqlStateStore.newDataSource(config);
     String stateStoreTableName = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
     boolean compressedValues = ConfigUtils.getBoolean(config, ConfigurationKeys.STATE_STORE_COMPRESSED_VALUES_KEY,
             ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES);
 
     try {
+      BasicDataSource basicDataSource = MysqlDataSourceFactory.get(config,
+          SharedResourcesBrokerFactory.getImplicitBroker());
+
       return new MysqlStateStore(basicDataSource, stateStoreTableName, compressedValues, stateClass);
     } catch (Exception e) {
       throw new RuntimeException("Failed to create MysqlStateStore with factory", e);
