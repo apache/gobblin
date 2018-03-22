@@ -17,6 +17,12 @@
 
 package org.apache.gobblin.source.extractor.extract;
 
+/**
+ * Different extract types
+ */
 public enum ExtractType {
-  SNAPSHOT, APPEND_DAILY, APPEND_HOURLY, APPEND_BATCH
+  SNAPSHOT,           // Used iff user wants highwatermark to be set to latest.
+  APPEND_DAILY,       // Used iff user wants highwatermark to be set to a fixed point, like CURRENTDATE - <backoff days>.
+  APPEND_HOURLY,      // Used iff user wants highwatermark to be set to a fixed point, like CURRENTHOUR - <backoff hours>.
+  APPEND_BATCH        // <Please document this>
 }
