@@ -85,7 +85,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
   private static final String EARLY_STOP_TOTAL_RECORDS_LIMIT = "salesforce.earlyStopTotalRecordsLimit";
-  private static final long DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT = 250000 * 4;
+  private static final long DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT = 5000;
 
   private static final String ENABLE_DYNAMIC_PROBING = "salesforce.enableDynamicProbing";
   private static final String DYNAMIC_PROBING_LIMIT = "salesforce.dynamicProbingLimit";
@@ -186,7 +186,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     if (histogramAdjust.getGroups().size() < histogram.getGroups().size()) {
       HistogramGroup lastPlusOne = histogram.get(histogramAdjust.getGroups().size());
       expectedHighWatermark = Long.parseLong(Utils.toDateTimeFormat(lastPlusOne.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
-      log.info("Terminated earlier with high watermark: " + expectedHighWatermark);
+      log.info("Terminated earlier with low watermark [{}] and high watermark [{}]", partition.getLowWatermark(), expectedHighWatermark);
       this.earlyStopped = true;
     }
 
@@ -499,7 +499,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     // exchange the first histogram group key with the global low watermark to ensure that the low watermark is captured
     // in the range of generated partitions
-    HistogramGroup firstGroup = histogram.getGroups().get(0);
+    HistogramGroup firstGroup = histogram.get(0);
     Date lwmDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
     histogram.getGroups().set(0, new HistogramGroup(Utils.epochToDate(lwmDate.getTime(), SECONDS_FORMAT),
         firstGroup.getCount()));

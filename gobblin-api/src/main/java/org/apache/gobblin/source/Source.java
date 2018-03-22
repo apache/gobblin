@@ -98,7 +98,7 @@ public interface Source<S, D> {
   /**
    * Instead of handling all {@link WorkUnit}s in one run, some {@link Source} may choose to stop early in order to handle the
    * proper workload, which can cause multiple runs after the initial run.
-   * @return If the same job needs to be re-triggered
+   * @return If the same job has early stopped
    */
   public default boolean isEarlyStopped() {
     return false;
