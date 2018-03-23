@@ -58,7 +58,7 @@ public class SalesforceSourceTest {
   void testGenerateSpecifiedPartitionFromSinglePointHistogram() {
     SalesforceSource.Histogram histogram = new SalesforceSource.Histogram();
     histogram.add(new SalesforceSource.HistogramGroup("2014-02-13-00:00:00", 10));
-    SalesforceSource source = new SalesforceSource(null);
+    SalesforceSource source = new SalesforceSource();
 
     long expectedHighWatermark = 20170407152123L;
     long lowWatermark = 20140213000000L;
@@ -75,7 +75,7 @@ public class SalesforceSourceTest {
       String[] groupInfo = group.split("::");
       histogram.add(new SalesforceSource.HistogramGroup(groupInfo[0], Integer.parseInt(groupInfo[1])));
     }
-    SalesforceSource source = new SalesforceSource(null);
+    SalesforceSource source = new SalesforceSource();
 
     long expectedHighWatermark = 20170407152123L;
     long lowWatermark = 20140213000000L;
