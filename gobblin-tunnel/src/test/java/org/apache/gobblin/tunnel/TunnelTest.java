@@ -53,7 +53,7 @@ import static org.testng.Assert.assertTrue;
  *
  * @author navteniev@linkedin.com
  */
-@Test(groups = { "gobblin.tunnel", "disabledOnTravis" })
+@Test(enabled=false, groups = { "gobblin.tunnel", "disabledOnTravis" })
 public class TunnelTest {
 
   private ClientAndServer mockServer;
@@ -76,7 +76,7 @@ public class TunnelTest {
     mockServer.reset();
   }
 
-  @Test
+  @Test (enabled=false)
   public void mustBuildTunnelAndStartAcceptingConnections()
       throws Exception {
     Tunnel tunnel = Tunnel.build("example.org", 80, "localhost", PORT);
@@ -89,7 +89,7 @@ public class TunnelTest {
     }
   }
 
-  @Test
+  @Test (enabled=false)
   public void mustHandleClientDisconnectingWithoutClosingTunnel()
       throws Exception {
     mockExample();
@@ -109,7 +109,7 @@ public class TunnelTest {
     }
   }
 
-  @Test
+  @Test (enabled=false)
   public void mustHandleConnectionToExternalResource()
       throws Exception {
 
@@ -125,7 +125,7 @@ public class TunnelTest {
     }
   }
 
-  @Test
+  @Test (enabled=false)
   public void mustHandleMultipleConnections()
       throws Exception {
     mockExample();
@@ -170,7 +170,7 @@ public class TunnelTest {
     }
   }
 
-  @Test(expectedExceptions = SocketException.class)
+  @Test(enabled=false, expectedExceptions = SocketException.class)
   public void mustRefuseConnectionWhenProxyIsUnreachable()
       throws Exception {
 
@@ -185,7 +185,7 @@ public class TunnelTest {
     }
   }
 
-  @Test(expectedExceptions = SocketException.class)
+  @Test(enabled=false, expectedExceptions = SocketException.class)
   public void mustRefuseConnectionWhenProxyRefuses() throws Exception{
     mockServer.when(HttpRequest.request().withMethod("CONNECT").withPath("www.us.apache.org:80"))
         .respond(HttpResponse.response().withStatusCode(403));
@@ -201,7 +201,7 @@ public class TunnelTest {
     }
   }
 
-  @Test(expectedExceptions = SocketException.class)
+  @Test(enabled=false, expectedExceptions = SocketException.class)
   public void mustRefuseConnectionWhenProxyTimesOut() throws Exception{
     mockServer.when(HttpRequest.request().withMethod("CONNECT").withPath("www.us.apache.org:80"))
         .respond(HttpResponse.response().withDelay(TimeUnit.SECONDS,2).withStatusCode(200));

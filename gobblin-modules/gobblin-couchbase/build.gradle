@@ -52,8 +52,13 @@ task installTestDependencies(type:Exec) {
   commandLine './scripts/install_test_deps.sh'
 }
 
+task uninstallTestDependencies(type:Exec) {
+  workingDir "${project.rootDir}/gobblin-modules/gobblin-couchbase/"
+  commandLine './scripts/uninstall_test.deps.sh'
+}
 
 test.dependsOn installTestDependencies
+test.finalizedBy uninstallTestDependencies
 
 
 configurations {
