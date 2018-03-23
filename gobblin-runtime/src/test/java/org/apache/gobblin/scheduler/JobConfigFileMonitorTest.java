@@ -51,7 +51,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  *
  * @author Yinan Li
  */
-@Test(groups = {"gobblin.scheduler"})
+@Test(enabled=false, groups = {"gobblin.scheduler"})
 public class JobConfigFileMonitorTest {
 
   private static final String JOB_CONFIG_FILE_DIR = "gobblin-test/resource/job-conf";
@@ -93,7 +93,7 @@ public class JobConfigFileMonitorTest {
     this.serviceManager.startAsync().awaitHealthy(10, TimeUnit.SECONDS);;
   }
 
-  @Test
+  @Test (enabled=false)
   public void testAddNewJobConfigFile() throws Exception {
     final Logger log = LoggerFactory.getLogger("testAddNewJobConfigFile");
     log.info("testAddNewJobConfigFile: start");
@@ -124,7 +124,7 @@ public class JobConfigFileMonitorTest {
     log.info("testAddNewJobConfigFile: end");
   }
 
-  @Test(dependsOnMethods = {"testAddNewJobConfigFile"})
+  @Test(enabled=false, dependsOnMethods = {"testAddNewJobConfigFile"})
   public void testChangeJobConfigFile()
       throws Exception {
     final Logger log = LoggerFactory.getLogger("testChangeJobConfigFile");
@@ -158,7 +158,7 @@ public class JobConfigFileMonitorTest {
     log.info("testChangeJobConfigFile: end");
   }
 
-  @Test(dependsOnMethods = {"testChangeJobConfigFile"})
+  @Test(enabled=false, dependsOnMethods = {"testChangeJobConfigFile"})
   public void testUnscheduleJob()
       throws Exception {
     final Logger log = LoggerFactory.getLogger("testUnscheduleJob");
