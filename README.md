@@ -31,11 +31,11 @@ Make sure that you download it to gradle/wrapper directory.
 2. Download gradle-wrapper.jar (version 2.13) and place it in the gradle/wrapper folder. See 'Instructions to download gradle wrapper' above.
 3. Skip tests and build the distribution: 
 Run `./gradlew build -x findbugsMain -x test -x rat -x checkstyleMain` 
-The distribution will be created in build/gobblin-distribution/libs directory.
+The distribution will be created in build/gobblin-distribution/distributions directory.
 (or)
 3. Run tests and build the distribution (requires Maven): 
 Run `./gradlew build` 
-The distribution will be created in build/gobblin-distribution/libs directory.
+The distribution will be created in build/gobblin-distribution/distributions directory.
 
 # Quick Links
 
