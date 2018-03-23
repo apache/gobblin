@@ -62,7 +62,7 @@ public class TestStressTestingSource {
     }
   }
 
-  @Test
+  @Test (enabled=false)
   public void testComputeTime() throws DataRecordException, IOException {
     final int MEM_ALLOC_BYTES = 100;
     final int NUM_WORK_UNITS = 1;
@@ -97,7 +97,7 @@ public class TestStressTestingSource {
         "Time spent " + timeSpentMicro);
   }
 
-  @Test
+  @Test (enabled=false)
   public void testSleepTime() throws DataRecordException, IOException {
     final int MEM_ALLOC_BYTES = 100;
     final int NUM_WORK_UNITS = 1;
@@ -132,7 +132,7 @@ public class TestStressTestingSource {
         "Time spent " + timeSpentMicro);
   }
 
-  @Test
+  @Test (enabled=false)
   public void testRunDuration() throws DataRecordException, IOException {
     final int MEM_ALLOC_BYTES = 100;
     final int NUM_WORK_UNITS = 1;
