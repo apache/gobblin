@@ -236,6 +236,7 @@ rat {
     '**/default_dataset_urn',
     '**/metastore_db',
     '**/grok/**',
+    '**/mock-couchbase/**',
     '**/mainGeneratedRest/**',
     '**/mainGeneratedDataTemplate/**',
     '**/gen-java/**',
