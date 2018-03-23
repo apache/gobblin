@@ -110,6 +110,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   private static final Gson GSON = new Gson();
   private boolean isEarlyStopped = false;
 
+  public SalesforceSource() {
+    this.lineageInfo = Optional.absent();
+  }
+
   @VisibleForTesting
   SalesforceSource(LineageInfo lineageInfo) {
     this.lineageInfo = Optional.fromNullable(lineageInfo);
