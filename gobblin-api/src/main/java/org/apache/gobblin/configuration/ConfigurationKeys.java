@@ -520,6 +520,8 @@ public class ConfigurationKeys {
   public static final String ENABLE_DELIMITED_IDENTIFIER = "enable.delimited.identifier";
   public static final boolean DEFAULT_ENABLE_DELIMITED_IDENTIFIER = false;
 
+  public static final String SQL_SERVER_CONNECTION_PARAMETERS = "source.querybased.sqlserver.connectionParameters";
+
   /**
    * Configuration properties used by the FileBasedExtractor
    */
