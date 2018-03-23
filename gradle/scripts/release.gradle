@@ -60,11 +60,9 @@ task sourceRelease(type: Tar, dependsOn: prepare_release_config) {
         exclude "gradle.properties"
         exclude '**/build'
         exclude '.gradle'
-        // excluding gradlew and related jar because of: https://issues.apache.org/jira/browse/LEGAL-288
-        exclude 'gradlew'
-        exclude 'gradlew.bat'
+        // including gradlew but excluding related jar because of: https://issues.apache.org/jira/browse/LEGAL-288
+        // instructions for downloading the gradle-wrapper.jar have been added to the README
         exclude 'gradle/wrapper/gradle-wrapper.jar'
-        exclude 'gradle/wrapper/gradle-wrapper.properties'
         exclude '.github'
         exclude 'maven-sonatype'
         exclude 'travis'
