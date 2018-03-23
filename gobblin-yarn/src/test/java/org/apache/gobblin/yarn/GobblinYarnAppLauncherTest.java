@@ -190,7 +190,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
    * application successfully. This works fine on local machine though. So disabling this and the test
    * below that depends on it on Travis-CI.
    */
-  @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
+  @Test(enabled=false, groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
   public void testSetupAndSubmitApplication() throws Exception {
     this.gobblinYarnAppLauncher.startYarnClient();
     this.applicationId = this.gobblinYarnAppLauncher.setupAndSubmitApplication();
@@ -215,7 +215,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         YarnApplicationState.RUNNING, "Application may have aborted");
   }
 
-  @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testSetupAndSubmitApplication")
+  @Test(enabled=false, groups = { "disabledOnTravis" }, dependsOnMethods = "testSetupAndSubmitApplication")
   public void testGetReconnectableApplicationId() throws Exception {
     Assert.assertEquals(this.gobblinYarnAppLauncher.getReconnectableApplicationId().get(), this.applicationId);
     this.yarnClient.killApplication(this.applicationId);

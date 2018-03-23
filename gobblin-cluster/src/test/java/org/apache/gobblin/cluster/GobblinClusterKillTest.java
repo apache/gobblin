@@ -56,7 +56,7 @@ import org.testng.annotations.Test;
  */
 // The kill tests are unreliable on Travis
 // Disabled GobblinClusterKillTest until reliability improves
-@Test(groups = {"disabledOnTravis"}, singleThreaded = true)
+@Test(enabled=false, groups = {"disabledOnTravis"}, singleThreaded = true)
 public class GobblinClusterKillTest {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinClusterKillTest.class);
   public static final String CLASS_NAME_BASED_PATH = "org/apache/gobblin/util/test/HelloWorldSource";

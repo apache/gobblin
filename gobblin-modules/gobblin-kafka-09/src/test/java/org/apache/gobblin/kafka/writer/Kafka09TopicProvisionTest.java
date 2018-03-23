@@ -66,7 +66,7 @@ public class Kafka09TopicProvisionTest {
 	  _kafkaTestHelper.stopCluster();
   }
 
-  @Test
+  @Test (enabled=false)
   public void testCluster()
 	throws IOException, InterruptedException, KeeperException {
 	  int clusterCount = _kafkaTestHelper.getClusterCount();
@@ -87,7 +87,7 @@ public class Kafka09TopicProvisionTest {
       Assert.assertTrue(_kafkaTestHelper.getKafkaBrokerPortList().equals(brokerPortList));
   }
    
-  @Test
+  @Test (enabled=false)
   public void testTopicPartitionCreationCount()
       throws IOException, InterruptedException {
     String topic = "topicPartition4";
@@ -129,7 +129,7 @@ public class Kafka09TopicProvisionTest {
 
   }
   
-  @Test
+  @Test (enabled=false)
   public void testLiveTopicPartitionCreationCount()
       throws IOException, InterruptedException {
 	String liveClusterCount = System.getProperty("live.cluster.count");

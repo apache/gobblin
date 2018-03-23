@@ -41,7 +41,7 @@ public class GPGFileDecryptorTest {
   private static final String expectedPasswdFileContent = "This is a password based encryption file.\n";
   private static final String expectedKeyFileContent = "This is a key based encryption file.\n";
 
-  @Test
+  @Test (enabled=false)
   public void keyBasedDecryptionTest() throws IOException {
     try(InputStream is = GPGFileDecryptor.decryptFile(
         FileUtils.openInputStream(
@@ -50,7 +50,7 @@ public class GPGFileDecryptorTest {
     }
   }
 
-  @Test
+  @Test (enabled=false)
   public void passwordBasedDecryptionTest() throws IOException {
     try(InputStream is = GPGFileDecryptor.decryptFile(
         FileUtils.openInputStream(new File(fileDir, passwdBasedFile)), passPhrase)) {
