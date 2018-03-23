@@ -58,13 +58,9 @@ public class MysqlSource extends QueryBasedSource<JsonArray, JsonElement> {
   }
 
   protected void addLineageSourceInfo(SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
-    String host = sourceState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
-    String port = sourceState.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
     String database = sourceState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
-    String connectionUrl = "jdbc:mysql://" + host.trim() + ":" + port + "/" + database.trim();
     DatasetDescriptor source =
         new DatasetDescriptor(DatasetConstants.PLATFORM_MYSQL, database + "." + entity.getSourceEntityName());
-    source.addMetadata(DatasetConstants.CONNECTION_URL, connectionUrl);
     if (lineageInfo.isPresent()) {
       lineageInfo.get().setSource(source, workUnit);
     }
