@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.password;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -54,6 +55,11 @@ import org.apache.gobblin.configuration.State;
 /**
  * A class for managing password encryption and decryption. To encrypt or decrypt a password, a master password
  * should be provided which is used as encryption or decryption key.
+ * Encryption is done with the single key provided.
+ * Decryption is tried with multiple keys to facilitate key rotation.
+ * If the master key file provided is /var/tmp/masterKey.txt, decryption is tried with keys at
+ * /var/tmp/masterKey.txt, /var/tmp/masterKey.txt.1, /var/tmp/masterKey.txt.2, and so on and so forth till
+ * either any such file does not exist or {@code this.NUMBER_OF_ENCRYPT_KEYS} attempts have been made.
  *
  * @author Ziyang Liu
  */
@@ -64,34 +70,42 @@ public class PasswordManager {
   private static final long CACHE_SIZE = 100;
   private static final long CACHE_EXPIRATION_MIN = 10;
   private static final Pattern PASSWORD_PATTERN = Pattern.compile("ENC\\((.*)\\)");
+  private int NUMBER_OF_ENCRYPT_KEYS;
+  private FileSystem fs;
+  private String masterPasswordFile;
+  private boolean useStrongEncryptor;
 
-  private static final LoadingCache<Map.Entry<Optional<String>, Boolean>, PasswordManager> CACHED_INSTANCES =
+  private static final LoadingCache<Map.Entry<State, Boolean>, PasswordManager> CACHED_INSTANCES =
       CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).expireAfterAccess(CACHE_EXPIRATION_MIN, TimeUnit.MINUTES)
-          .build(new CacheLoader<Map.Entry<Optional<String>, Boolean>, PasswordManager>() {
-
+          .build(new CacheLoader<Map.Entry<State, Boolean>, PasswordManager>() {
             @Override
-            public PasswordManager load(Map.Entry<Optional<String>, Boolean> cacheKey) {
+            public PasswordManager load(Map.Entry<State, Boolean> cacheKey) {
               return new PasswordManager(cacheKey.getKey(), cacheKey.getValue());
             }
           });
 
-  private Optional<TextEncryptor> encryptor;
+  private Optional<TextEncryptor> encryptor = Optional.absent();
 
-  private PasswordManager(Optional<String> masterPassword, boolean useStrongEncryptor) {
-    if (masterPassword.isPresent()) {
-      this.encryptor = useStrongEncryptor ? Optional.of((TextEncryptor) new StrongTextEncryptor())
-          : Optional.of((TextEncryptor) new BasicTextEncryptor());
-      try {
-
-        // setPassword() needs to be called via reflection since the TextEncryptor interface doesn't have this method.
-        this.encryptor.get().getClass().getMethod("setPassword", String.class).invoke(this.encryptor.get(),
-            masterPassword.get());
-      } catch (Exception e) {
-        LOG.error("Failed to set master password for encryptor", e);
-        this.encryptor = Optional.absent();
+  private PasswordManager(State state, boolean useStrongEncryptor) {
+    try {
+      this.NUMBER_OF_ENCRYPT_KEYS = state.getPropAsInt(ConfigurationKeys.NUMBER_OF_ENCRYPT_KEYS, ConfigurationKeys.DEFAULT_NUMBER_OF_MASTER_PASSWORDS);
+      this.useStrongEncryptor = useStrongEncryptor;
+      if (state.contains(ConfigurationKeys.ENCRYPT_KEY_LOC)) {
+        this.masterPasswordFile = state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC);
+        if (state.contains(ConfigurationKeys.ENCRYPT_KEY_FS_URI)) {
+          this.fs = FileSystem.get(URI.create(state.getProp(ConfigurationKeys.ENCRYPT_KEY_FS_URI)), new Configuration());
+        } else {
+          this.fs = new Path(masterPasswordFile).getFileSystem(new Configuration());
+        }
+        if (!this.fs.exists(new Path(masterPasswordFile)) || fs.getFileStatus(new Path(masterPasswordFile)).isDirectory()) {
+          LOG.warn(masterPasswordFile + " does not exist or is not a file. Cannot decrypt any encrypted password.");
+          this.encryptor = Optional.absent();
+        } else {
+          this.encryptor = useStrongEncryptor ? Optional.of((TextEncryptor) new StrongTextEncryptor()) : Optional.of((TextEncryptor) new BasicTextEncryptor());
+        }
       }
-    } else {
-      this.encryptor = Optional.absent();
+    } catch (IOException e) {
+      LOG.error("Failed to instantiate encryptor", e);
     }
   }
 
@@ -100,8 +114,7 @@ public class PasswordManager {
    */
   public static PasswordManager getInstance() {
     try {
-      Optional<String> absent = Optional.absent();
-      return CACHED_INSTANCES.get(new AbstractMap.SimpleEntry<>(absent, shouldUseStrongEncryptor(new State())));
+      return CACHED_INSTANCES.get(new AbstractMap.SimpleEntry<>(null, shouldUseStrongEncryptor(new State())));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -113,7 +126,7 @@ public class PasswordManager {
   public static PasswordManager getInstance(State state) {
     try {
       return CACHED_INSTANCES
-          .get(new AbstractMap.SimpleEntry<>(getMasterPassword(state), shouldUseStrongEncryptor(state)));
+          .get(new AbstractMap.SimpleEntry<>(state, shouldUseStrongEncryptor(state)));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -130,9 +143,12 @@ public class PasswordManager {
    * Get an instance. The master password file is given by masterPwdLoc.
    */
   public static PasswordManager getInstance(Path masterPwdLoc) {
+    State state = new State();
+    state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, masterPwdLoc.toString());
+    state.setProp(ConfigurationKeys.ENCRYPT_KEY_FS_URI, masterPwdLoc.toUri());
     try {
       return CACHED_INSTANCES
-          .get(new AbstractMap.SimpleEntry<>(getMasterPassword(masterPwdLoc), shouldUseStrongEncryptor(new State())));
+          .get(new AbstractMap.SimpleEntry<>(state, shouldUseStrongEncryptor(new State())));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -160,7 +176,7 @@ public class PasswordManager {
   }
 
   /**
-   * Decrypt an encrypted password. A master password must have been provided in the constructor.
+   * Decrypt an encrypted password. A master password file must have been provided in the constructor.
    * @param encrypted An encrypted password.
    * @return The decrypted password.
    */
@@ -168,16 +184,36 @@ public class PasswordManager {
     Preconditions.checkArgument(this.encryptor.isPresent(),
         "A master password needs to be provided for decrypting passwords.");
 
-    try {
-      return this.encryptor.get().decrypt(encrypted);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to decrypt password " + encrypted, e);
-    }
+    int i = 1;
+    String suffix = "";
+    do {
+      try (Closer closer = Closer.create()) {
+        if (fs.getFileStatus(new Path(masterPasswordFile + suffix)).isDirectory()) {
+          continue;
+        }
+        InputStream in = closer.register(fs.open(new Path(masterPasswordFile + suffix)));
+        String masterPassword = new LineReader(new InputStreamReader(in, Charsets.UTF_8)).readLine();
+        this.encryptor = useStrongEncryptor ? Optional.of((TextEncryptor) new StrongTextEncryptor())
+            : Optional.of((TextEncryptor) new BasicTextEncryptor());
+        // setPassword() needs to be called via reflection since the TextEncryptor interface doesn't have this method.
+        this.encryptor.get().getClass().getMethod("setPassword", String.class).invoke(this.encryptor.get(), masterPassword);
+        return this.encryptor.get().decrypt(encrypted);
+      } catch (FileNotFoundException fnf) {
+        throw new RuntimeException("Master password file " + masterPasswordFile + suffix + " not found.");
+      }
+      catch (Exception e) {
+        LOG.warn("Failed to decrypt secret {} with master password file {} ", encrypted, masterPasswordFile + suffix, e);
+        suffix = "." + String.valueOf(i);
+      }
+    } while (i++ < NUMBER_OF_ENCRYPT_KEYS);
+    LOG.error("All {} decrypt attempt(s) failed.", i);
+    throw new RuntimeException("Failed to decrypt password ENC(" + encrypted + ")");
   }
 
   /**
-   * Decrypt a password if it is an encrypted password (in the form of ENC(.*)), and a master password has been
-   * provided in the constructor. Otherwise, return the password as is.
+   * Decrypt a password if it is an encrypted password (in the form of ENC(.*))
+   * and a master password file has been provided in the constructor.
+   * Otherwise, return the password as is.
    */
   public String readPassword(String password) {
     if (password == null || !this.encryptor.isPresent()) {
