@@ -226,25 +226,6 @@ public class PasswordManager {
     return password;
   }
 
-  private static Optional<String> getMasterPassword(State state) {
-    if (!state.contains(ConfigurationKeys.ENCRYPT_KEY_LOC)) {
-      LOG.warn(String.format("Property %s not set. Cannot decrypt any encrypted password.",
-          ConfigurationKeys.ENCRYPT_KEY_LOC));
-      return Optional.absent();
-    }
-    try {
-      if (state.contains(ConfigurationKeys.ENCRYPT_KEY_FS_URI)) {
-        FileSystem fs =
-            FileSystem.get(URI.create(state.getProp(ConfigurationKeys.ENCRYPT_KEY_FS_URI)), new Configuration());
-        return getMasterPassword(fs, new Path(state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC)));
-      }
-      return getMasterPassword(new Path(state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC)));
-    } catch (Exception e) {
-      throw new RuntimeException(
-          "Failed to obtain master password from " + state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC), e);
-    }
-  }
-
   public static Optional<String> getMasterPassword(Path masterPasswordFile) {
     try {
       FileSystem fs = masterPasswordFile.getFileSystem(new Configuration());
