@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.gobblin.source.Source;
 import org.apache.hadoop.fs.Path;
 
 import org.quartz.CronScheduleBuilder;
@@ -457,7 +458,7 @@ public class JobScheduler extends AbstractIdleService {
    * @param jobProps Job configuration properties
    * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
    * @param jobLauncher a {@link JobLauncher} object used to launch the job to run
-   * @return If current job needs retriggering
+   * @return If current job is a stop-early job based on {@link Source#isEarlyStopped()}
    * @throws JobException when there is anything wrong with running the job
    */
   public boolean runJob(Properties jobProps, JobListener jobListener, JobLauncher jobLauncher)

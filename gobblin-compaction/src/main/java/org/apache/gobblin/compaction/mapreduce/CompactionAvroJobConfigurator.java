@@ -41,7 +41,6 @@ import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.commons.math3.primes.Primes;
-import org.apache.gobblin.writer.WriterOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
@@ -368,7 +367,7 @@ public class CompactionAvroJobConfigurator {
 
   private static boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
     return path.toString().contains("_temporary") || failedEvents.stream()
-        .anyMatch(event -> path.toString().contains(Path.SEPARATOR + event.getTaskAttemptId().toString() + Path.SEPARATOR));;
+        .anyMatch(event -> path.toString().contains(Path.SEPARATOR + event.getTaskAttemptId().toString() + Path.SEPARATOR));
   }
 
   /**
