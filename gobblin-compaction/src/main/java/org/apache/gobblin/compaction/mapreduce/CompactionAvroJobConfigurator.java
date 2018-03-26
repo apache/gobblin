@@ -367,21 +367,20 @@ public class CompactionAvroJobConfigurator {
   }
 
   private static boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
-    return failedEvents.stream()
-        .anyMatch(event -> path.toString().contains(Path.SEPARATOR + event.getTaskAttemptId().toString() + Path.SEPARATOR));
+    return path.toString().contains("_temporary");
   }
 
   /**
-   * Remove all bad paths caused by speculative execution
+   * Get good files
    * The problem happens when speculative task attempt initialized but then killed in the middle of processing.
    * Some partial file was generated at {tmp_output}/_temporary/1/_temporary/attempt_xxx_xxx/part-m-xxxx.avro,
    * without being committed to its final destination at {tmp_output}/part-m-xxxx.avro.
    *
    * @param job Completed MR job
    * @param fs File system that can handle file system
-   * @return all successful paths
+   * @return all successful files that has been committed
    */
-  public static List<Path> removeFailedPaths(Job job, Path tmpPath, FileSystem fs) throws IOException {
+  public static List<Path> getGoodFiles(Job job, Path tmpPath, FileSystem fs) throws IOException {
     List<TaskCompletionEvent> failedEvents = CompactionAvroJobConfigurator.getUnsuccessfulTaskCompletionEvent(job);
 
     List<Path> allFilePaths = DatasetHelper.getApplicableFilePaths(fs, tmpPath, Lists.newArrayList("avro"));
