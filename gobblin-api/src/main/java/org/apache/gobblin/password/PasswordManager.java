@@ -23,6 +23,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -70,43 +72,69 @@ public class PasswordManager {
   private static final long CACHE_SIZE = 100;
   private static final long CACHE_EXPIRATION_MIN = 10;
   private static final Pattern PASSWORD_PATTERN = Pattern.compile("ENC\\((.*)\\)");
-  private int NUMBER_OF_ENCRYPT_KEYS;
+  private final boolean useStrongEncryptor;
   private FileSystem fs;
-  private String masterPasswordFile;
-  private boolean useStrongEncryptor;
+  private List<String> masterPasswords;
 
-  private static final LoadingCache<Map.Entry<State, Boolean>, PasswordManager> CACHED_INSTANCES =
+  private static final LoadingCache<CachedInstanceKey, PasswordManager> CACHED_INSTANCES =
       CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).expireAfterAccess(CACHE_EXPIRATION_MIN, TimeUnit.MINUTES)
-          .build(new CacheLoader<Map.Entry<State, Boolean>, PasswordManager>() {
+          .build(new CacheLoader<CachedInstanceKey, PasswordManager>() {
             @Override
-            public PasswordManager load(Map.Entry<State, Boolean> cacheKey) {
-              return new PasswordManager(cacheKey.getKey(), cacheKey.getValue());
+            public PasswordManager load(CachedInstanceKey cacheKey) {
+              return new PasswordManager(cacheKey);
             }
           });
 
   private Optional<TextEncryptor> encryptor = Optional.absent();
 
-  private PasswordManager(State state, boolean useStrongEncryptor) {
+  private PasswordManager(CachedInstanceKey cacheKey) {
+    this.useStrongEncryptor = cacheKey.useStrongEncryptor;
+
     try {
-      this.NUMBER_OF_ENCRYPT_KEYS = state.getPropAsInt(ConfigurationKeys.NUMBER_OF_ENCRYPT_KEYS, ConfigurationKeys.DEFAULT_NUMBER_OF_MASTER_PASSWORDS);
-      this.useStrongEncryptor = useStrongEncryptor;
-      if (state.contains(ConfigurationKeys.ENCRYPT_KEY_LOC)) {
-        this.masterPasswordFile = state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC);
-        if (state.contains(ConfigurationKeys.ENCRYPT_KEY_FS_URI)) {
-          this.fs = FileSystem.get(URI.create(state.getProp(ConfigurationKeys.ENCRYPT_KEY_FS_URI)), new Configuration());
-        } else {
-          this.fs = new Path(masterPasswordFile).getFileSystem(new Configuration());
-        }
-        if (!this.fs.exists(new Path(masterPasswordFile)) || fs.getFileStatus(new Path(masterPasswordFile)).isDirectory()) {
-          LOG.warn(masterPasswordFile + " does not exist or is not a file. Cannot decrypt any encrypted password.");
-          this.encryptor = Optional.absent();
-        } else {
-          this.encryptor = useStrongEncryptor ? Optional.of((TextEncryptor) new StrongTextEncryptor()) : Optional.of((TextEncryptor) new BasicTextEncryptor());
-        }
-      }
+      this.fs = cacheKey.fsURI != null ? FileSystem.get(URI.create(cacheKey.fsURI), new Configuration())
+          : (cacheKey.masterPasswordFile != null ? new Path(cacheKey.masterPasswordFile).getFileSystem(new Configuration()) : null);
     } catch (IOException e) {
-      LOG.error("Failed to instantiate encryptor", e);
+      LOG.warn("Failed to instantiate FileSystem.", e);
     }
+    this.masterPasswords = getMasterPasswords(cacheKey);
+  }
+
+  private List<String> getMasterPasswords(CachedInstanceKey cacheKey) {
+    List<String> masterPasswordFiles = new ArrayList<>();
+    int numOfEncryptionKeys = cacheKey.numOfEncryptionKeys;
+    String suffix = "";
+    int i = 1;
+
+    if (cacheKey.masterPasswordFile == null || numOfEncryptionKeys < 1) {
+      return masterPasswordFiles;
+    }
+
+    Exception e = null;
+
+    do {
+      Path currentMasterPasswordFile = new Path(cacheKey.masterPasswordFile + suffix);
+      try (Closer closer = Closer.create()) {
+        if (!fs.exists(currentMasterPasswordFile) ||
+            fs.getFileStatus(currentMasterPasswordFile).isDirectory()) {
+          continue;
+        }
+        InputStream in = closer.register(fs.open(currentMasterPasswordFile));
+        masterPasswordFiles.add(new LineReader(new InputStreamReader(in, Charsets.UTF_8)).readLine());
+        suffix = "." + String.valueOf(i);
+      } catch (FileNotFoundException fnf) {
+        // It is ok for password files not being present
+        LOG.warn("Master password file " + currentMasterPasswordFile + " not found.");
+      } catch (IOException ioe) {
+        e = ioe;
+        LOG.warn("Master password could not be read from file " + currentMasterPasswordFile);
+      }
+    } while (i++ < numOfEncryptionKeys);
+
+    // Throw exception if could not read any existing password file
+    if (masterPasswordFiles.size() < 1 && e != null) {
+      throw new RuntimeException("Master Password could not be read from any master password file.");
+    }
+    return masterPasswordFiles;
   }
 
   /**
@@ -114,7 +142,7 @@ public class PasswordManager {
    */
   public static PasswordManager getInstance() {
     try {
-      return CACHED_INSTANCES.get(new AbstractMap.SimpleEntry<>(null, shouldUseStrongEncryptor(new State())));
+      return CACHED_INSTANCES.get(new CachedInstanceKey());
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -126,7 +154,7 @@ public class PasswordManager {
   public static PasswordManager getInstance(State state) {
     try {
       return CACHED_INSTANCES
-          .get(new AbstractMap.SimpleEntry<>(state, shouldUseStrongEncryptor(state)));
+          .get(new CachedInstanceKey(state));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -148,7 +176,7 @@ public class PasswordManager {
     state.setProp(ConfigurationKeys.ENCRYPT_KEY_FS_URI, masterPwdLoc.toUri());
     try {
       return CACHED_INSTANCES
-          .get(new AbstractMap.SimpleEntry<>(state, shouldUseStrongEncryptor(new State())));
+          .get(new CachedInstanceKey(state));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -181,32 +209,21 @@ public class PasswordManager {
    * @return The decrypted password.
    */
   public String decryptPassword(String encrypted) {
-    Preconditions.checkArgument(this.encryptor.isPresent(),
+    Preconditions.checkArgument(this.masterPasswords.size() > 0,
         "A master password needs to be provided for decrypting passwords.");
 
-    int i = 1;
-    String suffix = "";
-    do {
+    for (String masterPassword : masterPasswords) {
       try (Closer closer = Closer.create()) {
-        if (fs.getFileStatus(new Path(masterPasswordFile + suffix)).isDirectory()) {
-          continue;
-        }
-        InputStream in = closer.register(fs.open(new Path(masterPasswordFile + suffix)));
-        String masterPassword = new LineReader(new InputStreamReader(in, Charsets.UTF_8)).readLine();
         this.encryptor = useStrongEncryptor ? Optional.of((TextEncryptor) new StrongTextEncryptor())
             : Optional.of((TextEncryptor) new BasicTextEncryptor());
         // setPassword() needs to be called via reflection since the TextEncryptor interface doesn't have this method.
         this.encryptor.get().getClass().getMethod("setPassword", String.class).invoke(this.encryptor.get(), masterPassword);
         return this.encryptor.get().decrypt(encrypted);
-      } catch (FileNotFoundException fnf) {
-        throw new RuntimeException("Master password file " + masterPasswordFile + suffix + " not found.");
+      } catch (Exception e) {
+        LOG.warn("Failed attempt to decrypt secret {}", encrypted, e);
       }
-      catch (Exception e) {
-        LOG.warn("Failed to decrypt secret {} with master password file {} ", encrypted, masterPasswordFile + suffix, e);
-        suffix = "." + String.valueOf(i);
-      }
-    } while (i++ < NUMBER_OF_ENCRYPT_KEYS);
-    LOG.error("All {} decrypt attempt(s) failed.", i);
+    }
+    LOG.error("All {} decrypt attempt(s) failed.", masterPasswords.size());
     throw new RuntimeException("Failed to decrypt password ENC(" + encrypted + ")");
   }
 
@@ -216,7 +233,7 @@ public class PasswordManager {
    * Otherwise, return the password as is.
    */
   public String readPassword(String password) {
-    if (password == null || !this.encryptor.isPresent()) {
+    if (password == null || masterPasswords.size() < 1) {
       return password;
     }
     Matcher matcher = PASSWORD_PATTERN.matcher(password);
@@ -245,6 +262,51 @@ public class PasswordManager {
       return Optional.of(new LineReader(new InputStreamReader(in, Charsets.UTF_8)).readLine());
     } catch (IOException e) {
       throw new RuntimeException("Failed to obtain master password from " + masterPasswordFile, e);
+    }
+  }
+
+  private static class CachedInstanceKey {
+    int numOfEncryptionKeys;
+    String fsURI;
+    String masterPasswordFile;
+    boolean useStrongEncryptor;
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      CachedInstanceKey that = (CachedInstanceKey) o;
+
+      return (numOfEncryptionKeys == that.numOfEncryptionKeys) &&
+             (useStrongEncryptor == that.useStrongEncryptor) &&
+             ((fsURI == null && that.fsURI == null) || (fsURI != null && fsURI.equals(that.fsURI))) &&
+             ((masterPasswordFile == null && that.masterPasswordFile == null) ||
+              (masterPasswordFile != null && masterPasswordFile.equals(that.masterPasswordFile)));
+    }
+
+    @Override
+    public int hashCode() {
+      int result = numOfEncryptionKeys;
+      result = 31 * result + (fsURI != null ? fsURI.hashCode() : 0);
+      result = 31 * result + (masterPasswordFile != null ? masterPasswordFile.hashCode() : 0);
+      result = 31 * result + (useStrongEncryptor ? 1 : 0);
+      return result;
+    }
+
+    public CachedInstanceKey(State state) {
+      this.numOfEncryptionKeys = state.getPropAsInt(ConfigurationKeys.NUMBER_OF_ENCRYPT_KEYS, ConfigurationKeys.DEFAULT_NUMBER_OF_MASTER_PASSWORDS);
+      this.useStrongEncryptor = shouldUseStrongEncryptor(state);
+      this.fsURI = state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC);
+      this.masterPasswordFile = state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC);
+    }
+
+    public CachedInstanceKey() {
+
     }
   }
 }
