@@ -367,7 +367,8 @@ public class CompactionAvroJobConfigurator {
   }
 
   private static boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
-    return path.toString().contains("_temporary");
+    return path.toString().contains("_temporary") || failedEvents.stream()
+        .anyMatch(event -> path.toString().contains(Path.SEPARATOR + event.getTaskAttemptId().toString() + Path.SEPARATOR));;
   }
 
   /**
