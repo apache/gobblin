@@ -317,6 +317,31 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     return names;
   }
 
+  /**
+   * Get store names in the state store
+   *
+   * @param predicate only returns names matching predicate
+   * @return (possibly empty) list of store names from the given store
+   * @throws IOException
+   */
+  public List<String> getStoreNames(Predicate<String> predicate)
+      throws IOException {
+    List<String> names = Lists.newArrayList();
+
+    Path storeRootPath = new Path(this.storeRootDir);
+    if (!this.fs.exists(storeRootPath)) {
+      return names;
+    }
+
+    for (FileStatus status : this.fs.listStatus(storeRootPath)) {
+      if (predicate.apply(status.getPath().getName())) {
+        names.add(status.getPath().getName());
+      }
+    }
+
+    return names;
+  }
+
   @Override
   public void createAlias(String storeName, String original, String alias) throws IOException {
     Path originalTablePath = new Path(new Path(this.storeRootDir, storeName), original);
