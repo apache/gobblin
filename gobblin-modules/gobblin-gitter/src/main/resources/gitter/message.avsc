@@ -26,9 +26,9 @@
     {
       "name": "fromUser",
       "type": {
+        "name": "fromUserInner",
         "type": "record",
-        "name": "User",
-        "namespace": "org.apache.gobblin.gitter",
+        "doc": "User that sent the message.",
         "fields": [
           {
             "name": "avatarUrl",
@@ -66,10 +66,7 @@
              "doc": "Url of User."
            }
         ]
-      },
-      "doc": "nested record"
-      "doc": "(User)[user-resource] that sent the message.",
-      "type": "string"
+      }
     },
     {
       "name": "unread",

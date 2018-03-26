@@ -61,7 +61,6 @@ import com.google.gson.JsonParser;
 public class GitterMessageExtractor implements Extractor<Schema, GenericRecord> {
 
   protected static final String GITTER_ROOM_NAMES_KEY = "source.gitter.roomNames";
-  protected static final String GITTER_ROOM_NAME_KEY = "source.gitter.roomName";
   protected static final String GITTER_EXTRACTOR_KEY = "source.gitter.extractorClass";
   protected static final String GITTER_EXTRACTOR_DEFAULT = "org.apache.gobblin.source.GitterMessageExtractor";
   protected static final String GITTER_REST_API_ENDPOINT_KEY = "source.gitter.restEndPoint";
@@ -87,8 +86,8 @@ public class GitterMessageExtractor implements Extractor<Schema, GenericRecord> 
     this.workUnit = this.workUnitState.getWorkunit();
     this.gitterKey = PasswordManager.getInstance(this.workUnitState)
         .readPassword(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
-    this.gitterRoom = this.workUnitState.getProp(GITTER_REST_API_ENDPOINT_KEY, GITTER_REST_API_ENDPOINT_DEFAULT);
-    this.gitterRestEndpoint = this.workUnitState.getProp(GITTER_ROOM_NAME_KEY);
+    this.gitterRestEndpoint = this.workUnitState.getProp(GITTER_REST_API_ENDPOINT_KEY, GITTER_REST_API_ENDPOINT_DEFAULT);
+    this.gitterRoom = workUnitState.getProp(ConfigurationKeys.DATASET_URN_KEY);
     this.gitterRollingWatermark = this.workUnitState.getWorkunit()
         .getLowWatermark(BigIntegerWatermark.class, new Gson()).getValue();
     log.info(String.format("Going to pull from Gitter room: %s from message Id: %s represented by watermark: %s",
@@ -120,7 +119,7 @@ public class GitterMessageExtractor implements Extractor<Schema, GenericRecord> 
           for (JsonElement roomResponse : roomsResponse) {
             // Name should always be present, so NPE should happen if well-formed response
             if (this.gitterRoom.equals(roomResponse.getAsJsonObject().get("name").getAsString())) {
-              this.gitterRoomId = roomsResponse.getAsJsonObject().get("id").getAsString();
+              this.gitterRoomId = roomResponse.getAsJsonObject().get("id").getAsString();
               break;
             }
           }
@@ -214,6 +213,7 @@ public class GitterMessageExtractor implements Extractor<Schema, GenericRecord> 
           for (JsonElement messageResponse : messagesResponse) {
             log.info(String.format("Got message in json: %s", messageResponse));
             JsonRecordAvroSchemaToAvroConverter<String> converter = new JsonRecordAvroSchemaToAvroConverter<>();
+            converter.init(workUnitState);
             try {
               GenericRecord messageAvro = converter.convertRecord(this.gitterMessageSchema,
                   messageResponse.getAsJsonObject(), this.workUnitState).iterator().next();
