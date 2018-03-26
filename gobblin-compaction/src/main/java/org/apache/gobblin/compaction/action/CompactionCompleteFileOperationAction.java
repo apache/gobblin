@@ -92,7 +92,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       long oldTotalRecords = helper.readRecordCount(new Path (result.getDstAbsoluteDir()));
       long executeCount = helper.readExecutionCount (new Path (result.getDstAbsoluteDir()));
 
-      List<Path> goodPaths = CompactionAvroJobConfigurator.removeFailedPaths(job, tmpPath, this.fs);
+      List<Path> goodPaths = CompactionAvroJobConfigurator.getGoodFiles(job, tmpPath, this.fs);
 
       if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
