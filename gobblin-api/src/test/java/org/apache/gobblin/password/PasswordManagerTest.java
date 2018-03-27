@@ -33,10 +33,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
-@Test(enabled=false, groups = {"disabledOnTravis"} )
 public class PasswordManagerTest {
 
-  @Test (enabled=false)
+  @Test
   public void testReadNormalPassword() throws IOException {
     String password = UUID.randomUUID().toString();
     String masterPassword = UUID.randomUUID().toString();
@@ -47,7 +46,7 @@ public class PasswordManagerTest {
     masterPwdFile.delete();
   }
 
-  @Test (enabled=false)
+  @Test
   public void testMasterPasswordNotExist() {
     String password = "ENC(" + UUID.randomUUID().toString() + ")";
     State state = new State();
@@ -55,7 +54,7 @@ public class PasswordManagerTest {
     Assert.assertEquals(PasswordManager.getInstance(state).readPassword(password), password);
   }
 
-  @Test (enabled=false)
+  @Test
   public void testBasicEncryptionAndDecryption() throws IOException {
     String password = UUID.randomUUID().toString();
     String masterPassword = UUID.randomUUID().toString();
@@ -70,7 +69,7 @@ public class PasswordManagerTest {
     Assert.assertEquals(decrypted, password);
   }
 
-  @Test (enabled=false)
+  @Test
   public void testStrongEncryptionAndDecryption() throws IOException {
     String password = UUID.randomUUID().toString();
     String masterPassword = UUID.randomUUID().toString();
@@ -141,7 +140,7 @@ public class PasswordManagerTest {
     try {
       passwordManager.readPassword(encrypted);
     } catch (RuntimeException e) {
-      Assert.assertEquals(e.getMessage(), "Failed to decrypt password " + encrypted);
+      Assert.assertTrue(e.getMessage().startsWith( "Failed to decrypt password"));
       return;
     }
     Assert.fail("Password Manager decrypted too old password.");
@@ -177,7 +176,7 @@ public class PasswordManagerTest {
     try {
       passwordManager.readPassword(encrypted);
     } catch (RuntimeException e) {
-      Assert.assertEquals(e.getMessage(), "Master password file " + masterPasswordFile.toString() + ".1 not found.");
+      Assert.assertTrue(e.getMessage().startsWith("Failed to decrypt password"));
       return;
     }
     Assert.fail("Password Manager decrypted password without correct master password.");
