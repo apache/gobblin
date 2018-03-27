@@ -22,8 +22,6 @@ import java.util.Properties;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 
-import org.apache.helix.HelixManager;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

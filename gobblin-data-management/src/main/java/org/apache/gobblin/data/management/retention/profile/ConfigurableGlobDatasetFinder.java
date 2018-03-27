@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -68,7 +67,7 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
 
   protected final Path datasetPattern;
   private final Optional<Pattern> blacklist;
-  private final Optional<List<Pattern>> globPatternBlacklist;
+  private final Optional<Pattern> globPatternBlacklist;
   private final Path commonRoot;
   protected final FileSystem fs;
   protected final Properties props;
@@ -91,9 +90,7 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
     }
 
     if (ConfigUtils.hasNonEmptyPath(config, DATASET_FINDER_GLOB_BLACKLIST_KEY)) {
-      this.globPatternBlacklist =
-          Optional.of(ConfigUtils.getStringList(config, DATASET_FINDER_GLOB_BLACKLIST_KEY).stream().map(globPatternStr -> GlobPattern.compile(globPatternStr))
-              .collect(Collectors.toList()));
+      this.globPatternBlacklist = Optional.of(GlobPattern.compile(config.getString(DATASET_FINDER_GLOB_BLACKLIST_KEY)));
     } else {
       this.globPatternBlacklist = Optional.absent();
     }
@@ -144,7 +141,7 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
         if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).find()) {
           continue;
         }
-        if (this.globPatternBlacklist.isPresent() && this.globPatternBlacklist.get().stream().anyMatch(globPattern->globPattern.matcher(pathToMatch.toString()).find())) {
+        if (this.globPatternBlacklist.isPresent() && this.globPatternBlacklist.get().matcher(pathToMatch.toString()).find()) {
           continue;
         }
         LOG.info("Found dataset at " + fileStatus.getPath());

@@ -16,29 +16,29 @@
  */
 package org.apache.gobblin.cluster;
 
-import com.google.common.base.Strings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import java.util.UUID;
 import java.util.regex.Pattern;
+
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
+import org.apache.helix.PropertyKey;
 import org.apache.helix.messaging.CriteriaEvaluator;
 import org.apache.helix.messaging.DefaultMessagingService;
 import org.apache.helix.messaging.ZNRecordRow;
-import org.apache.helix.PropertyKey;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 
 /**

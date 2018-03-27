@@ -16,19 +16,23 @@
  */
 package org.apache.gobblin.compaction.verify;
 
+import java.util.Map;
+
+import org.apache.hadoop.fs.Path;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+
+import lombok.Getter;
+import lombok.Setter;
+
 import org.apache.gobblin.compaction.audit.AuditCountClient;
 import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
-import lombok.Getter;
-import lombok.Setter;
-import org.apache.hadoop.fs.Path;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-import java.util.Map;
 
 /**
  * Class to test audit count verification logic

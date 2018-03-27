@@ -19,7 +19,6 @@ package org.apache.gobblin.compaction.mapreduce.avro;
 
 import java.util.List;
 
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.testng.Assert;

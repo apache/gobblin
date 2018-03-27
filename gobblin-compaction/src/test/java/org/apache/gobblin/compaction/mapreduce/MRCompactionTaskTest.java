@@ -17,20 +17,10 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
-import com.google.common.io.Files;
-import org.apache.gobblin.compaction.audit.AuditCountClientFactory;
-import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
-import org.apache.gobblin.compaction.source.CompactionSource;
-import org.apache.gobblin.data.management.dataset.SimpleDatasetHierarchicalPrioritizer;
-import org.apache.gobblin.compaction.suite.TestCompactionSuiteFactories;
-import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
-import org.apache.gobblin.compaction.verify.CompactionVerifier;
-import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
-import org.apache.gobblin.runtime.api.JobExecutionResult;
-import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URI;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
@@ -43,12 +33,22 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.net.URI;
+import com.google.common.io.Files;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.compaction.audit.AuditCountClientFactory;
+import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
+import org.apache.gobblin.compaction.source.CompactionSource;
+import org.apache.gobblin.compaction.suite.TestCompactionSuiteFactories;
+import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
+import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.dataset.SimpleDatasetHierarchicalPrioritizer;
+import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
+import org.apache.gobblin.runtime.api.JobExecutionResult;
+import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 
 
 @Slf4j

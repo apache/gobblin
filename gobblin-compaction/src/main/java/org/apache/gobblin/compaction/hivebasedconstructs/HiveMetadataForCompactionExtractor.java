@@ -19,20 +19,24 @@ package org.apache.gobblin.compaction.hivebasedconstructs;
 
 import java.io.IOException;
 import java.util.List;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.thrift.TException;
+
 import com.google.common.base.Splitter;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.conversion.hive.extractor.HiveBaseExtractor;
 import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.util.AutoReturnableObject;
-import org.apache.gobblin.data.management.conversion.hive.extractor.HiveBaseExtractor;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
