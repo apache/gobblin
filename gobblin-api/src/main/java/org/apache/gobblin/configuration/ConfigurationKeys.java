@@ -796,6 +796,8 @@ public class ConfigurationKeys {
   public static final String ENCRYPT_KEY_LOC = "encrypt.key.loc";
   public static final String ENCRYPT_USE_STRONG_ENCRYPTOR = "encrypt.use.strong.encryptor";
   public static final boolean DEFAULT_ENCRYPT_USE_STRONG_ENCRYPTOR = false;
+  public static final String NUMBER_OF_ENCRYPT_KEYS = "num.encrypt.keys";
+  public static final int DEFAULT_NUMBER_OF_MASTER_PASSWORDS = 2;
 
   /**
    * Proxy Filesystem operation properties.

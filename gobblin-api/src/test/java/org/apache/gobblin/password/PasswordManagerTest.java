@@ -33,10 +33,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
-@Test(enabled=false, groups = {"disabledOnTravis"} )
 public class PasswordManagerTest {
 
-  @Test (enabled=false)
+  @Test
   public void testReadNormalPassword() throws IOException {
     String password = UUID.randomUUID().toString();
     String masterPassword = UUID.randomUUID().toString();
@@ -47,7 +46,7 @@ public class PasswordManagerTest {
     masterPwdFile.delete();
   }
 
-  @Test (enabled=false)
+  @Test
   public void testMasterPasswordNotExist() {
     String password = "ENC(" + UUID.randomUUID().toString() + ")";
     State state = new State();
@@ -55,7 +54,7 @@ public class PasswordManagerTest {
     Assert.assertEquals(PasswordManager.getInstance(state).readPassword(password), password);
   }
 
-  @Test (enabled=false)
+  @Test
   public void testBasicEncryptionAndDecryption() throws IOException {
     String password = UUID.randomUUID().toString();
     String masterPassword = UUID.randomUUID().toString();
@@ -70,7 +69,7 @@ public class PasswordManagerTest {
     Assert.assertEquals(decrypted, password);
   }
 
-  @Test (enabled=false)
+  @Test
   public void testStrongEncryptionAndDecryption() throws IOException {
     String password = UUID.randomUUID().toString();
     String masterPassword = UUID.randomUUID().toString();
@@ -89,6 +88,98 @@ public class PasswordManagerTest {
     catch (EncryptionOperationNotPossibleException e) {
       //no strong encryption is supported
     }
+  }
+
+  @Test
+  public void testMultipleMasterPasswords() throws IOException {
+    String password = UUID.randomUUID().toString();
+
+    String masterPassword = UUID.randomUUID().toString();
+    String masterPassword1 = UUID.randomUUID().toString();
+    String masterPassword2 = UUID.randomUUID().toString();
+    String masterPassword3 = UUID.randomUUID().toString();
+
+    File masterPasswordFile = File.createTempFile("masterPassword", null);
+    Files.write(masterPassword, masterPasswordFile, Charset.defaultCharset());
+    Files.write(masterPassword1, new File(masterPasswordFile.toString()+".1"), Charset.defaultCharset());
+    Files.write(masterPassword2, new File(masterPasswordFile.toString()+".2"), Charset.defaultCharset());
+    Files.write(masterPassword3, new File(masterPasswordFile.toString()+".3"), Charset.defaultCharset());
+
+    State state = new State();
+    BasicTextEncryptor encryptor = new BasicTextEncryptor();
+
+    state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, masterPasswordFile.toString());
+    state.setProp(ConfigurationKeys.NUMBER_OF_ENCRYPT_KEYS, 3);
+    PasswordManager passwordManager = PasswordManager.getInstance(state);
+
+    // Test current master password
+    encryptor.setPassword(masterPassword);
+    String encrypted = "ENC(" + encryptor.encrypt(password) + ")";
+    String decrypted = passwordManager.readPassword(encrypted);
+    Assert.assertEquals(decrypted, password);
+
+    // Test last master password using same passwordManager
+    encryptor = new BasicTextEncryptor();
+    encryptor.setPassword(masterPassword1);
+    encrypted = "ENC(" + encryptor.encrypt(password) + ")";
+    decrypted = passwordManager.readPassword(encrypted);
+    Assert.assertEquals(decrypted, password);
+
+    // Test second last master password using same passwordManager
+    encryptor = new BasicTextEncryptor();
+    encryptor.setPassword(masterPassword2);
+    encrypted = "ENC(" + encryptor.encrypt(password) + ")";
+    decrypted = passwordManager.readPassword(encrypted);
+    Assert.assertEquals(decrypted, password);
+
+    // Test third last master password using same passwordManager
+    // This one is not accepted because ConfigurationKeys.NUMBER_OF_ENCRYPT_KEYS = 3
+    encryptor = new BasicTextEncryptor();
+    encryptor.setPassword(masterPassword3);
+    encrypted = "ENC(" + encryptor.encrypt(password) + ")";
+    try {
+      passwordManager.readPassword(encrypted);
+    } catch (RuntimeException e) {
+      Assert.assertTrue(e.getMessage().startsWith( "Failed to decrypt password"));
+      return;
+    }
+    Assert.fail("Password Manager decrypted too old password.");
+  }
+
+  @Test
+  public void testMultipleMasterPasswordsWithoutPasswordFiles() throws IOException {
+    String password = UUID.randomUUID().toString();
+
+    String masterPassword = UUID.randomUUID().toString();
+    String masterPassword1 = UUID.randomUUID().toString();
+
+    File masterPasswordFile = File.createTempFile("masterPassword", null);
+    Files.write(masterPassword, masterPasswordFile, Charset.defaultCharset());
+
+    State state = new State();
+    BasicTextEncryptor encryptor = new BasicTextEncryptor();
+
+    state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, masterPasswordFile.toString());
+    PasswordManager passwordManager = PasswordManager.getInstance(state);
+
+    // Test current master password
+    encryptor.setPassword(masterPassword);
+    String encrypted = "ENC(" + encryptor.encrypt(password) + ")";
+    String decrypted = passwordManager.readPassword(encrypted);
+    Assert.assertEquals(decrypted, password);
+
+    // Test last master password using same passwordManager
+    // This should throw FileNotFoundException as file for masterPassword1 is not created.
+    encryptor = new BasicTextEncryptor();
+    encryptor.setPassword(masterPassword1);
+    encrypted = "ENC(" + encryptor.encrypt(password) + ")";
+    try {
+      passwordManager.readPassword(encrypted);
+    } catch (RuntimeException e) {
+      Assert.assertTrue(e.getMessage().startsWith("Failed to decrypt password"));
+      return;
+    }
+    Assert.fail("Password Manager decrypted password without correct master password.");
   }
 
   private File getMasterPwdFile(String masterPwd) throws IOException {
