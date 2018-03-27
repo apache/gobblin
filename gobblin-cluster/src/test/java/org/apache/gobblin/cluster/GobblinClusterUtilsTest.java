@@ -17,17 +17,19 @@
 
 package org.apache.gobblin.cluster;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import java.util.HashMap;
 import java.util.Map;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.annotations.Test;
+
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 
 public class GobblinClusterUtilsTest {
 

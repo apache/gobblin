@@ -19,8 +19,8 @@ package org.apache.gobblin.compaction.hive.registration;
 
 import java.util.Properties;
 
-import org.apache.gobblin.compaction.listeners.CompactorListener;
 import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.listeners.CompactorListener;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;

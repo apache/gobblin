@@ -20,20 +20,19 @@ package org.apache.gobblin.cluster;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
-import lombok.extern.slf4j.Slf4j;
-
-
 import org.quartz.InterruptableJob;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.quartz.UnableToInterruptJobException;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
-import org.quartz.UnableToInterruptJobException;
 
 
 /**

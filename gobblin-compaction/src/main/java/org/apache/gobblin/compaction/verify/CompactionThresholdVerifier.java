@@ -17,21 +17,22 @@
 
 package org.apache.gobblin.compaction.verify;
 
+import java.io.IOException;
+import java.util.Map;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
 
-import org.apache.commons.lang.exception.ExceptionUtils;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnRatio;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.fs.Path;
-
-import java.io.IOException;
-import java.util.Map;
 
 /**
  * Compare the source and destination avro records. Determine if a compaction is needed.

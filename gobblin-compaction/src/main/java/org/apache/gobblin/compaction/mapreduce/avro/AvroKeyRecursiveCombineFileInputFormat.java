@@ -17,21 +17,12 @@
 
 package org.apache.gobblin.compaction.mapreduce.avro;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Job;
@@ -46,9 +37,6 @@ import org.apache.hadoop.util.VersionInfo;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-
-import org.apache.gobblin.util.AvroUtils;
-import org.apache.gobblin.util.FileListUtils;
 
 
 /**
