@@ -218,7 +218,7 @@ public class PasswordManager {
         "A master password needs to be provided for decrypting passwords.");
 
     for (TextEncryptor encryptor : encryptors) {
-      try (Closer closer = Closer.create()) {
+      try {
         return encryptor.decrypt(encrypted);
       } catch (Exception e) {
         LOG.warn("Failed attempt to decrypt secret {}", encrypted, e);
