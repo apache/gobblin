@@ -19,7 +19,9 @@ package org.apache.gobblin.compaction.hivebasedconstructs;
 
 import java.util.List;
 import java.util.Properties;
+
 import org.apache.hadoop.fs.Path;
+
 import lombok.Getter;
 
 

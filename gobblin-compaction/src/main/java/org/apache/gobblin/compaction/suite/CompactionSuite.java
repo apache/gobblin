@@ -17,18 +17,18 @@
 
 package org.apache.gobblin.compaction.suite;
 
-import org.apache.gobblin.compaction.action.CompactionCompleteAction;
-import org.apache.gobblin.compaction.mapreduce.MRCompactionTask;
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
-import org.apache.gobblin.dataset.Dataset;
-
-import org.apache.gobblin.compaction.verify.CompactionVerifier;
-import org.apache.gobblin.configuration.State;
-import org.apache.hadoop.mapreduce.Job;
-
 import java.io.IOException;
 import java.util.List;
+
+import org.apache.hadoop.mapreduce.Job;
+
+import org.apache.gobblin.compaction.action.CompactionCompleteAction;
+import org.apache.gobblin.compaction.mapreduce.MRCompactionTask;
+import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
+import org.apache.gobblin.dataset.Dataset;
 
 /**
  * This interface provides major components required by {@link org.apache.gobblin.compaction.source.CompactionSource}

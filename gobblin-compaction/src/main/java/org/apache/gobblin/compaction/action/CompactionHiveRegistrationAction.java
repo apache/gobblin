@@ -17,6 +17,18 @@
 
 package org.apache.gobblin.compaction.action;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -28,17 +40,6 @@ import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.metrics.event.EventSubmitter;
-
-import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.fs.Path;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableMap;
 
 
 /**

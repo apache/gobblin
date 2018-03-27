@@ -17,9 +17,18 @@
 
 package org.apache.gobblin.compaction.verify;
 
-import com.google.common.base.Splitter;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.joda.time.DateTime;
+
+import com.google.common.base.Splitter;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.compaction.audit.AuditCountClient;
 import org.apache.gobblin.compaction.audit.AuditCountClientFactory;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
@@ -27,12 +36,6 @@ import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.util.ClassAliasResolver;
-import lombok.extern.slf4j.Slf4j;
-import org.joda.time.DateTime;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
 
 /**
  * Use {@link AuditCountClient} to retrieve all record count across different tiers

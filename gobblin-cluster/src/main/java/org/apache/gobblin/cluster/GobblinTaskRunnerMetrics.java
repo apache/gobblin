@@ -17,17 +17,8 @@
 
 package org.apache.gobblin.cluster;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-
-import com.codahale.metrics.Metric;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.TaskExecutor;
 

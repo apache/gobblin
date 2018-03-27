@@ -17,17 +17,17 @@
 
 package org.apache.gobblin.compaction.conditions;
 
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.ImmutableList;
 
 import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.compaction.dataset.DatasetHelper;
 import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;

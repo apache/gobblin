@@ -17,10 +17,20 @@
 
 package org.apache.gobblin.compaction.suite;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Job;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.compaction.action.CompactionCompleteAction;
 import org.apache.gobblin.compaction.action.CompactionCompleteFileOperationAction;
-import org.apache.gobblin.compaction.action.CompactionMarkDirectoryAction;
 import org.apache.gobblin.compaction.action.CompactionHiveRegistrationAction;
+import org.apache.gobblin.compaction.action.CompactionMarkDirectoryAction;
 import org.apache.gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
 import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
 import org.apache.gobblin.compaction.verify.CompactionThresholdVerifier;
@@ -28,14 +38,6 @@ import org.apache.gobblin.compaction.verify.CompactionTimeRangeVerifier;
 import org.apache.gobblin.compaction.verify.CompactionVerifier;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.Job;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.LinkedList;
-import java.util.ArrayList;
 
 /**
  * A type of {@link CompactionSuite} which implements all components needed for avro file compaction.

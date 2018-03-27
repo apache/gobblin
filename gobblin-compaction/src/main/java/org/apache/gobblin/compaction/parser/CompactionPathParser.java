@@ -17,22 +17,22 @@
 
 package org.apache.gobblin.compaction.parser;
 
-import com.google.common.base.Joiner;
-import org.apache.gobblin.dataset.FileSystemDataset;
-import lombok.AllArgsConstructor;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 
 /**

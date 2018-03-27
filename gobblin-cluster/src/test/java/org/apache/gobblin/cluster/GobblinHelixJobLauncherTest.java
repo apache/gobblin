@@ -29,10 +29,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.avro.Schema;
 import org.apache.curator.test.TestingServer;
-import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.runtime.JobContext;
-import org.apache.gobblin.runtime.listeners.AbstractJobListener;
-import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -56,15 +52,19 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import lombok.Getter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.FsDatasetStateStore;
+import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.listeners.AbstractJobListener;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-
-import lombok.Getter;
 
 
 /**

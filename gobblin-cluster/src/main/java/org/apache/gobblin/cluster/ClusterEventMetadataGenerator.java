@@ -23,7 +23,6 @@ import java.util.Map;
 import com.google.common.collect.ImmutableMap;
 
 import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.EventName;
 import org.apache.gobblin.runtime.EventMetadataUtils;
 import org.apache.gobblin.runtime.JobContext;

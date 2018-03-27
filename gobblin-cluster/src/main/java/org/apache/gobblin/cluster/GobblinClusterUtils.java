@@ -17,19 +17,20 @@
 
 package org.apache.gobblin.cluster;
 
-import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import com.typesafe.config.Config;
-
-import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.typesafe.config.Config;
+
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
+
+import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
 
 @Alpha
 @Slf4j
