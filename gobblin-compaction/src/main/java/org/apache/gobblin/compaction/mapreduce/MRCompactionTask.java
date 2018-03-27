@@ -17,14 +17,16 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
-import java.util.List;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.mapreduce.Job;
+
 import com.google.common.collect.ImmutableMap;
 
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.compaction.action.CompactionCompleteAction;
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.compaction.suite.CompactionSuite;

@@ -53,7 +53,11 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.compaction.dataset.DatasetHelper;
-import org.apache.gobblin.compaction.mapreduce.avro.*;
+import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyCompactorOutputFormat;
+import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
+import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
+import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyRecursiveCombineFileInputFormat;
+import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.gobblin.configuration.ConfigurationKeys;
