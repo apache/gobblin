@@ -31,11 +31,10 @@ import org.apache.gobblin.writer.partitioner.WriterPartitioner;
  */
 public class GithubDataEventTypesPartitioner implements WriterPartitioner<ParquetGroup> {
 
-  private static final String SCHEMA_STRING = "schemaString";
-  private static final Schema SCHEMA =
-      SchemaBuilder.record("Schema").namespace("gobblin.writer.partitioner").fields().name(SCHEMA_STRING)
-          .type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
   private static final String PARTITION_KEY = "type";
+  private static final Schema SCHEMA =
+      SchemaBuilder.record("Schema").namespace("gobblin.writer.partitioner").fields().name(PARTITION_KEY))
+          .type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
 
   public GithubDataEventTypesPartitioner(State state, int numBranches, int branchId) {
   }
@@ -48,7 +47,7 @@ public class GithubDataEventTypesPartitioner implements WriterPartitioner<Parque
   @Override
   public GenericRecord partitionForRecord(ParquetGroup record) {
     GenericRecord partition = new GenericData.Record(SCHEMA);
-    partition.put(SCHEMA_STRING, record.getString(PARTITION_KEY, 0).replace("\"", ""));
+    partition.put(PARTITION_KEY, record.getString(PARTITION_KEY, 0).replace("\"", ""));
     return partition;
   }
 }
