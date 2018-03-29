@@ -17,15 +17,6 @@
 
 package org.apache.gobblin.metastore;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.password.PasswordManager;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -45,9 +36,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import javax.sql.DataSource;
+
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.hadoop.io.Text;
+
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.io.StreamUtils;
+
+import javax.sql.DataSource;
 
 /**
  * An implementation of {@link StateStore} backed by MySQL.
@@ -87,6 +91,9 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private static final String SELECT_JOB_STATE_NAMES_TEMPLATE =
       "SELECT table_name FROM $TABLE$ WHERE store_name = ?";
 
+  private static final String SELECT_STORE_NAMES_TEMPLATE =
+      "SELECT distinct store_name FROM $TABLE$";
+
   private static final String DELETE_JOB_STORE_TEMPLATE =
       "DELETE FROM $TABLE$ WHERE store_name = ?";
 
@@ -114,6 +121,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private final String DELETE_JOB_STORE_SQL;
   private final String DELETE_JOB_STATE_SQL;
   private final String CLONE_JOB_STATE_SQL;
+  private final String SELECT_STORE_NAMES_SQL;
 
   /**
    * Manages the persistence and retrieval of {@link State} in a MySQL database
@@ -137,6 +145,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     DELETE_JOB_STORE_SQL = DELETE_JOB_STORE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     DELETE_JOB_STATE_SQL = DELETE_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     CLONE_JOB_STATE_SQL = CLONE_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_STORE_NAMES_SQL = SELECT_STORE_NAMES_TEMPLATE.replace("$TABLE$", stateStoreTableName);
 
     // create table if it does not exist
     String createJobTable = CREATE_JOB_STATE_TABLE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -378,6 +387,36 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
     return names;
   }
+
+  /**
+   * Get store names in the state store
+   *
+   * @param predicate only returns names matching predicate
+   * @return (possibly empty) list of store names from the given store
+   * @throws IOException
+   */
+  public List<String> getStoreNames(Predicate<String> predicate)
+      throws IOException {
+    List<String> names = Lists.newArrayList();
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement queryStatement = connection.prepareStatement(SELECT_STORE_NAMES_SQL)) {
+
+      try (ResultSet rs = queryStatement.executeQuery()) {
+        while (rs.next()) {
+          String name = rs.getString(1);
+          if (predicate.apply(name)) {
+            names.add(name);
+          }
+        }
+      }
+    } catch (SQLException e) {
+      throw new IOException(String.format("Could not query store names"), e);
+    }
+
+    return names;
+  }
+
 
   @Override
   public void createAlias(String storeName, String original, String alias) throws IOException {
