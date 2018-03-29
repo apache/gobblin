@@ -676,7 +676,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         // Values for a partition are separated by ","
         List<String> partitionValues = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionsInfoString);
 
-        // Do not drop partition the being processed. Sometimes a partition may have replaced another partition of the same values.
+        // Do not drop the partition being processed. Sometimes a partition may have replaced another partition of the same values.
         if (!partitionValues.equals(hivePartition.getValues())) {
           ImmutableMap.Builder<String, String> partitionDDLInfoMap = ImmutableMap.builder();
           for (int i = 0; i < partitionKeys.size(); i++) {
@@ -713,7 +713,9 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         return Optional.of(qlPartition.getDataLocation());
       }
     } catch (IOException | TException | HiveException e) {
-      throw new DataConversionException("Could not fetch destination table metadata", e);
+      throw new DataConversionException(
+          String.format("Could not fetch destination table %s.%s metadata", table.get().getDbName(),
+              table.get().getTableName()), e);
     }
     return Optional.<Path>absent();
   }
