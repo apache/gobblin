@@ -17,6 +17,19 @@
 
 package org.apache.gobblin.runtime;
 
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.dbcp.BasicDataSource;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Predicates;
+
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -26,13 +39,6 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
-import java.io.IOException;
-import java.util.Map;
-import org.apache.commons.dbcp.BasicDataSource;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 
 /**
@@ -44,6 +50,7 @@ public class MysqlDatasetStateStoreTest {
   private static final String TEST_STATE_STORE = "TestStateStore";
   private static final String TEST_JOB_NAME = "TestJob";
   private static final String TEST_JOB_NAME_LOWER = "testjob";
+  private static final String TEST_JOB_NAME2 = "TestJob2";
   private static final String TEST_JOB_ID = "TestJob1";
   private static final String TEST_TASK_ID_PREFIX = "TestTask-";
   private static final String TEST_DATASET_URN = "TestDataset";
@@ -87,6 +94,8 @@ public class MysqlDatasetStateStoreTest {
     // clear data that may have been left behind by a prior test run
     dbJobStateStore.delete(TEST_JOB_NAME);
     dbDatasetStateStore.delete(TEST_JOB_NAME);
+    dbJobStateStore.delete(TEST_JOB_NAME2);
+    dbDatasetStateStore.delete(TEST_JOB_NAME2);
   }
 
   @Test
@@ -116,6 +125,12 @@ public class MysqlDatasetStateStoreTest {
     jobState.setJobName(TEST_JOB_NAME_LOWER);
     jobState.setProp("lower", "case");
     dbJobStateStore.put(TEST_JOB_NAME_LOWER,
+        MysqlDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + MysqlDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
+        jobState);
+
+    // second job name for testing getting store names in a later test case
+    jobState.setJobName(TEST_JOB_NAME2);
+    dbJobStateStore.put(TEST_JOB_NAME2,
         MysqlDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + MysqlDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
         jobState);
   }
@@ -189,6 +204,10 @@ public class MysqlDatasetStateStoreTest {
     datasetState.setDuration(3000);
 
     dbDatasetStateStore.persistDatasetState(TEST_DATASET_URN_LOWER, datasetState);
+
+    // second job name for testing getting store names in a later test case
+    datasetState.setJobName(TEST_JOB_NAME2);
+    dbDatasetStateStore.persistDatasetState(TEST_DATASET_URN2, datasetState);
   }
 
   @Test(dependsOnMethods = "testPersistDatasetState")
@@ -214,7 +233,26 @@ public class MysqlDatasetStateStoreTest {
     }
   }
 
-  @Test(dependsOnMethods = "testGetDatasetState")
+  @Test(dependsOnMethods = { "testGetDatasetState" })
+  public void testGetStoreNames() throws IOException {
+    List<String> storeNames = this.dbJobStateStore.getStoreNames(Predicates.alwaysTrue());
+    Collections.sort(storeNames);
+
+    Assert.assertTrue(storeNames.size() == 3);
+    Assert.assertEquals(storeNames.get(0), TEST_JOB_NAME);
+    Assert.assertEquals(storeNames.get(1), TEST_JOB_NAME2);
+    Assert.assertEquals(storeNames.get(2), TEST_JOB_NAME_LOWER);
+
+
+    storeNames = this.dbDatasetStateStore.getStoreNames(Predicates.alwaysTrue());
+    Collections.sort(storeNames);
+
+    Assert.assertTrue(storeNames.size() == 2);
+    Assert.assertEquals(storeNames.get(0), TEST_JOB_NAME);
+    Assert.assertEquals(storeNames.get(1), TEST_JOB_NAME2);
+  }
+
+  @Test(dependsOnMethods = "testGetStoreNames")
   public void testGetPreviousDatasetStatesByUrns() throws IOException {
     Map<String, JobState.DatasetState> datasetStatesByUrns =
         dbDatasetStateStore.getLatestDatasetStatesByUrns(TEST_JOB_NAME);
