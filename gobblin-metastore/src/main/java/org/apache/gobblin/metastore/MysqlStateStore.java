@@ -31,6 +31,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -40,6 +41,7 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.hadoop.io.Text;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -47,6 +49,9 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
+import org.apache.gobblin.metastore.predicates.StateStorePredicate;
+import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.io.StreamUtils;
@@ -106,6 +111,9 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
           + " store_name = ? AND table_name = ?)"
           + " ON DUPLICATE KEY UPDATE state = s.state";
 
+  private static final String SELECT_METADATA_TEMPLATE =
+      "SELECT store_name, table_name, modified_time from $TABLE$ where store_name like ?";
+
   // MySQL key length limit is 767 bytes
   private static final String CREATE_JOB_STATE_TABLE_TEMPLATE =
       "CREATE TABLE IF NOT EXISTS $TABLE$ (store_name varchar(100) CHARACTER SET latin1 COLLATE latin1_bin not null,"
@@ -122,6 +130,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private final String DELETE_JOB_STATE_SQL;
   private final String CLONE_JOB_STATE_SQL;
   private final String SELECT_STORE_NAMES_SQL;
+  private final String SELECT_METADATA_SQL;
 
   /**
    * Manages the persistence and retrieval of {@link State} in a MySQL database
@@ -146,6 +155,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     DELETE_JOB_STATE_SQL = DELETE_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     CLONE_JOB_STATE_SQL = CLONE_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_STORE_NAMES_SQL = SELECT_STORE_NAMES_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_METADATA_SQL = SELECT_METADATA_TEMPLATE.replace("$TABLE$", stateStoreTableName);
 
     // create table if it does not exist
     String createJobTable = CREATE_JOB_STATE_TABLE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -461,6 +471,68 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       connection.commit();
     } catch (SQLException e) {
       throw new IOException("failure deleting storeName " + storeName, e);
+    }
+  }
+
+  /**
+   * Gets entry managers for all tables matching the predicate
+   * @param predicate Predicate used to filter tables. To allow state stores to push down predicates, use native extensions
+   *                  of {@link StateStorePredicate}.
+   * @throws IOException
+   */
+  @Override
+  public List<? extends StateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
+      throws IOException {
+    List<MysqlStateStoreEntryManager> entryManagers = Lists.newArrayList();
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement queryStatement = connection.prepareStatement(SELECT_METADATA_SQL)) {
+      String storeName = predicate instanceof StoreNamePredicate ? ((StoreNamePredicate) predicate).getStoreName() : "%";
+      queryStatement.setString(1, storeName);
+
+      try (ResultSet rs = queryStatement.executeQuery()) {
+        while (rs.next()) {
+          String rsStoreName = rs.getString(1);
+          String rsTableName = rs.getString(2);
+          Timestamp timestamp = rs.getTimestamp(3);
+
+          StateStoreEntryManager entryManager =
+              new MysqlStateStoreEntryManager(rsStoreName, rsTableName, timestamp.getTime(), this);
+
+          if (predicate.apply(entryManager)) {
+            entryManagers.add(new MysqlStateStoreEntryManager(rsStoreName, rsTableName, timestamp.getTime(), this));
+          }
+        }
+      }
+    } catch (SQLException e) {
+      throw new IOException("failure getting metadata for tables", e);
+    }
+
+    return entryManagers;
+  }
+
+  /**
+   * For setting timestamps in tests
+   * @param timestamp 0 to set to default, non-zero to set an epoch time
+   * @throws SQLException
+   */
+  @VisibleForTesting
+  public void setTestTimestamp(long timestamp) throws IOException {
+    String statement = "SET TIMESTAMP =";
+
+    // 0 is used to reset to the default
+    if (timestamp > 0 ) {
+      statement += timestamp;
+    } else {
+      statement += " DEFAULT";
+    }
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement queryStatement =
+            connection.prepareStatement(statement)) {
+      queryStatement.execute();
+    } catch (SQLException e) {
+      throw new IOException("Could not set timestamp " + timestamp, e);
     }
   }
 }
