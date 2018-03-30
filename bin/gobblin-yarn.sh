@@ -77,7 +77,6 @@ do
   case "$1" in
     start|stop)
       ACTION="$1"
-      shift
       ;;
     --jvmflags)
       JVM_FLAGS="$2"
