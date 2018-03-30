@@ -189,7 +189,7 @@ public interface StateStore<T extends State> {
    * @param tableName table name
    * @throws IOException
    */
-  public void delete(String storeName, String tableName)
+  public boolean delete(String storeName, String tableName)
       throws IOException;
 
   /**
@@ -198,7 +198,7 @@ public interface StateStore<T extends State> {
    * @param storeName store name
    * @throws IOException
    */
-  public void delete(String storeName)
+  public boolean delete(String storeName)
       throws IOException;
 
   /**

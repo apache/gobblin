@@ -23,6 +23,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.Future;
+import java.util.Properties;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
@@ -100,11 +101,16 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }
 
-  @Override
   public Future<?> deleteSpec(URI deletedSpecURI) {
+    return deleteSpec(deletedSpecURI, new Properties());
+  }
+
+  @Override
+  public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
 
     AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
-        .setMetadata(ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.DELETE.name())).build();
+        .setMetadata(ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.DELETE.name()))
+        .setProperties(Maps.fromProperties(headers)).build();
 
     log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
 

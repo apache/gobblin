@@ -332,18 +332,22 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public void delete(String storeName, String tableName) throws IOException {
+  public boolean delete(String storeName, String tableName) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (this.fs.exists(tablePath)) {
-      this.fs.delete(tablePath, false);
+      return this.fs.delete(tablePath, false);
+    } else {
+      return true;
     }
   }
 
   @Override
-  public void delete(String storeName) throws IOException {
+  public boolean delete(String storeName) throws IOException {
     Path storePath = new Path(this.storeRootDir, storeName);
     if (this.fs.exists(storePath)) {
-      this.fs.delete(storePath, true);
+      return this.fs.delete(storePath, true);
+    } else {
+      return true;
     }
   }
 }

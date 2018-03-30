@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.Future;
 
 import com.google.common.collect.Lists;
@@ -65,7 +66,7 @@ public class InMemorySpecProducer implements SpecProducer<Spec>, Serializable {
   }
 
   @Override
-  public Future<?> deleteSpec(URI deletedSpecURI) {
+  public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
     if (!provisionedSpecs.containsKey(deletedSpecURI)) {
       throw new RuntimeException("Spec not found: " + deletedSpecURI);
     }

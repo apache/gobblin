@@ -22,6 +22,8 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+
 import javax.annotation.Nonnull;
 
 import com.codahale.metrics.Meter;
@@ -158,8 +160,12 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     topologySpecMap.put(addedSpec.getUri(), (TopologySpec) addedSpec);
   }
 
+  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+    onDeleteSpec(deletedSpecURI, deletedSpecVersion, new Properties());
+  }
+
   @Override
-  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties props) {
     if (topologySpecMap.containsKey(deletedSpecURI)) {
       topologySpecMap.remove(deletedSpecURI);
     }

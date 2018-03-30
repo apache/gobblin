@@ -99,8 +99,12 @@ public class NoopDatasetStateStore extends FsDatasetStateStore {
   public void createAlias(String storeName, String original, String alias) throws IOException {}
 
   @Override
-  public void delete(String storeName, String tableName) throws IOException {}
+  public boolean delete(String storeName, String tableName) throws IOException {
+    return true;
+  }
 
   @Override
-  public void delete(String storeName) throws IOException {}
+  public boolean delete(String storeName) throws IOException {
+    return true;
+  }
 }

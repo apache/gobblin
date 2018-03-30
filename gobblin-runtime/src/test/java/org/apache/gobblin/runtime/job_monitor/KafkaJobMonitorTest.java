@@ -17,8 +17,11 @@
 
 package org.apache.gobblin.runtime.job_monitor;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -26,12 +29,17 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumerTest;
 
+import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class KafkaJobMonitorTest {
 
   @Test
@@ -72,11 +80,30 @@ public class KafkaJobMonitorTest {
 
     // TODO: Currently, state stores are not categorized by flow name.
     //       This can lead to one job overwriting other jobs' job state.
-    fs.create(new Path(stateStoreRootDir, "job3"));
+    Path statestore = new Path(stateStoreRootDir, "job3");
+    fs.create(statestore);
+    new File(statestore.toString()).deleteOnExit();
     Assert.assertTrue(fs.exists(new Path(stateStoreRootDir, "job3")));
     monitor.getMockKafkaStream().pushToStream(MockedKafkaJobMonitor.REMOVE + ":/flow3/job3");
     monitor.awaitExactlyNSpecs(2);
-    Assert.assertFalse(fs.exists(new Path(stateStoreRootDir, "job3")));
+    Assert.assertFalse(monitor.getJobSpecs().containsKey(new URI("/flow3/job3")));
+    Assert.assertTrue(fs.exists(new Path(stateStoreRootDir, "job3")));
+
+    monitor.getMockKafkaStream().pushToStream(MockedKafkaJobMonitor.REMOVE_WITH_STATE + ":/flow3/job3");
+    monitor.awaitExactlyNSpecs(2);
+    Assert.assertFalse(monitor.getJobSpecs().containsKey(new URI("/flow3/job3")));
+    AssertWithBackoff.assertTrue(new Predicate<Void>() {
+                                   @Override
+                                   public boolean apply(@Nullable Void input) {
+                                     try {
+                                       return !fs.exists(new Path(stateStoreRootDir, "job3"));
+                                     } catch (IOException e) {
+                                     }
+                                     return false;
+                                   }
+                                 },
+        100, "Statestore not deleted.", log, 2, 2000
+        );
 
     monitor.shutDown();
   }

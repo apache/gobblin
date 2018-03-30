@@ -23,6 +23,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
 import javax.annotation.Nonnull;
@@ -241,14 +242,18 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
     }
   }
 
-  @Override
   public void remove(URI uri) {
+    remove(uri, new Properties());
+  }
+
+    @Override
+  public void remove(URI uri, Properties headers) {
     try {
       Preconditions.checkState(state() == Service.State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(uri);
 
       log.info(String.format("Removing TopologySpec with URI: %s", uri));
-      this.listeners.onDeleteSpec(uri, FlowSpec.Builder.DEFAULT_VERSION);
+      this.listeners.onDeleteSpec(uri, FlowSpec.Builder.DEFAULT_VERSION, headers);
       specStore.deleteSpec(uri);
     } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);

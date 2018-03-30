@@ -36,7 +36,6 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.JobSpecMonitorFactory;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
-import org.apache.gobblin.runtime.api.SpecExecutor.Verb;
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
@@ -54,7 +53,6 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
   public static final String CONFIG_PREFIX = "gobblin.jobMonitor.avroJobSpec";
   public static final String TOPIC_KEY = "topic";
   public static final String SCHEMA_VERSION_READER_CLASS = "versionReaderClass";
-  protected static final String VERB_KEY = "Verb";
 
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
       SCHEMA_VERSION_READER_CLASS, FixedSchemaVersionWriter.class.getName()));
@@ -108,13 +106,13 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
    * @return a {@link JobSpec} or {@link URI} wrapped in a {@link Collection} of {@link Either}
    */
   @Override
-  public Collection<Either<JobSpec, URI>> parseJobSpec(AvroJobSpec record) {
+  public Collection<JobSpec> parseJobSpec(AvroJobSpec record) {
     JobSpec.Builder jobSpecBuilder = JobSpec.builder(record.getUri());
 
     Properties props = new Properties();
     props.putAll(record.getProperties());
     jobSpecBuilder.withJobCatalogURI(record.getUri()).withVersion(record.getVersion())
-        .withDescription(record.getDescription()).withConfigAsProperties(props);
+        .withDescription(record.getDescription()).withConfigAsProperties(props).withMetadata(record.getMetadata());
 
     if (!record.getTemplateUri().isEmpty()) {
       try {
@@ -124,17 +122,10 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
       }
     }
 
-    String verbName = record.getMetadata().get(VERB_KEY);
-    Verb verb = Verb.valueOf(verbName);
-
     JobSpec jobSpec = jobSpecBuilder.build();
 
     log.info("Parsed job spec " + jobSpec.toString());
 
-    if (verb == Verb.ADD || verb == Verb.UPDATE) {
-      return Lists.newArrayList(Either.<JobSpec, URI>left(jobSpec));
-    } else {
-      return Lists.newArrayList(Either.<JobSpec, URI>right(jobSpec.getUri()));
-    }
+    return Lists.newArrayList(jobSpec);
   }
 }

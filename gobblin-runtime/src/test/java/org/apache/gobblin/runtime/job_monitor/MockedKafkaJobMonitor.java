@@ -24,8 +24,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import avro.shaded.com.google.common.collect.ImmutableSet;
 import javax.annotation.Nullable;
 
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -33,6 +35,7 @@ import org.mockito.stubbing.Answer;
 import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
@@ -55,6 +58,7 @@ class MockedKafkaJobMonitor extends KafkaJobMonitor {
   private static final Splitter SPLITTER_COMMA = Splitter.on(",");
   private static final Splitter SPLITTER_COLON = Splitter.on(":");
   public static final String REMOVE = "remove";
+  public static final String REMOVE_WITH_STATE = "remove_with_state";
 
   @Getter
   private final Map<URI, JobSpec> jobSpecs;
@@ -99,11 +103,11 @@ class MockedKafkaJobMonitor extends KafkaJobMonitor {
   }
 
   @Override
-  public Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message)
+  public Collection<JobSpec> parseJobSpec(byte[] message)
       throws IOException {
     try {
       String messageString = new String(message, Charsets.UTF_8);
-      List<Either<JobSpec, URI>> jobSpecs = Lists.newArrayList();
+      List<JobSpec> jobSpecs = Lists.newArrayList();
 
       for (String oneInstruction : SPLITTER_COMMA.split(messageString)) {
 
@@ -111,12 +115,20 @@ class MockedKafkaJobMonitor extends KafkaJobMonitor {
 
         if (tokens.get(0).equals(REMOVE)) {
           URI uri = new URI(tokens.get(1));
-          jobSpecs.add(Either.<JobSpec, URI>right(uri));
+          JobSpec jobSpec = new JobSpec.Builder(uri).withConfig(ConfigFactory.empty()).
+              withMetadata(ImmutableMap.of(JobSpec.VERB_KEY, SpecExecutor.Verb.DELETE.name())).build();
+          jobSpecs.add(jobSpec);
+        } else if (tokens.get(0).equals(REMOVE_WITH_STATE)) {
+          URI uri = new URI(tokens.get(1));
+          JobSpec jobSpec = new JobSpec.Builder(uri).withConfig(
+              ConfigFactory.parseMap(ImmutableMap.of(KafkaJobMonitor.DELETE_STATE_STORE_KEY, Boolean.TRUE.toString()))).
+              withMetadata(ImmutableMap.of(JobSpec.VERB_KEY, SpecExecutor.Verb.DELETE.name())).build();
+          jobSpecs.add(jobSpec);
         } else {
           URI uri = new URI(tokens.get(0));
           String version = tokens.get(1);
           JobSpec jobSpec = new JobSpec.Builder(uri).withConfig(ConfigFactory.empty()).withVersion(version).build();
-          jobSpecs.add(Either.<JobSpec, URI>left(jobSpec));
+          jobSpecs.add(jobSpec);
         }
       }
       return jobSpecs;

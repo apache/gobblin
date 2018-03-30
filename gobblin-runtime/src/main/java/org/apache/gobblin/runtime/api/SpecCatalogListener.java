@@ -18,6 +18,7 @@
 package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
+import java.util.Properties;
 
 import com.google.common.base.Objects;
 
@@ -31,7 +32,7 @@ public interface SpecCatalogListener {
   /**
    * Invoked when a {@link Spec} gets removed from the catalog.
    */
-  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion);
+  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties props);
 
   /**
    * Invoked when the contents of a {@link Spec} gets updated in the catalog.
@@ -56,18 +57,20 @@ public interface SpecCatalogListener {
   public static class DeleteSpecCallback extends Callback<SpecCatalogListener, Void> {
     private final URI _deletedSpecURI;
     private final String _deletedSpecVersion;
+    private final Properties _headers;
 
-    public DeleteSpecCallback(URI deletedSpecURI, String deletedSpecVersion) {
+    public DeleteSpecCallback(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
       super(Objects.toStringHelper("onDeleteSpec")
           .add("deletedSpecURI", deletedSpecURI)
           .add("deletedSpecVersion", deletedSpecVersion)
           .toString());
       _deletedSpecURI = deletedSpecURI;
       _deletedSpecVersion = deletedSpecVersion;
+      _headers = headers;
     }
 
     @Override public Void apply(SpecCatalogListener listener) {
-      listener.onDeleteSpec(_deletedSpecURI, _deletedSpecVersion);
+      listener.onDeleteSpec(_deletedSpecURI, _deletedSpecVersion, _headers);
       return null;
     }
   }
