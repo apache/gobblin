@@ -267,13 +267,13 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public boolean delete(String storeName, String tableName) throws IOException {
-    return propStore.remove(formPath(storeName, tableName), 0);
+  public void delete(String storeName, String tableName) throws IOException {
+    propStore.remove(formPath(storeName, tableName), 0);
   }
 
   @Override
-  public boolean delete(String storeName) throws IOException {
-    return propStore.remove(formPath(storeName), 0);
+  public void delete(String storeName) throws IOException {
+    propStore.remove(formPath(storeName), 0);
   }
 
   /**

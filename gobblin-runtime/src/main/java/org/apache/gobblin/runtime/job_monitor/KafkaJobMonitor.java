@@ -122,11 +122,8 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
               continue;
             }
             String jobName = uriTokens[2];
-            if (this.datasetStateStore.delete(jobName)) {
-              log.info("JobSpec {} deleted with statestore.", jobSpecUri);
-            } else {
-              log.info("Statestore deletion failed for JobSpec {}.", jobSpecUri);
-            }
+            this.datasetStateStore.delete(jobName);
+            log.info("JobSpec {} deleted with statestore.", jobSpecUri);
           } else {
             log.info("JobSpec {} deleted keeping statestore.", jobSpecUri);
           }
@@ -137,7 +134,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
       }
     } catch (IOException ioe) {
       String messageStr = new String(message.message(), Charsets.UTF_8);
-      log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.offset(), messageStr), ioe);
+      log.error(String.format("Failed to delete job/jobStateStore or parse kafka message with offset %d: %s.", message.offset(), messageStr), ioe);
     }
   }
 

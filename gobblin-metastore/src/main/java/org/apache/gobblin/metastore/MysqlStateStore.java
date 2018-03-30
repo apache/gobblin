@@ -400,7 +400,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public boolean delete(String storeName, String tableName) throws IOException {
+  public void delete(String storeName, String tableName) throws IOException {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement deleteStatement = connection.prepareStatement(DELETE_JOB_STATE_SQL)) {
       int index = 0;
@@ -411,11 +411,10 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     } catch (SQLException e) {
       throw new IOException("failure deleting storeName " + storeName + " tableName " + tableName, e);
     }
-    return true;
   }
 
   @Override
-  public boolean delete(String storeName) throws IOException {
+  public void delete(String storeName) throws IOException {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement deleteStatement = connection.prepareStatement(DELETE_JOB_STORE_SQL)) {
       deleteStatement.setString(1, storeName);
@@ -424,6 +423,5 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     } catch (SQLException e) {
       throw new IOException("failure deleting storeName " + storeName, e);
     }
-    return true;
   }
 }
