@@ -19,7 +19,6 @@ package org.apache.gobblin.service;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -49,7 +48,7 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 
-import avro.shaded.com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet;
 
 
 /**
@@ -58,7 +57,7 @@ import avro.shaded.com.google.common.collect.ImmutableSet;
 @RestLiCollection(name = "flowconfigs", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
-  private static final Set<String> REQUIRED_METADATA = ImmutableSet.of("delete.state.store");
+  private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
 
 
   @edu.umd.cs.findbugs.annotations.SuppressWarnings("MS_SHOULD_BE_FINAL")
@@ -255,7 +254,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
   private Properties getHeaders() {
     Properties headerProperties = new Properties();
     for (Map.Entry<String, String> entry : getContext().getRequestHeaders().entrySet()) {
-      if (REQUIRED_METADATA.contains(entry.getKey())) {
+      if (ALLOWED_METADATA.contains(entry.getKey())) {
         headerProperties.put(entry.getKey(), entry.getValue());
       }
     }

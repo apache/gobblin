@@ -48,7 +48,7 @@ public interface MutableSpecCatalog extends SpecCatalog {
    * Removes an existing {@link Spec} with the given URI.
    * Throws SpecNotFoundException if such {@link Spec} does not exist.
    */
-  void remove(URI uri, Properties props) throws SpecNotFoundException;
+  void remove(URI uri, Properties headers) throws SpecNotFoundException;
 
   @Slf4j
   public static class MutableStandardMetrics extends StandardMetrics {

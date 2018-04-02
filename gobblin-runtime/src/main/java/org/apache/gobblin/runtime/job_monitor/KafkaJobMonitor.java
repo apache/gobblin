@@ -30,10 +30,10 @@ import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
-import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.Either;
 
 import kafka.message.MessageAndMetadata;
 import lombok.Getter;
@@ -51,21 +51,20 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public static final String KAFKA_AUTO_OFFSET_RESET_KEY = KAFKA_JOB_MONITOR_PREFIX + ".auto.offset.reset";
   public static final String KAFKA_AUTO_OFFSET_RESET_SMALLEST = "smallest";
   public static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
-  public static final String DELETE_STATE_STORE_KEY = "delete.state.store";
-  private DatasetStateStore datasetStateStore;
-  private final MutableJobCatalog jobCatalog;
+  protected DatasetStateStore datasetStateStore;
+  protected final MutableJobCatalog jobCatalog;
 
   @Getter
-  private Counter newSpecs;
+  protected Counter newSpecs;
   @Getter
-  private Counter removedSpecs;
+  protected Counter removedSpecs;
 
   /**
    * @return A collection of either {@link JobSpec}s to add/update or {@link URI}s to remove from the catalog,
    *        parsed from the Kafka message.
    * @throws IOException
    */
-  public abstract Collection<JobSpec> parseJobSpec(byte[] message) throws IOException;
+  public abstract Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message) throws IOException;
 
   public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config) {
     super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1);
@@ -100,41 +99,19 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   @Override
   protected void processMessage(MessageAndMetadata<byte[], byte[]> message) {
     try {
-      Collection<JobSpec> parsedCollection = parseJobSpec(message.message());
-      for (JobSpec parsedMessage : parsedCollection) {
-        if (parsedMessage.getMetadata().get(JobSpec.VERB_KEY).equalsIgnoreCase(SpecExecutor.Verb.DELETE.name())) {
-          this.removedSpecs.inc();
-          URI jobSpecUri = parsedMessage.getUri();
-          this.jobCatalog.remove(jobSpecUri);
-
-          // Refer FlowConfigsResources:delete to understand the pattern of flow URI
-          // FlowToJobSpec Compilers use the flowSpecURI to derive jobSpecURI
-          if (parsedMessage.getConfig().hasPath(DELETE_STATE_STORE_KEY) &&
-              Boolean.parseBoolean(parsedMessage.getConfig().getString(DELETE_STATE_STORE_KEY))) {
-            // Delete the job state if it is a delete spec request
-            String[] uriTokens = jobSpecUri.getPath().split("/");
-            if (null == this.datasetStateStore) {
-              log.warn("Job state store deletion failed as datasetstore is not initialized.");
-              continue;
-            }
-            if (uriTokens.length != 3) {
-              log.error("Invalid URI {}.", jobSpecUri);
-              continue;
-            }
-            String jobName = uriTokens[2];
-            this.datasetStateStore.delete(jobName);
-            log.info("JobSpec {} deleted with statestore.", jobSpecUri);
-          } else {
-            log.info("JobSpec {} deleted keeping statestore.", jobSpecUri);
-          }
-        } else {
+      Collection<Either<JobSpec, URI>> parsedCollection = parseJobSpec(message.message());
+      for (Either<JobSpec, URI> parsedMessage : parsedCollection) {
+        if (parsedMessage instanceof Either.Left) {
           this.newSpecs.inc();
-          this.jobCatalog.put(parsedMessage);
+          this.jobCatalog.put(((Either.Left<JobSpec, URI>) parsedMessage).getLeft());
+        } else if (parsedMessage instanceof Either.Right) {
+          this.removedSpecs.inc();
+          this.jobCatalog.remove(((Either.Right<JobSpec, URI>) parsedMessage).getRight());
         }
       }
     } catch (IOException ioe) {
       String messageStr = new String(message.message(), Charsets.UTF_8);
-      log.error(String.format("Failed to delete job/jobStateStore or parse kafka message with offset %d: %s.", message.offset(), messageStr), ioe);
+      log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.offset(), messageStr), ioe);
     }
   }
 

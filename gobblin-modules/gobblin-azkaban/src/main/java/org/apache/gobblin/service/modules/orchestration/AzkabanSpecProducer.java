@@ -144,7 +144,7 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
   }
 
   @Override
-  public Future<?> deleteSpec(URI deletedSpecURI, Properties props) {
+  public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
     // Delete project
     JobSpec jobSpec = new JobSpec.Builder(deletedSpecURI).build();
 

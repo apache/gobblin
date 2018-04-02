@@ -216,7 +216,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
   }
 
-  public void remove(Spec spec, Properties props) {
+  public void remove(Spec spec, Properties headers) {
     // TODO: Evolve logic to cache and reuse previously compiled JobSpecs
     // .. this will work for Identity compiler but not always for multi-hop.
     // Note: Current logic assumes compilation is consistent between all executions
@@ -237,7 +237,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           Spec jobSpec = specsToDelete.getKey();
 
           _log.info(String.format("Going to delete JobSpec: %s on Executor: %s", jobSpec, producer));
-          producer.deleteSpec(jobSpec.getUri(), props);
+          producer.deleteSpec(jobSpec.getUri(), headers);
         } catch(Exception e) {
           _log.error("Cannot successfully delete spec: " + specsToDelete.getKey() + " on executor: " + producer +
               " for flow: " + spec, e);

@@ -165,7 +165,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   }
 
   @Override
-  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties props) {
+  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
     if (topologySpecMap.containsKey(deletedSpecURI)) {
       topologySpecMap.remove(deletedSpecURI);
     }

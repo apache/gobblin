@@ -32,7 +32,7 @@ public interface SpecCatalogListener {
   /**
    * Invoked when a {@link Spec} gets removed from the catalog.
    */
-  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties props);
+  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers);
 
   /**
    * Invoked when the contents of a {@link Spec} gets updated in the catalog.

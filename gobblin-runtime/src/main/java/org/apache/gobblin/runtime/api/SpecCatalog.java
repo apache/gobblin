@@ -139,7 +139,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
     }
 
     @Override
-    public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties props) {
+    public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
       this.totalDeletedSpecs.incrementAndGet();
       submitTrackingEvent(deletedSpecURI, deletedSpecVersion, SPEC_DELETED_OPERATION_TYPE);
     }

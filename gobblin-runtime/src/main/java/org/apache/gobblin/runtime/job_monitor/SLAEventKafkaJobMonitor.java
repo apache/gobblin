@@ -172,7 +172,7 @@ public class SLAEventKafkaJobMonitor extends KafkaAvroJobMonitor<GobblinTracking
   }
 
   @Override
-  public Collection<JobSpec> parseJobSpec(GobblinTrackingEvent event) {
+  public Collection<Either<JobSpec, URI>> parseJobSpec(GobblinTrackingEvent event) {
 
     if (!acceptEvent(event)) {
       this.rejectedEvents.inc();
@@ -192,7 +192,7 @@ public class SLAEventKafkaJobMonitor extends KafkaAvroJobMonitor<GobblinTracking
 
     JobSpec jobSpec = JobSpec.builder(jobSpecURI).withTemplate(this.template).withConfig(jobConfig).build();
 
-    return Lists.newArrayList(jobSpec);
+    return Lists.newArrayList(Either.<JobSpec, URI>left(jobSpec));
   }
 
   /**

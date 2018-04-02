@@ -55,7 +55,7 @@ public class KafkaAvroJobMonitorTest {
         new AvroBinarySerializer<>(GobblinTrackingEvent.SCHEMA$, new NoopSchemaVersionWriter());
 
     GobblinTrackingEvent event = new GobblinTrackingEvent(0L, "namespace", "event", Maps.<String, String>newHashMap());
-    Collection<JobSpec> results = monitor.parseJobSpec(serializer.serializeRecord(event));
+    Collection<Either<JobSpec, URI>> results = monitor.parseJobSpec(serializer.serializeRecord(event));
     Assert.assertEquals(results.size(), 1);
     Assert.assertEquals(monitor.events.size(), 1);
     Assert.assertEquals(monitor.events.get(0), event);
@@ -74,7 +74,7 @@ public class KafkaAvroJobMonitorTest {
         new AvroBinarySerializer<>(MetricReport.SCHEMA$, new NoopSchemaVersionWriter());
 
     MetricReport event = new MetricReport(Maps.<String, String>newHashMap(), 0L, Lists.<Metric>newArrayList());
-    Collection<JobSpec> results = monitor.parseJobSpec(serializer.serializeRecord(event));
+    Collection<Either<JobSpec, URI>> results = monitor.parseJobSpec(serializer.serializeRecord(event));
 
     Assert.assertEquals(results.size(), 0);
     Assert.assertEquals(monitor.events.size(), 0);
@@ -94,7 +94,7 @@ public class KafkaAvroJobMonitorTest {
         new AvroBinarySerializer<>(GobblinTrackingEvent.SCHEMA$, new FixedSchemaVersionWriter());
 
     GobblinTrackingEvent event = new GobblinTrackingEvent(0L, "namespace", "event", Maps.<String, String>newHashMap());
-    Collection<JobSpec> results = monitor.parseJobSpec(serializer.serializeRecord(event));
+    Collection<Either<JobSpec, URI>> results = monitor.parseJobSpec(serializer.serializeRecord(event));
     Assert.assertEquals(results.size(), 1);
     Assert.assertEquals(monitor.events.size(), 1);
     Assert.assertEquals(monitor.events.get(0), event);
@@ -112,7 +112,7 @@ public class KafkaAvroJobMonitorTest {
         new AvroBinarySerializer<>(GobblinTrackingEvent.SCHEMA$, new FixedSchemaVersionWriter());
 
     GobblinTrackingEvent event = new GobblinTrackingEvent(0L, "namespace", "event", Maps.<String, String>newHashMap());
-    Collection<JobSpec> results = monitor.parseJobSpec(serializer.serializeRecord(event));
+    Collection<Either<JobSpec, URI>> results = monitor.parseJobSpec(serializer.serializeRecord(event));
     Assert.assertEquals(results.size(), 0);
     Assert.assertEquals(monitor.events.size(), 0);
     Assert.assertEquals(monitor.getMessageParseFailures().getCount(), 1);
@@ -130,9 +130,9 @@ public class KafkaAvroJobMonitorTest {
     }
 
     @Override
-    public Collection<JobSpec> parseJobSpec(GobblinTrackingEvent message) {
+    public Collection<Either<JobSpec, URI>> parseJobSpec(GobblinTrackingEvent message) {
       this.events.add(message);
-      return Lists.newArrayList(JobSpec.builder(message.getName()).build());
+      return Lists.newArrayList(Either.<JobSpec, URI>left(JobSpec.builder(message.getName()).build()));
     }
   }
 
