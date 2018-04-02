@@ -19,7 +19,6 @@ package org.apache.gobblin.data.management.source;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -31,6 +30,7 @@ import java.util.stream.StreamSupport;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
@@ -38,7 +38,7 @@ import org.apache.gobblin.dataset.PartitionableDataset;
 import org.apache.gobblin.dataset.URNIdentified;
 import org.apache.gobblin.dataset.comparators.URNLexicographicalComparator;
 import org.apache.gobblin.runtime.task.NoopTask;
-import org.apache.gobblin.runtime.task.RolloverTask;
+import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -61,17 +61,20 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSource<S, D> {
 
-  public static final String MAX_WORK_UNITS_PER_RUN_KEY =
-      "gobblin.source.loopingDatasetFinderSource.maxWorkUnitsPerRun";
+  private static final String LOOPING_SOURCE_CONFIG_KEY_PREFIX = "gobblin.source.loopingDatasetFinderSource.";
+  public static final String MAX_WORK_UNITS_PER_RUN_KEY = LOOPING_SOURCE_CONFIG_KEY_PREFIX + "maxWorkUnitsPerRun";
   public static final int MAX_WORK_UNITS_PER_RUN = 10;
 
-  public static final String DATASET_URN = "gobblin.source.loopingDatasetFinderSource.datasetUrn";
-  private static final String PARTITION_URN = "gobblin.source.loopingDatasetFinderSource.partitionUrn";
+  public static final String DATASET_URN = LOOPING_SOURCE_CONFIG_KEY_PREFIX + "datasetUrn";
+  private static final String PARTITION_URN = LOOPING_SOURCE_CONFIG_KEY_PREFIX + "partitionUrn";
 
   // WORK_UNIT_ORDINAL is used to identify the latest workunit processed in previous execution,
   // Since the order is Lexicographical when executing.
-  private static final String WORK_UNIT_ORDINAL = "gobblin.source.loopingDatasetFinderSource.workUnitOrdinal";
-  protected static final String END_OF_DATASETS_KEY = "gobblin.source.loopingDatasetFinderSource.endOfDatasets";
+  private static final String WORK_UNIT_ORDINAL = LOOPING_SOURCE_CONFIG_KEY_PREFIX + "workUnitOrdinal";
+  protected static final String END_OF_DATASETS_KEY = LOOPING_SOURCE_CONFIG_KEY_PREFIX + "endOfDatasets";
+  public static final String IS_ROLLOVER_WU = LOOPING_SOURCE_CONFIG_KEY_PREFIX + "isRollOver";
+  private static final String ROLLOVER_TASK_FACTORY_BACKUP =
+      LOOPING_SOURCE_CONFIG_KEY_PREFIX + "rollOverTaskFactory.backup";
 
   private final URNLexicographicalComparator lexicographicalComparator = new URNLexicographicalComparator();
 
@@ -98,13 +101,13 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
     List<WorkUnit> failedPreviousWorkUnits = new ArrayList<>();
     for (WorkUnitState workUnitState : previousWorkUnitStates) {
       WorkUnitState.WorkingState workingState = workUnitState.getWorkingState();
-      if (workingState == WorkUnitState.WorkingState.FAILED || workingState == WorkUnitState.WorkingState.ROLLOVER) {
+      if (workingState == WorkUnitState.WorkingState.FAILED || isRollOverWU(workUnitState)) {
         int currentRetryCount = 0;
         if (workUnitState.contains(ConfigurationKeys.TASK_RETRIES_KEY)) {
           currentRetryCount = workUnitState.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY);
         }
-        if (currentRetryCount < maxRetries ) {
-          log.info("Dataset " + workUnitState.getProp(DATASET_URN) + " is failed previously, retry...");
+        if (currentRetryCount < maxRetries) {
+          log.info("Dataset " + workUnitState.getProp(DATASET_URN) + " is failed previously, retrying...");
           // workUnitState.getWorkunit() return an ImmutableWorkUnit which doesn't support resetting the configuration,
           // since we need to reset retryCount it is necessary to re-instantiate it.
           WorkUnit retryWorkUnit = new WorkUnit(workUnitState.getWorkunit());
@@ -136,16 +139,16 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
 
   /**
    * Searching for workunit with maximum ordinal.
-   *
-   * There's a case that all previous workunits are failedWorkUnits so that none of that contains WORK_UNIT_ORDINAL.
-   * For this, we should avoid failedWorkUnits to be candidate of the workunit with highest water that is to be
-   * processed first in this loop.
+   * <p>
+   * There's a case that all previous workunits are failedWorkUnits so that none of that contains WORK_UNIT_ORDINAL. For
+   * this, we should avoid failedWorkUnits to be a candidate of the workunit with highest water that is to be processed
+   * first in this loop.
    */
   private Optional<WorkUnitState> getMaxWorkUnitState(List<WorkUnitState> previousWorkUnitStates) {
     int maxWorkUnitOrdinalSeen = 0;
     Optional<WorkUnitState> optionalMaxWorkUnitState = Optional.empty();
     for (WorkUnitState workUnitState : previousWorkUnitStates) {
-      if (!workUnitState.contains(WORK_UNIT_ORDINAL)){
+      if (!workUnitState.contains(WORK_UNIT_ORDINAL)) {
         continue;
       }
       try {
@@ -265,9 +268,13 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
         if (retryWorkUnits.hasNext()) {
           //For the case where retryWorkUnits.size() > maxWorkUnits, we need to keep track of retryWorkunits that aren't
           //able to fit in a single execution, by committing their state thereby being recognizable in next execution.
-          WorkUnit additionalWorkUnit = retryWorkUnits.next();
-          TaskUtils.setTaskFactoryClass(additionalWorkUnit, RolloverTask.Factory.class);
-          return additionalWorkUnit;
+
+          // If a workunit has been rolled over previously, prepareRolloverWorkUnit method will do nothing.
+          WorkUnit rollOverWorkUnit = retryWorkUnits.next();
+          com.google.common.base.Optional<TaskFactory> taskFactory = TaskUtils.getTaskFactory(rollOverWorkUnit);
+          prepareRolloverWorkUnit(rollOverWorkUnit,
+              taskFactory.isPresent() ? taskFactory.get().getClass() : NoopTask.Factory.class);
+          return rollOverWorkUnit;
         } else {
           return endOfData();
         }
@@ -278,6 +285,9 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
         int previousRetryCount = workUnit.contains(ConfigurationKeys.TASK_RETRIES_KEY) ?
             workUnit.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY) + 1 : 1;
         workUnit.setProp(ConfigurationKeys.TASK_RETRIES_KEY, previousRetryCount);
+        if (workUnit.getPropAsBoolean(IS_ROLLOVER_WU)) {
+          resetRolloverWorkUnit(workUnit);
+        }
         generatedWorkUnits++;
         return workUnit;
       }
@@ -342,5 +352,53 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
       return StreamSupport.stream(spliterator, false);
     }
     return StreamSupport.stream(spliterator, false).sorted(this.lexicographicalComparator);
+  }
+
+  /**
+   * Keep old {@link TaskFactory} class in workUnit while setting the exposing factory as {@link NoopTask.Factory}, so
+   * that when the task is rolled over into next execution, the original taskFactory class can be recovered.
+   * <p>
+   * Note that rolling over a task is not a generic use case, but mostly specifc to LoopingDatasetFinderSource, so this
+   * class is not put in {@link TaskUtils}.
+   *
+   * @param state
+   * @param klazz
+   */
+  private void prepareRolloverWorkUnit(State state, Class<? extends TaskFactory> klazz) {
+    // Since it is possible that a roll over task is rolled over several times, so this backup Task factory class
+    // should only be set for once.
+    // Do nothing for preparing an already-rollOver workunit.
+    if (!isRollOverWU(state)) {
+      state.setProp(ROLLOVER_TASK_FACTORY_BACKUP, klazz.getName());
+      state.setProp(IS_ROLLOVER_WU, true);
+      TaskUtils.setTaskFactoryClass(state, NoopTask.Factory.class);
+    }
+  }
+
+  /**
+   * Recover the RollOver workunit's original Factory class so that it could be executed as originally designed.
+   *
+   * @param state The ready-to-execute workunit.
+   */
+  private void resetRolloverWorkUnit(State state) {
+    try {
+      Class<? extends TaskFactory> clazz =
+          Class.forName(state.getProp(ROLLOVER_TASK_FACTORY_BACKUP)).asSubclass(TaskFactory.class);
+      TaskUtils.setTaskFactoryClass(state, clazz);
+      state.removeProp(IS_ROLLOVER_WU);
+    } catch (ReflectiveOperationException roe) {
+      throw new RuntimeException("Could not create task factory.", roe);
+    }
+  }
+
+  /**
+   * Determine if a workunit is rolled over from previous execution or not.
+   *
+   * @param state The workUnit from previous execution or to be inspected.
+   *
+   * @return
+   */
+  private boolean isRollOverWU(State state) {
+    return state.getPropAsBoolean(IS_ROLLOVER_WU);
   }
 }

@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.conversion.hive.materializer.HiveMaterializerTaskFactory;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.dataset.PartitionableDataset;
@@ -32,7 +33,10 @@ import org.apache.gobblin.dataset.test.SimpleDatasetForTesting;
 import org.apache.gobblin.dataset.test.SimpleDatasetPartitionForTesting;
 import org.apache.gobblin.dataset.test.SimplePartitionableDatasetForTesting;
 import org.apache.gobblin.dataset.test.StaticDatasetsFinderForTesting;
+import org.apache.gobblin.runtime.mapreduce.MRTaskFactory;
 import org.apache.gobblin.runtime.task.FailedTask;
+import org.apache.gobblin.runtime.task.NoopTask;
+import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
@@ -41,6 +45,9 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+
+import static org.apache.gobblin.data.management.source.LoopingDatasetFinderSource.IS_ROLLOVER_WU;
+
 
 public class LoopingDatasetFinderSourceTest {
 
@@ -183,7 +190,6 @@ public class LoopingDatasetFinderSourceTest {
     IterableDatasetFinder finder = new StaticDatasetsFinderForTesting(Collections.emptyList());
     MySource mySource = new MySource(true, finder);
 
-    // Limit 1 per run
     SourceState sourceState = new SourceState();
     sourceState.setProp(LoopingDatasetFinderSource.MAX_WORK_UNITS_PER_RUN_KEY, 3);
 
@@ -211,6 +217,66 @@ public class LoopingDatasetFinderSourceTest {
     Assert.assertEquals(workUnits.get(0).getProp(LoopingDatasetFinderSource.DATASET_URN), "failed_dataset_1");
     Assert.assertEquals(workUnits.get(1).getProp(LoopingDatasetFinderSource.DATASET_URN), "failed_dataset_2");
     Assert.assertEquals(workUnits.get(2).getProp(LoopingDatasetFinderSource.DATASET_URN), "failed_dataset_3");
+  }
+
+  // Question here will be:
+  // - What is the process of getting previous state from state store, and what are the things that being persisted there.
+  // - And what will be the difference in terms of datasetState and JobState for this previous work unit persistency ?
+  @Test
+  public void testRolleverWorkUnitUseCase() {
+    IterableDatasetFinder finder = new StaticDatasetsFinderForTesting(Collections.emptyList());
+    MySource mySource = new MySource(true, finder);
+
+    // Limit 1 work unit per run, and number of failed work units is larger therefore there should be rolled over tasks.
+    // Failed/RolledOver tasks will be kept in retrying mode until it exceeds the number of retry times now.
+    SourceState sourceState = new SourceState();
+    sourceState.setProp(LoopingDatasetFinderSource.MAX_WORK_UNITS_PER_RUN_KEY, 1);
+
+    WorkUnit failedWorkUnit_1 = new FailedTask.FailedWorkUnit();
+    failedWorkUnit_1.setProp(LoopingDatasetFinderSource.DATASET_URN, "failed_dataset_1");
+    failedWorkUnit_1.setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, WorkUnitState.WorkingState.FAILED);
+
+    WorkUnit failedWorkUnit_2 = new FailedTask.FailedWorkUnit();
+    failedWorkUnit_2.setProp(LoopingDatasetFinderSource.DATASET_URN, "rolledOver_dataset_2");
+    TaskUtils.setTaskFactoryClass(failedWorkUnit_2, MRTaskFactory.class);
+    failedWorkUnit_2.setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, WorkUnitState.WorkingState.FAILED);
+
+    WorkUnit failedWorkUnit_3 = new FailedTask.FailedWorkUnit();
+    TaskUtils.setTaskFactoryClass(failedWorkUnit_3, HiveMaterializerTaskFactory.class);
+    failedWorkUnit_3.setProp(LoopingDatasetFinderSource.DATASET_URN, "rolledOver_dataset_3");
+    failedWorkUnit_3.setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, WorkUnitState.WorkingState.FAILED);
+
+    List<WorkUnit> workUnits = Lists.newArrayList(failedWorkUnit_1, failedWorkUnit_2, failedWorkUnit_3);
+    List<WorkUnitState> workUnitStates = workUnits.stream().map(WorkUnitState::new).collect(Collectors.toList());
+    SourceState sourceStateSpy = Mockito.spy(sourceState);
+    Mockito.doReturn(workUnitStates).when(sourceStateSpy).getPreviousWorkUnitStates();
+
+    WorkUnitStream workUnitStream = mySource.getWorkunitStream(sourceStateSpy);
+    workUnits = Lists.newArrayList(workUnitStream.getWorkUnits());
+
+    Assert.assertEquals(workUnits.size(), 3);
+    Assert.assertEquals(workUnits.get(0).getProp(LoopingDatasetFinderSource.DATASET_URN), "failed_dataset_1");
+    Assert.assertTrue(workUnits.get(1).getPropAsBoolean(IS_ROLLOVER_WU));
+    Assert.assertEquals(workUnits.get(1).getProp("org.apache.gobblin.runtime.taskFactoryClass"), NoopTask.Factory.class.getName());
+    Assert.assertTrue(workUnits.get(2).getPropAsBoolean(IS_ROLLOVER_WU));
+    Assert.assertEquals(workUnits.get(2).getProp("org.apache.gobblin.runtime.taskFactoryClass"), NoopTask.Factory.class.getName());
+
+
+    // The case when all rollover WUs are being processed.
+    SourceState sourceStateBig = new SourceState();
+    sourceState.setProp(LoopingDatasetFinderSource.MAX_WORK_UNITS_PER_RUN_KEY, 3);
+    SourceState sourceStateSpyBig = Mockito.spy(sourceStateBig);
+    Mockito.doReturn(workUnitStates).when(sourceStateSpyBig).getPreviousWorkUnitStates();
+    WorkUnitStream workUnitStreamBig = mySource.getWorkunitStream(sourceStateSpyBig);
+    workUnits = Lists.newArrayList(workUnitStreamBig.getWorkUnits());
+
+    // Containing one more end of stream WU.
+    Assert.assertEquals(workUnits.size(), 4);
+    Assert.assertEquals(workUnits.get(0).getProp(LoopingDatasetFinderSource.DATASET_URN), "failed_dataset_1");
+    Assert.assertFalse(workUnits.get(1).getPropAsBoolean(IS_ROLLOVER_WU));
+    Assert.assertTrue(TaskUtils.getTaskFactory(workUnits.get(1)).get() instanceof MRTaskFactory);
+    Assert.assertFalse(workUnits.get(2).getPropAsBoolean(IS_ROLLOVER_WU));
+    Assert.assertTrue(TaskUtils.getTaskFactory(workUnits.get(2)).get() instanceof HiveMaterializerTaskFactory);
   }
 
   public static class MySource extends LoopingDatasetFinderSource<String, String> {
