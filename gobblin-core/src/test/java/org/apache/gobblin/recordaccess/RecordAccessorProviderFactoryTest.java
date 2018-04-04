@@ -17,6 +17,7 @@
 package org.apache.gobblin.recordaccess;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.avro.Schema;
@@ -117,6 +118,21 @@ public class RecordAccessorProviderFactoryTest {
 
     @Override
     public void setToNull(String fieldName) {
+
+    }
+
+    @Override
+    public Map<String, Object> getMultiGeneric(String fieldName) {
+      return null;
+    }
+
+    @Override
+    public Object getGeneric(String fieldName) {
+      return null;
+    }
+
+    @Override
+    public void setStringArray(String fieldName, List<String> value) {
 
     }
 
