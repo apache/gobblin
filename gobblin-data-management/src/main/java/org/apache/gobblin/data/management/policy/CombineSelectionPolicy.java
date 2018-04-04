@@ -41,6 +41,7 @@ import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.data.management.retention.policy.CombineRetentionPolicy;
 import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -95,7 +96,7 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
 
     ImmutableList.Builder<VersionSelectionPolicy<DatasetVersion>> builder = ImmutableList.builder();
 
-    for (String combineClassName : config.getStringList(VERSION_SELECTION_POLICIES_PREFIX)) {
+    for (String combineClassName : ConfigUtils.getStringList(config, VERSION_SELECTION_POLICIES_PREFIX)) {
       try {
         builder.add((VersionSelectionPolicy<DatasetVersion>) GobblinConstructorUtils
             .invokeFirstConstructor(Class.forName(combineClassName), ImmutableList.<Object>of(config),
