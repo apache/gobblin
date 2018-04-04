@@ -39,6 +39,10 @@ public interface SpecProducer<V> {
   /** Update a {@link Spec} being executed on {@link SpecExecutor}. */
   Future<?> updateSpec(V updatedSpec);
 
+  default Future<?> deleteSpec(URI deletedSpecURI) {
+    return deleteSpec(deletedSpecURI, new Properties());
+  }
+
   /** Delete a {@link Spec} being executed on {@link SpecExecutor}. */
   Future<?> deleteSpec(URI deletedSpecURI, Properties headers);
 

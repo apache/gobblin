@@ -36,8 +36,10 @@ import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 
+@Slf4j
 /**
  * Defines a Gobblin Job that can be run once, or multiple times. A {@link JobSpec} is
  * {@link Configurable} so it has an associated {@link Config}, along with other mandatory
@@ -300,7 +302,8 @@ public class JobSpec implements Configurable, Spec {
     }
 
     public Map getDefaultMetadata() {
-      return ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.ADD.name());
+      log.warn("Job Spec Verb is not provided, using type 'UNKNOWN'.");
+      return ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.UNKNOWN.name());
     }
 
     public Map getMetadata() {
