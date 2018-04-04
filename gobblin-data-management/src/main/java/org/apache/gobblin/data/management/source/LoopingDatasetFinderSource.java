@@ -393,12 +393,13 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
 
   /**
    * Determine if a workunit is rolled over from previous execution or not.
+   * By default, if {@link #IS_ROLLOVER_WU} is not set,  it is false.
    *
    * @param state The workUnit from previous execution or to be inspected.
    *
    * @return
    */
   private boolean isRollOverWU(State state) {
-    return state.getPropAsBoolean(IS_ROLLOVER_WU);
+    return state.getPropAsBoolean(IS_ROLLOVER_WU, false);
   }
 }
