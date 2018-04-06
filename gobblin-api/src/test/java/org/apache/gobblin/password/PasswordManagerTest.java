@@ -33,9 +33,10 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
+@Test(enabled=false, groups = {"disabledOnTravis"} )
 public class PasswordManagerTest {
 
-  @Test
+  @Test (enabled=false)
   public void testReadNormalPassword() throws IOException {
     String password = UUID.randomUUID().toString();
     String masterPassword = UUID.randomUUID().toString();
@@ -46,7 +47,7 @@ public class PasswordManagerTest {
     masterPwdFile.delete();
   }
 
-  @Test
+  @Test (enabled=false)
   public void testMasterPasswordNotExist() {
     String password = "ENC(" + UUID.randomUUID().toString() + ")";
     State state = new State();
@@ -54,7 +55,7 @@ public class PasswordManagerTest {
     Assert.assertEquals(PasswordManager.getInstance(state).readPassword(password), password);
   }
 
-  @Test
+  @Test (enabled=false)
   public void testBasicEncryptionAndDecryption() throws IOException {
     String password = UUID.randomUUID().toString();
     String masterPassword = UUID.randomUUID().toString();
@@ -69,7 +70,7 @@ public class PasswordManagerTest {
     Assert.assertEquals(decrypted, password);
   }
 
-  @Test
+  @Test (enabled=false)
   public void testStrongEncryptionAndDecryption() throws IOException {
     String password = UUID.randomUUID().toString();
     String masterPassword = UUID.randomUUID().toString();
@@ -90,7 +91,7 @@ public class PasswordManagerTest {
     }
   }
 
-  @Test
+  @Test (enabled=false)
   public void testMultipleMasterPasswords() throws IOException {
     String password = UUID.randomUUID().toString();
 
@@ -146,7 +147,7 @@ public class PasswordManagerTest {
     Assert.fail("Password Manager decrypted too old password.");
   }
 
-  @Test
+  @Test (enabled=false)
   public void testMultipleMasterPasswordsWithoutPasswordFiles() throws IOException {
     String password = UUID.randomUUID().toString();
 
