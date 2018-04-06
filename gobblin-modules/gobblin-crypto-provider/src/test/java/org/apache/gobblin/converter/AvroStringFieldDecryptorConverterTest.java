@@ -29,13 +29,14 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.test.TestUtils;
-import org.apache.gobblin.test.crypto.InsecureShiftCodec;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
+
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.test.TestUtils;
+import org.apache.gobblin.test.crypto.InsecureShiftCodec;
 
 
 public class AvroStringFieldDecryptorConverterTest {

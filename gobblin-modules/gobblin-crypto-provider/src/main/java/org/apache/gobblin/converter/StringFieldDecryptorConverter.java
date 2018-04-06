@@ -37,7 +37,8 @@ import com.google.common.base.Splitter;
 
 
 /**
- * Converter that can decrypt a string field in place. Assumes that the input field is of string
+ * Converter that can decrypt a string field in place. (Note: that means the incoming
+ * record will be mutated!). Assumes that the input field is of string
  * type and that the decryption algorithm chosen will output a UTF-8 encoded byte array.
  */
 public abstract class StringFieldDecryptorConverter<SCHEMA, DATA> extends Converter<SCHEMA, SCHEMA, DATA, DATA> {
