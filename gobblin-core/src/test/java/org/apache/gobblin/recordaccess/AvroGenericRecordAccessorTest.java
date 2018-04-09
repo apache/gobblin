@@ -19,6 +19,7 @@ package org.apache.gobblin.recordaccess;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.avro.Schema;
@@ -31,11 +32,14 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.util.Utf8;
 import org.testng.Assert;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.ImmutableList;
 
 
 public class AvroGenericRecordAccessorTest {
@@ -112,6 +116,39 @@ public class AvroGenericRecordAccessorTest {
     Assert.assertEquals(accessor.getAsString("nestedRecords.1.fieldToEncrypt"), "val1");
   }
 
+  @Test
+  public void testSetStringArray() throws IOException {
+    List<String> quotes = ImmutableList.of("abracadabra", "hocuspocus");
+    accessor.setStringArray("favorite_quotes", quotes);
+
+    Assert.assertEquals(accessor.getGeneric("favorite_quotes"), quotes);
+  }
+
+  @Test
+  public void testGetStringArrayUtf8() throws IOException {
+    // Expectation: Even though we read an Avro object with UTF8 underneath, the accessor converts it into a
+    // Java String
+    List<String> expectedQuotes = ImmutableList.of("abc", "defg");
+
+    GenericData.Array<Utf8> strings = new GenericData.Array<Utf8>(2, Schema.createArray(Schema.create(Schema.Type.STRING)));
+    expectedQuotes.forEach(s -> strings.add(new Utf8(s)));
+    record.put("favorite_quotes", strings);
+
+    Assert.assertEquals(accessor.getGeneric("favorite_quotes"), expectedQuotes);
+  }
+
+  @Test
+  public void testGetMultiConvertsStrings() throws IOException {
+    updateRecordFromTestResource("converter/fieldPickInput", "converter/fieldPickInput_arrays.avro");
+    Map<String, Object> ret = accessor.getMultiGeneric("favorite_quotes");
+    Object val = ret.get("favorite_quotes");
+
+    Assert.assertTrue(val instanceof List);
+    List castedVal = (List)val;
+    Assert.assertEquals(2, castedVal.size());
+    Assert.assertEquals("hello world", castedVal.get(0));
+    Assert.assertEquals("foobar", castedVal.get(1));
+  }
 
   @Test
   public void testSetValueFromArray() throws IOException {
@@ -184,15 +221,23 @@ public class AvroGenericRecordAccessorTest {
     record.put("created", 0L);
   }
 
-  private void updateRecordFromTestResource(String resourceName)
+  private void updateRecordFromTestResource(String resourceName) throws IOException {
+    updateRecordFromTestResource(resourceName, null);
+  }
+
+  private void updateRecordFromTestResource(String resourceName, String avroFileName)
       throws IOException {
+    if (avroFileName == null) {
+      avroFileName = resourceName + ".avro";
+    }
+
     recordSchema = new Schema.Parser().parse(
         getClass().getClassLoader().getResourceAsStream(resourceName + ".avsc")
     );
 
     DatumReader<GenericRecord> reader = new GenericDatumReader<>(recordSchema);
     DataFileReader<GenericRecord> dataFileReader = new DataFileReader<GenericRecord>(
-        new File(getClass().getClassLoader().getResource(resourceName + ".avro").getPath()), reader);
+        new File(getClass().getClassLoader().getResource(avroFileName).getPath()), reader);
 
     Assert.assertTrue(dataFileReader.hasNext());
     record = dataFileReader.next(record);
