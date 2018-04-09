@@ -20,6 +20,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.Future;
 
 import org.apache.commons.codec.EncoderException;
@@ -139,7 +140,7 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
   }
 
   @Override
-  public Future<?> deleteSpec(URI deletedSpecURI) {
+  public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
     // Delete project
     JobSpec jobSpec = new JobSpec.Builder(deletedSpecURI).build();
 

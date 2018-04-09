@@ -59,7 +59,7 @@ public class ResolvedJobSpec extends JobSpec {
   public ResolvedJobSpec(JobSpec other, JobCatalog catalog)
       throws SpecNotFoundException, JobTemplate.TemplateException {
     super(other.getUri(), other.getVersion(), other.getDescription(), resolveConfig(other, catalog),
-        ConfigUtils.configToProperties(resolveConfig(other, catalog)), other.getTemplateURI());
+        ConfigUtils.configToProperties(resolveConfig(other, catalog)), other.getTemplateURI(), other.getMetadata());
     this.originalJobSpec = other;
   }
 

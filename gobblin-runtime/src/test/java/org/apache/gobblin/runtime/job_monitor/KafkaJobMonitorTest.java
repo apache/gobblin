@@ -19,16 +19,12 @@ package org.apache.gobblin.runtime.job_monitor;
 
 import java.net.URI;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumerTest;
 
 
@@ -38,8 +34,6 @@ public class KafkaJobMonitorTest {
   public void test() throws Exception {
 
     Config config = HighLevelConsumerTest.getSimpleConfig(Optional.of(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX));
-    String stateStoreRootDir = config.getString(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
-    FileSystem fs = FileSystem.getLocal(new Configuration());
 
     MockedKafkaJobMonitor monitor = MockedKafkaJobMonitor.create(config);
     monitor.startAsync();
@@ -65,18 +59,6 @@ public class KafkaJobMonitorTest {
     Assert.assertEquals(monitor.getJobSpecs().get(new URI("job1")).getVersion(), "2");
     Assert.assertTrue(monitor.getJobSpecs().containsKey(new URI("job2")));
     Assert.assertEquals(monitor.getJobSpecs().get(new URI("job2")).getVersion(), "2");
-
-    monitor.getMockKafkaStream().pushToStream("/flow3/job3:1");
-    monitor.awaitExactlyNSpecs(3);
-    Assert.assertTrue(monitor.getJobSpecs().containsKey(new URI("/flow3/job3")));
-
-    // TODO: Currently, state stores are not categorized by flow name.
-    //       This can lead to one job overwriting other jobs' job state.
-    fs.create(new Path(stateStoreRootDir, "job3"));
-    Assert.assertTrue(fs.exists(new Path(stateStoreRootDir, "job3")));
-    monitor.getMockKafkaStream().pushToStream(MockedKafkaJobMonitor.REMOVE + ":/flow3/job3");
-    monitor.awaitExactlyNSpecs(2);
-    Assert.assertFalse(fs.exists(new Path(stateStoreRootDir, "job3")));
 
     monitor.shutDown();
   }

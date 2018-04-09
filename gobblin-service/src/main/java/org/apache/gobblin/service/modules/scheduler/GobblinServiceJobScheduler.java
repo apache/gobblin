@@ -237,9 +237,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
   }
 
+  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+    onDeleteSpec(deletedSpecURI, deletedSpecVersion, new Properties());
+  }
+
   /** {@inheritDoc} */
   @Override
-  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
     if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
       // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
       // .. Specs if in cluster mode and Helix is not yet initialized
@@ -259,7 +263,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     try {
       Spec deletedSpec = this.scheduledFlowSpecs.get(deletedSpecURI.toString());
       if (null != deletedSpec) {
-        this.orchestrator.remove(deletedSpec);
+        this.orchestrator.remove(deletedSpec, headers);
         this.scheduledFlowSpecs.remove(deletedSpecURI.toString());
         unscheduleJob(deletedSpecURI.toString());
       } else {

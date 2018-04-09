@@ -98,6 +98,7 @@ class MockedKafkaJobMonitor extends KafkaJobMonitor {
     return jobCatalog;
   }
 
+
   @Override
   public Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message)
       throws IOException {
