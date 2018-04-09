@@ -40,50 +40,28 @@ public class CountUpAndDownLatchTest {
       executorService = Executors.newFixedThreadPool(1);
 
       CountUpAndDownLatch countUpAndDownLatch = new CountUpAndDownLatch(1);
-      Future future = executorService.submit(new Waiter(countUpAndDownLatch));
 
-      try {
-        future.get(50, TimeUnit.MILLISECONDS);
-        Assert.fail();
-      } catch (TimeoutException te) {
-        // Expected
-      }
+      Assert.assertFalse(countUpAndDownLatch.await(50, TimeUnit.MILLISECONDS));
 
       countUpAndDownLatch.countUp();
-      try {
-        future.get(50, TimeUnit.MILLISECONDS);
-        Assert.fail();
-      } catch (TimeoutException te) {
-        // Expected
-      }
+      Assert.assertFalse(countUpAndDownLatch.await(50, TimeUnit.MILLISECONDS));
 
       countUpAndDownLatch.countDown();
-      try {
-        future.get(50, TimeUnit.MILLISECONDS);
-        Assert.fail();
-      } catch (TimeoutException te) {
-        // Expected
-      }
+      Assert.assertFalse(countUpAndDownLatch.await(50, TimeUnit.MILLISECONDS));
 
       countUpAndDownLatch.countDown();
-      future.get(1, TimeUnit.SECONDS);
+      Assert.assertTrue(countUpAndDownLatch.await(1, TimeUnit.SECONDS));
+
+      // count-up again
+      countUpAndDownLatch.countUp();
+      // verify we will wait even though the latch was at 0 before
+      Assert.assertFalse(countUpAndDownLatch.await(50, TimeUnit.MILLISECONDS));
+
+      countUpAndDownLatch.countDown();
+      Assert.assertTrue(countUpAndDownLatch.await(1, TimeUnit.SECONDS));
     } finally {
       if (executorService != null) {
         executorService.shutdownNow();
-      }
-    }
-  }
-
-  @AllArgsConstructor
-  public static class Waiter implements Runnable {
-    private final CountDownLatch countDownLatch;
-
-    @Override
-    public void run() {
-      try {
-        this.countDownLatch.await();
-      } catch (InterruptedException ie) {
-        throw new RuntimeException();
       }
     }
   }
