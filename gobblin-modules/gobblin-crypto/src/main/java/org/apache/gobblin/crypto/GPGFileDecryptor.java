@@ -16,15 +16,11 @@
  */
 package org.apache.gobblin.crypto;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.Security;
-
 import java.util.Iterator;
-import lombok.SneakyThrows;
-import lombok.experimental.UtilityClass;
+
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPEncryptedDataList;
@@ -44,8 +40,8 @@ import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBu
 import org.bouncycastle.openpgp.operator.jcajce.JcePBEDataDecryptorFactoryBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePublicKeyDataDecryptorFactoryBuilder;
-import org.bouncycastle.util.io.Streams;
 
+import lombok.experimental.UtilityClass;
 
 /**
  * A utility class that decrypts both password based and key based encryption files.
@@ -67,23 +63,16 @@ public class GPGFileDecryptor {
 
     PGPEncryptedDataList enc = getPGPEncryptedDataList(inputStream);
     PGPPBEEncryptedData pbe = (PGPPBEEncryptedData) enc.get(0);
-
     InputStream clear;
+
     try {
       clear = pbe.getDataStream(new JcePBEDataDecryptorFactoryBuilder(
           new JcaPGPDigestCalculatorProviderBuilder().setProvider(BouncyCastleProvider.PROVIDER_NAME).build())
               .setProvider(BouncyCastleProvider.PROVIDER_NAME).build(passPhrase.toCharArray()));
 
       JcaPGPObjectFactory pgpFact = new JcaPGPObjectFactory(clear);
-      Object pgpfObject = pgpFact.nextObject();
-      if (pgpfObject instanceof PGPCompressedData) {
-        PGPCompressedData cData = (PGPCompressedData) pgpfObject;
-        pgpFact = new JcaPGPObjectFactory(cData.getDataStream());
-        pgpfObject = pgpFact.nextObject();
-      }
 
-      PGPLiteralData ld = (PGPLiteralData) pgpfObject;
-      return ld.getInputStream();
+      return new LazyMaterializeDecryptorInputStream(pgpFact);
     } catch (PGPException e) {
       throw new IOException(e);
     }
@@ -97,55 +86,31 @@ public class GPGFileDecryptor {
    * @return
    * @throws IOException
    */
-  @SneakyThrows (PGPException.class)
   public InputStream decryptFile(InputStream inputStream, InputStream keyIn, String passPhrase)
       throws IOException {
+    try {
+      PGPEncryptedDataList enc = getPGPEncryptedDataList(inputStream);
+      Iterator it = enc.getEncryptedDataObjects();
+      PGPPrivateKey sKey = null;
+      PGPPublicKeyEncryptedData pbe = null;
+      PGPSecretKeyRingCollection pgpSec = new PGPSecretKeyRingCollection(PGPUtil.getDecoderStream(keyIn), new BcKeyFingerprintCalculator());
 
-    PGPEncryptedDataList enc = getPGPEncryptedDataList(inputStream);
-    Iterator it = enc.getEncryptedDataObjects();
-    PGPPrivateKey sKey = null;
-    PGPPublicKeyEncryptedData pbe =null;
-    PGPSecretKeyRingCollection pgpSec = new PGPSecretKeyRingCollection(
-        PGPUtil.getDecoderStream(keyIn), new BcKeyFingerprintCalculator());
-
-    while(sKey == null && it.hasNext()) {
-      pbe = (PGPPublicKeyEncryptedData)it.next();
-      sKey = findSecretKey(pgpSec, pbe.getKeyID(), passPhrase);
-    }
-
-    if (sKey == null) {
-      throw new IllegalArgumentException("secret key for message not found.");
-    }
-
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-    try (InputStream clear = pbe.getDataStream(
-        new JcePublicKeyDataDecryptorFactoryBuilder().setProvider(BouncyCastleProvider.PROVIDER_NAME).build(sKey))) {
-
-      JcaPGPObjectFactory pgpFact = new JcaPGPObjectFactory(clear);
-      Object pgpfObject = pgpFact.nextObject();
-
-      while (pgpfObject != null) {
-        if (pgpfObject instanceof PGPCompressedData) {
-          PGPCompressedData cData = (PGPCompressedData) pgpfObject;
-          pgpFact = new JcaPGPObjectFactory(cData.getDataStream());
-          pgpfObject = pgpFact.nextObject();
-        }
-
-        if (pgpfObject instanceof PGPLiteralData) {
-          Streams.pipeAll(((PGPLiteralData) pgpfObject).getInputStream(), outputStream);
-        } else if (pgpfObject instanceof PGPOnePassSignatureList) {
-          throw new PGPException("encrypted message contains PGPOnePassSignatureList message - not literal data.");
-        } else if (pgpfObject instanceof PGPSignatureList) {
-          throw new PGPException("encrypted message contains PGPSignatureList message - not literal data.");
-        } else {
-          throw new PGPException("message is not a simple encrypted file - type unknown.");
-        }
-        pgpfObject = pgpFact.nextObject();
+      while (sKey == null && it.hasNext()) {
+        pbe = (PGPPublicKeyEncryptedData) it.next();
+        sKey = findSecretKey(pgpSec, pbe.getKeyID(), passPhrase);
       }
-      return new ByteArrayInputStream(outputStream.toByteArray());
-    } finally {
-      outputStream.close();
+
+      if (sKey == null) {
+        throw new IllegalArgumentException("secret key for message not found.");
+      }
+
+      InputStream clear = pbe.getDataStream(
+          new JcePublicKeyDataDecryptorFactoryBuilder().setProvider(BouncyCastleProvider.PROVIDER_NAME).build(sKey));
+      JcaPGPObjectFactory pgpFact = new JcaPGPObjectFactory(clear);
+
+      return new LazyMaterializeDecryptorInputStream(pgpFact);
+    } catch (PGPException e) {
+      throw new IOException(e);
     }
   }
 
@@ -190,5 +155,79 @@ public class GPGFileDecryptor {
       enc = (PGPEncryptedDataList) pgpF.nextObject();
     }
     return enc;
+  }
+
+  /**
+   * A class for reading the underlying {@link InputStream}s from the pgp object without pre-materializing all of them.
+   * The PGP object may present the decrypted data through multiple {@link InputStream}s, but these streams are sequential
+   * and the n+1 stream is not available until the end of the nth stream is reached, so the
+   * {@link LazyMaterializeDecryptorInputStream} keeps a reference to the {@link JcaPGPObjectFactory} and moves to new
+   * {@link InputStream}s as they are available
+   */
+  private static class LazyMaterializeDecryptorInputStream extends InputStream {
+    JcaPGPObjectFactory pgpFact;
+    InputStream currentUnderlyingStream;
+
+    public LazyMaterializeDecryptorInputStream(JcaPGPObjectFactory pgpFact)
+        throws IOException {
+      this.pgpFact = pgpFact;
+
+      moveToNextInputStream();
+    }
+
+    @Override
+    public int read()
+        throws IOException {
+      int value = this.currentUnderlyingStream.read();
+
+      if (value != -1) {
+        return value;
+      } else {
+        moveToNextInputStream();
+
+        if (this.currentUnderlyingStream == null) {
+          return -1;
+        }
+
+        return this.currentUnderlyingStream.read();
+      }
+    }
+
+    /**
+     * Move to the next {@link InputStream} if available, otherwise set {@link #currentUnderlyingStream} to null to
+     * indicate that there is no more data.
+     * @throws IOException
+     */
+    private void moveToNextInputStream() throws IOException {
+      Object pgpfObject = this.pgpFact.nextObject();
+
+      // no more data
+      if (pgpfObject == null) {
+        this.currentUnderlyingStream = null;
+        return;
+      }
+
+      if (pgpfObject instanceof PGPCompressedData) {
+        PGPCompressedData cData = (PGPCompressedData) pgpfObject;
+
+        try {
+          this.pgpFact = new JcaPGPObjectFactory(cData.getDataStream());
+        } catch (PGPException e) {
+          throw new IOException("Could not get the PGP data stream", e);
+        }
+
+        pgpfObject = this.pgpFact.nextObject();
+      }
+
+      if (pgpfObject instanceof PGPLiteralData) {
+        this.currentUnderlyingStream = ((PGPLiteralData) pgpfObject).getInputStream();
+      } else if (pgpfObject instanceof PGPOnePassSignatureList) {
+        throw new IOException("encrypted message contains PGPOnePassSignatureList message - not literal data.");
+      } else if (pgpfObject instanceof PGPSignatureList) {
+        throw new IOException("encrypted message contains PGPSignatureList message - not literal data.");
+      } else {
+        throw new IOException("message is not a simple encrypted file - type unknown.");
+      }
+    }
   }
 }
