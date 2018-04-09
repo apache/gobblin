@@ -139,10 +139,6 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
     return new CompletedFuture<>(_config, null);
   }
 
-  public Future<?> deleteSpec(URI deletedSpecURI) {
-    return deleteSpec(deletedSpecURI, new Properties());
-  }
-
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
     // Delete project

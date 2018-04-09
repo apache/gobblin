@@ -101,10 +101,6 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
   }
 
-  public Future<?> deleteSpec(URI deletedSpecURI) {
-    return deleteSpec(deletedSpecURI, new Properties());
-  }
-
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
 
