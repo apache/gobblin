@@ -22,6 +22,7 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 
@@ -144,13 +145,17 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
   }
 
+  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+    onDeleteSpec(deletedSpecURI, deletedSpecVersion, new Properties());
+  }
+
   /** {@inheritDoc} */
   @Override
-  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
     _log.info("Spec deletion detected: " + deletedSpecURI + "/" + deletedSpecVersion);
 
     if (topologyCatalog.isPresent()) {
-      this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion);
+      this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion, headers);
     }
   }
 
@@ -211,7 +216,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
   }
 
-  public void remove(Spec spec) {
+  public void remove(Spec spec, Properties headers) {
     // TODO: Evolve logic to cache and reuse previously compiled JobSpecs
     // .. this will work for Identity compiler but not always for multi-hop.
     // Note: Current logic assumes compilation is consistent between all executions
@@ -232,7 +237,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           Spec jobSpec = specsToDelete.getKey();
 
           _log.info(String.format("Going to delete JobSpec: %s on Executor: %s", jobSpec, producer));
-          producer.deleteSpec(jobSpec.getUri());
+          producer.deleteSpec(jobSpec.getUri(), headers);
         } catch(Exception e) {
           _log.error("Cannot successfully delete spec: " + specsToDelete.getKey() + " on executor: " + producer +
               " for flow: " + spec, e);

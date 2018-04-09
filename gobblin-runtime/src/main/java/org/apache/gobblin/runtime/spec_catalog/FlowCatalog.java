@@ -23,6 +23,8 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
+
 import javax.annotation.Nonnull;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -255,8 +257,12 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
-  @Override
   public void remove(URI uri) {
+    remove(uri, new Properties());
+  }
+
+  @Override
+  public void remove(URI uri, Properties headers) {
     try {
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(uri);
@@ -264,7 +270,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       log.info(String.format("Removing FlowSpec with URI: %s", uri));
       specStore.deleteSpec(uri);
       this.metrics.updateRemoveSpecTime(startTime);
-      this.listeners.onDeleteSpec(uri, FlowSpec.Builder.DEFAULT_VERSION);
+      this.listeners.onDeleteSpec(uri, FlowSpec.Builder.DEFAULT_VERSION, headers);
 
     } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
