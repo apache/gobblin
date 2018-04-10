@@ -63,7 +63,3 @@ package-lock.json
 **/generated-gobblin-cluster.conf
 
 temp/
-
-gradle/wrapper/gradle-wrapper.properties
-gradlew
-gradlew.bat
