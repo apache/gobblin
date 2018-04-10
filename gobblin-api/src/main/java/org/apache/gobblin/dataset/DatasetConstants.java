@@ -37,4 +37,8 @@ public class DatasetConstants {
 
   /** JDBC metadata */
   public static final String CONNECTION_URL = "connectionUrl";
+
+  /** FileSystem scheme and location */
+  public static final String FS_SCHEME = "fsScheme";
+  public static final String FS_LOCATION = "fsLocation";
 }
