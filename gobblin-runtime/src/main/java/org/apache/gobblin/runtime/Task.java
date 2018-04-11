@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.BooleanUtils;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -114,6 +115,9 @@ public class Task implements TaskIFace {
 
   private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
+  private static final String TASK_STATE = "taskState";
+  private static final String FAILED_TASK_EVENT = "failedTask";
+
   private final String jobId;
   private final String taskId;
   private final String taskKey;
@@ -146,6 +150,7 @@ public class Task implements TaskIFace {
   private final AtomicBoolean shutdownRequested;
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
+  private Future<?> taskFuture;
 
   /**
    * Instantiate a new {@link Task}.
@@ -360,8 +365,15 @@ public class Task implements TaskIFace {
     } catch (Throwable t) {
       failTask(t);
     } finally {
-      this.taskStateTracker.onTaskRunCompletion(this);
-      completeShutdown();
+      synchronized (this) {
+        if (this.taskFuture == null || !this.taskFuture.isCancelled()) {
+          this.taskStateTracker.onTaskRunCompletion(this);
+          completeShutdown();
+          this.taskFuture = null;
+        } else {
+          LOG.info("will not decrease count down latch as this task is cancelled");
+        }
+      }
     }
   }
 
@@ -448,6 +460,7 @@ public class Task implements TaskIFace {
           }
         } catch (Exception e) {
           if (!(e instanceof DataConversionException) && !(e.getCause() instanceof DataConversionException)) {
+            LOG.error("Processing record incurs an unexpected exception: ", e);
             throw new RuntimeException(e.getCause());
           }
           errRecords++;
@@ -511,6 +524,12 @@ public class Task implements TaskIFace {
     LOG.error(String.format("Task %s failed", this.taskId), t);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
     this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(t));
+
+    // Send task failure event
+    FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_TASK_EVENT);
+    failureEvent.setRootCause(t);
+    failureEvent.addMetadata(TASK_STATE, this.taskState.toString());
+    failureEvent.submit(taskContext.getTaskMetrics().getMetricContext());
   }
 
   /**
@@ -858,7 +877,9 @@ public class Task implements TaskIFace {
       if (failedForkIds.size() == 0) {
         // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
         // as the data publisher will do that upon successful data publishing.
-        this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+        if (this.taskState.getWorkingState() != WorkUnitState.WorkingState.FAILED) {
+          this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+        }
       } else {
         failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
       }
@@ -892,8 +913,10 @@ public class Task implements TaskIFace {
         if (shouldPublishDataInTask()) {
           // If data should be published by the task, publish the data and set the task state to COMMITTED.
           // Task data can only be published after all forks have been closed by closer.close().
-          publishTaskData();
-          this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+          if (this.taskState.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL) {
+            publishTaskData();
+            this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+          }
         }
       } catch (IOException ioe) {
         failTask(ioe);
@@ -936,5 +959,23 @@ public class Task implements TaskIFace {
       }
     }
     return true;
+  }
+
+  public synchronized void setTaskFuture(Future<?> taskFuture) {
+    this.taskFuture = taskFuture;
+  }
+
+  /**
+   * return true if the task is successfully cancelled.
+   * @return
+   */
+  public synchronized boolean cancel() {
+    if (this.taskFuture != null && this.taskFuture.cancel(true)) {
+      this.taskStateTracker.onTaskRunCompletion(this);
+      this.completeShutdown();
+      return true;
+    } else {
+      return false;
+    }
   }
 }

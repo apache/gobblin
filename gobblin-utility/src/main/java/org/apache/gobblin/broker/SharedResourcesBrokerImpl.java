@@ -44,6 +44,7 @@ import org.apache.gobblin.util.ConfigUtils;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -55,6 +56,7 @@ import lombok.Data;
  *  SharedResourcesBrokerImpl<MyScopes> scopeBroker = topBroker.newSubscopedBuilder(scope, "scopeId").build();
  * </pre>
  */
+@Slf4j
 public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements SharedResourcesBroker<S> {
 
   private final DefaultBrokerCache<S> brokerCache;
@@ -323,6 +325,8 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
   @Override
   public void close()
       throws IOException {
+    ScopeInstance<S> scope = this.selfScopeWrapper.getScope();
+    log.info("Closing broker with scope {} of id {}.", scope.getType().toString(), scope.getScopeId());
     this.brokerCache.close(this.selfScopeWrapper);
   }
 }

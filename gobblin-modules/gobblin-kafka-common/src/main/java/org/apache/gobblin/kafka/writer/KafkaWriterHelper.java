@@ -28,6 +28,7 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
@@ -40,9 +41,15 @@ import static org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys.CLIEN
 @Slf4j
 public class KafkaWriterHelper {
 
-  static Properties getProducerProperties(Properties props)
-  {
-    Properties producerProperties = stripPrefix(props, KAFKA_PRODUCER_CONFIG_PREFIX);
+  static Properties getProducerProperties(Properties props) {
+    Config config = ConfigUtils.propertiesToConfig(props);
+
+    // get the "writer.kafka.producerConfig" config for producer config to pass along to Kafka with a fallback to the
+    // shared config that start with "gobblin.kafka.sharedConfig"
+    Config producerConfig = ConfigUtils.getConfigOrEmpty(config, KAFKA_PRODUCER_CONFIG_PREFIX_NO_DOT).withFallback(
+        ConfigUtils.getConfigOrEmpty(config, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+
+    Properties producerProperties = ConfigUtils.configToProperties(producerConfig);
 
     // Provide default properties if not set from above
     setDefaultIfUnset(producerProperties, KEY_SERIALIZER_CONFIG, DEFAULT_KEY_SERIALIZER);
@@ -52,8 +59,7 @@ public class KafkaWriterHelper {
     return producerProperties;
   }
 
-  private static void setDefaultIfUnset(Properties props, String key, String value)
-  {
+  private static void setDefaultIfUnset(Properties props, String key, String value) {
     if (!props.containsKey(key)) {
       props.setProperty(key, value);
     }
@@ -62,22 +68,18 @@ public class KafkaWriterHelper {
   private static Properties stripPrefix(Properties props, String prefix) {
     Properties strippedProps = new Properties();
     int prefixLength = prefix.length();
-    for (String key: props.stringPropertyNames())
-    {
-      if (key.startsWith(prefix))
-      {
+    for (String key : props.stringPropertyNames()) {
+      if (key.startsWith(prefix)) {
         strippedProps.setProperty(key.substring(prefixLength), props.getProperty(key));
       }
     }
     return strippedProps;
   }
 
-  public static Object getKafkaProducer(Properties props)
-  {
+  public static Object getKafkaProducer(Properties props) {
     Config config = ConfigFactory.parseProperties(props);
-    String kafkaProducerClass = ConfigUtils
-        .getString(config, KafkaWriterConfigurationKeys.KAFKA_WRITER_PRODUCER_CLASS,
-            KafkaWriterConfigurationKeys.KAFKA_WRITER_PRODUCER_CLASS_DEFAULT);
+    String kafkaProducerClass = ConfigUtils.getString(config, KafkaWriterConfigurationKeys.KAFKA_WRITER_PRODUCER_CLASS,
+        KafkaWriterConfigurationKeys.KAFKA_WRITER_PRODUCER_CLASS_DEFAULT);
     Properties producerProps = getProducerProperties(props);
     try {
       Class<?> producerClass = (Class<?>) Class.forName(kafkaProducerClass);
@@ -88,6 +90,4 @@ public class KafkaWriterHelper {
       throw Throwables.propagate(e);
     }
   }
-
-
 }

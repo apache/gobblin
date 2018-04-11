@@ -62,7 +62,7 @@ ext.gradleVersionMajor = Integer.parseInt(gradleVersions[0])
 ext.gradleVersionMinor = Integer.parseInt(gradleVersions[1])
 println "Detected Gradle version major=" + gradleVersionMajor + " minor=" + gradleVersionMinor
 
-ext.dropwizardMetricsVersion = '3.1.0'
+ext.dropwizardMetricsVersion = '3.2.3'
 ext.findBugsVersion = '3.0.0'
 ext.googleVersion = '1.22.0'
 ext.slf4jVersion = '1.7.21'

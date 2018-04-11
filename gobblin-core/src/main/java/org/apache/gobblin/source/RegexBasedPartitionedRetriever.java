@@ -48,6 +48,8 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
   private Path sourceDir;
   private final String expectedExtension;
   private Duration leadTime;
+  private boolean schemaInSourceDir;
+  private String schemaFile;
 
   public RegexBasedPartitionedRetriever(String expectedExtension) {
     this.expectedExtension = expectedExtension;
@@ -64,6 +66,10 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
     this.pattern = Pattern.compile(regexPattern);
     this.helper = new HadoopFsHelper(state);
     this.sourceDir = new Path(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY));
+    this.schemaInSourceDir = state.getPropAsBoolean(ConfigurationKeys.SCHEMA_IN_SOURCE_DIR,
+        ConfigurationKeys.DEFAULT_SCHEMA_IN_SOURCE_DIR);
+    this.schemaFile = this.schemaInSourceDir ? state.getProp(ConfigurationKeys.SCHEMA_FILENAME,
+        ConfigurationKeys.DEFAULT_SCHEMA_FILENAME) : "";
   }
 
   @Override
@@ -175,7 +181,8 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
     return new PathFilter() {
       @Override
       public boolean accept(Path path) {
-        return path.getName().endsWith(extension);
+        return path.getName().endsWith(extension) &&
+            !(schemaInSourceDir && path.getName().equals(schemaFile)) ;
       }
     };
   }

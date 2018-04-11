@@ -25,25 +25,28 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 
-import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecConsumer;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.gobblin.runtime.api.SpecConsumer;
 
 
 /**
@@ -56,6 +59,7 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
   private final ExecutorService fetchJobSpecExecutor;
 
+  @Getter
   private final SpecConsumer specConsumer;
 
   private final long stopTimeoutSeconds;
@@ -95,11 +99,6 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
   protected void startUp() throws Exception {
     LOGGER.info("Starting the " + StreamingJobConfigurationManager.class.getSimpleName());
 
-    // if the instance consumer is a service then need to start it to consume job specs
-    if (this.specConsumer instanceof Service) {
-      ((Service) this.specConsumer).startAsync().awaitRunning();
-    }
-
     // submit command to fetch job specs
     this.fetchJobSpecExecutor.execute(new Runnable() {
       @Override
@@ -116,6 +115,15 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
         }
       }
     });
+
+    // if the instance consumer is a service then need to start it to consume job specs
+    // IMPORTANT: StreamingKafkaSpecConsumer needs to be launched after a fetching thread is created.
+    //            This is because StreamingKafkaSpecConsumer will invoke addListener(new JobSpecListener()) during startup,
+    //            which will push job specs into a blocking queue _jobSpecQueue. A fetching thread will help to consume the
+    //            blocking queue to prevent a hanging issue.
+    if (this.specConsumer instanceof Service) {
+      ((Service) this.specConsumer).startAsync().awaitRunning();
+    }
   }
 
   private void fetchJobSpecs() throws ExecutionException, InterruptedException {

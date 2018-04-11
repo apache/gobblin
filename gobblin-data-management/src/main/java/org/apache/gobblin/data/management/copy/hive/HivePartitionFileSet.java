@@ -96,7 +96,8 @@ public class HivePartitionFileSet extends HiveFileSet {
         try {
           checkPartitionCompatibility(targetPartition, this.existingTargetPartition.get());
         } catch (IOException ioe) {
-          if (hiveCopyEntityHelper.getExistingEntityPolicy() != HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_PARTITIONS) {
+          if (hiveCopyEntityHelper.getExistingEntityPolicy() != HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_PARTITIONS &&
+              hiveCopyEntityHelper.getExistingEntityPolicy() != HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_TABLE_AND_PARTITIONS) {
             log.error("Source and target partitions are not compatible. Aborting copy of partition " + this.partition,
                 ioe);
             return Lists.newArrayList();
@@ -149,8 +150,11 @@ public class HivePartitionFileSet extends HiveFileSet {
       multiTimer.nextStage(HiveCopyEntityHelper.Stages.CREATE_COPY_UNITS);
       for (CopyableFile.Builder builder : hiveCopyEntityHelper.getCopyableFilesFromPaths(diffPathSet.filesToCopy,
           hiveCopyEntityHelper.getConfiguration(), Optional.of(this.partition))) {
-        copyEntities.add(builder.fileSet(fileSet).checksum(new byte[0])
-            .datasetOutputPath(desiredTargetLocation.location.toString()).build());
+        CopyableFile fileEntity =
+            builder.fileSet(fileSet).checksum(new byte[0]).datasetOutputPath(desiredTargetLocation.location.toString())
+                .build();
+        this.hiveCopyEntityHelper.setCopyableFileDatasets(fileEntity);
+        copyEntities.add(fileEntity);
       }
 
       log.info("Created {} copy entities for partition {}", copyEntities.size(), this.partition.getCompleteName());

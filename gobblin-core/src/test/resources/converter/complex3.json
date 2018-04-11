@@ -1,0 +1,548 @@
+{
+  "schema": [
+    {
+      "columnName": "User",
+      "namespace": "com.example.avro",
+      "comment": "This is a user record in a fictitious to-do-list management app. It supports arbitrary grouping and nesting of items, and allows you to add items by email or by tweeting.\n\nNote this app doesn't actually exist. The schema is just a demo for [Avrodoc](https://github.com/ept/avrodoc)!",
+      "dataType": {
+        "type": "record",
+        "values": [
+          {
+            "columnName": "id",
+            "comment": "System-assigned numeric user ID. Cannot be changed by the user.",
+            "isNullable": true,
+            "dataType": {
+              "type": [
+                "int",
+                "null"
+              ]
+            }
+          },
+          {
+            "columnName": "username",
+            "comment": "The username chosen by the user. Can be changed by the user.",
+            "dataType": {
+              "type": "string"
+            }
+          },
+          {
+            "columnName": "passwordHash",
+            "comment": "The user's password, hashed using [scrypt](http://www.tarsnap.com/scrypt.html).",
+            "isNullable": true,
+            "dataType": {
+              "type": [
+                "null",
+                "string"
+              ]
+            }
+          },
+          {
+            "columnName": "signupDate",
+            "comment": "Timestamp (milliseconds since epoch) when the user signed up",
+            "dataType": {
+              "type": "long"
+            }
+          },
+          {
+            "columnName": "emailAddresses",
+            "comment": "All email addresses on the user's account",
+            "dataType": {
+              "type": [
+                "string",
+                {
+                  "dataType": {
+                    "type": "array",
+                    "items": {
+                      "dataType": {
+                        "type": "record",
+                        "name": "EmailAddress",
+                        "comment": "Stores details about an email address that a user has associated with their account.",
+                        "values": [
+                          {
+                            "columnName": "address",
+                            "comment": "The email address, e.g. `foo@example.com`",
+                            "dataType": {
+                              "type": "string"
+                            }
+                          },
+                          {
+                            "columnName": "verified",
+                            "comment": "true if the user has clicked the link in a confirmation email to this address.",
+                            "dataType": {
+                              "type": "boolean"
+                            },
+                            "default": false
+                          },
+                          {
+                            "columnName": "dateAdded",
+                            "comment": "Timestamp (milliseconds since epoch) when the email address was added to the account.",
+                            "dataType": {
+                              "type": "long"
+                            }
+                          },
+                          {
+                            "columnName": "dateBounced",
+                            "comment": "Timestamp (milliseconds since epoch) when an email sent to this address last bounced. Reset to null when the address no longer bounces.",
+                            "dataType": {
+                              "type": "long"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "columnName": "twitterAccounts",
+            "comment": "All Twitter accounts that the user has OAuthed",
+            "dataType": {
+              "type": "array",
+              "items": {
+                "dataType": {
+                  "type": "record",
+                  "columnName": "TwitterAccount",
+                  "comment": "Stores access credentials for one Twitter account, as granted to us by the user by OAuth.",
+                  "values": [
+                    {
+                      "columnName": "status",
+                      "comment": "Indicator of whether this authorization is currently active, or has been revoked",
+                      "dataType": {
+                        "type": "enum",
+                        "name": "OAuthStatus",
+                        "comment": "* `PENDING`: the user has started authorizing, but not yet finished\n* `ACTIVE`: the token should work\n* `DENIED`: the user declined the authorization\n* `EXPIRED`: the token used to work, but now it doesn't\n* `REVOKED`: the user has explicitly revoked the token",
+                        "symbols": [
+                          "PENDING",
+                          "ACTIVE",
+                          "DENIED",
+                          "EXPIRED",
+                          "REVOKED"
+                        ]
+                      }
+                    },
+                    {
+                      "columnName": "userId",
+                      "comment": "Twitter's numeric ID for this user",
+                      "dataType": {
+                        "type": "long"
+                      }
+                    },
+                    {
+                      "columnName": "screenName",
+                      "comment": "The twitter username for this account (can be changed by the user)",
+                      "dataType": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "columnName": "oauthToken",
+                      "comment": "The OAuth token for this Twitter account",
+                      "dataType": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "columnName": "oauthTokenSecret",
+                      "comment": "The OAuth secret, used for signing requests on behalf of this Twitter account. `null` whilst the OAuth flow is not yet complete.",
+                      "dataType": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "columnName": "dateAuthorized",
+                      "comment": "Timestamp (milliseconds since epoch) when the user last authorized this Twitter account",
+                      "dataType": {
+                        "type": "long"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "columnName": "toDoItems",
+            "comment": "The top-level items in the user's to-do list",
+            "dataType": {
+              "type": "array",
+              "items": {
+                "dataType": {
+                  "type": "record",
+                  "name": "ToDoItem",
+                  "comment": "A record is one node in a To-Do item tree (every record can contain nested sub-records).",
+                  "values": [
+                    {
+                      "columnName": "status",
+                      "comment": "User-selected state for this item (e.g. whether or not it is marked as done)",
+                      "dataType": {
+                        "type": "enum",
+                        "name": "ToDoStatus",
+                        "comment": "* `HIDDEN`: not currently visible, e.g. because it becomes actionable in future\n* `ACTIONABLE`: appears in the current to-do list\n* `DONE`: marked as done, but still appears in the list\n* `ARCHIVED`: marked as done and no longer visible\n* `DELETED`: not done and removed from list (preserved for undo purposes)",
+                        "symbols": [
+                          "HIDDEN",
+                          "ACTIONABLE",
+                          "DONE",
+                          "ARCHIVED",
+                          "DELETED"
+                        ]
+                      }
+                    },
+                    {
+                      "columnName": "title",
+                      "comment": "One-line summary of the item",
+                      "dataType": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "columnName": "description",
+                      "comment": "Detailed description (may contain HTML markup)",
+                      "dataType": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "columnName": "snoozeDate",
+                      "comment": "Timestamp (milliseconds since epoch) at which the item should go from `HIDDEN` to `ACTIONABLE` status",
+                      "dataType": {
+                        "type": "long"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "record": {
+    "User": {
+      "id": null,
+      "username": "hewhomustnotbenamed",
+      "passwordHash": "avadakedavara",
+      "signupDate": 1503651112419,
+      "emailAddresses": "vold@gmail.com",
+      "twitterAccounts": [
+        {
+          "status": "ACTIVE",
+          "userId": 555,
+          "screenName": "hewhomustnotbenamed",
+          "oauthToken": "sdfsds",
+          "oauthTokenSecret": "dfsdsds",
+          "dateAuthorized": 1503651112419
+        }
+      ],
+      "toDoItems": [
+        {
+          "status": "HIDDEN",
+          "title": "Kill the boy",
+          "description": "AvadaKedavara",
+          "snoozeDate": 1503651112419
+        }
+      ]
+    }
+  },
+  "expectedSchema": {
+    "type": "record",
+    "name": "dummy_table",
+    "namespace": "namespace",
+    "doc": "",
+    "fields": [
+      {
+        "name": "User",
+        "type": {
+          "type": "record",
+          "namespace": "",
+          "doc": "",
+          "fields": [
+            {
+              "name": "id",
+              "type": [
+                {
+                  "type": "int",
+                  "source.type": "int"
+                },
+                {
+                  "type": "null",
+                  "source.type": "null"
+                }
+              ],
+              "doc": "System-assigned numeric user ID. Cannot be changed by the user.",
+              "default": null,
+              "source.type": "union"
+            },
+            {
+              "name": "username",
+              "type": {
+                "type": "string",
+                "source.type": "string"
+              },
+              "doc": "The username chosen by the user. Can be changed by the user.",
+              "source.type": "string"
+            },
+            {
+              "name": "passwordHash",
+              "type": [
+                {
+                  "type": "null",
+                  "source.type": "null"
+                },
+                {
+                  "type": "string",
+                  "source.type": "string"
+                }
+              ],
+              "doc": "The user's password, hashed using [scrypt](http://www.tarsnap.com/scrypt.html).",
+              "default": null,
+              "source.type": "union"
+            },
+            {
+              "name": "signupDate",
+              "type": {
+                "type": "long",
+                "source.type": "long"
+              },
+              "doc": "Timestamp (milliseconds since epoch) when the user signed up",
+              "source.type": "long"
+            },
+            {
+              "name": "emailAddresses",
+              "type": [
+                {
+                  "type": "string",
+                  "source.type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "record",
+                    "name": "EmailAddress",
+                    "doc": "",
+                    "fields": [
+                      {
+                        "name": "address",
+                        "type": {
+                          "type": "string",
+                          "source.type": "string"
+                        },
+                        "doc": "The email address, e.g. `foo@example.com`",
+                        "source.type": "string"
+                      },
+                      {
+                        "name": "verified",
+                        "type": {
+                          "type": "boolean",
+                          "source.type": "boolean"
+                        },
+                        "doc": "true if the user has clicked the link in a confirmation email to this address.",
+                        "source.type": "boolean"
+                      },
+                      {
+                        "name": "dateAdded",
+                        "type": {
+                          "type": "long",
+                          "source.type": "long"
+                        },
+                        "doc": "Timestamp (milliseconds since epoch) when the email address was added to the account.",
+                        "source.type": "long"
+                      },
+                      {
+                        "name": "dateBounced",
+                        "type": {
+                          "type": "long",
+                          "source.type": "long"
+                        },
+                        "doc": "Timestamp (milliseconds since epoch) when an email sent to this address last bounced. Reset to null when the address no longer bounces.",
+                        "source.type": "long"
+                      }
+                    ],
+                    "source.type": "record"
+                  },
+                  "source.type": "array"
+                }
+              ],
+              "doc": "All email addresses on the user's account",
+              "source.type": "union"
+            },
+            {
+              "name": "twitterAccounts",
+              "type": {
+                "type": "array",
+                "items": {
+                  "type": "record",
+                  "doc": "",
+                  "fields": [
+                    {
+                      "name": "status",
+                      "type": {
+                        "type": "enum",
+                        "name": "OAuthStatus",
+                        "doc": "",
+                        "symbols": [
+                          "PENDING",
+                          "ACTIVE",
+                          "DENIED",
+                          "EXPIRED",
+                          "REVOKED"
+                        ],
+                        "source.type": "enum"
+                      },
+                      "doc": "Indicator of whether this authorization is currently active, or has been revoked",
+                      "source.type": "enum"
+                    },
+                    {
+                      "name": "userId",
+                      "type": {
+                        "type": "long",
+                        "source.type": "long"
+                      },
+                      "doc": "Twitter's numeric ID for this user",
+                      "source.type": "long"
+                    },
+                    {
+                      "name": "screenName",
+                      "type": {
+                        "type": "string",
+                        "source.type": "string"
+                      },
+                      "doc": "The twitter username for this account (can be changed by the user)",
+                      "source.type": "string"
+                    },
+                    {
+                      "name": "oauthToken",
+                      "type": {
+                        "type": "string",
+                        "source.type": "string"
+                      },
+                      "doc": "The OAuth token for this Twitter account",
+                      "source.type": "string"
+                    },
+                    {
+                      "name": "oauthTokenSecret",
+                      "type": {
+                        "type": "string",
+                        "source.type": "string"
+                      },
+                      "doc": "The OAuth secret, used for signing requests on behalf of this Twitter account. `null` whilst the OAuth flow is not yet complete.",
+                      "source.type": "string"
+                    },
+                    {
+                      "name": "dateAuthorized",
+                      "type": {
+                        "type": "long",
+                        "source.type": "long"
+                      },
+                      "doc": "Timestamp (milliseconds since epoch) when the user last authorized this Twitter account",
+                      "source.type": "long"
+                    }
+                  ],
+                  "source.type": "record"
+                },
+                "source.type": "array"
+              },
+              "doc": "All Twitter accounts that the user has OAuthed",
+              "source.type": "array"
+            },
+            {
+              "name": "toDoItems",
+              "type": {
+                "type": "array",
+                "items": {
+                  "type": "record",
+                  "name": "ToDoItem",
+                  "doc": "",
+                  "fields": [
+                    {
+                      "name": "status",
+                      "type": {
+                        "type": "enum",
+                        "name": "ToDoStatus",
+                        "doc": "",
+                        "symbols": [
+                          "HIDDEN",
+                          "ACTIONABLE",
+                          "DONE",
+                          "ARCHIVED",
+                          "DELETED"
+                        ],
+                        "source.type": "enum"
+                      },
+                      "doc": "User-selected state for this item (e.g. whether or not it is marked as done)",
+                      "source.type": "enum"
+                    },
+                    {
+                      "name": "title",
+                      "type": {
+                        "type": "string",
+                        "source.type": "string"
+                      },
+                      "doc": "One-line summary of the item",
+                      "source.type": "string"
+                    },
+                    {
+                      "name": "description",
+                      "type": {
+                        "type": "string",
+                        "source.type": "string"
+                      },
+                      "doc": "Detailed description (may contain HTML markup)",
+                      "source.type": "string"
+                    },
+                    {
+                      "name": "snoozeDate",
+                      "type": {
+                        "type": "long",
+                        "source.type": "long"
+                      },
+                      "doc": "Timestamp (milliseconds since epoch) at which the item should go from `HIDDEN` to `ACTIONABLE` status",
+                      "source.type": "long"
+                    }
+                  ],
+                  "source.type": "record"
+                },
+                "source.type": "array"
+              },
+              "doc": "The top-level items in the user's to-do list",
+              "source.type": "array"
+            }
+          ],
+          "source.type": "record"
+        },
+        "doc": "This is a user record in a fictitious to-do-list management app. It supports arbitrary grouping and nesting of items, and allows you to add items by email or by tweeting.\n\nNote this app doesn't actually exist. The schema is just a demo for [Avrodoc](https://github.com/ept/avrodoc)!",
+        "source.type": "record"
+      }
+    ],
+    "source.type": "record"
+  },
+  "expectedRecord": {
+    "User": {
+      "id": null,
+      "username": "hewhomustnotbenamed",
+      "passwordHash": "avadakedavara",
+      "signupDate": 1503651112419,
+      "emailAddresses": "vold@gmail.com",
+      "twitterAccounts": [
+        {
+          "status": "ACTIVE",
+          "userId": 555,
+          "screenName": "hewhomustnotbenamed",
+          "oauthToken": "sdfsds",
+          "oauthTokenSecret": "dfsdsds",
+          "dateAuthorized": 1503651112419
+        }
+      ],
+      "toDoItems": [
+        {
+          "status": "HIDDEN",
+          "title": "Kill the boy",
+          "description": "AvadaKedavara",
+          "snoozeDate": 1503651112419
+        }
+      ]
+    }
+  }
+}

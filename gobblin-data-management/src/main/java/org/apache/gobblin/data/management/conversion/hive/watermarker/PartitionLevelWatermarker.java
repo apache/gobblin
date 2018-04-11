@@ -112,31 +112,31 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
 
   @Setter(AccessLevel.PACKAGE)
   @VisibleForTesting
-  private long leastWatermarkToPersistInState;
+  protected long leastWatermarkToPersistInState;
   // Keep an additional 2 days of updates
-  private static final int BUFFER_WATERMARK_DAYS_TO_PERSIST = 2;
+  protected static final int BUFFER_WATERMARK_DAYS_TO_PERSIST = 2;
 
   /**
    * Watermarks from previous state
    */
   @Getter(AccessLevel.PACKAGE)
   @VisibleForTesting
-  private final TableWatermarks previousWatermarks;
+  protected final TableWatermarks previousWatermarks;
 
   /**
    * Current expected watermarks
    */
   @Getter(AccessLevel.PACKAGE)
   @VisibleForTesting
-  private final TableWatermarks expectedHighWatermarks;
+  protected final TableWatermarks expectedHighWatermarks;
 
-  private final HiveMetastoreClientPool pool;
+  protected final HiveMetastoreClientPool pool;
   /**
    * Delegates watermarking logic to {@link TableLevelWatermarker} for Non partitioned tables
    */
-  private final TableLevelWatermarker tableLevelWatermarker;
+  protected final TableLevelWatermarker tableLevelWatermarker;
 
-  private final HiveUnitUpdateProvider updateProvider;
+  protected final HiveUnitUpdateProvider updateProvider;
 
   /**
    * Reads and initialized the previous high watermarks from {@link SourceState#getPreviousDatasetStatesByUrns()}

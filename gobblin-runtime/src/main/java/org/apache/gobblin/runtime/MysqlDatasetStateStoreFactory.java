@@ -16,19 +16,20 @@
  */
 package org.apache.gobblin.runtime;
 
+import org.apache.commons.dbcp.BasicDataSource;
+
 import com.typesafe.config.Config;
+
 import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.metastore.MysqlStateStore;
-import java.util.Properties;
-import org.apache.commons.dbcp.BasicDataSource;
+import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 
 @Alias("mysql")
 public class MysqlDatasetStateStoreFactory implements DatasetStateStore.Factory {
   @Override
   public DatasetStateStore<JobState.DatasetState> createStateStore(Config config) {
-    BasicDataSource basicDataSource = MysqlStateStore.newDataSource(config);
     String stateStoreTableName = config.hasPath(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY) ?
         config.getString(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY) :
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE;
@@ -37,6 +38,9 @@ public class MysqlDatasetStateStoreFactory implements DatasetStateStore.Factory 
         ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES;
 
     try {
+      BasicDataSource basicDataSource = MysqlDataSourceFactory.get(config,
+          SharedResourcesBrokerFactory.getImplicitBroker());
+
       return new MysqlDatasetStateStore(basicDataSource, stateStoreTableName, compressedValues);
     } catch (Exception e) {
       throw new RuntimeException("Failed to create MysqlDatasetStateStore with factory", e);

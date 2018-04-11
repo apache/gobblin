@@ -20,6 +20,7 @@ package org.apache.gobblin.configuration;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -496,6 +497,30 @@ public class State implements WritableShim {
       commonPropsCopy.putAll(this.commonProperties);
       commonPropsCopy.remove(key);
       this.commonProperties = commonPropsCopy;
+    }
+  }
+
+  /**
+   * Remove all properties with a certain keyPrefix
+   *
+   * @param prefix key prefix
+   */
+  public void removePropsWithPrefix(String prefix) {
+    this.specProperties.entrySet().removeIf(entry -> ((String) entry.getKey()).startsWith(prefix));
+
+    Properties newCommonProperties = null;
+    for (Object key: this.commonProperties.keySet()) {
+      if (((String)key).startsWith(prefix)) {
+        if (newCommonProperties == null) {
+          newCommonProperties = new Properties();
+          newCommonProperties.putAll(this.commonProperties);
+        }
+        newCommonProperties.remove(key);
+      }
+    }
+
+    if (newCommonProperties != null) {
+      this.commonProperties = newCommonProperties;
     }
   }
 

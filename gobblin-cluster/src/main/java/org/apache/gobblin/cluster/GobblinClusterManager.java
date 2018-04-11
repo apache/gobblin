@@ -52,15 +52,15 @@ import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
+import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskDriver;
-import org.apache.helix.task.TaskUtil;
 import org.apache.helix.task.WorkflowConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -72,9 +72,17 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import javax.annotation.Nonnull;
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.app.ApplicationException;
@@ -83,7 +91,6 @@ import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
-import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -110,7 +117,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * @author Yinan Li
  */
 @Alpha
-public class GobblinClusterManager implements ApplicationLauncher {
+public class GobblinClusterManager implements ApplicationLauncher, StandardMetricsBridge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinClusterManager.class);
 
@@ -140,16 +147,23 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
   private final boolean isStandaloneMode;
 
+  @Getter
   private MutableJobCatalog jobCatalog;
+  @Getter
+  private GobblinHelixJobScheduler jobScheduler;
+  @Getter
+  private JobConfigurationManager jobConfigurationManager;
 
   private final String clusterName;
   private final Config config;
-
+  private final MetricContext metricContext;
+  private final Metrics metrics;
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
     this.clusterName = clusterName;
     this.config = config;
-
+    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
+    this.metrics = new Metrics(this.metricContext, this.config);
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
@@ -159,7 +173,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
     this.fs = buildFileSystem(config);
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
-        : GobblinClusterUtils.getAppWorkDirPath(this.fs, clusterName, applicationId);
+        : GobblinClusterUtils.getAppWorkDirPathFromConfig(config, this.fs, clusterName, applicationId);
 
     initializeAppLauncherAndServices();
   }
@@ -193,10 +207,11 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
     SchedulerService schedulerService = new SchedulerService(properties);
     this.applicationLauncher.addService(schedulerService);
-    this.applicationLauncher.addService(
-        buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
-            schedulerService));
-    this.applicationLauncher.addService(buildJobConfigurationManager(config));
+    this.jobScheduler = buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
+        schedulerService);
+    this.applicationLauncher.addService(this.jobScheduler);
+    this.jobConfigurationManager = buildJobConfigurationManager(config);
+    this.applicationLauncher.addService(this.jobConfigurationManager);
   }
 
   /**
@@ -235,6 +250,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
    */
   @VisibleForTesting
   void handleLeadershipChange(NotificationContext changeContext) {
+    this.metrics.clusterLeadershipChange.update(1);
     if (this.helixManager.isLeader()) {
       // can get multiple notifications on a leadership change, so only start the application launcher the first time
       // the notification is received
@@ -246,21 +262,17 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
         // Clean up existing jobs
         TaskDriver taskDriver = new TaskDriver(this.helixManager);
-        GobblinHelixTaskDriver gobblinHelixTaskDriver = new GobblinHelixTaskDriver(this.helixManager);
         Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
 
         for (Map.Entry<String, WorkflowConfig> entry : workflows.entrySet()) {
           String queueName = entry.getKey();
           WorkflowConfig workflowConfig = entry.getValue();
 
-          for (String namespacedJobName : workflowConfig.getJobDag().getAllNodes()) {
-            String jobName = TaskUtil.getDenamespacedJobName(queueName, namespacedJobName);
-            LOGGER.info("job {} found for queue {} ", jobName, queueName);
+          // request delete if not already requested
+          if (workflowConfig.getTargetState() != TargetState.DELETE) {
+            taskDriver.delete(queueName);
 
-            // #HELIX-0.6.7-WORKAROUND
-            // working around 0.6.7 delete job issue for queues with IN_PROGRESS state
-            gobblinHelixTaskDriver.deleteJob(queueName, jobName);
-            LOGGER.info("deleted job {} from queue {}", jobName, queueName);
+            LOGGER.info("Requested delete of queue {}", queueName);
           }
         }
 
@@ -527,6 +539,22 @@ public class GobblinClusterManager implements ApplicationLauncher {
     this.applicationLauncher.close();
   }
 
+  @Override
+  public StandardMetrics getStandardMetrics() {
+    return this.metrics;
+  }
+
+  @Nonnull
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return GobblinMetrics.isEnabled(ConfigUtils.configToProperties(this.config));
+  }
+
   /**
    * A custom implementation of {@link LiveInstanceChangeListener}.
    */
@@ -537,6 +565,21 @@ public class GobblinClusterManager implements ApplicationLauncher {
       for (LiveInstance liveInstance : liveInstances) {
         LOGGER.info("Live Helix participant instance: " + liveInstance.getInstanceName());
       }
+    }
+  }
+
+  private class Metrics extends StandardMetrics {
+    public static final String CLUSTER_LEADERSHIP_CHANGE = "clusterLeadershipChange";
+    private ContextAwareHistogram clusterLeadershipChange;
+    public Metrics(final MetricContext metricContext, final Config config) {
+      int timeWindowSizeInMinutes = ConfigUtils.getInt(config, ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
+      this.clusterLeadershipChange = metricContext.contextAwareHistogram(CLUSTER_LEADERSHIP_CHANGE, timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      this.contextAwareMetrics.add(clusterLeadershipChange);
+    }
+
+    @Override
+    public String getName() {
+      return GobblinClusterManager.class.getName();
     }
   }
 
@@ -720,10 +763,6 @@ public class GobblinClusterManager implements ApplicationLauncher {
       if (cmd.hasOption(GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE)) {
         isStandaloneClusterManager = Boolean.parseBoolean(cmd.getOptionValue(GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE, "false"));
       }
-
-      Log4jConfigurationHelper.updateLog4jConfiguration(GobblinClusterManager.class,
-          GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE,
-          GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE);
 
       LOGGER.info(JvmUtils.getJvmInputArguments());
       Config config = ConfigFactory.load();

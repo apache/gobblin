@@ -124,6 +124,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
         Optional.fromNullable(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
+
     this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
     this.dbAndTable = new DbAndTable(table.getDbName(), table.getTableName());
     if (this.datasetNamePattern.isPresent()) {
@@ -132,7 +133,6 @@ public class HiveDataset implements PrioritizedCopyableDataset {
       this.logicalDbAndTable = this.dbAndTable;
     }
     this.datasetConfig = resolveConfig(datasetConfig, dbAndTable, logicalDbAndTable);
-
     this.metricContext = Instrumented.getMetricContext(new State(properties), HiveDataset.class,
         Lists.<Tag<?>> newArrayList(new Tag<>(DATABASE, table.getDbName()), new Tag<>(TABLE, table.getTableName())));
   }

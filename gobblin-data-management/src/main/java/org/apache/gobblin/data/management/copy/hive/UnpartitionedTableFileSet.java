@@ -73,6 +73,7 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
             existingTargetTable = Optional.absent();
             break ;
           case REPLACE_TABLE:
+          case REPLACE_TABLE_AND_PARTITIONS:
             // Required to de-register the original table.
             log.warn("Source and target table are not compatible. Will override target table " + existingTargetTable.get()
                 .getDataLocation());
@@ -120,7 +121,10 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
 
     for (CopyableFile.Builder builder : this.helper.getCopyableFilesFromPaths(diffPathSet.filesToCopy, this.helper.getConfiguration(),
         Optional.<Partition> absent())) {
-      copyEntities.add(builder.fileSet(fileSet).datasetOutputPath(desiredTargetLocation.location.toString()).build());
+      CopyableFile fileEntity =
+          builder.fileSet(fileSet).datasetOutputPath(desiredTargetLocation.location.toString()).build();
+      this.helper.setCopyableFileDatasets(fileEntity);
+      copyEntities.add(fileEntity);
     }
 
     multiTimer.close();

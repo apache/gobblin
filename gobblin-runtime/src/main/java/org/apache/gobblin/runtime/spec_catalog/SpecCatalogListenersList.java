@@ -56,6 +56,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 
@@ -109,11 +110,11 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
   }
 
   @Override
-  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
     Preconditions.checkNotNull(deletedSpecURI);
 
     try {
-      _disp.execCallbacks(new SpecCatalogListener.DeleteSpecCallback(deletedSpecURI, deletedSpecVersion));
+      _disp.execCallbacks(new SpecCatalogListener.DeleteSpecCallback(deletedSpecURI, deletedSpecVersion, headers));
     } catch (InterruptedException e) {
       getLog().warn("onDeleteSpec interrupted.");
     }

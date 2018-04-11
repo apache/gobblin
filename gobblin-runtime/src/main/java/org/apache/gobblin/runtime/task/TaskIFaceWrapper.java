@@ -73,8 +73,11 @@ public class TaskIFaceWrapper extends Task {
 
   @Override
   public void run() {
-    this.underlyingTask.run();
-    this.taskStateTracker.onTaskRunCompletion(this);
+    try {
+      this.underlyingTask.run();
+    } finally {
+      this.taskStateTracker.onTaskRunCompletion(this);
+    }
   }
 
   @Override

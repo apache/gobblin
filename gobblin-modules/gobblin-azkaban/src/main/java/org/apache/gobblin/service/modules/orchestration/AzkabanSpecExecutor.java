@@ -36,6 +36,10 @@ public class AzkabanSpecExecutor extends AbstractSpecExecutor {
 
   private SpecProducer<Spec> azkabanSpecProducer;
 
+  public AzkabanSpecExecutor(Config config) {
+    this(config, Optional.absent());
+  }
+
   public AzkabanSpecExecutor(Config config, Optional<Logger> log) {
     super(config, log);
     Config defaultConfig = ConfigFactory.load(ServiceAzkabanConfigKeys.DEFAULT_AZKABAN_PROJECT_CONFIG_FILE);

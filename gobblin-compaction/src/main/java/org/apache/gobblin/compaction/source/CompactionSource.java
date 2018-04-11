@@ -16,9 +16,28 @@
  */
 
 package org.apache.gobblin.compaction.source;
+
+import java.io.IOException;
+import java.net.URI;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTimeUtils;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -27,19 +46,23 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import org.apache.commons.lang.exception.ExceptionUtils;
-import org.apache.gobblin.compaction.mapreduce.MRCompactor;
-import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
-import org.apache.gobblin.config.ConfigBuilder;
-import org.apache.gobblin.data.management.dataset.DatasetUtils;
-import org.apache.gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
-import org.apache.gobblin.compaction.suite.CompactionSuite;
-import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.compaction.mapreduce.MRCompactionTaskFactory;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.suite.CompactionSuite;
+import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
+import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
+import org.apache.gobblin.data.management.dataset.SimpleDatasetRequest;
+import org.apache.gobblin.data.management.dataset.SimpleDatasetRequestor;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.DatasetsFinder;
 import org.apache.gobblin.runtime.JobState;
@@ -63,29 +86,8 @@ import org.apache.gobblin.util.request_allocation.HierarchicalPrioritizer;
 import org.apache.gobblin.util.request_allocation.RequestAllocator;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorUtils;
-import org.apache.gobblin.data.management.dataset.SimpleDatasetRequest;
-import org.apache.gobblin.data.management.dataset.SimpleDatasetRequestor;
 import org.apache.gobblin.util.request_allocation.ResourceEstimator;
 import org.apache.gobblin.util.request_allocation.ResourcePool;
-
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
-import org.apache.hadoop.fs.Path;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A compaction source derived from {@link Source} which uses {@link DefaultFileSystemGlobFinder} to find all
@@ -94,6 +96,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 public class CompactionSource implements WorkUnitStreamSource<String, String> {
+  public static final String COMPACTION_INIT_TIME = "compaction.init.time";
   private CompactionSuite suite;
   private Path tmpJobDir;
   private FileSystem fs;
@@ -108,6 +111,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   public WorkUnitStream getWorkunitStream(SourceState state) {
     try {
       fs = getSourceFileSystem(state);
+      state.setProp(COMPACTION_INIT_TIME, DateTimeUtils.currentTimeMillis());
       suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
 
       initRequestAllocator(state);
@@ -433,7 +437,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     }
   }
 
-  protected FileSystem getSourceFileSystem(State state)
+  public static FileSystem getSourceFileSystem(State state)
           throws IOException {
     Configuration conf = HadoopUtils.getConfFromState(state);
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);

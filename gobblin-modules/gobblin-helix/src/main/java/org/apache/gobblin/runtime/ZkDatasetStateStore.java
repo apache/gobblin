@@ -17,19 +17,22 @@
 
 package org.apache.gobblin.runtime;
 
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.metastore.ZkStateStore;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metastore.ZkStateStore;
 
 
 /**
@@ -65,8 +68,8 @@ public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
       }});
 
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
-    if (!previousDatasetStates.isEmpty()) {
-      JobState.DatasetState previousDatasetState = previousDatasetStates.get(0);
+
+    for (JobState.DatasetState previousDatasetState : previousDatasetStates) {
       datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
     }
 

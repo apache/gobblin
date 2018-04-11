@@ -70,6 +70,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   private final boolean includeEmptyDirectories;
   // Delete empty directories in the destination
   private final boolean deleteEmptyDirectories;
+  //Apply filter to directories
+  private final boolean applyFilterToDirectories;
 
   private final Properties properties;
 
@@ -87,6 +89,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     this.deleteEmptyDirectories = Boolean.parseBoolean(properties.getProperty(DELETE_EMPTY_DIRECTORIES_KEY));
     this.includeEmptyDirectories =
         Boolean.parseBoolean(properties.getProperty(CopyConfiguration.INCLUDE_EMPTY_DIRECTORIES));
+    this.applyFilterToDirectories =
+        Boolean.parseBoolean(properties.getProperty(CopyConfiguration.APPLY_FILTER_TO_DIRECTORIES, "false"));
     this.properties = properties;
   }
 
@@ -95,10 +99,13 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       throws IOException {
 
     Path nonGlobSearchPath = PathUtils.deepestNonGlobPath(this.glob);
-    Path targetPath = new Path(configuration.getPublishDir(), PathUtils.relativizePath(this.rootPath, nonGlobSearchPath));
+    Path targetPath =
+        new Path(configuration.getPublishDir(), PathUtils.relativizePath(this.rootPath, nonGlobSearchPath));
 
-    Map<Path, FileStatus> filesInSource = createPathMap(getFilesAtPath(this.fs, this.rootPath, this.pathFilter), this.rootPath);
-    Map<Path, FileStatus> filesInTarget = createPathMap(getFilesAtPath(targetFs, targetPath, this.pathFilter), targetPath);
+    Map<Path, FileStatus> filesInSource =
+        createPathMap(getFilesAtPath(this.fs, this.rootPath, this.pathFilter), this.rootPath);
+    Map<Path, FileStatus> filesInTarget =
+        createPathMap(getFilesAtPath(targetFs, targetPath, this.pathFilter), targetPath);
 
     List<Path> toCopy = Lists.newArrayList();
     Map<Path, FileStatus> toDelete = Maps.newHashMap();
@@ -134,19 +141,19 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       FileStatus file = filesInSource.get(path);
       Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), nonGlobSearchPath);
       Path thisTargetPath = new Path(configuration.getPublishDir(), filePathRelativeToSearchPath);
-
-      copyableFiles.add(CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
-          .fileSet(datasetURN()).datasetOutputPath(thisTargetPath.toString())
-          .ancestorsOwnerAndPermission(CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(this.fs,
-              file.getPath().getParent(), nonGlobSearchPath, configuration))
-          .build());
+      CopyableFile copyableFile =
+          CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration).fileSet(datasetURN())
+              .datasetOutputPath(thisTargetPath.toString()).ancestorsOwnerAndPermission(CopyableFile
+              .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(), nonGlobSearchPath,
+                  configuration)).build();
+      copyableFile.setFsDatasets(this.fs, targetFs);
+      copyableFiles.add(copyableFile);
     }
     copyEntities.addAll(this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles));
 
     if (!toDelete.isEmpty()) {
-      CommitStep step =
-          new DeleteFileCommitStep(targetFs, toDelete.values(), this.properties,
-              this.deleteEmptyDirectories ? Optional.of(targetPath) : Optional.<Path>absent());
+      CommitStep step = new DeleteFileCommitStep(targetFs, toDelete.values(), this.properties,
+          this.deleteEmptyDirectories ? Optional.of(targetPath) : Optional.<Path>absent());
 
       copyEntities.add(new PrePublishStep(datasetURN(), Maps.<String, String>newHashMap(), step, 1));
     }
@@ -155,9 +162,11 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   }
 
   @VisibleForTesting
-  protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
+  protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter)
+      throws IOException {
     try {
-      return FileListUtils.listFilesToCopyAtPath(fs, path, fileFilter, includeEmptyDirectories);
+      return FileListUtils
+          .listFilesToCopyAtPath(fs, path, fileFilter, applyFilterToDirectories, includeEmptyDirectories);
     } catch (FileNotFoundException fnfe) {
       return Lists.newArrayList();
     }
@@ -182,7 +191,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   }
 
   private static boolean sameFile(FileStatus fileInSource, FileStatus fileInTarget) {
-    return fileInTarget.getLen() == fileInSource.getLen()
-        && fileInSource.getModificationTime() <= fileInTarget.getModificationTime();
+    return fileInTarget.getLen() == fileInSource.getLen() && fileInSource.getModificationTime() <= fileInTarget
+        .getModificationTime();
   }
 }

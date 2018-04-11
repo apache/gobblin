@@ -44,4 +44,21 @@ public interface ResourceEntry<T> extends SharedResourceFactoryResponse<T> {
    * key, blocking all requests for that key. As suck, this method should be reasonably fast.
    */
   void onInvalidate();
+
+  /**
+   * This method should guarantee that if all callers accessing the resource using this method then the object is
+   * returned atomically with respect to any validity state change.
+   *
+   * This is to avoid race conditions in cases where the state is changed when getting the resource. Some examples are
+   * resources that can only be used a certain number of times.
+   *
+   * @return null if the object is not valid, otherwise the valid object
+   */
+  default T getResourceIfValid() {
+    if (isValid()) {
+      return getResource();
+    } else {
+      return null;
+    }
+  }
 }

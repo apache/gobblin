@@ -24,16 +24,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.gobblin.source.Source;
 import org.apache.hadoop.fs.Path;
 
 import org.quartz.CronScheduleBuilder;
@@ -63,6 +63,7 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -135,6 +136,7 @@ public class JobScheduler extends AbstractIdleService {
 
   private final Closer closer = Closer.create();
 
+  @Getter
   private volatile boolean cancelRequested = false;
 
   public JobScheduler(Properties properties, SchedulerService scheduler)
@@ -254,17 +256,20 @@ public class JobScheduler extends AbstractIdleService {
    *                      with scheduling the job
    */
   public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener, JobLauncher jobLauncher) {
-    Runnable runnable = new Runnable() {
+    Callable<Void> callable = new Callable<Void>() {
       @Override
-      public void run() {
+      public Void call() throws JobException {
         try {
           runJob(jobProps, jobListener, jobLauncher);
         } catch (JobException je) {
           LOG.error("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
+          throw je;
         }
+        return null;
       }
     };
-    final Future<?> future = this.jobExecutor.submit(runnable);
+
+    final Future<?> future = this.jobExecutor.submit(callable);
     return new Future() {
       @Override
       public boolean cancel(boolean mayInterruptIfRunning) {
@@ -304,6 +309,14 @@ public class JobScheduler extends AbstractIdleService {
         return future.get(timeout, unit);
       }
     };
+  }
+
+  public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener) throws JobException {
+    try {
+      return scheduleJobImmediately(jobProps, jobListener, buildJobLauncher(jobProps));
+    } catch (Exception e) {
+      throw new JobException("Job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + " cannot be immediately scheduled.", e);
+    }
   }
 
   /**
@@ -419,10 +432,14 @@ public class JobScheduler extends AbstractIdleService {
   public void runJob(Properties jobProps, JobListener jobListener)
       throws JobException {
     try {
-      runJob(jobProps, jobListener, JobLauncherFactory.newJobLauncher(this.properties, jobProps));
+      runJob(jobProps, jobListener, buildJobLauncher(jobProps));
     } catch (Exception e) {
       throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     }
+  }
+
+  public JobLauncher buildJobLauncher(Properties jobProps) throws Exception {
+    return JobLauncherFactory.newJobLauncher(this.properties, jobProps);
   }
 
   /**
@@ -441,9 +458,10 @@ public class JobScheduler extends AbstractIdleService {
    * @param jobProps Job configuration properties
    * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
    * @param jobLauncher a {@link JobLauncher} object used to launch the job to run
+   * @return If current job is a stop-early job based on {@link Source#isEarlyStopped()}
    * @throws JobException when there is anything wrong with running the job
    */
-  public void runJob(Properties jobProps, JobListener jobListener, JobLauncher jobLauncher)
+  public boolean runJob(Properties jobProps, JobListener jobListener, JobLauncher jobLauncher)
       throws JobException {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
@@ -453,16 +471,20 @@ public class JobScheduler extends AbstractIdleService {
     boolean disabled = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, "false"));
     if (disabled) {
       LOG.info("Skipping disabled job " + jobName);
-      return;
+      return false;
     }
 
     // Launch the job
     try (Closer closer = Closer.create()) {
       closer.register(jobLauncher).launchJob(jobListener);
       boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-      if (runOnce && this.scheduledJobs.containsKey(jobName)) {
+      boolean isEarlyStopped = jobLauncher.isEarlyStopped();
+      if (!isEarlyStopped && runOnce && this.scheduledJobs.containsKey(jobName)) {
         this.scheduler.getScheduler().deleteJob(this.scheduledJobs.remove(jobName));
       }
+
+      return isEarlyStopped;
+
     } catch (Throwable t) {
       throw new JobException("Failed to launch and run job " + jobName, t);
     }

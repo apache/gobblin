@@ -109,7 +109,7 @@ install {
   }
 }
 
-if (rootProject.ext.publishToMaven) {
+if (rootProject.ext.publishToMaven || rootProject.ext.publishToNexus) {
   uploadArchives {
     repositories {
       mavenDeployer {

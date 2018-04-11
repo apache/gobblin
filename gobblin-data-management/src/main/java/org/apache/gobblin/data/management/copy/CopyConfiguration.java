@@ -23,6 +23,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+import org.apache.gobblin.util.request_allocation.ConcurrentBoundedPriorityIterable;
+import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -55,6 +57,7 @@ public class CopyConfiguration {
    * Include empty directories in the source for copy
    */
   public static final String INCLUDE_EMPTY_DIRECTORIES = COPY_PREFIX + ".includeEmptyDirectories";
+  public static final String APPLY_FILTER_TO_DIRECTORIES = COPY_PREFIX + ".applyFilterToDirectories";
 
   public static final String PRIORITIZER_ALIAS_KEY = PRIORITIZATION_PREFIX + ".prioritizerAlias";
   public static final String MAX_COPY_PREFIX = PRIORITIZATION_PREFIX + ".maxCopy";
@@ -63,6 +66,13 @@ public class CopyConfiguration {
   public static final String BUFFER_SIZE = COPY_PREFIX + ".bufferSize";
 
   public static final String ABORT_ON_SINGLE_DATASET_FAILURE = COPY_PREFIX + ".abortOnSingleDatasetFailure";
+
+  /*
+   * Config to store different classes of rejected requests. Possible values are "all","none", or "min" (default).
+   */
+  public static final String STORE_REJECTED_REQUESTS_KEY = COPY_PREFIX + ".store.rejected.requests";
+  public static final String DEFAULT_STORE_REJECTED_REQUESTS =
+      RequestAllocatorConfig.StoreRejectedRequestsConfig.MIN.name();
 
   /**
    * User supplied directory where files should be published. This value is identical for all datasets in the distcp job.
@@ -80,6 +90,7 @@ public class CopyConfiguration {
   private final FileSystem targetFs;
   private final Optional<FileSetComparator> prioritizer;
   private final ResourcePool maxToCopy;
+  private final String storeRejectedRequestsSetting;
 
   private final Config config;
 
@@ -101,7 +112,7 @@ public class CopyConfiguration {
 
       this.targetGroup =
           properties.containsKey(DESTINATION_GROUP_KEY) ? Optional.of(properties.getProperty(DESTINATION_GROUP_KEY))
-              : Optional.<String> absent();
+              : Optional.<String>absent();
       this.preserve = PreserveAttributes.fromMnemonicString(properties.getProperty(PRESERVE_ATTRIBUTES_KEY));
       Path publishDirTmp = new Path(properties.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR));
       if (!publishDirTmp.isAbsolute()) {
@@ -113,9 +124,8 @@ public class CopyConfiguration {
       if (properties.containsKey(PRIORITIZER_ALIAS_KEY)) {
         try {
           this.prioritizer = Optional.of(GobblinConstructorUtils.<FileSetComparator>invokeLongestConstructor(
-              new ClassAliasResolver(FileSetComparator.class).resolveClass(properties.getProperty(
-                  PRIORITIZER_ALIAS_KEY)),
-              properties));
+              new ClassAliasResolver(FileSetComparator.class)
+                  .resolveClass(properties.getProperty(PRIORITIZER_ALIAS_KEY)), properties));
         } catch (ReflectiveOperationException roe) {
           throw new RuntimeException("Could not build prioritizer.", roe);
         }
@@ -123,6 +133,9 @@ public class CopyConfiguration {
         this.prioritizer = Optional.absent();
       }
       this.maxToCopy = CopyResourcePool.fromConfig(ConfigUtils.getConfigOrEmpty(this.config, MAX_COPY_PREFIX));
+
+      this.storeRejectedRequestsSetting =
+          properties.getProperty(CopyConfiguration.STORE_REJECTED_REQUESTS_KEY, DEFAULT_STORE_REJECTED_REQUESTS);
 
       this.abortOnSingleDatasetFailure = false;
       if (this.config.hasPath(ABORT_ON_SINGLE_DATASET_FAILURE)) {
@@ -138,5 +151,4 @@ public class CopyConfiguration {
   public Config getPrioritizationConfig() {
     return ConfigUtils.getConfigOrEmpty(this.config, PRIORITIZATION_PREFIX);
   }
-
 }

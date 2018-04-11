@@ -18,6 +18,7 @@
 package org.apache.gobblin.runtime.listeners;
 
 import org.apache.commons.mail.EmailException;
+import org.apache.gobblin.annotation.Alias;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,7 @@ import org.apache.gobblin.util.EmailUtils;
  *
  * @author Yinan Li
  */
+@Alias("EmailNotificationJobListener")
 public class EmailNotificationJobListener extends AbstractJobListener {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EmailNotificationJobListener.class);

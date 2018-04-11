@@ -35,6 +35,7 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
@@ -109,6 +110,7 @@ public class TaskTest {
     taskState.addAll(overrides);
     // Create a mock TaskContext
     TaskContext mockTaskContext = mock(TaskContext.class);
+    when(mockTaskContext.getTaskMetrics()).thenReturn(TaskMetrics.get(taskState));
     when(mockTaskContext.getExtractor()).thenReturn(new FailOnceExtractor());
     when(mockTaskContext.getForkOperator()).thenReturn(new IdentityForkOperator());
     when(mockTaskContext.getTaskState()).thenReturn(taskState);

@@ -40,11 +40,14 @@ import org.apache.gobblin.r2.R2Client;
 import org.apache.gobblin.r2.R2ResponseStatus;
 import org.apache.gobblin.r2.R2RestRequestBuilder;
 import org.apache.gobblin.r2.R2RestResponseHandler;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.utils.HttpConstants;
 
 
 @Slf4j
 public class AvroR2JoinConverter extends AvroHttpJoinConverter<RestRequest, RestResponse>{
+
+  public static final String DEFAULT_PROTOCOL_VERSION = "1.0.0";
 
   @Override
   protected void fillHttpOutputData(Schema schema, GenericRecord outputRecord, RestRequest restRequest,
@@ -84,9 +87,10 @@ public class AvroR2JoinConverter extends AvroHttpJoinConverter<RestRequest, Rest
   protected AsyncRequestBuilder<GenericRecord, RestRequest> createRequestBuilder(Config config) {
     String urlTemplate = config.getString(HttpConstants.URL_TEMPLATE);
     String verb = config.getString(HttpConstants.VERB);
-    String contentType = config.getString(HttpConstants.CONTENT_TYPE);
+    String protocolVersion = ConfigUtils.getString(config,
+        HttpConstants.PROTOCOL_VERSION, DEFAULT_PROTOCOL_VERSION);
 
-    return new R2RestRequestBuilder(urlTemplate, verb, contentType);
+    return new R2RestRequestBuilder(urlTemplate, verb, protocolVersion);
   }
 
 }

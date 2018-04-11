@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.recordaccess;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.Map;
 
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
@@ -48,7 +50,7 @@ public class AvroGenericRecordAccessor implements RecordAccessor {
 
   @Override
   public Map<String, String> getMultiAsString(String fieldName) {
-    Map<String, Object> vals = getMultiAsObject(fieldName);
+    Map<String, Object> vals = getMultiGeneric(fieldName);
     Map<String, String> ret = new HashMap<>();
 
     for (Map.Entry<String, Object> entry : vals.entrySet()) {
@@ -69,9 +71,12 @@ public class AvroGenericRecordAccessor implements RecordAccessor {
     return convertToString(fieldName, obj);
   }
 
+
   private String convertToString(String fieldName, Object obj) {
     if (obj == null) {
       return null;
+    } else if (obj instanceof String) {
+      return (String)obj;
     } else if (obj instanceof Utf8) {
       return obj.toString();
     } else {
@@ -81,7 +86,7 @@ public class AvroGenericRecordAccessor implements RecordAccessor {
 
   @Override
   public Map<String, Integer> getMultiAsInt(String fieldName) {
-    Map<String, Object> vals = getMultiAsObject(fieldName);
+    Map<String, Object> vals = getMultiGeneric(fieldName);
     Map<String, Integer> ret = new HashMap<>();
 
     for (Map.Entry<String, Object> entry : vals.entrySet()) {
@@ -107,7 +112,7 @@ public class AvroGenericRecordAccessor implements RecordAccessor {
 
   @Override
   public Map<String, Long> getMultiAsLong(String fieldName) {
-    Map<String, Object> vals = getMultiAsObject(fieldName);
+    Map<String, Object> vals = getMultiGeneric(fieldName);
     Map<String, Long> ret = new HashMap<>();
 
     for (Map.Entry<String, Object> entry : vals.entrySet()) {
@@ -151,8 +156,36 @@ public class AvroGenericRecordAccessor implements RecordAccessor {
     return obj.isPresent() ? obj.get() : null;
   }
 
-  private Map<String, Object> getMultiAsObject(String fieldName) {
-    return AvroUtils.getMultiFieldValue(record, fieldName);
+  @Override
+  public Map<String, Object> getMultiGeneric(String fieldName) {
+    Map<String, Object> vals = AvroUtils.getMultiFieldValue(record, fieldName);
+    for (Map.Entry<String, Object> entry: vals.entrySet()) {
+      vals.put(entry.getKey(), convertAvroToJava(entry.getKey(), entry.getValue()));
+    }
+
+    return vals;
+  }
+
+  @Override
+  public Object getGeneric(String fieldName) {
+    Object val = getAsObject(fieldName);
+    return convertAvroToJava(fieldName, val);
+  }
+
+  private Object convertAvroToJava(String fieldName, Object val) {
+    if (val == null || val instanceof String || val instanceof Long || val instanceof Integer) {
+      return val;
+    }
+
+    if (val instanceof Utf8) {
+      return convertToString(fieldName, val);
+    }
+
+    if (val instanceof GenericArray) {
+      return convertToList(fieldName, (GenericArray) val);
+    }
+
+    throw new IllegalArgumentException("Don't know how to parse object of type " + val.getClass().getCanonicalName());
   }
 
   @Override
@@ -168,6 +201,13 @@ public class AvroGenericRecordAccessor implements RecordAccessor {
   @Override
   public void set(String fieldName, Long value) {
     set(fieldName, (Object) value);
+  }
+
+  @Override
+  public void setStringArray(String fieldName, List<String> value) {
+    GenericData.Array<String> avroArray = new GenericData.Array<>(
+        Schema.createArray(Schema.create(Schema.Type.STRING)), value);
+    set(fieldName, avroArray);
   }
 
   @Override
@@ -224,5 +264,15 @@ public class AvroGenericRecordAccessor implements RecordAccessor {
     } catch (AvroRuntimeException e) {
       throw new FieldDoesNotExistException("Field not found setting name " + fieldName, e);
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  private List convertToList(String fieldName, GenericArray arr) {
+    List ret = new ArrayList();
+    for (int i = 0; i < arr.size(); i++) {
+      ret.add(convertAvroToJava(fieldName + "." + String.valueOf(i), arr.get(i)));
+    }
+
+    return ret;
   }
 }

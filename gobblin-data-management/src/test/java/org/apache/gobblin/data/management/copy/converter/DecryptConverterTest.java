@@ -48,12 +48,12 @@ import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 /**
  * Unit tests for {@link DecryptConverter}.
  */
-@Test(groups = { "gobblin.data.management.copy.converter", "disabledOnTravis" })
+@Test(enabled=false, groups = { "gobblin.data.management.copy.converter", "disabledOnTravis" })
 public class DecryptConverterTest {
 
   private final File masterPwdFile = new File("masterPwd");
 
-  @Test
+  @Test (enabled=false)
   public void testConvertGpgRecord() throws Exception {
     final String expectedFileContents = "123456789";
     final String passphrase = "12";
@@ -88,7 +88,7 @@ public class DecryptConverterTest {
     }
   }
 
-  @Test
+  @Test (enabled=false)
   public void testConvertDifferentEncryption()
       throws IOException, DataConversionException {
     final String expectedFileContents = "2345678";

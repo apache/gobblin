@@ -20,11 +20,15 @@ package org.apache.gobblin.runtime.mapreduce;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
 import org.jboss.byteman.contrib.bmunit.BMRule;
+import org.jboss.byteman.contrib.bmunit.BMRules;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -32,12 +36,21 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableMap;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import org.apache.gobblin.capability.Capability;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.runtime.JobLauncherTestHelper;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.util.limiter.BaseLimiterType;
@@ -231,6 +244,72 @@ public class MRJobLauncherTest extends BMNGRunner {
     }
   }
 
+  // This test uses byteman to check that the ".suc" files are recorded in the task state store for successful
+  // tasks when there are some task failures.
+  // static variable to count the number of task success marker files written in this test case
+  public static int sucCount1 = 0;
+  @Test
+  @BMRules(rules = {
+      @BMRule(name = "saveSuccessCount", targetClass = "org.apache.gobblin.metastore.FsStateStore",
+          targetMethod = "put", targetLocation = "AT ENTRY", condition = "$2.endsWith(\".suc\")",
+          action = "org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.sucCount1 = org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.sucCount1 + 1")
+  })
+  public void testLaunchJobWithMultiWorkUnitAndFaultyExtractor() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithMultiWorkUnitAndFaultyExtractor");
+    jobProps.setProperty("use.multiworkunit", Boolean.toString(true));
+    try {
+      this.jobLauncherTestHelper.runTestWithCommitSuccessfulTasksPolicy(jobProps);
+
+      // three of the 4 tasks should have succeeded, so 3 suc files should have been written
+      Assert.assertEquals(sucCount1, 3);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
+  // This test case checks that if a ".suc" task state file exists for a task then it is skipped.
+  // This test also checks that ".suc" files are not written when there are no task failures.
+  // static variables accessed by byteman in this test case
+  public static WorkUnitState wus = null;
+  public static int sucCount2 = 0;
+  @Test
+  @BMRules(rules = {
+      @BMRule(name = "getWorkUnitState", targetClass = "org.apache.gobblin.runtime.GobblinMultiTaskAttempt",
+          targetMethod = "runWorkUnits", targetLocation = "AFTER WRITE $taskId", condition = "$taskId.endsWith(\"_1\")",
+          action = "org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.wus = new org.apache.gobblin.configuration.WorkUnitState($workUnit, $0.jobState)"),
+      @BMRule(name = "saveSuccessCount", targetClass = "org.apache.gobblin.metastore.FsStateStore",
+          targetMethod = "put", targetLocation = "AT ENTRY", condition = "$2.endsWith(\".suc\")",
+          action = "org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.sucCount2 = org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.sucCount2 + 1"),
+      @BMRule(name = "checkProp", targetClass = "org.apache.gobblin.runtime.mapreduce.MRJobLauncher$TaskRunner",
+          targetMethod = "setup", targetLocation = "AT EXIT",
+          condition = "!$0.jobState.getProp(\"DynamicKey1\").equals(\"DynamicValue1\")",
+          action = "throw new RuntimeException(\"could not find key\")"),
+      @BMRule(name = "writeSuccessFile", targetClass = "org.apache.gobblin.runtime.GobblinMultiTaskAttempt",
+          targetMethod = "taskSuccessfulInPriorAttempt", targetLocation = "AFTER WRITE $taskStateStore",
+          condition = "$1.endsWith(\"_1\")",
+          action = "$taskStateStore.put($0.jobId, $1 + \".suc\", new org.apache.gobblin.runtime.TaskState(org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest.wus))")
+  })
+  public void testLaunchJobWithMultiWorkUnitAndSucFile() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithMultiWorkUnitAndSucFile");
+    jobProps.setProperty("use.multiworkunit", Boolean.toString(true));
+
+    jobProps.setProperty("dynamicConfigGenerator.class",
+        "org.apache.gobblin.runtime.mapreduce.MRJobLauncherTest$TestDynamicConfigGenerator");
+
+    try {
+      this.jobLauncherTestHelper.runTestWithSkippedTask(jobProps, "_1");
+
+      // no failures, so the only success file written is the injected one
+      Assert.assertEquals(sucCount2, 1);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
   @Test
   public void testLaunchJobWithMultipleDatasets() throws Exception {
     Properties jobProps = loadJobProps();
@@ -287,6 +366,55 @@ public class MRJobLauncherTest extends BMNGRunner {
     }
   }
 
+  @Test
+  public void testLaunchJobWithNonThreadsafeDataPublisher() throws Exception {
+    final Logger log = LoggerFactory.getLogger(getClass().getName() + ".testLaunchJobWithNonThreadsafeDataPublisher");
+    log.info("in");
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithNonThreadsafeDataPublisher");
+    jobProps.setProperty(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE, TestNonThreadsafeDataPublisher.class.getName());
+
+    // make sure the count starts from 0
+    TestNonThreadsafeDataPublisher.instantiatedCount.set(0);
+
+    try {
+      this.jobLauncherTestHelper.runTestWithMultipleDatasets(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+
+    // A different  publisher is used for each dataset
+    Assert.assertEquals(TestNonThreadsafeDataPublisher.instantiatedCount.get(), 4);
+
+    log.info("out");
+  }
+
+  @Test
+  public void testLaunchJobWithThreadsafeDataPublisher() throws Exception {
+    final Logger log = LoggerFactory.getLogger(getClass().getName() + ".testLaunchJobWithThreadsafeDataPublisher");
+    log.info("in");
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithThreadsafeDataPublisher");
+    jobProps.setProperty(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE, TestThreadsafeDataPublisher.class.getName());
+
+    // make sure the count starts from 0
+    TestThreadsafeDataPublisher.instantiatedCount.set(0);
+
+    try {
+      this.jobLauncherTestHelper.runTestWithMultipleDatasets(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+
+    // The same publisher is used for all the data sets
+    Assert.assertEquals(TestThreadsafeDataPublisher.instantiatedCount.get(), 1);
+
+    log.info("out");
+  }
+
+
   @AfterClass(alwaysRun = true)
   public void tearDown() throws IOException {
     if (testMetastoreDatabase != null) {
@@ -305,5 +433,64 @@ public class MRJobLauncherTest extends BMNGRunner {
             + "gobblin-test/resource/source/test.avro.2," + "gobblin-test/resource/source/test.avro.3");
 
     return jobProps;
+  }
+
+  public static class TestDynamicConfigGenerator implements DynamicConfigGenerator {
+    public TestDynamicConfigGenerator() {
+    }
+
+    @Override
+    public Config generateDynamicConfig(Config config) {
+      return ConfigFactory.parseMap(ImmutableMap.of(JobLauncherTestHelper.DYNAMIC_KEY1,
+          JobLauncherTestHelper.DYNAMIC_VALUE1));
+    }
+  }
+
+  public static class TestNonThreadsafeDataPublisher extends DataPublisher {
+    // for counting how many times the object is instantiated in the test case
+    static AtomicInteger instantiatedCount = new AtomicInteger(0);
+
+    public TestNonThreadsafeDataPublisher(State state) {
+      super(state);
+      instantiatedCount.incrementAndGet();
+    }
+
+    @Override
+    public void initialize() throws IOException {
+    }
+
+    @Override
+    public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
+      for (WorkUnitState workUnitState : states) {
+        // Upon successfully committing the data to the final output directory, set states
+        // of successful tasks to COMMITTED. leaving states of unsuccessful ones unchanged.
+        // This makes sense to the COMMIT_ON_PARTIAL_SUCCESS policy.
+        workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+      }
+    }
+
+    @Override
+    public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
+    }
+
+    @Override
+    public void close() throws IOException {
+    }
+
+    @Override
+    public boolean supportsCapability(Capability c, Map<String, Object> properties) {
+      return c == DataPublisher.REUSABLE;
+    }
+  }
+
+  public static class TestThreadsafeDataPublisher extends TestNonThreadsafeDataPublisher {
+    public TestThreadsafeDataPublisher(State state) {
+      super(state);
+    }
+
+    @Override
+    public boolean supportsCapability(Capability c, Map<String, Object> properties) {
+      return (c == Capability.THREADSAFE || c == DataPublisher.REUSABLE);
+    }
   }
 }

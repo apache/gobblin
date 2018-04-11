@@ -62,6 +62,10 @@ public class WorkUnitState extends State {
 
   private static final Gson GSON = new Gson();
 
+  public String getOutputFilePath() {
+    return this.workUnit.getOutputFilePath();
+  }
+
   /**
    * Runtime state of the {@link WorkUnit}.
    *
@@ -365,6 +369,20 @@ public class WorkUnitState extends State {
   @Override
   public boolean contains(String key) {
     return super.contains(key) || this.workUnit.contains(key) || this.jobState.contains(key);
+  }
+
+  @Override
+  public void removeProp(String key) {
+    super.removeProp(key);
+    this.workUnit.removeProp(key);
+    this.jobState.removeProp(key);
+  }
+
+  @Override
+  public void removePropsWithPrefix(String prefix) {
+    super.removePropsWithPrefix(prefix);
+    this.workUnit.removePropsWithPrefix(prefix);
+    this.jobState.removePropsWithPrefix(prefix);
   }
 
   /**

@@ -75,7 +75,7 @@ import org.apache.gobblin.util.filesystem.PathAlterationObserver;
  *
  */
 
-@Test(groups = {"gobblin.runtime"})
+@Test(enabled=false, groups = {"gobblin.runtime"})
 public class FSJobCatalogHelperTest {
 
   // For general type of File system
@@ -152,7 +152,7 @@ public class FSJobCatalogHelperTest {
   }
 
   // This test doesn't delete framework attributes and
-  @Test
+  @Test (enabled=false)
   public void testloadGenericJobConfigs()
       throws ConfigurationException, IOException, URISyntaxException {
     Properties properties = new Properties();
@@ -206,7 +206,7 @@ public class FSJobCatalogHelperTest {
     Assert.assertEquals(jobProps4.getProperty("k5"), "b5");
   }
 
-  @Test(dependsOnMethods = {"testloadGenericJobConfigs"})
+  @Test(enabled=false, dependsOnMethods = {"testloadGenericJobConfigs"})
   public void testloadGenericJobConfig()
       throws ConfigurationException, IOException {
     Path jobConfigPath = new Path(this.subDir11.getAbsolutePath(), "test111.pull");
@@ -222,7 +222,7 @@ public class FSJobCatalogHelperTest {
     Assert.assertEquals(jobProps.getProperty("k9"), "a8");
   }
 
-  @Test(dependsOnMethods = {"testloadGenericJobConfig"})
+  @Test(enabled=false, dependsOnMethods = {"testloadGenericJobConfig"})
   public void testPathAlterationObserver()
       throws Exception {
     PathAlterationObserverScheduler detector = new PathAlterationObserverScheduler(1000);

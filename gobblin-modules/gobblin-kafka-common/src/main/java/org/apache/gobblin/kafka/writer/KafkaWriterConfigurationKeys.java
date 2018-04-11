@@ -38,7 +38,8 @@ public class KafkaWriterConfigurationKeys {
    * Kafka producer configurations will be passed through as is as long as they are prefixed
    * by the PREFIX specified below.
    */
-  public static final String KAFKA_PRODUCER_CONFIG_PREFIX = "writer.kafka.producerConfig.";
+  public static final String KAFKA_PRODUCER_CONFIG_PREFIX_NO_DOT = "writer.kafka.producerConfig";
+  public static final String KAFKA_PRODUCER_CONFIG_PREFIX = KAFKA_PRODUCER_CONFIG_PREFIX_NO_DOT + ".";
 
   /** Kafka producer scoped configuration keys go here **/
   static final String KEY_SERIALIZER_CONFIG = "key.serializer";
@@ -52,10 +53,13 @@ public class KafkaWriterConfigurationKeys {
 
   public static final String KAFKA_TOPIC_CONFIG = "writer.kafka.";
   static final String TOPIC_NAME = "topic";
-  static final String CLUSTER_ZOOKEEPER = "zookeeper";
-  static final String REPLICATION_COUNT = "replicationCount";
+  public static final String CLUSTER_ZOOKEEPER = KAFKA_TOPIC_CONFIG + "zookeeper";
+  static final String REPLICATION_COUNT = KAFKA_TOPIC_CONFIG + "replicationCount";
   static final int REPLICATION_COUNT_DEFAULT = 1;
-  static final String PARTITION_COUNT = "partitionCount";
+  static final String PARTITION_COUNT = KAFKA_TOPIC_CONFIG + "partitionCount";
   static final int PARTITION_COUNT_DEFAULT = 1;
-  
+  public static final String ZOOKEEPER_SESSION_TIMEOUT = CLUSTER_ZOOKEEPER + ".sto";
+  static final int ZOOKEEPER_SESSION_TIMEOUT_DEFAULT = 10000; // 10 seconds
+  public static final String ZOOKEEPER_CONNECTION_TIMEOUT = CLUSTER_ZOOKEEPER + ".cto";
+  static final int ZOOKEEPER_CONNECTION_TIMEOUT_DEFAULT = 8000; // 8 seconds
 }

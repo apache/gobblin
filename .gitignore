@@ -1,26 +1,23 @@
 .classpath*
 .project*
 .settings
-.idea
-*.iml
-*.iws
-*.ipr
-*.swp
-*.swo
-*.log
-**/.classpath
-**/.project
-**/.settings
+
+# Intellij related
 **/.idea
 **/*.iml
 **/*.iws
 **/*.ipr
+.shelf/
+
+**/.classpath
+**/.project
+**/.settings
+
 **/*.swp
 **/*.swo
 **/*.log
 */bin
 **/bin
-build/
 **/build/
 .gradle
 **/.gradle
@@ -52,3 +49,17 @@ gobblin.tar.gz
 *~
 metastore_db/
 GobblinKey_*.pem
+
+# generated nodeJs files
+node_modules/
+package-lock.json
+
+*.out
+
+# generated java files
+**/gen-java/
+
+# generated config files by tests
+**/generated-gobblin-cluster.conf
+
+temp/

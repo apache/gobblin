@@ -22,6 +22,8 @@ buildscript {
   apply from: 'gradle/scripts/defaultBuildProperties.gradle'
   apply from: 'gradle/scripts/computeVersions.gradle'
 
+  apply from: file('gradle/scripts/buildscript.gradle'), to: buildscript
+
   buildscript.repositories.addAll(project.repositories)
 
   dependencies {
@@ -128,7 +130,12 @@ apply from: 'gradle/scripts/javadoc.gradle'
 apply from: 'gradle/scripts/sourcesJar.gradle'
 
 apply from: 'gradle/scripts/mavenPublishing.gradle'
+apply from: 'gradle/scripts/nexusPublishing.gradle'
 apply from: 'gradle/scripts/javaVersionCheck.gradle'
+
+apply from: 'gradle/scripts/rat.gradle'
+apply from: 'gradle/scripts/release.gradle'
+
 task wrapper(type: Wrapper) { gradleVersion = '2.13' }
 
 /*
@@ -142,4 +149,105 @@ allprojects {
       it.codegenClasspath += files("${System.getProperty('java.home')}/../lib/tools.jar")
     }
   }
+}
+
+rat {
+  excludes = [
+    '**/.git/**',
+    '**/.github/**',
+    '**/.gradle/**',
+    '**/.project',
+    '**/.factorypath',
+    '**/.settings/**',
+    '**/.classpath',
+    '**/*.iml',
+    '**/*.iws',
+    '**/*.ipr',
+    '**/.rubyversion',
+    'gradle/wrapper/**',
+    'gradlew',
+    '**/changes.md',
+    '**/README.md',
+    '**/.ruby-version',
+    '**/.DS_Store/**',
+    '**/.gitignore',
+    '**/build/**',
+    '**/target/**',
+    '**/bin/**',
+    '**/test-output/**',
+    '**/Gemfile.lock',
+    '**/*.tsv',
+    '**/*.csv',
+    '**/*.svg',
+    '**/*.groovy',
+    '**/*.yml',
+    '**/*.properties',
+    '**/*.conf',
+    '**/*.xml',
+    '**/*.md',
+    '**/*.json',
+    '**/*.avsc',
+    '**/*.ddl',
+    '**/*.dml',
+    '**/*.txt',
+    '**/*.pull',
+    '**/*.job',
+    '**/*.log',
+    '**/*.sql',
+    '**/*.zip',
+    '**/*.gz',
+    '**/*.tgz',
+    '**/*.tar',
+    '**/*.lck',
+    '**/*.ctrl',
+    '**/*.dat',
+    '**/*.pem',
+    '**/*.crc',
+    '**/*.jst',
+    '**/*.orc',
+    '**/*.rc',
+    '**/*.avro',
+    '**/*.avro.*',
+    '**/*.png',
+    '**/*.jpg',
+    '**/*.jpeg',
+    '**/*.eot',
+    '**/*.ttf',
+    '**/*.woff',
+    '**/*.woff2',
+    '**/Dockerfile',
+    '**/file*',
+    '**/*.epf',
+    '**/*.pdsc',
+    '**/*.yml',
+    '**/*.inc',
+    '**/*.py',
+    '**/*.gradle',
+    '**/*.css',
+    '**/*.sh',
+    '**/*.avro',
+    '**/*.txt.*',
+    '**/*.key',
+    '**/*.json.*',
+    '**/*.template',
+    '**/migrationConfig',
+    '**/testTable',
+    '**/encryption_provider_test_keystore',
+    '**/default_dataset_urn',
+    '**/metastore_db',
+    '**/grok/**',
+    '**/mock-couchbase/**',
+    '**/mainGeneratedRest/**',
+    '**/mainGeneratedDataTemplate/**',
+    '**/gen-java/**',
+    '**/META-INF/**',
+    '**/package-list',
+    '**/WebmasterPerformanceTuningMetrics',
+    '.reviewboardrc',
+    'CONTRIBUTORS',
+    'RELEASE.md',
+    'DISCLAIMER',
+    'NOTICE',
+    'LICENSE'
+  ]
 }

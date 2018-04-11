@@ -16,10 +16,10 @@
  */
 package org.apache.gobblin.compaction.verify;
 
-import org.apache.gobblin.dataset.Dataset;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
+import org.apache.gobblin.dataset.Dataset;
 
 
 /**

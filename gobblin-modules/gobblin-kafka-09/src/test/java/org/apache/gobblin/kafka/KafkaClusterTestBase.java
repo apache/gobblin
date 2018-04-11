@@ -63,7 +63,11 @@ public class KafkaClusterTestBase extends KafkaTestBase {
 		Iterator<KafkaServer> iter = kafkaBrokerList.iterator();
 		while(iter.hasNext()){
 			KafkaServer server = iter.next();
-			server.shutdown();
+			try {
+				server.shutdown(); 
+			} catch (RuntimeException e) {
+				// Simply Ignore.
+			}
 		}
 	}
 

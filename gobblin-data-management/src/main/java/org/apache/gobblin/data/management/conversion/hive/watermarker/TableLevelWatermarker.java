@@ -53,7 +53,7 @@ public class TableLevelWatermarker implements HiveSourceWatermarker {
   public static final Gson GSON = new Gson();
 
   // Table complete name db@tb - list of previous workunitState
-  private Map<String, LongWatermark> tableWatermarks;
+  protected Map<String, LongWatermark> tableWatermarks;
 
   public TableLevelWatermarker(State state) {
     this.tableWatermarks = Maps.newHashMap();

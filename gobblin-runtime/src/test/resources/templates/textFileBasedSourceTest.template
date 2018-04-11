@@ -2,3 +2,5 @@ source.class=org.apache.gobblin.source.extractor.filebased.TextFileBasedSource
 writer.builder.class="org.apache.gobblin.writer.test.GobblinTestEventBusWriter$Builder"
 
 extract.table.type=APPEND_ONLY
+
+data.publisher.final.dir=/tmp

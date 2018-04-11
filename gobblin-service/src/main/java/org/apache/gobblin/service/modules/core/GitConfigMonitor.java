@@ -25,6 +25,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -70,7 +72,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GitConfigMonitor extends AbstractIdleService {
   private static final String SPEC_DESCRIPTION = "Git-based flow config";
-  private static final String SPEC_VERSION = "1";
+  private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
   private static final int TERMINATION_TIMEOUT = 30;
   private static final int CONFIG_FILE_DEPTH = 3;
   private static final String REMOTE_NAME = "origin";
@@ -234,8 +236,8 @@ public class GitConfigMonitor extends AbstractIdleService {
   private void removeSpec(DiffEntry change) {
     if (checkConfigFilePath(change.getOldPath())) {
       Path configFilePath = new Path(this.repositoryDir, change.getOldPath());
-      String flowName = Files.getNameWithoutExtension(configFilePath.getName());
-      String flowGroup = configFilePath.getParent().getName();
+      String flowName = FSSpecStore.getSpecName(configFilePath);
+      String flowGroup = FSSpecStore.getSpecGroup(configFilePath);
 
       // build a dummy config to get the proper URI for delete
       Config dummyConfig = ConfigBuilder.create()
@@ -249,7 +251,7 @@ public class GitConfigMonitor extends AbstractIdleService {
           .withDescription(SPEC_DESCRIPTION)
           .build();
 
-      this.flowCatalog.remove(spec.getUri());
+        this.flowCatalog.remove(spec.getUri());
     }
   }
 
@@ -285,8 +287,8 @@ public class GitConfigMonitor extends AbstractIdleService {
    */
   private Config loadConfigFileWithFlowNameOverrides(Path configFilePath) throws IOException {
     Config flowConfig = this.pullFileLoader.loadPullFile(configFilePath, emptyConfig, false);
-    String flowName = Files.getNameWithoutExtension(configFilePath.getName());
-    String flowGroup = configFilePath.getParent().getName();
+    String flowName = FSSpecStore.getSpecName(configFilePath);
+    String flowGroup = FSSpecStore.getSpecGroup(configFilePath);
 
     return flowConfig.withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
         .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup));

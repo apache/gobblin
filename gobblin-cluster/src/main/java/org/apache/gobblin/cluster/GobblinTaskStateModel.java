@@ -25,7 +25,6 @@ import org.apache.helix.task.TaskFactory;
 import org.apache.helix.task.TaskStateModel;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.runtime.TaskExecutor;
 
 
 /**

@@ -340,6 +340,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       TimingEvent launchJobTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.FULL_JOB_EXECUTION);
 
       try (Closer closer = Closer.create()) {
+        closer.register(this.jobContext);
         notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_PREPARE, new JobListenerAction() {
           @Override
           public void apply(JobListener jobListener, JobContext jobContext)
@@ -483,6 +484,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // Set the overall job state to FAILED if the job failed to process any dataset
         if (datasetState.getState() == JobState.RunningState.FAILED) {
           jobState.setState(JobState.RunningState.FAILED);
+          LOG.warn("At least one dataset state is FAILED. Setting job state to FAILED.");
           break;
         }
       }
@@ -883,6 +885,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     } else {
       cleanupStagingDataForEntireJob(jobState);
     }
+  }
+
+  public boolean isEarlyStopped() {
+    return this.jobContext.getSource().isEarlyStopped();
   }
 
   /**

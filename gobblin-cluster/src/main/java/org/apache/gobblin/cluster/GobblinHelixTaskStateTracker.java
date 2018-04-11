@@ -22,8 +22,6 @@ import java.util.Properties;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 
-import org.apache.helix.HelixManager;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,14 +47,11 @@ public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixTaskStateTracker.class);
 
-  private final HelixManager helixManager;
-
   // Mapping between tasks and the task state reporters associated with them
   private final Map<String, ScheduledFuture<?>> scheduledReporters = Maps.newHashMap();
 
-  public GobblinHelixTaskStateTracker(Properties properties, HelixManager helixManager) {
+  public GobblinHelixTaskStateTracker(Properties properties) {
     super(properties, LOGGER);
-    this.helixManager = helixManager;
   }
 
   @Override

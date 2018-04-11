@@ -23,6 +23,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
 import javax.annotation.Nonnull;
@@ -30,6 +31,7 @@ import lombok.Getter;
 
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +95,8 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(TopologyCatalog.class.getSimpleName()).build();
-      this.metrics = new SpecCatalog.StandardMetrics(this);
+      this.metrics = new SpecCatalog.StandardMetrics(this, Optional.of(config));
+      this.addListener(this.metrics);
     }
     else {
       this.metricContext = null;
@@ -232,31 +235,27 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
 
       log.info(String.format("Adding TopologySpec with URI: %s and Config: %s", spec.getUri(),
           ((TopologySpec) spec).getConfigAsProperties()));
-      if (specStore.exists(spec.getUri())) {
-        specStore.updateSpec(spec);
-        this.listeners.onUpdateSpec(spec);
-      } else {
         specStore.addSpec(spec);
         this.listeners.onAddSpec(spec);
-      }
-
-    } catch (IOException | SpecNotFoundException e) {
+    } catch (IOException e) {
       throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
   }
 
-  @Override
   public void remove(URI uri) {
+    remove(uri, new Properties());
+  }
+
+    @Override
+  public void remove(URI uri, Properties headers) {
     try {
       Preconditions.checkState(state() == Service.State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(uri);
 
       log.info(String.format("Removing TopologySpec with URI: %s", uri));
-      Spec spec = specStore.getSpec(uri);
-      this.listeners.onDeleteSpec(spec.getUri(), spec.getVersion());
+      this.listeners.onDeleteSpec(uri, FlowSpec.Builder.DEFAULT_VERSION, headers);
       specStore.deleteSpec(uri);
-
-    } catch (IOException | SpecNotFoundException e) {
+    } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
     }
   }

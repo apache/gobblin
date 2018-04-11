@@ -187,9 +187,18 @@ public class SqlServerExtractor extends JdbcExtractor {
   public String getConnectionUrl() {
     String host = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     String port = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
+    String parameters =
+        this.workUnitState.getProp(ConfigurationKeys.SQL_SERVER_CONNECTION_PARAMETERS);
+
+    // For backwards compatibility, need to allow using SOURCE_QUERYBASED_SCHEMA to specify db name
+    // This is highly discouraged, as this property is overloaded
     String database = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
+    if (parameters == null && !StringUtils.isEmpty(database)) {
+      parameters = "databaseName=" + database;
+    }
+
     String url = "jdbc:sqlserver://" + host.trim() + ":" + port +
-        (StringUtils.isEmpty(database) ? "" : (";databaseName=" + database.trim()));
+        (StringUtils.isEmpty(parameters) ? "" : (";" + parameters.trim()));
     return url;
   }
 

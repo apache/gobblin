@@ -16,40 +16,52 @@
  */
 package org.apache.gobblin.runtime.util;
 
+import java.util.Map;
+
+import org.apache.hadoop.fs.Path;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.hadoop.fs.Path;
 
-import java.util.Map;
+import lombok.Getter;
 
 /**
  * state stores used for storing work units and task states
  */
 public class StateStores {
-  public final StateStore<TaskState> taskStateStore;
-  public final StateStore<WorkUnit> wuStateStore;
-  public final StateStore<MultiWorkUnit> mwuStateStore;
+  @Getter
+  private final StateStore<TaskState> taskStateStore;
+  @Getter
+  private final StateStore<WorkUnit> wuStateStore;
+  @Getter
+  private final StateStore<MultiWorkUnit> mwuStateStore;
+  // state store for job.state files. This should not be confused with the jst state store
+  @Getter
+  private final StateStore<JobState> jobStateStore;
 
   /**
    * Creates the state stores under storeBase
    * {@link WorkUnit}s will be stored under storeBase/_workunits/subdir/filename.(m)wu
    * {@link TaskState}s will be stored under storeBase/_taskstates/subdir/filename.tst
+   * {@link JobState}s will be stored under StoreBase/_jobStates/subdir/filename.job.state
    * Some state stores such as the MysqlStateStore do not preserve the path prefix of storeRoot.
    * In those cases only the last three components of the path determine the key for the data.
    * @param config config properties
    * @param taskStoreBase the base directory that holds the store root for the task state store
    */
   public StateStores(Config config, Path taskStoreBase, String taskStoreTable, Path workUnitStoreBase,
-      String workUnitStoreTable) {
+      String workUnitStoreTable, Path jobStateStoreBase, String jobStateStoreTable) {
     String stateStoreType = ConfigUtils.getString(config, ConfigurationKeys.INTERMEDIATE_STATE_STORE_TYPE_KEY,
         ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_TYPE_KEY,
             ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
@@ -79,6 +91,25 @@ public class StateStores {
     taskStateStore = stateStoreFactory.createStateStore(taskStateStoreConfig, TaskState.class);
     wuStateStore = stateStoreFactory.createStateStore(wuStateStoreConfig, WorkUnit.class);
     mwuStateStore = stateStoreFactory.createStateStore(wuStateStoreConfig, MultiWorkUnit.class);
+
+    // create a state store to store job.state content if configured
+    if (ConfigUtils.getBoolean(config, ConfigurationKeys.JOB_STATE_IN_STATE_STORE,
+        ConfigurationKeys.DEFAULT_JOB_STATE_IN_STATE_STORE)) {
+      // Override properties to place the JobState StateStore at the appropriate location
+      Path jobStateOutputDir = new Path(jobStateStoreBase, jobStateStoreTable);
+      Config jobStateStoreConfig = getStateStoreConfig(config, jobStateOutputDir.toString(), jobStateStoreTable);
+
+      jobStateStore = stateStoreFactory.createStateStore(jobStateStoreConfig, JobState.class);
+    } else {
+      jobStateStore = null;
+    }
+  }
+
+  /**
+   * @return true if a state store is present for storing job.state content
+   */
+  public boolean haveJobStateStore() {
+    return this.jobStateStore != null;
   }
 
   private static Config getStateStoreConfig(Config config, String rootDir, String dbTableKey) {

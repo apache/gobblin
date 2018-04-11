@@ -17,26 +17,20 @@
 
 package org.apache.gobblin.cluster;
 
-import com.typesafe.config.ConfigFactory;
-import org.apache.gobblin.metastore.FsStateStore;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskResult;
-
 import org.mockito.Mockito;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -44,10 +38,12 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.example.simplejson.SimpleJsonConverter;
 import org.apache.gobblin.example.simplejson.SimpleJsonSource;
+import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskExecutor;
@@ -96,7 +92,7 @@ public class GobblinHelixTaskTest {
 
     this.helixManager = Mockito.mock(HelixManager.class);
     Mockito.when(this.helixManager.getInstanceName()).thenReturn(GobblinHelixTaskTest.class.getSimpleName());
-    this.taskStateTracker = new GobblinHelixTaskStateTracker(new Properties(), this.helixManager);
+    this.taskStateTracker = new GobblinHelixTaskStateTracker(new Properties());
 
     this.localFs = FileSystem.getLocal(configuration);
     this.appWorkDir = new Path(GobblinHelixTaskTest.class.getSimpleName());
@@ -146,7 +142,7 @@ public class GobblinHelixTaskTest {
 
     GobblinHelixTaskFactory gobblinHelixTaskFactory =
         new GobblinHelixTaskFactory(Optional.<ContainerMetrics>absent(), this.taskExecutor, this.taskStateTracker,
-            this.localFs, this.appWorkDir, ConfigFactory.empty());
+            this.localFs, this.appWorkDir, ConfigFactory.empty(), this.helixManager);
     this.gobblinHelixTask = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
   }
 

@@ -41,6 +41,7 @@ import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.data.management.retention.policy.CombineRetentionPolicy;
 import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -71,12 +72,16 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
   public static final String VERSION_SELECTION_COMBINE_OPERATION = "selection.combine.operation";
 
   public enum CombineOperation {
-    INTERSECT,
-    UNION
+    INTERSECT, UNION
   }
 
   private final List<VersionSelectionPolicy<DatasetVersion>> selectionPolicies;
   private final CombineOperation combineOperation;
+
+  public CombineSelectionPolicy(Config config)
+      throws IOException {
+    this(config, new Properties());
+  }
 
   public CombineSelectionPolicy(List<VersionSelectionPolicy<DatasetVersion>> selectionPolicies,
       CombineOperation combineOperation) {
@@ -85,17 +90,18 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
   }
 
   @SuppressWarnings("unchecked")
-  public CombineSelectionPolicy(Config config, Properties jobProps) throws IOException {
+  public CombineSelectionPolicy(Config config, Properties jobProps)
+      throws IOException {
     Preconditions.checkArgument(config.hasPath(VERSION_SELECTION_POLICIES_PREFIX), "Combine operation not specified.");
 
     ImmutableList.Builder<VersionSelectionPolicy<DatasetVersion>> builder = ImmutableList.builder();
 
-    for (String combineClassName : config.getStringList(VERSION_SELECTION_POLICIES_PREFIX)) {
+    for (String combineClassName : ConfigUtils.getStringList(config, VERSION_SELECTION_POLICIES_PREFIX)) {
       try {
-        builder.add((VersionSelectionPolicy<DatasetVersion>) GobblinConstructorUtils.invokeFirstConstructor(
-            Class.forName(combineClassName), ImmutableList.<Object> of(config), ImmutableList.<Object> of(jobProps)));
-      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-          | ClassNotFoundException e) {
+        builder.add((VersionSelectionPolicy<DatasetVersion>) GobblinConstructorUtils
+            .invokeFirstConstructor(Class.forName(combineClassName), ImmutableList.<Object>of(config),
+                ImmutableList.<Object>of(jobProps)));
+      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
         throw new IllegalArgumentException(e);
       }
     }
@@ -109,9 +115,9 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
         CombineOperation.valueOf(config.getString(VERSION_SELECTION_COMBINE_OPERATION).toUpperCase());
   }
 
-  public CombineSelectionPolicy(Properties props) throws IOException {
+  public CombineSelectionPolicy(Properties props)
+      throws IOException {
     this(ConfigFactory.parseProperties(props), props);
-
   }
 
   /**
@@ -150,7 +156,6 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
       default:
         throw new RuntimeException("Combine operation " + this.combineOperation + " not recognized.");
     }
-
   }
 
   @VisibleForTesting

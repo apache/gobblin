@@ -23,18 +23,19 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.GlobPattern;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.gobblin.data.management.retention.DatasetCleaner;
 import org.apache.gobblin.dataset.Dataset;
@@ -62,9 +63,11 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
 
   public static final String DATASET_FINDER_PATTERN_KEY = CONFIGURATION_KEY_PREFIX + "dataset.pattern";
   public static final String DATASET_FINDER_BLACKLIST_KEY = CONFIGURATION_KEY_PREFIX + "dataset.blacklist";
+  public static final String DATASET_FINDER_GLOB_BLACKLIST_KEY = CONFIGURATION_KEY_PREFIX + "dataset.glob.blacklist";
 
   protected final Path datasetPattern;
   private final Optional<Pattern> blacklist;
+  private final Optional<Pattern> globPatternBlacklist;
   private final Path commonRoot;
   protected final FileSystem fs;
   protected final Properties props;
@@ -84,6 +87,12 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
       this.blacklist = Optional.of(Pattern.compile(config.getString(DATASET_FINDER_BLACKLIST_KEY)));
     } else {
       this.blacklist = Optional.absent();
+    }
+
+    if (ConfigUtils.hasNonEmptyPath(config, DATASET_FINDER_GLOB_BLACKLIST_KEY)) {
+      this.globPatternBlacklist = Optional.of(GlobPattern.compile(config.getString(DATASET_FINDER_GLOB_BLACKLIST_KEY)));
+    } else {
+      this.globPatternBlacklist = Optional.absent();
     }
 
     this.fs = fs;
@@ -130,6 +139,9 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
       for (FileStatus fileStatus : fileStatuss) {
         Path pathToMatch = PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath());
         if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).find()) {
+          continue;
+        }
+        if (this.globPatternBlacklist.isPresent() && this.globPatternBlacklist.get().matcher(pathToMatch.toString()).find()) {
           continue;
         }
         LOG.info("Found dataset at " + fileStatus.getPath());

@@ -17,17 +17,26 @@
 
 package org.apache.gobblin.util.hadoop;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-
+import java.util.regex.Pattern;
+import org.apache.gobblin.configuration.State;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
@@ -47,12 +56,7 @@ import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.log4j.Logger;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-
-import org.apache.gobblin.configuration.State;
+import org.apache.thrift.TException;
 
 
 /**
@@ -76,6 +80,57 @@ public class TokenUtils {
   private static final String YARN_RESOURCEMANAGER_ADDRESS = "yarn.resourcemanager.address";
   private static final String MAPRED_JOB_TRACKER = "mapred.job.tracker";
   private static final String MAPREDUCE_JOBTRACKER_ADDRESS = "mapreduce.jobtracker.address";
+  private static final Pattern KEYTAB_USER_PATTERN = Pattern.compile(".*\\/.*@.*");
+  private static final String KERBEROS_REALM = "kerberos.realm";
+
+  /**
+   * the key that will be used to set proper signature for each of the hcat token when multiple hcat
+   * tokens are required to be fetched.
+   */
+  private static final String HIVE_TOKEN_SIGNATURE_KEY = "hive.metastore.token.signature";
+  /**
+   * User can specify the hcat location that they used specifically. It could contains addtional hcat location,
+   * comma-separated.
+   */
+  private static final String USER_DEFINED_HIVE_LOCATIONS = "user.defined.hcatLocation";
+
+  /**
+   * Get Hadoop tokens (tokens for job history server, job tracker, hive and HDFS) using Kerberos keytab,
+   * on behalf on a proxy user, embed tokens into a {@link UserGroupInformation} as returned result, persist in-memory
+   * credentials if tokenFile specified
+   *
+   * Note that when a super-user is fetching tokens for other users,
+   * {@link #fetchHcatToken(String, HiveConf, String, IMetaStoreClient)} getDelegationToken} explicitly
+   * contains a string parameter indicating proxy user, while other hadoop services require impersonation first.
+   *
+   * @param state A {@link State} object that should contain properties.
+   * @param tokenFile If present, the file will store materialized credentials.
+   * @param ugi The {@link UserGroupInformation} that used to impersonate into the proxy user by a "doAs block".
+   * @param targetUser The user to be impersonated as, for fetching hadoop tokens.
+   * @return A {@link UserGroupInformation} containing negotiated credentials.
+   */
+  public static UserGroupInformation getHadoopAndHiveTokensForProxyUser(final State state, Optional<File> tokenFile,
+      UserGroupInformation ugi, IMetaStoreClient client, String targetUser) throws IOException, InterruptedException {
+    final Credentials cred = new Credentials();
+    ugi.doAs(new PrivilegedExceptionAction<Void>() {
+      @Override
+      public Void run() throws Exception {
+        getHadoopTokens(state, Optional.absent(), cred);
+        return null;
+      }
+    });
+
+    ugi.getCredentials().addAll(cred);
+    // Will add hive tokens into ugi in this method.
+    getHiveToken(state, client, cred, targetUser, ugi);
+
+    if (tokenFile.isPresent()) {
+      persistTokens(cred, tokenFile.get());
+    }
+    // at this point, tokens in ugi can be more than that in Credential object,
+    // since hive token is not put in Credential object.
+    return ugi;
+  }
 
   /**
    * Get Hadoop tokens (tokens for job history server, job tracker and HDFS) using Kerberos keytab.
@@ -83,9 +138,11 @@ public class TokenUtils {
    * @param state A {@link State} object that should contain property {@link #USER_TO_PROXY},
    * {@link #KEYTAB_USER} and {@link #KEYTAB_LOCATION}. To obtain tokens for
    * other namenodes, use property {@link #OTHER_NAMENODES} with comma separated HDFS URIs.
-   * @return A {@link File} containing the negotiated credentials.
+   * @param tokenFile If present, the file will store materialized credentials.
+   * @param cred A im-memory representation of credentials.
    */
-  public static File getHadoopTokens(final State state) throws IOException, InterruptedException {
+  public static void getHadoopTokens(final State state, Optional<File> tokenFile, Credentials cred)
+      throws IOException, InterruptedException {
 
     Preconditions.checkArgument(state.contains(KEYTAB_USER), "Missing required property " + KEYTAB_USER);
     Preconditions.checkArgument(state.contains(KEYTAB_LOCATION), "Missing required property " + KEYTAB_LOCATION);
@@ -93,22 +150,117 @@ public class TokenUtils {
     Configuration configuration = new Configuration();
     configuration.set(HADOOP_SECURITY_AUTHENTICATION, KERBEROS);
     UserGroupInformation.setConfiguration(configuration);
-    UserGroupInformation.loginUserFromKeytab(state.getProp(KEYTAB_USER), state.getProp(KEYTAB_LOCATION));
+    UserGroupInformation.loginUserFromKeytab(obtainKerberosPrincipal(state), state.getProp(KEYTAB_LOCATION));
 
-    final Optional<String> userToProxy = Strings.isNullOrEmpty(state.getProp(USER_TO_PROXY))
-        ? Optional.<String> absent() : Optional.fromNullable(state.getProp(USER_TO_PROXY));
+    final Optional<String> userToProxy = Strings.isNullOrEmpty(state.getProp(USER_TO_PROXY)) ? Optional.<String>absent()
+        : Optional.fromNullable(state.getProp(USER_TO_PROXY));
     final Configuration conf = new Configuration();
-    final Credentials cred = new Credentials();
 
     LOG.info("Getting tokens for " + userToProxy);
 
     getJhToken(conf, cred);
     getFsAndJtTokens(state, conf, userToProxy, cred);
 
-    File tokenFile = File.createTempFile("mr-azkaban", ".token");
-    persistTokens(cred, tokenFile);
+    if (tokenFile.isPresent()) {
+      persistTokens(cred, tokenFile.get());
+    }
+  }
 
-    return tokenFile;
+  /**
+   * Obtain kerberos principal in a dynamic way, where the instance's value is determined by the hostname of the machine
+   * that the job is currently running on.
+   * It will be invoked when {@link #KEYTAB_USER} is not following pattern specified in {@link #KEYTAB_USER_PATTERN}.
+   * @throws UnknownHostException
+   */
+  public static String obtainKerberosPrincipal(final State state) throws UnknownHostException {
+    if (!state.getProp(KEYTAB_USER).matches(KEYTAB_USER_PATTERN.pattern())) {
+      Preconditions.checkArgument(state.contains(KERBEROS_REALM));
+      return state.getProp(KEYTAB_USER) + "/" + InetAddress.getLocalHost().getCanonicalHostName() + "@" + state.getProp(
+          KERBEROS_REALM);
+    } else {
+      return state.getProp(KEYTAB_USER);
+    }
+  }
+
+  /**
+   *
+   * @param userToProxy The user that hiveClient is impersonating as to fetch the delegation tokens.
+   * @param ugi The {@link UserGroupInformation} that to be added with negotiated credentials.
+   */
+  public static void getHiveToken(final State state, IMetaStoreClient hiveClient, Credentials cred,
+      final String userToProxy, UserGroupInformation ugi) {
+    try {
+      // Fetch the delegation token with "service" field overwritten with the metastore.uri configuration.
+      // org.apache.gobblin.hive.HiveMetaStoreClientFactory.getHiveConf(com.google.common.base.Optional<java.lang.String>)
+      // sets the signature field to the same value to retrieve the token correctly.
+      HiveConf hiveConf = new HiveConf();
+      Token<DelegationTokenIdentifier> hcatToken =
+          fetchHcatToken(userToProxy, hiveConf, hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname), hiveClient);
+      cred.addToken(hcatToken.getService(), hcatToken);
+      ugi.addToken(hcatToken);
+
+      // Fetch extra Hcat location user specified.
+      final List<String> extraHcatLocations =
+          state.contains(USER_DEFINED_HIVE_LOCATIONS) ? state.getPropAsList(USER_DEFINED_HIVE_LOCATIONS)
+              : Collections.EMPTY_LIST;
+      if (!extraHcatLocations.isEmpty()) {
+        LOG.info("Need to fetch extra metaStore tokens from hive.");
+
+        // start to process the user inputs.
+        for (final String thriftUrl : extraHcatLocations) {
+          LOG.info("Fetching metaStore token from : " + thriftUrl);
+
+          hiveConf = new HiveConf();
+          hiveConf.set(HiveConf.ConfVars.METASTOREURIS.varname, thriftUrl);
+          hcatToken = fetchHcatToken(userToProxy, hiveConf, thriftUrl, hiveClient);
+          cred.addToken(hcatToken.getService(), hcatToken);
+          ugi.addToken(hcatToken);
+
+          LOG.info("Successfully fetched token for:" + thriftUrl);
+        }
+      }
+    } catch (final Throwable t) {
+      final String message = "Failed to get hive metastore token." + t.getMessage() + t.getCause();
+      LOG.error(message, t);
+      throw new RuntimeException(message);
+    }
+  }
+
+  /**
+   * function to fetch hcat token as per the specified hive configuration and then store the token
+   * in to the credential store specified .
+   *
+   * @param userToProxy String value indicating the name of the user the token will be fetched for.
+   * @param hiveConf the configuration based off which the hive client will be initialized.
+   */
+  private static Token<DelegationTokenIdentifier> fetchHcatToken(final String userToProxy, final HiveConf hiveConf,
+      final String tokenSignatureOverwrite, final IMetaStoreClient hiveClient)
+      throws IOException, TException, InterruptedException {
+
+    LOG.info(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname + ": " + hiveConf.get(
+        HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname));
+
+    LOG.info(HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL.varname + ": " + hiveConf.get(
+        HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL.varname));
+
+    final Token<DelegationTokenIdentifier> hcatToken = new Token<>();
+
+    hcatToken.decodeFromUrlString(
+        hiveClient.getDelegationToken(userToProxy, UserGroupInformation.getLoginUser().getShortUserName()));
+
+    // overwrite the value of the service property of the token if the signature
+    // override is specified.
+    // If the service field is set, do not overwrite that
+    if (hcatToken.getService().getLength() <= 0 && tokenSignatureOverwrite != null
+        && tokenSignatureOverwrite.trim().length() > 0) {
+      hcatToken.setService(new Text(tokenSignatureOverwrite.trim().toLowerCase()));
+
+      LOG.info(HIVE_TOKEN_SIGNATURE_KEY + ":" + tokenSignatureOverwrite);
+    }
+
+    LOG.info("Created hive metastore token for user:" + userToProxy + " with kind[" + hcatToken.getKind() + "]"
+        + " and service[" + hcatToken.getService() + "]");
+    return hcatToken;
   }
 
   private static void getJhToken(Configuration conf, Credentials cred) throws IOException {
@@ -248,5 +400,4 @@ public class TokenUtils {
 
     return renewer;
   }
-
 }
