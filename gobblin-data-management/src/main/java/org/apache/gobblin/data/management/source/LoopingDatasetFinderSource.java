@@ -25,6 +25,16 @@ import java.util.Spliterator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.PeekingIterator;
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.Dataset;
@@ -32,15 +42,16 @@ import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.dataset.PartitionableDataset;
 import org.apache.gobblin.dataset.URNIdentified;
 import org.apache.gobblin.dataset.comparators.URNLexicographicalComparator;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.task.NoopTask;
+import org.apache.gobblin.source.extractor.WatermarkInterval;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
-
-import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.PeekingIterator;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
@@ -56,15 +67,18 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSource<S, D> {
 
-  public static final String MAX_WORK_UNITS_PER_RUN_KEY = "gobblin.source.loopingDatasetFinderSource.maxWorkUnitsPerRun";
+  public static final String MAX_WORK_UNITS_PER_RUN_KEY =
+      "gobblin.source.loopingDatasetFinderSource.maxWorkUnitsPerRun";
   public static final int MAX_WORK_UNITS_PER_RUN = 10;
+  public static final String DATASET_PARTITION_DELIMITER = "@";
 
-  private static final String DATASET_URN = "gobblin.source.loopingDatasetFinderSource.datasetUrn";
-  private static final String PARTITION_URN = "gobblin.source.loopingDatasetFinderSource.partitionUrn";
+  protected static final String DATASET_URN = "gobblin.source.loopingDatasetFinderSource.datasetUrn";
+  protected static final String PARTITION_URN = "gobblin.source.loopingDatasetFinderSource.partitionUrn";
   private static final String WORK_UNIT_ORDINAL = "gobblin.source.loopingDatasetFinderSource.workUnitOrdinal";
   protected static final String END_OF_DATASETS_KEY = "gobblin.source.loopingDatasetFinderSource.endOfDatasets";
 
   private final URNLexicographicalComparator lexicographicalComparator = new URNLexicographicalComparator();
+  protected final Long DATASET_LAST_PROCESSED_TS = System.currentTimeMillis();
 
   /**
    * @param drilldownIntoPartitions if set to true, will process each partition of a {@link PartitionableDataset} as a
@@ -83,7 +97,8 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
   public WorkUnitStream getWorkunitStream(SourceState state) {
     try {
       int maxWorkUnits = state.getPropAsInt(MAX_WORK_UNITS_PER_RUN_KEY, MAX_WORK_UNITS_PER_RUN);
-
+      Preconditions.checkArgument(maxWorkUnits > 0);
+      String globalWatermarkDatasetUrn = state.getProp(ConfigurationKeys.GLOBAL_WATERMARK_DATASET_URN, "");
       List<WorkUnitState> previousWorkUnitStates = state.getPreviousWorkUnitStates();
       Optional<WorkUnitState> maxWorkUnit;
       try {
@@ -93,9 +108,9 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
           return wu1Ordinal > wu2Ordinal ? wu1 : wu2;
         });
       } catch (NumberFormatException nfe) {
-        throw new RuntimeException("Work units in state store are corrupted! Missing or malformed " + WORK_UNIT_ORDINAL);
+        throw new RuntimeException(
+            "Work units in state store are corrupted! Missing or malformed " + WORK_UNIT_ORDINAL);
       }
-
       String previousDatasetUrnWatermark = null;
       String previousPartitionUrnWatermark = null;
       if (maxWorkUnit.isPresent() && !maxWorkUnit.get().getPropAsBoolean(END_OF_DATASETS_KEY, false)) {
@@ -105,11 +120,16 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
 
       IterableDatasetFinder datasetsFinder = createDatasetsFinder(state);
 
-      Stream<Dataset> datasetStream = datasetsFinder.getDatasetsStream(Spliterator.SORTED, this.lexicographicalComparator);
+      Stream<Dataset> datasetStream =
+          datasetsFinder.getDatasetsStream(Spliterator.SORTED, this.lexicographicalComparator);
       datasetStream = sortStreamLexicographically(datasetStream);
 
-      return new BasicWorkUnitStream.Builder(new DeepIterator(datasetStream.iterator(), previousDatasetUrnWatermark,
-          previousPartitionUrnWatermark, maxWorkUnits)).setFiniteStream(true).build();
+      Config config = ConfigUtils.propertiesToConfig(state.getProperties());
+      String storeName = JobState.getJobNameFromState(state);
+
+      return new BasicWorkUnitStream.Builder(
+          new DeepIterator(datasetStream.iterator(), previousDatasetUrnWatermark, previousPartitionUrnWatermark,
+              maxWorkUnits, globalWatermarkDatasetUrn, config, storeName)).setFiniteStream(true).build();
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
     }
@@ -125,13 +145,24 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
 
     private Iterator<PartitionableDataset.DatasetPartition> currentPartitionIterator;
     private int generatedWorkUnits = 0;
+    private String globalWatermarkDatasetUrn;
+    private DatasetStateStore datasetStateStore;
+    private String storeName;
+    private Dataset previousDataset;
+    private PartitionableDataset.DatasetPartition previousPartition;
 
     public DeepIterator(Iterator<Dataset> baseIterator, String previousDatasetUrnWatermark,
-        String previousPartitionUrnWatermark, int maxWorkUnits) {
+        String previousPartitionUrnWatermark, int maxWorkUnits, String globalWatermarkDatasetUrn, Config config,
+        String storeName)
+        throws IOException {
       this.maxWorkUnits = maxWorkUnits;
       this.baseIterator = baseIterator;
+      this.globalWatermarkDatasetUrn = globalWatermarkDatasetUrn;
+      this.storeName = storeName;
+      this.datasetStateStore = Strings.isNullOrEmpty(this.globalWatermarkDatasetUrn) ? null : createStateStore(config);
 
-      Dataset equalDataset = advanceUntilLargerThan(Iterators.peekingIterator(this.baseIterator), previousDatasetUrnWatermark);
+      Dataset equalDataset =
+          advanceUntilLargerThan(Iterators.peekingIterator(this.baseIterator), previousDatasetUrnWatermark);
 
       if (drilldownIntoPartitions && equalDataset != null && equalDataset instanceof PartitionableDataset) {
         this.currentPartitionIterator = getPartitionIterator((PartitionableDataset) equalDataset);
@@ -145,7 +176,8 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
      * Advance an iterator until the next value is larger than the reference.
      * @return the last value polled if it is equal to reference, or null otherwise.
      */
-    @Nullable  private <T extends URNIdentified> T advanceUntilLargerThan(PeekingIterator<T> it, String reference) {
+    @Nullable
+    private <T extends URNIdentified> T advanceUntilLargerThan(PeekingIterator<T> it, String reference) {
       if (reference == null) {
         return null;
       }
@@ -160,7 +192,8 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
     private Iterator<PartitionableDataset.DatasetPartition> getPartitionIterator(PartitionableDataset dataset) {
       try {
         return this.currentPartitionIterator = sortStreamLexicographically(
-            dataset.getPartitions(Spliterator.SORTED, LoopingDatasetFinderSource.this.lexicographicalComparator)).iterator();
+            dataset.getPartitions(Spliterator.SORTED, LoopingDatasetFinderSource.this.lexicographicalComparator))
+            .iterator();
       } catch (IOException ioe) {
         log.error("Failed to get partitions for dataset " + dataset.getUrn());
         return Iterators.emptyIterator();
@@ -169,7 +202,15 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
 
     @Override
     protected WorkUnit computeNext() {
-      if (this.generatedWorkUnits >= this.maxWorkUnits) {
+      if (this.generatedWorkUnits == this.maxWorkUnits) {
+        /**
+         * Add a special noop workunit to the end of the stream. This workunit contains the Dataset/Partition
+         * URN of the "last" dataset/partition (in lexicographic order). This is useful to
+         * efficiently determine the next dataset/partition to process in the subsequent run.
+         */
+        return Strings.isNullOrEmpty(this.globalWatermarkDatasetUrn) ? endOfData()
+            : generateNoopWorkUnit(this.generatedWorkUnits++);
+      } else if (this.generatedWorkUnits > this.maxWorkUnits) {
         return endOfData();
       }
 
@@ -179,6 +220,9 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
           WorkUnit workUnit = workUnitForDatasetPartition(partition);
           addDatasetInfoToWorkUnit(workUnit, partition.getDataset(), this.generatedWorkUnits++);
           addPartitionInfoToWorkUnit(workUnit, partition);
+          addWatermarkIntervalToWorkUnit(workUnit, partition.getDataset(), partition);
+          this.previousDataset = partition.getDataset();
+          this.previousPartition = partition;
           return workUnit;
         }
 
@@ -188,26 +232,82 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
         } else {
           WorkUnit workUnit = workUnitForDataset(dataset);
           addDatasetInfoToWorkUnit(workUnit, dataset, this.generatedWorkUnits++);
+          addWatermarkIntervalToWorkUnit(workUnit, dataset);
+          this.previousDataset = dataset;
           return workUnit;
         }
       }
-
-      WorkUnit workUnit = NoopTask.noopWorkunit();
-      workUnit.setProp(WORK_UNIT_ORDINAL, this.generatedWorkUnits);
-
+      WorkUnit workUnit = generateNoopWorkUnit(this.generatedWorkUnits);
       this.generatedWorkUnits = Integer.MAX_VALUE;
-
       workUnit.setProp(END_OF_DATASETS_KEY, true);
       return workUnit;
     }
 
     private void addDatasetInfoToWorkUnit(WorkUnit workUnit, Dataset dataset, int workUnitOrdinal) {
+      if (!Strings.isNullOrEmpty(globalWatermarkDatasetUrn)) {
+        workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, dataset.getUrn());
+      }
       workUnit.setProp(DATASET_URN, dataset.getUrn());
       workUnit.setProp(WORK_UNIT_ORDINAL, workUnitOrdinal);
     }
 
     private void addPartitionInfoToWorkUnit(WorkUnit workUnit, PartitionableDataset.DatasetPartition partition) {
+      if (!Strings.isNullOrEmpty(globalWatermarkDatasetUrn)) {
+        workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY,
+            Joiner.on(DATASET_PARTITION_DELIMITER).join(partition.getDataset().getUrn(), partition.getUrn()));
+      }
       workUnit.setProp(PARTITION_URN, partition.getUrn());
+    }
+
+    private void addWatermarkIntervalToWorkUnit(WorkUnit workUnit, Dataset dataset) {
+      if (!Strings.isNullOrEmpty(globalWatermarkDatasetUrn)) {
+        addWatermarkIntervalToWorkUnit(workUnit, dataset, null);
+      }
+    }
+
+    private void addWatermarkIntervalToWorkUnit(WorkUnit workUnit, Dataset dataset,
+        PartitionableDataset.DatasetPartition partition) {
+      if (!Strings.isNullOrEmpty(globalWatermarkDatasetUrn)) {
+        String datasetUrn;
+        if (partition != null) {
+          datasetUrn = Joiner.on(DATASET_PARTITION_DELIMITER).join(dataset.getUrn(), partition.getUrn());
+        } else {
+          datasetUrn = dataset.getUrn();
+        }
+        JobState.DatasetState datasetState;
+        try {
+          datasetState =
+              (JobState.DatasetState) this.datasetStateStore.getLatestDatasetState(this.storeName, datasetUrn);
+        } catch (IOException e) {
+          throw new RuntimeException(
+              "Unable to get latest dataset state for dataset " + datasetUrn + " from dataset state store for "
+                  + this.storeName + ".", e);
+        }
+        LongWatermark previousWatermark;
+        if (datasetState != null) {
+          List<WorkUnitState> workUnitStates = datasetState.getTaskStatesAsWorkUnitStates();
+          previousWatermark = workUnitStates.get(0).getActualHighWatermark(LongWatermark.class);
+        } else {
+          previousWatermark = new LongWatermark(0);
+        }
+        LongWatermark expectedHighWatermark = new LongWatermark(DATASET_LAST_PROCESSED_TS);
+        workUnit.setWatermarkInterval(new WatermarkInterval(previousWatermark, expectedHighWatermark));
+      }
+    }
+
+    private WorkUnit generateNoopWorkUnit(int workUnitOrdinal) {
+      WorkUnit workUnit = NoopTask.noopWorkunit();
+      if (!Strings.isNullOrEmpty(globalWatermarkDatasetUrn)) {
+        if (previousDataset != null) {
+          workUnit.setProp(DATASET_URN, previousDataset.getUrn());
+        }
+        if (drilldownIntoPartitions && this.previousPartition != null) {
+          workUnit.setProp(PARTITION_URN, previousPartition.getUrn());
+        }
+        workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, this.globalWatermarkDatasetUrn);
+      }
+      workUnit.setProp(WORK_UNIT_ORDINAL, workUnitOrdinal);
+      return workUnit;
     }
   }
 
@@ -216,11 +316,27 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
    */
   private <T extends URNIdentified> Stream<T> sortStreamLexicographically(Stream<T> inputStream) {
     Spliterator<T> spliterator = inputStream.spliterator();
-    if (spliterator.hasCharacteristics(Spliterator.SORTED) &&
-        spliterator.getComparator().equals(this.lexicographicalComparator)) {
+    if (spliterator.hasCharacteristics(Spliterator.SORTED) && spliterator.getComparator()
+        .equals(this.lexicographicalComparator)) {
       return StreamSupport.stream(spliterator, false);
     }
     return StreamSupport.stream(spliterator, false).sorted(this.lexicographicalComparator);
   }
 
+  protected DatasetStateStore createStateStore(Config jobConfig)
+      throws IOException {
+    String stateStoreType = ConfigUtils.getString(jobConfig, ConfigurationKeys.DATASET_STATE_STORE_TYPE_KEY, ConfigUtils
+        .getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY, ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
+
+    ClassAliasResolver<DatasetStateStore.Factory> resolver = new ClassAliasResolver<>(DatasetStateStore.Factory.class);
+
+    try {
+      DatasetStateStore.Factory stateStoreFactory = resolver.resolveClass(stateStoreType).newInstance();
+      return stateStoreFactory.createStateStore(jobConfig);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
+  }
 }
