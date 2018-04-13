@@ -109,6 +109,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   private static final Gson GSON = new Gson();
   private boolean isEarlyStopped = false;
+  protected SalesforceConnector salesforceConnector = null;
 
   public SalesforceSource() {
     this.lineageInfo = Optional.absent();
@@ -485,12 +486,19 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     return histogram;
   }
 
+  protected SalesforceConnector getConnector(State state) {
+    if (this.salesforceConnector == null) {
+      this.salesforceConnector = new SalesforceConnector(state);
+    }
+    return this.salesforceConnector;
+  }
+
   /**
    * Generate the histogram
    */
   private Histogram getHistogram(String entity, String watermarkColumn, SourceState state,
       Partition partition) {
-    SalesforceConnector connector = new SalesforceConnector(state);
+    SalesforceConnector connector = getConnector(state);
 
     try {
       if (!connector.connect()) {
@@ -595,7 +603,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       return super.getSourceEntities(state);
     }
 
-    SalesforceConnector connector = new SalesforceConnector(state);
+    SalesforceConnector connector = getConnector(state);
     try {
       if (!connector.connect()) {
         throw new RuntimeException("Failed to connect.");
