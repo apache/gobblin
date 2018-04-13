@@ -23,7 +23,7 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
 
-  compile "com.couchbase.client:java-client:2.3.5"
+  compile "com.couchbase.client:java-client:2.5.4"
   compile externalDependency.avro
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper

@@ -109,16 +109,20 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
   public CouchbaseWriter(CouchbaseEnvironment couchbaseEnvironment, Config config) {
 
     List<String> hosts = ConfigUtils.getStringList(config, CouchbaseWriterConfigurationKeys.BOOTSTRAP_SERVERS);
-
-    _cluster = CouchbaseCluster.create(couchbaseEnvironment, hosts);
+    String password = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.PASSWORD, "");
 
     String bucketName = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.BUCKET,
         CouchbaseWriterConfigurationKeys.BUCKET_DEFAULT);
 
-    String password = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.PASSWORD, "");
+    _cluster = CouchbaseCluster.create(couchbaseEnvironment, hosts);
 
-    _bucket = _cluster.openBucket(bucketName, password,
-        Collections.<Transcoder<? extends Document, ?>>singletonList(_tupleDocumentTranscoder));
+    if(!password.isEmpty()) {
+      _bucket = _cluster.openBucket(bucketName, password,
+          Collections.<Transcoder<? extends Document, ?>>singletonList(_tupleDocumentTranscoder));
+    } else {
+      _bucket = _cluster.openBucket(bucketName,
+          Collections.<Transcoder<? extends Document, ?>>singletonList(_tupleDocumentTranscoder));
+    }
 
     _operationTimeout = ConfigUtils.getLong(config, CouchbaseWriterConfigurationKeys.OPERATION_TIMEOUT_MILLIS,
         CouchbaseWriterConfigurationKeys.OPERATION_TIMEOUT_DEFAULT);

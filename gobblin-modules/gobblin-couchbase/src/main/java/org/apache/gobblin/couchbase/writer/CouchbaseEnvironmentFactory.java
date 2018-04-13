@@ -20,6 +20,7 @@ package org.apache.gobblin.couchbase.writer;
 import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
 import com.typesafe.config.Config;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -38,9 +39,25 @@ public class CouchbaseEnvironmentFactory {
    */
   public static synchronized CouchbaseEnvironment getInstance(Config config)
   {
+    Boolean sslEnabled = ConfigUtils.getBoolean(config, CouchbaseWriterConfigurationKeys.SSL_ENABLED, false);
+    String sslKeystoreFile = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.SSL_KEYSTORE_FILE, "");
+    String sslKeystorePassword = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.SSL_KEYSTORE_PASSWORD, "");
+    String sslTruststoreFile = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.SSL_TRUSTSTORE_FILE, "");
+    String sslTruststorePassword = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.SSL_TRUSTSTORE_PASSWORD, "");
+    Boolean certAuthEnabled = ConfigUtils.getBoolean(config, CouchbaseWriterConfigurationKeys.CERT_AUTH_ENABLED, false);
+
+    DefaultCouchbaseEnvironment.Builder builder = DefaultCouchbaseEnvironment
+	.builder()
+        .sslEnabled(sslEnabled)
+        .sslKeystoreFile(sslKeystoreFile)
+        .sslKeystorePassword(sslKeystorePassword)
+        .sslTruststoreFile(sslTruststoreFile)
+        .sslTruststorePassword(sslTruststorePassword)
+        .certAuthEnabled(certAuthEnabled);
+
     if (couchbaseEnvironment == null)
     {
-      return DefaultCouchbaseEnvironment.create();
+      return builder.build();
     }
     else {
       return couchbaseEnvironment;
