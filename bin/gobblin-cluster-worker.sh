@@ -31,8 +31,9 @@ function start() {
   fi
 
   LOG_ARGS="1>${FWDIR_LOGS}/GobblinCluster.worker.$WORKER_ID.stdout 2>${FWDIR_LOGS}/GobblinCluster.worker.$WORKER_ID.stderr"
-
-  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS org.apache.gobblin.cluster.GobblinTaskRunner --app_name $CLUSTER_NAME --helix_instance_name worker.$WORKER_ID $LOG_ARGS"
+  
+  LOG4J_PATH=file://${FWDIR_CONF}/log4j-cluster.properties
+  COMMAND="$JAVA_HOME/bin/java -Dlog4j.configuration=$LOG4J_PATH -cp $CLASSPATH $JVM_FLAGS org.apache.gobblin.cluster.GobblinTaskRunner --app_name $CLUSTER_NAME --helix_instance_name worker.$WORKER_ID $LOG_ARGS"
 
   echo "Running command:"
   echo "$COMMAND"
@@ -54,7 +55,7 @@ function stop() {
 
 FWDIR="$(cd `dirname $0`/..; pwd)"
 FWDIR_LIB=${FWDIR}/lib
-FWDIR_CONF=${FWDIR}/conf/standalone
+FWDIR_CONF=${FWDIR}/conf/standalone/worker
 FWDIR_BIN=${FWDIR}/bin
 FWDIR_LOGS=${FWDIR}/logs
 CLUSTER_NAME="standalone_cluster"
