@@ -20,6 +20,7 @@ package org.apache.gobblin.configuration;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -64,19 +65,34 @@ public class SourceState extends State {
   private static final DateTimeFormatter DTF =
       DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
 
-  @Getter
-  private final Map<String, SourceState> previousDatasetStatesByUrns;
+  private Map<String, SourceState> previousDatasetStatesByUrns;
+
+  private List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
 
   @Getter
-  private final List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
-
-  @Getter @Setter
+  @Setter
   private SharedResourcesBroker<GobblinScopeTypes> broker;
+
+  @Getter
+  @Setter
+  private CombinedWorkUnitAndDatasetStateCallable<CombinedWorkUnitAndDatasetState> callable;
 
   /**
    * Default constructor.
    */
   public SourceState() {
+    this.previousWorkUnitStates = new ArrayList<>();
+    this.previousDatasetStatesByUrns = ImmutableMap.of();
+  }
+
+  /**
+   * Constructor.
+   *
+   * @param properties job configuration properties
+   */
+  public SourceState(State properties) {
+    super.addAll(properties);
+    this.previousWorkUnitStates = new ArrayList<>();
     this.previousDatasetStatesByUrns = ImmutableMap.of();
   }
 
@@ -127,7 +143,8 @@ public class SourceState extends State {
 
   /**
    * Get the state (in the form of a {@link SourceState}) of a dataset identified by a dataset URN
-   * of the previous job run.
+   * of the previous job run. Useful when dataset state store is enabled and we want to load the latest
+   * state of a global watermark dataset.
    *
    * @param datasetUrn the dataset URN
    * @return the dataset state (in the form of a {@link SourceState}) of the previous job run
@@ -138,6 +155,54 @@ public class SourceState extends State {
       return null;
     }
     return new ImmutableSourceState(this.previousDatasetStatesByUrns.get(datasetUrn));
+  }
+
+  /**
+   *
+   * @return a {@link Map} from dataset URNs (as being specified by {@link ConfigurationKeys#DATASET_URN_KEY}
+   * to the {@link SourceState} with the dataset URNs. The map is materialized upon invocation of the method
+   * by the source. Subsequent calls to this method will return the previously materialized map.
+   * <p>
+   *   {@link SourceState}s that do not have {@link ConfigurationKeys#DATASET_URN_KEY} set will be added
+   *   to the dataset state belonging to {@link ConfigurationKeys#DEFAULT_DATASET_URN}.
+   * </p>
+   *
+   * @return a {@link Map} from dataset URNs to the {@link SourceState} with the dataset URNs
+   */
+  public Map<String, SourceState> getPreviousDatasetStatesByUrns() {
+    if (this.callable != null) {
+      materializeWorkUnitAndDatasetStates(null);
+    }
+    return this.previousDatasetStatesByUrns;
+  }
+
+  /**
+   * Get a {@link List} of previous {@link WorkUnitState}s. The list is lazily materialized upon invocation of the
+   * method by the {@link org.apache.gobblin.source.Source}. Subsequent calls to this method will return the previously
+   * materialized map.
+   */
+  public List<WorkUnitState> getPreviousWorkUnitStates() {
+    if (this.callable != null) {
+      materializeWorkUnitAndDatasetStates(null);
+    }
+    return this.previousWorkUnitStates;
+  }
+
+  /**
+   * Get a {@link List} of previous {@link WorkUnitState}s for a given datasetUrn.
+   * @param datasetUrn
+   * @return {@link List} of {@link WorkUnitState}s.
+   */
+  public List<WorkUnitState> getPreviousWorkUnitStates(String datasetUrn) {
+    if (this.callable != null) {
+      try {
+        CombinedWorkUnitAndDatasetState state = this.callable.getCombinedWorkUnitAndDatasetState(datasetUrn);
+        return state.getPreviousWorkUnitStates();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+    return this.previousWorkUnitStates;
   }
 
   /**
@@ -153,17 +218,33 @@ public class SourceState extends State {
    */
   public Map<String, Iterable<WorkUnitState>> getPreviousWorkUnitStatesByDatasetUrns() {
     Map<String, Iterable<WorkUnitState>> previousWorkUnitStatesByDatasetUrns = Maps.newHashMap();
-
+    if (this.callable != null) {
+      materializeWorkUnitAndDatasetStates(null);
+    }
     for (WorkUnitState workUnitState : this.previousWorkUnitStates) {
       String datasetUrn =
           workUnitState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
       if (!previousWorkUnitStatesByDatasetUrns.containsKey(datasetUrn)) {
-        previousWorkUnitStatesByDatasetUrns.put(datasetUrn, Lists.<WorkUnitState> newArrayList());
+        previousWorkUnitStatesByDatasetUrns.put(datasetUrn, Lists.newArrayList());
       }
       ((List<WorkUnitState>) previousWorkUnitStatesByDatasetUrns.get(datasetUrn)).add(workUnitState);
     }
 
     return ImmutableMap.copyOf(previousWorkUnitStatesByDatasetUrns);
+  }
+
+  private void materializeWorkUnitAndDatasetStates(String datasetUrn) {
+    if (this.previousWorkUnitStates.isEmpty()) {
+      try {
+        CombinedWorkUnitAndDatasetState workUnitAndDatasetState =
+            this.callable.getCombinedWorkUnitAndDatasetState(datasetUrn);
+        this.previousWorkUnitStates = workUnitAndDatasetState.getPreviousWorkUnitStates();
+        this.previousDatasetStatesByUrns =
+            (Map<String, SourceState>) workUnitAndDatasetState.getPreviousDatasetStatesByUrns();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   /**
@@ -179,7 +260,7 @@ public class SourceState extends State {
    * @return a new unique {@link Extract} instance
    *
    * @Deprecated Use {@link org.apache.gobblin.source.extractor.extract.AbstractSource#createExtract(
-   * org.apache.gobblin.source.workunit.Extract.TableType, String, String)}
+   *org.apache.gobblin.source.workunit.Extract.TableType, String, String)}
    */
   @Deprecated
   public synchronized Extract createExtract(Extract.TableType type, String namespace, String table) {
@@ -211,7 +292,8 @@ public class SourceState extends State {
   }
 
   @Override
-  public void write(DataOutput out) throws IOException {
+  public void write(DataOutput out)
+      throws IOException {
     out.writeInt(this.previousWorkUnitStates.size());
     for (WorkUnitState state : this.previousWorkUnitStates) {
       state.write(out);
@@ -220,7 +302,8 @@ public class SourceState extends State {
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException {
+  public void readFields(DataInput in)
+      throws IOException {
     int size = in.readInt();
     for (int i = 0; i < size; i++) {
       WorkUnitState workUnitState = new WorkUnitState();
@@ -261,7 +344,8 @@ public class SourceState extends State {
     }
 
     @Override
-    public void readFields(DataInput in) throws IOException {
+    public void readFields(DataInput in)
+        throws IOException {
       throw new UnsupportedOperationException();
     }
 

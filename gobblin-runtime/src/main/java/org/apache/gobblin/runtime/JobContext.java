@@ -102,12 +102,6 @@ public class JobContext implements Closeable {
   @Getter(AccessLevel.PACKAGE)
   private final DatasetStateStore datasetStateStore;
 
-  /**
-   *
-   * Is global dataset watermarker enabled?
-   */
-  private Optional<String> globalWatermarkDatasetUrn;
-
   // Store for runtime job execution information
   private final Optional<JobHistoryStore> jobHistoryStoreOptional;
 
@@ -152,24 +146,13 @@ public class JobContext implements Closeable {
 
     this.datasetStateStore = createStateStore(ConfigUtils.propertiesToConfig(jobProps));
     this.jobHistoryStoreOptional = createJobHistoryStore(jobProps);
-    this.globalWatermarkDatasetUrn = jobProps.containsKey(ConfigurationKeys.GLOBAL_WATERMARK_DATASET_URN) ? Optional
-        .of(jobProps.getProperty(ConfigurationKeys.GLOBAL_WATERMARK_DATASET_URN)) : Optional.absent();
 
     State jobPropsState = new State();
     jobPropsState.addAll(jobProps);
 
-    if (this.globalWatermarkDatasetUrn.isPresent()) {
-      DatasetState globalWatermarkDatasetState = (DatasetState) this.datasetStateStore
-          .getLatestDatasetState(this.jobName, this.globalWatermarkDatasetUrn.get());
-      Map<String, DatasetState> datasetStateMap = (globalWatermarkDatasetState == null) ? ImmutableMap.of()
-          : ImmutableMap.of(this.globalWatermarkDatasetUrn.get(), globalWatermarkDatasetState);
-      this.jobState = new JobState(jobPropsState, datasetStateMap, this.jobName, this.jobId);
-    } else {
-      this.jobState =
-          new JobState(jobPropsState, this.datasetStateStore.getLatestDatasetStatesByUrns(this.jobName), this.jobName,
-              this.jobId);
-    }
+    this.jobState = new JobState(jobPropsState, this.jobName, this.jobId);
     this.jobState.setBroker(this.jobBroker);
+    this.jobState.setCallable(new CombinedWorkUnitAndDatasetStateGenerator(this.datasetStateStore, this.jobName));
 
     stagingDirProvided = this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR);
     outputDirProvided = this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR);
