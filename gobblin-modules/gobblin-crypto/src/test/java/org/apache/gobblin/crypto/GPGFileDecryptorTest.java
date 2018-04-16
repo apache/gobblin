@@ -16,14 +16,17 @@
  */
 package org.apache.gobblin.crypto;
 
-import com.google.common.base.Charsets;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.bouncycastle.openpgp.PGPException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Charsets;
 
 
 /**
@@ -58,4 +61,74 @@ public class GPGFileDecryptorTest {
     }
   }
 
+  /**
+   * Decrypt a large (~1gb) password encrypted file and check that memory usage does not blow up
+   * @throws IOException
+   * @throws PGPException
+   */
+  @Test (enabled=true)
+  public void decryptLargeFileSym() throws IOException, PGPException {
+    System.gc();
+    System.gc();
+
+    long startHeapSize = Runtime.getRuntime().totalMemory();
+
+    try(InputStream is = GPGFileDecryptor.decryptFile(
+        getClass().getResourceAsStream("/crypto/gpg/passwordEncrypted.gpg"), "test")) {
+      int value;
+      long bytesRead = 0;
+
+      // the file contains only the character 'a'
+      while ((value = is.read()) != -1) {
+        bytesRead++;
+        Assert.assertTrue(value == 'a');
+      }
+
+      Assert.assertEquals(bytesRead, 1041981183L);
+
+      System.gc();
+      System.gc();
+      long endHeapSize = Runtime.getRuntime().totalMemory();
+
+      // make sure the heap doesn't grow too much
+      Assert.assertTrue(endHeapSize - startHeapSize < 200 * 1024 * 1024,
+          "start heap " + startHeapSize + " end heap " + endHeapSize);
+    }
+  }
+
+  /**
+   * Decrypt a large (~1gb) private key encrypted file and check that memory usage does not blow up
+   * @throws IOException
+   * @throws PGPException
+   */
+  @Test (enabled=true)
+  public void decryptLargeFileAsym() throws IOException, PGPException {
+    System.gc();
+    System.gc();
+
+    long startHeapSize = Runtime.getRuntime().totalMemory();
+
+    try(InputStream is = GPGFileDecryptor.decryptFile(
+        getClass().getResourceAsStream("/crypto/gpg/keyEncrypted.gpg"),
+        getClass().getResourceAsStream("/crypto/gpg/testPrivate.key"), "gobblin")) {
+      int value;
+      long bytesRead = 0;
+
+      // the file contains only the character 'a'
+      while ((value = is.read()) != -1) {
+        bytesRead++;
+        Assert.assertTrue(value == 'a');
+      }
+
+      Assert.assertEquals(bytesRead, 1041981183L);
+
+      System.gc();
+      System.gc();
+      long endHeapSize = Runtime.getRuntime().totalMemory();
+
+      // make sure the heap doesn't grow too much
+      Assert.assertTrue(endHeapSize - startHeapSize < 200 * 1024 * 1024,
+          "start heap " + startHeapSize + " end heap " + endHeapSize);
+    }
+  }
 }
