@@ -68,16 +68,17 @@ public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase
   @Override
   public Iterable<GenericRecord> convertRecord(Schema outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    GenericRecord avroRecord = convertNestedRecord(outputSchema, inputRecord, workUnit);
+    GenericRecord avroRecord = convertNestedRecord(outputSchema, inputRecord, workUnit, this.ignoreFields);
     return new SingleRecordIterable<>(avroRecord);
   }
 
-  private GenericRecord convertNestedRecord(Schema outputSchema, JsonObject inputRecord, WorkUnitState workUnit) throws DataConversionException {
+  public static GenericRecord convertNestedRecord(Schema outputSchema, JsonObject inputRecord, WorkUnitState workUnit,
+      List<String> ignoreFields) throws DataConversionException {
     GenericRecord avroRecord = new GenericData.Record(outputSchema);
     JsonElementConversionWithAvroSchemaFactory.JsonElementConverter converter;
     for (Schema.Field field : outputSchema.getFields()) {
 
-      if (this.ignoreFields.contains(field.name())) {
+      if (ignoreFields.contains(field.name())) {
         continue;
       }
 
@@ -115,15 +116,15 @@ public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase
           avroRecord.put(field.name(), null);
         } else {
           avroRecord.put(field.name(),
-              convertNestedRecord(schema, inputRecord.get(field.name()).getAsJsonObject(), workUnit));
+              convertNestedRecord(schema, inputRecord.get(field.name()).getAsJsonObject(), workUnit, ignoreFields));
         }
       } else {
         try {
           converter = JsonElementConversionWithAvroSchemaFactory.getConvertor(field.name(), type.getName(), schema,
-              workUnit, nullable);
+              workUnit, nullable, ignoreFields);
           avroRecord.put(field.name(), converter.convert(inputRecord.get(field.name())));
         } catch (Exception e) {
-          throw new DataConversionException("Could not convert field " + field.name());
+          throw new DataConversionException("Could not convert field " + field.name(), e);
         }
       }
     }
