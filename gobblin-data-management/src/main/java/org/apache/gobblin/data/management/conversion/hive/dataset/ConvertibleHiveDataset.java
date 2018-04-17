@@ -16,6 +16,9 @@
  */
 package org.apache.gobblin.data.management.conversion.hive.dataset;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -25,7 +28,11 @@ import lombok.ToString;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
 import com.google.common.base.Optional;
@@ -74,6 +81,14 @@ public class ConvertibleHiveDataset extends HiveDataset {
   // Mapping for destination format to it's Conversion config
   private final Map<String, ConversionConfig> destConversionConfigs;
 
+  // Source Dataset Descriptor
+  @Getter
+  private final DatasetDescriptor sourceDataset;
+
+  // List of destination Dataset Descriptor
+  @Getter
+  private final List<DatasetDescriptor> destDatasets;
+
   /**
    * <ul>
    *  <li> The constructor takes in a dataset {@link Config} which MUST have a comma separated list of destination formats at key,
@@ -111,6 +126,41 @@ public class ConvertibleHiveDataset extends HiveDataset {
         this.destConversionConfigs.put(format, new ConversionConfig(this.datasetConfig.getConfig(format), table, format));
 
       }
+    }
+    this.sourceDataset = createSourceDataset();
+    this.destDatasets = createDestDatasets();
+  }
+
+  private List<DatasetDescriptor> createDestDatasets() {
+    List<DatasetDescriptor> destDatasets = new ArrayList<>();
+    for (String format : getDestFormats()) {
+      Optional<ConversionConfig> conversionConfigForFormat = getConversionConfigForFormat(format);
+      if (!conversionConfigForFormat.isPresent()) {
+        continue;
+      }
+      String destTable = conversionConfigForFormat.get().getDestinationDbName() + "." + conversionConfigForFormat.get()
+          .getDestinationTableName();
+      DatasetDescriptor dest = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destTable);
+      String destLocation = conversionConfigForFormat.get().getDestinationDataPath() + Path.SEPARATOR + "final";
+      dest.addMetadata(DatasetConstants.FS_SCHEME, getSourceDataset().getMetadata().get(DatasetConstants.FS_SCHEME));
+      dest.addMetadata(DatasetConstants.FS_LOCATION, destLocation);
+      destDatasets.add(dest);
+    }
+    return destDatasets;
+  }
+
+  private DatasetDescriptor createSourceDataset() {
+    try {
+      String sourceTable = getTable().getDbName() + "." + getTable().getTableName();
+      DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
+      Path sourcePath = getTable().getDataLocation();
+      String sourceLocation = Path.getPathWithoutSchemeAndAuthority(sourcePath).toString();
+      FileSystem sourceFs = sourcePath.getFileSystem(new Configuration());
+      source.addMetadata(DatasetConstants.FS_SCHEME, sourceFs.getScheme());
+      source.addMetadata(DatasetConstants.FS_LOCATION, sourceLocation);
+      return source;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 

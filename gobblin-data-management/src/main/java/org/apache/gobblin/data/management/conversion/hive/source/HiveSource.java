@@ -27,13 +27,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import org.apache.gobblin.broker.iface.SharedResourcesBroker;
-import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import org.apache.gobblin.dataset.DatasetConstants;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.metrics.event.lineage.LineageInfo;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -155,7 +148,6 @@ public class HiveSource implements Source {
   protected long maxLookBackTime;
   protected long beginGetWorkunitsTime;
   protected List<String> ignoreDataPathIdentifierList;
-  protected SharedResourcesBroker<GobblinScopeTypes> sharedJobBroker;
 
   protected final ClassAliasResolver<HiveBaseExtractorFactory> classAliasResolver =
       new ClassAliasResolver<>(HiveBaseExtractorFactory.class);
@@ -222,7 +214,6 @@ public class HiveSource implements Source {
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
     this.ignoreDataPathIdentifierList = COMMA_BASED_SPLITTER.splitToList(state.getProp(HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER_KEY,
         DEFAULT_HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER));
-    this.sharedJobBroker = state.getBroker();
 
     silenceHiveLoggers();
   }
@@ -261,10 +252,7 @@ public class HiveSource implements Source {
 
         EventWorkunitUtils.setTableSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue(),
             this.beginGetWorkunitsTime);
-        if (hiveDataset instanceof ConvertibleHiveDataset) {
-          setLineageInfo((ConvertibleHiveDataset) hiveDataset, hiveWorkUnit, this.sharedJobBroker);
-          log.info("Added lineage event for dataset " + hiveDataset.getUrn());
-        }
+
         this.workunits.add(hiveWorkUnit);
         log.debug(String.format("Workunit added for table: %s", hiveWorkUnit));
 
@@ -293,7 +281,7 @@ public class HiveSource implements Source {
   }
 
   protected void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client) throws IOException {
-    boolean setLineageInfo = false;
+
     long tableProcessTime = new DateTime().getMillis();
     this.watermarker.onTableProcessBegin(hiveDataset.getTable(), tableProcessTime);
 
@@ -341,12 +329,7 @@ public class HiveSource implements Source {
 
           EventWorkunitUtils.setPartitionSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), sourcePartition, updateTime,
               lowWatermark.getValue(), this.beginGetWorkunitsTime);
-          if (hiveDataset instanceof ConvertibleHiveDataset && !setLineageInfo) {
-            setLineageInfo((ConvertibleHiveDataset) hiveDataset, hiveWorkUnit, this.sharedJobBroker);
-            log.info("Added lineage event for dataset " + hiveDataset.getUrn());
-            // Add lineage information only once per hive table
-            setLineageInfo = true;
-          }
+
           workunits.add(hiveWorkUnit);
           log.info(String.format("Creating workunit for partition %s as updateTime %s is greater than low watermark %s",
               sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
@@ -490,36 +473,5 @@ public class HiveSource implements Source {
 
   private boolean isAvro(Table table) {
     return AvroSerDe.class.getName().equals(table.getSd().getSerdeInfo().getSerializationLib());
-  }
-
-  public static void setLineageInfo(ConvertibleHiveDataset convertibleHiveDataset, WorkUnit workUnit,
-      SharedResourcesBroker<GobblinScopeTypes> sharedJobBroker)
-      throws IOException {
-    String sourceTable =
-        convertibleHiveDataset.getTable().getDbName() + "." + convertibleHiveDataset.getTable().getTableName();
-    DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
-    source.addMetadata(DatasetConstants.FS_URI,
-        convertibleHiveDataset.getTable().getDataLocation().getFileSystem(new Configuration()).getUri().toString());
-
-    int virtualBranch = 0;
-    for (String format : convertibleHiveDataset.getDestFormats()) {
-      ++virtualBranch;
-      Optional<ConvertibleHiveDataset.ConversionConfig> conversionConfigForFormat =
-          convertibleHiveDataset.getConversionConfigForFormat(format);
-      Optional<LineageInfo> lineageInfo = LineageInfo.getLineageInfo(sharedJobBroker);
-      if (!lineageInfo.isPresent()) {
-        continue;
-      } else if (!conversionConfigForFormat.isPresent()) {
-        continue;
-      }
-      String destTable = conversionConfigForFormat.get().getDestinationDbName() + "." + conversionConfigForFormat.get()
-          .getDestinationTableName();
-      DatasetDescriptor dest = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destTable);
-      Path destPath = new Path(conversionConfigForFormat.get().getDestinationDataPath());
-      dest.addMetadata(DatasetConstants.FS_URI, destPath.getFileSystem(new Configuration()).getUri().toString());
-
-      lineageInfo.get().setSource(source, workUnit);
-      lineageInfo.get().putDestination(dest, virtualBranch, workUnit);
-    }
   }
 }
