@@ -76,7 +76,12 @@ public class JsonRecordAvroSchemaToAvroConverterTest {
 
     Assert.assertTrue(record.get("mapField") instanceof Map);
 
-    Assert.assertEquals(((GenericRecord)record.get("nestedRecords")).get("nestedField").toString(), "test");
-    Assert.assertEquals(((GenericRecord)record.get("nestedRecords")).get("nestedField2").toString(), "test2");
+    Assert.assertEquals(((GenericRecord) record.get("nestedRecords")).get("nestedField").toString(), "test");
+    Assert.assertEquals(((GenericRecord) record.get("nestedRecords")).get("nestedField2").toString(), "test2");
+
+    Assert.assertTrue(((GenericArray) record.get("emptyArrayOfRecords")).isEmpty());
+
+    GenericRecord recordInArray = (GenericRecord) (((GenericArray) record.get("arrayOfRecords")).get(0));
+    Assert.assertEquals(recordInArray.get("field1").toString(), "test1");
   }
 }
