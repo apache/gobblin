@@ -83,5 +83,7 @@ public class JsonRecordAvroSchemaToAvroConverterTest {
 
     GenericRecord recordInArray = (GenericRecord) (((GenericArray) record.get("arrayOfRecords")).get(0));
     Assert.assertEquals(recordInArray.get("field1").toString(), "test1");
+
+    Assert.assertEquals((record.get("enumField")).toString(), "ENUM2");
   }
 }
