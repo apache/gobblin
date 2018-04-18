@@ -20,5 +20,6 @@
       "field1": "test3",
       "field2": "test4"
     }
-  ]
+  ],
+  "enumField": "ENUM2"
 }

@@ -97,6 +97,21 @@
           ]
         }
       }
+    },
+    {
+      "name": "enumField",
+      "type": [
+        "null",
+        {
+          "name": "enum",
+          "symbols": [
+            "ENUM1",
+            "ENUM2",
+            "ENUM3"
+          ],
+          "type": "enum"
+        }
+      ]
     }
   ]
 }

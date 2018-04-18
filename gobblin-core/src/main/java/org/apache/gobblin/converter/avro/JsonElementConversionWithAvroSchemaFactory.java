@@ -154,6 +154,8 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
       this.enumSet.addAll(schemaNode.getEnumSymbols());
 
       this.enumName = schemaNode.getType().getName();
+
+      this.schema = schemaNode;
     }
 
     @Override
