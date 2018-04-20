@@ -21,47 +21,51 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-
 import org.apache.gobblin.configuration.CombinedWorkUnitAndDatasetState;
-import org.apache.gobblin.configuration.CombinedWorkUnitAndDatasetStateCallable;
+import org.apache.gobblin.configuration.CombinedWorkUnitAndDatasetStateFunctional;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.DatasetStateStore;
 
-public class CombinedWorkUnitAndDatasetStateGenerator implements CombinedWorkUnitAndDatasetStateCallable<CombinedWorkUnitAndDatasetState> {
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+
+
+/**
+ * A class that returns previous {@link WorkUnitState}s and {@link JobState.DatasetState}s from the state store
+ * as a {@link CombinedWorkUnitAndDatasetState}.
+ */
+
+public class CombinedWorkUnitAndDatasetStateGenerator implements CombinedWorkUnitAndDatasetStateFunctional {
   private DatasetStateStore datasetStateStore;
   private String jobName;
-  private String datasetUrn;
 
+  /**
+   * Constructor.
+   *
+   * @param datasetStateStore the dataset state store
+   * @param jobName the job name
+   */
   public CombinedWorkUnitAndDatasetStateGenerator(DatasetStateStore datasetStateStore, String jobName) {
     this.datasetStateStore = datasetStateStore;
     this.jobName = jobName;
   }
 
   @Override
-  public CombinedWorkUnitAndDatasetState call()
+  public CombinedWorkUnitAndDatasetState getCombinedWorkUnitAndDatasetState(String datasetUrn)
       throws Exception {
     Map<String, JobState.DatasetState> datasetStateMap = ImmutableMap.of();
     List<WorkUnitState> workUnitStates = new ArrayList<>();
-    if (Strings.isNullOrEmpty(this.datasetUrn)) {
+    if (Strings.isNullOrEmpty(datasetUrn)) {
       datasetStateMap = this.datasetStateStore.getLatestDatasetStatesByUrns(this.jobName);
       workUnitStates = JobState.workUnitStatesFromDatasetStates(datasetStateMap.values());
     } else {
-      JobState.DatasetState datasetState = (JobState.DatasetState) this.datasetStateStore
-          .getLatestDatasetState(this.jobName, this.datasetUrn);
+      JobState.DatasetState datasetState =
+          (JobState.DatasetState) this.datasetStateStore.getLatestDatasetState(this.jobName, datasetUrn);
       if (datasetState != null) {
-        datasetStateMap = ImmutableMap.of(this.datasetUrn, datasetState);
+        datasetStateMap = ImmutableMap.of(datasetUrn, datasetState);
         workUnitStates = JobState.workUnitStatesFromDatasetStates(Arrays.asList(datasetState));
       }
     }
     return new CombinedWorkUnitAndDatasetState(workUnitStates, datasetStateMap);
-  }
-
-  @Override
-  public CombinedWorkUnitAndDatasetState getCombinedWorkUnitAndDatasetState(String datasetUrn)
-      throws Exception {
-    this.datasetUrn = datasetUrn;
-    return this.call();
   }
 }

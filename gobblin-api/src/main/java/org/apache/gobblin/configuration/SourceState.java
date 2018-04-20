@@ -75,7 +75,9 @@ public class SourceState extends State {
 
   @Getter
   @Setter
-  private CombinedWorkUnitAndDatasetStateCallable<CombinedWorkUnitAndDatasetState> callable;
+  private CombinedWorkUnitAndDatasetStateFunctional workUnitAndDatasetStateFunctional;
+
+  private boolean areWorkUnitStatesMaterialized;
 
   /**
    * Default constructor.
@@ -170,7 +172,7 @@ public class SourceState extends State {
    * @return a {@link Map} from dataset URNs to the {@link SourceState} with the dataset URNs
    */
   public Map<String, SourceState> getPreviousDatasetStatesByUrns() {
-    if (this.callable != null) {
+    if (this.workUnitAndDatasetStateFunctional != null) {
       materializeWorkUnitAndDatasetStates(null);
     }
     return this.previousDatasetStatesByUrns;
@@ -182,7 +184,7 @@ public class SourceState extends State {
    * materialized map.
    */
   public List<WorkUnitState> getPreviousWorkUnitStates() {
-    if (this.callable != null) {
+    if (this.workUnitAndDatasetStateFunctional != null) {
       materializeWorkUnitAndDatasetStates(null);
     }
     return this.previousWorkUnitStates;
@@ -194,9 +196,9 @@ public class SourceState extends State {
    * @return {@link List} of {@link WorkUnitState}s.
    */
   public List<WorkUnitState> getPreviousWorkUnitStates(String datasetUrn) {
-    if (this.callable != null) {
+    if (this.workUnitAndDatasetStateFunctional != null) {
       try {
-        CombinedWorkUnitAndDatasetState state = this.callable.getCombinedWorkUnitAndDatasetState(datasetUrn);
+        CombinedWorkUnitAndDatasetState state = this.workUnitAndDatasetStateFunctional.getCombinedWorkUnitAndDatasetState(datasetUrn);
         return state.getPreviousWorkUnitStates();
       } catch (Exception e) {
         throw new RuntimeException(e);
@@ -218,7 +220,7 @@ public class SourceState extends State {
    */
   public Map<String, Iterable<WorkUnitState>> getPreviousWorkUnitStatesByDatasetUrns() {
     Map<String, Iterable<WorkUnitState>> previousWorkUnitStatesByDatasetUrns = Maps.newHashMap();
-    if (this.callable != null) {
+    if (this.workUnitAndDatasetStateFunctional != null) {
       materializeWorkUnitAndDatasetStates(null);
     }
     for (WorkUnitState workUnitState : this.previousWorkUnitStates) {
@@ -233,14 +235,19 @@ public class SourceState extends State {
     return ImmutableMap.copyOf(previousWorkUnitStatesByDatasetUrns);
   }
 
-  private void materializeWorkUnitAndDatasetStates(String datasetUrn) {
-    if (this.previousWorkUnitStates.isEmpty()) {
+  /**
+   * A thread-safe method for materializing previous {@link WorkUnitState}s and DatasetStates.
+   * @param datasetUrn
+   */
+  private synchronized void materializeWorkUnitAndDatasetStates(String datasetUrn) {
+    if (!this.areWorkUnitStatesMaterialized) {
       try {
         CombinedWorkUnitAndDatasetState workUnitAndDatasetState =
-            this.callable.getCombinedWorkUnitAndDatasetState(datasetUrn);
+            this.workUnitAndDatasetStateFunctional.getCombinedWorkUnitAndDatasetState(datasetUrn);
         this.previousWorkUnitStates = workUnitAndDatasetState.getPreviousWorkUnitStates();
         this.previousDatasetStatesByUrns =
             (Map<String, SourceState>) workUnitAndDatasetState.getPreviousDatasetStatesByUrns();
+        this.areWorkUnitStatesMaterialized = true;
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

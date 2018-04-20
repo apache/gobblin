@@ -152,7 +152,7 @@ public class JobContext implements Closeable {
 
     this.jobState = new JobState(jobPropsState, this.jobName, this.jobId);
     this.jobState.setBroker(this.jobBroker);
-    this.jobState.setCallable(new CombinedWorkUnitAndDatasetStateGenerator(this.datasetStateStore, this.jobName));
+    this.jobState.setWorkUnitAndDatasetStateFunctional(new CombinedWorkUnitAndDatasetStateGenerator(this.datasetStateStore, this.jobName));
 
     stagingDirProvided = this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR);
     outputDirProvided = this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR);

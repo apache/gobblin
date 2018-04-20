@@ -14,21 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.gobblin.configuration;
 
-import java.util.List;
-import java.util.Map;
-
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
-
 /**
- * A class that encapsulates {@link WorkUnitState} and DatasetStates.
+ * A {@link FunctionalInterface} to return {@link CombinedWorkUnitAndDatasetState}.
  */
-@AllArgsConstructor
-@Getter
-public class CombinedWorkUnitAndDatasetState {
-    private List<WorkUnitState> previousWorkUnitStates;
-    private Map<String, ? extends SourceState> previousDatasetStatesByUrns;
+@FunctionalInterface
+public interface CombinedWorkUnitAndDatasetStateFunctional {
+  /**
+   *
+   * @param datasetUrn the dataset urn
+   * @return an instance {@link CombinedWorkUnitAndDatasetState}. If datasetUrn is null or empty, then return latest {@link WorkUnitState}s and DatasetStates of all datasetUrns in the state store; else return the previous {@link WorkUnitState} and the DatasetState of the specified datasetUrn.
+   * @throws Exception the exception
+   */
+  public CombinedWorkUnitAndDatasetState getCombinedWorkUnitAndDatasetState(String datasetUrn)
+      throws Exception;
 }
