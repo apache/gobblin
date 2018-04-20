@@ -112,7 +112,8 @@ public class MRTask extends BaseAbstractTask {
         this.onMRTaskComplete(true, null);
       } else {
         this.eventSubmitter.submit(Events.MR_JOB_FAILED, Events.JOB_URL, job.getTrackingURL());
-        this.onMRTaskComplete (false, new IOException("MR Job is not successful"));
+        this.onMRTaskComplete (false,
+            new IOException(String.format("MR Job:%s is not successful", job.getTrackingURL())));
       }
     } catch (Throwable t) {
       log.error("Failed to run MR job.", t);
