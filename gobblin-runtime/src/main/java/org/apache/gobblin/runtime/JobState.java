@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
@@ -131,12 +132,20 @@ public class JobState extends SourceState {
   private final Map<String, TaskState> taskStates = Maps.newLinkedHashMap();
   // Skipped task states shouldn't be exposed to publisher, but they need to be in JobState and DatasetState so that they can be written to StateStore.
   private final Map<String, TaskState> skippedTaskStates = Maps.newLinkedHashMap();
+  private DatasetStateStore datasetStateStore;
 
   // Necessary for serialization/deserialization
   public JobState() {
   }
 
   public JobState(String jobName, String jobId) {
+    this.jobName = jobName;
+    this.jobId = jobId;
+    this.setId(jobId);
+  }
+
+  public JobState(State properties,String jobName, String jobId) {
+    super(properties);
     this.jobName = jobName;
     this.jobId = jobId;
     this.setId(jobId);
@@ -728,7 +737,7 @@ public class JobState extends SourceState {
     return datasetState;
   }
 
-  private static List<WorkUnitState> workUnitStatesFromDatasetStates(Iterable<JobState.DatasetState> datasetStates) {
+  public static List<WorkUnitState> workUnitStatesFromDatasetStates(Iterable<JobState.DatasetState> datasetStates) {
     ImmutableList.Builder<WorkUnitState> taskStateBuilder = ImmutableList.builder();
     for (JobState datasetState : datasetStates) {
       taskStateBuilder.addAll(datasetState.getTaskStatesAsWorkUnitStates());

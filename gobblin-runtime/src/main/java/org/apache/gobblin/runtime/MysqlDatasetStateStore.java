@@ -102,7 +102,7 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
   public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
     String alias =
         Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-            : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
+            : CharMatcher.is(':').replaceFrom(datasetUrn, '.') + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
     return get(storeName, alias, datasetUrn);
   }
 
