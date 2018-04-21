@@ -149,10 +149,10 @@ public class JobContext implements Closeable {
 
     State jobPropsState = new State();
     jobPropsState.addAll(jobProps);
-    this.jobState =
-        new JobState(jobPropsState, this.datasetStateStore.getLatestDatasetStatesByUrns(this.jobName), this.jobName,
-            this.jobId);
+
+    this.jobState = new JobState(jobPropsState, this.jobName, this.jobId);
     this.jobState.setBroker(this.jobBroker);
+    this.jobState.setWorkUnitAndDatasetStateFunctional(new CombinedWorkUnitAndDatasetStateGenerator(this.datasetStateStore, this.jobName));
 
     stagingDirProvided = this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR);
     outputDirProvided = this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR);
@@ -189,10 +189,8 @@ public class JobContext implements Closeable {
     if (!stateStoreEnabled) {
       stateStoreType = ConfigurationKeys.STATE_STORE_TYPE_NOOP;
     } else {
-      stateStoreType = ConfigUtils
-          .getString(jobConfig, ConfigurationKeys.DATASET_STATE_STORE_TYPE_KEY,
-              ConfigUtils.getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY,
-                  ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
+      stateStoreType = ConfigUtils.getString(jobConfig, ConfigurationKeys.DATASET_STATE_STORE_TYPE_KEY, ConfigUtils
+          .getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY, ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
     }
 
     ClassAliasResolver<DatasetStateStore.Factory> resolver = new ClassAliasResolver<>(DatasetStateStore.Factory.class);
@@ -228,8 +226,8 @@ public class JobContext implements Closeable {
     Preconditions.checkState(this.jobState.contains(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_DIR));
 
     try (FileSystem fs = FileSystem.get(URI.create(this.jobState
-            .getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_FS_URI,
-                ConfigurationKeys.LOCAL_FS_URI)), HadoopUtils.getConfFromState(this.jobState))) {
+            .getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_FS_URI, ConfigurationKeys.LOCAL_FS_URI)),
+        HadoopUtils.getConfFromState(this.jobState))) {
 
       return Optional.<CommitSequenceStore>of(new FsCommitSequenceStore(fs,
           new Path(this.jobState.getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_DIR))));
@@ -311,21 +309,24 @@ public class JobContext implements Closeable {
     // Add jobId to writer staging dir
     if (this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR)) {
       String writerStagingDirWithJobId =
-          new Path(getJobDir(this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR), this.getJobName()), this.jobId).toString();
+          new Path(getJobDir(this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR), this.getJobName()),
+              this.jobId).toString();
       this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, writerStagingDirWithJobId);
     }
 
     // Add jobId to writer output dir
     if (this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
       String writerOutputDirWithJobId =
-          new Path(getJobDir(this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), this.getJobName()), this.jobId).toString();
+          new Path(getJobDir(this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), this.getJobName()), this.jobId)
+              .toString();
       this.jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, writerOutputDirWithJobId);
     }
 
     // Add jobId to task data root dir
     if (this.jobState.contains(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY)) {
       String taskDataRootDirWithJobId =
-          new Path(getJobDir(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), this.getJobName()), this.jobId).toString();
+          new Path(getJobDir(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), this.getJobName()),
+              this.jobId).toString();
       this.jobState.setProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY, taskDataRootDirWithJobId);
 
       setTaskStagingDir();
@@ -347,8 +348,8 @@ public class JobContext implements Closeable {
           ConfigurationKeys.WRITER_STAGING_DIR, ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY));
     } else {
       String workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
-      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR,
-          new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
+      this.jobState
+          .setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
       LOG.info(String.format("Writer Staging Directory is set to %s.",
           this.jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR)));
     }
@@ -367,8 +368,8 @@ public class JobContext implements Closeable {
     } else {
       String workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
       this.jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(workingDir, TASK_OUTPUT_DIR_NAME).toString());
-      LOG.info(String.format("Writer Output Directory is set to %s.",
-          this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)));
+      LOG.info(String
+          .format("Writer Output Directory is set to %s.", this.jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)));
     }
   }
 
