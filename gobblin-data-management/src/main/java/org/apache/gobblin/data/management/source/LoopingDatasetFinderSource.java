@@ -205,6 +205,9 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
         if (this.currentPartitionIterator != null && this.currentPartitionIterator.hasNext()) {
           PartitionableDataset.DatasetPartition partition = this.currentPartitionIterator.next();
           WorkUnit workUnit = workUnitForDatasetPartition(partition);
+          if (workUnit == null) {
+            continue;
+          }
           addDatasetInfoToWorkUnit(workUnit, partition.getDataset());
           addPartitionInfoToWorkUnit(workUnit, partition);
           this.previousDataset = partition.getDataset();
@@ -218,6 +221,9 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
           this.currentPartitionIterator = getPartitionIterator((PartitionableDataset) dataset);
         } else {
           WorkUnit workUnit = workUnitForDataset(dataset);
+          if (workUnit == null) {
+            continue;
+          }
           addDatasetInfoToWorkUnit(workUnit, dataset);
           this.previousDataset = dataset;
           this.generatedWorkUnits++;
