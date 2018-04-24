@@ -17,12 +17,20 @@
 
 package org.apache.gobblin.compaction.verify;
 
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Maps;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,13 +65,18 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
       PeriodFormatter formatter = new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
               .appendSuffix("h").toFormatter();
 
+      // Dataset name is like 'Identity/MemberAccount' or 'PageViewEvent'
+      String datasetName = result.getDatasetName();
+
       // get earliest time
-      String maxTimeAgoStr = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
+      String maxTimeAgoStrList = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
+      String maxTimeAgoStr = getMachedLookbackTime(datasetName, maxTimeAgoStrList, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
       Period maxTimeAgo = formatter.parsePeriod(maxTimeAgoStr);
       earliest = compactionStartTime.minus(maxTimeAgo);
 
       // get latest time
-      String minTimeAgoStr = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
+      String minTimeAgoStrList = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
+      String minTimeAgoStr = getMachedLookbackTime(datasetName, minTimeAgoStrList, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
       Period minTimeAgo = formatter.parsePeriod(minTimeAgoStr);
       latest = compactionStartTime.minus(minTimeAgo);
 
@@ -85,4 +98,43 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
   public boolean isRetriable () {
     return false;
   }
+
+  /**
+   * Find the correct lookback time for a given dataset.
+   *
+   * @param datasetsAndLookBacks Lookback string for multiple datasets. Datasets is represented by Regex pattern.
+   *                             Multiple 'datasets and lookback' pairs were joined by semi-colon. A default
+   *                             lookback time can be given without any Regex prefix. If nothing found, we will use
+   *                             {@param sysDefaultLookback}.
+   *
+   *                             Example Format: [Regex1]:[T1];[Regex2]:[T2];[DEFAULT_T];[Regex3]:[T3]
+   *                             Ex. Identity.*:1d2h;22h;BizProfile.BizCompany:3h (22h is default lookback time)
+   *
+   * @param sysDefaultLookback If user doesn't specify any lookback time for {@param datasetName}, also there is no default
+   *                           lookback time inside {@param datasetsAndLookBacks}, this system default lookback time is return.
+   *
+   * @param datasetName A description of dataset without time partition information. Example 'Identity/MemberAccount' or 'PageViewEvent'
+   * @return The lookback time matched with given dataset.
+   */
+  public static String getMachedLookbackTime (String datasetName, String datasetsAndLookBacks, String sysDefaultLookback) {
+    String defaultLookback = sysDefaultLookback;
+
+    for (String entry : Splitter.on(";").trimResults()
+        .omitEmptyStrings().splitToList(datasetsAndLookBacks)) {
+      List<String> datasetAndLookbackTime = Splitter.on(":").trimResults().omitEmptyStrings().splitToList(entry);
+      if (datasetAndLookbackTime.size() == 1) {
+        defaultLookback = datasetAndLookbackTime.get(0);
+      } else if (datasetAndLookbackTime.size() == 2)  {
+        String regex = datasetAndLookbackTime.get(0);
+        if (Pattern.compile(regex).matcher(datasetName).find()) {
+          return datasetAndLookbackTime.get(1);
+        }
+      } else {
+        log.error("Invalid format in {}, {} cannot find its lookback time", datasetsAndLookBacks, datasetName);
+      }
+    }
+    return defaultLookback;
+  }
+
+
 }
