@@ -29,6 +29,7 @@ import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher;
 import org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSource;
 import org.apache.gobblin.data.management.conversion.hive.source.HiveWorkUnit;
@@ -38,6 +39,7 @@ import org.apache.gobblin.dataset.HiveToHdfsDatasetResolver;
 import org.apache.gobblin.dataset.HiveToHdfsDatasetResolverFactory;
 import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
+import org.apache.gobblin.runtime.TaskState;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -76,15 +78,25 @@ public class ConvertibleHiveDatasetTest {
     workUnit.setProp("gobblin.broker.lineageInfo.datasetResolverFactory",
         HiveToHdfsDatasetResolverFactory.class.getName());
     workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, "123456");
+
     Optional<LineageInfo> lineageInfo = LineageInfo.getLineageInfo(getSharedJobBroker(workUnit.getProperties()));
     HiveAvroToOrcSource src = new HiveAvroToOrcSource();
     Assert.assertTrue(LineageUtils.shouldSetLineageInfo(workUnit));
-    src.setSourceLineageInfo(workUnit,
-      (ConvertibleHiveDataset) ((HiveWorkUnit) workUnit).getHiveDataset(), lineageInfo);
-    new HiveConvertPublisher(workUnit).setDestLineageInfo(workUnit,
-      (ConvertibleHiveDataset) ((HiveWorkUnit) workUnit).getHiveDataset(), lineageInfo);
+    if (LineageUtils.shouldSetLineageInfo(workUnit)) {
+      src.setSourceLineageInfo(workUnit,
+          lineageInfo);
+    }
+    // TaskState is passed to the publisher, hence test should mimic the same behavior
+    TaskState taskState = new TaskState(new WorkUnitState(workUnit));
+    if (LineageUtils.shouldSetLineageInfo(taskState)) {
+      HiveConvertPublisher.setDestLineageInfo(taskState, lineageInfo);
+    }
+    Properties props = taskState.getProperties();
 
-    Properties props = workUnit.getSpecProperties();
+    // Assert that there are two eventBuilders for nestedOrc and flattenedOrc
+    Collection<LineageEventBuilder> lineageEventBuilders = LineageInfo.load(Collections.singleton(taskState));
+    Assert.assertEquals(lineageEventBuilders.size(), 2);
+
     // Asset that lineage name is correct
     Assert.assertEquals(props.getProperty("gobblin.event.lineage.name"), "/tmp/test");
 
@@ -113,10 +125,6 @@ public class ConvertibleHiveDatasetTest {
     Assert.assertEquals(destDD2.getName(), "/tmp/data_flattenedOrc/db1/tb1/final");
     Assert.assertEquals(destDD2.getMetadata().get(HiveToHdfsDatasetResolver.HIVE_TABLE),
         "db1_flattenedOrcDb.tb1_flattenedOrc");
-
-    // Assert that there are two eventBuilders for nestedOrc and flattenedOrc
-    Collection<LineageEventBuilder> lineageEventBuilders = LineageInfo.load(Collections.singleton(workUnit));
-    Assert.assertEquals(lineageEventBuilders.size(), 2);
   }
 
   @Test
