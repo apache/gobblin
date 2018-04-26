@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.data.management.conversion.hive.utils;
 
+import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import org.apache.gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
@@ -28,15 +29,17 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  */
 public class LineageUtils {
   public static boolean shouldSetLineageInfo(WorkUnit workUnit) {
-    if (!(workUnit instanceof HiveWorkUnit)) {
-      return false;
-    }
-    HiveWorkUnit hiveWorkUnit = (HiveWorkUnit) workUnit;
+    // Create a HiveWorkUnit from the workunit
+    HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(workUnit);
     if (hiveWorkUnit.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY, false)) {
       return false;
     }
     HiveDataset hiveDataset = hiveWorkUnit.getHiveDataset();
     return hiveDataset instanceof ConvertibleHiveDataset;
+  }
+
+  public static boolean shouldSetLineageInfo(WorkUnitState workUnitState) {
+    return shouldSetLineageInfo(workUnitState.getWorkunit());
   }
 
   private LineageUtils() {
