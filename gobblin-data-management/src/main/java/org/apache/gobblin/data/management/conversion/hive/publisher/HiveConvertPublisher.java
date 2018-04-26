@@ -243,9 +243,8 @@ public class HiveConvertPublisher extends DataPublisher {
             } catch (Exception e) {
               log.error("Failed while emitting SLA event, but ignoring and moving forward to curate " + "all clean up commands", e);
             }
-            if (LineageUtils.shouldSetLineageInfo(wus.getWorkunit())) {
-              setDestLineageInfo(wus.getWorkunit(),
-                  (ConvertibleHiveDataset) ((HiveWorkUnit) wus.getWorkunit()).getHiveDataset(), this.lineageInfo);
+            if (LineageUtils.shouldSetLineageInfo(wus)) {
+              setDestLineageInfo(wus, this.lineageInfo);
             }
           }
         }
@@ -275,12 +274,13 @@ public class HiveConvertPublisher extends DataPublisher {
   }
 
   @VisibleForTesting
-  public void setDestLineageInfo(WorkUnit workUnit, ConvertibleHiveDataset convertibleHiveDataset,
-      Optional<LineageInfo> lineageInfo) {
+  public static void setDestLineageInfo(WorkUnitState wus, Optional<LineageInfo> lineageInfo) {
+    HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(wus.getWorkunit());
+    ConvertibleHiveDataset convertibleHiveDataset = (ConvertibleHiveDataset) hiveWorkUnit.getHiveDataset();
     List<DatasetDescriptor> destDatasets = convertibleHiveDataset.getDestDatasets();
     for (int i = 0; i < destDatasets.size(); i++) {
       if (lineageInfo.isPresent()) {
-        lineageInfo.get().putDestination(destDatasets.get(i), i + 1, workUnit);
+        lineageInfo.get().putDestination(destDatasets.get(i), i + 1, wus);
       }
     }
   }
