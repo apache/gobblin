@@ -23,18 +23,18 @@
     <param name="Target" value="System.out" />
     <layout class="org.apache.log4j.PatternLayout">
       <param name="ConversionPattern"
-        value="%d{yyyy-MM-dd HH:mm:ss z} %-5p [%t] %C %L - %m%n" />
+             value="%d{yyyy-MM-dd HH:mm:ss z} %-5p [%t] %C %L - %m%n" />
     </layout>
   </appender>
 
-  <!--<logger name="org.apache.hadoop.conf.Configuration">-->
-    <!--<level value="FATAL"/>-->
-  <!--</logger>-->
-
   <root>
-    <level value="warn" />
+    <level value="info" />
     <appender-ref ref="console" />
   </root>
 
+  <!-- Swallow annoying exceptions when creating a configuration. -->
+  <logger name="org.apache.hadoop.conf.Configuration">
+    <level value="FATAL"/>
+  </logger>
 
 </log4j:configuration>
