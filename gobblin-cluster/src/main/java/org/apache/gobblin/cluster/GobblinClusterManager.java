@@ -20,14 +20,11 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -38,35 +35,20 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.Criteria;
-import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
-import org.apache.helix.HelixManagerFactory;
-import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
-import org.apache.helix.LiveInstanceChangeListener;
-import org.apache.helix.NotificationContext;
-import org.apache.helix.messaging.handling.HelixTaskResult;
-import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
-import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
-import org.apache.helix.task.TargetState;
-import org.apache.helix.task.TaskDriver;
-import org.apache.helix.task.WorkflowConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -74,13 +56,14 @@ import com.typesafe.config.ConfigValueFactory;
 
 import javax.annotation.Nonnull;
 import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
@@ -117,13 +100,15 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * @author Yinan Li
  */
 @Alpha
-public class GobblinClusterManager implements ApplicationLauncher, StandardMetricsBridge {
+@Slf4j
+public class GobblinClusterManager implements ApplicationLauncher, StandardMetricsBridge, LeadershipChangeAwareComponent {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinClusterManager.class);
 
-  private HelixManager helixManager;
+  @VisibleForTesting
+  protected GobblinHelixMultiManager multiManager;
 
-  private volatile boolean stopInProgress = false;
+  private StopStatus stopStatus = new StopStatus(false);
 
   protected ServiceBasedAppLauncher applicationLauncher;
 
@@ -157,13 +142,14 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private final String clusterName;
   private final Config config;
   private final MetricContext metricContext;
-  private final Metrics metrics;
+  private final StandardMetrics metrics;
+
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
     this.clusterName = clusterName;
     this.config = config;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
-    this.metrics = new Metrics(this.metricContext, this.config);
+    this.metrics = new StandardMetrics();
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
@@ -198,7 +184,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
       this.jobCatalog =
           (MutableJobCatalog) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(jobCatalogClassName),
-          ImmutableList.<Object>of(config
+          ImmutableList.of(config
               .getConfig(StringUtils.removeEnd(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX, "."))
               .withFallback(this.config)));
     } else {
@@ -243,58 +229,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   /**
-   * Handle leadership change.
-   * The applicationLauncher is only started on the leader.
-   * The leader cleans up existing jobs before starting the applicationLauncher.
-   * @param changeContext notification context
-   */
-  @VisibleForTesting
-  void handleLeadershipChange(NotificationContext changeContext) {
-    this.metrics.clusterLeadershipChange.update(1);
-    if (this.helixManager.isLeader()) {
-      // can get multiple notifications on a leadership change, so only start the application launcher the first time
-      // the notification is received
-      LOGGER.info("Leader notification for {} isLeader {} HM.isLeader {}", this.helixManager.getInstanceName(),
-          isLeader, this.helixManager.isLeader());
-
-      if (!isLeader) {
-        LOGGER.info("New Helix Controller leader {}", this.helixManager.getInstanceName());
-
-        // Clean up existing jobs
-        TaskDriver taskDriver = new TaskDriver(this.helixManager);
-        Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
-
-        for (Map.Entry<String, WorkflowConfig> entry : workflows.entrySet()) {
-          String queueName = entry.getKey();
-          WorkflowConfig workflowConfig = entry.getValue();
-
-          // request delete if not already requested
-          if (workflowConfig.getTargetState() != TargetState.DELETE) {
-            taskDriver.delete(queueName);
-
-            LOGGER.info("Requested delete of queue {}", queueName);
-          }
-        }
-
-        startAppLauncherAndServices();
-        isLeader = true;
-      }
-    } else {
-      // stop and reinitialize services since they are not restartable
-      // this prepares them to start when this cluster manager becomes a leader
-      if (isLeader) {
-        isLeader = false;
-        stopAppLauncherAndServices();
-        try {
-          initializeAppLauncherAndServices();
-        } catch (Exception e) {
-          throw new RuntimeException("Exception reinitializing app launcher services ", e);
-        }
-      }
-    }
-  }
-
-  /**
    * Start the Gobblin Cluster Manager.
    */
   @Override
@@ -302,14 +236,14 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     LOGGER.info("Starting the Gobblin Cluster Manager");
 
     this.eventBus.register(this);
-    connectHelixManager();
+    this.multiManager.connect();
 
     if (this.isStandaloneMode) {
       // standalone mode starts non-daemon threads later, so need to have this thread to keep process up
       this.idleProcessThread = new Thread(new Runnable() {
         @Override
         public void run() {
-          while (!GobblinClusterManager.this.stopInProgress && !GobblinClusterManager.this.stopIdleProcessThread) {
+          while (!GobblinClusterManager.this.stopStatus.isStopInProgress() && !GobblinClusterManager.this.stopIdleProcessThread) {
             try {
               Thread.sleep(300);
             } catch (InterruptedException e) {
@@ -340,11 +274,11 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
    */
   @Override
   public synchronized void stop() {
-    if (this.stopInProgress) {
+    if (this.stopStatus.isStopInProgress()) {
       return;
     }
 
-    this.stopInProgress = true;
+    this.stopStatus.setStopInprogress(true);
 
     LOGGER.info("Stopping the Gobblin Cluster Manager");
 
@@ -364,7 +298,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     stopAppLauncherAndServices();
 
-    disconnectHelixManager();
+    this.multiManager.disconnect();
   }
 
   /**
@@ -374,17 +308,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     return Tag.fromMap(
         new ImmutableMap.Builder<String, Object>().put(GobblinClusterMetricTagNames.APPLICATION_NAME, applicationName)
             .put(GobblinClusterMetricTagNames.APPLICATION_ID, applicationId).build());
-  }
-
-  /**
-   * Build the {@link HelixManager} for the Application Master.
-   */
-  private HelixManager buildHelixManager(Config config, String zkConnectionString) {
-    String helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
-        GobblinClusterManager.class.getSimpleName());
-    return HelixManagerFactory.getZKHelixManager(
-        config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
-        InstanceType.CONTROLLER, zkConnectionString);
   }
 
   /**
@@ -402,7 +325,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
     Properties properties = ConfigUtils.configToProperties(config);
-    return new GobblinHelixJobScheduler(properties, this.helixManager, this.eventBus, appWorkDir, metadataTags,
+    return new GobblinHelixJobScheduler(properties, this.multiManager.getJobClusterHelixManager(), this.eventBus, appWorkDir, metadataTags,
         schedulerService, this.jobCatalog);
   }
 
@@ -440,33 +363,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     return this.eventBus;
   }
 
-  @VisibleForTesting
-  void connectHelixManager() {
-    try {
-      this.isLeader = false;
-      this.helixManager.connect();
-      this.helixManager.addLiveInstanceChangeListener(new GobblinLiveInstanceChangeListener());
-      this.helixManager.getMessagingService()
-          .registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE, new ControllerShutdownMessageHandlerFactory());
-      this.helixManager.getMessagingService()
-          .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
-              getUserDefinedMessageHandlerFactory());
-
-      // standalone mode listens for controller change
-      if (this.isStandaloneMode) {
-        // Subscribe to leadership changes
-        this.helixManager.addControllerListener(new ControllerChangeListener() {
-          @Override
-          public void onControllerChange(NotificationContext changeContext) {
-            handleLeadershipChange(changeContext);
-          }
-        });
-      }
-    } catch (Exception e) {
-      LOGGER.error("HelixManager failed to connect", e);
-      throw Throwables.propagate(e);
-    }
-  }
 
   /**
    * Creates and returns a {@link MessageHandlerFactory} for handling of Helix
@@ -475,28 +371,38 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
    * @returns a {@link MessageHandlerFactory}.
    */
   protected MessageHandlerFactory getUserDefinedMessageHandlerFactory() {
-    return new ControllerUserDefinedMessageHandlerFactory();
+    return new GobblinHelixMultiManager.ControllerUserDefinedMessageHandlerFactory();
+  }
+
+  @VisibleForTesting
+  void connectHelixManager() {
+    this.multiManager.connect();
   }
 
   @VisibleForTesting
   void disconnectHelixManager() {
-    if (isHelixManagerConnected()) {
-      this.helixManager.disconnect();
-    }
+    this.multiManager.disconnect();
   }
 
   @VisibleForTesting
   boolean isHelixManagerConnected() {
-    return this.helixManager.isConnected();
+    return this.multiManager.isConnected();
   }
 
+  /**
+   * In separate controller mode, one controller will manage manager's HA, the other will handle the job dispatching and
+   * work unit assignment.
+   */
   @VisibleForTesting
   void initializeHelixManager() {
-    String zkConnectionString = this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
-
-    // This will create and register a Helix controller in ZooKeeper
-    this.helixManager = buildHelixManager(this.config, zkConnectionString);
+    this.multiManager = new GobblinHelixMultiManager(
+        this.config, new Function<Void, MessageHandlerFactory>() {
+          @Override
+          public MessageHandlerFactory apply(Void aVoid) {
+            return GobblinClusterManager.this.getUserDefinedMessageHandlerFactory();
+          }
+        }, this.eventBus, stopStatus) ;
+    this.multiManager.addLeadershipChangeAwareComponent(this);
   }
 
   @VisibleForTesting
@@ -525,7 +431,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     // for messaging to instances
     //int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest,
     //    new NoopReplyHandler(), timeout);
-    GobblinHelixMessagingService messagingService = new GobblinHelixMessagingService(this.helixManager);
+    GobblinHelixMessagingService messagingService = new GobblinHelixMessagingService(this.multiManager.getJobClusterHelixManager());
 
     int messagesSent = messagingService.send(criteria, shutdownRequest,
             new NoopReplyHandler(), timeout);
@@ -554,179 +460,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   public boolean isInstrumentationEnabled() {
     return GobblinMetrics.isEnabled(ConfigUtils.configToProperties(this.config));
   }
-
-  /**
-   * A custom implementation of {@link LiveInstanceChangeListener}.
-   */
-  private static class GobblinLiveInstanceChangeListener implements LiveInstanceChangeListener {
-
-    @Override
-    public void onLiveInstanceChange(List<LiveInstance> liveInstances, NotificationContext changeContext) {
-      for (LiveInstance liveInstance : liveInstances) {
-        LOGGER.info("Live Helix participant instance: " + liveInstance.getInstanceName());
-      }
-    }
-  }
-
-  private class Metrics extends StandardMetrics {
-    public static final String CLUSTER_LEADERSHIP_CHANGE = "clusterLeadershipChange";
-    private ContextAwareHistogram clusterLeadershipChange;
-    public Metrics(final MetricContext metricContext, final Config config) {
-      int timeWindowSizeInMinutes = ConfigUtils.getInt(config, ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
-      this.clusterLeadershipChange = metricContext.contextAwareHistogram(CLUSTER_LEADERSHIP_CHANGE, timeWindowSizeInMinutes, TimeUnit.MINUTES);
-      this.contextAwareMetrics.add(clusterLeadershipChange);
-    }
-
-    @Override
-    public String getName() {
-      return GobblinClusterManager.class.getName();
-    }
-  }
-
-  /**
-   * A custom {@link MessageHandlerFactory} for {@link MessageHandler}s that handle messages of type
-   * "SHUTDOWN" for shutting down the controller.
-   */
-  private class ControllerShutdownMessageHandlerFactory implements MessageHandlerFactory {
-
-    @Override
-    public MessageHandler createHandler(Message message, NotificationContext context) {
-      return new ControllerShutdownMessageHandler(message, context);
-    }
-
-    @Override
-    public String getMessageType() {
-      return GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE;
-    }
-
-    public List<String> getMessageTypes() {
-      return Collections.singletonList(getMessageType());
-    }
-
-    @Override
-    public void reset() {
-
-    }
-
-    /**
-     * A custom {@link MessageHandler} for handling messages of sub type
-     * {@link HelixMessageSubTypes#APPLICATION_MASTER_SHUTDOWN}.
-     */
-    private class ControllerShutdownMessageHandler extends MessageHandler {
-
-      public ControllerShutdownMessageHandler(Message message, NotificationContext context) {
-        super(message, context);
-      }
-
-      @Override
-      public HelixTaskResult handleMessage() throws InterruptedException {
-        String messageSubType = this._message.getMsgSubType();
-        Preconditions.checkArgument(
-            messageSubType.equalsIgnoreCase(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString()),
-            String.format("Unknown %s message subtype: %s", GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE, messageSubType));
-
-        HelixTaskResult result = new HelixTaskResult();
-
-        if (stopInProgress) {
-          result.setSuccess(true);
-          return result;
-        }
-
-        LOGGER.info("Handling message " + HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
-
-        ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
-            MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
-
-        // Schedule the task for watching on the removal of the shutdown message, which indicates that
-        // the message has been successfully processed and it's safe to disconnect the HelixManager.
-        // This is a hacky way of watching for the completion of processing the shutdown message and
-        // should be replaced by a fix to https://issues.apache.org/jira/browse/HELIX-611.
-        shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
-          @Override
-          public void run() {
-            HelixManager helixManager = _notificationContext.getManager();
-            HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
-
-            HelixProperty helixProperty = helixDataAccessor
-                .getProperty(_message.getKey(helixDataAccessor.keyBuilder(), helixManager.getInstanceName()));
-            // The absence of the shutdown message indicates it has been removed
-            if (helixProperty == null) {
-              eventBus.post(new ClusterManagerShutdownRequest());
-            }
-          }
-        }, 0, 1, TimeUnit.SECONDS);
-
-        result.setSuccess(true);
-        return result;
-      }
-
-      @Override
-      public void onError(Exception e, ErrorCode code, ErrorType type) {
-        LOGGER.error(
-            String.format("Failed to handle message with exception %s, error code %s, error type %s", e, code, type));
-      }
-    }
-  }
-
-  /**
-   * A custom {@link MessageHandlerFactory} for {@link ControllerUserDefinedMessageHandler}s that
-   * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
-   */
-  private static class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
-
-    @Override
-    public MessageHandler createHandler(Message message, NotificationContext context) {
-      return new ControllerUserDefinedMessageHandler(message, context);
-    }
-
-    @Override
-    public String getMessageType() {
-      return Message.MessageType.USER_DEFINE_MSG.toString();
-    }
-
-    public List<String> getMessageTypes() {
-      return Collections.singletonList(getMessageType());
-    }
-
-    @Override
-    public void reset() {
-
-    }
-
-    /**
-     * A custom {@link MessageHandler} for handling user-defined messages to the controller.
-     *
-     * <p>
-     *   Currently does not handle any user-defined messages. If this class is passed a custom message, it will simply
-     *   print out a warning and return successfully. Sub-classes of {@link GobblinClusterManager} should override
-     *   {@link #getUserDefinedMessageHandlerFactory}.
-     * </p>
-     */
-    private static class ControllerUserDefinedMessageHandler extends MessageHandler {
-
-      public ControllerUserDefinedMessageHandler(Message message, NotificationContext context) {
-        super(message, context);
-      }
-
-      @Override
-      public HelixTaskResult handleMessage() throws InterruptedException {
-        LOGGER.warn(String
-            .format("No handling setup for %s message of subtype: %s", Message.MessageType.USER_DEFINE_MSG.toString(),
-                this._message.getMsgSubType()));
-
-        HelixTaskResult helixTaskResult = new HelixTaskResult();
-        helixTaskResult.setSuccess(true);
-        return helixTaskResult;
-      }
-
-      @Override
-      public void onError(Exception e, ErrorCode code, ErrorType type) {
-        LOGGER.error(
-            String.format("Failed to handle message with exception %s, error code %s, error type %s", e, code, type));
-      }
-    }
-  }
-
 
   /**
    * TODO for now the cluster id is hardcoded to 1 both here and in the {@link GobblinTaskRunner}. In the future, the
@@ -797,6 +530,36 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     } catch (ParseException pe) {
       printUsage(options);
       System.exit(1);
+    }
+  }
+
+  @Override
+  public void becomeActive() {
+    startAppLauncherAndServices();
+  }
+
+  @Override
+  public void becomeStandby() {
+    stopAppLauncherAndServices();
+    try {
+      initializeAppLauncherAndServices();
+    } catch (Exception e) {
+      throw new RuntimeException("Exception reinitializing app launcher services ", e);
+    }
+  }
+
+  static class StopStatus {
+    @Getter
+    @Setter
+    AtomicBoolean isStopInProgress;
+    public StopStatus(boolean inProgress) {
+      isStopInProgress = new AtomicBoolean(inProgress);
+    }
+    public void setStopInprogress (boolean inProgress) {
+      isStopInProgress.set(inProgress);
+    }
+    public boolean isStopInProgress () {
+      return isStopInProgress.get();
     }
   }
 }

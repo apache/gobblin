@@ -73,7 +73,7 @@ public class ClusterIntegrationTest {
   private GobblinTaskRunner _worker;
   private GobblinClusterManager _manager;
   private boolean _runTaskInSeparateProcess;
-
+  private boolean _dedicatedClusterManager = false;
 
   @Test
   public void simpleJobShouldComplete() throws Exception {
@@ -84,6 +84,13 @@ public class ClusterIntegrationTest {
   public void simpleJobShouldCompleteInTaskIsolationMode()
       throws Exception {
     _runTaskInSeparateProcess = true;
+    runSimpleJobAndVerifyResult();
+  }
+
+  @Test
+  public void dedicatedManagerClusterMode()
+      throws Exception {
+    _dedicatedClusterManager = true;
     runSimpleJobAndVerifyResult();
   }
 
@@ -154,6 +161,10 @@ public class ClusterIntegrationTest {
     if (_runTaskInSeparateProcess) {
       configMap.put(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS, "true");
     }
+    if (_dedicatedClusterManager) {
+      configMap.put(GobblinClusterConfigurationKeys.DEDICATED_MANAGER_CLUSTER_ENABLED, "true");
+      configMap.put(GobblinClusterConfigurationKeys.MANAGER_CLUSTER_NAME_KEY, "ManagerCluster");
+    }
     Config config = ConfigFactory.parseMap(configMap);
     return config;
   }
@@ -175,12 +186,18 @@ public class ClusterIntegrationTest {
     }
   }
 
-  private void createHelixCluster() {
+  private void createHelixCluster() throws Exception {
     String zkConnectionString = _config
         .getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     String helix_cluster_name = _config
         .getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
     HelixUtils.createGobblinHelixCluster(zkConnectionString, helix_cluster_name);
+
+    if (_dedicatedClusterManager) {
+      String manager_cluster_name = _config
+          .getString(GobblinClusterConfigurationKeys.MANAGER_CLUSTER_NAME_KEY);
+      HelixUtils.createGobblinHelixCluster(zkConnectionString, manager_cluster_name);
+    }
   }
 
   private void startCluster() throws Exception {

@@ -280,7 +280,7 @@ public class GobblinClusterKillTest {
     // need to reinitialize the heap manager and call handleLeadershipChange to shut down services in the test
     // since the leadership change is simulated
     _clusterManagers[0].initializeHelixManager();
-    _clusterManagers[0].handleLeadershipChange(null);
+    _clusterManagers[0].multiManager.handleLeadershipChange(null);
 
     // reconnect to get leadership role
     _clusterManagers[0].connectHelixManager();
@@ -318,7 +318,7 @@ public class GobblinClusterKillTest {
   public void tearDown() throws IOException, InterruptedException {
 
     for (int i = 0; i < NUM_MANAGERS; i++) {
-      _clusterManagers[i].connectHelixManager();
+      _clusterManagers[i].multiManager.connect();
       if (!_clusterManagers[i].isHelixManagerConnected()) {
         _clusterManagers[i].connectHelixManager();
       }
