@@ -376,16 +376,12 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   @VisibleForTesting
   void connectHelixManager() {
-    if (!multiManager.isConnected()) {
-      this.multiManager.connect();
-    }
+    this.multiManager.connect();
   }
 
   @VisibleForTesting
   void disconnectHelixManager() {
-    if (multiManager.isConnected()) {
-      this.multiManager.disconnect();
-    }
+    this.multiManager.disconnect();
   }
 
   @VisibleForTesting

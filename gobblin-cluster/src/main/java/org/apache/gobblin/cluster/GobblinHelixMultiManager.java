@@ -225,7 +225,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   }
 
   protected boolean isConnected() {
-    return managerClusterHelixManager.isConnected() || jobClusterHelixManager.isConnected();
+    return managerClusterHelixManager.isConnected() && jobClusterHelixManager.isConnected();
   }
 
   protected void disconnect() {
