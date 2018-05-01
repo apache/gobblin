@@ -330,6 +330,7 @@ public class AsyncHttpWriterTest {
       this.responseHandler = responseHandler;
       this.state = new WorkUnitState();
       this.queueCapacity = 2;
+      this.maxAttempts = 3;
     }
 
     @Override
