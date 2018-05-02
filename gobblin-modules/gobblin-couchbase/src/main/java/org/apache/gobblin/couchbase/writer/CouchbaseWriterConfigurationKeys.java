@@ -34,6 +34,13 @@ public class CouchbaseWriterConfigurationKeys {
   public static final String BUCKET_DEFAULT = "default";
   public static final String PASSWORD = prefix("password");
 
+  public static final String SSL_ENABLED = prefix("sslEnabled");
+  public static final String SSL_KEYSTORE_FILE = prefix("sslKeystoreFile");
+  public static final String SSL_KEYSTORE_PASSWORD = prefix("sslKeystorePassword");
+  public static final String SSL_TRUSTSTORE_FILE = prefix("sslTruststoreFile");
+  public static final String SSL_TRUSTSTORE_PASSWORD = prefix("sslTruststorePassword");
+  public static final String CERT_AUTH_ENABLED = prefix("certAuthEnabled");
+
   public static final String OPERATION_TIMEOUT_MILLIS = "operationTimeoutMillis";
   public static final long OPERATION_TIMEOUT_DEFAULT = 10000; // 10 second default timeout
 
