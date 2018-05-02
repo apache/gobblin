@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.BooleanUtils;
-import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -45,7 +44,14 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javax.annotation.Nullable;
+import lombok.NoArgsConstructor;
+
 import org.apache.gobblin.Constructs;
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -60,6 +66,7 @@ import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.gobblin.metrics.event.TaskEvent;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.SingleTaskDataPublisher;
@@ -77,9 +84,14 @@ import org.apache.gobblin.source.extractor.StreamingExtractor;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.writer.*;
-
-import lombok.NoArgsConstructor;
+import org.apache.gobblin.writer.AcknowledgableWatermark;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
+import org.apache.gobblin.writer.MultiWriterWatermarkManager;
+import org.apache.gobblin.writer.TrackerBasedWatermarkManager;
+import org.apache.gobblin.writer.WatermarkAwareWriter;
+import org.apache.gobblin.writer.WatermarkManager;
+import org.apache.gobblin.writer.WatermarkStorage;
 
 
 /**
@@ -263,6 +275,26 @@ public class Task implements TaskIFace {
     }
   }
 
+  /**
+   * Try to get a {@link ForkThrowableHolder} instance from the given {@link SharedResourcesBroker}
+   */
+  public static Optional<ForkThrowableHolder> getForkThrowableHolder(@Nullable SharedResourcesBroker<GobblinScopeTypes> broker) {
+    if (broker == null) {
+      LOG.warn("Null broker. Will not track fork exception.");
+      return Optional.absent();
+    }
+
+    try {
+      ForkThrowableHolder
+          holder = broker.getSharedResource(new ForkThrowableHolderFactory(), EmptyKey.INSTANCE);
+      return Optional.of(holder);
+    } catch (NotConfiguredException e) {
+      LOG.warn("Fail to get fork throwable holder instance from broker. Will not track fork exception.", e);
+      return Optional.absent();
+    } catch (Throwable e) {
+      return Optional.absent();
+    }
+  }
 
   public static ExecutionModel getExecutionModel(State state) {
     String mode = state
@@ -881,7 +913,12 @@ public class Task implements TaskIFace {
           this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
         }
       } else {
-        failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
+        Optional<ForkThrowableHolder> holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
+        if (holder.isPresent() && !holder.get().isEmpty()) {
+          failTask(holder.get().getAggregatedException(failedForkIds, this.taskId));
+        } else {
+          failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
+        }
       }
     } catch (Throwable t) {
       failTask(t);
