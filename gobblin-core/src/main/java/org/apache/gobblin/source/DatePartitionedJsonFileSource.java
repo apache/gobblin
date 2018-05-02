@@ -25,14 +25,14 @@ import org.apache.gobblin.source.extractor.Extractor;
 
 import com.google.gson.JsonObject;
 
-public class DatePartitionedJsonFileSource extends PartitionedFileSourceBase<String, JsonObject> {
+public class DatePartitionedJsonFileSource extends PartitionedFileSourceBase<String, String> {
 
   public DatePartitionedJsonFileSource() {
     super(new DatePartitionedNestedRetriever(".json"));
   }
 
   @Override
-  public Extractor<String, JsonObject> getExtractor(WorkUnitState state)
+  public Extractor<String, String> getExtractor(WorkUnitState state)
       throws IOException {
     return new DatePartitionedJsonFileExtractor(state);
   }
