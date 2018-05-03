@@ -31,7 +31,11 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
+
 import org.apache.gobblin.Constructs;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -49,15 +53,16 @@ import org.apache.gobblin.records.RecordStreamProcessor;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
 import org.apache.gobblin.runtime.BoundedBlockingRecordQueue;
 import org.apache.gobblin.runtime.ExecutionModel;
+import org.apache.gobblin.runtime.ForkThrowableHolder;
 import org.apache.gobblin.runtime.MultiConverter;
 import org.apache.gobblin.runtime.Task;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.util.TaskMetrics;
+import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
-import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.util.FinalState;
 import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.writer.DataWriter;
@@ -66,8 +71,6 @@ import org.apache.gobblin.writer.DataWriterWrapperBuilder;
 import org.apache.gobblin.writer.Destination;
 import org.apache.gobblin.writer.PartitionedDataWriter;
 import org.apache.gobblin.writer.WatermarkAwareWriter;
-
-import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 
 
 /**
@@ -134,6 +137,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
 
   private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
   protected static final Object SHUTDOWN_RECORD = new Object();
+  private SharedResourcesBroker<GobblinScopeTypes> broker;
 
   public Fork(TaskContext taskContext, Object schema, int branches, int index, ExecutionModel executionModel)
       throws Exception {
@@ -141,6 +145,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
 
     this.taskContext = taskContext;
     this.taskState = this.taskContext.getTaskState();
+    this.broker = this.taskState.getTaskBrokerNullable();
     // Make a copy if there are more than one branches
     this.forkTaskState = branches > 1 ? new TaskState(this.taskState) : this.taskState;
     this.taskId = this.taskState.getTaskId();
@@ -240,6 +245,8 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
     } catch (Throwable t) {
       this.forkState.set(ForkState.FAILED);
       this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), t);
+      ForkThrowableHolder holder = Task.getForkThrowableHolder(this.broker);
+      holder.setThrowable(this.getIndex(), t);
     } finally {
       this.cleanup();
     }
@@ -281,8 +288,15 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   public boolean putRecord(Object record)
       throws InterruptedException {
     if (this.forkState.compareAndSet(ForkState.FAILED, ForkState.FAILED)) {
-      throw new IllegalStateException(
-          String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId));
+      ForkThrowableHolder holder = Task.getForkThrowableHolder(this.broker);
+      Optional<Throwable> forkThrowable = holder.getThrowable(this.index);
+      if (forkThrowable.isPresent()) {
+        throw new IllegalStateException(
+            String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId), forkThrowable.get());
+      } else {
+        throw new IllegalStateException(
+            String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId));
+      }
     }
     return this.putRecordImpl(record);
   }
