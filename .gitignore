@@ -21,6 +21,7 @@
 **/build/
 .gradle
 **/.gradle
+gradle.properties.release
 test-output
 **/test-output
 dist
