@@ -395,7 +395,7 @@ public class AvroUtils {
     }
 
     try (DataOutputStream dos = fs.create(filePath)) {
-      dos.writeChars(schema.toString());
+      dos.writeUTF(schema.toString());
     }
     fs.setPermission(filePath, perm);
   }
