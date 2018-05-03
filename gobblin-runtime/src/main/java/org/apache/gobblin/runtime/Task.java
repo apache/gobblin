@@ -278,21 +278,12 @@ public class Task implements TaskIFace {
   /**
    * Try to get a {@link ForkThrowableHolder} instance from the given {@link SharedResourcesBroker}
    */
-  public static Optional<ForkThrowableHolder> getForkThrowableHolder(@Nullable SharedResourcesBroker<GobblinScopeTypes> broker) {
-    if (broker == null) {
-      LOG.warn("Null broker. Will not track fork exception.");
-      return Optional.absent();
-    }
-
+  public static ForkThrowableHolder getForkThrowableHolder(SharedResourcesBroker<GobblinScopeTypes> broker) {
     try {
-      ForkThrowableHolder
-          holder = broker.getSharedResource(new ForkThrowableHolderFactory(), EmptyKey.INSTANCE);
-      return Optional.of(holder);
+      return broker.getSharedResource(new ForkThrowableHolderFactory(), EmptyKey.INSTANCE);
     } catch (NotConfiguredException e) {
-      LOG.warn("Fail to get fork throwable holder instance from broker. Will not track fork exception.", e);
-      return Optional.absent();
-    } catch (Throwable e) {
-      return Optional.absent();
+      LOG.error("Fail to get fork throwable holder instance from broker. Will not track fork exception.", e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -913,10 +904,11 @@ public class Task implements TaskIFace {
           this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
         }
       } else {
-        Optional<ForkThrowableHolder> holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
-        if (holder.isPresent() && !holder.get().isEmpty()) {
-          failTask(holder.get().getAggregatedException(failedForkIds, this.taskId));
+        ForkThrowableHolder holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
+        if (!holder.isEmpty()) {
+          failTask(holder.getAggregatedException(failedForkIds, this.taskId));
         } else {
+          // just in case there are some corner cases where Fork throw an exception but doesn't add into holder
           failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
         }
       }

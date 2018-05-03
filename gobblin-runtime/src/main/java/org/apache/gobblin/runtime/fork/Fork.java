@@ -245,10 +245,8 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
     } catch (Throwable t) {
       this.forkState.set(ForkState.FAILED);
       this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), t);
-      Optional<ForkThrowableHolder> holder = Task.getForkThrowableHolder(this.broker);
-      if (holder.isPresent()) {
-        holder.get().setThrowable(this.getIndex(), t);
-      }
+      ForkThrowableHolder holder = Task.getForkThrowableHolder(this.broker);
+      holder.setThrowable(this.getIndex(), t);
     } finally {
       this.cleanup();
     }
@@ -290,16 +288,15 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   public boolean putRecord(Object record)
       throws InterruptedException {
     if (this.forkState.compareAndSet(ForkState.FAILED, ForkState.FAILED)) {
-      Optional<ForkThrowableHolder> holderOptional = Task.getForkThrowableHolder(this.broker);
-      if (holderOptional.isPresent()) {
-        Optional<Throwable> forkThrowable = holderOptional.get().getThrowable(this.index);
-        if (forkThrowable.isPresent()) {
-          throw new IllegalStateException(
-              String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId), forkThrowable.get());
-        }
+      ForkThrowableHolder holder = Task.getForkThrowableHolder(this.broker);
+      Optional<Throwable> forkThrowable = holder.getThrowable(this.index);
+      if (forkThrowable.isPresent()) {
+        throw new IllegalStateException(
+            String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId), forkThrowable.get());
+      } else {
+        throw new IllegalStateException(
+            String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId));
       }
-      throw new IllegalStateException(
-          String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId));
     }
     return this.putRecordImpl(record);
   }
