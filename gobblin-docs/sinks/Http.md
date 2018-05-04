@@ -13,7 +13,7 @@ and handles the response.
 ## Note
 The old http write framework under [`AbstractHttpWriter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/http/AbstractHttpWriter.java)
 and [`AbstractHttpWriterBuilder`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/http/AbstractHttpWriterBuilder.java)
-is deprecated! Use `AsyncHttpWriter` and `AsyncHttpWriterBuilder` instead
+is deprecated (Deprecation date: 05/15/2018)! Use `AsyncHttpWriter` and `AsyncHttpWriterBuilder` instead
 
 # Constructs
 <p align="center">
@@ -41,7 +41,8 @@ putting the `headers` and setting the `body` to the request.
 
 ## `HttpClient`
 A `HttpClient` sends a request and returns a response. If necessary, it should setup the connection to the server, for
-example, sending an authorization request to get access token.
+example, sending an authorization request to get access token. How authorization is done is per use case. Gobblin does
+not provide general support for authorization yet.
 
 ## `ResponseHandler`
 A `ResponseHandler` handles a response of a request. It returns a `ResponseStatus` object to the framework, which
@@ -70,7 +71,7 @@ Configurations for the builder are:
 | Configuration | Description | Example
 |---|---|---|
 | `gobblin.writer.http.urlTemplate` | Required, the url template(schema and port included), together with `keys` and `queryParams`, to be resolved to request url | ```http://www.test.com/profiles/${memberId}``` |
-| `gobblin.writer.http.verb` | Required, the type of http request | get, update, delete, etc |
+| `gobblin.writer.http.verb` | Required, [http verbs](http://www.restapitutorial.com/lessons/httpmethods.html) | get, update, delete, etc |
 | `gobblin.writer.http.maxAttempts` | Optional, max number of attempts including initial send | Default is 3 |
 | `gobblin.writer.http.contentType` | Optional, content type of the request body | ```"application/json"```, which is the default value |
 
@@ -89,7 +90,7 @@ rest request. The 3 major components are:
  | Configuration | Description | Example
  |---|---|---|
  | `gobblin.writer.http.urlTemplate` | Required, the url template(schema and port included), together with `keys` and `queryParams`, to be resolved to request url. If the schema is `d2`, d2 is enabled | ```http://www.test.com/profiles/${memberId}``` |
- | `gobblin.writer.http.verb` | Required, the type of http request | get, update, put, delete, etc |
+ | `gobblin.writer.http.verb` | Required, [rest(rest.li) verbs](https://github.com/linkedin/rest.li/wiki/Rest.li-User-Guide#resource-methods) | get, update, put, delete, etc |
  | `gobblin.writer.http.maxAttempts` | Optional, max number of attempts including initial send | Default is 3 |
  | `gobblin.writer.http.d2.zkHosts`| Required for d2, the zookeeper address | |
  | `gobblin.writer.http.(d2.)ssl`| Optional, enable ssl | Default is false |
@@ -100,6 +101,8 @@ rest request. The 3 major components are:
  | `gobblin.writer.http.(d2.)trustStorePassword`| Required for ssl | |
  | `gobblin.writer.http.protocolVersion` | Optional, protocol version of rest.li | ```2.0.0```, which is the default value |
 
+`R2RestWriterBuilder` isn't ingegrated with `PasswordManager` to process encrypted passwords yet. The task is tracked as https://issues.apache.org/jira/browse/GOBBLIN-487
+
 # Build a synchronous writer
 The idea is to reuse an asynchronous writer to build its synchronous version. The technical difference between them
-is the size of outstanding writes. Set `gobblin.writer.http.maxOutstandingWrites` to be `1` to make a synchronous writer
+is the size of outstanding writes. Set `gobblin.writer.http.maxOutstandingWrites` to be `1`(default value is `1000`) to make a synchronous writer
