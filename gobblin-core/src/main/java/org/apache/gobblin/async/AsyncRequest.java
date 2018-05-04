@@ -20,6 +20,8 @@ package org.apache.gobblin.async;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.collect.ImmutableList;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -34,15 +36,34 @@ import org.apache.gobblin.net.Request;
  * @param <RQ> type of raw request
  */
 public class AsyncRequest<D, RQ> implements Request<RQ> {
-  @Getter
-  private int recordCount = 0;
-  @Getter
-  protected long bytesWritten = 0;
   @Getter @Setter
   private RQ rawRequest;
+  private final List<Thunk<D>> thunks = new ArrayList<>();
 
-  @Getter
-  private final List<Thunk> thunks = new ArrayList<>();
+  /**
+   * Get the total number of records processed in the request
+   */
+  public int getRecordCount() {
+    return thunks.size();
+  }
+
+  /**
+   * Get the total bytes processed in the request
+   */
+  public long getBytesWritten() {
+    long bytesWritten = 0;
+    for (Thunk thunk : thunks) {
+      bytesWritten += thunk.sizeInBytes;
+    }
+    return bytesWritten;
+  }
+
+  /**
+   * Get all records information in the request
+   */
+  public List<Thunk<D>> getThunks() {
+    return ImmutableList.copyOf(thunks);
+  }
 
   /**
    * Mark the record associated with this request
@@ -51,24 +72,36 @@ public class AsyncRequest<D, RQ> implements Request<RQ> {
    * @param bytesWritten bytes of the record written into the request
    */
   public void markRecord(BufferedRecord<D> record, int bytesWritten) {
-    if (record.getCallback() != null) {
-      thunks.add(new Thunk(record.getCallback(), bytesWritten));
-    }
-    recordCount++;
-    this.bytesWritten += bytesWritten;
+    thunks.add(new Thunk<>(record, bytesWritten));
   }
 
   /**
-   * A helper class which wraps the callback
-   * It may contain more information related to each individual record
+   * A descriptor that represents a record in the request
    */
-  public static final class Thunk {
+  public static final class Thunk<D> {
+    /**
+     * @deprecated Use {@link #record}
+     */
+    @Deprecated
     public final Callback callback;
-    public final int sizeInBytes;
 
+    public final int sizeInBytes;
+    public final BufferedRecord<D> record;
+
+    /**
+     * @deprecated Use {@link #Thunk(BufferedRecord, int)}
+     */
+    @Deprecated
     Thunk(Callback callback, int sizeInBytes) {
       this.callback = callback;
       this.sizeInBytes = sizeInBytes;
+      this.record = null;
+    }
+
+    Thunk(BufferedRecord<D> record, int sizeInBytes) {
+      this.callback = record.getCallback();
+      this.sizeInBytes = sizeInBytes;
+      this.record = record;
     }
   }
 }
