@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -53,6 +54,7 @@ import com.google.gson.JsonParser;
  * Writes to Salesforce via RESTful API, supporting INSERT_ONLY_NOT_EXIST, and UPSERT.
  *
  */
+@Getter
 public class SalesforceRestWriter extends RestJsonWriter {
   public static enum Operation {
     INSERT_ONLY_NOT_EXIST,
@@ -60,20 +62,20 @@ public class SalesforceRestWriter extends RestJsonWriter {
   }
   static final String DUPLICATE_VALUE_ERR_CODE = "DUPLICATE_VALUE";
 
-  private String accessToken;
+  protected String accessToken;
 
-  private final URI oauthEndPoint;
-  private final String clientId;
-  private final String clientSecret;
-  private final String userId;
-  private final String password;
-  private final String securityToken;
-  private final Operation operation;
+  protected final URI oauthEndPoint;
+  protected final String clientId;
+  protected final String clientSecret;
+  protected final String userId;
+  protected final String password;
+  protected final String securityToken;
+  protected final Operation operation;
 
-  private final int batchSize;
-  private final Optional<String> batchResourcePath;
-  private Optional<JsonArray> batchRecords = Optional.absent();
-  private long numRecordsWritten = 0L;
+  protected final int batchSize;
+  protected final Optional<String> batchResourcePath;
+  protected Optional<JsonArray> batchRecords = Optional.absent();
+  protected long numRecordsWritten = 0L;
 
   public SalesforceRestWriter(SalesForceRestWriterBuilder builder) {
     super(builder);
