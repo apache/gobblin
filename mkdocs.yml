@@ -68,7 +68,7 @@ pages:
         - HDFS Byte array: sinks/SimpleBytesWriter.md
         - Console: sinks/ConsoleWriter.md
         - Couchbase: sinks/Couchbase-Writer.md
-        - HTTP and REST: sinks/REST-Writer.md
+        - HTTP: sinks/Http.md
         - JDBC: sinks/Gobblin-JDBC-Writer.md
         - Kafka: sinks/Kafka.md
     - Gobblin Adaptors:
