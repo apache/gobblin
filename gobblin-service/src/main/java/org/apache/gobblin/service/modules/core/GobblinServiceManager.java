@@ -101,7 +101,7 @@ import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 
-
+ 
 @Alpha
 public class GobblinServiceManager implements ApplicationLauncher, StandardMetricsBridge{
 
