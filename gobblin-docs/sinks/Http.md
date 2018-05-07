@@ -72,6 +72,7 @@ Configurations for the builder are:
 |---|---|---|
 | `gobblin.writer.http.urlTemplate` | Required, the url template(schema and port included), together with `keys` and `queryParams`, to be resolved to request url | ```http://www.test.com/profiles/${memberId}``` |
 | `gobblin.writer.http.verb` | Required, [http verbs](http://www.restapitutorial.com/lessons/httpmethods.html) | get, update, delete, etc |
+| `gobblin.writer.http.errorCodeWhitelist` | Optional, http error codes allowed to pass through | 404, 500, etc. No error code is allowed by default |
 | `gobblin.writer.http.maxAttempts` | Optional, max number of attempts including initial send | Default is 3 |
 | `gobblin.writer.http.contentType` | Optional, content type of the request body | ```"application/json"```, which is the default value |
 
@@ -92,6 +93,7 @@ rest request. The 3 major components are:
  | `gobblin.writer.http.urlTemplate` | Required, the url template(schema and port included), together with `keys` and `queryParams`, to be resolved to request url. If the schema is `d2`, d2 is enabled | ```http://www.test.com/profiles/${memberId}``` |
  | `gobblin.writer.http.verb` | Required, [rest(rest.li) verbs](https://github.com/linkedin/rest.li/wiki/Rest.li-User-Guide#resource-methods) | get, update, put, delete, etc |
  | `gobblin.writer.http.maxAttempts` | Optional, max number of attempts including initial send | Default is 3 |
+ | `gobblin.writer.http.errorCodeWhitelist` | Optional, http error codes allowed to pass through | 404, 500, etc. No error code is allowed by default |
  | `gobblin.writer.http.d2.zkHosts`| Required for d2, the zookeeper address | |
  | `gobblin.writer.http.(d2.)ssl`| Optional, enable ssl | Default is false |
  | `gobblin.writer.http.(d2.)keyStoreFilePath`| Required for ssl | /tmp/identity.p12 |
