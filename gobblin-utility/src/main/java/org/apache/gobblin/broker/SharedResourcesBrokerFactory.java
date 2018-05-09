@@ -58,7 +58,7 @@ public class SharedResourcesBrokerFactory {
 
   private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
   private static final Config BROKER_NAMESPACES_FALLBACK = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
-      .put(BrokerConstants.GOBBLIN_BROKER_CONFIG_NAMESPACES, BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX).build());
+      .put(BrokerConstants.GOBBLIN_BROKER_CONFIG_NAMESPACES, "").build());
 
   /**
    * Create a root {@link SharedResourcesBroker}. Subscoped brokers should be built using
@@ -92,16 +92,15 @@ public class SharedResourcesBrokerFactory {
   private static SharedResourcesBroker<SimpleScopeType> SINGLETON;
 
   /**
-   * Get all broker configurations from the given {@code srcConfig}. Configurations are loaded in order of
-   * namespaces, which is encoded as a comma separated string keyed by
-   * {@value BrokerConstants#GOBBLIN_BROKER_CONFIG_NAMESPACES}. The default namespaces is just
-   * {@value BrokerConstants#GOBBLIN_BROKER_CONFIG_PREFIX}
+   * Get all broker configurations from the given {@code srcConfig}. Configurations from
+   * {@value BrokerConstants#GOBBLIN_BROKER_CONFIG_PREFIX} is always loaded first, then in-order from namespaces,
+   * which is encoded as a comma separated string keyed by {@value BrokerConstants#GOBBLIN_BROKER_CONFIG_NAMESPACES}.
    */
   @VisibleForTesting
   static Config getBrokerConfig(Config srcConfig) {
     Config allSrcConfig = srcConfig.withFallback(BROKER_NAMESPACES_FALLBACK);
     String namespaces = allSrcConfig.getString(BrokerConstants.GOBBLIN_BROKER_CONFIG_NAMESPACES);
-    Config brokerConfig = ConfigFactory.empty();
+    Config brokerConfig = ConfigUtils.getConfigOrEmpty(allSrcConfig, BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX);
 
     for (String namespace : LIST_SPLITTER.splitToList(namespaces)) {
       brokerConfig = brokerConfig.withFallback(ConfigUtils.getConfigOrEmpty(allSrcConfig, namespace));

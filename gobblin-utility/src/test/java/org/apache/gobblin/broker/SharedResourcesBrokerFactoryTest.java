@@ -74,25 +74,27 @@ public class SharedResourcesBrokerFactoryTest {
     Map<String, String> srcConfigMap = new HashMap<>();
     srcConfigMap.put("gobblin.broker.key1", "value1");
 
-    // Test default namespace, "gobblin.broker"
+    // Test global namespace, "gobblin.broker"
     Config brokerConfig = SharedResourcesBrokerFactory.getBrokerConfig(ConfigFactory.parseMap(srcConfigMap));
     Config expectedConfig = ConfigFactory.parseMap(ImmutableMap.of("key1", "value1"));
     Assert.assertEquals(brokerConfig, expectedConfig);
 
-    // Test customized namespace, "gobblin.shared"
+    // Test extra namespace, "gobblin.shared"
     srcConfigMap.put("gobblin.shared.key2", "value2");
     srcConfigMap.put("gobblin.brokerNamespaces", "gobblin.shared");
     brokerConfig = SharedResourcesBrokerFactory.getBrokerConfig(ConfigFactory.parseMap(srcConfigMap));
-    expectedConfig = ConfigFactory.parseMap(ImmutableMap.of("key2", "value2"));
+    expectedConfig = ConfigFactory.parseMap(ImmutableMap.of("key1", "value1","key2", "value2"));
     Assert.assertEquals(brokerConfig, expectedConfig);
 
-    // Test a list of namespaces, configurations are respected in order
+    // Test a list of extra namespaces, configurations are respected in order
     srcConfigMap.put("gobblin.shared.key2", "value2");
     srcConfigMap.put("gobblin.shared.key3", "value3");
-    srcConfigMap.put("gobblin.broker.key3", "value3x");
-    srcConfigMap.put("gobblin.brokerNamespaces", "gobblin.shared, gobblin.broker");
+    srcConfigMap.put("gobblin.shared2.key3", "value3x");
+    srcConfigMap.put("gobblin.shared2.key4", "value4");
+    srcConfigMap.put("gobblin.brokerNamespaces", "gobblin.shared, gobblin.shared2");
     brokerConfig = SharedResourcesBrokerFactory.getBrokerConfig(ConfigFactory.parseMap(srcConfigMap));
-    expectedConfig = ConfigFactory.parseMap(ImmutableMap.of("key1", "value1", "key2", "value2", "key3", "value3"));
+    expectedConfig = ConfigFactory.parseMap(ImmutableMap.of("key1", "value1", "key2", "value2",
+        "key3", "value3", "key4", "value4"));
     Assert.assertEquals(brokerConfig, expectedConfig);
   }
 
