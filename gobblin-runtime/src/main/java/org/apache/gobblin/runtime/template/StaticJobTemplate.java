@@ -19,6 +19,7 @@ package org.apache.gobblin.runtime.template;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -56,6 +57,8 @@ public class StaticJobTemplate extends InheritingJobTemplate {
   private final String version;
   @Getter
   private final String description;
+  @Getter
+  private Collection<String> dependencies;
 
   public StaticJobTemplate(URI uri, String version, String description, Config config, JobCatalogWithTemplates catalog)
       throws SpecNotFoundException, TemplateException {
@@ -63,18 +66,22 @@ public class StaticJobTemplate extends InheritingJobTemplate {
   }
 
   protected StaticJobTemplate(URI uri, String version, String description, Config config, List<URI> superTemplateUris,
-      JobCatalogWithTemplates catalog) throws SpecNotFoundException, TemplateException {
+      JobCatalogWithTemplates catalog)
+      throws SpecNotFoundException, TemplateException {
     super(superTemplateUris, catalog);
     this.uri = uri;
     this.version = version;
     this.description = description;
     this.rawConfig = config;
-    this.requiredAttributes = config.hasPath(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST)
-        ? new HashSet<>(Arrays.asList(config.getString(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST).split(",")))
+    this.requiredAttributes = config.hasPath(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST) ? new HashSet<>(
+        Arrays.asList(config.getString(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST).split(",")))
         : Sets.<String>newHashSet();
+    this.dependencies = config.hasPath(ConfigurationKeys.JOB_DEPENDENCIES) ? Arrays
+        .asList(config.getString(ConfigurationKeys.JOB_DEPENDENCIES).split(",")) : new ArrayList<>();
   }
 
-  private static List<URI> getSuperTemplateUris(Config config) throws TemplateException {
+  private static List<URI> getSuperTemplateUris(Config config)
+      throws TemplateException {
     if (config.hasPath(SUPER_TEMPLATE_KEY)) {
       List<URI> uris = Lists.newArrayList();
       for (String uriString : config.getString(SUPER_TEMPLATE_KEY).split(",")) {

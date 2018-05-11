@@ -214,6 +214,7 @@ public class ConfigurationKeys {
    * Configuration property used only for job configuration file's tempalte, inside .template file
    */
   public static final String REQUIRED_ATRRIBUTES_LIST = "gobblin.template.required_attributes";
+  public static final String JOB_DEPENDENCIES="dependencies";
 
   /**
    * Configuration for emitting job events
