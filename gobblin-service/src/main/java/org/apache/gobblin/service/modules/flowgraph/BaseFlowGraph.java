@@ -17,14 +17,24 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.gobblin.annotation.Alpha;
+
 import com.google.common.base.Preconditions;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+
+/**
+ * An implementation of {@link FlowGraph}.
+ */
+@Alpha
+@Slf4j
 public class BaseFlowGraph implements FlowGraph {
   @Getter
   private Set<DataNode> nodes;
@@ -39,16 +49,17 @@ public class BaseFlowGraph implements FlowGraph {
   }
 
   @Override
-  public void addNode(DataNode node) {
-    if (this.nodes != null) {
+  public void addDataNode(DataNode node) {
+    if (this.nodes == null) {
       this.nodes = new HashSet<>();
+      this.dataNodeMap = new HashMap<>();
     }
     this.nodes.add(node);
     this.dataNodeMap.put(node.getId(), node);
   }
 
   @Override
-  public void addEdge(FlowEdge edge) {
+  public void addFlowEdge(FlowEdge edge) {
     String srcNode = edge.getEndPoints().get(0);
     String dstNode = edge.getEndPoints().get(1);
 
@@ -59,5 +70,26 @@ public class BaseFlowGraph implements FlowGraph {
 
     DataNode dataNode = dataNodeMap.get(srcNode);
     dataNode.addFlowEdge(edge);
+  }
+
+  @Override
+  public void deleteDataNode(DataNode node) {
+    if(nodes.contains(node)) {
+      log.info("Removing node {} from FlowGraph", node.getId());
+      nodes.remove(node);
+      dataNodeMap.remove(node.getId());
+    } else {
+      log.warn("FlowGraph does not contain node with id {}", node.getId());
+    }
+  }
+
+  @Override
+  public void deleteFlowEdge(FlowEdge edge) {
+    if(!dataNodeMap.containsKey(edge.getEndPoints().get(0))) {
+      log.warn("FlowGraph does not contain edge {}", edge.toString());
+      return;
+    }
+    DataNode node = dataNodeMap.get(edge.getEndPoints().get(0));
+    node.deleteFlowEdge(edge);
   }
 }

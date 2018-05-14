@@ -17,25 +17,26 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-
-import org.apache.gobblin.runtime.spec_executorInstance.BaseServiceNodeImpl;
-import org.apache.gobblin.util.ConfigUtils;
 
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.util.ConfigUtils;
+
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * An implementation of {@link DataNode}.
  */
+@Alpha
+@Slf4j
 public class BaseDataNode implements DataNode {
   @Getter
   private String id;
@@ -67,6 +68,16 @@ public class BaseDataNode implements DataNode {
       this.flowEdges = new HashSet<>();
     }
     this.flowEdges.add(edge);
+    log.info("Added edge {} to the FlowGraph", edge.toString());
+  }
+
+  public void deleteFlowEdge(FlowEdge edge) {
+    if(this.flowEdges.contains(edge)) {
+      this.flowEdges.remove(edge);
+      log.info("Deleted edge {} from FlowGraph", edge.toString());
+    } else {
+      log.warn("Edge {} not present in FlowGraph", edge.toString());
+    }
   }
 
   /**

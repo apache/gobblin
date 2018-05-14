@@ -15,13 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.dag;
+package org.apache.gobblin.service.modules.flowgraph;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.gobblin.annotation.Alpha;
 
 import com.google.common.collect.Lists;
 
@@ -32,7 +34,7 @@ import lombok.Getter;
  * An implementation of Dag. Assumes that nodes have unique values. Nodes with duplicate values will produce
  * unpredictable behavior.
  */
-
+@Alpha
 @Getter
 public class Dag<T> {
   private List<DagNode<T>> startNodes;

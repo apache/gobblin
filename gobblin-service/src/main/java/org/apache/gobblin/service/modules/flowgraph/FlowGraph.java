@@ -19,11 +19,22 @@ package org.apache.gobblin.service.modules.flowgraph;
 
 import java.util.Collection;
 
+import org.apache.gobblin.annotation.Alpha;
 
+
+/**
+ * An interface for {@link FlowGraph}. A {@link FlowGraph} consists of {@link DataNode}s and {@link FlowEdge}s.
+ * The interface provides methods for adding {@link DataNode}s and {@link FlowEdge}s to the {@link FlowGraph}.
+ */
+@Alpha
 public interface FlowGraph {
   public Collection<DataNode> getNodes();
 
-  public void addNode(DataNode node);
+  public void addDataNode(DataNode node);
 
-  public void addEdge(FlowEdge edge);
+  public void addFlowEdge(FlowEdge edge);
+
+  public void deleteDataNode(DataNode node);
+
+  public void deleteFlowEdge(FlowEdge edge);
 }

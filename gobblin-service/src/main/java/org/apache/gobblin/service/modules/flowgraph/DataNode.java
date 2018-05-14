@@ -19,6 +19,8 @@ package org.apache.gobblin.service.modules.flowgraph;
 
 import java.util.Collection;
 
+import org.apache.gobblin.annotation.Alpha;
+
 import com.typesafe.config.Config;
 
 
@@ -26,6 +28,7 @@ import com.typesafe.config.Config;
  * Representation of a node in the FlowGraph. Each node has a unique identifier and a list of outgoing
  * {@link FlowEdge}s adjacent to it.
  */
+@Alpha
 public interface DataNode {
   /**
    * @return The name of node.
@@ -49,7 +52,12 @@ public interface DataNode {
   Collection<FlowEdge> getFlowEdges();
 
   /**
-   * Add a {@link FlowEdge} to a node.
+   * Add a {@link FlowEdge} to a node. Meant to be invoked from {@link FlowGraph#addFlowEdge(FlowEdge)}.
    */
   void addFlowEdge(FlowEdge edge);
+
+  /**
+   * Delete a {@link FlowEdge} incident on a node. Meant to be invoked from {@link FlowGraph#deleteFlowEdge(FlowEdge)}.
+   */
+  void deleteFlowEdge(FlowEdge edge);
 }

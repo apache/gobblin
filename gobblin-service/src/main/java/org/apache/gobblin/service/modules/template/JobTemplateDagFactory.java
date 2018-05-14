@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.dag;
+package org.apache.gobblin.service.modules.template;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -24,16 +24,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.gobblin.runtime.api.FlowTemplate;
-import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.hadoop.fs.Path;
+
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * A Factory class used for constructing a {@link Dag} of {@link org.apache.gobblin.runtime.api.JobTemplate}s from
  * a {@link URI} of a {@link FlowTemplate}.
  */
-
+@Alpha
+@Slf4j
 public class JobTemplateDagFactory {
   public static final String JOB_TEMPLATE_FILE_SUFFIX = ".conf";
 
@@ -57,16 +62,13 @@ public class JobTemplateDagFactory {
      *
      * TODO: we likely do not need 2 for loops and we can do this in 1 pass.
      */
-    URI templateDirUri = null;
+    Path templateDirPath = new Path(jobTemplates.get(0).getUri()).getParent();
     for (JobTemplate template : jobTemplates) {
       URI templateUri = template.getUri();
       Dag.DagNode<JobTemplate> node = uriJobTemplateMap.get(templateUri);
       Collection<String> dependencies = template.getDependencies();
-      if (templateDirUri == null) {
-        templateDirUri = templateUri.getPath().endsWith("/") ? templateUri.resolve("..") : templateUri.resolve(".");
-      }
       for (String dependency : dependencies) {
-        URI dependencyUri = new Path(templateDirUri.getPath(), dependency).suffix(JOB_TEMPLATE_FILE_SUFFIX).toUri();
+        URI dependencyUri = new Path(templateDirPath, dependency).suffix(JOB_TEMPLATE_FILE_SUFFIX).toUri();
         Dag.DagNode<JobTemplate> parentNode = uriJobTemplateMap.get(dependencyUri);
         node.addParentNode(parentNode);
       }

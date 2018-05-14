@@ -17,9 +17,13 @@
 
 package org.apache.gobblin.service.modules.dataset;
 
+import org.apache.gobblin.annotation.Alpha;
+
+
 /**
  * A descriptor interface for HDFS datasets
  */
+@Alpha
 public interface HdfsDatasetDescriptor extends DatasetDescriptor {
   /**
    *

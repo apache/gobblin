@@ -19,11 +19,14 @@ package org.apache.gobblin.service.modules.flowgraph;
 
 import java.util.List;
 
-import org.apache.gobblin.runtime.api.FlowTemplate;
-import org.apache.gobblin.runtime.api.SpecExecutor;
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.hadoop.security.UserGroupInformation;
 
-import com.typesafe.config.Config;
+import org.apache.gobblin.service.modules.template.FlowTemplate;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+
 
 /**
  * Representation of an edge in a FlowGraph. Each {@link FlowEdge} encapsulates:
@@ -34,6 +37,7 @@ import com.typesafe.config.Config;
  * </ul></p> and
  *
  */
+@Alpha
 public interface FlowEdge {
   /**
    *

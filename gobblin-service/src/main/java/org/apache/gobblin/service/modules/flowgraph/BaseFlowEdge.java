@@ -20,19 +20,24 @@ package org.apache.gobblin.service.modules.flowgraph;
 import java.util.List;
 import java.util.Properties;
 
-import org.apache.gobblin.runtime.api.FlowTemplate;
-import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.hadoop.security.UserGroupInformation;
-
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.hadoop.security.UserGroupInformation;
+
+import org.apache.gobblin.service.modules.template.FlowTemplate;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.util.ConfigUtils;
+
 
 import lombok.Getter;
 
 /**
  * An implementation of {@link FlowEdge}.
  */
+@Alpha
 public class BaseFlowEdge implements FlowEdge {
   @Getter
   protected List<String> endPoints;
@@ -89,7 +94,12 @@ public class BaseFlowEdge implements FlowEdge {
 
   @Override
   public int hashCode() {
-    return (this.getEndPoints().get(0) + "-" + this.getEndPoints().get(1) + "-" + this.getFlowTemplate().getUri().getPath()).hashCode();
+    return (Joiner.on(":").join(this.getEndPoints().get(0), this.getEndPoints().get(1), this.getFlowTemplate().getUri())).hashCode();
+  }
+
+  @Override
+  public String toString() {
+    return Joiner.on(":").join(this.getEndPoints().get(0), this.getEndPoints().get(1), this.getFlowTemplate().getUri().getPath());
   }
 
   public static class Builder {

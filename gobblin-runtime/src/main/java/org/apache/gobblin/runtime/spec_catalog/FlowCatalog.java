@@ -18,10 +18,8 @@
 package org.apache.gobblin.runtime.spec_catalog;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -31,17 +29,6 @@ import javax.annotation.Nonnull;
 
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.runtime.api.FlowTemplate;
-import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
-import org.apache.gobblin.runtime.api.JobTemplate;
-import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
-import org.apache.gobblin.runtime.template.HOCONInputStreamFlowTemplate;
-import org.apache.gobblin.runtime.template.HOCONInputStreamJobTemplate;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,8 +59,6 @@ import org.apache.gobblin.util.ClassAliasResolver;
 public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
 
   public static final String DEFAULT_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
-  public static final String JOB_TEMPLATE_DIR_NAME="jobs";
-  protected static final String FS_SCHEME = "FS";
   protected final SpecCatalogListenersList listeners;
   protected final Logger log;
   protected final MetricContext metricContext;
@@ -254,47 +239,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException e) {
       throw new RuntimeException("Cannot retrieve Spec from Spec store for URI: " + uri, e);
     }
-  }
-
-  public FlowTemplate getFlowTemplate(URI flowUri) throws SpecNotFoundException, IOException {
-    if (!this.config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)) {
-      throw new RuntimeException("Missing config " + ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
-    }
-    if (!flowUri.getScheme().equals(FS_SCHEME)) {
-      throw new RuntimeException("Expected scheme " + FS_SCHEME + " got unsupported scheme " + flowUri.getScheme());
-    }
-    String templateDir = this.config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
-
-    // path of uri is location of template file relative to the job configuration root directory
-    Path templateFullPath = new Path(templateDir, new Path(flowUri.getPath()));
-    FileSystem fs = FileSystem.get(templateFullPath.toUri(), new Configuration());
-
-    try (InputStream is = fs.open(templateFullPath)) {
-      return new HOCONInputStreamFlowTemplate(is, flowUri, this);
-    }
-  }
-
-  public List<JobTemplate> getJobTemplates(URI flowUri)
-      throws IOException, SpecNotFoundException, JobTemplate.TemplateException {
-    if (!this.config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)) {
-      throw new RuntimeException("Missing config " + ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
-    }
-    if (!flowUri.getScheme().equals(FS_SCHEME)) {
-      throw new RuntimeException("Expected scheme " + FS_SCHEME + " got unsupported scheme " + flowUri.getScheme());
-    }
-      List<JobTemplate> jobTemplates = new ArrayList<>();
-      Config templateCatalogCfg = config.withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
-      JobCatalogWithTemplates jobCatalogWithTemplates = new FSJobCatalog(templateCatalogCfg);
-
-      String templateDir = this.config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
-      Path jobTemplatePath = new Path(new Path(templateDir, flowUri.getPath()), JOB_TEMPLATE_DIR_NAME);
-      FileSystem fs = FileSystem.get(jobTemplatePath.toUri(), new Configuration());
-      for (FileStatus fileStatus : fs.listStatus(jobTemplatePath)) {
-        try (InputStream is = fs.open(fileStatus.getPath())) {
-          jobTemplates.add(new HOCONInputStreamJobTemplate(is, fileStatus.getPath().toUri(), jobCatalogWithTemplates));
-        }
-      }
-      return jobTemplates;
   }
 
   @Override

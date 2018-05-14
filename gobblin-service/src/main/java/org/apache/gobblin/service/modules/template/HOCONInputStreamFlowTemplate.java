@@ -15,32 +15,42 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.template;
+package org.apache.gobblin.service.modules.template;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-
 import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigResolveOptions;
 
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.service.modules.template_catalog.FlowCatalogWithTemplates;
 
+/**
+ * A {@link FlowTemplate} that loads a HOCON file as a {@link StaticFlowTemplate}.
+ */
+@Alpha
 public class HOCONInputStreamFlowTemplate extends StaticFlowTemplate {
   public static final String VERSION_KEY = "gobblin.flow.template.version";
   public static final String DEFAULT_VERSION = "1";
 
-  public HOCONInputStreamFlowTemplate(InputStream inputStream, URI uri, FlowCatalog catalog) throws SpecNotFoundException{
-    this(ConfigFactory.parseReader(new InputStreamReader(inputStream, Charsets.UTF_8)), uri, catalog);
+  public HOCONInputStreamFlowTemplate(InputStream inputStream, URI uri, FlowCatalogWithTemplates catalog)
+      throws SpecNotFoundException, IOException, ReflectiveOperationException, JobTemplate.TemplateException {
+    this(ConfigFactory.parseReader(new InputStreamReader(inputStream, Charsets.UTF_8)).resolve(
+        ConfigResolveOptions.defaults().setAllowUnresolved(true)), uri, catalog);
   }
 
-  public HOCONInputStreamFlowTemplate(Config config, URI uri, FlowCatalog catalog) throws SpecNotFoundException{
+  public HOCONInputStreamFlowTemplate(Config config, URI uri, FlowCatalogWithTemplates catalog)
+      throws SpecNotFoundException, IOException, ReflectiveOperationException, JobTemplate.TemplateException {
     super(uri, config.hasPath(VERSION_KEY) ? config.getString(VERSION_KEY) : DEFAULT_VERSION,
-        config.hasPath(ConfigurationKeys.FLOW_DESCRIPTION_KEY) ? config.getString(ConfigurationKeys.FLOW_DESCRIPTION_KEY) : "",
-        config, catalog);
+        config.hasPath(ConfigurationKeys.FLOW_DESCRIPTION_KEY) ? config
+            .getString(ConfigurationKeys.FLOW_DESCRIPTION_KEY) : "", config, catalog);
   }
 }

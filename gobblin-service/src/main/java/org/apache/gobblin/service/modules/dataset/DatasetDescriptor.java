@@ -17,9 +17,13 @@
 
 package org.apache.gobblin.service.modules.dataset;
 
+import org.apache.gobblin.annotation.Alpha;
+
+
 /**
  * The interface for dataset descriptors.
  */
+@Alpha
 public interface DatasetDescriptor {
   /**
    * @return the dataset platform i.e. the storage backing the dataset (e.g. HDFS, JDBC, Espresso etc.)

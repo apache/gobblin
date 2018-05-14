@@ -15,24 +15,34 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.api;
+package org.apache.gobblin.service.modules.template;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.runtime.dag.Dag;
-
 import com.typesafe.config.Config;
+
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 
 /**
  * An interface primarily for representing a flow of {@link JobTemplate}s. It also has
  * method for retrieving required configs for every {@link JobTemplate} in the flow.
  */
+@Alpha
 public interface FlowTemplate extends Spec {
+
+  /**
+   * @return the {@link Collection} of {@link JobTemplate}s that belong to this {@link FlowTemplate}.
+   */
+  List<JobTemplate> getJobTemplates();
+
   /**
    *
    * @return the {@link Dag<JobTemplate>} that backs the {@link FlowTemplate}.
@@ -44,11 +54,6 @@ public interface FlowTemplate extends Spec {
    * @return all configuration inside pre-written template.
    */
   Config getRawTemplateConfig();
-
-  /**
-   * @return all configs that are required from user to fill for every job in the flow.
-   */
-  Map<JobTemplate, Collection<String>> getRequiredConfigMap() throws IOException;
 
   /**
    * @return list of input/output {@link DatasetDescriptor}s for the {@link FlowTemplate}.
