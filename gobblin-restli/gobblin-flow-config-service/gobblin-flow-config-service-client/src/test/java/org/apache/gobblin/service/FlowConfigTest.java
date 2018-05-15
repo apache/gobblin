@@ -82,7 +82,7 @@ public class FlowConfigTest {
     Injector injector = Guice.createInjector(new Module() {
        @Override
        public void configure(Binder binder) {
-         binder.bind(FlowCatalog.class).annotatedWith(Names.named("flowCatalog")).toInstance(flowCatalog);
+         binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named("flowConfigsResourceHandler")).toInstance(new FlowConfigResourceLocalHandler(flowCatalog));
          // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
          // been made
          binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);

@@ -16,13 +16,11 @@
  */
 package org.apache.gobblin.service.modules.core;
 
-import org.apache.gobblin.service.FlowId;
-import org.apache.gobblin.service.Schedule;
 import java.io.File;
 import java.util.Map;
 import java.util.Properties;
-
 import java.util.UUID;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.Path;
@@ -49,16 +47,21 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
-import org.apache.gobblin.service.modules.utils.HelixUtils;
+import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
-
+@Test
 public class GobblinServiceHATest {
 
   private static final Logger logger = LoggerFactory.getLogger(GobblinServiceHATest.class);
   private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+  private static final String QUANTZ_INSTANCE_NAME = "org.quartz.scheduler.instanceName";
+  private static final String QUANTZ_THREAD_POOL_COUNT = "org.quartz.threadPool.threadCount";
 
   private static final String COMMON_SPEC_STORE_PARENT_DIR = "/tmp/serviceCoreCommon/";
 
@@ -147,19 +150,23 @@ public class GobblinServiceHATest {
     node1ServiceCoreProperties.putAll(commonServiceCoreProperties);
     node1ServiceCoreProperties.put(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY, NODE_1_TOPOLOGY_SPEC_STORE_DIR);
     node1ServiceCoreProperties.put(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, NODE_1_FLOW_SPEC_STORE_DIR);
+    node1ServiceCoreProperties.put(QUANTZ_INSTANCE_NAME, "QuartzScheduler1");
+    node1ServiceCoreProperties.put(QUANTZ_THREAD_POOL_COUNT, 3);
 
     Properties node2ServiceCoreProperties = new Properties();
     node2ServiceCoreProperties.putAll(commonServiceCoreProperties);
     node2ServiceCoreProperties.put(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY, NODE_2_TOPOLOGY_SPEC_STORE_DIR);
     node2ServiceCoreProperties.put(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, NODE_2_FLOW_SPEC_STORE_DIR);
+    node2ServiceCoreProperties.put(QUANTZ_INSTANCE_NAME, "QuartzScheduler2");
+    node2ServiceCoreProperties.put(QUANTZ_THREAD_POOL_COUNT, 3);
 
     // Start Node 1
-    this.node1GobblinServiceManager = new GobblinServiceManager("CoreService", "1",
+    this.node1GobblinServiceManager = new GobblinServiceManager("CoreService1", "1",
         ConfigUtils.propertiesToConfig(node1ServiceCoreProperties), Optional.of(new Path(NODE_1_SERVICE_WORK_DIR)));
     this.node1GobblinServiceManager.start();
 
     // Start Node 2
-    this.node2GobblinServiceManager = new GobblinServiceManager("CoreService", "1",
+    this.node2GobblinServiceManager = new GobblinServiceManager("CoreService2", "2",
         ConfigUtils.propertiesToConfig(node2ServiceCoreProperties), Optional.of(new Path(NODE_2_SERVICE_WORK_DIR)));
     this.node2GobblinServiceManager.start();
 
@@ -183,6 +190,7 @@ public class GobblinServiceHATest {
   public void cleanUp() throws Exception {
     // Shutdown Node 1
     try {
+      logger.info("+++++++++++++++++++ start shutdown noad1");
       this.node1GobblinServiceManager.stop();
     } catch (Exception e) {
       logger.warn("Could not cleanly stop Node 1 of Gobblin Service", e);
@@ -190,6 +198,7 @@ public class GobblinServiceHATest {
 
     // Shutdown Node 2
     try {
+      logger.info("+++++++++++++++++++ start shutdown noad2");
       this.node2GobblinServiceManager.stop();
     } catch (Exception e) {
       logger.warn("Could not cleanly stop Node 2 of Gobblin Service", e);
@@ -231,6 +240,7 @@ public class GobblinServiceHATest {
 
   @Test
   public void testCreate() throws Exception {
+    logger.info("+++++++++++++++++++ testCreate START");
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
     flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
@@ -256,8 +266,10 @@ public class GobblinServiceHATest {
     GobblinServiceManager master;
     if (this.node1GobblinServiceManager.isLeader()) {
       master = this.node1GobblinServiceManager;
+      logger.info("#### node 1 is manager");
     } else if (this.node2GobblinServiceManager.isLeader()) {
       master = this.node2GobblinServiceManager;
+      logger.info("#### node 2 is manager");
     } else {
       Assert.fail("No leader found in service cluster");
       return;
@@ -265,6 +277,12 @@ public class GobblinServiceHATest {
 
     int attempt = 0;
     boolean assertSuccess = false;
+
+    // Below while-loop will read all flow specs, but some of them are being persisted.
+    // We have seen CRC file java.io.EOFException when reading and writing at the same time.
+    // Wait for a few seconds to guarantee all the flow specs are persisted.
+    Thread.sleep(3000);
+
     while (attempt < 800) {
       int masterJobs = master.flowCatalog.getSpecs().size();
       if (masterJobs == 2) {
@@ -278,10 +296,13 @@ public class GobblinServiceHATest {
     logger.info("Total scheduling time in ms: " + (schedulingEndTime - schedulingStartTime));
 
     Assert.assertTrue(assertSuccess, "Flow that was created is not reflecting in FlowCatalog");
+    logger.info("+++++++++++++++++++ testCreate END");
   }
+
 
   @Test (dependsOnMethods = "testCreate")
   public void testCreateAgain() throws Exception {
+    logger.info("+++++++++++++++++++ testCreateAgain START");
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
     flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
@@ -310,10 +331,13 @@ public class GobblinServiceHATest {
     } catch (RestLiResponseException e) {
       Assert.fail("Create Again should pass without complaining that the spec already exists.");
     }
+
+    logger.info("+++++++++++++++++++ testCreateAgain END");
   }
 
   @Test (dependsOnMethods = "testCreateAgain")
   public void testGet() throws Exception {
+    logger.info("+++++++++++++++++++ testGet START");
     FlowId flowId1 = new FlowId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1);
 
     FlowConfig flowConfig1 = this.node1FlowConfigClient.getFlowConfig(flowId1);
@@ -331,10 +355,13 @@ public class GobblinServiceHATest {
     Assert.assertEquals(flowConfig1.getTemplateUris(), TEST_TEMPLATE_URI_1);
     Assert.assertTrue(flowConfig1.getSchedule().isRunImmediately());
     Assert.assertEquals(flowConfig1.getProperties().get("param1"), "value1");
+
+    logger.info("+++++++++++++++++++ testGet END");
   }
 
   @Test (dependsOnMethods = "testGet")
   public void testUpdate() throws Exception {
+    logger.info("+++++++++++++++++++ testUpdate START");
     // Update on one node and retrieve from another
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1);
 
@@ -360,10 +387,13 @@ public class GobblinServiceHATest {
     Assert.assertFalse(retrievedFlowConfig.getSchedule().isRunImmediately());
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1b");
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param2"), "value2b");
+
+    logger.info("+++++++++++++++++++ testUpdate END");
   }
 
   @Test (dependsOnMethods = "testUpdate")
   public void testDelete() throws Exception {
+    logger.info("+++++++++++++++++++ testDelete START");
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1);
 
     // make sure flow config exists
@@ -387,10 +417,13 @@ public class GobblinServiceHATest {
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
+
+    logger.info("+++++++++++++++++++ testDelete END");
   }
 
   @Test (dependsOnMethods = "testDelete")
   public void testBadGet() throws Exception {
+    logger.info("+++++++++++++++++++ testBadGet START");
     FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME_1).setFlowName(TEST_DUMMY_FLOW_NAME_1);
 
     try {
@@ -406,10 +439,13 @@ public class GobblinServiceHATest {
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
+
+    logger.info("+++++++++++++++++++ testBadGet END");
   }
 
   @Test (dependsOnMethods = "testBadGet")
   public void testBadDelete() throws Exception {
+    logger.info("+++++++++++++++++++ testBadDelete START");
     FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME_1).setFlowName(TEST_DUMMY_FLOW_NAME_1);
 
     try {
@@ -425,10 +461,13 @@ public class GobblinServiceHATest {
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
+
+    logger.info("+++++++++++++++++++ testBadDelete END");
   }
 
   @Test (dependsOnMethods = "testBadDelete")
   public void testBadUpdate() throws Exception {
+    logger.info("+++++++++++++++++++ testBadUpdate START");
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1b");
     flowProperties.put("param2", "value2b");
@@ -449,10 +488,13 @@ public class GobblinServiceHATest {
     } catch (RestLiResponseException e) {
       Assert.fail("Bad update should pass without complaining that the spec does not exists.");
     }
+
+    logger.info("+++++++++++++++++++ testBadUpdate END");
   }
 
   @Test (dependsOnMethods = "testBadUpdate")
   public void testKillNode() throws Exception {
+    logger.info("+++++++++++++++++++ testKillNode START");
     GobblinServiceManager master, secondary;
     if (this.node1GobblinServiceManager.isLeader()) {
       master = this.node1GobblinServiceManager;
@@ -500,5 +542,7 @@ public class GobblinServiceHATest {
     logger.info("Total failover time in ms: " + (failOverEndTime - failOverStartTime));
 
     Assert.assertTrue(assertSuccess, "New master should take over all old master jobs.");
+
+    logger.info("+++++++++++++++++++ testKillNode END");
   }
 }
