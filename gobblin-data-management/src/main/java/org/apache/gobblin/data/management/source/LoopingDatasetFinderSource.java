@@ -112,8 +112,14 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
           datasetsFinder.getDatasetsStream(Spliterator.SORTED, this.lexicographicalComparator);
       datasetStream = sortStreamLexicographically(datasetStream);
 
-      return new BasicWorkUnitStream.Builder(getWorkUnitIterator(datasetStream.iterator(),
-          maxWorkUnit, maximumWorkUnits)).setFiniteStream(true).build();
+      String previousDatasetUrnWatermark = null;
+      String previousPartitionUrnWatermark = null;
+      if (maxWorkUnit.isPresent() && !maxWorkUnit.get().getPropAsBoolean(END_OF_DATASETS_KEY, false)) {
+        previousDatasetUrnWatermark = maxWorkUnit.get().getProp(DATASET_URN);
+        previousPartitionUrnWatermark = maxWorkUnit.get().getProp(PARTITION_URN);
+      }
+      return new BasicWorkUnitStream.Builder(getWorkUnitIterator(datasetStream.iterator(), previousDatasetUrnWatermark,
+          previousPartitionUrnWatermark, maximumWorkUnits)).setFiniteStream(true).build();
 
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
@@ -124,14 +130,8 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
    * A factory to generate {@link WorkUnitStream} given a generic type datasetIterator.
    * @throws IOException
    */
-  protected Iterator<WorkUnit> getWorkUnitIterator(Iterator<Dataset> datasetIterator, Optional
-      <WorkUnitState> maxWorkUnit, int maximumWorkUnits) throws IOException {
-    String previousDatasetUrnWatermark = null;
-    String previousPartitionUrnWatermark = null;
-    if (maxWorkUnit.isPresent() && !maxWorkUnit.get().getPropAsBoolean(END_OF_DATASETS_KEY, false)) {
-      previousDatasetUrnWatermark = maxWorkUnit.get().getProp(DATASET_URN);
-      previousPartitionUrnWatermark = maxWorkUnit.get().getProp(PARTITION_URN);
-    }
+  protected Iterator<WorkUnit> getWorkUnitIterator(Iterator<Dataset> datasetIterator, String previousDatasetUrnWatermark,
+      @Nullable String previousPartitionUrnWatermark, int maximumWorkUnits) throws IOException {
     return new DeepIterator(datasetIterator, previousDatasetUrnWatermark, previousPartitionUrnWatermark,
             maximumWorkUnits);
   }
