@@ -48,9 +48,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriterBuilder<Void, D, AsyncHttpWriterBuilder<D, RQ, RP>> {
   public static final String CONF_PREFIX = "gobblin.writer.http.";
+
+  private static final String MAX_OUTSTANDING_WRITES = "maxOutstandingWrites";
+  private static final String MAX_ATTEMPTS = "maxAttempts";
+
   private static final Config FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
           .put(HttpConstants.ERROR_CODE_WHITELIST, "")
+          .put(MAX_OUTSTANDING_WRITES, AsyncWriterManager.MAX_OUTSTANDING_WRITES_DEFAULT)
+          .put(MAX_ATTEMPTS, AsyncHttpWriter.DEFAULT_MAX_ATTEMPTS)
           .build());
 
   @Getter
@@ -66,9 +72,10 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
   @Getter
   protected int queueCapacity = AbstractAsyncDataWriter.DEFAULT_BUFFER_CAPACITY;
   @Getter
-  protected int maxAttempts = AsyncHttpWriter.DEFAULT_MAX_ATTEMPTS;
-  @Getter
   protected SharedResourcesBroker<GobblinScopeTypes> broker = null;
+  @Getter
+  protected int maxAttempts;
+  private int maxOutstandingWrites;
 
   /**
    * For backward compatibility on how Fork creates writer, invoke fromState when it's called writeTo method.
@@ -91,6 +98,8 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
     this.broker = this.state.getTaskBroker();
     Config config = ConfigBuilder.create().loadProps(state.getProperties(), CONF_PREFIX).build();
     config = config.withFallback(FALLBACK);
+    this.maxOutstandingWrites = config.getInt(MAX_OUTSTANDING_WRITES);
+    this.maxAttempts = config.getInt(MAX_ATTEMPTS);
     return fromConfig(config);
   }
 
@@ -112,6 +121,7 @@ public abstract class AsyncHttpWriterBuilder<D, RQ, RP> extends FluentDataWriter
     return AsyncWriterManager.builder()
         .config(ConfigUtils.propertiesToConfig(getState().getProperties()))
         .asyncDataWriter(new AsyncHttpWriter(this))
+        .maxOutstandingWrites(maxOutstandingWrites)
         .retriesEnabled(false) // retries are done in HttpBatchDispatcher
         .commitTimeoutMillis(10000L)
         .failureAllowanceRatio(0).build();

@@ -94,6 +94,7 @@ public class AsyncHttpWriterTest {
     }
 
     Assert.assertTrue(client.isCloseCalled);
+    Assert.assertTrue(responseHandler.recordsInLastRequest.size() == 1);
   }
 
   @Test
@@ -292,9 +293,15 @@ public class AsyncHttpWriterTest {
   class MockResponseHandler implements ResponseHandler<HttpUriRequest, CloseableHttpResponse> {
     volatile StatusType type = StatusType.OK;
     int attempts = 0;
+    List<Object> recordsInLastRequest;
 
     @Override
     public ResponseStatus handleResponse(Request<HttpUriRequest> request, CloseableHttpResponse response) {
+      if (request instanceof AsyncRequest) {
+        AsyncRequest asyncRequest = (AsyncRequest) request;
+        recordsInLastRequest = new ArrayList<>();
+        asyncRequest.getThunks().forEach( thunk -> recordsInLastRequest.add(thunk));
+      }
       attempts++;
       switch (type) {
         case OK:
@@ -330,6 +337,7 @@ public class AsyncHttpWriterTest {
       this.responseHandler = responseHandler;
       this.state = new WorkUnitState();
       this.queueCapacity = 2;
+      this.maxAttempts = 3;
     }
 
     @Override
