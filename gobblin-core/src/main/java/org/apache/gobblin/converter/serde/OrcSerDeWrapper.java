@@ -25,7 +25,7 @@ import java.util.ArrayList;
 
 /**
  * The Hive's {@link OrcSerde} caches converted records - the {@link OrcSerde} has a single
- * {@link org.apache.hadoop.hive.ql.io.orc.OrcSerde.OrcSerdeRow} (basically an {@link ArrayList}) and every time the
+ * {@link org.apache.hadoop.hive.ql.io.orc.OrcSerde.OrcSerdeRow} and every time the
  * {@link org.apache.hadoop.hive.serde2.Serializer#serialize(Object, ObjectInspector)} method is called, the object is
  * re-used.
  *
@@ -37,13 +37,11 @@ import java.util.ArrayList;
  * @author Prateek Gupta
  */
 
-    public class OrcSerDeWrapper extends OrcSerde {
-    private OrcSerde record = null;
+public class OrcSerDeWrapper extends OrcSerde {
 
-    @Override
-    public Writable serialize(Object realRow, ObjectInspector inspector) {
-        record = new OrcSerde();
-        Object realRowClone = ((ArrayList) realRow).clone();
-        return record.serialize(realRowClone, inspector);
-    }
+  @Override
+  public Writable serialize(Object realRow, ObjectInspector inspector) {
+      Object realRowClone = ObjectInspectorUtils.copyToStandardObject(realRow, inspector);
+      return super.serialize(realRowClone, inspector);
+  }
 }
