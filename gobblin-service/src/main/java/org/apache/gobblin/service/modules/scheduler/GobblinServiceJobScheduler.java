@@ -22,14 +22,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
 
-import java.util.UUID;
-
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.helix.HelixManager;
-import org.apache.helix.InstanceType;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.InterruptableJob;
 import org.quartz.JobDataMap;
@@ -45,6 +39,9 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobException;
@@ -57,7 +54,6 @@ import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
-import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.util.ConfigUtils;
@@ -78,29 +74,29 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Orchestrator orchestrator;
   @Getter
   protected final Map<String, Spec> scheduledFlowSpecs;
-
   @Getter
-  protected volatile boolean isActive;
+  private volatile boolean isActive;
+  private String serviceName;
 
-  public GobblinServiceJobScheduler(Config config, Optional<HelixManager> helixManager,
+  public GobblinServiceJobScheduler(String serviceName, Config config, Optional<HelixManager> helixManager,
       Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator,
       SchedulerService schedulerService, Optional<Logger> log)
       throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-
+    this.serviceName = serviceName;
     this.flowCatalog = flowCatalog;
     this.helixManager = helixManager;
     this.orchestrator = orchestrator;
     this.scheduledFlowSpecs = Maps.newHashMap();
   }
 
-  public GobblinServiceJobScheduler(Config config, Optional<HelixManager> helixManager,
+  public GobblinServiceJobScheduler(String serviceName, Config config, Optional<HelixManager> helixManager,
       Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, SchedulerService schedulerService,
       Optional<Logger> log)
       throws Exception {
-    this(config, helixManager, flowCatalog, topologyCatalog, new Orchestrator(config, topologyCatalog, log),
+    this(serviceName, config, helixManager, flowCatalog, topologyCatalog, new Orchestrator(config, topologyCatalog, log),
         schedulerService, log);
   }
 
@@ -196,13 +192,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     _log.info("New Flow Spec detected: " + addedSpec);
 
     if (addedSpec instanceof FlowSpec) {
-      if (!isActive && helixManager.isPresent()) {
-        _log.info("Scheduler running in slave mode, forward Spec add via Helix message to master: " + addedSpec);
-        HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_ADD, addedSpec.getUri().toString(),
-            UUID.randomUUID().toString(), InstanceType.CONTROLLER, helixManager.get(), _log);
-        return;
-      }
-
       try {
         Properties jobConfig = new Properties();
         Properties flowSpecProperties = ((FlowSpec) addedSpec).getConfigAsProperties();
@@ -221,7 +210,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
 
         if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-          _log.info("Scheduling flow spec: " + addedSpec);
+          _log.info("{} Scheduling flow spec: {} ", this.serviceName, addedSpec);
           scheduleJob(jobConfig, null);
           if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
             _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
@@ -232,7 +221,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           this.jobExecutor.execute(new NonScheduledJobRunner(jobConfig, null));
         }
       } catch (JobException je) {
-        _log.error("Failed to schedule or run FlowSpec " + addedSpec, je);
+        _log.error("{} Failed to schedule or run FlowSpec {}", serviceName,  addedSpec, je);
       }
     }
   }
@@ -251,14 +240,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       return;
     }
     _log.info("Spec deletion detected: " + deletedSpecURI + "/" + deletedSpecVersion);
-
-    if (!isActive && helixManager.isPresent()) {
-      _log.info("Scheduler running in slave mode, forward Spec delete via Helix message to master: " + deletedSpecURI);
-      HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE,
-          deletedSpecURI.toString() + ":" + deletedSpecVersion, UUID.randomUUID().toString(), InstanceType.CONTROLLER,
-          helixManager.get(), _log);
-      return;
-    }
 
     try {
       Spec deletedSpec = this.scheduledFlowSpecs.get(deletedSpecURI.toString());
@@ -289,13 +270,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     _log.info("Spec changed: " + updatedSpec);
 
     if (!(updatedSpec instanceof FlowSpec)) {
-      return;
-    }
-
-    if (!isActive && helixManager.isPresent()) {
-      _log.info("Scheduler running in slave mode, forward Spec update via Helix message to master: " + updatedSpec);
-      HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_UPDATE, updatedSpec.getUri().toString(),
-          UUID.randomUUID().toString(), InstanceType.CONTROLLER, helixManager.get(), _log);
       return;
     }
 

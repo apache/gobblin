@@ -17,13 +17,16 @@
 
 package org.apache.gobblin.util;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 
@@ -78,5 +81,21 @@ public class PropertiesUtils {
     }
 
     return extractedProperties;
+  }
+
+  public static String serialize(Properties properties) throws IOException {
+    StringWriter outputWriter = new StringWriter();
+    properties.store(outputWriter, "");
+    String rst = outputWriter.toString();
+    outputWriter.close();
+    return rst;
+  }
+
+  public static Properties deserialize(String serialized) throws IOException {
+    StringReader reader = new StringReader(serialized);
+    Properties properties = new Properties();
+    properties.load(reader);
+    reader.close();
+    return properties;
   }
 }
