@@ -88,13 +88,7 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
     String flowName = flowConfig.getId().getFlowName();
     String flowGroup = flowConfig.getId().getFlowGroup();
 
-    if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
-      // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
-      // .. Specs if in cluster mode and Helix is not yet initialized
-      log.warn("System not yet initialized. Skipping flowConfig Addition: " + flowConfig);
-      throw new FlowConfigLoggedException(HttpStatus.S_500_INTERNAL_SERVER_ERROR,
-          "System not yet initialized. Skipping create flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]");
-    }
+    checkHelixConnection(ServiceConfigKeys.HELIX_FLOWSPEC_ADD, flowName, flowGroup);
 
     try {
       if (!jobScheduler.isActive() && helixManager.isPresent()) {
@@ -103,12 +97,7 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
           this.localHandler.createFlowConfig(flowConfig, false);
         }
 
-        HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_ADD,
-            FlowConfigUtils.serializeFlowConfig(flowConfig),
-            UUID.randomUUID().toString(),
-            InstanceType.CONTROLLER,
-            helixManager.get(), log);
-        log.info("{} Forwarding add flowConfig [flowName={} flowGroup={}", serviceName, flowName, flowGroup + "]");
+        forwardMessage(ServiceConfigKeys.HELIX_FLOWSPEC_ADD, FlowConfigUtils.serializeFlowConfig(flowConfig), flowName, flowGroup);
 
         // Do actual work on remote node, directly return success
         return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_201_CREATED);
@@ -139,13 +128,7 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
           "flowName and flowGroup cannot be changed in update", null);
     }
 
-    if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
-      // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
-      // .. Specs if in cluster mode and Helix is not yet initialized
-      log.warn("System not yet initialized. Skipping flowConfig Update: " + flowConfig);
-      throw new FlowConfigLoggedException(HttpStatus.S_500_INTERNAL_SERVER_ERROR,
-          "System not yet initialized. Skipping update flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]");
-    }
+    checkHelixConnection(ServiceConfigKeys.HELIX_FLOWSPEC_UPDATE, flowName, flowGroup);
 
     try {
       if (!jobScheduler.isActive() && helixManager.isPresent()) {
@@ -155,11 +138,7 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
           this.localHandler.updateFlowConfig(flowId, flowConfig, false);
         }
 
-        HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_UPDATE,
-            FlowConfigUtils.serializeFlowConfig(flowConfig),
-            UUID.randomUUID().toString(),
-            InstanceType.CONTROLLER,
-            helixManager.get(), log);
+        forwardMessage(ServiceConfigKeys.HELIX_FLOWSPEC_UPDATE, FlowConfigUtils.serializeFlowConfig(flowConfig), flowName, flowGroup);
 
         // Do actual work on remote node, directly return success
         log.info("Forwarding update flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]");
@@ -187,13 +166,7 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
     String flowName = flowId.getFlowName();
     String flowGroup = flowId.getFlowGroup();
 
-    if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
-      // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
-      // .. Specs if in cluster mode and Helix is not yet initialized
-      log.warn("System not yet initialized. Skipping flowConfig Deletion: " + flowId);
-      throw new FlowConfigLoggedException(HttpStatus.S_500_INTERNAL_SERVER_ERROR,
-          "System not yet initialized. Skipping update flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]");
-    }
+    checkHelixConnection(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE, flowName, flowGroup);
 
     try {
       if (!jobScheduler.isActive() && helixManager.isPresent()) {
@@ -203,9 +176,8 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
           this.localHandler.deleteFlowConfig(flowId, header, false);
         }
 
-        HelixUtils.sendUserDefinedMessage(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE, FlowConfigUtils.serializeFlowId(flowId),
-            UUID.randomUUID().toString(), InstanceType.CONTROLLER, helixManager.get(), log);
-        log.info("Forwarding delete flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]");
+        forwardMessage(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE, FlowConfigUtils.serializeFlowId(flowId), flowName, flowGroup);
+
         return new UpdateResponse(HttpStatus.S_200_OK);
       } else {
         return this.localHandler.deleteFlowConfig(flowId, header);
@@ -214,5 +186,21 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
       throw new FlowConfigLoggedException(HttpStatus.S_500_INTERNAL_SERVER_ERROR,
           "Cannot delete flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]", e);
     }
+  }
+
+  private void checkHelixConnection(String opr, String flowName, String flowGroup) throws FlowConfigLoggedException {
+    if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
+      // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
+      // .. Specs if in cluster mode and Helix is not yet initialized
+      log.warn("System not yet initialized. Skipping operation " + opr);
+      throw new FlowConfigLoggedException(HttpStatus.S_500_INTERNAL_SERVER_ERROR,
+          "System not yet initialized. Skipping " + opr + " flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]");
+    }
+  }
+
+  private void forwardMessage(String msgSubType, String val, String flowName, String flowGroup) {
+    HelixUtils.sendUserDefinedMessage(msgSubType, val, UUID.randomUUID().toString(), InstanceType.CONTROLLER,
+        helixManager.get(), log);
+    log.info("{} Forwarding {} flowConfig [flowName={} flowGroup={}", serviceName, msgSubType, flowName, flowGroup + "]");
   }
 }

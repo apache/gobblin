@@ -60,8 +60,8 @@ public class GobblinServiceHATest {
   private static final Logger logger = LoggerFactory.getLogger(GobblinServiceHATest.class);
   private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-  private static final String QUANTZ_INSTANCE_NAME = "org.quartz.scheduler.instanceName";
-  private static final String QUANTZ_THREAD_POOL_COUNT = "org.quartz.threadPool.threadCount";
+  private static final String QUARTZ_INSTANCE_NAME = "org.quartz.scheduler.instanceName";
+  private static final String QUARTZ_THREAD_POOL_COUNT = "org.quartz.threadPool.threadCount";
 
   private static final String COMMON_SPEC_STORE_PARENT_DIR = "/tmp/serviceCoreCommon/";
 
@@ -150,15 +150,15 @@ public class GobblinServiceHATest {
     node1ServiceCoreProperties.putAll(commonServiceCoreProperties);
     node1ServiceCoreProperties.put(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY, NODE_1_TOPOLOGY_SPEC_STORE_DIR);
     node1ServiceCoreProperties.put(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, NODE_1_FLOW_SPEC_STORE_DIR);
-    node1ServiceCoreProperties.put(QUANTZ_INSTANCE_NAME, "QuartzScheduler1");
-    node1ServiceCoreProperties.put(QUANTZ_THREAD_POOL_COUNT, 3);
+    node1ServiceCoreProperties.put(QUARTZ_INSTANCE_NAME, "QuartzScheduler1");
+    node1ServiceCoreProperties.put(QUARTZ_THREAD_POOL_COUNT, 3);
 
     Properties node2ServiceCoreProperties = new Properties();
     node2ServiceCoreProperties.putAll(commonServiceCoreProperties);
     node2ServiceCoreProperties.put(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY, NODE_2_TOPOLOGY_SPEC_STORE_DIR);
     node2ServiceCoreProperties.put(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, NODE_2_FLOW_SPEC_STORE_DIR);
-    node2ServiceCoreProperties.put(QUANTZ_INSTANCE_NAME, "QuartzScheduler2");
-    node2ServiceCoreProperties.put(QUANTZ_THREAD_POOL_COUNT, 3);
+    node2ServiceCoreProperties.put(QUARTZ_INSTANCE_NAME, "QuartzScheduler2");
+    node2ServiceCoreProperties.put(QUARTZ_THREAD_POOL_COUNT, 3);
 
     // Start Node 1
     this.node1GobblinServiceManager = new GobblinServiceManager("CoreService1", "1",
