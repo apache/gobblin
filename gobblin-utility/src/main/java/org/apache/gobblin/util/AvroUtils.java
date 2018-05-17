@@ -57,6 +57,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.codehaus.jackson.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,6 +127,9 @@ public class AvroUtils {
     }
     switch (schema.getType()) {
       case UNION:
+        if (AvroSerdeUtils.isNullableType(schema)) {
+          return AvroUtils.getFieldSchemaHelper(AvroSerdeUtils.getOtherTypeFromNullableType(schema), pathList, field);
+        }
         throw new AvroRuntimeException("Union of complex types cannot be handled : " + schema);
       case MAP:
         if ((field + 1) == pathList.size()) {
