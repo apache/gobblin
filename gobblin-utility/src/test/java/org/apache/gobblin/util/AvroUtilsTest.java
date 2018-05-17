@@ -17,8 +17,8 @@
 
 package org.apache.gobblin.util;
 
+import java.io.File;
 import java.io.IOException;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +35,8 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.mapred.FsInput;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -278,5 +280,25 @@ public class AvroUtilsTest {
     GenericRecord record = getRecordFromFile(avroFilePath).get(0);
 
     AvroUtils.getFieldSchema(record.getSchema(), TEST_LOCATION);
+  }
+
+  @Test
+  public void testGetAvroFileSampleInDirectoryHelper() throws Exception {
+    // This resource path, on purpose, has set b.avro to be the newest avro file.
+    Path avroDir = new Path(this.getClass().getClassLoader().getResource("nestedAvroDir").toURI());
+    Path aPath = new Path(avroDir, "a.avro");
+    File aFile = new File(aPath.toUri());
+    aFile.setLastModified(new Long(123123));
+    Path bPath = new Path(avroDir, "/secLayer/b.avro");
+    File bFile = new File(bPath.toUri());
+    bFile.setLastModified(new Long(123125));
+    Path cPath = new Path(avroDir, "/secLayer/thirdLayer/c.avro");
+    File cFile = new File(bPath.toUri());
+    cFile.setLastModified(new Long(123124));
+
+    FileStatus fileStatus = AvroUtils.getAvroFileSampleInDirectory(avroDir, FileSystem.get(new Configuration()), true);
+    Assert.assertTrue(fileStatus.getPath().getName().equals("b.avro"));
+    FileStatus fileStatus2 = AvroUtils.getAvroFileSampleInDirectory(avroDir, FileSystem.get(new Configuration()), false);
+    Assert.assertTrue(fileStatus2.getPath().getName().equals("a.avro"));
   }
 }
