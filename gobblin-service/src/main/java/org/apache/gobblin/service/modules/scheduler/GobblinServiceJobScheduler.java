@@ -21,6 +21,8 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.helix.HelixManager;
@@ -108,8 +110,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     // Since we are going to change status to isActive=true, schedule all flows
     if (isActive) {
-      // Need to set active first; otherwise in the STANDBY->ACTIVE transition,
-      // the onAddSpec will forward specs to the leader, which is itself.
+      // Need to set active=true first; otherwise in the onAddSpec(), node will forward specs to active node, which is itself.
       this.isActive = isActive;
       if (this.flowCatalog.isPresent()) {
         Collection<Spec> specs = this.flowCatalog.get().getSpecsWithTimeUpdate();
@@ -129,8 +130,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       for (Spec spec : this.scheduledFlowSpecs.values()) {
         onDeleteSpec(spec.getUri(), spec.getVersion());
       }
-      // Need to set active at the end; otherwise in the ACTIVE->STANDBY transition,
-      // the onDeleteSpec will forward specs to the leader, which is itself.
+      // Need to set active=false at the end; otherwise in the onDeleteSpec(), node will forward specs to active node, which is itself.
       this.isActive = isActive;
     }
   }
@@ -193,14 +193,15 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     if (addedSpec instanceof FlowSpec) {
       try {
+        FlowSpec flowSpec  = (FlowSpec) addedSpec;
         Properties jobConfig = new Properties();
         Properties flowSpecProperties = ((FlowSpec) addedSpec).getConfigAsProperties();
         jobConfig.putAll(this.properties);
         jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, addedSpec.getUri().toString());
         jobConfig.setProperty(ConfigurationKeys.JOB_GROUP_KEY,
-            ((FlowSpec) addedSpec).getConfig().getValue(ConfigurationKeys.FLOW_GROUP_KEY).toString());
+            flowSpec.getConfig().getValue(ConfigurationKeys.FLOW_GROUP_KEY).toString());
         jobConfig.setProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
-            ConfigUtils.getString(((FlowSpec) addedSpec).getConfig(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"));
+            ConfigUtils.getString((flowSpec).getConfig(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"));
         if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) && StringUtils
             .isNotBlank(flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY))) {
           jobConfig.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY,
@@ -214,11 +215,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           scheduleJob(jobConfig, null);
           if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
             _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
-            this.jobExecutor.execute(new NonScheduledJobRunner(jobConfig, null));
+            this.jobExecutor.execute(new NonScheduledJobRunner(flowSpec.getUri(), false, jobConfig, null));
           }
         } else {
           _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
-          this.jobExecutor.execute(new NonScheduledJobRunner(jobConfig, null));
+          this.jobExecutor.execute(new NonScheduledJobRunner(flowSpec.getUri(), true, jobConfig, null));
         }
       } catch (JobException je) {
         _log.error("{} Failed to schedule or run FlowSpec {}", serviceName,  addedSpec, je);
@@ -321,19 +322,25 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * This class is responsible for running non-scheduled jobs.
    */
   class NonScheduledJobRunner implements Runnable {
-
+    private final URI specUri;
     private final Properties jobConfig;
     private final JobListener jobListener;
+    private final boolean removeSpec;
 
-    public NonScheduledJobRunner(Properties jobConfig, JobListener jobListener) {
+    public NonScheduledJobRunner(URI uri, boolean removeSpec, Properties jobConfig, JobListener jobListener) {
+      this.specUri = uri;
       this.jobConfig = jobConfig;
       this.jobListener = jobListener;
+      this.removeSpec = removeSpec;
     }
 
     @Override
     public void run() {
       try {
         GobblinServiceJobScheduler.this.runJob(this.jobConfig, this.jobListener);
+        if (flowCatalog.isPresent() && removeSpec) {
+          GobblinServiceJobScheduler.this.flowCatalog.get().remove(specUri, new Properties(), false);
+        }
       } catch (JobException je) {
         _log.error("Failed to run job " + this.jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
       }

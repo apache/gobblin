@@ -45,9 +45,9 @@ import org.apache.gobblin.service.modules.utils.HelixUtils;
 
 
 /**
- * A high available flow config resource handler which consider the leadership change.
- * When a non-master status detected, it will forward the rest-li request
- * to the master node. Otherwise it will handle it locally.
+ * An HA (high available) aware {@link FlowConfigsResourceHandler} which consider if current node is Active or Standby.
+ * When a Standby mode detected, it will forward the rest-li request ({@link FlowConfig})
+ * to the Active. Otherwise it will handle it locally.
  */
 @Slf4j
 public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResourceHandler {
@@ -76,11 +76,16 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
   }
 
   /**
-   * Method to handle create Restli request.
-   * In load balance mode, we will handle flowCatalog I/O locally before forwarding the message to Helix (Active) node.
-   * Please refer to {@link FlowConfigResourceLocalHandler#createFlowConfig(FlowConfig)}. It only handle flowCatalog I/O.
+   * Adding {@link FlowConfig} should check if current node is active (master).
+   * If current node is active, call {@link FlowConfigResourceLocalHandler#createFlowConfig(FlowConfig)} directly.
+   * If current node is standby, forward {@link ServiceConfigKeys#HELIX_FLOWSPEC_ADD} to active. The remote active will
+   * then call {@link FlowConfigResourceLocalHandler#createFlowConfig(FlowConfig)}.
    *
-   * The listeners of {@link org.apache.gobblin.runtime.spec_catalog.FlowCatalog} won't be triggered in balance mode.
+   * Please refer to {@link org.apache.gobblin.service.modules.core.ControllerUserDefinedMessageHandlerFactory} for remote handling.
+   *
+   * For better I/O load balance, user can enable {@link GobblinServiceFlowConfigResourceHandler#flowCatalogLocalCommit}.
+   * The {@link FlowConfig} will be then persisted to {@link org.apache.gobblin.runtime.spec_catalog.FlowCatalog} first before it is
+   * forwarded to active node (if current node is standby) for execution.
    */
   @Override
   public CreateResponse createFlowConfig(FlowConfig flowConfig)
@@ -111,11 +116,16 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
   }
 
   /**
-   * Method to handle update Restli request.
-   * In load balance mode, we will handle flowCatalog I/O locally before forwarding the message to Helix (Active) node.
-   * Please refer to {@link FlowConfigResourceLocalHandler#createFlowConfig(FlowConfig)}. It only handle flowCatalog I/O.
+   * Updating {@link FlowConfig} should check if current node is active (master).
+   * If current node is active, call {@link FlowConfigResourceLocalHandler#updateFlowConfig(FlowId, FlowConfig)} directly.
+   * If current node is standby, forward {@link ServiceConfigKeys#HELIX_FLOWSPEC_UPDATE} to active. The remote active will
+   * then call {@link FlowConfigResourceLocalHandler#updateFlowConfig(FlowId, FlowConfig)}.
    *
-   * The listeners of {@link org.apache.gobblin.runtime.spec_catalog.FlowCatalog} won't be triggered in balance mode.
+   * Please refer to {@link org.apache.gobblin.service.modules.core.ControllerUserDefinedMessageHandlerFactory} for remote handling.
+   *
+   * For better I/O load balance, user can enable {@link GobblinServiceFlowConfigResourceHandler#flowCatalogLocalCommit}.
+   * The {@link FlowConfig} will be then persisted to {@link org.apache.gobblin.runtime.spec_catalog.FlowCatalog} first before it is
+   * forwarded to active node (if current node is standby) for execution.
    */
   @Override
   public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig)
@@ -154,11 +164,16 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
   }
 
   /**
-   * Method to handle delete Restli request.
-   * In load balance mode, we will handle flowCatalog I/O locally before forwarding the message to Helix (Active) node.
-   * Please refer to {@link FlowConfigResourceLocalHandler#createFlowConfig(FlowConfig)}. It only handle flowCatalog I/O.
+   * Deleting {@link FlowConfig} should check if current node is active (master).
+   * If current node is active, call {@link FlowConfigResourceLocalHandler#deleteFlowConfig(FlowId, Properties)} directly.
+   * If current node is standby, forward {@link ServiceConfigKeys#HELIX_FLOWSPEC_REMOVE} to active. The remote active will
+   * then call {@link FlowConfigResourceLocalHandler#deleteFlowConfig(FlowId, Properties)}.
    *
-   * The listeners of {@link org.apache.gobblin.runtime.spec_catalog.FlowCatalog} won't be triggered in balance mode.
+   * Please refer to {@link org.apache.gobblin.service.modules.core.ControllerUserDefinedMessageHandlerFactory} for remote handling.
+   *
+   * For better I/O load balance, user can enable {@link GobblinServiceFlowConfigResourceHandler#flowCatalogLocalCommit}.
+   * The {@link FlowConfig} will be then persisted to {@link org.apache.gobblin.runtime.spec_catalog.FlowCatalog} first before it is
+   * forwarded to active node (if current node is standby) for execution.
    */
   @Override
   public UpdateResponse deleteFlowConfig(FlowId flowId, Properties header)
