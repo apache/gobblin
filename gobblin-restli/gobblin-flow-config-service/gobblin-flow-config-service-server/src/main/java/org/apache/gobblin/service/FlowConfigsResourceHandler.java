@@ -25,22 +25,22 @@ import com.linkedin.restli.server.UpdateResponse;
 
 public interface FlowConfigsResourceHandler {
   /**
-   * Get flow config
+   * Get {@link FlowConfig}
    */
   FlowConfig getFlowConfig(FlowId flowId) throws FlowConfigLoggedException;
 
   /**
-   * Add flow config can be done locally only iff current node is a master
+   * Add {@link FlowConfig}
    */
   CreateResponse createFlowConfig(FlowConfig flowConfig) throws FlowConfigLoggedException;
 
   /**
-   * Update flow config can be done locally only iff current node is a master
+   * Update {@link FlowConfig}
    */
   UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig) throws FlowConfigLoggedException;
 
   /**
-   * Delete flow config can be done locally only iff current node is a master
+   * Delete {@link FlowConfig}
    */
   UpdateResponse deleteFlowConfig(FlowId flowId, Properties header) throws FlowConfigLoggedException;
 
