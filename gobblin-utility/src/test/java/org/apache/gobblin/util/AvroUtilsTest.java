@@ -279,4 +279,24 @@ public class AvroUtilsTest {
 
     AvroUtils.getFieldSchema(record.getSchema(), TEST_LOCATION);
   }
+
+  @Test
+  public void testUnionWithNull() {
+    Schema nestedRecord = SchemaBuilder.record("nested").fields().requiredDouble("double")
+        .requiredString("string").endRecord();
+    Schema union = SchemaBuilder.unionOf().nullType().and().type(nestedRecord).endUnion();
+    Schema schema = SchemaBuilder.record("record").fields().name("union").type(union).noDefault().endRecord();
+
+    Schema doubleSchema = AvroUtils.getFieldSchema(schema, "union.double").get();
+    Assert.assertEquals(doubleSchema.getType(), Schema.Type.DOUBLE);
+
+    GenericRecord nested = new GenericData.Record(nestedRecord);
+    nested.put("double", 10);
+    nested.put("string", "testString");
+    GenericRecord record = new GenericData.Record(schema);
+    record.put("union", nested);
+
+    String stringValue = AvroUtils.getFieldValue(record, "union.string").get().toString();
+    Assert.assertEquals(stringValue, "testString");
+  }
 }
