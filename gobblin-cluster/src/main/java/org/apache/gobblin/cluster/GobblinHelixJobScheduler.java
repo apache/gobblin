@@ -88,6 +88,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private final MutableJobCatalog jobCatalog;
   private final MetricContext metricContext;
   private final Metrics metrics;
+  private boolean startServicesCompleted;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
       Path appWorkDir, List<? extends Tag<?>> metadataTags, SchedulerService schedulerService,
@@ -102,6 +103,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.jobCatalog = jobCatalog;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
     this.metrics = new Metrics(this.metricContext);
+    this.startServicesCompleted = false;
   }
 
   @Nonnull
@@ -253,11 +255,16 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   protected void startUp() throws Exception {
     this.eventBus.register(this);
     super.startUp();
+    this.startServicesCompleted = true;
   }
 
   @Override
   public void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
+      while (!startServicesCompleted) {
+        LOGGER.info("{} service is not fully up, waiting here...", this.getClass().getName());
+        Thread.sleep(1000);
+      }
       scheduleJob(jobProps, jobListener, Maps.newHashMap(), GobblinHelixJob.class);
     } catch (Exception e) {
       throw new JobException("Failed to schedule job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
