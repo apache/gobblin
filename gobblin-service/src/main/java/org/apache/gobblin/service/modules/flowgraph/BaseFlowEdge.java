@@ -17,28 +17,38 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
+
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.hadoop.security.UserGroupInformation;
-
-import org.apache.gobblin.service.modules.template.FlowTemplate;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
+import org.apache.gobblin.service.modules.template.FlowTemplate;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
-
+import joptsimple.internal.Strings;
 import lombok.Getter;
+
 
 /**
  * An implementation of {@link FlowEdge}.
  */
 @Alpha
 public class BaseFlowEdge implements FlowEdge {
+  public static final String FLOW_EDGE_LABEL_JOINER_CHAR = ":";
+
   @Getter
   protected List<String> endPoints;
 
@@ -52,6 +62,9 @@ public class BaseFlowEdge implements FlowEdge {
   private Config props;
 
   @Getter
+  private String label;
+
+  @Getter
   private boolean active;
 
   //Constructor
@@ -61,6 +74,7 @@ public class BaseFlowEdge implements FlowEdge {
     this.executors = executors;
     this.active = active;
     this.props = properties;
+    this.label = getLabel(endPoints, flowTemplate.getUri().getPath());
   }
 
   @Override
@@ -68,8 +82,12 @@ public class BaseFlowEdge implements FlowEdge {
     return true;
   }
 
+  @VisibleForTesting
+  protected static String getLabel(List<String> endPoints, String flowTemplateUri) {
+    return Joiner.on(FLOW_EDGE_LABEL_JOINER_CHAR).join(endPoints.get(0), endPoints.get(1), new Path(flowTemplateUri).getName());
+  }
   /**
-   *   The FlowEdges are the same if they have the same endpoints and both refer to the same {@FlowTemplate} i.e.
+   *   The {@link FlowEdge}s are the same if they have the same endpoints and both refer to the same {@FlowTemplate} i.e.
    *   the {@link FlowTemplate} uris are the same
    */
   @Override
@@ -86,6 +104,7 @@ public class BaseFlowEdge implements FlowEdge {
     if(!(this.getEndPoints().get(0).equals(that.getEndPoints().get(0))) && ((this.getEndPoints().get(1)).equals(that.getEndPoints().get(1)))) {
       return false;
     }
+
     if(!this.getFlowTemplate().getUri().equals(that.getFlowTemplate().getUri())) {
       return false;
     }
@@ -94,48 +113,72 @@ public class BaseFlowEdge implements FlowEdge {
 
   @Override
   public int hashCode() {
-    return (Joiner.on(":").join(this.getEndPoints().get(0), this.getEndPoints().get(1), this.getFlowTemplate().getUri())).hashCode();
+    return this.label.hashCode();
   }
 
   @Override
   public String toString() {
-    return Joiner.on(":").join(this.getEndPoints().get(0), this.getEndPoints().get(1), this.getFlowTemplate().getUri().getPath());
+    return this.label;
   }
 
-  public static class Builder {
-    private List<String> endPoints;
-    private FlowTemplate template;
-    private List<SpecExecutor> executors;
-    private boolean active;
-    private Config properties;
+  /**
+   * A {@link FlowEdgeFactory} for creating {@link BaseFlowEdge}.
+   */
+  public static class Factory implements FlowEdgeFactory {
 
-    public Builder withEndPoints(String sourceNode, String destNode) {
-        this.endPoints = Lists.newArrayList(sourceNode,destNode);
-        return this;
+    /**
+     * A method to return an instance of {@link BaseFlowEdge}. The method performs all the validation checks
+     * and returns
+     * @param properties Properties of edge
+     * @param flowCatalog Flow Catalog used to retrieve {@link FlowTemplate}s.
+     * @return a {@link BaseFlowEdge}
+     */
+    @Override
+    public FlowEdge createFlowEdge(Properties properties, FSFlowCatalog flowCatalog) throws FlowEdgeCreationException {
+      try {
+        Config config = ConfigUtils.propertiesToConfig(properties);
+        List<String> endPoints = ConfigUtils.getStringList(config, FlowGraphConfigurationKeys.FLOW_EDGE_END_POINTS_KEY);
+        List<Config> specExecutorConfigList = new ArrayList<>();
+        boolean flag;
+        for(int i = 0; (flag = config.hasPath(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY + "." + i)) != false; i++) {
+          specExecutorConfigList.add(config.getConfig(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY + "." + i));
+        }
+
+        String flowTemplateUri = ConfigUtils.getString(config, FlowGraphConfigurationKeys.FLOW_EDGE_TEMPLATE_URI_KEY, "");
+
+        //Perform basic validation
+        Preconditions.checkArgument(endPoints.size() == 2, "A FlowEdge must have 2 end points");
+        Preconditions
+            .checkArgument(specExecutorConfigList.size() > 0, "A FlowEdge must have at least one SpecExecutor");
+        Preconditions
+            .checkArgument(!Strings.isNullOrEmpty(flowTemplateUri), "FlowTemplate URI must be not null or empty");
+        boolean isActive = ConfigUtils.getBoolean(config, FlowGraphConfigurationKeys.FLOW_EDGE_IS_ACTIVE_KEY, true);
+
+        //Build SpecExecutor from config
+        List<SpecExecutor> specExecutors = new ArrayList<>();
+
+        for (Config specExecutorConfig : specExecutorConfigList) {
+          Class executorClass = Class.forName(specExecutorConfig.getString(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTOR_CLASS_KEY));
+          SpecExecutor executor = (SpecExecutor) GobblinConstructorUtils.invokeLongestConstructor(executorClass, specExecutorConfig);
+          specExecutors.add(executor);
+        }
+        FlowTemplate flowTemplate = flowCatalog.getFlowTemplate(new URI(flowTemplateUri));
+        return new BaseFlowEdge(endPoints, flowTemplate, specExecutors, config, isActive);
+      } catch (Exception e) {
+        throw new FlowEdgeCreationException(e);
+      }
     }
 
-    public Builder withFlowTemplate(FlowTemplate template) {
-      this.template = template;
-      return this;
-    }
-
-    public Builder withExecutors(List<SpecExecutor> executors) {
-      this.executors = executors;
-      return this;
-    }
-
-    public Builder withProperties(Properties properties) {
-      this.properties = ConfigUtils.propertiesToConfig(properties);
-      return this;
-    }
-
-    public Builder setActive(boolean active) {
-      this.active = active;
-      return this;
-    }
-
-    public BaseFlowEdge build() {
-      return new BaseFlowEdge(endPoints, template, executors, properties, active);
+    @Override
+    public String getEdgeLabel(Properties properties) throws IOException {
+      Config edgeProps = ConfigUtils.propertiesToConfig(properties);
+      List<String> endPoints = ConfigUtils.getStringList(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_END_POINTS_KEY);
+      if(endPoints.size() != 2) {
+        throw new IOException("A FlowEdge must have exactly 2 end points");
+      }
+      String flowTemplateUri =
+          ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_TEMPLATE_URI_KEY, "");
+      return getLabel(endPoints, flowTemplateUri);
     }
   }
 }

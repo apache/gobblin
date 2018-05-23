@@ -21,11 +21,11 @@ import java.util.List;
 
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.annotation.Alpha;
 import org.apache.hadoop.security.UserGroupInformation;
 
-import org.apache.gobblin.service.modules.template.FlowTemplate;
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.service.modules.template.FlowTemplate;
 
 
 /**
@@ -62,6 +62,12 @@ public interface FlowEdge {
    * @return the properties of this edge as a {@link Config} object.
    */
   Config getProps();
+
+  /**
+   * Get a string label identifying the edge.
+   * @return the label of the {@link FlowEdge}.
+   */
+  String getLabel();
 
   /**
    *

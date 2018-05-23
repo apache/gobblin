@@ -17,16 +17,16 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.util.HashSet;
 import java.util.Properties;
-import java.util.Set;
 
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.util.ConfigUtils;
 
+import joptsimple.internal.Strings;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -41,43 +41,23 @@ public class BaseDataNode implements DataNode {
   @Getter
   private String id;
   @Getter
-  private Set<FlowEdge> flowEdges;
-  @Getter
   private Config props;
   @Getter
   @Setter
   private boolean active;
 
   public BaseDataNode(String id) {
-    this(id, new Properties());
+    this(id, ConfigFactory.empty());
   }
 
-  public BaseDataNode(String id, Properties props) {
+  public BaseDataNode(String id, Config props) {
     this(id, props, true);
   }
 
-  public BaseDataNode(String id, Properties props, boolean active) {
-    Preconditions.checkNotNull(id);
+  public BaseDataNode(String id, Config props, boolean isActive) {
     this.id = id;
-    this.props = ConfigUtils.propertiesToConfig(props);
-    this.active = active;
-  }
-
-  public void addFlowEdge(FlowEdge edge) {
-    if(this.flowEdges == null) {
-      this.flowEdges = new HashSet<>();
-    }
-    this.flowEdges.add(edge);
-    log.info("Added edge {} to the FlowGraph", edge.toString());
-  }
-
-  public void deleteFlowEdge(FlowEdge edge) {
-    if(this.flowEdges.contains(edge)) {
-      this.flowEdges.remove(edge);
-      log.info("Deleted edge {} from FlowGraph", edge.toString());
-    } else {
-      log.warn("Edge {} not present in FlowGraph", edge.toString());
-    }
+    this.active = isActive;
+    this.props = props;
   }
 
   /**
@@ -101,5 +81,27 @@ public class BaseDataNode implements DataNode {
   @Override
   public int hashCode() {
     return this.id.hashCode();
+  }
+
+  /**
+   * A {@link DataNodeFactory} for creating {@link BaseDataNode} instances.
+   */
+  public static class Factory implements DataNodeFactory {
+
+    @Override
+    public DataNode createDataNode(Properties properties) throws DataNodeCreationException {
+      try {
+        Config config = ConfigUtils.propertiesToConfig(properties);
+        String nodeId = ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, "");
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(nodeId), "Node Id cannot be null or empty");
+        boolean isActive = true;
+        if (config.hasPath(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY)) {
+          isActive = config.getBoolean(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY);
+        }
+        return new BaseDataNode(nodeId, config, isActive);
+      } catch(Exception e) {
+        throw new DataNodeCreationException(e);
+      }
+    }
   }
 }

@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.dataset;
 
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigResolveOptions;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -89,6 +88,9 @@ public class BaseHdfsDatasetDescriptor implements HdfsDatasetDescriptor {
       return true;
     }
     if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if(this.getPlatform() == null || o.getPlatform() == null || this.getType() == null || o.getType() == null) {
       return false;
     }
     if(!this.getPlatform().equalsIgnoreCase(o.getPlatform()) || !this.getType().equalsIgnoreCase(o.getType())) {

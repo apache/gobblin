@@ -23,9 +23,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.gobblin.annotation.Alpha;
-
 import com.google.common.collect.Lists;
+
+import org.apache.gobblin.annotation.Alpha;
 
 import lombok.Getter;
 

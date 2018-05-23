@@ -24,17 +24,79 @@ import org.apache.gobblin.annotation.Alpha;
 
 /**
  * An interface for {@link FlowGraph}. A {@link FlowGraph} consists of {@link DataNode}s and {@link FlowEdge}s.
- * The interface provides methods for adding {@link DataNode}s and {@link FlowEdge}s to the {@link FlowGraph}.
+ * The interface provides methods for adding and removing {@link DataNode}s and {@link FlowEdge}s to the {@link FlowGraph}.
+ * In addition the interface provides methods to return factory classes for creation of {@link DataNode}s and {@link FlowEdge}s.
  */
+
 @Alpha
 public interface FlowGraph {
   public Collection<DataNode> getNodes();
 
-  public void addDataNode(DataNode node);
+  /**
+   * Add a {@link DataNode} to the {@link FlowGraph}
+   * @param node {@link DataNode} to be added
+   * @return true if {@link DataNode} is added to the {@link FlowGraph} successfully.
+   */
+  public boolean addDataNode(DataNode node);
 
-  public void addFlowEdge(FlowEdge edge);
+  /**
+   * Add a {@link FlowEdge} to the {@link FlowGraph}
+   * @param edge {@link FlowEdge} to be added
+   * @return true if {@link FlowEdge} is added to the {@link FlowGraph} successfully.
+   */
+  public boolean addFlowEdge(FlowEdge edge);
 
-  public void deleteDataNode(DataNode node);
+  /**
+   * Remove a {@link DataNode} and all its incident edges from the {@link FlowGraph}
+   * @param node {@link DataNode} to be removed
+   * @return true if {@link DataNode} is removed from the {@link FlowGraph} successfully.
+   */
+  public boolean deleteDataNode(DataNode node);
 
-  public void deleteFlowEdge(FlowEdge edge);
+  /**
+   * Remove a {@link DataNode} and all its incident edges from the {@link FlowGraph}
+   * @param nodeId identifier of the {@link DataNode} to be removed
+   * @return true if {@link DataNode} is removed from the {@link FlowGraph} successfully.
+   */
+  public boolean deleteDataNode(String nodeId);
+
+  /**
+   * Remove a {@link FlowEdge} from the {@link FlowGraph}
+   * @param edge to be removed
+   * @return true if edge is removed from the {@link FlowGraph} successfully.
+   */
+  public boolean deleteFlowEdge(FlowEdge edge);
+
+  /**
+   * Remove a {@link FlowEdge} from the {@link FlowGraph}
+   * @param edgeId label of the edge to be removed
+   * @return true if edge is removed from the {@link FlowGraph} successfully.
+   */
+  public boolean deleteFlowEdge(String edgeId);
+
+  /**
+   * Get the factory class for creating {@link DataNode}s to be added to the {@link FlowGraph}.
+   * @return a {@link DataNodeFactory} implementation.
+   */
+  public DataNodeFactory getDataNodeFactory();
+
+  /**
+   * Get the factory class for creating {@link FlowEdge}s to be added to the {@link FlowGraph}.
+   * @return a {@link FlowEdgeFactory} implementation.
+   */
+  public FlowEdgeFactory getFlowEdgeFactory();
+
+  /**
+   * Get a collection of edges adjacent to a {@link DataNode}.
+   * @param nodeId identifier of the {@link DataNode}
+   * @return a collection of edges adjacent to the {@link DataNode}
+   */
+  public Collection<FlowEdge> getEdges(String nodeId);
+
+  /**
+   * Get a collection of edges adjacent to a {@link DataNode}.
+   * @param node {@link DataNode}
+   * @return a collection of edges adjacent to the {@link DataNode}
+   */
+  public Collection<FlowEdge> getEdges(DataNode node);
 }

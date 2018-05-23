@@ -17,29 +17,26 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import com.typesafe.config.Config;
-
-import org.apache.gobblin.annotation.Alpha;
+import java.util.Properties;
 
 
 /**
- * Representation of a node in the FlowGraph. Each node has a unique identifier and a list of outgoing
- * {@link FlowEdge}s adjacent to it.
+ * A Factory used for creating {@link DataNode}s.
  */
-@Alpha
-public interface DataNode {
-  /**
-   * @return the identifier of a {@link DataNode}.
-   */
-  String getId();
+public interface DataNodeFactory {
 
   /**
-   * @return the attributes of a {@link DataNode}.
+   * Creates a new {@link DataNode} from the node properties
+   * @param nodeProps specifying the node properties.
+   * @return a new {@link DataNode} with properties specified in the nodeProps
    */
-  Config getProps();
+  public DataNode createDataNode(Properties nodeProps) throws DataNodeCreationException;
 
-  /**
-   * @return true if the {@link DataNode} is active
-   */
-  boolean isActive();
+  class DataNodeCreationException extends Exception {
+    private static final String MESSAGE_FORMAT = "Failed to create DataNode because of: %s";
+
+    public DataNodeCreationException(Exception e) {
+      super(String.format(MESSAGE_FORMAT, e.getMessage()), e);
+    }
+  }
 }
