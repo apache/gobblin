@@ -30,7 +30,6 @@ import org.apache.gobblin.annotation.Alpha;
 
 @Alpha
 public interface FlowGraph {
-  public Collection<DataNode> getNodes();
 
   /**
    * Add a {@link DataNode} to the {@link FlowGraph}
@@ -87,7 +86,8 @@ public interface FlowGraph {
   public FlowEdgeFactory getFlowEdgeFactory();
 
   /**
-   * Get a collection of edges adjacent to a {@link DataNode}.
+   * Get a collection of edges adjacent to a {@link DataNode}. Useful for path finding algorithms and graph
+   * traversal algorithms such as Djikstra's shortest-path algorithm, BFS
    * @param nodeId identifier of the {@link DataNode}
    * @return a collection of edges adjacent to the {@link DataNode}
    */

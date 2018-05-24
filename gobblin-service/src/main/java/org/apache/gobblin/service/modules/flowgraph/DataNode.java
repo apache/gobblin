@@ -34,7 +34,8 @@ public interface DataNode {
   String getId();
 
   /**
-   * @return the attributes of a {@link DataNode}.
+   * @return the attributes of a {@link DataNode}. It also includes properties for resolving a {@link org.apache.gobblin.runtime.api.JobTemplate}
+   * e.g. "source.fs.uri" for an HDFS node, "jdbc.publisher.url" for JDBC node.
    */
   Config getProps();
 

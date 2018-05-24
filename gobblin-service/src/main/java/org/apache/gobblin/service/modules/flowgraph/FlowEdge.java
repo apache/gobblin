@@ -58,16 +58,17 @@ public interface FlowEdge {
   List<SpecExecutor> getExecutors();
 
   /**
-   * Get properties of this edge.
+   * Get the properties that defines the {@link FlowEdge}. Encapsulates all the properties from which the {@link FlowEdge}
+   * is instantiated. It also includes properties needed for resolving a {@link org.apache.gobblin.runtime.api.JobTemplate}.
    * @return the properties of this edge as a {@link Config} object.
    */
   Config getProps();
 
   /**
-   * Get a string label identifying the edge.
+   * A string uniquely identifying the edge.
    * @return the label of the {@link FlowEdge}.
    */
-  String getLabel();
+  String getId();
 
   /**
    *

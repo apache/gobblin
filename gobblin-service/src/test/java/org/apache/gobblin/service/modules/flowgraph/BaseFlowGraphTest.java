@@ -150,9 +150,9 @@ public class BaseFlowGraphTest {
     Field field = BaseFlowGraph.class.getDeclaredField("flowEdgeMap");
     field.setAccessible(true);
     Map<String, FlowEdge> flowEdgeMap = (Map<String, FlowEdge>) field.get(graph);
-    Assert.assertEquals(flowEdgeMap.get(edge1.getLabel()), edge1);
-    Assert.assertEquals(flowEdgeMap.get(edge2.getLabel()), edge2);
-    Assert.assertEquals(flowEdgeMap.get(edge3.getLabel()), edge3);
+    Assert.assertEquals(flowEdgeMap.get(edge1.getId()), edge1);
+    Assert.assertEquals(flowEdgeMap.get(edge2.getId()), edge2);
+    Assert.assertEquals(flowEdgeMap.get(edge3.getId()), edge3);
   }
 
   @Test (dependsOnMethods = "testAddFlowEdge")
@@ -186,9 +186,9 @@ public class BaseFlowGraphTest {
     field = BaseFlowGraph.class.getDeclaredField("flowEdgeMap");
     field.setAccessible(true);
     Map<String, FlowEdge> flowEdgeMap = (Map<String, FlowEdge>) field.get(graph);
-    Assert.assertTrue(!flowEdgeMap.containsKey(edge1.getLabel()));
-    Assert.assertEquals(flowEdgeMap.get(edge2.getLabel()), edge2);
-    Assert.assertEquals(flowEdgeMap.get(edge3.getLabel()), edge3);
+    Assert.assertTrue(!flowEdgeMap.containsKey(edge1.getId()));
+    Assert.assertEquals(flowEdgeMap.get(edge2.getId()), edge2);
+    Assert.assertEquals(flowEdgeMap.get(edge3.getId()), edge3);
 
     //Add node1 and edge1 back to the graph
     graph.addDataNode(node1);
@@ -240,7 +240,7 @@ public class BaseFlowGraphTest {
 
   @Test (dependsOnMethods = "testDeleteFlowEdge")
   public void testDeleteFlowEdgeById() throws Exception {
-    String edgeLabel1 = BaseFlowEdge.getLabel(Lists.newArrayList("node1", "node2"), new URI("FS:///uri1").getPath());
+    String edgeLabel1 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node1", "node2"), new URI("FS:///uri1").getPath());
     Assert.assertTrue(graph.deleteFlowEdge(edgeLabel1));
     Assert.assertEquals(graph.getEdges("node1").size(), 0);
     Assert.assertEquals(graph.getEdges("node2").size(), 1);
@@ -250,7 +250,7 @@ public class BaseFlowGraphTest {
     Assert.assertTrue(graph.getEdges("node2").contains(edge2));
     Assert.assertTrue(graph.getEdges("node3").contains(edge3));
 
-    String edgeLabel2 = BaseFlowEdge.getLabel(Lists.newArrayList("node2", "node3"), new URI("FS:///uri2").getPath());
+    String edgeLabel2 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node2", "node3"), new URI("FS:///uri2").getPath());
     Assert.assertTrue(graph.deleteFlowEdge(edgeLabel2));
     Assert.assertEquals(graph.getEdges("node1").size(), 0);
     Assert.assertEquals(graph.getEdges("node2").size(), 0);
@@ -260,7 +260,7 @@ public class BaseFlowGraphTest {
     Assert.assertTrue(!graph.getEdges("node2").contains(edge2));
     Assert.assertTrue(graph.getEdges("node3").contains(edge3));
 
-    String edgeLabel3 = BaseFlowEdge.getLabel(Lists.newArrayList("node3", "node1"), new URI("FS:///uri3").getPath());
+    String edgeLabel3 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node3", "node1"), new URI("FS:///uri3").getPath());
     Assert.assertTrue(graph.deleteFlowEdge(edgeLabel3));
     Assert.assertEquals(graph.getEdges("node1").size(), 0);
     Assert.assertEquals(graph.getEdges("node2").size(), 0);

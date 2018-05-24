@@ -22,23 +22,26 @@ import java.util.Properties;
 
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 
+import com.typesafe.config.Config;
+
 
 public interface FlowEdgeFactory {
   /**
    * Construct a {@link FlowEdge} from the edge properties
    * @param edgeProps properties of the {@link FlowEdge}
-   * @param catalog an instance of {@link FSFlowCatalog}
+   * @param catalog an instance of {@link FSFlowCatalog} that returns {@link org.apache.gobblin.service.modules.template.FlowTemplate}s
+   *               useful for creating a {@link FlowEdge}.
    * @return an instance of {@link FlowEdge}
    * @throws FlowEdgeCreationException
    */
-  public FlowEdge createFlowEdge(Properties edgeProps, FSFlowCatalog catalog) throws FlowEdgeCreationException;
+  public FlowEdge createFlowEdge(Config edgeProps, FSFlowCatalog catalog) throws FlowEdgeCreationException;
 
   /**
    * Get an edge label from the edge properties
    * @param edgeProps properties of the edge
    * @return a string label identifying the edge
    */
-  public String getEdgeLabel(Properties edgeProps) throws IOException;
+  public String getEdgeId(Config edgeProps) throws IOException;
 
   public class FlowEdgeCreationException extends Exception {
     private static final String MESSAGE_FORMAT = "Failed to create FlowEdge because of: %s";

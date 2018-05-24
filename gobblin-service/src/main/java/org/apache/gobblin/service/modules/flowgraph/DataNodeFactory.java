@@ -19,6 +19,8 @@ package org.apache.gobblin.service.modules.flowgraph;
 
 import java.util.Properties;
 
+import com.typesafe.config.Config;
+
 
 /**
  * A Factory used for creating {@link DataNode}s.
@@ -30,7 +32,7 @@ public interface DataNodeFactory {
    * @param nodeProps specifying the node properties.
    * @return a new {@link DataNode} with properties specified in the nodeProps
    */
-  public DataNode createDataNode(Properties nodeProps) throws DataNodeCreationException;
+  public DataNode createDataNode(Config nodeProps) throws DataNodeCreationException;
 
   class DataNodeCreationException extends Exception {
     private static final String MESSAGE_FORMAT = "Failed to create DataNode because of: %s";

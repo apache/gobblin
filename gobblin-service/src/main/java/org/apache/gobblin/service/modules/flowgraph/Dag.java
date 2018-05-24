@@ -89,6 +89,11 @@ public class Dag<T> {
 
   /**
    * Concatenate two dags together. Join the "other" dag to "this" dag and return "this" dag.
+   * The concatenate method ensures that all the jobs of "this" dag (which may have multiple end nodes)
+   * are completed before starting any job of the "other" dag. This is done by adding each endNode of this dag as
+   * a parent of every startNode of the other dag.
+   *
+   * @param other dag to concatenate to this dag
    * @return the concatenated dag
    */
   public Dag<T> concatenate(Dag<T> other) throws IOException {

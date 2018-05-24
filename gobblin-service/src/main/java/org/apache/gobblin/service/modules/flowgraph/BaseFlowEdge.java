@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -62,7 +61,7 @@ public class BaseFlowEdge implements FlowEdge {
   private Config props;
 
   @Getter
-  private String label;
+  private String id;
 
   @Getter
   private boolean active;
@@ -74,7 +73,7 @@ public class BaseFlowEdge implements FlowEdge {
     this.executors = executors;
     this.active = active;
     this.props = properties;
-    this.label = getLabel(endPoints, flowTemplate.getUri().getPath());
+    this.id = generateEdgeId(endPoints, flowTemplate.getUri().getPath());
   }
 
   @Override
@@ -83,7 +82,7 @@ public class BaseFlowEdge implements FlowEdge {
   }
 
   @VisibleForTesting
-  protected static String getLabel(List<String> endPoints, String flowTemplateUri) {
+  protected static String generateEdgeId(List<String> endPoints, String flowTemplateUri) {
     return Joiner.on(FLOW_EDGE_LABEL_JOINER_CHAR).join(endPoints.get(0), endPoints.get(1), new Path(flowTemplateUri).getName());
   }
   /**
@@ -113,12 +112,12 @@ public class BaseFlowEdge implements FlowEdge {
 
   @Override
   public int hashCode() {
-    return this.label.hashCode();
+    return this.id.hashCode();
   }
 
   @Override
   public String toString() {
-    return this.label;
+    return this.id;
   }
 
   /**
@@ -129,14 +128,14 @@ public class BaseFlowEdge implements FlowEdge {
     /**
      * A method to return an instance of {@link BaseFlowEdge}. The method performs all the validation checks
      * and returns
-     * @param properties Properties of edge
+     * @param config Properties of edge
      * @param flowCatalog Flow Catalog used to retrieve {@link FlowTemplate}s.
      * @return a {@link BaseFlowEdge}
      */
     @Override
-    public FlowEdge createFlowEdge(Properties properties, FSFlowCatalog flowCatalog) throws FlowEdgeCreationException {
+    public FlowEdge createFlowEdge(Config config, FSFlowCatalog flowCatalog) throws FlowEdgeCreationException {
       try {
-        Config config = ConfigUtils.propertiesToConfig(properties);
+        //Config config = ConfigUtils.propertiesToConfig(properties);
         List<String> endPoints = ConfigUtils.getStringList(config, FlowGraphConfigurationKeys.FLOW_EDGE_END_POINTS_KEY);
         List<Config> specExecutorConfigList = new ArrayList<>();
         boolean flag;
@@ -170,15 +169,15 @@ public class BaseFlowEdge implements FlowEdge {
     }
 
     @Override
-    public String getEdgeLabel(Properties properties) throws IOException {
-      Config edgeProps = ConfigUtils.propertiesToConfig(properties);
+    public String getEdgeId(Config edgeProps) throws IOException {
+      //Config edgeProps = ConfigUtils.propertiesToConfig(properties);
       List<String> endPoints = ConfigUtils.getStringList(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_END_POINTS_KEY);
       if(endPoints.size() != 2) {
         throw new IOException("A FlowEdge must have exactly 2 end points");
       }
       String flowTemplateUri =
           ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_TEMPLATE_URI_KEY, "");
-      return getLabel(endPoints, flowTemplateUri);
+      return generateEdgeId(endPoints, flowTemplateUri);
     }
   }
 }

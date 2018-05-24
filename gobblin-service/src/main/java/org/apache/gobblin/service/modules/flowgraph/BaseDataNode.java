@@ -89,9 +89,9 @@ public class BaseDataNode implements DataNode {
   public static class Factory implements DataNodeFactory {
 
     @Override
-    public DataNode createDataNode(Properties properties) throws DataNodeCreationException {
+    public DataNode createDataNode(Config config) throws DataNodeCreationException {
       try {
-        Config config = ConfigUtils.propertiesToConfig(properties);
+        //Config config = ConfigUtils.propertiesToConfig(properties);
         String nodeId = ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, "");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(nodeId), "Node Id cannot be null or empty");
         boolean isActive = true;
