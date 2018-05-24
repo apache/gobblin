@@ -54,9 +54,9 @@ public class ForkThrowableHolder {
     for (Integer idx: failedForkIds) {
       stringBuffer.append("<Fork " + idx + ">\n");
       if (this.throwables.containsKey(idx)) {
-        stringBuffer.append("Cannot find throwable entry in ForkThrowableHolder\n");
-      } else {
         stringBuffer.append(ExceptionUtils.getFullStackTrace(this.throwables.get(idx)));
+      } else {
+        stringBuffer.append("Cannot find throwable entry in ForkThrowableHolder\n");
       }
     }
     return new ForkException(stringBuffer.toString());
