@@ -17,6 +17,7 @@
 package org.apache.gobblin.runtime.job_catalog;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobCatalog;
 import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
@@ -62,7 +63,7 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
   private static final Logger LOGGER = LoggerFactory.getLogger(FSJobCatalog.class);
   public static final String CONF_EXTENSION = ".conf";
   private static final String FS_SCHEME = "FS";
-
+  protected final MutableStandardMetrics mutableMetrics;
   /**
    * Initialize the JobCatalog, fetch all jobs in jobConfDirPath.
    * @param sysConfig
@@ -71,15 +72,24 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
   public FSJobCatalog(Config sysConfig)
       throws IOException {
     super(sysConfig);
+    this.mutableMetrics = (MutableStandardMetrics)metrics;
   }
 
   public FSJobCatalog(GobblinInstanceEnvironment env) throws IOException {
     super(env);
+    this.mutableMetrics = (MutableStandardMetrics)metrics;
   }
 
   public FSJobCatalog(Config sysConfig, Optional<MetricContext> parentMetricContext,
       boolean instrumentationEnabled) throws IOException{
     super(sysConfig, null, parentMetricContext, instrumentationEnabled);
+    this.mutableMetrics = (MutableStandardMetrics)metrics;
+  }
+
+  @Override
+  protected JobCatalog.StandardMetrics createStandardMetrics(Optional<Config> sysConfig) {
+    log.info("create standard metrics {} for {}", MutableStandardMetrics.class.getName(), this.getClass().getName());
+    return new MutableStandardMetrics(this, sysConfig);
   }
 
   /**
@@ -94,6 +104,7 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
   protected FSJobCatalog(Config sysConfig, PathAlterationObserver observer)
       throws IOException {
     super(sysConfig, observer);
+    this.mutableMetrics = (MutableStandardMetrics)this.metrics;
   }
 
   /**
@@ -108,8 +119,10 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     Preconditions.checkNotNull(jobSpec);
     try {
+      long startTime = System.currentTimeMillis();
       Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobSpec.getUri());
       materializedJobSpec(jobSpecPath, jobSpec, this.fs);
+      this.mutableMetrics.updatePutJobTime(startTime);
     } catch (IOException e) {
       throw new RuntimeException("When persisting a new JobSpec, unexpected issues happen:" + e.getMessage());
     } catch (JobSpecNotFoundException e) {
@@ -126,10 +139,12 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
   public synchronized void remove(URI jobURI) {
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     try {
+      long startTime = System.currentTimeMillis();
       Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobURI);
 
       if (fs.exists(jobSpecPath)) {
         fs.delete(jobSpecPath, false);
+        this.mutableMetrics.updateRemoveJobTime(startTime);
       } else {
         LOGGER.warn("No file with URI:" + jobSpecPath + " is found. Deletion failed.");
       }

@@ -16,11 +16,58 @@
  */
 package org.apache.gobblin.salesforce;
 
+import java.util.List;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
+import org.apache.gobblin.source.extractor.extract.QueryBasedSource;
+import org.apache.gobblin.source.extractor.partition.Partitioner;
+import org.apache.gobblin.source.workunit.WorkUnit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.gson.Gson;
+import com.typesafe.config.ConfigFactory;
+
 
 public class SalesforceSourceTest {
+  @Test
+  void testSourceLineageInfo() {
+    SourceState sourceState = new SourceState();
+    sourceState.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, "salesforce");
+    sourceState.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, "snapshot_append");
+    sourceState.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
+    sourceState.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, "20140213000000,20170407152123");
+    sourceState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE, "SNAPSHOT");
+
+    QueryBasedSource.SourceEntity sourceEntity = QueryBasedSource.SourceEntity.fromSourceEntityName("contacts");
+
+    SalesforceSource source = new SalesforceSource(new LineageInfo(ConfigFactory.empty()));
+    List<WorkUnit> workUnits = source.generateWorkUnits(sourceEntity, sourceState, 20140213000000L);
+    Assert.assertEquals(workUnits.size(), 1);
+
+    DatasetDescriptor sourceDataset = new DatasetDescriptor("salesforce", "contacts");
+    Gson gson = new Gson();
+    Assert.assertEquals(gson.toJson(sourceDataset), workUnits.get(0).getProp("gobblin.event.lineage.source"));
+    Assert.assertEquals(workUnits.get(0).getProp("gobblin.event.lineage.name"), "contacts");
+  }
+
+  @Test
+  void testGenerateSpecifiedPartitionFromSinglePointHistogram() {
+    SalesforceSource.Histogram histogram = new SalesforceSource.Histogram();
+    histogram.add(new SalesforceSource.HistogramGroup("2014-02-13-00:00:00", 10));
+    SalesforceSource source = new SalesforceSource();
+
+    long expectedHighWatermark = 20170407152123L;
+    long lowWatermark = 20140213000000L;
+    int maxPartitions = 2;
+    String expectedPartitions = "20140213000000,20170407152123";
+    String actualPartitions = source.generateSpecifiedPartitions(histogram, 1, maxPartitions, lowWatermark, expectedHighWatermark);
+    Assert.assertEquals(actualPartitions, expectedPartitions);
+  }
+
   @Test
   void testGenerateSpecifiedPartition() {
     SalesforceSource.Histogram histogram = new SalesforceSource.Histogram();

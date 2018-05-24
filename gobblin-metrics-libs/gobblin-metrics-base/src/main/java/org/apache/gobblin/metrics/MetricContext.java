@@ -465,19 +465,21 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    * @return the {@link ContextAwareHistogram} with the given name
    */
   public ContextAwareHistogram contextAwareHistogram(String name) {
-    return contextAwareHistogram(name, ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_HISTOGRAM_FACTORY);
+    return this.innerMetricContext.getOrCreate(name, ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_HISTOGRAM_FACTORY);
   }
 
   /**
-   * Get a {@link ContextAwareHistogram} with a given name.
+   * Get a {@link ContextAwareHistogram} with a given name and a customized {@link com.codahale.metrics.SlidingTimeWindowReservoir}
    *
    * @param name name of the {@link ContextAwareHistogram}
-   * @param factory a {@link ContextAwareMetricFactory} for building {@link ContextAwareHistogram}s
+   * @param windowSize normally the duration of the time window
+   * @param unit the unit of time
    * @return the {@link ContextAwareHistogram} with the given name
    */
-  public ContextAwareHistogram contextAwareHistogram(String name,
-      ContextAwareMetricFactory<ContextAwareHistogram> factory) {
-    return this.innerMetricContext.getOrCreate(name, factory);
+  public ContextAwareHistogram contextAwareHistogram(String name, long windowSize, TimeUnit unit) {
+    ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs args = new ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs(
+        this.innerMetricContext.getMetricContext().get(), name, windowSize, unit);
+    return this.innerMetricContext.getOrCreate(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_HISTOGRAM_FACTORY, args);
   }
 
   /**
@@ -487,18 +489,21 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    * @return the {@link ContextAwareTimer} with the given name
    */
   public ContextAwareTimer contextAwareTimer(String name) {
-    return contextAwareTimer(name, ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_TIMER_FACTORY);
+    return this.innerMetricContext.getOrCreate(name, ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_TIMER_FACTORY);
   }
 
   /**
-   * Get a {@link ContextAwareTimer} with a given name.
+   * Get a {@link ContextAwareTimer} with a given name and a customized {@link com.codahale.metrics.SlidingTimeWindowReservoir}
    *
    * @param name name of the {@link ContextAwareTimer}
-   * @param factory a {@link ContextAwareMetricFactory} for building {@link ContextAwareTimer}s
+   * @param windowSize normally the duration of the time window
+   * @param unit the unit of time
    * @return the {@link ContextAwareTimer} with the given name
    */
-  public ContextAwareTimer contextAwareTimer(String name, ContextAwareMetricFactory<ContextAwareTimer> factory) {
-    return this.innerMetricContext.getOrCreate(name, factory);
+  public ContextAwareTimer contextAwareTimer(String name, long windowSize, TimeUnit unit) {
+    ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs args = new ContextAwareMetricFactoryArgs.SlidingTimeWindowArgs(
+        this.innerMetricContext.getMetricContext().get(), name, windowSize, unit);
+    return this.innerMetricContext.getOrCreate(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_TIMER_FACTORY, args);
   }
 
   /**

@@ -295,7 +295,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException, IOException {
     this.log.info("Extract metadata using JDBC");
     String inputQuery = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
-    if (hasJoinOperation(inputQuery)) {
+    if (workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED,
+        Boolean.valueOf(ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED)) &&
+        hasJoinOperation(inputQuery)) {
       throw new RuntimeException("Query across multiple tables not supported");
     }
 

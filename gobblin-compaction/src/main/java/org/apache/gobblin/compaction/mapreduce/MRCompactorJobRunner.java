@@ -19,7 +19,6 @@ package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +28,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.math3.primes.Primes;
@@ -42,7 +40,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.TaskCompletionEvent;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.joda.time.DateTime;
@@ -325,7 +322,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         this.submitAndWait(job);
         if (shouldPublishData(compactionTimestamp)) {
           // remove all invalid empty files due to speculative task execution
-          List<Path> goodPaths = CompactionAvroJobConfigurator.removeFailedPaths(job, this.dataset.outputTmpPath(), this.tmpFs);
+          List<Path> goodPaths = CompactionAvroJobConfigurator.getGoodFiles(job, this.dataset.outputTmpPath(), this.tmpFs);
 
           if (!this.recompactAllData && this.recompactFromDestPaths) {
             // append new files without deleting output directory

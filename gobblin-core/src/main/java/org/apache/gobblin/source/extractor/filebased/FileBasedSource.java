@@ -152,6 +152,11 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
         // file is not pulled this run
       }
     }
+    // Update the snapshot from the previous run with the new files processed in this run
+    // Otherwise a corrupt file could cause re-processing of already processed files
+    for (WorkUnit workUnit : previousWorkUnitsForRetry) {
+      workUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT, StringUtils.join(effectiveSnapshot, ","));
+    }
 
     if (!filesToPull.isEmpty()) {
       logFilesToPull(filesToPull);
@@ -168,28 +173,27 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
 
       // Distribute the files across the workunits
       for (int fileOffset = 0; fileOffset < filesToPull.size(); fileOffset += filesPerPartition) {
-        SourceState partitionState = new SourceState();
-        partitionState.addAll(state);
+        // Use extract table name to create extract
+        Extract extract = new Extract(tableType, nameSpaceName, extractTableName);
+        WorkUnit workUnit = WorkUnit.create(extract);
 
         // Eventually these setters should be integrated with framework support for generalized watermark handling
-        partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT,
+        workUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT,
             StringUtils.join(effectiveSnapshot, ","));
 
         List<String> partitionFilesToPull = filesToPull.subList(fileOffset,
             fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition);
-        partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL,
+        workUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL,
             StringUtils.join(partitionFilesToPull, ","));
         if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, false)) {
           if (partitionFilesToPull.size() != 1) {
             throw new RuntimeException("Cannot preserve the file name if a workunit is given multiple files");
           }
-          partitionState.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR,
-              partitionState.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
+          workUnit.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR,
+              workUnit.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
         }
 
-        // Use extract table name to create extract
-        Extract extract = partitionState.createExtract(tableType, nameSpaceName, extractTableName);
-        workUnits.add(partitionState.createWorkUnit(extract));
+        workUnits.add(workUnit);
       }
 
       log.info("Total number of work units for the current run: " + (workUnits.size() - previousWorkUnitsForRetry.size()));

@@ -37,6 +37,7 @@ import com.google.common.util.concurrent.Striped;
 
 import org.apache.gobblin.broker.iface.ScopeType;
 import org.apache.gobblin.broker.iface.SharedResourceFactory;
+import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
 import org.apache.gobblin.broker.iface.SharedResourceKey;
 import org.apache.gobblin.broker.iface.NoSuchScopeException;
 
@@ -98,6 +99,26 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
   }
 
   /**
+   * Get a scoped object from the cache.
+   */
+  @SuppressWarnings(value = "unchecked")
+  <T, K extends SharedResourceKey> SharedResourceFactoryResponse<T> getScopedFromCache(
+      final SharedResourceFactory<T, K, S> factory, @Nonnull final K key,
+      @Nonnull final ScopeWrapper<S> scope, final SharedResourcesBrokerImpl<S> broker)
+      throws ExecutionException {
+    RawJobBrokerKey fullKey = new RawJobBrokerKey(scope, factory.getName(), key);
+    Object obj = this.sharedResourceCache.get(fullKey, new Callable<Object>() {
+      @Override
+      public Object call() throws Exception {
+        return factory.createResource(broker.getScopedView(scope.getType()), broker.getConfigView(scope.getType(), key,
+            factory.getName()));
+      }
+    });
+
+    return (SharedResourceFactoryResponse<T>)obj;
+  }
+
+  /**
    * Get an object for the specified factory, key, scope, and broker. {@link DefaultBrokerCache}
    * guarantees that calling this method for the same factory, key, and scope will return the same object.
    */
@@ -105,35 +126,51 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
   <T, K extends SharedResourceKey> T getScoped(final SharedResourceFactory<T, K, S> factory, @Nonnull final K key,
       @Nonnull final ScopeWrapper<S> scope, final SharedResourcesBrokerImpl<S> broker)
       throws ExecutionException {
+    SharedResourceFactory<T, K, S> currentFactory = factory;
+    K currentKey = key;
+    ScopeWrapper<S> currentScope = scope;
 
-    RawJobBrokerKey fullKey = new RawJobBrokerKey(scope, factory.getName(), key);
-    Object obj = this.sharedResourceCache.get(fullKey, new Callable<Object>() {
-      @Override
-      public Object call() throws Exception {
-        return factory.createResource(broker.getScopedView(scope.getType()), broker.getConfigView(scope.getType(), key, factory.getName()));
+    Object obj = getScopedFromCache(currentFactory, currentKey, currentScope, broker);
+
+    // this loop is to continue looking up objects through redirection or reloading until a valid resource is found
+    while (true) {
+      if (obj instanceof ResourceCoordinate) {
+        ResourceCoordinate<T, K, S> resourceCoordinate = (ResourceCoordinate<T, K, S>) obj;
+        if (!SharedResourcesBrokerUtils.isScopeTypeAncestor((ScopeType) currentScope.getType(), ((ResourceCoordinate) obj).getScope())) {
+          throw new RuntimeException(String
+              .format("%s returned an invalid coordinate: scope %s is not an ancestor of %s.", currentFactory.getName(),
+                  ((ResourceCoordinate) obj).getScope(), currentScope.getType()));
+        }
+        try {
+          obj = getScopedFromCache(resourceCoordinate.getFactory(), resourceCoordinate.getKey(),
+              broker.getWrappedScope(resourceCoordinate.getScope()), broker);
+        } catch (NoSuchScopeException nsse) {
+          throw new RuntimeException(String
+              .format("%s returned an invalid coordinate: scope %s is not available.", factory.getName(),
+                  resourceCoordinate.getScope().name()), nsse);
+        }
+      } else if (obj instanceof ResourceEntry) {
+        T resource = ((ResourceEntry<T>) obj).getResourceIfValid();
+
+        // valid resource found
+        if (resource != null) {
+          return resource;
+        }
+
+        // resource is invalid. The lock in this block is to reduce the chance of starvation where a thread keeps
+        // getting objects that are invalidated by another thread.
+        Lock lock = this.invalidationLock.get(key);
+        try {
+          lock.lock();
+          RawJobBrokerKey fullKey = new RawJobBrokerKey(currentScope, currentFactory.getName(), currentKey);
+          safeInvalidate(fullKey);
+          obj = getScopedFromCache(currentFactory, currentKey, currentScope, broker);
+        } finally {
+          lock.unlock();
+        }
+      } else {
+        throw new RuntimeException(String.format("Invalid response from %s: %s.", factory.getName(), obj.getClass()));
       }
-    });
-    if (obj instanceof ResourceCoordinate) {
-      ResourceCoordinate<T, K, S> resourceCoordinate = (ResourceCoordinate<T, K, S>) obj;
-      if (!SharedResourcesBrokerUtils.isScopeTypeAncestor((ScopeType) scope.getType(), ((ResourceCoordinate) obj).getScope())) {
-        throw new RuntimeException(String.format("%s returned an invalid coordinate: scope %s is not an ancestor of %s.",
-            factory.getName(), ((ResourceCoordinate) obj).getScope(), scope.getType()));
-      }
-      try {
-        return getScoped(resourceCoordinate.getFactory(), resourceCoordinate.getKey(),
-            broker.getWrappedScope(resourceCoordinate.getScope()), broker);
-      } catch (NoSuchScopeException nsse) {
-        throw new RuntimeException(String.format("%s returned an invalid coordinate: scope %s is not available.",
-            factory.getName(), resourceCoordinate.getScope().name()), nsse);
-      }
-    } else if (obj instanceof ResourceEntry) {
-      if (!((ResourceEntry) obj).isValid()) {
-        safeInvalidate(fullKey);
-        return getScoped(factory, key, scope, broker);
-      }
-      return ((ResourceEntry<T>) obj).getResource();
-    } else {
-      throw new RuntimeException(String.format("Invalid response from %s: %s.", factory.getName(), obj.getClass()));
     }
   }
 

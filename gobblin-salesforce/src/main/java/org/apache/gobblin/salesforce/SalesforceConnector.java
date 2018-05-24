@@ -25,6 +25,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.message.BasicNameValuePair;
 
 import com.google.common.collect.Lists;
@@ -46,9 +47,15 @@ public class SalesforceConnector extends RestApiConnector {
 
   private static final String DEFAULT_SERVICES_DATA_PATH = "/services/data";
   private static final String DEFAULT_AUTH_TOKEN_PATH = "/services/oauth2/token";
+  protected String refreshToken;
 
   public SalesforceConnector(State state) {
     super(state);
+    if (isPasswordGrant(state)) {
+      this.refreshToken = null;
+    } else {
+      this.refreshToken = state.getProp(ConfigurationKeys.SOURCE_CONN_REFRESH_TOKEN);
+    }
   }
 
   @Getter
@@ -59,18 +66,26 @@ public class SalesforceConnector extends RestApiConnector {
     log.debug("Authenticating salesforce");
     String clientId = this.state.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_ID);
     String clientSecret = this.state.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_SECRET);
-    String userName = this.state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
-    String password = PasswordManager.getInstance(this.state)
-        .readPassword(this.state.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
-    String securityToken = this.state.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
     String host = this.state.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
 
     List<NameValuePair> formParams = Lists.newArrayList();
-    formParams.add(new BasicNameValuePair("grant_type", "password"));
     formParams.add(new BasicNameValuePair("client_id", clientId));
     formParams.add(new BasicNameValuePair("client_secret", clientSecret));
-    formParams.add(new BasicNameValuePair("username", userName));
-    formParams.add(new BasicNameValuePair("password", password + securityToken));
+
+    if (refreshToken == null) {
+      log.info("Authenticating salesforce with username/password");
+      String userName = this.state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
+      String password = PasswordManager.getInstance(this.state)
+          .readPassword(this.state.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+      String securityToken = this.state.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
+      formParams.add(new BasicNameValuePair("grant_type", "password"));
+      formParams.add(new BasicNameValuePair("username", userName));
+      formParams.add(new BasicNameValuePair("password", password + securityToken));
+    } else {
+      log.info("Authenticating salesforce with refresh_token");
+      formParams.add(new BasicNameValuePair("grant_type", "refresh_token"));
+      formParams.add(new BasicNameValuePair("refresh_token", refreshToken));
+    }
     try {
       HttpPost post = new HttpPost(host + DEFAULT_AUTH_TOKEN_PATH);
       post.setEntity(new UrlEncodedFormEntity(formParams));
@@ -80,9 +95,27 @@ public class SalesforceConnector extends RestApiConnector {
 
       return httpEntity;
     } catch (Exception e) {
-      throw new RestApiConnectionException("Failed to authenticate salesforce using user:" + userName + " and host:"
+      throw new RestApiConnectionException("Failed to authenticate salesforce host:"
           + host + "; error-" + e.getMessage(), e);
     }
+  }
+
+  @Override
+  protected void addHeaders(HttpRequestBase httpRequest) {
+    if (refreshToken == null) {
+      super.addHeaders(httpRequest);
+    } else {
+      if (this.accessToken != null) {
+        httpRequest.addHeader("Authorization", "Bearer " + this.accessToken);
+      }
+      httpRequest.addHeader("Content-Type", "application/json");
+    }
+  }
+
+  static boolean isPasswordGrant(State state) {
+    String userName = state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
+    String securityToken = state.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
+    return (userName != null &&  securityToken != null);
   }
 
   private String getServiceBaseUrl() {
@@ -93,5 +126,13 @@ public class SalesforceConnector extends RestApiConnector {
 
   public String getFullUri(String resourcePath) {
     return StringUtils.removeEnd(getServiceBaseUrl(), "/") + StringUtils.removeEnd(resourcePath, "/");
+  }
+
+  String getAccessToken() {
+    return accessToken;
+  }
+
+  String getInstanceUrl() {
+    return instanceUrl;
   }
 }

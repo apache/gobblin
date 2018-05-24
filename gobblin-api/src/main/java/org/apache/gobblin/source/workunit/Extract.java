@@ -137,7 +137,9 @@ public class Extract extends State {
    * Get the writer output file path corresponding to this {@link Extract}.
    *
    * @return writer output file path corresponding to this {@link Extract}
+   * @deprecated As {@code this.getIsFull} is deprecated.
    */
+  @Deprecated
   public String getOutputFilePath() {
     return this.getNamespace().replaceAll("\\.", "/") + "/" + this.getTable() + "/" + this.getExtractId() + "_"
         + (this.getIsFull() ? "full" : "append");

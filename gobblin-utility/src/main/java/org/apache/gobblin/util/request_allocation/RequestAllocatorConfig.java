@@ -20,11 +20,11 @@ package org.apache.gobblin.util.request_allocation;
 import java.io.Serializable;
 import java.util.Comparator;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 
 @AllArgsConstructor
@@ -34,6 +34,11 @@ public class RequestAllocatorConfig<T extends Request<T>> {
   private final ResourceEstimator<T> resourceEstimator;
   private final int allowedThreads;
   private Config limitedScopeConfig;
+  private String storeRejectedRequestsSetting;
+
+  public enum StoreRejectedRequestsConfig {
+    ALL, MIN, NONE
+  }
 
   public static <T extends Request<T>> Builder<T> builder(ResourceEstimator<T> resourceEstimator) {
     return new Builder<>(resourceEstimator);
@@ -44,6 +49,7 @@ public class RequestAllocatorConfig<T extends Request<T>> {
     private final ResourceEstimator<T> resourceEstimator;
     private int allowedThreads = 1;
     private Config limitedScopeConfig;
+    private String storeRejectedRequestsSetting = StoreRejectedRequestsConfig.MIN.name();
 
     public Builder(ResourceEstimator<T> resourceEstimator) {
       this.resourceEstimator = resourceEstimator;
@@ -68,11 +74,17 @@ public class RequestAllocatorConfig<T extends Request<T>> {
       return this;
     }
 
+    public Builder<T> storeRejectedRequests(String storeRejectedRequestsSetting) {
+      this.storeRejectedRequestsSetting = storeRejectedRequestsSetting;
+      return this;
+    }
+
     public RequestAllocatorConfig<T> build() {
       if (this.limitedScopeConfig == null) {
         this.limitedScopeConfig = ConfigFactory.empty();
       }
-      return new RequestAllocatorConfig<>(this.prioritizer, this.resourceEstimator, this.allowedThreads, this.limitedScopeConfig);
+      return new RequestAllocatorConfig<>(this.prioritizer, this.resourceEstimator, this.allowedThreads,
+          this.limitedScopeConfig, this.storeRejectedRequestsSetting);
     }
   }
 
@@ -82,5 +94,4 @@ public class RequestAllocatorConfig<T extends Request<T>> {
       return 0;
     }
   }
-
 }

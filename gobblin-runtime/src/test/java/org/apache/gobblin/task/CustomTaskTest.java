@@ -29,11 +29,22 @@ import org.apache.gobblin.writer.test.TestingEventBuses;
 import java.io.File;
 import java.util.Set;
 import java.util.UUID;
+
+import org.junit.internal.runners.statements.Fail;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
 public class CustomTaskTest {
+
+  @Test(timeOut = 30000)
+  public void testTaskFailsWithException() throws Exception {
+    // Test that the job runner fails with a reasonable amount of time if a custom task throws an exception
+    JobExecutionResult result =
+        new EmbeddedGobblin("alwaysThrowsJob").setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, FailsWithExceptionTaskFactory.Source.class.getName())
+        .run();
+    Assert.assertFalse(result.isSuccessful());
+  }
 
   @Test
   public void testCustomTask() throws Exception {

@@ -17,19 +17,13 @@
 
 package org.apache.gobblin.service.modules.core;
 
-import org.apache.gobblin.service.FlowId;
-import org.apache.gobblin.service.Schedule;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
-import lombok.Getter;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -37,27 +31,22 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.HelixManager;
 import org.apache.helix.NotificationContext;
-import org.apache.helix.messaging.handling.HelixTaskResult;
-import org.apache.helix.messaging.handling.MessageHandler;
-import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
-import com.google.common.eventbus.EventBus;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -69,32 +58,42 @@ import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javax.annotation.Nonnull;
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareHistogram;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.app.ApplicationException;
 import org.apache.gobblin.runtime.app.ApplicationLauncher;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
-import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
+import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
 import org.apache.gobblin.service.FlowConfigsResource;
-import org.apache.gobblin.service.modules.utils.HelixUtils;
+import org.apache.gobblin.service.FlowConfigsResourceHandler;
+import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
-import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 @Alpha
-public class GobblinServiceManager implements ApplicationLauncher {
+public class GobblinServiceManager implements ApplicationLauncher, StandardMetricsBridge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
 
@@ -106,7 +105,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
   protected final FileSystem fs;
   protected final Path serviceWorkDir;
-
+  protected final String serviceName;
   protected final String serviceId;
 
   protected final boolean isTopologyCatalogEnabled;
@@ -121,6 +120,10 @@ public class GobblinServiceManager implements ApplicationLauncher {
   protected FlowCatalog flowCatalog;
   @Getter
   protected GobblinServiceJobScheduler scheduler;
+  @Getter
+  protected GobblinServiceFlowConfigResourceHandler resourceHandler;
+
+  protected boolean flowCatalogLocalCommit;
   protected Orchestrator orchestrator;
   protected EmbeddedRestliServer restliServer;
   protected TopologySpecFactory topologySpecFactory;
@@ -133,6 +136,8 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
   @Getter
   protected Config config;
+  private final MetricContext metricContext;
+  private final Metrics metrics;
 
   public GobblinServiceManager(String serviceName, String serviceId, Config config,
       Optional<Path> serviceWorkDirOptional) throws Exception {
@@ -143,7 +148,9 @@ public class GobblinServiceManager implements ApplicationLauncher {
       properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
     }
     this.config = config;
-
+    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
+    this.metrics = new Metrics(this.metricContext, this.config);
+    this.serviceName = serviceName;
     this.serviceId = serviceId;
     this.serviceLauncher = new ServiceBasedAppLauncher(properties, serviceName);
 
@@ -164,6 +171,8 @@ public class GobblinServiceManager implements ApplicationLauncher {
         ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_ENABLED_KEY, true);
     if (isFlowCatalogEnabled) {
       this.flowCatalog = new FlowCatalog(config, Optional.of(LOGGER));
+      this.flowCatalogLocalCommit = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT,
+          ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT);
       this.serviceLauncher.addService(flowCatalog);
 
       this.isGitConfigMonitorEnabled = ConfigUtils.getBoolean(config,
@@ -195,7 +204,8 @@ public class GobblinServiceManager implements ApplicationLauncher {
     if (isSchedulerEnabled) {
       this.orchestrator = new Orchestrator(config, Optional.of(this.topologyCatalog), Optional.of(LOGGER));
       SchedulerService schedulerService = new SchedulerService(properties);
-      this.scheduler = new GobblinServiceJobScheduler(config, this.helixManager,
+
+      this.scheduler = new GobblinServiceJobScheduler(this.serviceName, config, this.helixManager,
           Optional.of(this.flowCatalog), Optional.of(this.topologyCatalog), this.orchestrator,
           schedulerService, Optional.of(LOGGER));
       this.serviceLauncher.addService(schedulerService);
@@ -203,13 +213,19 @@ public class GobblinServiceManager implements ApplicationLauncher {
     }
 
     // Initialize RestLI
+    this.resourceHandler = new GobblinServiceFlowConfigResourceHandler(serviceName,
+        this.flowCatalogLocalCommit,
+        new FlowConfigResourceLocalHandler(this.flowCatalog),
+        this.helixManager,
+        this.scheduler);
+
     this.isRestLIServerEnabled = ConfigUtils.getBoolean(config,
         ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, true);
     if (isRestLIServerEnabled) {
       Injector injector = Guice.createInjector(new Module() {
         @Override
         public void configure(Binder binder) {
-          binder.bind(FlowCatalog.class).annotatedWith(Names.named("flowCatalog")).toInstance(flowCatalog);
+          binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named("flowConfigsResourceHandler")).toInstance(GobblinServiceManager.this.resourceHandler);
           binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);
         }
       });
@@ -246,6 +262,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
     }
   }
 
+  @VisibleForTesting
   public boolean isLeader() {
     // If helix manager is absent, then this standalone instance hence leader
     // .. else check if this master of cluster
@@ -398,22 +415,12 @@ public class GobblinServiceManager implements ApplicationLauncher {
         this.helixManager.get()
             .getMessagingService()
             .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
-                getUserDefinedMessageHandlerFactory());
+                new ControllerUserDefinedMessageHandlerFactory(flowCatalogLocalCommit, scheduler, resourceHandler, serviceName));
       }
     } catch (Exception e) {
       LOGGER.error("HelixManager failed to connect", e);
       throw Throwables.propagate(e);
     }
-  }
-
-  /**
-   * Creates and returns a {@link MessageHandlerFactory} for handling of Helix
-   * {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}s.
-   *
-   * @returns a {@link MessageHandlerFactory}.
-   */
-  protected MessageHandlerFactory getUserDefinedMessageHandlerFactory() {
-    return new ControllerUserDefinedMessageHandlerFactory(this.flowCatalog, this.scheduler);
   }
 
   @VisibleForTesting
@@ -435,89 +442,30 @@ public class GobblinServiceManager implements ApplicationLauncher {
     this.serviceLauncher.close();
   }
 
-  /**
-   * A custom {@link MessageHandlerFactory} for {@link ControllerUserDefinedMessageHandler}s that
-   * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
-   */
-  private static class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+  @Override
+  public StandardMetrics getStandardMetrics() {
+    return this.metrics;
+  }
 
-    private FlowCatalog flowCatalog;
-    private GobblinServiceJobScheduler jobScheduler;
+  @Nonnull
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
+  }
 
-    public ControllerUserDefinedMessageHandlerFactory(FlowCatalog flowCatalog, GobblinServiceJobScheduler jobScheduler) {
-      this.flowCatalog = flowCatalog;
-      this.jobScheduler = jobScheduler;
-    }
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return false;
+  }
 
-    @Override
-    public MessageHandler createHandler(Message message, NotificationContext context) {
-      return new ControllerUserDefinedMessageHandler(flowCatalog, jobScheduler, message, context);
-    }
+  private class Metrics extends StandardMetrics {
+    public static final String SERVICE_LEADERSHIP_CHANGE = "serviceLeadershipChange";
+    private ContextAwareHistogram serviceLeadershipChange;
 
-    @Override
-    public String getMessageType() {
-      return Message.MessageType.USER_DEFINE_MSG.toString();
-    }
-
-    public List<String> getMessageTypes() {
-      return Collections.singletonList(getMessageType());
-    }
-
-    @Override
-    public void reset() {
-
-    }
-
-    /**
-     * A custom {@link MessageHandler} for handling user-defined messages to the controller.
-     */
-    private static class ControllerUserDefinedMessageHandler extends MessageHandler {
-
-      private FlowCatalog flowCatalog;
-      private GobblinServiceJobScheduler jobScheduler;
-
-      public ControllerUserDefinedMessageHandler(FlowCatalog flowCatalog, GobblinServiceJobScheduler jobScheduler,
-          Message message, NotificationContext context) {
-        super(message, context);
-
-        this.flowCatalog = flowCatalog;
-        this.jobScheduler = jobScheduler;
-      }
-
-      @Override
-      public HelixTaskResult handleMessage() throws InterruptedException {
-        if (jobScheduler.isActive()) {
-          String flowSpecUri = _message.getAttribute(Message.Attributes.INNER_MESSAGE);
-          LOGGER.info ("ControllerUserDefinedMessage received : {}, type {}", flowSpecUri, _message.getMsgSubType());
-          try {
-            if (_message.getMsgSubType().equals(ServiceConfigKeys.HELIX_FLOWSPEC_ADD)) {
-              Spec spec = flowCatalog.getSpec(new URI(flowSpecUri));
-              this.jobScheduler.onAddSpec(spec);
-            } else if (_message.getMsgSubType().equals(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE)) {
-              List<String> flowSpecUriParts = Splitter.on(":").omitEmptyStrings().trimResults().splitToList(flowSpecUri);
-              this.jobScheduler.onDeleteSpec(new URI(flowSpecUriParts.get(0)), flowSpecUriParts.get(1));
-            } else if (_message.getMsgSubType().equals(ServiceConfigKeys.HELIX_FLOWSPEC_UPDATE)) {
-              Spec spec = flowCatalog.getSpec(new URI(flowSpecUri));
-              this.jobScheduler.onUpdateSpec(spec);
-            }
-          } catch (SpecNotFoundException | URISyntaxException e) {
-            LOGGER.error("Cannot process Helix message for flowSpecUri: " + flowSpecUri, e);
-          }
-        } else {
-          String flowSpecUri = _message.getAttribute(Message.Attributes.INNER_MESSAGE);
-          LOGGER.info ("ControllerUserDefinedMessage received but ignored due to not in active mode: {}, type {}", flowSpecUri, _message.getMsgSubType());
-        }
-        HelixTaskResult helixTaskResult = new HelixTaskResult();
-        helixTaskResult.setSuccess(true);
-
-        return helixTaskResult;
-      }
-
-      @Override
-      public void onError(Exception e, ErrorCode code, ErrorType type) {
-        LOGGER.error(
-            String.format("Failed to handle message with exception %s, error code %s, error type %s", e, code, type));
-      }
+    public Metrics(final MetricContext metricContext, Config config) {
+      int timeWindowSizeInMinutes = ConfigUtils.getInt(config, ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
+      this.serviceLeadershipChange = metricContext.contextAwareHistogram(SERVICE_LEADERSHIP_CHANGE, timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      this.contextAwareMetrics.add(this.serviceLeadershipChange);
     }
   }
 

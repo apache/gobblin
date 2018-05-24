@@ -66,6 +66,7 @@ public abstract class HiveRegister implements Closeable {
   public static final String DEFAULT_HIVE_TABLE_COMPARATOR_TYPE = HiveTableComparator.class.getName();
   public static final String HIVE_PARTITION_COMPARATOR_TYPE = "hive.partition.comparator.type";
   public static final String DEFAULT_HIVE_PARTITION_COMPARATOR_TYPE = HivePartitionComparator.class.getName();
+  public static final String HIVE_METASTORE_URI_KEY = "hive.metastore.uri";
 
   protected static final String HIVE_DB_EXTENSION = ".db";
 
@@ -353,7 +354,10 @@ public abstract class HiveRegister implements Closeable {
    * will be returned. This {@link State} object is also used to instantiate the {@link HiveRegister} object.
    */
   public static HiveRegister get(State props) {
-    return get(props, Optional.<String> absent());
+    Optional<String> metastoreUri =
+        Optional.fromNullable(props.getProperties().getProperty(HIVE_METASTORE_URI_KEY));
+
+    return get(props, metastoreUri);
   }
 
   /**

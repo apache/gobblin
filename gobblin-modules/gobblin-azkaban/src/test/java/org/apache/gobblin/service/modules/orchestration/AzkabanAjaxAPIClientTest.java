@@ -31,7 +31,7 @@ import org.testng.annotations.Test;
 @Test(groups = { "org.apache.gobblin.service.modules.orchestration" })
 public class AzkabanAjaxAPIClientTest {
 
-  @Test
+  @Test (enabled=false)
   public void testCurrentTimeWithinWindow()
       throws ParseException {
     // Generate a window encapsulating the current time
@@ -47,7 +47,7 @@ public class AzkabanAjaxAPIClientTest {
     Assert.assertTrue(isWithinWindow(windowStartInHours, windowEndInHours, outputScheduledString));
   }
 
-  @Test
+  @Test (enabled=false)
   public void testCurrentTimeOutsideWindow()
       throws ParseException {
     // Current hour

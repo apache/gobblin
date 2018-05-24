@@ -20,27 +20,30 @@ package org.apache.gobblin.hive.policy;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.regex.Pattern;
 
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.hive.spec.SimpleHiveSpec;
-
 
 /**
  * Unit test for {@link HiveRegistrationPolicyBase}
  *
  * @author Ziyang Liu
  */
-@Test(groups = { "gobblin.hive" })
+@Test(groups = {"gobblin.hive"})
 public class HiveRegistrationPolicyBaseTest {
   private Path path;
 
   @Test
-  public void testGetHiveSpecs() throws IOException {
+  public void testGetHiveSpecs()
+      throws IOException {
     State state = new State();
     state.appendToListProp(HiveRegistrationPolicyBase.HIVE_DATABASE_NAME, "db1");
     state.appendToListProp(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_DATABASE_NAMES, "db2");
@@ -69,7 +72,8 @@ public class HiveRegistrationPolicyBaseTest {
   }
 
   @Test
-  public void testGetHiveSpecsWithDBFilter() throws IOException{
+  public void testGetHiveSpecsWithDBFilter()
+      throws IOException {
     State state = new State();
     state.appendToListProp(HiveRegistrationPolicyBase.HIVE_DATABASE_NAME, "db1");
     state.appendToListProp(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_DATABASE_NAMES, "db2");
@@ -100,6 +104,58 @@ public class HiveRegistrationPolicyBaseTest {
     spec = iterator.next();
     examine(spec, "db2", "tbl5");
   }
+
+  @Test
+  public void testTableRegexp()
+      throws IOException {
+    State state = new State();
+    String regexp = ".*test_bucket/(.*)/staging/.*";
+    Optional<Pattern> pattern = Optional.of(Pattern.compile(regexp));
+    Path path = new Path("s3://test_bucket/topic/staging/2017-10-21/");
+
+    state.appendToListProp(HiveRegistrationPolicyBase.HIVE_DATABASE_REGEX, regexp);
+
+    HiveRegistrationPolicyBase registrationPolicyBase = new HiveRegistrationPolicyBase(state);
+
+    String resultTable = registrationPolicyBase.getDatabaseOrTableName(path, HiveRegistrationPolicyBase.HIVE_DATABASE_NAME, HiveRegistrationPolicyBase.HIVE_DATABASE_REGEX, pattern );
+
+    Assert.assertEquals(resultTable, "topic");
+  }
+
+  @Test(expectedExceptions = IllegalStateException.class)
+  public void testTableRegexpWithoutGroupShouldFail()
+      throws IOException {
+    State state = new State();
+    String regexp = ".*test_bucket/.*/staging/.*";
+    Optional<Pattern> pattern = Optional.of(Pattern.compile(regexp));
+    Path path = new Path("s3://test_bucket/topic/staging/2017-10-21/");
+
+    state.appendToListProp(HiveRegistrationPolicyBase.HIVE_DATABASE_REGEX, regexp);
+
+    HiveRegistrationPolicyBase registrationPolicyBase = new HiveRegistrationPolicyBase(state);
+
+    String resultTable = registrationPolicyBase.getDatabaseOrTableName(path, HiveRegistrationPolicyBase.HIVE_DATABASE_NAME, HiveRegistrationPolicyBase.HIVE_DATABASE_REGEX, pattern );
+
+    Assert.assertEquals(resultTable, "topic");
+  }
+
+  @Test(expectedExceptions = IllegalStateException.class)
+  public void testTableRegexpWithoutMatchShouldFail()
+      throws IOException {
+    State state = new State();
+    String regexp = "^hdfs://(.*)";
+    Optional<Pattern> pattern = Optional.of(Pattern.compile(regexp));
+    Path path = new Path("s3://test_bucket/topic/staging/2017-10-21/");
+
+    state.appendToListProp(HiveRegistrationPolicyBase.HIVE_DATABASE_REGEX, regexp);
+
+    HiveRegistrationPolicyBase registrationPolicyBase = new HiveRegistrationPolicyBase(state);
+
+    String resultTable = registrationPolicyBase.getDatabaseOrTableName(path, HiveRegistrationPolicyBase.HIVE_DATABASE_NAME, HiveRegistrationPolicyBase.HIVE_DATABASE_REGEX, pattern );
+
+    Assert.assertEquals(resultTable, "topic");
+  }
+
 
   private static void examine(HiveSpec spec, String dbName, String tableName) {
     Assert.assertEquals(spec.getClass(), SimpleHiveSpec.class);

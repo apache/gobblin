@@ -54,7 +54,7 @@ import org.testng.annotations.Test;
  *
  * @author kkandekar@linkedin.com
  */
-@Test(singleThreaded = true, groups = { "gobblin.tunnel", "disabledOnTravis" })
+@Test(enabled=false, singleThreaded = true, groups = { "gobblin.tunnel", "disabledOnTravis" })
 public class TestTunnelWithArbitraryTCPTraffic {
   private static final Logger LOG = LoggerFactory.getLogger(TestTunnelWithArbitraryTCPTraffic.class);
 
@@ -125,7 +125,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
   }
 
   // Baseline test to ensure clients work without tunnel
-  @Test(timeOut = 15000)
+  @Test(enabled=false, timeOut = 15000)
   public void testDirectConnectionToEchoServer() throws IOException {
     SocketChannel client = SocketChannel.open();
     try {
@@ -139,7 +139,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     }
   }
 
-  @Test(timeOut = 15000)
+  @Test(enabled=false, timeOut = 15000)
   public void testTunnelToEchoServer() throws IOException {
     MockServer proxyServer = startConnectProxyServer();
     Tunnel tunnel = Tunnel.build("localhost", doubleEchoServer.getServerSocketPort(), "localhost",
@@ -164,7 +164,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
   }
 
 
-  @Test(timeOut = 15000)
+  @Test(enabled=false, timeOut = 15000)
   public void testTunnelToDelayedEchoServer() throws IOException {
     MockServer proxyServer = startConnectProxyServer();
     Tunnel tunnel = Tunnel.build("localhost", delayedDoubleEchoServer.getServerSocketPort(), "localhost",
@@ -188,7 +188,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     }
   }
 
-  @Test(timeOut = 15000)
+  @Test(enabled=false, timeOut = 15000)
   public void testTunnelToEchoServerMultiRequest() throws IOException {
     MockServer proxyServer = startConnectProxyServer();
     Tunnel tunnel = Tunnel.build("localhost", doubleEchoServer.getServerSocketPort(),
@@ -244,7 +244,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     assertEquals(response2, "Hello Hello\n");
   }
 
-  @Test(timeOut = 15000)
+  @Test(enabled=false, timeOut = 15000)
   public void testTunnelToEchoServerThatRespondsFirst() throws IOException {
     MockServer proxyServer = startConnectProxyServer();
     Tunnel tunnel = Tunnel.build("localhost", talkFirstEchoServer.getServerSocketPort(),
@@ -261,7 +261,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     }
   }
 
-  @Test(timeOut = 15000)
+  @Test(enabled=false, timeOut = 15000)
   public void testTunnelToEchoServerThatRespondsFirstWithMixedProxyAndServerResponseInBuffer() throws IOException {
     MockServer proxyServer = startConnectProxyServer(false, true);
     Tunnel tunnel = Tunnel.build("localhost", talkFirstEchoServer.getServerSocketPort(),
@@ -278,7 +278,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     }
   }
 
-  @Test(timeOut = 15000)
+  @Test(enabled=false, timeOut = 15000)
   public void testTunnelToEchoServerThatRespondsFirstAcrossMultipleDrainReads() throws IOException {
     MockServer proxyServer = startConnectProxyServer(true, true);
     Tunnel tunnel = Tunnel.build("localhost", talkFirstEchoServer.getServerSocketPort(),
@@ -295,7 +295,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     }
   }
 
-  @Test(timeOut = 15000)
+  @Test(enabled=false, timeOut = 15000)
   public void testTunnelToEchoServerThatRespondsFirstAcrossMultipleDrainReadsWithMultipleClients()
       throws IOException, InterruptedException {
     MockServer proxyServer = startConnectProxyServer(true, true);
@@ -477,19 +477,19 @@ public class TestTunnelWithArbitraryTCPTraffic {
       at gobblin.tunnel.Tunnel$Dispatcher.run(Tunnel.java:127)
       at java.lang.Thread.run(Thread.java:745)
    */
-  @Test(timeOut = 20000)
+  @Test(enabled=false, timeOut = 20000)
   public void testSimultaneousDataExchangeWithTunnel()
       throws IOException, InterruptedException, NoSuchAlgorithmException {
     runSimultaneousDataExchange(true, 1);
   }
 
-  @Test(timeOut = 20000)
+  @Test(enabled=false, timeOut = 20000)
   public void testSimultaneousDataExchangeWithTunnelAndMultipleClients()
       throws IOException, InterruptedException, NoSuchAlgorithmException {
     runSimultaneousDataExchange(true, 3);
   }
 
-  @Test(expectedExceptions = IOException.class)
+  @Test(enabled=false, expectedExceptions = IOException.class)
   public void testTunnelWhereProxyConnectionToServerFailsWithWriteFirstClient() throws IOException, InterruptedException {
     MockServer proxyServer = startConnectProxyServer();
     final int nonExistentPort = 54321; // hope this doesn't exist!
@@ -518,7 +518,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     }
   }
 
-  @Test(timeOut = 15000)
+  @Test(enabled=false, timeOut = 15000)
   public void testTunnelThreadDeadAfterClose() throws IOException, InterruptedException {
     MockServer proxyServer = startConnectProxyServer();
     Tunnel tunnel = Tunnel.build("localhost", talkFirstEchoServer.getServerSocketPort(),
@@ -549,7 +549,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     }
   }
 
-  @Test(timeOut = 15000, expectedExceptions = IOException.class)
+  @Test(enabled=false, timeOut = 15000, expectedExceptions = IOException.class)
   public void testTunnelThreadDeadAfterUnexpectedException() throws IOException, InterruptedException {
     MockServer proxyServer = startConnectProxyServer(false, false, 8);
 

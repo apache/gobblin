@@ -139,4 +139,9 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
   public Extract createExtract(TableType type, String namespace, String table) {
     return this.extractFactory.getUniqueExtract(type, namespace, table);
   }
+
+  @Override
+  public boolean isEarlyStopped() {
+    return false;
+  }
 }

@@ -37,7 +37,7 @@ import org.apache.gobblin.util.ConfigUtils;
 /**
  * Establishes a connection to a Kafka cluster and push byte messages to a specified topic.
  */
-public class KafkaProducerPusher implements Pusher {
+public class KafkaProducerPusher implements Pusher<byte[]> {
 
   private final String topic;
   private final KafkaProducer<String, byte[]> producer;

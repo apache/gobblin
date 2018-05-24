@@ -21,8 +21,10 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
+import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.AvroToAvroConverterBase;
@@ -133,27 +136,69 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
     return createSchemaHelper(schema, root);
   }
 
-  private static Schema createSchemaHelper(Schema inputSchema, TrieNode node) {
-    Schema newRecord = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc(), inputSchema.getNamespace(),
-        inputSchema.isError());
+  private static Schema createSchemaHelper(final Schema inputSchema, TrieNode node) {
     List<Field> newFields = Lists.newArrayList();
     for (TrieNode child : node.children.values()) {
-      Field innerSrcField = inputSchema.getField(child.val);
-      Preconditions.checkNotNull(innerSrcField, child.val + " does not exist under " + inputSchema);
+      Schema recordSchema = getActualRecord(inputSchema);
+      Field innerSrcField = recordSchema.getField(child.val);
+      Preconditions.checkNotNull(innerSrcField, child.val + " does not exist under " + recordSchema);
 
       if (child.children.isEmpty()) { //Leaf
         newFields.add(
             new Field(innerSrcField.name(), innerSrcField.schema(), innerSrcField.doc(), innerSrcField.defaultValue()));
       } else {
         Schema innerSrcSchema = innerSrcField.schema();
+
         Schema innerDestSchema = createSchemaHelper(innerSrcSchema, child); //Recurse of schema
         Field innerDestField =
             new Field(innerSrcField.name(), innerDestSchema, innerSrcField.doc(), innerSrcField.defaultValue());
         newFields.add(innerDestField);
       }
     }
+
+    if (Type.UNION.equals(inputSchema.getType())) {
+      Preconditions.checkArgument(inputSchema.getTypes().size() <= 2,
+          "For union type in nested record, it should only have NULL and Record type");
+
+      Schema recordSchema = getActualRecord(inputSchema);
+      Schema newRecord = Schema.createRecord(recordSchema.getName(), recordSchema.getDoc(), recordSchema.getNamespace(),
+          recordSchema.isError());
+      newRecord.setFields(newFields);
+      if (inputSchema.getTypes().size() == 1) {
+        return Schema.createUnion(newRecord);
+      }
+      return Schema.createUnion(Lists.newArrayList(Schema.create(Type.NULL), newRecord));
+    }
+
+    Schema newRecord = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc(), inputSchema.getNamespace(),
+        inputSchema.isError());
     newRecord.setFields(newFields);
     return newRecord;
+  }
+
+  /**
+   * For the schema that is a UNION type with NULL and Record type, it provides Records type.
+   * @param inputSchema
+   * @return
+   */
+  private static Schema getActualRecord(Schema inputSchema) {
+    if (Type.RECORD.equals(inputSchema.getType())) {
+      return inputSchema;
+    }
+
+    Preconditions.checkArgument(Type.UNION.equals(inputSchema.getType()), "Nested schema is only support with either record or union type of null with record");
+    Preconditions.checkArgument(inputSchema.getTypes().size() <= 2,
+        "For union type in nested record, it should only have NULL and Record type");
+
+    for (Schema inner : inputSchema.getTypes()) {
+      if (Type.NULL.equals(inner.getType())) {
+        continue;
+      }
+      Preconditions.checkArgument(Type.RECORD.equals(inner.getType()), "For union type in nested record, it should only have NULL and Record type");
+      return inner;
+
+    }
+    throw new IllegalArgumentException(inputSchema + " is not supported.");
   }
 
   private static TrieNode buildTrie(List<String> fqns) {

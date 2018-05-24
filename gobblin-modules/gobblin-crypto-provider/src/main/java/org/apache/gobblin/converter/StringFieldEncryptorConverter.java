@@ -20,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,7 @@ public abstract class StringFieldEncryptorConverter<SCHEMA, DATA> extends Conver
   public Converter<SCHEMA, SCHEMA, DATA, DATA> init(WorkUnitState workUnit) {
     super.init(workUnit);
     Map<String, Object> config = EncryptionConfigParser
-        .getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER, getClass().getSimpleName(), workUnit);
+        .getConfigForBranch(EncryptionConfigParser.EntityType.CONVERTER_ENCRYPT, getClass().getSimpleName(), workUnit);
     encryptor = EncryptionFactory.buildStreamCryptoProvider(config);
 
     String fieldsToEncryptConfig = workUnit.getProp(FIELDS_TO_ENCRYPT_CONFIG_NAME, null);
@@ -72,28 +73,46 @@ public abstract class StringFieldEncryptorConverter<SCHEMA, DATA> extends Conver
     RecordAccessor accessor = getRecordAccessor(inputRecord);
 
     for (String field : fieldsToEncrypt) {
-      Map<String, String> stringsToEncrypt = accessor.getMultiAsString(field);
+      Map<String, Object> stringsToEncrypt = accessor.getMultiGeneric(field);
 
-      for (Map.Entry<String, String> entry : stringsToEncrypt.entrySet()) {
-        byte[] bytes = entry.getValue().getBytes(StandardCharsets.UTF_8);
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
+      for (Map.Entry<String, Object> entry : stringsToEncrypt.entrySet()) {
         try {
-          OutputStream cipherStream = encryptor.encodeOutputStream(outputStream);
-          cipherStream.write(bytes);
-          cipherStream.flush();
-          cipherStream.close();
+          if (entry.getValue() instanceof String) {
+            accessor.set(entry.getKey(), encryptString((String) entry.getValue()));
+          } else if (entry.getValue() instanceof List) {
+            List<String> encryptedVals = new ArrayList<>();
+
+            for (Object val: (List)entry.getValue()) {
+              if (!(val instanceof String)) {
+                throw new IllegalArgumentException("Unexpected type " + val.getClass().getCanonicalName() +
+                    " while encrypting field " + field);
+              }
+
+              encryptedVals.add(encryptString((String)val));
+            }
+
+            accessor.setStringArray(entry.getKey(), encryptedVals);
+          }
         } catch (IOException | IllegalArgumentException | IllegalStateException e) {
           throw new DataConversionException("Error while encrypting field " + field + ": " + e.getMessage(), e);
         }
-
-        byte[] cipherBytes = outputStream.toByteArray();
-        accessor.set(entry.getKey(), new String(cipherBytes, StandardCharsets.UTF_8));
       }
     }
 
     return Collections.singleton(inputRecord);
+  }
+
+  private String encryptString(String val)
+      throws IOException {
+    byte[] bytes = val.getBytes(StandardCharsets.UTF_8);
+
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+    OutputStream cipherStream = encryptor.encodeOutputStream(outputStream);
+    cipherStream.write(bytes);
+    cipherStream.flush();
+    cipherStream.close();
+    return new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
   }
 
   protected List<String> getFieldsToEncrypt() {

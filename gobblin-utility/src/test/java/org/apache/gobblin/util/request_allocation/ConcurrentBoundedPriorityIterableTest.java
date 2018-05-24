@@ -32,10 +32,12 @@ public class ConcurrentBoundedPriorityIterableTest {
   public static final String MEMORY = "memory";
 
   @Test
-  public void test() throws Exception {
+  public void test()
+      throws Exception {
 
-    ConcurrentBoundedPriorityIterable<String> iterable = new ConcurrentBoundedPriorityIterable<>(new MyComparator(),
-        new MyEstimator(), ResourcePool.builder().maxResource(MEMORY, 100.).build());
+    ConcurrentBoundedPriorityIterable<String> iterable =
+        new ConcurrentBoundedPriorityIterable<>(new MyComparator(), new MyEstimator(), "min",
+            ResourcePool.builder().maxResource(MEMORY, 100.).build());
 
     // doesn't fit
     Assert.assertFalse(iterable.add("a-500"));
@@ -57,8 +59,8 @@ public class ConcurrentBoundedPriorityIterableTest {
     Assert.assertTrue(iterable.add("b-50"));
 
     // Check items
-    List<String> items = Lists.newArrayList(Iterators.transform(iterable.iterator(),
-        new AllocatedRequestsIteratorBase.TExtractor<String>()));
+    List<String> items = Lists
+        .newArrayList(Iterators.transform(iterable.iterator(), new AllocatedRequestsIteratorBase.TExtractor<String>()));
     Assert.assertEquals(items.size(), 2);
     Assert.assertEquals(items.get(0), "b-50");
     Assert.assertEquals(items.get(1), "d-50");
@@ -66,15 +68,15 @@ public class ConcurrentBoundedPriorityIterableTest {
     iterable.reopen();
     // a high priority that won't fit even with evictions should not evict anything
     Assert.assertFalse(iterable.add("c-500"));
-    items = Lists.newArrayList(Iterators.transform(iterable.iterator(),
-        new AllocatedRequestsIteratorBase.TExtractor<String>()));
+    items = Lists
+        .newArrayList(Iterators.transform(iterable.iterator(), new AllocatedRequestsIteratorBase.TExtractor<String>()));
     Assert.assertEquals(items.size(), 2);
 
     iterable.reopen();
     // even if it is higher priority than everything else
     Assert.assertFalse(iterable.add("a-500"));
-    items = Lists.newArrayList(Iterators.transform(iterable.iterator(),
-        new AllocatedRequestsIteratorBase.TExtractor<String>()));
+    items = Lists
+        .newArrayList(Iterators.transform(iterable.iterator(), new AllocatedRequestsIteratorBase.TExtractor<String>()));
     Assert.assertEquals(items.size(), 2);
   }
 
@@ -94,5 +96,4 @@ public class ConcurrentBoundedPriorityIterableTest {
       return resourcePool.getResourceRequirementBuilder().setRequirement(MEMORY, memory).build();
     }
   }
-
 }

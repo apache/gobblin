@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.recordaccess;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -72,14 +73,19 @@ public interface RecordAccessor {
    * IncorrectTypeException if the underlying types do not match. Getters should not
    * try to do any type coercion -- for example, getAsInt for a value that is the string "1"
    * should throw a Sch.
+   *
+   * The get*Generic functions should return the following object types:
+   *   String, Integer, Long, or a List of them.
    */
   Map<String, String> getMultiAsString(String fieldName);
   Map<String, Integer> getMultiAsInt(String fieldName);
   Map<String, Long> getMultiAsLong(String fieldName);
+  Map<String, Object> getMultiGeneric(String fieldName);
 
   String getAsString(String fieldName);
   Integer getAsInt(String fieldName);
   Long getAsLong(String fieldName);
+  Object getGeneric(String fieldName);
 
   /*
    * Set new values for an object. Should throw a FieldDoesNotExistException runtime exception if fieldName
@@ -88,6 +94,7 @@ public interface RecordAccessor {
   void set(String fieldName, String value);
   void set(String fieldName, Integer value);
   void set(String fieldName, Long value);
+  void setStringArray(String fieldName, List<String> value);
   void setToNull(String fieldName);
 
 

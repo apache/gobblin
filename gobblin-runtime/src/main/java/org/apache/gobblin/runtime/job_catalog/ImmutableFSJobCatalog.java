@@ -102,7 +102,7 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
   public ImmutableFSJobCatalog(Config sysConfig, PathAlterationObserver observer, Optional<MetricContext> parentMetricContext,
       boolean instrumentationEnabled)
       throws IOException {
-    super(Optional.of(LOGGER), parentMetricContext, instrumentationEnabled);
+    super(Optional.of(LOGGER), parentMetricContext, instrumentationEnabled, Optional.of(sysConfig));
     this.sysConfig = sysConfig;
     ConfigAccessor cfgAccessor = new ConfigAccessor(this.sysConfig);
 

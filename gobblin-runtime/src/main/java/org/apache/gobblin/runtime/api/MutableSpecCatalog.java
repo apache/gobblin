@@ -19,6 +19,17 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareTimer;
+
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -37,5 +48,30 @@ public interface MutableSpecCatalog extends SpecCatalog {
    * Removes an existing {@link Spec} with the given URI.
    * Throws SpecNotFoundException if such {@link Spec} does not exist.
    */
-  void remove(URI uri) throws SpecNotFoundException;
+  void remove(URI uri, Properties headers) throws SpecNotFoundException;
+
+  @Slf4j
+  public static class MutableStandardMetrics extends StandardMetrics {
+    public static final String TIME_FOR_SPEC_CATALOG_REMOVE = "timeForSpecCatalogRemove";
+    public static final String TIME_FOR_SPEC_CATALOG_PUT = "timeForSpecCatalogPut";
+    @Getter private final ContextAwareTimer timeForSpecCatalogPut;
+    @Getter private final ContextAwareTimer timeForSpecCatalogRemove;
+    public MutableStandardMetrics(SpecCatalog catalog, Optional<Config> sysConfig) {
+      super(catalog, sysConfig);
+      timeForSpecCatalogPut = catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_PUT, this.timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      timeForSpecCatalogRemove =  catalog.getMetricContext().contextAwareTimer(TIME_FOR_SPEC_CATALOG_REMOVE, this.timeWindowSizeInMinutes, TimeUnit.MINUTES);
+      this.contextAwareMetrics.add(timeForSpecCatalogPut);
+      this.contextAwareMetrics.add(timeForSpecCatalogRemove);
+    }
+
+    public void updatePutSpecTime(long startTime) {
+      log.info("updatePutSpecTime...");
+      Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogPut), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+    }
+
+    public void updateRemoveSpecTime(long startTime) {
+      log.info("updateRemoveSpecTime...");
+      Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogRemove), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+    }
+  }
 }

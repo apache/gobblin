@@ -54,6 +54,7 @@ public class KafkaEventReporter extends EventReporter {
         String pusherClassName = builder.pusherClassName.or(PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
         this.kafkaPusher = PusherUtils.getPusher(pusherClassName, builder.brokers, builder.topic, builder.config);
     }
+    this.closer.register(this.kafkaPusher);
   }
 
   @Override

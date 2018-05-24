@@ -48,7 +48,7 @@ import org.apache.gobblin.test.TestUtils;
 public class CouchbaseTestServer {
 
   private static final String COUCHBASE_JAR_PATH="gobblin-modules/gobblin-couchbase/mock-couchbase/target/";
-  private static final String COUCHBASE_MOCK_JAR=COUCHBASE_JAR_PATH + "CouchbaseMock-1.4.4.jar";
+  private static final String COUCHBASE_MOCK_JAR=COUCHBASE_JAR_PATH + "CouchbaseMock-1.5.18.jar";
 
 
   private Process couchbaseProcess;
@@ -67,7 +67,7 @@ public class CouchbaseTestServer {
     String[] commands = {"/usr/bin/java",
       "-cp",
       COUCHBASE_MOCK_JAR,
-      "org.couchbase.mock.CouchbaseMock",
+      "com.couchbase.mock.CouchbaseMock",
       "--port",
       _port +"",
       "-n",

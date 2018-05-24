@@ -20,6 +20,8 @@ package org.apache.gobblin.data.management.copy.replication;
 import java.io.IOException;
 import java.net.URI;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -28,9 +30,15 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.util.HadoopUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.fs.PathFilter;
+
 
 @Slf4j
-public abstract class HadoopFsEndPoint implements EndPoint{
+@Getter
+@Setter
+public abstract class HadoopFsEndPoint implements EndPoint {
+  private PathFilter pathFilter;
+  private boolean applyFilterToDirectories;
 
   /**
    *
@@ -56,7 +64,7 @@ public abstract class HadoopFsEndPoint implements EndPoint{
    * @param path The path to be checked. For fs availability checking, just use "/"
    * @return If the filesystem/path exists or not.
    */
-  public boolean isPathAvailable(Path path){
+  public boolean isPathAvailable(Path path) {
     try {
       Configuration conf = HadoopUtils.newConfiguration();
       FileSystem fs = FileSystem.get(this.getFsURI(), conf);

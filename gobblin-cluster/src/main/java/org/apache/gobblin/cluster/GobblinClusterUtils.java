@@ -17,16 +17,23 @@
 
 package org.apache.gobblin.cluster;
 
-import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTRER_WORK_DIR;
-
-import com.typesafe.config.Config;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import org.apache.gobblin.annotation.Alpha;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.typesafe.config.Config;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
+
+import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
+
 @Alpha
+@Slf4j
 public class GobblinClusterUtils {
 
   /**
@@ -54,8 +61,8 @@ public class GobblinClusterUtils {
 
   public static Path getAppWorkDirPathFromConfig(Config config, FileSystem fs,
       String applicationName, String applicationId) {
-    if (config.hasPath(CLUSTRER_WORK_DIR)) {
-      return new Path(config.getString(CLUSTRER_WORK_DIR));
+    if (config.hasPath(CLUSTER_WORK_DIR)) {
+      return new Path(config.getString(CLUSTER_WORK_DIR));
     }
     return new Path(fs.getHomeDirectory(), getAppWorkDirPath(applicationName, applicationId));
   }
@@ -69,5 +76,31 @@ public class GobblinClusterUtils {
    */
   public static String getAppWorkDirPath(String applicationName, String applicationId) {
     return applicationName + Path.SEPARATOR + applicationId;
+  }
+
+  /**
+   * Generate the path to the job.state file
+   * @param usingStateStore is a state store being used to store the job.state content
+   * @param appWorkPath work directory
+   * @param jobId job id
+   * @return a {@link Path} referring to the job.state
+   */
+  public static Path getJobStateFilePath(boolean usingStateStore, Path appWorkPath, String jobId) {
+    final Path jobStateFilePath;
+
+    // the state store uses a path of the form workdir/_jobstate/job_id/job_id.job.state while old method stores the file
+    // in the app work dir.
+    if (usingStateStore) {
+      jobStateFilePath = new Path(appWorkPath, GobblinClusterConfigurationKeys.JOB_STATE_DIR_NAME
+          + Path.SEPARATOR + jobId + Path.SEPARATOR + jobId + "."
+          + AbstractJobLauncher.JOB_STATE_FILE_NAME);
+
+    } else {
+      jobStateFilePath = new Path(appWorkPath, jobId + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
+    }
+
+    log.info("job state file path: " + jobStateFilePath);
+
+    return jobStateFilePath;
   }
 }

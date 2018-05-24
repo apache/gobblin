@@ -202,7 +202,7 @@ public class HiveAvroORCQueryGenerator {
     //    .. use columns from destination schema
     if (isEvolutionEnabled || !destinationTableMeta.isPresent()) {
       log.info("Generating DDL using source schema");
-      ddl.append(generateAvroToHiveColumnMapping(schema, Optional.of(hiveColumns), true));
+      ddl.append(generateAvroToHiveColumnMapping(schema, Optional.of(hiveColumns), true, dbName + "." + tblName));
     } else {
       log.info("Generating DDL using destination schema");
       ddl.append(generateDestinationToHiveColumnMapping(Optional.of(hiveColumns), destinationTableMeta.get()));
@@ -229,14 +229,15 @@ public class HiveAvroORCQueryGenerator {
 
     if (optionalClusterInfo.isPresent()) {
       if (!optionalNumOfBuckets.isPresent()) {
-        throw new IllegalArgumentException(("CLUSTERED BY requested, but no NUM_BUCKETS specified"));
+        throw new IllegalArgumentException(
+            (String.format("CLUSTERED BY requested, but no NUM_BUCKETS specified for table %s.%s", dbName, tblName)));
       }
       ddl.append("CLUSTERED BY ( ");
       boolean isFirst = true;
       for (String clusterByCol : optionalClusterInfo.get()) {
         if (!hiveColumns.containsKey(clusterByCol)) {
           throw new IllegalArgumentException(String.format("Requested CLUSTERED BY column: %s "
-              + "is not present in schema", clusterByCol));
+              + "is not present in schema for table %s.%s", clusterByCol, dbName, tblName));
         }
         if (isFirst) {
           isFirst = false;
@@ -254,7 +255,8 @@ public class HiveAvroORCQueryGenerator {
         for (Map.Entry<String, COLUMN_SORT_ORDER> sortOrderInfo : sortOrderInfoMap.entrySet()){
           if (!hiveColumns.containsKey(sortOrderInfo.getKey())) {
             throw new IllegalArgumentException(String.format(
-                "Requested SORTED BY column: %s " + "is not present in schema", sortOrderInfo.getKey()));
+                "Requested SORTED BY column: %s " + "is not present in schema for table %s.%s", sortOrderInfo.getKey(),
+                dbName, tblName));
           }
           if (isFirst) {
             isFirst = false;
@@ -268,7 +270,8 @@ public class HiveAvroORCQueryGenerator {
       ddl.append(String.format(" INTO %s BUCKETS %n", optionalNumOfBuckets.get()));
     } else {
       if (optionalSortOrderInfo.isPresent()) {
-        throw new IllegalArgumentException("SORTED BY requested, but no CLUSTERED BY specified");
+        throw new IllegalArgumentException(
+            String.format("SORTED BY requested, but no CLUSTERED BY specified for table %s.%s", dbName, tblName));
       }
     }
 
@@ -389,12 +392,12 @@ public class HiveAvroORCQueryGenerator {
    * @param topLevel If this is first level
    * @return Generate Hive columns with types for given Avro schema
    */
-  private static String generateAvroToHiveColumnMapping(Schema schema,
-      Optional<Map<String, String>> hiveColumns,
-      boolean topLevel) {
+  private static String generateAvroToHiveColumnMapping(Schema schema, Optional<Map<String, String>> hiveColumns,
+      boolean topLevel, String datasetName) {
     if (topLevel && !schema.getType().equals(Schema.Type.RECORD)) {
-      throw new IllegalArgumentException(String.format("Schema for table must be of type RECORD. Received type: %s",
-          schema.getType()));
+      throw new IllegalArgumentException(
+          String.format("Schema for table must be of type RECORD. Received type: %s for dataset %s", schema.getType(),
+              datasetName));
     }
 
     StringBuilder columns = new StringBuilder();
@@ -409,7 +412,7 @@ public class HiveAvroORCQueryGenerator {
             } else {
               columns.append(", \n");
             }
-            String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false);
+            String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false, datasetName);
             if (hiveColumns.isPresent()) {
               hiveColumns.get().put(field.name(), type);
             }
@@ -427,7 +430,7 @@ public class HiveAvroORCQueryGenerator {
             } else {
               columns.append(",");
             }
-            String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false);
+            String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false, datasetName);
             columns.append("`").append(field.name()).append("`").append(":").append(type);
           }
           columns.append(">");
@@ -437,7 +440,7 @@ public class HiveAvroORCQueryGenerator {
         Optional<Schema> optionalType = isOfOptionType(schema);
         if (optionalType.isPresent()) {
           Schema optionalTypeSchema = optionalType.get();
-          columns.append(generateAvroToHiveColumnMapping(optionalTypeSchema, hiveColumns, false));
+          columns.append(generateAvroToHiveColumnMapping(optionalTypeSchema, hiveColumns, false, datasetName));
         } else {
           columns.append(AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
           isFirst = true;
@@ -450,19 +453,20 @@ public class HiveAvroORCQueryGenerator {
             } else {
               columns.append(",");
             }
-            columns.append(generateAvroToHiveColumnMapping(unionMember, hiveColumns, false));
+            columns.append(generateAvroToHiveColumnMapping(unionMember, hiveColumns, false, datasetName));
           }
           columns.append(">");
         }
         break;
       case MAP:
         columns.append(AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
-        columns.append("string,").append(generateAvroToHiveColumnMapping(schema.getValueType(), hiveColumns, false));
+        columns.append("string,")
+            .append(generateAvroToHiveColumnMapping(schema.getValueType(), hiveColumns, false, datasetName));
         columns.append(">");
         break;
       case ARRAY:
         columns.append(AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
-        columns.append(generateAvroToHiveColumnMapping(schema.getElementType(), hiveColumns, false));
+        columns.append(generateAvroToHiveColumnMapping(schema.getElementType(), hiveColumns, false, datasetName));
         columns.append(">");
         break;
       case NULL:
@@ -479,7 +483,8 @@ public class HiveAvroORCQueryGenerator {
         columns.append(AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType()));
         break;
       default:
-        String exceptionMessage = String.format("DDL query generation failed for \"%s\" ", schema);
+        String exceptionMessage =
+            String.format("DDL query generation failed for \"%s\" of dataset %s", schema, datasetName);
         log.error(exceptionMessage);
         throw new AvroRuntimeException(exceptionMessage);
     }
@@ -844,7 +849,14 @@ public class HiveAvroORCQueryGenerator {
         if (destinationField.getName().equalsIgnoreCase(evolvedColumn.getKey())) {
           // If evolved column is found, but type is evolved - evolve it
           // .. if incompatible, isTypeEvolved will throw an exception
-          if (isTypeEvolved(evolvedColumn.getValue(), destinationField.getType())) {
+          boolean typeEvolved;
+          try {
+            typeEvolved = isTypeEvolved(evolvedColumn.getValue(), destinationField.getType());
+          } catch (Exception e) {
+            throw new RuntimeException(
+                String.format("Unable to evolve schema for table %s.%s", finalDbName, finalTableName), e);
+          }
+          if (typeEvolved) {
             ddl.add(String.format("USE %s%n", finalDbName));
             ddl.add(String.format("ALTER TABLE `%s` CHANGE COLUMN %s %s %s COMMENT '%s'",
                 finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),

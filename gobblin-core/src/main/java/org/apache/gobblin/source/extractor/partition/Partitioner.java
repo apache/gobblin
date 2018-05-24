@@ -53,6 +53,7 @@ public class Partitioner {
   public static final String WATERMARKTIMEFORMAT = "yyyyMMddHHmmss";
   public static final String HAS_USER_SPECIFIED_PARTITIONS = "partitioner.hasUserSpecifiedPartitions";
   public static final String USER_SPECIFIED_PARTITIONS = "partitioner.userSpecifiedPartitions";
+  public static final String IS_EARLY_STOPPED = "partitioner.isEarlyStopped";
 
   public static final Comparator<Partition> ascendingComparator = new Comparator<Partition>() {
     @Override
@@ -109,7 +110,9 @@ public class Partitioner {
    * Get partitions with low and high water marks
    *
    * @param previousWatermark previous water mark from metadata
-   * @return map of partition intervals
+   * @return map of partition intervals.
+   *         map's key is interval begin time (in format {@link Partitioner#WATERMARKTIMEFORMAT})
+   *         map's value is interval end time (in format {@link Partitioner#WATERMARKTIMEFORMAT})
    */
   @Deprecated
   public HashMap<Long, Long> getPartitions(long previousWatermark) {
@@ -196,9 +199,12 @@ public class Partitioner {
    * Generate the partitions based on the lists specified by the user in job config
    */
   private List<Partition> createUserSpecifiedPartitions() {
+
     List<Partition> partitions = new ArrayList<>();
 
     List<String> watermarkPoints = state.getPropAsList(USER_SPECIFIED_PARTITIONS);
+    boolean isEarlyStopped = state.getPropAsBoolean(IS_EARLY_STOPPED);
+
     if (watermarkPoints == null || watermarkPoints.size() == 0 ) {
       LOG.info("There should be some partition points");
       long defaultWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
@@ -234,13 +240,16 @@ public class Partitioner {
     highWatermark = adjustWatermark(watermarkPoints.get(i), watermarkType);
     ExtractType extractType =
         ExtractType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
-    if (isFullDump() || isSnapshot(extractType)) {
+
+    // If it is early stop, we should not remove upper bounds
+    if ((isFullDump() || isSnapshot(extractType)) && !isEarlyStopped) {
       // The upper bounds can be removed for last work unit
       partitions.add(new Partition(lowWatermark, highWatermark, true, false));
     } else {
       // The upper bounds can not be removed for last work unit
       partitions.add(new Partition(lowWatermark, highWatermark, true, true));
     }
+
 
     return partitions;
   }
@@ -291,18 +300,21 @@ public class Partitioner {
   }
 
   /**
-   * Get low water mark
+   * Get low water mark:
+   *  (1) Use {@link ConfigurationKeys#SOURCE_QUERYBASED_START_VALUE} iff it is a full dump (or watermark override is enabled)
+   *  (2) Otherwise use previous watermark (fallback to {@link ConfigurationKeys#SOURCE_QUERYBASED_START_VALUE} iff previous watermark is unavailable)
    *
    * @param extractType Extract type
    * @param watermarkType Watermark type
    * @param previousWatermark Previous water mark
    * @param deltaForNextWatermark delta number for next water mark
-   * @return low water mark
+   * @return low water mark in {@link Partitioner#WATERMARKTIMEFORMAT}
    */
   @VisibleForTesting
   protected long getLowWatermark(ExtractType extractType, WatermarkType watermarkType, long previousWatermark,
       int deltaForNextWatermark) {
     long lowWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+
     if (this.isFullDump() || this.isWatermarkOverride()) {
       String timeZone =
           this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
@@ -331,7 +343,7 @@ public class Partitioner {
    * @param watermarkType Watermark type
    * @param previousWatermark Previous water mark
    * @param deltaForNextWatermark delta number for next water mark
-   * @return snapshot low water mark
+   * @return Previous watermark (fallback to {@link ConfigurationKeys#SOURCE_QUERYBASED_START_VALUE} iff previous watermark is unavailable)
    */
   private long getSnapshotLowWatermark(WatermarkType watermarkType, long previousWatermark, int deltaForNextWatermark) {
     LOG.debug("Getting snapshot low water mark");
@@ -362,7 +374,7 @@ public class Partitioner {
    * @param watermarkType Watermark type
    * @param previousWatermark Previous water mark
    * @param deltaForNextWatermark delta number for next water mark
-   * @return append low water mark
+   * @return Previous watermark (fallback to {@link ConfigurationKeys#SOURCE_QUERYBASED_START_VALUE} iff previous watermark is unavailable)
    */
   private long getAppendLowWatermark(WatermarkType watermarkType, long previousWatermark, int deltaForNextWatermark) {
     LOG.debug("Getting append low water mark");
@@ -384,7 +396,7 @@ public class Partitioner {
    *
    * @param extractType Extract type
    * @param watermarkType Watermark type
-   * @return high water mark
+   * @return high water mark in {@link Partitioner#WATERMARKTIMEFORMAT}
    */
   @VisibleForTesting
   protected long getHighWatermark(ExtractType extractType, WatermarkType watermarkType) {
@@ -598,6 +610,8 @@ public class Partitioner {
   }
 
   /**
+   * If full dump is true, the low watermark will be based on {@link ConfigurationKeys#SOURCE_QUERYBASED_START_VALUE}
+   * Otherwise it will base on the previous watermark. Please refer to {@link Partitioner#getLowWatermark(ExtractType, WatermarkType, long, int)}
    * @return full dump or not
    */
   public boolean isFullDump() {

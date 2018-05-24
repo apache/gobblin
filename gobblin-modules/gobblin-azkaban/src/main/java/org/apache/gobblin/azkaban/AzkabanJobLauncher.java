@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.azkaban;
 
+import com.google.common.base.Optional;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -33,8 +34,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
+import org.apache.gobblin.runtime.listeners.CompositeJobListener;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.Credentials;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
@@ -96,6 +100,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private static final Logger LOG = Logger.getLogger(AzkabanJobLauncher.class);
 
   public static final String GOBBLIN_LOG_LEVEL_KEY = "gobblin.log.levelOverride";
+  public static final String GOBBLIN_CUSTOM_JOB_LISTENERS = "gobblin.custom.job.listeners";
   public static final String TEMPLATE_KEY = "gobblin.template.uri";
 
   private static final String HADOOP_FS_DEFAULT_NAME = "fs.default.name";
@@ -113,7 +118,8 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
-  private final JobListener jobListener = new EmailNotificationJobListener();
+  private final JobListener jobListener;
+
   private final Properties props;
   private final ApplicationLauncher applicationLauncher;
   private final long ownAzkabanSla;
@@ -126,11 +132,14 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
     if (props.containsKey(GOBBLIN_LOG_LEVEL_KEY)) {
       Level logLevel = Level.toLevel(props.getProperty(GOBBLIN_LOG_LEVEL_KEY), Level.INFO);
-      Logger.getLogger("gobblin").setLevel(logLevel);
+      Logger.getLogger("org.apache.gobblin").setLevel(logLevel);
     }
 
     this.props = new Properties();
     this.props.putAll(props);
+
+    // initialize job listeners after properties has been initialized
+    this.jobListener = initJobListener();
 
     // load dynamic configuration and add them to the job properties
     Config propsAsConfig = ConfigUtils.propertiesToConfig(props);
@@ -171,7 +180,10 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
       // see javadoc for more information
       LOG.info(String.format("Job type %s does not provide Hadoop tokens. Negotiating Hadoop tokens.",
           props.getProperty(JOB_TYPE)));
-      File tokenFile = TokenUtils.getHadoopTokens(new State(props));
+
+      File tokenFile = File.createTempFile("mr-azkaban", ".token");
+      TokenUtils.getHadoopTokens(new State(props), Optional.of(tokenFile), new Credentials());
+
       System.setProperty(HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
       System.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
       this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
@@ -210,6 +222,21 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
     // verses extending ServiceBasedAppLauncher
     this.applicationLauncher =
         this.closer.register(new ServiceBasedAppLauncher(jobProps, "Azkaban-" + UUID.randomUUID()));
+  }
+
+  protected JobListener initJobListener() {
+    CompositeJobListener compositeJobListener = new CompositeJobListener();
+    List<String> listeners = new State(props).getPropAsList(GOBBLIN_CUSTOM_JOB_LISTENERS, EmailNotificationJobListener.class.getSimpleName());
+    try {
+      for (String listenerAlias: listeners) {
+        ClassAliasResolver<JobListener> conditionClassAliasResolver = new ClassAliasResolver<>(JobListener.class);
+        compositeJobListener.addJobListener(conditionClassAliasResolver.resolveClass(listenerAlias).newInstance());
+      }
+    } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
+      throw new IllegalArgumentException(e);
+    }
+
+    return compositeJobListener;
   }
 
   @Override

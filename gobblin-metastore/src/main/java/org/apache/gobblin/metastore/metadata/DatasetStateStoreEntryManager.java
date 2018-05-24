@@ -20,6 +20,7 @@ package org.apache.gobblin.metastore.metadata;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.DatasetStateStore;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 
@@ -27,6 +28,7 @@ import lombok.Getter;
  * A {@link StateStoreEntryManager} in a {@link DatasetStateStore}.
  */
 @Getter
+@EqualsAndHashCode(exclude={"datasetStateStore"}, callSuper = true)
 public abstract class DatasetStateStoreEntryManager<T extends State> extends StateStoreEntryManager<T> {
 
   /**

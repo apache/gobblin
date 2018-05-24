@@ -18,6 +18,7 @@ package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Properties;
 
@@ -36,7 +37,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.PathUtils;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 
 public class CopyableFileTest {
 
@@ -84,6 +90,51 @@ public class CopyableFileTest {
 
     Assert.assertEquals(deserialized, copyEntities);
 
+  }
+
+  @Test
+  public void testSetFsDatasets() throws URISyntaxException {
+    FileSystem originFs = mock(FileSystem.class);
+    String originFsUri = "hdfs://source.company.biz:2000";
+    String originPath = "/data/databases/source/profile";
+    when(originFs.getUri()).thenReturn(new URI(originFsUri));
+    when(originFs.getScheme()).thenReturn("hdfs");
+
+    FileSystem targetFs = mock(FileSystem.class);
+    String targetFsUri = "file:///";
+    String destinationPath = "/data/databases/destination/profile";
+    when(targetFs.getUri()).thenReturn(new URI(targetFsUri));
+    when(targetFs.getScheme()).thenReturn("file");
+
+    // Test when source file is not a directory
+    FileStatus origin = new FileStatus(0l, false, 0, 0l, 0l, new Path(originPath));
+    CopyableFile copyableFile = new CopyableFile(origin, new Path(destinationPath), null, null, null,
+        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "");
+    copyableFile.setFsDatasets(originFs, targetFs);
+    DatasetDescriptor source = copyableFile.getSourceDataset();
+    Assert.assertEquals(source.getName(), "/data/databases/source");
+    Assert.assertEquals(source.getPlatform(), "hdfs");
+    Assert.assertEquals(source.getMetadata().get("fsUri"), originFsUri);
+    DatasetDescriptor destination = copyableFile.getDestinationDataset();
+    Assert.assertEquals(destination.getName(), "/data/databases/destination");
+    Assert.assertEquals(destination.getPlatform(), "file");
+    Assert.assertEquals(destination.getMetadata().get("fsUri"), targetFsUri);
+
+    // Test when source file is a directory
+    originPath = originFsUri + originPath;
+    destinationPath = targetFsUri + destinationPath;
+    origin = new FileStatus(0l, true, 0, 0l, 0l, new Path(originPath));
+    copyableFile = new CopyableFile(origin, new Path(destinationPath), null, null, null,
+        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "");
+    copyableFile.setFsDatasets(originFs, targetFs);
+    source = copyableFile.getSourceDataset();
+    Assert.assertEquals(source.getName(), "/data/databases/source/profile");
+    Assert.assertEquals(source.getPlatform(), "hdfs");
+    Assert.assertEquals(source.getMetadata().get("fsUri"), originFsUri);
+    destination = copyableFile.getDestinationDataset();
+    Assert.assertEquals(destination.getName(), "/data/databases/destination/profile");
+    Assert.assertEquals(destination.getPlatform(), "file");
+    Assert.assertEquals(destination.getMetadata().get("fsUri"), targetFsUri);
   }
 
 
@@ -200,7 +251,7 @@ public class CopyableFileTest {
 
     FileStatus fileStatus = new FileStatus(1, false, 0, 0, 0, 0, FsPermission.getDefault(), "owner", "group", path);
 
-    FileSystem fs = Mockito.mock(FileSystem.class);
+    FileSystem fs = mock(FileSystem.class);
     Mockito.doReturn(fileStatus).when(fs).getFileStatus(path);
     Mockito.doReturn(path).when(fs).makeQualified(path);
     Mockito.doReturn(new URI("hdfs://uri")).when(fs).getUri();

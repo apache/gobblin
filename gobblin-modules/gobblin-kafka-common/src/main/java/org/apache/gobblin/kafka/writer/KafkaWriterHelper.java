@@ -28,6 +28,7 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
@@ -41,7 +42,14 @@ import static org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys.CLIEN
 public class KafkaWriterHelper {
 
   static Properties getProducerProperties(Properties props) {
-    Properties producerProperties = stripPrefix(props, KAFKA_PRODUCER_CONFIG_PREFIX);
+    Config config = ConfigUtils.propertiesToConfig(props);
+
+    // get the "writer.kafka.producerConfig" config for producer config to pass along to Kafka with a fallback to the
+    // shared config that start with "gobblin.kafka.sharedConfig"
+    Config producerConfig = ConfigUtils.getConfigOrEmpty(config, KAFKA_PRODUCER_CONFIG_PREFIX_NO_DOT).withFallback(
+        ConfigUtils.getConfigOrEmpty(config, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+
+    Properties producerProperties = ConfigUtils.configToProperties(producerConfig);
 
     // Provide default properties if not set from above
     setDefaultIfUnset(producerProperties, KEY_SERIALIZER_CONFIG, DEFAULT_KEY_SERIALIZER);

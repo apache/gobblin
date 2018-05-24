@@ -98,7 +98,7 @@ public class AsyncWriterManagerTest {
     }
   }
 
-  @Test
+  @Test (enabled=false)
   public void testSlowWriters()
       throws Exception {
     // Every call incurs 1s latency, commit timeout is 40s
@@ -189,7 +189,7 @@ public class AsyncWriterManagerTest {
     }
   }
 
-  @Test
+  @Test (enabled=false)
   public void testCompleteFailureMode()
       throws Exception {
 
@@ -216,7 +216,7 @@ public class AsyncWriterManagerTest {
     Assert.assertEquals(asyncWriterManager.recordsFailed.getCount(), 1);
   }
 
-  @Test
+  @Test (enabled=false)
   public void testFlakyWritersWithRetries()
       throws Exception {
 
@@ -249,7 +249,7 @@ public class AsyncWriterManagerTest {
    * In the presence of lots of failures, the manager should slow down
    * and not overwhelm the system.
    */
-  @Test
+  @Test (enabled=false)
   public void testFlowControlWithWriteFailures()
       throws Exception {
 

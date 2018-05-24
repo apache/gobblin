@@ -219,6 +219,24 @@ public abstract class KafkaWorkUnitPacker {
     workUnit.removeProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
     workUnit.removeProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY);
     workUnit.setWatermarkInterval(interval);
+
+    // Update offset fetch epoch time and previous latest offset. These are used to compute the load factor,
+    // gobblin consumption rate relative to the kafka production rate. The kafka rate is computed as
+    // (current latest offset - previous latest offset)/(current epoch time - previous epoch time).
+    int index = 0;
+    for (WorkUnit wu : multiWorkUnit.getWorkUnits()) {
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME, index),
+          wu.getProp(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME));
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.OFFSET_FETCH_EPOCH_TIME, index),
+          wu.getProp(KafkaSource.OFFSET_FETCH_EPOCH_TIME));
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_LATEST_OFFSET, index),
+          wu.getProp(KafkaSource.PREVIOUS_LATEST_OFFSET));
+      index++;
+    }
+    workUnit.removeProp(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME);
+    workUnit.removeProp(KafkaSource.OFFSET_FETCH_EPOCH_TIME);
+    workUnit.removeProp(KafkaSource.PREVIOUS_LATEST_OFFSET);
+
     // Remove the original partition information
     workUnit.removeProp(KafkaSource.PARTITION_ID);
     workUnit.removeProp(KafkaSource.LEADER_ID);

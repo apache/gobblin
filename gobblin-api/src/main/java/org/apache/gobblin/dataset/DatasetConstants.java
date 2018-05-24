@@ -23,6 +23,7 @@ public class DatasetConstants {
   public static final String PLATFORM_HDFS = "hdfs";
   public static final String PLATFORM_KAFKA = "kafka";
   public static final String PLATFORM_HIVE = "hive";
+  public static final String PLATFORM_SALESFORCE = "salesforce";
   public static final String PLATFORM_MYSQL = "mysql";
 
   /** Common metadata */
@@ -36,4 +37,8 @@ public class DatasetConstants {
 
   /** JDBC metadata */
   public static final String CONNECTION_URL = "connectionUrl";
+
+  /** FileSystem scheme and location */
+  public static final String FS_SCHEME = "fsScheme";
+  public static final String FS_LOCATION = "fsLocation";
 }

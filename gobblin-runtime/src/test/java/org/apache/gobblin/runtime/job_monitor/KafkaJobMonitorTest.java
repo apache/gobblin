@@ -23,6 +23,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.runtime.kafka.HighLevelConsumerTest;
 
@@ -32,8 +33,9 @@ public class KafkaJobMonitorTest {
   @Test
   public void test() throws Exception {
 
-    MockedKafkaJobMonitor monitor =
-        MockedKafkaJobMonitor.create(HighLevelConsumerTest.getSimpleConfig(Optional.of(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX)));
+    Config config = HighLevelConsumerTest.getSimpleConfig(Optional.of(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX));
+
+    MockedKafkaJobMonitor monitor = MockedKafkaJobMonitor.create(config);
     monitor.startAsync();
 
     monitor.getMockKafkaStream().pushToStream("job1:1");

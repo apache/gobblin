@@ -47,6 +47,7 @@ dependencies {
   compile externalDependency.junit
 
   testCompile project(":gobblin-test-utils")
+  testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
 
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica

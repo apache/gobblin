@@ -26,6 +26,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
@@ -35,6 +36,7 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Either;
 
 import kafka.message.MessageAndMetadata;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -49,10 +51,13 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public static final String KAFKA_AUTO_OFFSET_RESET_KEY = KAFKA_JOB_MONITOR_PREFIX + ".auto.offset.reset";
   public static final String KAFKA_AUTO_OFFSET_RESET_SMALLEST = "smallest";
   public static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
+  protected DatasetStateStore datasetStateStore;
+  protected final MutableJobCatalog jobCatalog;
 
-  private final MutableJobCatalog jobCatalog;
-  private Counter newSpecs;
-  private Counter remmovedSpecs;
+  @Getter
+  protected Counter newSpecs;
+  @Getter
+  protected Counter removedSpecs;
 
   /**
    * @return A collection of either {@link JobSpec}s to add/update or {@link URI}s to remove from the catalog,
@@ -64,13 +69,18 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config) {
     super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1);
     this.jobCatalog = catalog;
+    try {
+      this.datasetStateStore = DatasetStateStore.buildDatasetStateStore(config);
+    } catch (Exception e) {
+      log.warn("DatasetStateStore could not be created.", e);
+    }
   }
 
   @Override
   protected void createMetrics() {
     super.createMetrics();
     this.newSpecs = this.getMetricContext().counter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_NEW_SPECS);
-    this.remmovedSpecs = this.getMetricContext().counter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_REMOVED_SPECS);
+    this.removedSpecs = this.getMetricContext().counter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_REMOVED_SPECS);
   }
 
   @VisibleForTesting
@@ -95,7 +105,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
           this.newSpecs.inc();
           this.jobCatalog.put(((Either.Left<JobSpec, URI>) parsedMessage).getLeft());
         } else if (parsedMessage instanceof Either.Right) {
-          this.remmovedSpecs.inc();
+          this.removedSpecs.inc();
           this.jobCatalog.remove(((Either.Right<JobSpec, URI>) parsedMessage).getRight());
         }
       }

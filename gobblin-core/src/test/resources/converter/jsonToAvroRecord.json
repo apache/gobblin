@@ -9,5 +9,17 @@
   "nestedRecords": {
     "nestedField": "test",
     "nestedField2": "test2"
-  }
+  },
+  "emptyArrayOfRecords": [],
+  "arrayOfRecords": [
+    {
+      "field1": "test1",
+      "field2": "test2"
+    },
+    {
+      "field1": "test3",
+      "field2": "test4"
+    }
+  ],
+  "enumField": "ENUM2"
 }

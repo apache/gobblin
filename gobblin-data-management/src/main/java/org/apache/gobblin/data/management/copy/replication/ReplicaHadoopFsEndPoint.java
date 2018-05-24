@@ -72,30 +72,31 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   }
 
   @Override
-  public synchronized Collection<FileStatus> getFiles() throws IOException{
-    if(filesInitialized){
+  public synchronized Collection<FileStatus> getFiles() throws IOException {
+    if (filesInitialized) {
       return this.allFileStatus;
     }
 
     this.filesInitialized = true;
     FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
 
-    if(!fs.exists(this.rc.getPath())){
+    if (!fs.exists(this.rc.getPath())) {
       return Collections.emptyList();
     }
 
     Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(this);
-        //ReplicationDataValidPathPicker.getValidPaths(fs, this.rc.getPath(), this.rdc);
+    //ReplicationDataValidPathPicker.getValidPaths(fs, this.rc.getPath(), this.rdc);
 
-    for(Path p: validPaths){
-      this.allFileStatus.addAll(FileListUtils.listFilesRecursively(fs, p));
+    for (Path p : validPaths) {
+      this.allFileStatus.addAll(
+          FileListUtils.listFilesRecursively(fs, p, super.getPathFilter(), super.isApplyFilterToDirectories()));
     }
     return this.allFileStatus;
   }
 
   @Override
   public synchronized Optional<ComparableWatermark> getWatermark() {
-    if(this.watermarkInitialized) {
+    if (this.watermarkInitialized) {
       return this.cachedWatermark;
     }
 
@@ -104,12 +105,12 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
       Path metaData = new Path(rc.getPath(), WATERMARK_FILE);
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
       if (fs.exists(metaData)) {
-        try(FSDataInputStream fin = fs.open(metaData)){
+        try (FSDataInputStream fin = fs.open(metaData)) {
           InputStreamReader reader = new InputStreamReader(fin, Charsets.UTF_8);
           String content = CharStreams.toString(reader);
           Watermark w = WatermarkMetadataUtil.deserialize(content);
-          if(w instanceof ComparableWatermark){
-            this.cachedWatermark = Optional.of((ComparableWatermark)w);
+          if (w instanceof ComparableWatermark) {
+            this.cachedWatermark = Optional.of((ComparableWatermark) w);
           }
         }
         return this.cachedWatermark;
@@ -120,7 +121,7 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
     } catch (IOException e) {
       log.warn("Can not find " + WATERMARK_FILE + " for replica " + this);
       return this.cachedWatermark;
-    } catch (WatermarkMetadataUtil.WatermarkMetadataMulFormatException e){
+    } catch (WatermarkMetadataUtil.WatermarkMetadataMulFormatException e) {
       log.warn("Can not create watermark from " + WATERMARK_FILE + " for replica " + this);
       return this.cachedWatermark;
     }
@@ -143,8 +144,11 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this.getClass()).add("is source", this.isSource()).add("end point name", this.getEndPointName())
-        .add("hadoopfs config", this.rc).toString();
+    return Objects.toStringHelper(this.getClass())
+        .add("is source", this.isSource())
+        .add("end point name", this.getEndPointName())
+        .add("hadoopfs config", this.rc)
+        .toString();
   }
 
   @Override
@@ -153,7 +157,7 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   }
 
   @Override
-  public Path getDatasetPath(){
+  public Path getDatasetPath() {
     return this.rc.getPath();
   }
 
@@ -168,23 +172,30 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj)
+    if (this == obj) {
       return true;
-    if (obj == null)
+    }
+    if (obj == null) {
       return false;
-    if (getClass() != obj.getClass())
+    }
+    if (getClass() != obj.getClass()) {
       return false;
+    }
     ReplicaHadoopFsEndPoint other = (ReplicaHadoopFsEndPoint) obj;
     if (rc == null) {
-      if (other.rc != null)
+      if (other.rc != null) {
         return false;
-    } else if (!rc.equals(other.rc))
+      }
+    } else if (!rc.equals(other.rc)) {
       return false;
+    }
     if (replicaName == null) {
-      if (other.replicaName != null)
+      if (other.replicaName != null) {
         return false;
-    } else if (!replicaName.equals(other.replicaName))
+      }
+    } else if (!replicaName.equals(other.replicaName)) {
       return false;
+    }
     return true;
   }
 }

@@ -125,12 +125,12 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     }
     try {
       if (!this.reportingQueue.offer(sanitizeEvent(event), 10, TimeUnit.SECONDS)) {
-        log.error("Enqueuing of event %s at reporter with class %s timed out. Sending of events is probably stuck.",
+        log.error("Enqueuing of event {} at reporter with class {} timed out. Sending of events is probably stuck.",
             event, this.getClass().getCanonicalName());
       }
     } catch (InterruptedException ie) {
-      log.warn(String.format("Enqueuing of event %s at reporter with class %s was interrupted.", event,
-          this.getClass().getCanonicalName()), ie);
+      log.warn("Enqueuing of event {} at reporter with class {} was interrupted.", event,
+          this.getClass().getCanonicalName(), ie);
     }
   }
 

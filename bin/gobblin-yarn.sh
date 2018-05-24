@@ -77,14 +77,13 @@ do
   case "$1" in
     start|stop)
       ACTION="$1"
-      shift
       ;;
     --jvmflags)
-      JVM_FLAGS="$1"
+      JVM_FLAGS="$2"
       shift
       ;;
     --jars)
-      EXTRA_JARS="$1"
+      EXTRA_JARS="$2"
       shift
       ;;
     --help)
@@ -102,7 +101,7 @@ if [ -z "$JAVA_HOME" ]; then
 fi
 
 # User defined JVM flags overrides $GOBBLIN_JVM_FLAGS (if any)
-if [ -n "$JVM_FLAGS" ]; then
+if [ -z "$JVM_FLAGS" ]; then
   JVM_FLAGS="-Xmx1g -Xms512m"
 fi
 

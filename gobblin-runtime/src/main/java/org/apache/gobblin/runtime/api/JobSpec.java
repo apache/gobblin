@@ -19,11 +19,13 @@ package org.apache.gobblin.runtime.api;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
 import java.util.Properties;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -34,8 +36,10 @@ import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 
+@Slf4j
 /**
  * Defines a Gobblin Job that can be run once, or multiple times. A {@link JobSpec} is
  * {@link Configurable} so it has an associated {@link Config}, along with other mandatory
@@ -63,6 +67,12 @@ public class JobSpec implements Configurable, Spec {
   Properties configAsProperties;
   /** URI of {@link org.apache.gobblin.runtime.api.JobTemplate} to use. */
   Optional<URI> templateURI;
+
+  /** Metadata can contain properties which are not a part of config, e.g. Verb */
+  Map<String, String> metadata;
+
+  /** A Verb identifies if the Spec is for Insert/Update/Delete */
+  public static final String VERB_KEY = "Verb";
 
   public static Builder builder(URI jobSpecUri) {
     return new Builder(jobSpecUri);
@@ -131,6 +141,7 @@ public class JobSpec implements Configurable, Spec {
     private Optional<String> description = Optional.absent();
     private Optional<URI> jobCatalogURI = Optional.absent();
     private Optional<URI> templateURI = Optional.absent();
+    private Optional<Map> metadata = Optional.absent();
 
     public Builder(URI jobSpecUri) {
       Preconditions.checkNotNull(jobSpecUri);
@@ -156,7 +167,7 @@ public class JobSpec implements Configurable, Spec {
       Preconditions.checkNotNull(this.uri);
       Preconditions.checkNotNull(this.version);
       return new JobSpec(getURI(), getVersion(), getDescription(), getConfig(),
-                         getConfigAsProperties(), getTemplateURI());
+                         getConfigAsProperties(), getTemplateURI(), getMetadata());
     }
 
     /** The scheme and authority of the job catalog URI are used to generate JobSpec URIs from
@@ -287,6 +298,24 @@ public class JobSpec implements Configurable, Spec {
     public Builder withTemplate(URI templateURI) {
       Preconditions.checkNotNull(templateURI);
       this.templateURI = Optional.of(templateURI);
+      return this;
+    }
+
+    public Map getDefaultMetadata() {
+      log.warn("Job Spec Verb is not provided, using type 'UNKNOWN'.");
+      return ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.UNKNOWN.name());
+    }
+
+    public Map getMetadata() {
+      if (!this.metadata.isPresent()) {
+        this.metadata = Optional.of(getDefaultMetadata());
+      }
+      return this.metadata.get();
+    }
+
+    public Builder withMetadata(Map<String, String> metadata) {
+      Preconditions.checkNotNull(metadata);
+      this.metadata = Optional.of(metadata);
       return this;
     }
   }

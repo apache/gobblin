@@ -1,29 +1,27 @@
 .classpath*
 .project*
 .settings
-.idea
-*.iml
-*.iws
-*.ipr
-*.swp
-*.swo
-*.log
-**/.classpath
-**/.project
-**/.settings
+
+# Intellij related
 **/.idea
 **/*.iml
 **/*.iws
 **/*.ipr
+.shelf/
+
+**/.classpath
+**/.project
+**/.settings
+
 **/*.swp
 **/*.swo
 **/*.log
 */bin
 **/bin
-build/
 **/build/
 .gradle
 **/.gradle
+gradle.properties.release
 test-output
 **/test-output
 dist
@@ -61,3 +59,8 @@ package-lock.json
 
 # generated java files
 **/gen-java/
+
+# generated config files by tests
+**/generated-gobblin-cluster.conf
+
+temp/

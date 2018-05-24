@@ -61,7 +61,7 @@ ext.externalDependency = [
     "hadoopYarnMiniCluster": "org.apache.hadoop:hadoop-minicluster:" + hadoopVersion,
     "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:" + hadoopVersion,
     "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
-    "helix": "org.apache.helix:helix-core:0.6.7",
+    "helix": "org.apache.helix:helix-core:0.6.9",
     "hiveCommon": "org.apache.hive:hive-common:" + hiveVersion,
     "hiveService": "org.apache.hive:hive-service:" + hiveVersion,
     "hiveJdbc": "org.apache.hive:hive-jdbc:" + hiveVersion,
@@ -177,7 +177,8 @@ ext.externalDependency = [
         "log4j:log4j:" + log4jVersion,
         "log4j:apache-log4j-extras:" + log4jVersion
     ],
-    "postgresConnector": "org.postgresql:postgresql:42.1.4"
+    "postgresConnector": "org.postgresql:postgresql:42.1.4",
+    "assertj": 'org.assertj:assertj-core:3.8.0',
 ]
 
 if (!isDefaultEnvironment)

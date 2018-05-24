@@ -19,57 +19,53 @@ package org.apache.gobblin.cluster;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.codahale.metrics.Gauge;
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
+import javax.annotation.Nonnull;
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareCounter;
-import org.apache.gobblin.metrics.ContextAwareGauge;
-import org.apache.gobblin.metrics.ContextAwareHistogram;
-import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.runtime.api.JobExecutionLauncher;
-import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobLauncher;
-import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.api.JobExecutionLauncher;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.listeners.AbstractJobListener;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
-
-
-import javax.annotation.Nonnull;
-import lombok.AllArgsConstructor;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -83,11 +79,6 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobScheduler.class);
 
-  static final String HELIX_MANAGER_KEY = "helixManager";
-  static final String APPLICATION_WORK_DIR_KEY = "applicationWorkDir";
-  static final String METADATA_TAGS = "metadataTags";
-  static final String JOB_RUNNING_MAP = "jobRunningMap";
-
   private final Properties properties;
   private final HelixManager helixManager;
   private final EventBus eventBus;
@@ -96,7 +87,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private final ConcurrentHashMap<String, Boolean> jobRunningMap;
   private final MutableJobCatalog jobCatalog;
   private final MetricContext metricContext;
-  private final InnerStandardMetrics metrics;
+  private final Metrics metrics;
+  private boolean startServicesCompleted;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
       Path appWorkDir, List<? extends Tag<?>> metadataTags, SchedulerService schedulerService,
@@ -109,16 +101,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.appWorkDir = appWorkDir;
     this.metadataTags = metadataTags;
     this.jobCatalog = jobCatalog;
-    this.metricContext = getDefaultMetricContext(properties);
-    this.metrics = new InnerStandardMetrics(this.metricContext);
-  }
-
-  public MetricContext getDefaultMetricContext(Properties properties) {
-    org.apache.gobblin.configuration.State fakeState =
-        new org.apache.gobblin.configuration.State(properties);
-    List<Tag<?>> tags = new ArrayList<>();
-    MetricContext res = Instrumented.getMetricContext(fakeState, GobblinHelixJobScheduler.class, tags);
-    return res;
+    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
+    this.metrics = new Metrics(this.metricContext);
+    this.startServicesCompleted = false;
   }
 
   @Nonnull
@@ -133,94 +118,97 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   }
 
   @Override
-  public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
-    return null;
-  }
-
-  @Override
-  public void switchMetricContext(List<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void switchMetricContext(MetricContext context) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public StandardMetricsBridge.StandardMetrics getStandardMetrics() {
+  public StandardMetrics getStandardMetrics() {
     return metrics;
   }
 
-  private class InnerStandardMetrics implements StandardMetrics {
+  private class Metrics extends StandardMetrics {
 
-    private final ContextAwareCounter numJobsLaunched;
-    private final ContextAwareCounter numJobsCompleted;
-    private final ContextAwareCounter numJobsCommitted;
-    private final ContextAwareCounter numJobsFailed;
-    private final ContextAwareCounter numJobsCancelled;
-    private final ContextAwareGauge<Integer> numJobsRunning;
-    private final ContextAwareTimer timeForJobCompletion;
-    private final ContextAwareTimer timeForJobFailure;
+    private final AtomicLong totalJobsLaunched;
+    private final AtomicLong totalJobsCompleted;
+    private final AtomicLong totalJobsCommitted;
+    private final AtomicLong totalJobsFailed;
+    private final AtomicLong totalJobsCancelled;
 
-    public InnerStandardMetrics(final MetricContext metricContext) {
-      this.numJobsLaunched = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED_COUNTER);
-      this.numJobsCompleted = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED_COUNTER);
-      this.numJobsCommitted = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED_COUNTER);
-      this.numJobsFailed = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED_COUNTER);
-      this.numJobsCancelled = metricContext.contextAwareCounter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED_COUNTER);
-      this.numJobsRunning = metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING_GAUGE,
-          new Gauge<Integer>() {
-            @Override public Integer getValue() {
-              return (int)(InnerStandardMetrics.this.numJobsLaunched.getCount() -
-                  InnerStandardMetrics.this.numJobsCompleted.getCount());
-            }
-          });
-      this.timeForJobCompletion = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_COMPLETION);
-      this.timeForJobFailure = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_JOB_FAILURE);
+    private final ContextAwareTimer timeForCompletedJobs;
+    private final ContextAwareTimer timeForFailedJobs;
+    private final ContextAwareTimer timeForCommittedJobs;
+    private final ContextAwareTimer timeBeforeJobScheduling;
+    private final ContextAwareTimer timeBeforeJobLaunching;
+    private final ContextAwareTimer timeBetwenJobSchedulingAndLaunching;
+
+    private final ThreadPoolExecutor threadPoolExecutor;
+
+    public Metrics(final MetricContext metricContext) {
+      // Thread executor reference from job scheduler
+      this.threadPoolExecutor = (ThreadPoolExecutor)GobblinHelixJobScheduler.this.jobExecutor;
+
+      // timer duration setup
+      int windowSize = ConfigUtils.getInt(ConfigUtils.propertiesToConfig(GobblinHelixJobScheduler.this.properties),
+          ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
+          ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
+
+      // All historical counters
+      this.totalJobsLaunched = new AtomicLong(0);
+      this.totalJobsCompleted = new AtomicLong(0);
+      this.totalJobsCommitted = new AtomicLong(0);
+      this.totalJobsFailed = new AtomicLong(0);
+      this.totalJobsCancelled = new AtomicLong(0);
+
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED, ()->this.totalJobsLaunched.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMPLETED, ()->this.totalJobsCompleted.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_COMMITTED, ()->this.totalJobsCommitted.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_FAILED, ()->this.totalJobsFailed.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED, ()->this.totalJobsCancelled.get()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING,
+          ()->(int)(Metrics.this.totalJobsLaunched.get() - Metrics.this.totalJobsCompleted.get())));
+
+      this.timeForCompletedJobs = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_COMPLETED_JOBS, windowSize, TimeUnit.MINUTES);
+      this.timeForFailedJobs = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_FAILED_JOBS, windowSize, TimeUnit.MINUTES);
+      this.timeForCommittedJobs = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_COMMITTED_JOBS, windowSize, TimeUnit.MINUTES);
+      this.timeBeforeJobScheduling = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_SCHEDULING, windowSize, TimeUnit.MINUTES);
+      this.timeBeforeJobLaunching = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BEFORE_JOB_LAUNCHING, windowSize, TimeUnit.MINUTES);
+      this.timeBetwenJobSchedulingAndLaunching = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_BETWEEN_JOB_SCHEDULING_AND_LAUNCHING, windowSize, TimeUnit.MINUTES);
+
+      // executor metrics
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_ACTIVE_COUNT, ()->this.threadPoolExecutor.getActiveCount()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_MAX_POOL_SIZE, ()->this.threadPoolExecutor.getMaximumPoolSize()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_POOL_SIZE, ()->this.threadPoolExecutor.getPoolSize()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_CORE_POOL_SIZE, ()->this.threadPoolExecutor.getCorePoolSize()));
+      this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_QUEUE_SIZE, ()->this.threadPoolExecutor.getQueue().size()));
+
+      this.contextAwareMetrics.add(timeForCommittedJobs);
+      this.contextAwareMetrics.add(timeForCompletedJobs);
+      this.contextAwareMetrics.add(timeForFailedJobs);
+      this.contextAwareMetrics.add(timeBeforeJobScheduling);
+      this.contextAwareMetrics.add(timeBeforeJobLaunching);
+      this.contextAwareMetrics.add(timeBetwenJobSchedulingAndLaunching);
+    }
+
+    private void updateTimeBeforeJobScheduling (Properties jobConfig) {
+      long jobCreationTime = Long.parseLong(jobConfig.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "0"));
+      Instrumented.updateTimer(Optional.of(timeBeforeJobScheduling), System.currentTimeMillis() - jobCreationTime, TimeUnit.MILLISECONDS);
+    }
+
+    private void updateTimeBeforeJobLaunching (Properties jobConfig) {
+      long jobCreationTime = Long.parseLong(jobConfig.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "0"));
+      Instrumented.updateTimer(Optional.of(timeBeforeJobLaunching), System.currentTimeMillis() - jobCreationTime, TimeUnit.MILLISECONDS);
+    }
+
+    private void updateTimeBetweenJobSchedulingAndJobLaunching (long scheduledTime, long launchingTime) {
+      Instrumented.updateTimer(Optional.of(timeBetwenJobSchedulingAndLaunching), launchingTime - scheduledTime, TimeUnit.MILLISECONDS);
     }
 
     @Override
     public String getName() {
       return GobblinHelixJobScheduler.class.getName();
     }
-
-    @Override
-    public Collection<ContextAwareGauge<?>> getGauges() {
-      return Collections.singleton(numJobsRunning);
-    }
-
-    @Override
-    public Collection<ContextAwareCounter> getCounters() {
-      List<ContextAwareCounter> counters = Lists.newArrayList();
-      counters.add(numJobsLaunched);
-      counters.add(numJobsCompleted);
-      counters.add(numJobsCommitted);
-      counters.add(numJobsFailed);
-      counters.add(numJobsCancelled);
-      return counters;
-    }
-
-    @Override
-    public Collection<ContextAwareMeter> getMeters() {
-      return null;
-    }
-
-    @Override
-    public Collection<ContextAwareTimer> getTimers() {
-      return ImmutableList.of(timeForJobCompletion, timeForJobFailure);
-    }
-
-    @Override
-    public Collection<ContextAwareHistogram> getHistograms() {
-      return null;
-    }
   }
 
   private class MetricsTrackingListener extends AbstractJobListener {
-    private final InnerStandardMetrics metrics;
+    private final Metrics metrics;
     private static final String START_TIME = "startTime";
-    MetricsTrackingListener(InnerStandardMetrics metrics) {
+    MetricsTrackingListener(Metrics metrics) {
       this.metrics = metrics;
     }
 
@@ -230,7 +218,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       super.onJobPrepare(jobContext);
       jobContext.getJobState().setProp(START_TIME, Long.toString(System.nanoTime()));
       if (GobblinHelixJobScheduler.this.isInstrumentationEnabled()) {
-        metrics.numJobsLaunched.inc();
+        metrics.totalJobsLaunched.incrementAndGet();
       }
     }
 
@@ -240,13 +228,14 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       super.onJobCompletion(jobContext);
       long startTime = jobContext.getJobState().getPropAsLong(START_TIME);
       if (GobblinHelixJobScheduler.this.isInstrumentationEnabled()) {
-        metrics.numJobsCompleted.inc();
-        Instrumented.updateTimer(Optional.of(metrics.timeForJobCompletion), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+        metrics.totalJobsCompleted.incrementAndGet();
+        Instrumented.updateTimer(Optional.of(metrics.timeForCompletedJobs), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         if (jobContext.getJobState().getState() == JobState.RunningState.FAILED) {
-            metrics.numJobsFailed.inc();
-            Instrumented.updateTimer(Optional.of(metrics.timeForJobFailure), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+            metrics.totalJobsFailed.incrementAndGet();
+            Instrumented.updateTimer(Optional.of(metrics.timeForFailedJobs), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         } else {
-            metrics.numJobsCommitted.inc();
+            metrics.totalJobsCommitted.incrementAndGet();
+            Instrumented.updateTimer(Optional.of(metrics.timeForCommittedJobs), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         }
       }
     }
@@ -256,7 +245,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         throws Exception {
       super.onJobCancellation(jobContext);
       if (GobblinHelixJobScheduler.this.isInstrumentationEnabled()) {
-        metrics.numJobsCancelled.inc();
+        metrics.totalJobsCancelled.incrementAndGet();
       }
     }
 
@@ -266,17 +255,17 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   protected void startUp() throws Exception {
     this.eventBus.register(this);
     super.startUp();
+    this.startServicesCompleted = true;
   }
 
   @Override
   public void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
-    Map<String, Object> additionalJobDataMap = Maps.newHashMap();
-    additionalJobDataMap.put(HELIX_MANAGER_KEY, this.helixManager);
-    additionalJobDataMap.put(APPLICATION_WORK_DIR_KEY, this.appWorkDir);
-    additionalJobDataMap.put(METADATA_TAGS, this.metadataTags);
-    additionalJobDataMap.put(JOB_RUNNING_MAP, this.jobRunningMap);
     try {
-      scheduleJob(jobProps, jobListener, additionalJobDataMap, GobblinHelixJob.class);
+      while (!startServicesCompleted) {
+        LOGGER.info("{} service is not fully up, waiting here...", this.getClass().getName());
+        Thread.sleep(1000);
+      }
+      scheduleJob(jobProps, jobListener, Maps.newHashMap(), GobblinHelixJob.class);
     } catch (Exception e) {
       throw new JobException("Failed to schedule job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     }
@@ -288,17 +277,99 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
-    try {
-      JobLauncher jobLauncher = buildGobblinHelixJobLauncher(jobProps);
-      runJob(jobProps, jobListener, jobLauncher);
-    } catch (Exception e) {
-      throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+    new RetriggeringJobCallable(jobProps, jobListener).call();
+  }
+
+  @Override
+  public GobblinHelixJobLauncher buildJobLauncher(Properties jobProps)
+      throws Exception {
+    return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
+  }
+
+  private class RetriggeringJobCallable implements Callable {
+    Properties jobProps;
+    JobListener jobListener;
+
+    public RetriggeringJobCallable(Properties jobProps, JobListener jobListener) {
+      this.jobProps = jobProps;
+      this.jobListener = jobListener;
+    }
+
+    private boolean isRetriggeringEnabled() {
+      return PropertiesUtils.getPropAsBoolean(jobProps, ConfigurationKeys.JOB_RETRIGGERING_ENABLED, ConfigurationKeys.DEFAULT_JOB_RETRIGGERING_ENABLED);
+    }
+
+    @Getter
+    JobLauncher currentJobLauncher = null;
+
+    @Override
+    public Void call() throws JobException {
+      try {
+        while (true) {
+          currentJobLauncher = buildJobLauncher(jobProps);
+          boolean isEarlyStopped = runJob(jobProps, jobListener, currentJobLauncher);
+          boolean isRetriggerEnabled = this.isRetriggeringEnabled();
+          if (isEarlyStopped && isRetriggerEnabled) {
+            LOGGER.info("Job {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+          } else {
+            break;
+          }
+          currentJobLauncher = null;
+        }
+      } catch (Exception e) {
+        LOGGER.error("Failed to run job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+        throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+      }
+
+      return null;
     }
   }
 
-  private GobblinHelixJobLauncher buildGobblinHelixJobLauncher(Properties jobProps)
-      throws Exception {
-    return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
+  public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener) {
+    RetriggeringJobCallable retriggeringJob = new RetriggeringJobCallable(jobProps, jobListener);
+    final Future<?> future = this.jobExecutor.submit(retriggeringJob);
+    return new Future() {
+      @Override
+      public boolean cancel(boolean mayInterruptIfRunning) {
+        if (!GobblinHelixJobScheduler.this.isCancelRequested()) {
+          return false;
+        }
+        boolean result = true;
+        try {
+          JobLauncher jobLauncher = retriggeringJob.getCurrentJobLauncher();
+          if (jobLauncher != null) {
+            jobLauncher.cancelJob(jobListener);
+          }
+        } catch (JobException e) {
+          LOGGER.error("Failed to cancel job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+          result = false;
+        }
+        if (mayInterruptIfRunning) {
+          result &= future.cancel(true);
+        }
+        return result;
+      }
+
+      @Override
+      public boolean isCancelled() {
+        return future.isCancelled();
+      }
+
+      @Override
+      public boolean isDone() {
+        return future.isDone();
+      }
+
+      @Override
+      public Object get() throws InterruptedException, ExecutionException {
+        return future.get();
+      }
+
+      @Override
+      public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        return future.get(timeout, unit);
+      }
+    };
   }
 
   @Subscribe
@@ -308,6 +379,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       Properties jobConfig = new Properties();
       jobConfig.putAll(this.properties);
       jobConfig.putAll(newJobArrival.getJobConfig());
+
+      metrics.updateTimeBeforeJobScheduling(jobConfig);
+
       if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         LOGGER.info("Scheduling job " + newJobArrival.getJobName());
         scheduleJob(jobConfig, new MetricsTrackingListener(metrics));
@@ -355,16 +429,20 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     private final String jobUri;
     private final Properties jobConfig;
     private final JobListener jobListener;
+    private final Long creationTimeInMillis;
 
     public NonScheduledJobRunner(String jobUri, Properties jobConfig, JobListener jobListener) {
       this.jobUri = jobUri;
       this.jobConfig = jobConfig;
       this.jobListener = jobListener;
+      this.creationTimeInMillis = System.currentTimeMillis();
     }
 
     @Override
     public void run() {
       try {
+        ((MetricsTrackingListener)jobListener).metrics.updateTimeBeforeJobLaunching(this.jobConfig);
+        ((MetricsTrackingListener)jobListener).metrics.updateTimeBetweenJobSchedulingAndJobLaunching(this.creationTimeInMillis, System.currentTimeMillis());
         GobblinHelixJobScheduler.this.runJob(this.jobConfig, this.jobListener);
 
         // remove non-scheduled job catalog once done so it won't be re-executed

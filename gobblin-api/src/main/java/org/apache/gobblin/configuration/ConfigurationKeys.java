@@ -54,6 +54,9 @@ public class ConfigurationKeys {
   public static final String INTERMEDIATE_STATE_STORE_TYPE_KEY = INTERMEDIATE_STATE_STORE_PREFIX + ".state.store.type";
   public static final String DEFAULT_STATE_STORE_TYPE = "fs";
   public static final String STATE_STORE_TYPE_NOOP = "noop";
+  // are the job.state files stored using the state store?
+  public static final String JOB_STATE_IN_STATE_STORE = "state.store.jobStateInStateStore";
+  public static final boolean DEFAULT_JOB_STATE_IN_STATE_STORE = false;
 
   public static final String CONFIG_RUNTIME_PREFIX = "gobblin.config.runtime.";
   // Root directory where task state files are stored
@@ -85,6 +88,10 @@ public class ConfigurationKeys {
   /**
    * Job scheduler configuration properties.
    */
+  // Job retriggering
+  public static final String JOB_RETRIGGERING_ENABLED = "job.retriggering.enabled";
+  public static final String DEFAULT_JOB_RETRIGGERING_ENABLED = "true";
+
   // Job executor thread pool size
   public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
   public static final int DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = 5;
@@ -105,6 +112,13 @@ public class ConfigurationKeys {
   public static final String SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY = "scheduler.wait.for.job.completion";
   public static final String DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION = Boolean.TRUE.toString();
 
+  public static final String HELIX_JOB_TIMEOUT_ENABLED_KEY = "job.timeout.enabled";
+  public static final String DEFAULT_HELIX_JOB_TIMEOUT_ENABLED = "false";
+  public static final String HELIX_JOB_TIMEOUT_SECONDS = "job.timeout.seconds";
+  public static final String DEFAULT_HELIX_JOB_TIMEOUT_SECONDS = "10800";
+
+  public static final String HELIX_TASK_TIMEOUT_SECONDS = "task.timeout.seconds";
+  public static final long DEFAULT_HELIX_TASK_TIMEOUT_SECONDS = 60 * 60;
 
   /**
    * Task executor and state tracker configuration properties.
@@ -162,6 +176,9 @@ public class ConfigurationKeys {
 
   public static final String WORK_UNIT_RETRY_POLICY_KEY = "workunit.retry.policy";
   public static final String WORK_UNIT_RETRY_ENABLED_KEY = "workunit.retry.enabled";
+  public static final String WORK_UNIT_CREATION_TIME_IN_MILLIS = "workunit.creation.time.in.millis";
+  public static final String WORK_UNIT_CREATION_AND_RUN_INTERVAL = "workunit.creation.and.run.interval";
+
   public static final String JOB_RUN_ONCE_KEY = "job.runonce";
   public static final String JOB_DISABLED_KEY = "job.disabled";
   public static final String JOB_JAR_FILES_KEY = "job.jars";
@@ -232,6 +249,7 @@ public class ConfigurationKeys {
    */
   // This property is used to specify the URN of a dataset a job or WorkUnit extracts data for
   public static final String DATASET_URN_KEY = "dataset.urn";
+  public static final String GLOBAL_WATERMARK_DATASET_URN="__globalDatasetWatermark";
   public static final String DEFAULT_DATASET_URN = "";
 
   /**
@@ -299,6 +317,8 @@ public class ConfigurationKeys {
   public static final String CONVERTER_AVRO_FIELD_PICK_FIELDS = "converter.avro.fields";
   public static final String CONVERTER_AVRO_JDBC_ENTRY_FIELDS_PAIRS = "converter.avro.jdbc.entry_fields_pairs";
   public static final String CONVERTER_SKIP_FAILED_RECORD = "converter.skipFailedRecord";
+  public static final String CONVERTER_AVRO_SCHEMA_KEY = "converter.avroSchema";
+  public static final String CONVERTER_IGNORE_FIELDS = "converter.ignoreFields";
 
   /**
    * Fork operator configuration properties.
@@ -449,6 +469,10 @@ public class ConfigurationKeys {
    * Configuration properties used by the extractor.
    */
   public static final String SOURCE_ENTITY = "source.entity";
+  public static final String SCHEMA_IN_SOURCE_DIR = "schema.in.source.dir";
+  public static final boolean DEFAULT_SCHEMA_IN_SOURCE_DIR = false;
+  public static final String SCHEMA_FILENAME = "schema.filename";
+  public static final String DEFAULT_SCHEMA_FILENAME = "metadata.json";
 
   // Comma-separated source entity names
   public static final String SOURCE_ENTITIES = "source.entities";
@@ -457,6 +481,8 @@ public class ConfigurationKeys {
   public static final String SOURCE_MAX_NUMBER_OF_PARTITIONS = "source.max.number.of.partitions";
   public static final String SOURCE_SKIP_FIRST_RECORD = "source.skip.first.record";
   public static final String SOURCE_COLUMN_NAME_CASE = "source.column.name.case";
+  public static final String SOURCE_EARLY_STOP_ENABLED = "source.earlyStop.enabled";
+  public static final boolean DEFAULT_SOURCE_EARLY_STOP_ENABLED = false;
 
   /**
    * Configuration properties used by the QueryBasedExtractor.
@@ -497,6 +523,8 @@ public class ConfigurationKeys {
 
   public static final String ENABLE_DELIMITED_IDENTIFIER = "enable.delimited.identifier";
   public static final boolean DEFAULT_ENABLE_DELIMITED_IDENTIFIER = false;
+
+  public static final String SQL_SERVER_CONNECTION_PARAMETERS = "source.querybased.sqlserver.connectionParameters";
 
   /**
    * Configuration properties used by the FileBasedExtractor
@@ -567,7 +595,6 @@ public class ConfigurationKeys {
   public static final String DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "true";
   public static final String DEFAULT_COLUMN_NAME_CASE = "NOCHANGE";
   public static final int DEFAULT_SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE = 1000;
-
   public static final String FILEBASED_REPORT_STATUS_ON_COUNT = "filebased.report.status.on.count";
   public static final int DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT = 10000;
   public static final String DEFAULT_SOURCE_TIMEZONE = PST_TIMEZONE_NAME;
@@ -618,6 +645,8 @@ public class ConfigurationKeys {
   public static final String METRICS_REPORT_INTERVAL_KEY = METRICS_CONFIGURATIONS_PREFIX + "report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = Long.toString(TimeUnit.SECONDS.toMillis(30));
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
+  public static final String METRIC_TIMER_WINDOW_SIZE_IN_MINUTES = METRICS_CONFIGURATIONS_PREFIX + "timer.window.size.in.minutes";
+  public static final int DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES = 15;
 
   // File-based reporting
   public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
@@ -743,6 +772,14 @@ public class ConfigurationKeys {
   public static final String SHARED_KAFKA_CONFIG_PREFIX = "gobblin.kafka.sharedConfig";
 
   /**
+   * Kafka schema registry
+   */
+  public static final String KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_SO_TIMEOUT = "kafka.schema.registry.httpclient.so.timeout";
+  public static final String KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_CONN_TIMEOUT = "kafka.schema.registry.httpclient.conn.timeout";
+  public static final String KAFKA_SCHEMA_REGISTRY_RETRY_TIMES = "kafka.schema.registry.retry.times";
+  public static final String KAFKA_SCHEMA_REGISTRY_RETRY_INTERVAL_IN_MILLIS = "kafka.schema.registry.retry.interval.inMillis";
+
+  /**
    * Job execution info server and history store configuration properties.
    */
   // If job execution info server is enabled
@@ -763,6 +800,8 @@ public class ConfigurationKeys {
   public static final String ENCRYPT_KEY_LOC = "encrypt.key.loc";
   public static final String ENCRYPT_USE_STRONG_ENCRYPTOR = "encrypt.use.strong.encryptor";
   public static final boolean DEFAULT_ENCRYPT_USE_STRONG_ENCRYPTOR = false;
+  public static final String NUMBER_OF_ENCRYPT_KEYS = "num.encrypt.keys";
+  public static final int DEFAULT_NUMBER_OF_MASTER_PASSWORDS = 2;
 
   /**
    * Proxy Filesystem operation properties.

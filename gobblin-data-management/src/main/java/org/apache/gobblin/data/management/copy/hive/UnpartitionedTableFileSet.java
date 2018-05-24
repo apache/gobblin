@@ -73,6 +73,7 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
             existingTargetTable = Optional.absent();
             break ;
           case REPLACE_TABLE:
+          case REPLACE_TABLE_AND_PARTITIONS:
             // Required to de-register the original table.
             log.warn("Source and target table are not compatible. Will override target table " + existingTargetTable.get()
                 .getDataLocation());

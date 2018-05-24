@@ -27,6 +27,9 @@ import lombok.EqualsAndHashCode;
  */
 @EqualsAndHashCode
 public final class EmptyKey implements SharedResourceKey {
+  /** A singleton instance */
+  public static final EmptyKey INSTANCE = new EmptyKey();
+
   @Override
   public String toConfigurationKey() {
     return null;

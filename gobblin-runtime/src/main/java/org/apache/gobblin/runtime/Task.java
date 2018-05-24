@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.BooleanUtils;
-import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -45,7 +44,14 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javax.annotation.Nullable;
+import lombok.NoArgsConstructor;
+
 import org.apache.gobblin.Constructs;
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -60,6 +66,7 @@ import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.gobblin.metrics.event.TaskEvent;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.SingleTaskDataPublisher;
@@ -77,9 +84,14 @@ import org.apache.gobblin.source.extractor.StreamingExtractor;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.writer.*;
-
-import lombok.NoArgsConstructor;
+import org.apache.gobblin.writer.AcknowledgableWatermark;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
+import org.apache.gobblin.writer.MultiWriterWatermarkManager;
+import org.apache.gobblin.writer.TrackerBasedWatermarkManager;
+import org.apache.gobblin.writer.WatermarkAwareWriter;
+import org.apache.gobblin.writer.WatermarkManager;
+import org.apache.gobblin.writer.WatermarkStorage;
 
 
 /**
@@ -150,6 +162,7 @@ public class Task implements TaskIFace {
   private final AtomicBoolean shutdownRequested;
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
+  private Future<?> taskFuture;
 
   /**
    * Instantiate a new {@link Task}.
@@ -262,6 +275,17 @@ public class Task implements TaskIFace {
     }
   }
 
+  /**
+   * Try to get a {@link ForkThrowableHolder} instance from the given {@link SharedResourcesBroker}
+   */
+  public static ForkThrowableHolder getForkThrowableHolder(SharedResourcesBroker<GobblinScopeTypes> broker) {
+    try {
+      return broker.getSharedResource(new ForkThrowableHolderFactory(), EmptyKey.INSTANCE);
+    } catch (NotConfiguredException e) {
+      LOG.error("Fail to get fork throwable holder instance from broker. Will not track fork exception.", e);
+      throw new RuntimeException(e);
+    }
+  }
 
   public static ExecutionModel getExecutionModel(State state) {
     String mode = state
@@ -364,8 +388,15 @@ public class Task implements TaskIFace {
     } catch (Throwable t) {
       failTask(t);
     } finally {
-      this.taskStateTracker.onTaskRunCompletion(this);
-      completeShutdown();
+      synchronized (this) {
+        if (this.taskFuture == null || !this.taskFuture.isCancelled()) {
+          this.taskStateTracker.onTaskRunCompletion(this);
+          completeShutdown();
+          this.taskFuture = null;
+        } else {
+          LOG.info("will not decrease count down latch as this task is cancelled");
+        }
+      }
     }
   }
 
@@ -869,9 +900,17 @@ public class Task implements TaskIFace {
       if (failedForkIds.size() == 0) {
         // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
         // as the data publisher will do that upon successful data publishing.
-        this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+        if (this.taskState.getWorkingState() != WorkUnitState.WorkingState.FAILED) {
+          this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+        }
       } else {
-        failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
+        ForkThrowableHolder holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
+        if (!holder.isEmpty()) {
+          failTask(holder.getAggregatedException(failedForkIds, this.taskId));
+        } else {
+          // just in case there are some corner cases where Fork throw an exception but doesn't add into holder
+          failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
+        }
       }
     } catch (Throwable t) {
       failTask(t);
@@ -903,8 +942,10 @@ public class Task implements TaskIFace {
         if (shouldPublishDataInTask()) {
           // If data should be published by the task, publish the data and set the task state to COMMITTED.
           // Task data can only be published after all forks have been closed by closer.close().
-          publishTaskData();
-          this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+          if (this.taskState.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL) {
+            publishTaskData();
+            this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+          }
         }
       } catch (IOException ioe) {
         failTask(ioe);
@@ -947,5 +988,23 @@ public class Task implements TaskIFace {
       }
     }
     return true;
+  }
+
+  public synchronized void setTaskFuture(Future<?> taskFuture) {
+    this.taskFuture = taskFuture;
+  }
+
+  /**
+   * return true if the task is successfully cancelled.
+   * @return
+   */
+  public synchronized boolean cancel() {
+    if (this.taskFuture != null && this.taskFuture.cancel(true)) {
+      this.taskStateTracker.onTaskRunCompletion(this);
+      this.completeShutdown();
+      return true;
+    } else {
+      return false;
+    }
   }
 }

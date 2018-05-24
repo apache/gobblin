@@ -52,6 +52,7 @@ public class FlowConfigClient implements Closeable {
   private Optional<HttpClientFactory> _httpClientFactory;
   private Optional<RestClient> _restClient;
   private final FlowconfigsRequestBuilders _flowconfigsRequestBuilders;
+  public static final String DELETE_STATE_STORE_KEY = "delete.state.store";
 
   /**
    * Construct a {@link FlowConfigClient} to communicate with http flow config server at URI serverUri
@@ -151,6 +152,23 @@ public class FlowConfigClient implements Closeable {
 
     DeleteRequest<FlowConfig> deleteRequest = _flowconfigsRequestBuilders.delete()
         .id(new ComplexResourceKey<>(flowId, new EmptyRecord())).build();
+    ResponseFuture<EmptyRecord> response = _restClient.get().sendRequest(deleteRequest);
+
+    response.getResponse();
+  }
+
+  /**
+   * Delete a flow configuration
+   * @param flowId identifier of flow configuration to delete
+   * @throws RemoteInvocationException
+   */
+  public void deleteFlowConfigWithStateStore(FlowId flowId)
+      throws RemoteInvocationException {
+    LOG.debug("deleteFlowConfig and state store with groupName " + flowId.getFlowGroup() + " flowName " +
+        flowId.getFlowName());
+
+    DeleteRequest<FlowConfig> deleteRequest = _flowconfigsRequestBuilders.delete()
+        .id(new ComplexResourceKey<>(flowId, new EmptyRecord())).setHeader(DELETE_STATE_STORE_KEY, Boolean.TRUE.toString()).build();
     ResponseFuture<EmptyRecord> response = _restClient.get().sendRequest(deleteRequest);
 
     response.getResponse();

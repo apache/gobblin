@@ -69,7 +69,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
   public static final String DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.suffix";
 
-  static final String DATE_PARTITIONED_SOURCE_PARTITION_PATTERN =
+  public static final String DATE_PARTITIONED_SOURCE_PARTITION_PATTERN =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.pattern";
 
   public static final String DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY =
@@ -99,7 +99,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
   * If this parameter is not specified the job will start reading data from
   * the beginning of Unix time.
   */
-  private static final String DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE =
+  public static final String DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE =
       DATE_PARTITIONED_SOURCE_PREFIX + ".min.watermark.value";
 
   /**
@@ -249,15 +249,14 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
 
   private Extract getExtractForFile(PartitionAwareFileRetriever.FileInfo file,
       String topicName,
-      SourceState partitionState,
+      String namespace,
       Map<Long, Extract> extractMap) {
     Extract extract = extractMap.get(file.getWatermarkMsSinceEpoch());
 
     if (extract == null) {
       // Create an extract object for the dayPath
 
-      extract = partitionState
-          .createExtract(this.tableType, partitionState.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), topicName);
+      extract = new Extract(this.tableType, namespace, topicName);
 
       LOG.info("Created extract: " + extract.getExtractId() + " for path " + topicName);
       extractMap.put(file.getWatermarkMsSinceEpoch(), extract);
@@ -277,23 +276,25 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
           retriever.getFilesToProcess(this.lowWaterMark, this.maxFilesPerJob - this.fileCount);
       Collections.sort(filesToPull);
       String topicName = this.sourceDir.getName();
+      String namespace = this.sourceState.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
 
-      SourceState partitionState = new SourceState();
-
-      partitionState.addAll(this.sourceState);
-      partitionState.setProp(ConfigurationKeys.SOURCE_ENTITY, topicName);
       Map<Long, Extract> extractMap = new HashMap<>();
       for (PartitionAwareFileRetriever.FileInfo file : filesToPull) {
-        Extract extract = getExtractForFile(file, topicName, partitionState, extractMap);
+        Extract extract = getExtractForFile(file, topicName, namespace, extractMap);
 
         LOG.info("Will process file " + file.getFilePath());
 
-        partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, file.getFilePath());
-        partitionState.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
-        partitionState.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
-        partitionState.setProp(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_KEY, file.getWatermarkMsSinceEpoch());
+        WorkUnit singleWorkUnit = WorkUnit.create(extract);
+        singleWorkUnit.setProp(ConfigurationKeys.SOURCE_ENTITY, topicName);
+        singleWorkUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, file.getFilePath());
+        singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
+        singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
+        singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_KEY, file.getWatermarkMsSinceEpoch());
 
-        WorkUnit singleWorkUnit = partitionState.createWorkUnit(extract);
+        if (this.sourceState.getPropAsBoolean(ConfigurationKeys.SCHEMA_IN_SOURCE_DIR,
+            ConfigurationKeys.DEFAULT_SCHEMA_IN_SOURCE_DIR)) {
+          addSchemaFile(file, singleWorkUnit);
+        }
 
         multiWorkUnitWeightedQueue.addWorkUnit(singleWorkUnit, file.getFileSize());
 
@@ -303,6 +304,17 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
       LOG.info("Total number of files extracted for the current run: " + filesToPull.size());
     } catch (IOException e) {
       Throwables.propagate(e);
+    }
+  }
+
+  private void addSchemaFile(PartitionAwareFileRetriever.FileInfo dataFile, WorkUnit workUnit)
+      throws IOException {
+    Path schemaFile = new Path(new Path(dataFile.getFilePath()).getParent(),
+        workUnit.getProp(ConfigurationKeys.SCHEMA_FILENAME, ConfigurationKeys.DEFAULT_SCHEMA_FILENAME));
+    if (fs.exists(schemaFile)) {
+      workUnit.setProp(ConfigurationKeys.SOURCE_SCHEMA, schemaFile.toString());
+    } else {
+      throw new IOException("Schema file " + schemaFile + " does not exist.");
     }
   }
 

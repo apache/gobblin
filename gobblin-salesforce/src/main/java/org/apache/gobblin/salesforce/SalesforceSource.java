@@ -33,7 +33,9 @@ import java.util.Set;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
@@ -47,6 +49,9 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
@@ -78,7 +83,6 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   public static final String USE_ALL_OBJECTS = "use.all.objects";
   public static final boolean DEFAULT_USE_ALL_OBJECTS = false;
 
-  private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
   private static final String ENABLE_DYNAMIC_PROBING = "salesforce.enableDynamicProbing";
   private static final String DYNAMIC_PROBING_LIMIT = "salesforce.dynamicProbingLimit";
   private static final int DEFAULT_DYNAMIC_PROBING_LIMIT = 1000;
@@ -96,10 +100,25 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   private static final String PROBE_PARTITION_QUERY_TEMPLATE = "SELECT count(${column}) cnt FROM ${table} "
       + "WHERE ${column} ${greater} ${start} AND ${column} ${less} ${end}";
 
+  private static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
+  private static final String EARLY_STOP_TOTAL_RECORDS_LIMIT = "salesforce.earlyStopTotalRecordsLimit";
+  private static final long DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT = DEFAULT_MIN_TARGET_PARTITION_SIZE * 4;
+
   private static final String SECONDS_FORMAT = "yyyy-MM-dd-HH:mm:ss";
   private static final String ZERO_TIME_SUFFIX = "-00:00:00";
 
   private static final Gson GSON = new Gson();
+  private boolean isEarlyStopped = false;
+  protected SalesforceConnector salesforceConnector = null;
+
+  public SalesforceSource() {
+    this.lineageInfo = Optional.absent();
+  }
+
+  @VisibleForTesting
+  SalesforceSource(LineageInfo lineageInfo) {
+    this.lineageInfo = Optional.fromNullable(lineageInfo);
+  }
 
   @Override
   public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
@@ -108,6 +127,20 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     } catch (ExtractPrepareException e) {
       log.error("Failed to prepare extractor", e);
       throw new IOException(e);
+    }
+  }
+
+  @Override
+  public boolean isEarlyStopped() {
+    return isEarlyStopped;
+  }
+
+  @Override
+  protected void addLineageSourceInfo(SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
+    DatasetDescriptor source =
+        new DatasetDescriptor(DatasetConstants.PLATFORM_SALESFORCE, entity.getSourceEntityName());
+    if (lineageInfo.isPresent()) {
+      lineageInfo.get().setSource(source, workUnit);
     }
   }
 
@@ -128,15 +161,54 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       return super.generateWorkUnits(sourceEntity, state, previousWatermark);
     }
 
-    Partition partition = new Partitioner(state).getGlobalPartition(previousWatermark);
+    Partitioner partitioner = new Partitioner(state);
+    if (isEarlyStopEnabled(state) && partitioner.isFullDump()) {
+      throw new UnsupportedOperationException("Early stop mode cannot work with full dump mode.");
+    }
+
+    Partition partition = partitioner.getGlobalPartition(previousWatermark);
     Histogram histogram = getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
 
-    String specifiedPartitions = generateSpecifiedPartitions(histogram, minTargetPartitionSize, maxPartitions,
-        partition.getLowWatermark(), partition.getHighWatermark());
+    // we should look if the count is too big, cut off early if count exceeds the limit, or bucket size is too large
+
+    Histogram histogramAdjust;
+
+    // TODO: we should consider move this logic into getRefinedHistogram so that we can early terminate the search
+    if (isEarlyStopEnabled(state)) {
+      histogramAdjust = new Histogram();
+      for (HistogramGroup group : histogram.getGroups()) {
+        histogramAdjust.add(group);
+        if (histogramAdjust.getTotalRecordCount() > state
+            .getPropAsLong(EARLY_STOP_TOTAL_RECORDS_LIMIT, DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT)) {
+          break;
+        }
+      }
+    } else {
+      histogramAdjust = histogram;
+    }
+
+    long expectedHighWatermark = partition.getHighWatermark();
+    if (histogramAdjust.getGroups().size() < histogram.getGroups().size()) {
+      HistogramGroup lastPlusOne = histogram.get(histogramAdjust.getGroups().size());
+      long earlyStopHighWatermark = Long.parseLong(Utils.toDateTimeFormat(lastPlusOne.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
+      log.info("Job {} will be stopped earlier. [LW : {}, early-stop HW : {}, expected HW : {}]", state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), earlyStopHighWatermark, expectedHighWatermark);
+      this.isEarlyStopped = true;
+      expectedHighWatermark = earlyStopHighWatermark;
+    } else {
+      log.info("Job {} will be finished in a single run. [LW : {}, expected HW : {}]", state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), expectedHighWatermark);
+    }
+
+    String specifiedPartitions = generateSpecifiedPartitions(histogramAdjust, minTargetPartitionSize, maxPartitions,
+        partition.getLowWatermark(), expectedHighWatermark);
     state.setProp(Partitioner.HAS_USER_SPECIFIED_PARTITIONS, true);
     state.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, specifiedPartitions);
+    state.setProp(Partitioner.IS_EARLY_STOPPED, isEarlyStopped);
 
     return super.generateWorkUnits(sourceEntity, state, previousWatermark);
+  }
+
+  private boolean isEarlyStopEnabled (State state) {
+    return state.getPropAsBoolean(ConfigurationKeys.SOURCE_EARLY_STOP_ENABLED, ConfigurationKeys.DEFAULT_SOURCE_EARLY_STOP_ENABLED);
   }
 
   String generateSpecifiedPartitions(Histogram histogram, int minTargetPartitionSize, int maxPartitions, long lowWatermark,
@@ -164,7 +236,12 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         partitionPoints.add(Utils.toDateTimeFormat(group.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
       }
 
-      // Move the candidate to a new bucket if the attempted total is 2x of interval
+      /**
+       * Using greedy algorithm by keep adding group until it exceeds the interval size (x2)
+       * Proof: Assuming nth group violates 2 x interval size, then all groups from 0th to (n-1)th, plus nth group,
+       * will have total size larger or equal to interval x 2. Hence, we are saturating all intervals (with original size)
+       * without leaving any unused space in between. We could choose x3,x4... but it is not space efficient.
+       */
       if (count != 0 && count + group.count >= 2 * interval) {
         // Summarize current group
         statistics.addValue(count);
@@ -188,16 +265,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       throw new RuntimeException("Unexpected empty partition list");
     }
 
-    // If the last group is used as the last partition point
-    if (count == 0) {
-      // Exchange the last partition point with global high watermark
-      partitionPoints.set(partitionPoints.size() - 1, Long.toString(expectedHighWatermark));
-    } else {
+    if (count > 0) {
       // Summarize last group
       statistics.addValue(count);
-      // Add global high watermark as last point
-      partitionPoints.add(Long.toString(expectedHighWatermark));
     }
+
+    // Add global high watermark as last point
+    partitionPoints.add(Long.toString(expectedHighWatermark));
 
     log.info("Dynamic partitioning statistics: ");
     log.info("data: " + Arrays.toString(statistics.getValues()));
@@ -335,7 +409,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     // make a copy of the histogram list and add a dummy entry at the end to avoid special processing of the last group
     List<HistogramGroup> list = new ArrayList(histogram.getGroups());
-    Date hwmDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
+    Date hwmDate = Utils.toDate(partition.getHighWatermark(), Partitioner.WATERMARKTIMEFORMAT);
     list.add(new HistogramGroup(Utils.epochToDate(hwmDate.getTime(), SECONDS_FORMAT), 0));
 
     for (int i = 0; i < list.size() - 1; i++) {
@@ -412,12 +486,19 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     return histogram;
   }
 
+  protected SalesforceConnector getConnector(State state) {
+    if (this.salesforceConnector == null) {
+      this.salesforceConnector = new SalesforceConnector(state);
+    }
+    return this.salesforceConnector;
+  }
+
   /**
    * Generate the histogram
    */
   private Histogram getHistogram(String entity, String watermarkColumn, SourceState state,
       Partition partition) {
-    SalesforceConnector connector = new SalesforceConnector(state);
+    SalesforceConnector connector = getConnector(state);
 
     try {
       if (!connector.connect()) {
@@ -431,7 +512,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     // exchange the first histogram group key with the global low watermark to ensure that the low watermark is captured
     // in the range of generated partitions
-    HistogramGroup firstGroup = histogram.getGroups().get(0);
+    HistogramGroup firstGroup = histogram.get(0);
     Date lwmDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
     histogram.getGroups().set(0, new HistogramGroup(Utils.epochToDate(lwmDate.getTime(), SECONDS_FORMAT),
         firstGroup.getCount()));
@@ -507,6 +588,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       totalRecordCount += histogram.totalRecordCount;
     }
 
+    HistogramGroup get(int idx) {
+      return this.groups.get(idx);
+    }
+
     @Override
     public String toString() {
       return groups.toString();
@@ -518,7 +603,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       return super.getSourceEntities(state);
     }
 
-    SalesforceConnector connector = new SalesforceConnector(state);
+    SalesforceConnector connector = getConnector(state);
     try {
       if (!connector.connect()) {
         throw new RuntimeException("Failed to connect.");
@@ -539,7 +624,6 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     } catch (RestApiProcessingException e) {
       throw Throwables.propagate(e);
     }
-
   }
 
   private static Set<SourceEntity> getSourceEntities(String response) {

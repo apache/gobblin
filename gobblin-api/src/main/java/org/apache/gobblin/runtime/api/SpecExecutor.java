@@ -58,7 +58,8 @@ public interface SpecExecutor {
   public static enum Verb {
     ADD(1, "add"),
     UPDATE(2, "update"),
-    DELETE(3, "delete");
+    DELETE(3, "delete"),
+    UNKNOWN(4, "unknown");
 
     private int _id;
     private String _verb;

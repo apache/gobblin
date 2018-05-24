@@ -31,7 +31,7 @@ import org.apache.gobblin.metrics.kafka.Pusher;
 /**
  * Mock instance of {@link org.apache.gobblin.metrics.kafka.Pusher} used for testing.
  */
-public class MockKafkaPusher implements Pusher {
+public class MockKafkaPusher implements Pusher<byte[]> {
 
   Queue<byte[]> messages = Queues.newLinkedBlockingQueue();
 

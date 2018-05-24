@@ -18,6 +18,7 @@
 package org.apache.gobblin.runtime.job_catalog;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -27,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
@@ -62,18 +64,28 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
 
   public JobCatalogBase(Optional<Logger> log, Optional<MetricContext> parentMetricContext,
       boolean instrumentationEnabled) {
+    this(log, parentMetricContext, instrumentationEnabled, Optional.absent());
+  }
+
+  public JobCatalogBase(Optional<Logger> log, Optional<MetricContext> parentMetricContext,
+      boolean instrumentationEnabled, Optional<Config> sysConfig) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.listeners = new JobCatalogListenersList(log);
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(JobCatalog.class.getSimpleName()).build();
-      this.metrics = new StandardMetrics(this);
+      this.metrics = createStandardMetrics(sysConfig);
+      this.addListener(this.metrics);
     }
     else {
       this.metricContext = null;
       this.metrics = null;
     }
+  }
+
+  protected StandardMetrics createStandardMetrics(Optional<Config> sysConfig) {
+    return new StandardMetrics(this, sysConfig);
   }
 
   @Override
@@ -87,9 +99,17 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
   }
 
   protected void notifyAllListeners() {
-    for (JobSpec jobSpec : getJobs()) {
+    Collection<JobSpec> jobSpecs = getJobsWithTimeUpdate();
+    for (JobSpec jobSpec : jobSpecs) {
       this.listeners.onAddJob(jobSpec);
     }
+  }
+
+  private Collection<JobSpec> getJobsWithTimeUpdate() {
+    long startTime = System.currentTimeMillis();
+    Collection<JobSpec> jobSpecs = getJobs();
+    this.metrics.updateGetJobTime(startTime);
+    return jobSpecs;
   }
 
   /**{@inheritDoc}*/
@@ -99,7 +119,7 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
     this.listeners.addListener(jobListener);
 
     if (state() == State.RUNNING) {
-      for (JobSpec jobSpec : getJobs()) {
+      for (JobSpec jobSpec : getJobsWithTimeUpdate()) {
         JobCatalogListener.AddJobCallback addJobCallback = new JobCatalogListener.AddJobCallback(jobSpec);
         this.listeners.callbackOneListener(addJobCallback, jobListener);
       }
