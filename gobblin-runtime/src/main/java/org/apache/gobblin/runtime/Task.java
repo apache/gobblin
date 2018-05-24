@@ -905,6 +905,7 @@ public class Task implements TaskIFace {
         }
       } else {
         ForkThrowableHolder holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
+        LOG.info("Holder for this task {} is {}", this.taskId, holder);
         if (!holder.isEmpty()) {
           failTask(holder.getAggregatedException(failedForkIds, this.taskId));
         } else {
