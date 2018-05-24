@@ -114,7 +114,7 @@ public class BaseFlowGraph implements FlowGraph {
         adjacentEdges.add(edge);
       }
       this.nodesToEdges.put(dataNode, adjacentEdges);
-      String edgeId = edge.getLabel();
+      String edgeId = edge.getId();
       this.flowEdgeMap.put(edgeId, edge);
       return true;
     } else {
@@ -151,7 +151,7 @@ public class BaseFlowGraph implements FlowGraph {
       //Delete all the edges adjacent to the node. First, delete edges from flowEdgeMap and next, remove the edges
       // from nodesToEdges
       for(FlowEdge edge: nodesToEdges.get(node)) {
-        flowEdgeMap.remove(edge.getLabel());
+        flowEdgeMap.remove(edge.getId());
       }
       nodesToEdges.remove(node);
       return true;
@@ -190,7 +190,7 @@ public class BaseFlowGraph implements FlowGraph {
       return false;
     }
     this.nodesToEdges.get(node).remove(edge);
-    this.flowEdgeMap.remove(edge.getLabel());
+    this.flowEdgeMap.remove(edge.getId());
     return true;
   }
 

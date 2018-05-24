@@ -135,7 +135,6 @@ public class BaseFlowEdge implements FlowEdge {
     @Override
     public FlowEdge createFlowEdge(Config config, FSFlowCatalog flowCatalog) throws FlowEdgeCreationException {
       try {
-        //Config config = ConfigUtils.propertiesToConfig(properties);
         List<String> endPoints = ConfigUtils.getStringList(config, FlowGraphConfigurationKeys.FLOW_EDGE_END_POINTS_KEY);
         List<Config> specExecutorConfigList = new ArrayList<>();
         boolean flag;

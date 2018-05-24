@@ -91,7 +91,6 @@ public class BaseDataNode implements DataNode {
     @Override
     public DataNode createDataNode(Config config) throws DataNodeCreationException {
       try {
-        //Config config = ConfigUtils.propertiesToConfig(properties);
         String nodeId = ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, "");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(nodeId), "Node Id cannot be null or empty");
         boolean isActive = true;
