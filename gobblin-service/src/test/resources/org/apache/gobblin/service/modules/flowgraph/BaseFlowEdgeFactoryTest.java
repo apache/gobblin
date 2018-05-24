@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.flowgraph;
 import java.net.URI;
 import java.util.Properties;
 
+import org.apache.gobblin.util.ConfigUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -56,8 +57,8 @@ public class BaseFlowEdgeFactoryTest {
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
     FSFlowCatalog catalog = new FSFlowCatalog(templateCatalogCfg);
-
-    FlowEdge flowEdge = flowEdgeFactory.createFlowEdge(properties, catalog);
+    Config edgeProps = ConfigUtils.propertiesToConfig(properties);
+    FlowEdge flowEdge = flowEdgeFactory.createFlowEdge(edgeProps, catalog);
     Assert.assertEquals(flowEdge.getEndPoints().get(0), "node1");
     Assert.assertEquals(flowEdge.getEndPoints().get(1), "node2");
     Assert.assertEquals(flowEdge.getExecutors().get(0).getConfig().get().getString("specStore.fs.dir"),"/tmp1");
