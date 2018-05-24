@@ -59,7 +59,7 @@ public class HiveMetastoreClientPool {
 
   public static final String POOL_CACHE_TTL_MINUTES_KEY = "hive.metaStorePoolCache.ttl";
 
-  public static Cache<Optional<String>, HiveMetastoreClientPool> poolCache = null;
+  private static Cache<Optional<String>, HiveMetastoreClientPool> poolCache = null;
 
   private static final Cache<Optional<String>, HiveMetastoreClientPool> createPoolCache(final Properties properties) {
     long duration = properties.containsKey(POOL_CACHE_TTL_MINUTES_KEY)
@@ -88,8 +88,10 @@ public class HiveMetastoreClientPool {
    */
   public static HiveMetastoreClientPool get(final Properties properties, final Optional<String> metastoreURI)
       throws IOException {
-    if (poolCache == null) {
-      poolCache = createPoolCache(properties);
+    synchronized (HiveMetastoreClientPool.class) {
+      if (poolCache == null) {
+        poolCache = createPoolCache(properties);
+      }
     }
     try {
       return poolCache.get(metastoreURI, new Callable<HiveMetastoreClientPool>() {
