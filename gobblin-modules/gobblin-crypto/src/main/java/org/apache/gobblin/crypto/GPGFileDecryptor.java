@@ -178,6 +178,10 @@ public class GPGFileDecryptor {
     @Override
     public int read()
         throws IOException {
+      if (this.currentUnderlyingStream == null) {
+        return -1;
+      }
+
       int value = this.currentUnderlyingStream.read();
 
       if (value != -1) {
