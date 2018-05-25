@@ -38,7 +38,9 @@ public class BaseFlowEdgeFactoryTest {
   @Test
   public void testCreateFlowEdge() throws Exception {
     Properties properties = new Properties();
-    properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_END_POINTS_KEY, "node1,node2");
+    properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_SOURCE_KEY,"node1");
+    properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_DESTINATION_KEY, "node2");
+    properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_NAME_KEY, "edge1");
     properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_TEMPLATE_URI_KEY, "FS:///test-template/flow.conf");
     properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY+".0."+FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTOR_CLASS_KEY,"org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor");
     properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY+".0.specStore.fs.dir", "/tmp1");

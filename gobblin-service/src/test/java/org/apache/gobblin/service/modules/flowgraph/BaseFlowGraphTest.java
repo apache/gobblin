@@ -73,12 +73,12 @@ public class BaseFlowGraphTest {
     FlowTemplate flowTemplate3 = new StaticFlowTemplate(new URI("FS:///uri3"),"","", ConfigFactory.empty(),null, null, null);
 
     //Create edge instances
-    edge1 = new BaseFlowEdge(Lists.newArrayList("node1", "node2"), flowTemplate1, null, ConfigFactory.empty(), true);
-    edge2 = new BaseFlowEdge(Lists.newArrayList("node2", "node3"), flowTemplate2, null, ConfigFactory.empty(), true);
-    edge3 = new BaseFlowEdge(Lists.newArrayList("node3", "node1"), flowTemplate3, null, ConfigFactory.empty(), true);
+    edge1 = new BaseFlowEdge(Lists.newArrayList("node1", "node2"), "edge1", flowTemplate1, null, ConfigFactory.empty(), true);
+    edge2 = new BaseFlowEdge(Lists.newArrayList("node2", "node3"), "edge2", flowTemplate2, null, ConfigFactory.empty(), true);
+    edge3 = new BaseFlowEdge(Lists.newArrayList("node3", "node1"), "edge3", flowTemplate3, null, ConfigFactory.empty(), true);
 
     //Create a clone of edge3
-    edge3c = new BaseFlowEdge(Lists.newArrayList("node3", "node1"), flowTemplate3, null, ConfigFactory.empty(), true);
+    edge3c = new BaseFlowEdge(Lists.newArrayList("node3", "node1"), "edge3", flowTemplate3, null, ConfigFactory.empty(), true);
 
     //Create a FlowGraph
     graph = new BaseFlowGraph();
@@ -240,7 +240,7 @@ public class BaseFlowGraphTest {
 
   @Test (dependsOnMethods = "testDeleteFlowEdge")
   public void testDeleteFlowEdgeById() throws Exception {
-    String edgeLabel1 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node1", "node2"), new URI("FS:///uri1").getPath());
+    String edgeLabel1 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node1", "node2"), "edge1");
     Assert.assertTrue(graph.deleteFlowEdge(edgeLabel1));
     Assert.assertEquals(graph.getEdges("node1").size(), 0);
     Assert.assertEquals(graph.getEdges("node2").size(), 1);
@@ -250,7 +250,7 @@ public class BaseFlowGraphTest {
     Assert.assertTrue(graph.getEdges("node2").contains(edge2));
     Assert.assertTrue(graph.getEdges("node3").contains(edge3));
 
-    String edgeLabel2 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node2", "node3"), new URI("FS:///uri2").getPath());
+    String edgeLabel2 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node2", "node3"), "edge2");
     Assert.assertTrue(graph.deleteFlowEdge(edgeLabel2));
     Assert.assertEquals(graph.getEdges("node1").size(), 0);
     Assert.assertEquals(graph.getEdges("node2").size(), 0);
@@ -260,7 +260,7 @@ public class BaseFlowGraphTest {
     Assert.assertTrue(!graph.getEdges("node2").contains(edge2));
     Assert.assertTrue(graph.getEdges("node3").contains(edge3));
 
-    String edgeLabel3 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node3", "node1"), new URI("FS:///uri3").getPath());
+    String edgeLabel3 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node3", "node1"), "edge3");
     Assert.assertTrue(graph.deleteFlowEdge(edgeLabel3));
     Assert.assertEquals(graph.getEdges("node1").size(), 0);
     Assert.assertEquals(graph.getEdges("node2").size(), 0);
