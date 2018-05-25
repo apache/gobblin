@@ -128,7 +128,7 @@ public class GitConfigMonitorTest {
       this.flowCatalog.stopAsync().awaitTerminated();
     }
 
-    cleanUpDir(TEST_DIR);
+    //cleanUpDir(TEST_DIR);
   }
 
   private String formConfigFilePath(String groupDir, String fileName) {

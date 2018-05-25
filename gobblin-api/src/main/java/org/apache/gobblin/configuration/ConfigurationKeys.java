@@ -912,4 +912,18 @@ public class ConfigurationKeys {
   public static final String GIT_CONFIG_MONITOR_BRANCH_NAME = GIT_CONFIG_MONITOR_PREFIX + "branchName";
   public static final String DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME = "master";
   public static final int DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL = 60;
+
+  /**
+   * Configuration related to the git flow graph monitoring service
+   */
+  public static final String GIT_FLOWGRAPH_MONITOR_PREFIX = "gitFlowGraphMonitor.";
+  public static final String GIT_FLOWGRAPH_MONITOR_REPO_URI = GIT_FLOWGRAPH_MONITOR_PREFIX + "repositoryUri";
+  public static final String GIT_FLOWGRAPH_MONITOR_REPO_DIR = GIT_FLOWGRAPH_MONITOR_PREFIX + "repositoryDirectory";
+  public static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR = "git-flowgraph";
+  public static final String GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = GIT_FLOWGRAPH_MONITOR_PREFIX + "flowGraphDirectory";
+  public static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
+  public static final String GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL = GIT_FLOWGRAPH_MONITOR_PREFIX + "pollingInterval";
+  public static final String GIT_FLOWGRAPH_MONITOR_BRANCH_NAME = GIT_FLOWGRAPH_MONITOR_PREFIX + "branchName";
+  public static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME = "master";
+  public static final int DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL = 60;
 }
