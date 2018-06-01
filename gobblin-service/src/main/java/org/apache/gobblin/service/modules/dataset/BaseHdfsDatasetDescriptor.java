@@ -17,12 +17,15 @@
 
 package org.apache.gobblin.service.modules.dataset;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
+
+import lombok.Getter;
 
 
 /**
@@ -32,72 +35,64 @@ import org.apache.gobblin.util.ConfigUtils;
 public class BaseHdfsDatasetDescriptor implements HdfsDatasetDescriptor {
   public static final String HDFS_PLATFORM_NAME = "hdfs";
 
+  @Getter
   private final String path;
-  private final String datasetUrn;
+  @Getter
   private final String format;
+  @Getter
   private final String description;
+  @Getter
+  private final String platform = HDFS_PLATFORM_NAME;
 
   public BaseHdfsDatasetDescriptor(Config config) {
     Preconditions.checkArgument(config.hasPath(ServiceConfigKeys.PATH_KEY), String.format("Missing required property %s", ServiceConfigKeys.PATH_KEY));
     Preconditions.checkArgument(config.hasPath(ServiceConfigKeys.FORMAT_KEY), String.format("Missing required property %s", ServiceConfigKeys.FORMAT_KEY));
 
     this.path = ConfigUtils.getString(config, ServiceConfigKeys.PATH_KEY, null);
-    this.datasetUrn = ConfigUtils.getString(config, ServiceConfigKeys.DATASET_URN_KEY, "");
     this.format = ConfigUtils.getString(config, ServiceConfigKeys.FORMAT_KEY, null);
     this.description = ConfigUtils.getString(config, ServiceConfigKeys.DESCRIPTION_KEY, "");
-  }
-
-  @Override
-  public String getPath() {
-    return path;
-  }
-
-  @Override
-  public String getFormat() {
-    return format;
-  }
-
-  @Override
-  public String getPlatform() {
-    return HDFS_PLATFORM_NAME;
-  }
-
-  @Override
-  public String getType() {
-    return this.getClass().getName();
-  }
-
-  @Override
-  public String getDescription() {
-    return description;
-  }
-
-  @Override
-  public String getDatasetUrn() {
-    return datasetUrn;
   }
 
   /**
    * A {@link HdfsDatasetDescriptor} is compatible with another {@link DatasetDescriptor} iff they have identical
    * platform, type, path, and format.
+   * TODO: Currently isCompatibleWith() only checks if HDFS paths described by the two {@link DatasetDescriptor}s
+   * being compared are identical. Need to enhance this for the case of where paths can contain glob patterns.
+   * e.g. paths described by the pattern /data/input/* are a subset of paths described by /data/* and hence, the
+   * two descriptors should be compatible.
    * @return true if this {@link HdfsDatasetDescriptor} is compatibe with another {@link DatasetDescriptor}.
    */
   @Override
   public boolean isCompatibleWith(DatasetDescriptor o) {
+    return this.equals(o);
+  }
+
+  @Override
+  public boolean equals(Object o) {
     if (this == o) {
       return true;
     }
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    if(this.getPlatform() == null || o.getPlatform() == null || this.getType() == null || o.getType() == null) {
+    HdfsDatasetDescriptor other = (HdfsDatasetDescriptor) o;
+    if(this.getPlatform() == null || other.getPlatform() == null) {
       return false;
     }
-    if(!this.getPlatform().equalsIgnoreCase(o.getPlatform()) || !this.getType().equalsIgnoreCase(o.getType())) {
+    if(!this.getPlatform().equalsIgnoreCase(other.getPlatform()) || !(o instanceof HdfsDatasetDescriptor)) {
       return false;
     }
 
-    HdfsDatasetDescriptor other = (HdfsDatasetDescriptor) o;
     return this.getPath().equals(other.getPath()) && this.getFormat().equalsIgnoreCase(other.getFormat());
+  }
+
+  @Override
+  public String toString() {
+     return "(" + Joiner.on(",").join(this.getPlatform(),this.getPath(),this.getFormat()) + ")";
+  }
+
+  @Override
+  public int hashCode() {
+    return this.toString().hashCode();
   }
 }

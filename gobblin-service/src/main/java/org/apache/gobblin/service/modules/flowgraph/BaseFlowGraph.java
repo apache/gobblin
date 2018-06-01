@@ -42,8 +42,6 @@ public class BaseFlowGraph implements FlowGraph {
   private Set<DataNode> nodes = new HashSet<>();
   @Getter
   private FlowEdgeFactory flowEdgeFactory;
-  @Getter
-  private DataNodeFactory dataNodeFactory;
 
   private Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();
   private Map<String, DataNode> dataNodeMap = new HashMap<>();
@@ -51,13 +49,11 @@ public class BaseFlowGraph implements FlowGraph {
 
   //Default constructor using default {@link DataNode} and {@link FlowEdge} factory classes.
   public BaseFlowGraph() {
-    this.dataNodeFactory = new BaseDataNode.Factory();
     this.flowEdgeFactory = new BaseFlowEdge.Factory();
   }
 
   //Constructor
-  public BaseFlowGraph(DataNodeFactory dataNodeFactory, FlowEdgeFactory flowEdgeFactory) {
-    this.dataNodeFactory = dataNodeFactory;
+  public BaseFlowGraph(FlowEdgeFactory flowEdgeFactory) {
     this.flowEdgeFactory = flowEdgeFactory;
   }
 
@@ -141,7 +137,6 @@ public class BaseFlowGraph implements FlowGraph {
    * @param node to be deleted.
    * @return true if {@link DataNode} is successfully deleted.
    */
-  @Override
   public synchronized boolean deleteDataNode(DataNode node) {
     if(nodes.contains(node)) {
       //Delete node from node set and dataNodeMap
@@ -180,7 +175,6 @@ public class BaseFlowGraph implements FlowGraph {
    * @return true if {@link FlowEdge} is successfully deleted. If the source of a {@link FlowEdge} does not exist or
    * if the {@link FlowEdge} is not in the graph, return false.
    */
-  @Override
   public synchronized boolean deleteFlowEdge(FlowEdge edge) {
     if(!dataNodeMap.containsKey(edge.getEndPoints().get(0))) {
       return false;

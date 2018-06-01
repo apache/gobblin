@@ -31,22 +31,14 @@ public interface DatasetDescriptor {
   public String getPlatform();
 
   /**
-   * @return the type of dataset descriptor.
-   */
-  public String getType();
-
-  /**
    * @return a human-readable description of the dataset.
    */
   public String getDescription();
 
   /**
-   * @return the dataset urn.
-   */
-  public String getDatasetUrn();
-
-  /**
-   * @return true if this {@link DatasetDescriptor} is compatible with the other {@link DatasetDescriptor}.
+   * @return true if this {@link DatasetDescriptor} is compatible with the other {@link DatasetDescriptor} i.e. the
+   * datasets described by this {@link DatasetDescriptor} is a subset of the datasets described by the other {@link DatasetDescriptor}.
+   * This check is non-commutative.
    */
   public boolean isCompatibleWith(DatasetDescriptor other);
 }
