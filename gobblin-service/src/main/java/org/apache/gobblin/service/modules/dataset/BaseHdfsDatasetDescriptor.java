@@ -23,6 +23,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.Getter;
@@ -45,12 +46,12 @@ public class BaseHdfsDatasetDescriptor implements HdfsDatasetDescriptor {
   private final String platform = HDFS_PLATFORM_NAME;
 
   public BaseHdfsDatasetDescriptor(Config config) {
-    Preconditions.checkArgument(config.hasPath(ServiceConfigKeys.PATH_KEY), String.format("Missing required property %s", ServiceConfigKeys.PATH_KEY));
-    Preconditions.checkArgument(config.hasPath(ServiceConfigKeys.FORMAT_KEY), String.format("Missing required property %s", ServiceConfigKeys.FORMAT_KEY));
+    Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.PATH_KEY), String.format("Missing required property %s", DatasetDescriptorConfigKeys.PATH_KEY));
+    Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.FORMAT_KEY), String.format("Missing required property %s", DatasetDescriptorConfigKeys.FORMAT_KEY));
 
-    this.path = ConfigUtils.getString(config, ServiceConfigKeys.PATH_KEY, null);
-    this.format = ConfigUtils.getString(config, ServiceConfigKeys.FORMAT_KEY, null);
-    this.description = ConfigUtils.getString(config, ServiceConfigKeys.DESCRIPTION_KEY, "");
+    this.path = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY, null);
+    this.format = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.FORMAT_KEY, null);
+    this.description = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.DESCRIPTION_KEY, "");
   }
 
   /**

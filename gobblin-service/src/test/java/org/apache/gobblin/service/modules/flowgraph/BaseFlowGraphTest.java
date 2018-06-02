@@ -106,11 +106,6 @@ public class BaseFlowGraphTest {
 
   @Test
   public void testAddDataNode() throws Exception {
-    //Check nodes
-    Assert.assertTrue(graph.getNodes().contains(node1));
-    Assert.assertTrue(graph.getNodes().contains(node2));
-    Assert.assertTrue(graph.getNodes().contains(node3));
-
     //Check contents of dataNodeMap
     Field field = BaseFlowGraph.class.getDeclaredField("dataNodeMap");
     field.setAccessible(true);
@@ -164,12 +159,7 @@ public class BaseFlowGraphTest {
   @Test (dependsOnMethods = "testAddFlowEdge")
   public void testDeleteDataNode() throws Exception {
     //Delete node1 from graph
-    Assert.assertTrue(graph.deleteDataNode(node1));
-
-    //Check contents of nodes
-    Assert.assertTrue(!graph.getNodes().contains(node1));
-    Assert.assertTrue(graph.getNodes().contains(node2));
-    Assert.assertTrue(graph.getNodes().contains(node3));
+    Assert.assertTrue(graph.deleteDataNode("node1"));
 
     //Check contents of dataNodeMap
     Assert.assertEquals(graph.getNode(node1.getId()), null);

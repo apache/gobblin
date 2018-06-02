@@ -60,12 +60,6 @@ public interface FlowGraph {
   public boolean deleteFlowEdge(String edgeId);
 
   /**
-   * Get the factory class for creating {@link FlowEdge}s to be added to the {@link FlowGraph}.
-   * @return a {@link FlowEdgeFactory} implementation.
-   */
-  public FlowEdgeFactory getFlowEdgeFactory();
-
-  /**
    * Get a collection of edges adjacent to a {@link DataNode}. Useful for path finding algorithms and graph
    * traversal algorithms such as Djikstra's shortest-path algorithm, BFS
    * @param nodeId identifier of the {@link DataNode}
