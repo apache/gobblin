@@ -49,6 +49,10 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 
 /**
  * A test suite used for {@link ClusterIntegrationTest#testJobShouldComplete()}
+ *
+ * This basic suite class provides utilities to launch one manager and multiple workers (participants).
+ * User can override {@link IntegrationBasicSuite#getWorkerConfigs()} for worker customization.
+ * User can also override {@link IntegrationBasicSuite#waitForAndVerifyOutputFiles()} to check different successful condition.
  */
 @Slf4j
 public class IntegrationBasicSuite {

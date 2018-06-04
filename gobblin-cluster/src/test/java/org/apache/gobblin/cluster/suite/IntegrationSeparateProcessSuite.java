@@ -33,6 +33,8 @@ import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
  * A test suite used for {@link ClusterIntegrationTest#testSeparateProcessMode()}
  */
 public class IntegrationSeparateProcessSuite extends IntegrationBasicSuite {
+
+  @Override
   protected Collection<Config> getWorkerConfigs() {
     Map<String, String> configMap = new HashMap<>();
     configMap.put(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS, "true");

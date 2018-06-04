@@ -63,8 +63,8 @@ public class GobblinClusterConfigurationKeys {
   // Should job be executed in the scheduler thread?
   public static final String JOB_EXECUTE_IN_SCHEDULING_THREAD = GOBBLIN_CLUSTER_PREFIX + "job.executeInSchedulingThread";
   public static final boolean JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT = true;
-  public static final String HELIX_JOB_TAGS_KEY = GOBBLIN_CLUSTER_PREFIX + "helix.job.tags";
-  public static final String HELIX_INSTANCE_TAGS_KEY = GOBBLIN_CLUSTER_PREFIX + "helix.instance.tags";
+  public static final String HELIX_JOB_TAG_KEY = GOBBLIN_CLUSTER_PREFIX + "helixJobTag";
+  public static final String HELIX_INSTANCE_TAGS_KEY = GOBBLIN_CLUSTER_PREFIX + "helixInstanceTags";
 
   /**
    * A path pointing to a directory that contains job execution files to be executed by Gobblin. This directory can

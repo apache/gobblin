@@ -33,6 +33,7 @@ import org.apache.gobblin.cluster.HelixUtils;
  */
 public class IntegrationDedicatedManagerClusterSuite extends IntegrationBasicSuite {
 
+  @Override
   public void createHelixCluster() throws Exception {
     super.createHelixCluster();
     String zkConnectionString = managerConfig
@@ -42,6 +43,7 @@ public class IntegrationDedicatedManagerClusterSuite extends IntegrationBasicSui
     HelixUtils.createGobblinHelixCluster(zkConnectionString, manager_cluster_name);
   }
 
+  @Override
   protected Config getManagerConfig() {
     Map<String, String> configMap = new HashMap<>();
     configMap.put(GobblinClusterConfigurationKeys.DEDICATED_MANAGER_CLUSTER_ENABLED, "true");

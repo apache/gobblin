@@ -264,8 +264,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT));
 
-    List<String> tags = ConfigUtils.getStringList(this.jobConfig, GobblinClusterConfigurationKeys.HELIX_JOB_TAGS_KEY);
-    tags.forEach(tag->jobConfigBuilder.setInstanceGroupTag(tag));
+    if (this.jobConfig.hasPath(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY)) {
+      jobConfigBuilder.setInstanceGroupTag(this.jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY));
+    }
 
     if (Task.getExecutionModel(ConfigUtils.configToState(jobConfig)).equals(ExecutionModel.STREAMING)) {
       jobConfigBuilder.setRebalanceRunningTask(true);

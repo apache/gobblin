@@ -58,29 +58,38 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 
 /**
  * A test suite used for {@link ClusterIntegrationTest#testJobWithTag()}
+ *
+ * Each worker instance will have the tags it can accept.
+ * Each job is associated with a specific tag.
+ * Each job will always go to certain workers as expected due to the tag association.
  */
 @Slf4j
 public class IntegrationJobTagSuite extends IntegrationBasicSuite {
-  public static final String WORKER_INSTANCE_NAME_KEY = "worker.instance.name";
-  public static final String WORKER_INSTANCE_1 = "WorkerInstance_1";
-  public static final String WORKER_INSTANCE_2 = "WorkerInstance_2";
+  private static final String WORKER_INSTANCE_NAME_KEY = "worker.instance.name";
+  private static final String WORKER_INSTANCE_1 = "WorkerInstance_1";
+  private static final String WORKER_INSTANCE_2 = "WorkerInstance_2";
+  private static final String WORKER_INSTANCE_3 = "WorkerInstance_3";
 
-  public static final Map<String, List<String>> WORKER_TAG_ASSOCIATION = ImmutableMap.of(
-      WORKER_INSTANCE_1, ImmutableList.of("T1", "T2", "T7", "T8"),
-      WORKER_INSTANCE_2, ImmutableList.of("T3", "T4", "T5", "T6"));
+  private static final Map<String, List<String>> WORKER_TAG_ASSOCIATION = ImmutableMap.of(
+      WORKER_INSTANCE_1, ImmutableList.of("T2", "T7", "T8"),
+      WORKER_INSTANCE_2, ImmutableList.of("T4", "T5", "T6"),
+      WORKER_INSTANCE_3, ImmutableList.of("T1", "T3"));
 
-  public static final Map<String, String> JOB_TAG_ASSOCIATION =  ImmutableMap.<String, String>builder()
-      .put("jobHello_1", "T1,T2")
-      .put("jobHello_2", "T3,T4")
+  private static final Map<String, String> JOB_TAG_ASSOCIATION =  ImmutableMap.<String, String>builder()
+      .put("jobHello_1", "T2")
+      .put("jobHello_2", "T4")
       .put("jobHello_3", "T5")
       .put("jobHello_4", "T6")
-      .put("jobHello_5", "T2,T7")
-      .put("jobHello_6", "T1,T8")
+      .put("jobHello_5", "T7")
+      .put("jobHello_6", "T8")
+      .put("jobHello_7", "T1")
+      .put("jobHello_8", "T3")
       .build();
 
   public static final Map<String, List<String>> EXPECTED_JOB_NAMES = ImmutableMap.of(
       WORKER_INSTANCE_1, ImmutableList.of("jobHello_1", "jobHello_5", "jobHello_6"),
-      WORKER_INSTANCE_2, ImmutableList.of("jobHello_2", "jobHello_3", "jobHello_4"));
+      WORKER_INSTANCE_2, ImmutableList.of("jobHello_2", "jobHello_3", "jobHello_4"),
+      WORKER_INSTANCE_3, ImmutableList.of("jobHello_7", "jobHello_8"));
 
   private Config addInstanceTags(Config workerConfig, String instanceName, List<String> tags) {
     Map<String, String> configMap = new HashMap<>();
@@ -91,19 +100,23 @@ public class IntegrationJobTagSuite extends IntegrationBasicSuite {
     return ConfigFactory.parseMap(configMap).withFallback(workerConfig);
   }
 
+  @Override
   public  Collection<Config> getWorkerConfigs() {
     Config parent = super.getWorkerConfigs().iterator().next();
     Config worker_1 = addInstanceTags(parent, WORKER_INSTANCE_1, WORKER_TAG_ASSOCIATION.get(WORKER_INSTANCE_1));
     Config worker_2 = addInstanceTags(parent, WORKER_INSTANCE_2, WORKER_TAG_ASSOCIATION.get(WORKER_INSTANCE_2));
+    Config worker_3 = addInstanceTags(parent, WORKER_INSTANCE_3, WORKER_TAG_ASSOCIATION.get(WORKER_INSTANCE_3));
     worker_1 = addTaskRunnerSuiteBuilder(worker_1);
     worker_2 = addTaskRunnerSuiteBuilder(worker_2);
-    return Lists.newArrayList(worker_1, worker_2);
+    worker_3 = addTaskRunnerSuiteBuilder(worker_3);
+    return Lists.newArrayList(worker_1, worker_2, worker_3);
   }
 
   private Config addTaskRunnerSuiteBuilder(Config workerConfig) {
     return ConfigFactory.parseMap(ImmutableMap.of(GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER, "JobTagTaskRunnerSuiteBuilder")).withFallback(workerConfig);
   }
 
+  @Override
   protected void startWorker() throws Exception {
     // Each workerConfig corresponds to a worker instance
     for (Config workerConfig: this.workerConfigs) {
@@ -122,6 +135,7 @@ public class IntegrationJobTagSuite extends IntegrationBasicSuite {
   /**
    * Create different jobs with different tags
    */
+  @Override
   protected void copyJobConfFromResource() throws IOException {
     try (InputStream resourceStream = this.jobConfResourceUrl.openStream()) {
       Reader reader = new InputStreamReader(resourceStream);
@@ -132,8 +146,8 @@ public class IntegrationJobTagSuite extends IntegrationBasicSuite {
     }
   }
 
-  private void generateJobConf(Config jobConfig, String jobName, String tags) throws IOException {
-    Config newConfig = addJobTags(jobConfig, tags);
+  private void generateJobConf(Config jobConfig, String jobName, String tag) throws IOException {
+    Config newConfig = addJobTag(jobConfig, tag);
     newConfig = getConfigOverride(newConfig, jobName);
 
     String targetPath = this.jobConfigPath + "/" + jobName + ".conf";
@@ -152,11 +166,12 @@ public class IntegrationJobTagSuite extends IntegrationBasicSuite {
     return newConfig;
   }
 
-  private Config addJobTags(Config jobConfig, String tags) {
-    return ConfigFactory.parseMap(ImmutableMap.of(GobblinClusterConfigurationKeys.HELIX_JOB_TAGS_KEY, tags))
+  private Config addJobTag(Config jobConfig, String jobTag) {
+    return ConfigFactory.parseMap(ImmutableMap.of(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY, jobTag))
         .withFallback(jobConfig);
   }
 
+  @Override
   public void waitForAndVerifyOutputFiles() throws Exception {
     AssertWithBackoff asserter = AssertWithBackoff.create().logger(log).timeoutMs(60_000)
         .maxSleepMs(100).backoffFactor(1.5);
@@ -164,6 +179,7 @@ public class IntegrationJobTagSuite extends IntegrationBasicSuite {
     asserter.assertTrue(this::hasExpectedFilesBeenCreated, "Waiting for job-completion");
   }
 
+  @Override
   protected boolean hasExpectedFilesBeenCreated(Void input) {
     int numOfFiles = getNumOfOutputFiles(this.jobOutputBasePath);
     return numOfFiles == JOB_TAG_ASSOCIATION.size();
@@ -178,6 +194,7 @@ public class IntegrationJobTagSuite extends IntegrationBasicSuite {
       this.instanceName = config.getString(IntegrationJobTagSuite.WORKER_INSTANCE_NAME_KEY);
     }
 
+    @Override
     public TaskRunnerSuiteBase build() {
       return new TaskRunnerSuiteForJobTagTest(this);
     }
