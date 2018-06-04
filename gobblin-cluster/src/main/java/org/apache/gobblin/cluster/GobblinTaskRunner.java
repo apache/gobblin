@@ -58,7 +58,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
@@ -70,22 +69,18 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import javax.annotation.Nonnull;
-import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.runtime.TaskExecutor;
-import org.apache.gobblin.runtime.TaskStateTracker;
-import org.apache.gobblin.runtime.services.JMXReportingService;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JvmUtils;
-import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
 
@@ -124,6 +119,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   private final String helixInstanceName;
 
+  private final String clusterName;
+
   private HelixManager helixManager;
 
   private final ServiceManager serviceManager;
@@ -147,6 +144,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   private final String applicationName;
   private final String applicationId;
   private final Path appWorkPath;
+
   private final MetricContext metricContext;
   private final StandardMetricsBridge.StandardMetrics metrics;
 
@@ -160,21 +158,30 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     Configuration conf = HadoopUtils.newConfiguration();
     this.fs = buildFileSystem(config, conf);
-
     this.appWorkPath = initAppWorkDir(config, appWorkDirOptional);
-
     this.config = saveConfigToFile(config);
+    this.clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
 
     initHelixManager();
 
     this.containerMetrics = buildContainerMetrics();
-    TaskFactoryBuilder builder = new TaskFactoryBuilder(this.config);
-    this.taskStateModelFactory = createTaskStateModelFactory(builder.build());
-    this.metrics = builder.getTaskMetrics();
-    this.metricContext = builder.getMetricContext();
 
-    services.addAll(getServices());
-    if (services.isEmpty()) {
+    String builderStr = ConfigUtils.getString(this.config, GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER, TaskRunnerSuiteBase.Builder.class.getName());
+    TaskRunnerSuiteBase.Builder builder = GobblinConstructorUtils.<TaskRunnerSuiteBase.Builder>invokeLongestConstructor(
+          new ClassAliasResolver(TaskRunnerSuiteBase.Builder.class).resolveClass(builderStr), this.config);
+
+    TaskRunnerSuiteBase suite = builder.setAppWorkPath(this.appWorkPath)
+        .setContainerMetrics(this.containerMetrics)
+        .setFileSystem(this.fs)
+        .setHelixManager(this.helixManager).build();
+
+    this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactory());
+    this.metrics = suite.getTaskMetrics();
+    this.metricContext = suite.getMetricContext();
+    this.services.addAll(suite.getServices());
+
+    this.services.addAll(getServices());
+    if (this.services.isEmpty()) {
       this.serviceManager = null;
     } else {
       this.serviceManager = new ServiceManager(services);
@@ -182,38 +189,6 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     logger.debug("GobblinTaskRunner: applicationName {}, helixInstanceName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
         applicationName, helixInstanceName, applicationId, taskRunnerId, config, appWorkDirOptional);
-  }
-
-  private class TaskFactoryBuilder {
-    private final boolean isRunTaskInSeparateProcessEnabled;
-    private final TaskFactory taskFactory;
-    @Getter
-    private final MetricContext metricContext;
-    @Getter
-    private StandardMetricsBridge.StandardMetrics taskMetrics;
-
-    public TaskFactoryBuilder(Config config) {
-      isRunTaskInSeparateProcessEnabled = getIsRunTaskInSeparateProcessEnabled(config);
-      metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
-      if (isRunTaskInSeparateProcessEnabled) {
-        logger.info("Running a task in a separate process is enabled.");
-        taskFactory = new HelixTaskFactory(GobblinTaskRunner.this.containerMetrics, CLUSTER_CONF_PATH, config);
-        taskMetrics = new GobblinTaskRunnerMetrics.JvmTaskRunnerMetrics();
-      } else {
-        Properties properties = ConfigUtils.configToProperties(config);
-        TaskExecutor taskExecutor = new TaskExecutor(properties);
-        taskFactory = getInProcessTaskFactory(taskExecutor);
-        taskMetrics = new GobblinTaskRunnerMetrics.InProcessTaskRunnerMetrics(taskExecutor, metricContext);
-      }
-    }
-
-    public TaskFactory build(){
-       return taskFactory;
-    }
-
-    private Boolean getIsRunTaskInSeparateProcessEnabled(Config config) {
-      return ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS, false);
-    }
   }
 
   private Path initAppWorkDir(Config config, Optional<Path> appWorkDirOptional) {
@@ -227,8 +202,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     logger.info("Using ZooKeeper connection string: " + zkConnectionString);
 
     this.helixManager = HelixManagerFactory.getZKHelixManager(
-        this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
-        this.helixInstanceName, InstanceType.PARTICIPANT, zkConnectionString);
+        this.clusterName, this.helixInstanceName, InstanceType.PARTICIPANT, zkConnectionString);
   }
 
   private TaskStateModelFactory createTaskStateModelFactory(TaskFactory factory) {
@@ -240,35 +214,6 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.helixManager.getStateMachineEngine()
         .registerStateModelFactory("Task", taskStateModelFactory);
     return taskStateModelFactory;
-  }
-
-  private TaskFactory getInProcessTaskFactory(TaskExecutor taskExecutor) {
-    Properties properties = ConfigUtils.configToProperties(this.config);
-    URI rootPathUri = PathUtils.getRootPath(this.appWorkPath).toUri();
-    Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(properties)
-        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
-            ConfigValueFactory.fromAnyRef(rootPathUri.toString()));
-
-    TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties);
-
-    services.add(taskExecutor);
-    services.add(taskStateTracker);
-    services.add(new JMXReportingService(
-        ImmutableMap.of("task.executor", taskExecutor.getTaskExecutorQueueMetricSet())));
-
-    TaskFactory taskFactory =
-        new GobblinHelixTaskFactory(this.containerMetrics, taskExecutor, taskStateTracker, this.fs,
-            this.appWorkPath, stateStoreJobConfig, this.helixManager);
-    return taskFactory;
-  }
-
-  private Boolean getIsRunTaskInSeparateProcessEnabled() {
-    Boolean enabled = false;
-    if (this.config.hasPath(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS)) {
-      enabled =
-          this.config.getBoolean(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS);
-    }
-    return enabled;
   }
 
   private Config saveConfigToFile(Config config)
@@ -291,6 +236,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     addShutdownHook();
 
     connectHelixManager();
+
+    addInstanceTags();
 
     // Start metric reporting
     if (this.containerMetrics.isPresent()) {
@@ -369,6 +316,18 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     } catch (Exception e) {
       logger.error("HelixManager failed to connect", e);
       throw Throwables.propagate(e);
+    }
+  }
+
+  /**
+   * Helix participant cannot pre-configure tags before it connects to ZK. So this method can only be invoked after
+   * {@link HelixManager#connect()}. However this will still work because tagged jobs won't be sent to a non-tagged instance. Hence
+   * the job with EXAMPLE_INSTANCE_TAG will remain in the ZK until an instance with EXAMPLE_INSTANCE_TAG was found.
+   */
+  private void addInstanceTags() {
+    if (this.helixManager.isConnected()) {
+      List<String> tags = ConfigUtils.getStringList(this.config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
+      tags.forEach(tag -> helixManager.getClusterManagmentTool().addInstanceTag(this.clusterName, this.helixInstanceName, tag));
     }
   }
 
