@@ -100,13 +100,6 @@ public class ServiceConfigKeys {
   // True means node is by default secure.
   public static final String DEFAULT_NODE_SECURITY = "true";
 
-  //Gobblin Service Dataset Descriptor related keys
-  public static final String DATASET_URN_KEY = "urn";
-  public static final String PATH_KEY = "path";
-  public static final String FORMAT_KEY = "format";
-  public static final String DESCRIPTION_KEY = "description";
-
-
   // Policy related configuration Keys
   public static final String DEFAULT_SERVICE_POLICY = "static";
   public static final String SERVICE_POLICY_NAME = GOBBLIN_SERVICE_PREFIX + "servicePolicy";

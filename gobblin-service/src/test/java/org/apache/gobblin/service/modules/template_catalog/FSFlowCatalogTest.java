@@ -96,8 +96,6 @@ public class FSFlowCatalogTest {
           datasetDescriptor = (HdfsDatasetDescriptor) inputOutputDescriptors.get(i).getRight();
         }
         Assert.assertEquals(datasetDescriptor.getPlatform(), "hdfs");
-        Assert.assertEquals(datasetDescriptor.getType(),
-            "org.apache.gobblin.service.modules.dataset.BaseHdfsDatasetDescriptor");
         Assert.assertEquals(datasetDescriptor.getFormat(), "avro");
         Assert.assertEquals(datasetDescriptor.getPath(), "/data/" + dirs.get(i) + "/<TEAM_NAME>/<DATASET_NAME>");
       }

@@ -17,28 +17,35 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.util.Properties;
+import java.net.URI;
+
+import org.apache.gobblin.annotation.Alpha;
 
 import com.typesafe.config.Config;
 
-
 /**
- * A Factory used for creating {@link DataNode}s.
+ * An implementation of {@link LocalFSDataNode}. All the properties specific to a LocalFS based data node (e.g. fs.uri)
+ * are validated here.
  */
-public interface DataNodeFactory {
+@Alpha
+public class LocalFSDataNode extends FileSystemDataNode {
+  public static final String LOCAL_FS_SCHEME = "file";
+
+  public LocalFSDataNode(Config nodeProps) throws DataNodeCreationException {
+    super(nodeProps);
+  }
 
   /**
-   * Creates a new {@link DataNode} from the node properties
-   * @param nodeProps specifying the node properties.
-   * @return a new {@link DataNode} with properties specified in the nodeProps
+   *
+   * @param fsUri FileSystem URI
+   * @return true if the scheme of fsUri equals "file"
    */
-  public DataNode createDataNode(Config nodeProps) throws DataNodeCreationException;
-
-  class DataNodeCreationException extends Exception {
-    private static final String MESSAGE_FORMAT = "Failed to create DataNode because of: %s";
-
-    public DataNodeCreationException(Exception e) {
-      super(String.format(MESSAGE_FORMAT, e.getMessage()), e);
+  @Override
+  public boolean isUriValid(URI fsUri) {
+    String scheme = fsUri.getScheme();
+    if(scheme.equals(LOCAL_FS_SCHEME)) {
+      return true;
     }
+    return false;
   }
 }

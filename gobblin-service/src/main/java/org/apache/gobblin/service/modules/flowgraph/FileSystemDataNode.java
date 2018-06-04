@@ -17,49 +17,51 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
+import java.io.IOException;
+import java.net.URI;
+
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.ConfigUtils;
 
 import joptsimple.internal.Strings;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * An implementation of {@link DataNode}.
+ * An abstract {@link FileSystemDataNode} implementation. In addition to the required properties of a {@link BaseDataNode}, an {@link FileSystemDataNode}
+ * must have a FS URI specified. Example implementations of {@link FileSystemDataNode} include {@link HdfsDataNode}, {@link LocalFSDataNode}.
  */
 @Alpha
-@Slf4j
-public class BaseDataNode implements DataNode {
+public abstract class FileSystemDataNode extends BaseDataNode {
+  public static final String FS_URI_KEY = "fs.uri";
   @Getter
-  private String id;
-  @Getter
-  private Config props;
-  @Getter
-  private boolean active = true;
+  private String fsUri;
 
-  public BaseDataNode(Config nodeProps) throws DataNodeCreationException {
+  /**
+   * Constructor. An HDFS DataNode must have fs.uri property specified in addition to a node Id.
+   */
+  public FileSystemDataNode(Config nodeProps) throws DataNodeCreationException {
+    super(nodeProps);
     try {
-      String nodeId = ConfigUtils.getString(nodeProps, FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, "");
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(nodeId), "Node Id cannot be null or empty");
-      this.id = nodeId;
-      if (nodeProps.hasPath(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY)) {
-        this.active = nodeProps.getBoolean(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY);
+      this.fsUri = ConfigUtils.getString(nodeProps, FS_URI_KEY, "");
+      Preconditions.checkArgument(!Strings.isNullOrEmpty(this.fsUri), "FS URI cannot be null or empty for an HDFSDataNode");
+      URI uri = new URI(this.fsUri);
+      if(!isUriValid(uri)) {
+        throw new IOException("Invalid FS URI " + this.fsUri);
       }
-      this.props = nodeProps;
     } catch(Exception e) {
       throw new DataNodeCreationException(e);
     }
   }
 
+  public abstract boolean isUriValid(URI fsUri);
   /**
-   * The comparison between two nodes should involve the configuration.
-   * Node name is the identifier for the node.
-   * */
+   * Two HDFS DataNodes are the same if they have the same id and the same fsUri.
+   */
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -69,13 +71,13 @@ public class BaseDataNode implements DataNode {
       return false;
     }
 
-    BaseDataNode that = (BaseDataNode) o;
+    FileSystemDataNode that = (FileSystemDataNode) o;
 
-    return id.equals(that.getId());
+    return this.getId().equals(that.getId()) && fsUri.equals(that.getFsUri());
   }
 
   @Override
   public int hashCode() {
-    return this.id.hashCode();
+    return Joiner.on("-").join(this.getId(), this.fsUri).hashCode();
   }
 }

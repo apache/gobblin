@@ -15,30 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.dataset;
-
-import org.apache.gobblin.annotation.Alpha;
-
+package org.apache.gobblin.service.modules.flowgraph;
 
 /**
- * The interface for dataset descriptors.
+ * Config keys related to {@link org.apache.gobblin.service.modules.dataset.DatasetDescriptor}.
  */
-@Alpha
-public interface DatasetDescriptor {
-  /**
-   * @return the dataset platform i.e. the storage backing the dataset (e.g. HDFS, JDBC, Espresso etc.)
-   */
-  public String getPlatform();
-
-  /**
-   * @return a human-readable description of the dataset.
-   */
-  public String getDescription();
-
-  /**
-   * @return true if this {@link DatasetDescriptor} is compatible with the other {@link DatasetDescriptor} i.e. the
-   * datasets described by this {@link DatasetDescriptor} is a subset of the datasets described by the other {@link DatasetDescriptor}.
-   * This check is non-commutative.
-   */
-  public boolean isCompatibleWith(DatasetDescriptor other);
+public class DatasetDescriptorConfigKeys {
+  //Gobblin Service Dataset Descriptor related keys
+  public static final String PATH_KEY = "path";
+  public static final String FORMAT_KEY = "format";
+  public static final String DESCRIPTION_KEY = "description";
 }

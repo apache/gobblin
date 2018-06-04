@@ -24,42 +24,21 @@ import java.util.Set;
 
 import org.apache.gobblin.annotation.Alpha;
 
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * A thread-safe implementation of {@link FlowGraph}. The implementation maintains the following data structures:
- *    <p>nodes - the set of {@link DataNode}s in the graph</p>
- *    <p>nodesToEdges - the mapping from each {@link DataNode} to its outgoing {@link FlowEdge}s</p>
- *    <p>dataNodeMap - the mapping from a node identifier to the {@link DataNode} instance</p>
- *    <p>flowEdgeMap - the mapping from a edge label to the {@link FlowEdge} instance</p>
+ *   <p>dataNodeMap - the mapping from a node identifier to the {@link DataNode} instance</p>
+ *   <p>nodesToEdges - the mapping from each {@link DataNode} to its outgoing {@link FlowEdge}s</p>
+ *   <p>flowEdgeMap - the mapping from a edge label to the {@link FlowEdge} instance</p>
  */
 @Alpha
 @Slf4j
 public class BaseFlowGraph implements FlowGraph {
-  @Getter
-  private Set<DataNode> nodes = new HashSet<>();
-  @Getter
-  private FlowEdgeFactory flowEdgeFactory;
-  @Getter
-  private DataNodeFactory dataNodeFactory;
-
   private Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();
   private Map<String, DataNode> dataNodeMap = new HashMap<>();
   private Map<String, FlowEdge> flowEdgeMap = new HashMap<>();
-
-  //Default constructor using default {@link DataNode} and {@link FlowEdge} factory classes.
-  public BaseFlowGraph() {
-    this.dataNodeFactory = new BaseDataNode.Factory();
-    this.flowEdgeFactory = new BaseFlowEdge.Factory();
-  }
-
-  //Constructor
-  public BaseFlowGraph(DataNodeFactory dataNodeFactory, FlowEdgeFactory flowEdgeFactory) {
-    this.dataNodeFactory = dataNodeFactory;
-    this.flowEdgeFactory = flowEdgeFactory;
-  }
 
   /**
    * Lookup a node by its identifier.
@@ -80,11 +59,6 @@ public class BaseFlowGraph implements FlowGraph {
    */
   @Override
   public synchronized boolean addDataNode(DataNode node) {
-    if(!this.nodes.add(node)) {
-      //Node already exists. Remove "old" node and add the new one.
-      this.nodes.remove(node);
-      this.nodes.add(node);
-    }
     //Get edges adjacent to the node if it already exists
     Set<FlowEdge> edges = this.nodesToEdges.getOrDefault(node, new HashSet<>());
     this.nodesToEdges.put(node, edges);
@@ -141,11 +115,9 @@ public class BaseFlowGraph implements FlowGraph {
    * @param node to be deleted.
    * @return true if {@link DataNode} is successfully deleted.
    */
-  @Override
   public synchronized boolean deleteDataNode(DataNode node) {
-    if(nodes.contains(node)) {
-      //Delete node from node set and dataNodeMap
-      nodes.remove(node);
+    if(dataNodeMap.containsKey(node.getId())) {
+      //Delete node from dataNodeMap
       dataNodeMap.remove(node.getId());
 
       //Delete all the edges adjacent to the node. First, delete edges from flowEdgeMap and next, remove the edges
@@ -180,7 +152,6 @@ public class BaseFlowGraph implements FlowGraph {
    * @return true if {@link FlowEdge} is successfully deleted. If the source of a {@link FlowEdge} does not exist or
    * if the {@link FlowEdge} is not in the graph, return false.
    */
-  @Override
   public synchronized boolean deleteFlowEdge(FlowEdge edge) {
     if(!dataNodeMap.containsKey(edge.getEndPoints().get(0))) {
       return false;

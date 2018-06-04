@@ -29,7 +29,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
@@ -51,22 +53,26 @@ public class BaseFlowGraphTest {
 
   BaseFlowGraph graph;
   @BeforeClass
-  public void setUp() throws URISyntaxException, ReflectiveOperationException, JobTemplate.TemplateException, SpecNotFoundException,
-             IOException {
+  public void setUp()
+      throws URISyntaxException, ReflectiveOperationException, JobTemplate.TemplateException, SpecNotFoundException,
+             IOException, DataNode.DataNodeCreationException {
     Properties properties = new Properties();
     properties.put("key1", "val1");
-    node1 = new BaseDataNode("node1", ConfigUtils.propertiesToConfig(properties));
+    Config node1Config = ConfigUtils.propertiesToConfig(properties).withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, ConfigValueFactory.fromAnyRef("node1"));
+    node1 = new BaseDataNode(node1Config);
 
     properties = new Properties();
     properties.put("key2", "val2");
-    node2 = new BaseDataNode("node2", ConfigUtils.propertiesToConfig(properties));
+    Config node2Config = ConfigUtils.propertiesToConfig(properties).withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, ConfigValueFactory.fromAnyRef("node2"));
+    node2 = new BaseDataNode(node2Config);
 
     properties = new Properties();
     properties.put("key3", "val3");
-    node3 = new BaseDataNode("node3", ConfigUtils.propertiesToConfig(properties));
+    Config node3Config = ConfigUtils.propertiesToConfig(properties).withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, ConfigValueFactory.fromAnyRef("node3"));
+    node3 = new BaseDataNode(node3Config);
 
     //Create a clone of node3
-    node3c = new BaseDataNode("node3", ConfigUtils.propertiesToConfig(properties));
+    node3c = new BaseDataNode(node3Config);
 
     FlowTemplate flowTemplate1 = new StaticFlowTemplate(new URI("FS:///uri1"),"","", ConfigFactory.empty(),null, null, null);
     FlowTemplate flowTemplate2 = new StaticFlowTemplate(new URI("FS:///uri2"),"","", ConfigFactory.empty(),null, null, null);
@@ -100,11 +106,6 @@ public class BaseFlowGraphTest {
 
   @Test
   public void testAddDataNode() throws Exception {
-    //Check nodes
-    Assert.assertTrue(graph.getNodes().contains(node1));
-    Assert.assertTrue(graph.getNodes().contains(node2));
-    Assert.assertTrue(graph.getNodes().contains(node3));
-
     //Check contents of dataNodeMap
     Field field = BaseFlowGraph.class.getDeclaredField("dataNodeMap");
     field.setAccessible(true);
@@ -158,12 +159,7 @@ public class BaseFlowGraphTest {
   @Test (dependsOnMethods = "testAddFlowEdge")
   public void testDeleteDataNode() throws Exception {
     //Delete node1 from graph
-    Assert.assertTrue(graph.deleteDataNode(node1));
-
-    //Check contents of nodes
-    Assert.assertTrue(!graph.getNodes().contains(node1));
-    Assert.assertTrue(graph.getNodes().contains(node2));
-    Assert.assertTrue(graph.getNodes().contains(node3));
+    Assert.assertTrue(graph.deleteDataNode("node1"));
 
     //Check contents of dataNodeMap
     Assert.assertEquals(graph.getNode(node1.getId()), null);
@@ -196,49 +192,6 @@ public class BaseFlowGraphTest {
   }
 
   @Test (dependsOnMethods = "testDeleteDataNode")
-  public void testDeleteFlowEdge() throws Exception {
-    //Delete edge 1
-    Assert.assertTrue(graph.deleteFlowEdge(edge1));
-    Assert.assertEquals(graph.getEdges(node1).size(), 0);
-    Assert.assertEquals(graph.getEdges(node2).size(), 1);
-    Assert.assertEquals(graph.getEdges(node3).size(), 1);
-
-    Assert.assertTrue(!graph.getEdges(node1).contains(edge1));
-    Assert.assertTrue(graph.getEdges(node2).contains(edge2));
-    Assert.assertTrue(graph.getEdges(node3).contains(edge3));
-
-    //Delete edge2
-    Assert.assertTrue(graph.deleteFlowEdge(edge2));
-    Assert.assertEquals(graph.getEdges(node1).size(), 0);
-    Assert.assertEquals(graph.getEdges(node2).size(), 0);
-    Assert.assertEquals(graph.getEdges(node3).size(), 1);
-
-    Assert.assertTrue(!graph.getEdges(node1).contains(edge1));
-    Assert.assertTrue(!graph.getEdges(node2).contains(edge2));
-    Assert.assertTrue(graph.getEdges(node3).contains(edge3));
-
-    //Delete edge3
-    Assert.assertTrue(graph.deleteFlowEdge(edge3));
-    Assert.assertEquals(graph.getEdges(node1).size(), 0);
-    Assert.assertEquals(graph.getEdges(node2).size(), 0);
-    Assert.assertEquals(graph.getEdges(node3).size(), 0);
-
-    Assert.assertTrue(!graph.getEdges(node1).contains(edge1));
-    Assert.assertTrue(!graph.getEdges(node2).contains(edge2));
-    Assert.assertTrue(!graph.getEdges(node3).contains(edge3));
-
-    //Ensure we cannot delete already deleted edges
-    Assert.assertTrue(!graph.deleteFlowEdge(edge1));
-    Assert.assertTrue(!graph.deleteFlowEdge(edge2));
-    Assert.assertTrue(!graph.deleteFlowEdge(edge3));
-
-    //Add back the edges
-    graph.addFlowEdge(edge1);
-    graph.addFlowEdge(edge2);
-    graph.addFlowEdge(edge3);
-  }
-
-  @Test (dependsOnMethods = "testDeleteFlowEdge")
   public void testDeleteFlowEdgeById() throws Exception {
     String edgeLabel1 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node1", "node2"), "edge1");
     Assert.assertTrue(graph.deleteFlowEdge(edgeLabel1));

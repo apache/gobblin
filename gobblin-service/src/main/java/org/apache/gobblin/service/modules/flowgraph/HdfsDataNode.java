@@ -17,38 +17,43 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
+import java.net.URI;
+
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
+
+import joptsimple.internal.Strings;
 
 
 /**
- * Representation of a node in the FlowGraph. Each node is identified by a unique identifier.
+ * An implementation of {@link HdfsDataNode}. All the properties specific to a HDFS based data node (e.g. fs.uri)
+ * are validated here.
  */
 @Alpha
-public interface DataNode {
-  /**
-   * @return the identifier of a {@link DataNode}.
-   */
-  String getId();
+public class HdfsDataNode extends FileSystemDataNode {
+  public static final String HDFS_SCHEME = "hdfs";
+
+  public HdfsDataNode(Config nodeProps) throws DataNodeCreationException {
+    super(nodeProps);
+  }
 
   /**
-   * @return the attributes of a {@link DataNode}. It also includes properties for resolving a {@link org.apache.gobblin.runtime.api.JobTemplate}
-   * e.g. "source.fs.uri" for an HDFS node, "jdbc.publisher.url" for JDBC node.
+   *
+   * @param fsUri FileSystem URI
+   * @return true if the scheme is "hdfs" and authority is not empty.
    */
-  Config getProps();
-
-  /**
-   * @return true if the {@link DataNode} is active
-   */
-  boolean isActive();
-
-  class DataNodeCreationException extends Exception {
-    private static final String MESSAGE_FORMAT = "Failed to create DataNode because of: %s";
-
-    public DataNodeCreationException(Exception e) {
-      super(String.format(MESSAGE_FORMAT, e.getMessage()), e);
+  @Override
+  public boolean isUriValid(URI fsUri) {
+    String scheme = fsUri.getScheme();
+    //Check that the scheme is "hdfs"
+    if(!scheme.equals(HDFS_SCHEME)) {
+      return false;
     }
+    //Ensure that the authority is not empty
+    if(Strings.isNullOrEmpty(fsUri.getAuthority())) {
+      return false;
+    }
+    return true;
   }
 }

@@ -47,13 +47,6 @@ public interface FlowGraph {
 
   /**
    * Remove a {@link DataNode} and all its incident edges from the {@link FlowGraph}
-   * @param node {@link DataNode} to be removed
-   * @return true if {@link DataNode} is removed from the {@link FlowGraph} successfully.
-   */
-  public boolean deleteDataNode(DataNode node);
-
-  /**
-   * Remove a {@link DataNode} and all its incident edges from the {@link FlowGraph}
    * @param nodeId identifier of the {@link DataNode} to be removed
    * @return true if {@link DataNode} is removed from the {@link FlowGraph} successfully.
    */
@@ -61,29 +54,10 @@ public interface FlowGraph {
 
   /**
    * Remove a {@link FlowEdge} from the {@link FlowGraph}
-   * @param edge to be removed
-   * @return true if edge is removed from the {@link FlowGraph} successfully.
-   */
-  public boolean deleteFlowEdge(FlowEdge edge);
-
-  /**
-   * Remove a {@link FlowEdge} from the {@link FlowGraph}
    * @param edgeId label of the edge to be removed
    * @return true if edge is removed from the {@link FlowGraph} successfully.
    */
   public boolean deleteFlowEdge(String edgeId);
-
-  /**
-   * Get the factory class for creating {@link DataNode}s to be added to the {@link FlowGraph}.
-   * @return a {@link DataNodeFactory} implementation.
-   */
-  public DataNodeFactory getDataNodeFactory();
-
-  /**
-   * Get the factory class for creating {@link FlowEdge}s to be added to the {@link FlowGraph}.
-   * @return a {@link FlowEdgeFactory} implementation.
-   */
-  public FlowEdgeFactory getFlowEdgeFactory();
 
   /**
    * Get a collection of edges adjacent to a {@link DataNode}. Useful for path finding algorithms and graph
