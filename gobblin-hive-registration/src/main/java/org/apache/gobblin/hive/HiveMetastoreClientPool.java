@@ -56,17 +56,25 @@ public class HiveMetastoreClientPool {
   private final HiveRegProps hiveRegProps;
 
   private static final long DEFAULT_POOL_CACHE_TTL_MINUTES = 30;
-  private static final Cache<Optional<String>, HiveMetastoreClientPool> poolCache =
-      CacheBuilder.newBuilder()
-          .expireAfterAccess(DEFAULT_POOL_CACHE_TTL_MINUTES, TimeUnit.MINUTES)
-          .removalListener(new RemovalListener<Optional<String>, HiveMetastoreClientPool>() {
-        @Override
-        public void onRemoval(RemovalNotification<Optional<String>, HiveMetastoreClientPool> notification) {
-          if (notification.getValue() != null) {
-            notification.getValue().close();
+
+  public static final String POOL_CACHE_TTL_MINUTES_KEY = "hive.metaStorePoolCache.ttl";
+
+  private static Cache<Optional<String>, HiveMetastoreClientPool> poolCache = null;
+
+  private static final Cache<Optional<String>, HiveMetastoreClientPool> createPoolCache(final Properties properties) {
+    long duration = properties.containsKey(POOL_CACHE_TTL_MINUTES_KEY)
+        ? Long.parseLong(properties.getProperty(POOL_CACHE_TTL_MINUTES_KEY)) : DEFAULT_POOL_CACHE_TTL_MINUTES;
+    return CacheBuilder.newBuilder()
+        .expireAfterAccess(duration, TimeUnit.MINUTES)
+        .removalListener(new RemovalListener<Optional<String>, HiveMetastoreClientPool>() {
+          @Override
+          public void onRemoval(RemovalNotification<Optional<String>, HiveMetastoreClientPool> notification) {
+            if (notification.getValue() != null) {
+              notification.getValue().close();
+            }
           }
-        }
-      }).build();
+        }).build();
+  }
 
   /**
    * Get a {@link HiveMetastoreClientPool} for the requested metastore URI. Useful for using the same pools across
@@ -80,6 +88,11 @@ public class HiveMetastoreClientPool {
    */
   public static HiveMetastoreClientPool get(final Properties properties, final Optional<String> metastoreURI)
       throws IOException {
+    synchronized (HiveMetastoreClientPool.class) {
+      if (poolCache == null) {
+        poolCache = createPoolCache(properties);
+      }
+    }
     try {
       return poolCache.get(metastoreURI, new Callable<HiveMetastoreClientPool>() {
         @Override

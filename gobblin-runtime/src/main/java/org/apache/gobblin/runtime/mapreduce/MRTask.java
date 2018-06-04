@@ -103,6 +103,9 @@ public class MRTask extends BaseAbstractTask {
       }
 
       job.submit();
+
+      log.info("MR tracking URL {} for job {}", job.getTrackingURL(), job.getJobName());
+
       this.eventSubmitter.submit(Events.MR_JOB_STARTED_EVENT, Events.JOB_URL, job.getTrackingURL());
       job.waitForCompletion(false);
       this.mrJob = job;

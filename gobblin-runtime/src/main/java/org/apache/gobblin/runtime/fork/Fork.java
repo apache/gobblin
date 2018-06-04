@@ -243,10 +243,11 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       processRecords();
       compareAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED);
     } catch (Throwable t) {
-      this.forkState.set(ForkState.FAILED);
-      this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), t);
+      // Set throwable to holder first because AsynchronousFork::putRecord can pull the throwable when it detects ForkState.FAILED status.
       ForkThrowableHolder holder = Task.getForkThrowableHolder(this.broker);
       holder.setThrowable(this.getIndex(), t);
+      this.forkState.set(ForkState.FAILED);
+      this.logger.error(String.format("Fork %d of task %s failed to process data records. Set throwable in holder %s", this.index, this.taskId, holder), t);
     } finally {
       this.cleanup();
     }

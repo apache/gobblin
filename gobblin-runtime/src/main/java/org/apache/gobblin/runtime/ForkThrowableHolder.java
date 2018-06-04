@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * An object whcih holds all {@link Throwable}s thrown by {@link org.apache.gobblin.runtime.fork.Fork}, so that other
+ * An object which holds all {@link Throwable}s thrown by {@link org.apache.gobblin.runtime.fork.Fork}, so that other
  * Gobblin components (like {@link Task}) can have access.
  */
 @Slf4j
@@ -54,9 +54,9 @@ public class ForkThrowableHolder {
     for (Integer idx: failedForkIds) {
       stringBuffer.append("<Fork " + idx + ">\n");
       if (this.throwables.containsKey(idx)) {
-        stringBuffer.append("Cannot find throwable entry in ForkThrowableHolder\n");
-      } else {
         stringBuffer.append(ExceptionUtils.getFullStackTrace(this.throwables.get(idx)));
+      } else {
+        stringBuffer.append("Cannot find throwable entry in ForkThrowableHolder\n");
       }
     }
     return new ForkException(stringBuffer.toString());

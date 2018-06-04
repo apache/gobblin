@@ -25,25 +25,25 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-import javax.annotation.Nonnull;
-
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
+import javax.annotation.Nonnull;
+
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
-import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.MutableSpecCatalog;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalog;
@@ -91,8 +91,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       this.metricContext = realParentCtx.childBuilder(FlowCatalog.class.getSimpleName()).build();
       this.metrics = new MutableStandardMetrics(this, Optional.of(config));
       this.addListener(this.metrics);
-    }
-    else {
+    } else {
       this.metricContext = null;
       this.metrics = null;
     }
@@ -240,8 +239,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
-  @Override
-  public void put(Spec spec) {
+  public void put(Spec spec, boolean triggerListener) {
     try {
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
@@ -251,10 +249,17 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
           ((FlowSpec) spec).getConfigAsProperties()));
       specStore.addSpec(spec);
       metrics.updatePutSpecTime(startTime);
-      this.listeners.onAddSpec(spec);
+      if (triggerListener) {
+        this.listeners.onAddSpec(spec);
+      }
     } catch (IOException e) {
       throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
+  }
+
+  @Override
+  public void put(Spec spec) {
+    put(spec, true);
   }
 
   public void remove(URI uri) {
@@ -263,6 +268,10 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
   @Override
   public void remove(URI uri, Properties headers) {
+    this.remove(uri, headers, true);
+  }
+
+  public void remove(URI uri, Properties headers, boolean triggerListener) {
     try {
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(uri);
@@ -270,8 +279,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       log.info(String.format("Removing FlowSpec with URI: %s", uri));
       specStore.deleteSpec(uri);
       this.metrics.updateRemoveSpecTime(startTime);
-      this.listeners.onDeleteSpec(uri, FlowSpec.Builder.DEFAULT_VERSION, headers);
-
+      if (triggerListener) {
+        this.listeners.onDeleteSpec(uri, FlowSpec.Builder.DEFAULT_VERSION, headers);
+      }
     } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
     }

@@ -33,7 +33,7 @@ public class GithubDataEventTypesPartitioner implements WriterPartitioner<Parque
 
   private static final String PARTITION_KEY = "type";
   private static final Schema SCHEMA =
-      SchemaBuilder.record("Schema").namespace("gobblin.writer.partitioner").fields().name(PARTITION_KEY))
+      SchemaBuilder.record("Schema").namespace("gobblin.writer.partitioner").fields().name(PARTITION_KEY)
           .type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
 
   public GithubDataEventTypesPartitioner(State state, int numBranches, int branchId) {

@@ -86,6 +86,9 @@ public class GPGFileDecryptorTest {
 
       Assert.assertEquals(bytesRead, 1041981183L);
 
+      // Make sure no error thrown if read again after reaching EOF
+      Assert.assertEquals(is.read(), -1);
+
       System.gc();
       System.gc();
       long endHeapSize = Runtime.getRuntime().totalMemory();

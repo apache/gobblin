@@ -257,12 +257,16 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     jobConfigBuilder.setTimeoutPerTask(this.jobContext.getJobState().getPropAsLong(
         ConfigurationKeys.HELIX_TASK_TIMEOUT_SECONDS,
         ConfigurationKeys.DEFAULT_HELIX_TASK_TIMEOUT_SECONDS) * 1000);
-    
+
     jobConfigBuilder.setFailureThreshold(workUnits.size());
     jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinTaskRunner.GOBBLIN_TASK_FACTORY_NAME);
     jobConfigBuilder.setNumConcurrentTasksPerInstance(ConfigUtils.getInt(jobConfig,
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT));
+
+    if (this.jobConfig.hasPath(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY)) {
+      jobConfigBuilder.setInstanceGroupTag(this.jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY));
+    }
 
     if (Task.getExecutionModel(ConfigUtils.configToState(jobConfig)).equals(ExecutionModel.STREAMING)) {
       jobConfigBuilder.setRebalanceRunningTask(true);
