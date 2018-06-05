@@ -20,6 +20,7 @@ package org.apache.gobblin.data.management.copy.writer;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.util.FileUtils;
 import org.apache.gobblin.util.io.StreamCopier;
 import org.apache.gobblin.util.io.StreamUtils;
 
@@ -80,6 +81,10 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
         // the API tarEntry.getName() is misleading, it is actually the path of the tarEntry in the tar file
         String newTarEntryPath = tarEntry.getName().replace(tarEntryRootName, writeAt.getName());
         Path tarEntryStagingPath = new Path(writeAt.getParent(), newTarEntryPath);
+        if (!FileUtils.isSubPath(writeAt.getParent(), tarEntryStagingPath)) {
+          throw new IOException(String.format("Extracted file: %s is trying to write outside of output directory: %s",
+              tarEntryStagingPath, writeAt.getParent()));
+        }
 
         if (tarEntry.isDirectory() && !this.fs.exists(tarEntryStagingPath)) {
           this.fs.mkdirs(tarEntryStagingPath);
