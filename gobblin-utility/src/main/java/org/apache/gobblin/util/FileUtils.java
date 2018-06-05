@@ -48,4 +48,18 @@ public class FileUtils {
 
     return childStr.startsWith(parentStr);
   }
+
+  /***
+   * Check if child path is child of parent path.
+   * @param parent Expected parent path.
+   * @param child Expected child path.
+   * @return If child path is child of parent path.
+   * @throws IOException
+   */
+  public static boolean isSubPath(org.apache.hadoop.fs.Path parent, org.apache.hadoop.fs.Path child) throws IOException {
+    String childStr = child.toString();
+    String parentStr = parent.toString();
+
+    return childStr.startsWith(parentStr);
+  }
 }

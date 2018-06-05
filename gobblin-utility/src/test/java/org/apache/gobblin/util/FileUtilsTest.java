@@ -43,7 +43,7 @@ public class FileUtilsTest {
   }
 
   @Test
-  public void testIsSubPath() throws IOException {
+  public void testIsSubFile() throws IOException {
     File parentPath = new File("/tmp/foo/bar");
 
     File childPath = new File("/tmp/foo/../tar/file.txt");
@@ -53,6 +53,20 @@ public class FileUtilsTest {
     assertThat(true).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
 
     childPath = new File("/tmp/foo/bar/car/file.txt");
+    assertThat(true).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
+  }
+
+  @Test
+  public void testIsSubPath() throws IOException {
+    org.apache.hadoop.fs.Path parentPath = new org.apache.hadoop.fs.Path("/tmp/foo/bar");
+
+    org.apache.hadoop.fs.Path childPath = new org.apache.hadoop.fs.Path("/tmp/foo/../tar/file.txt");
+    assertThat(false).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
+
+    childPath = new org.apache.hadoop.fs.Path("/tmp/foo/tar/../bar/file.txt");
+    assertThat(true).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
+
+    childPath = new org.apache.hadoop.fs.Path("/tmp/foo/bar/car/file.txt");
     assertThat(true).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
   }
 }
