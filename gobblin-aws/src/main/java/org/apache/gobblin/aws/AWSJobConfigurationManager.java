@@ -197,6 +197,10 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
       while (entries.hasMoreElements()) {
         final ZipEntry entry = entries.nextElement();
         final File entryDestination = new File(outputDir, entry.getName());
+        if (!org.apache.gobblin.util.FileUtils.isSubPath(outputDir, entryDestination)) {
+          throw new IOException(String.format("Extracted file: %s is trying to write outside of output directory: %s",
+              entryDestination, outputDir));
+        }
 
         if (entry.isDirectory()) {
           // If entry is directory, create directory
