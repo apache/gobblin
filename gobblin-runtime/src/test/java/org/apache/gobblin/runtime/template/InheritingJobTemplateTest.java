@@ -177,6 +177,7 @@ public class InheritingJobTemplateTest {
     private final URI uri;
     private final Map<String,String> rawTemplate;
     private final List<String> required;
+    private Collection<String> dependencies;
 
     public TestTemplate(URI uri, List<URI> superTemplateUris, Map<String, String> rawTemplate, List<String> required,
         JobCatalogWithTemplates catalog) throws SpecNotFoundException, TemplateException {
@@ -226,6 +227,11 @@ public class InheritingJobTemplateTest {
         }
       }
       return userConfig.withFallback(getLocalRawTemplate());
+    }
+
+    @Override
+    public Collection<String> getDependencies() {
+      return this.dependencies;
     }
   }
 
