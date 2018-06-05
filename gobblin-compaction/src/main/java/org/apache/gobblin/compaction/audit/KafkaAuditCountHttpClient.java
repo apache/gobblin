@@ -60,10 +60,15 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
 
   public static final String KAFKA_AUDIT_REST_BASE_URL = "kafka.audit.rest.base.url";
   public static final String KAFKA_AUDIT_REST_MAX_TRIES = "kafka.audit.rest.max.tries";
+  public static final String KAFKA_AUDIT_REST_BACKOFF_INTERVAL_SECONDS = "kafka.audit.rest.backoff.interval.seconds";
+  public static final int KAFKA_AUDIT_REST_BACKOFF_INTERVAL_SECONDS_DEFAULT = 15;
+  public static final String KAFKA_AUDIT_REST_TOPIC_QUERYSTRING_KEY = "kafka.audit.rest.querystring.topic";
   public static final String KAFKA_AUDIT_REST_START_QUERYSTRING_KEY = "kafka.audit.rest.querystring.start";
   public static final String KAFKA_AUDIT_REST_END_QUERYSTRING_KEY = "kafka.audit.rest.querystring.end";
-  public static final String KAFKA_AUDIT_REST_START_QUERYSTRING_DEFAULT = "begin";
+  public static final String KAFKA_AUDIT_REST_TOPIC_QUERYSTRING_DEFAULT = "topic";
+  public static final String KAFKA_AUDIT_REST_START_QUERYSTRING_DEFAULT = "start";
   public static final String KAFKA_AUDIT_REST_END_QUERYSTRING_DEFAULT = "end";
+  public static final String KAFKA_AUDIT_REST_RESPONSESTRING_COUNTSPERTIER = "totalsPerTier";
 
 
   // Http Client
@@ -72,9 +77,12 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
   private static final JsonParser PARSER = new JsonParser();
 
   private final String baseUrl;
+  private final String topicQueryString;
   private final String startQueryString;
   private final String endQueryString;
   private final int maxNumTries;
+  private final int retryBackOffSecs;
+
   /**
    * Constructor
    */
@@ -91,18 +99,20 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
 
     this.baseUrl = state.getProp(KAFKA_AUDIT_REST_BASE_URL);
     this.maxNumTries = state.getPropAsInt(KAFKA_AUDIT_REST_MAX_TRIES, 5);
+    this.retryBackOffSecs = state.getPropAsInt(KAFKA_AUDIT_REST_BACKOFF_INTERVAL_SECONDS, KAFKA_AUDIT_REST_BACKOFF_INTERVAL_SECONDS_DEFAULT);
+    this.topicQueryString = state.getProp(KAFKA_AUDIT_REST_TOPIC_QUERYSTRING_KEY, KAFKA_AUDIT_REST_TOPIC_QUERYSTRING_DEFAULT);
     this.startQueryString = state.getProp(KAFKA_AUDIT_REST_START_QUERYSTRING_KEY, KAFKA_AUDIT_REST_START_QUERYSTRING_DEFAULT);
     this.endQueryString = state.getProp(KAFKA_AUDIT_REST_END_QUERYSTRING_KEY, KAFKA_AUDIT_REST_END_QUERYSTRING_DEFAULT);
   }
 
 
-  public Map<String, Long> fetch (String datasetName, long start, long end)  throws IOException {
+  public Map<String, Long> fetch (String topic, long start, long end)  throws IOException {
     String fullUrl =
-            (this.baseUrl.endsWith("/") ? this.baseUrl : this.baseUrl + "/") + StringUtils.replaceChars(datasetName, '/', '.')
-                    + "?" + this.startQueryString + "=" + start + "&" + this.endQueryString + "=" + end;
+        (this.baseUrl.endsWith("/") ? this.baseUrl.substring(0, this.baseUrl.length() - 1) : this.baseUrl) + "?" + this.topicQueryString + "=" + topic
+            + "&" + this.startQueryString + "=" + start + "&" + this.endQueryString + "=" + end;
     log.info("Full URL is " + fullUrl);
     String response = getHttpResponse(fullUrl);
-   return parseResponse (fullUrl, response, datasetName);
+   return parseResponse(fullUrl, response, topic);
   }
 
 
@@ -112,13 +122,13 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
    *
    * <pre>
    * {
-   *  "result": {
-   *     "hadoop-tracking-lva1tarock-08": 79341895,
-   *     "hadoop-tracking-uno-08": 79341892,
-   *     "kafka-08-tracking-local": 79341968,
-   *     "kafka-corp-lca1-tracking-agg": 79341968,
-   *     "kafka-corp-ltx1-tracking-agg": 79341968,
-   *     "producer": 69483513
+   *  "totalsPerTier": {
+   *     "tier1": 900,
+   *     "tier2": 987,
+   *     "tier3": 999,
+   *     "tier4": 1000,
+   *     "tier5": 867,
+   *     "producer": 1000
    *   }
    * }
    * </pre>
@@ -129,8 +139,8 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
     JsonObject countsPerTier = null;
     try {
       JsonObject jsonObj = PARSER.parse(response).getAsJsonObject();
-
-      countsPerTier = jsonObj.getAsJsonObject("result");
+      countsPerTier = jsonObj.getAsJsonObject(KAFKA_AUDIT_REST_RESPONSESTRING_COUNTSPERTIER);
+      log.info("Counts per tier for topic {}: {}", topic, countsPerTier.toString());
     } catch (Exception e) {
       throw new IOException(String.format("Unable to parse JSON response: %s for request url: %s ", response,
               fullUrl), e);
@@ -143,7 +153,6 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
       long count = Long.parseLong(entry.getValue().getAsString());
       result.put(tier, count);
     }
-
     return result;
   }
 
@@ -165,7 +174,7 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
         if (numTries >= this.maxNumTries) {
           throw new IOException (errMsg, e);
         }
-        long backOffSec = (numTries + 1) * 2;
+        long backOffSec = (numTries + 1) * this.retryBackOffSecs;
         log.error(errMsg + ", will retry in " + backOffSec + " sec", e);
         try {
           Thread.sleep(TimeUnit.SECONDS.toMillis(backOffSec));
