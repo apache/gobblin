@@ -19,15 +19,19 @@ package org.apache.gobblin.service.modules.core;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.Set;
 
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.diff.DiffEntry;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
@@ -36,7 +40,6 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
-import org.apache.gobblin.service.modules.flowgraph.DataNodeFactory;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdgeFactory;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
@@ -45,6 +48,7 @@ import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PullFileLoader;
 
+import joptsimple.internal.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -62,6 +66,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   private static final int EDGE_FILE_DEPTH=4;
   private static final String PROPERTIES_EXTENSIONS = "properties,props";
   private static final String CONF_EXTENSIONS = "configuration,conf";
+  public static final String FLOW_EDGE_LABEL_JOINER_CHAR = ":";
 
   private FSFlowCatalog flowCatalog;
   private FlowGraph flowGraph;
@@ -148,8 +153,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   }
 
   /**
-   * Add a {@link DataNode} to the {@link FlowGraph}. The method uses the {@link DataNodeFactory} instance
-   * provided by the {@link FlowGraph} to build a {@link DataNode} from the node config file.
+   * Add a {@link DataNode} to the {@link FlowGraph}. The method uses the {@link FlowGraphConfigurationKeys#DATA_NODE_CLASS} config
+   * to instantiate a {@link DataNode} from the node config file.
    * @param change
    */
   private void addDataNode(DiffEntry change) {
@@ -157,8 +162,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
       Path nodeFilePath = new Path(this.repositoryDir, change.getNewPath());
       try {
         Config config = loadNodeFileWithOverrides(nodeFilePath);
-        DataNodeFactory dataNodeFactory = this.flowGraph.getDataNodeFactory();
-        DataNode dataNode = dataNodeFactory.createDataNode(config);
+        Class dataNodeClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_CLASS, FlowGraphConfigurationKeys.DEFAULT_DATA_NODE_CLASS));
+        DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, config);
         if(!this.flowGraph.addDataNode(dataNode)) {
           log.warn("Could not add DataNode {} to FlowGraph; skipping", dataNode.getId());
         }
@@ -194,7 +199,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
       Path edgeFilePath = new Path(this.repositoryDir, change.getNewPath());
       try {
         Config config = loadEdgeFileWithOverrides(edgeFilePath);
-        FlowEdgeFactory flowEdgeFactory = this.flowGraph.getFlowEdgeFactory();
+        Class flowEdgeFactoryClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS, FlowGraphConfigurationKeys.DEFAULT_FLOW_EDGE_FACTORY_CLASS));
+        FlowEdgeFactory flowEdgeFactory = (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, config);
         FlowEdge edge = flowEdgeFactory.createFlowEdge(config, flowCatalog);
         if(!this.flowGraph.addFlowEdge(edge)) {
           log.warn("Could not add edge {} to FlowGraph; skipping", edge.getId());
@@ -215,14 +221,13 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
     if(checkFilePath(change.getOldPath(), EDGE_FILE_DEPTH)) {
       Path edgeFilePath = new Path(this.repositoryDir, change.getOldPath());
       try {
-        FlowEdgeFactory flowEdgeFactory = this.flowGraph.getFlowEdgeFactory();
-        Config edgeConfig = getEdgeConfigWithOverrides(ConfigFactory.empty(), edgeFilePath);
-        String edgeId = flowEdgeFactory.getEdgeId(edgeConfig);
+        Config config = getEdgeConfigWithOverrides(ConfigFactory.empty(), edgeFilePath);
+        String edgeId = config.getString(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY);
         if(!this.flowGraph.deleteFlowEdge(edgeId)) {
           log.warn("Could not remove FlowEdge {} from FlowGraph; skipping", edgeId);
         }
-      } catch (IOException e) {
-        log.warn("Could not load node file {}", edgeFilePath);
+      } catch (Exception e) {
+        log.warn("Could not remove edge defined in {} due to exception {}", edgeFilePath, e.getMessage());
       }
     }
   }
@@ -288,7 +293,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
     String edgeName = Files.getNameWithoutExtension(edgeFilePath.getName());
     return edgeConfig.withValue(FlowGraphConfigurationKeys.FLOW_EDGE_SOURCE_KEY, ConfigValueFactory.fromAnyRef(source))
         .withValue(FlowGraphConfigurationKeys.FLOW_EDGE_DESTINATION_KEY, ConfigValueFactory.fromAnyRef(destination))
-        .withValue(FlowGraphConfigurationKeys.FLOW_EDGE_NAME_KEY, ConfigValueFactory.fromAnyRef(edgeName));
+        .withValue(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, ConfigValueFactory.fromAnyRef(getEdgeId(source, destination, edgeName)));
   }
 
   /**
@@ -311,6 +316,17 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   private Config loadEdgeFileWithOverrides(Path filePath) throws IOException {
     Config edgeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false);
     return getEdgeConfigWithOverrides(edgeConfig, filePath);
+  }
+
+  /**
+   * Get an edge label from the edge properties
+   * @param source source data node id
+   * @param destination destination data node id
+   * @param edgeName simple name of the edge (e.g. file name without extension of the edge file)
+   * @return a string label identifying the edge
+   */
+  private String getEdgeId(String source, String destination, String edgeName) {
+    return Joiner.on(FLOW_EDGE_LABEL_JOINER_CHAR).join(source, destination, edgeName);
   }
 
 }

@@ -61,7 +61,7 @@ public class GitFlowGraphMonitorTest {
   private static final Logger logger = LoggerFactory.getLogger(GitFlowGraphMonitor.class);
   private Repository remoteRepo;
   private Git gitForPush;
-  private static final String TEST_DIR = "/tmp/gitFlowGraphTestDir/";
+  private static final String TEST_DIR = "/tmp/gitFlowGraphTestDir";
   private final File remoteDir = new File(TEST_DIR + "/remote");
   private final File cloneDir = new File(TEST_DIR + "/clone");
   private final File flowGraphDir = new File(cloneDir, "/gobblin-flowgraph");
