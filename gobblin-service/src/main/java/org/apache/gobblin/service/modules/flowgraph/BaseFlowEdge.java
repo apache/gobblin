@@ -169,6 +169,8 @@ public class BaseFlowEdge implements FlowEdge {
         }
         FlowTemplate flowTemplate = flowCatalog.getFlowTemplate(new URI(flowTemplateUri));
         return new BaseFlowEdge(endPoints, edgeName, flowTemplate, specExecutors, edgeProps, isActive);
+      } catch(RuntimeException e) {
+        throw e;
       } catch (Exception e) {
         throw new FlowEdgeCreationException(e);
       }
