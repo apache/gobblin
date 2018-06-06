@@ -14,14 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.gobblin.runtime.api;
 
-public interface JobExecutionStatus {
-  public static final String UKNOWN_STAGE = "unkown";
-  JobExecution getJobExecution();
+import java.util.concurrent.Future;
 
+/**
+ * A simple monitoring and future object. This object can be used as a normal {@link Future} object to get {@link ExecutionResult}.
+ *
+ * It can also be used to get current job running status, which is described by {@link MonitoredObject}.
+ */
+public interface JobExecutionMonitor extends Future<ExecutionResult> {
   MonitoredObject getRunningState();
-
-  /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
-  String getStage();
 }

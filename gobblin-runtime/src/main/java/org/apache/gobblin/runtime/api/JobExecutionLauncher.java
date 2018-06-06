@@ -16,6 +16,8 @@
  */
 package org.apache.gobblin.runtime.api;
 
+import java.util.concurrent.Future;
+
 import com.codahale.metrics.Gauge;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -30,10 +32,24 @@ import lombok.Getter;
  */
 @Alpha
 public interface JobExecutionLauncher extends Instrumentable {
-  JobExecutionDriver launchJob(JobSpec jobSpec);
+  /**
+   * This method is to launch the job specified by {@param jobSpec}
+   * The simplest way is to run a {@link JobExecutionDriver} and upon completion return a
+   * {@link org.apache.gobblin.runtime.job_exec.JobLauncherExecutionDriver.JobExecutionFutureAndDriver}.
+   *
+   * If {@link JobExecutionDriver} does not run within the same process/node of {@link JobExecutionLauncher}, a simple monitoring
+   * future object ({@link JobExecutionMonitor}) is returned. This object can do two things:
+   *
+   * 1) Wait for computation of final {@link ExecutionResult} by invoking {@link Future#get()}.
+   * 2) Monitor current job running status by invoking {@link JobExecutionMonitor#getRunningState()}.
+   *
+   * @see JobExecutionMonitor
+   */
+  JobExecutionMonitor launchJob(JobSpec jobSpec);
 
   /**
-   * Common metrics for all launcher implementations. */
+   * Common metrics for all launcher implementations.
+   */
   StandardMetrics getMetrics();
 
   public static class StandardMetrics {
