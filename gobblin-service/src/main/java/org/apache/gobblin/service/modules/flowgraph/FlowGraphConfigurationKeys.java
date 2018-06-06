@@ -24,14 +24,19 @@ public class FlowGraphConfigurationKeys {
   /**
    *   {@link DataNode} configuration keys.
    */
+  public static final String DATA_NODE_CLASS = DATA_NODE_PREFIX + "class";
+  public static final String DEFAULT_DATA_NODE_CLASS = "org.apache.gobblin.service.modules.flowgraph.BaseDataNode";
   public static final String DATA_NODE_ID_KEY = DATA_NODE_PREFIX + "id";
   public static final String DATA_NODE_IS_ACTIVE_KEY = DATA_NODE_PREFIX + "isActive";
 
   /**
    * {@link FlowEdge} configuration keys.
    */
+  public static final String FLOW_EDGE_FACTORY_CLASS = FLOW_EDGE_PREFIX + "factory.class";
+  public static final String DEFAULT_FLOW_EDGE_FACTORY_CLASS = "org.apache.gobblin.service.modules.flowgraph.BaseFlowEdge$Factory";
   public static final String FLOW_EDGE_SOURCE_KEY = FLOW_EDGE_PREFIX + "source";
   public static final String FLOW_EDGE_DESTINATION_KEY = FLOW_EDGE_PREFIX + "destination";
+  public static final String FLOW_EDGE_ID_KEY = FLOW_EDGE_PREFIX + "id";
   public static final String FLOW_EDGE_NAME_KEY = FLOW_EDGE_PREFIX + "name";
   public static final String FLOW_EDGE_IS_ACTIVE_KEY = FLOW_EDGE_PREFIX + "isActive";
   public static final String FLOW_EDGE_TEMPLATE_URI_KEY = FLOW_EDGE_PREFIX + "flowTemplateUri";

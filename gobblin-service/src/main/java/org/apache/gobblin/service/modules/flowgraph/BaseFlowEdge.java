@@ -17,15 +17,12 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hadoop.security.UserGroupInformation;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
@@ -46,8 +43,6 @@ import lombok.Getter;
  */
 @Alpha
 public class BaseFlowEdge implements FlowEdge {
-  public static final String FLOW_EDGE_LABEL_JOINER_CHAR = ":";
-
   @Getter
   protected List<String> endPoints;
 
@@ -67,13 +62,13 @@ public class BaseFlowEdge implements FlowEdge {
   private boolean active;
 
   //Constructor
-  public BaseFlowEdge(List<String> endPoints, String edgeName, FlowTemplate flowTemplate, List<SpecExecutor> executors, Config properties, boolean active) {
+  public BaseFlowEdge(List<String> endPoints, String edgeId, FlowTemplate flowTemplate, List<SpecExecutor> executors, Config properties, boolean active) {
     this.endPoints = endPoints;
     this.flowTemplate = flowTemplate;
     this.executors = executors;
     this.active = active;
     this.props = properties;
-    this.id = generateEdgeId(endPoints, edgeName);
+    this.id = edgeId;
   }
 
   @Override
@@ -81,10 +76,6 @@ public class BaseFlowEdge implements FlowEdge {
     return true;
   }
 
-  @VisibleForTesting
-  protected static String generateEdgeId(List<String> endPoints, String edgeName) {
-    return Joiner.on(FLOW_EDGE_LABEL_JOINER_CHAR).join(endPoints.get(0), endPoints.get(1), edgeName);
-  }
   /**
    *   The {@link FlowEdge}s are the same if they have the same endpoints and both refer to the same {@FlowTemplate} i.e.
    *   the {@link FlowTemplate} uris are the same
@@ -140,8 +131,8 @@ public class BaseFlowEdge implements FlowEdge {
         String destination = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_DESTINATION_KEY,"");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(destination), "A FlowEdge must have a non-null or empty destination");
         List<String> endPoints = Lists.newArrayList(source, destination);
-        String edgeName = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_NAME_KEY,"");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(edgeName), "A FlowEdge must have a non-null or empty name");
+        String edgeId = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY,"");
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(edgeId), "A FlowEdge must have a non-null or empty Id");
 
         List<Config> specExecutorConfigList = new ArrayList<>();
         boolean flag;
@@ -168,26 +159,12 @@ public class BaseFlowEdge implements FlowEdge {
           specExecutors.add(executor);
         }
         FlowTemplate flowTemplate = flowCatalog.getFlowTemplate(new URI(flowTemplateUri));
-        return new BaseFlowEdge(endPoints, edgeName, flowTemplate, specExecutors, edgeProps, isActive);
+        return new BaseFlowEdge(endPoints, edgeId, flowTemplate, specExecutors, edgeProps, isActive);
       } catch(RuntimeException e) {
         throw e;
       } catch (Exception e) {
         throw new FlowEdgeCreationException(e);
       }
-    }
-
-    @Override
-    public String getEdgeId(Config edgeProps) throws IOException {
-      String source = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_SOURCE_KEY,"");
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(source), "A FlowEdge must have a non-null or empty source");
-      String destination = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_DESTINATION_KEY,"");
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(source), "A FlowEdge must have a non-null or empty destination");
-      String edgeName =
-          ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_NAME_KEY, "");
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(edgeName), "A FlowEdge must have a non-null or empty name");
-      List<String> endPoints = Lists.newArrayList(source, destination);
-
-      return generateEdgeId(endPoints, edgeName);
     }
   }
 }
