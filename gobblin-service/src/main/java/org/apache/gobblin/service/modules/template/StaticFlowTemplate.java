@@ -45,6 +45,8 @@ import lombok.Getter;
  */
 @Alpha
 public class StaticFlowTemplate implements FlowTemplate {
+  private static final long serialVersionUID = 84641624233978L;
+
   public static final String INPUT_DATASET_DESCRIPTOR_PREFIX = "gobblin.flow.dataset.descriptor.input";
   public static final String OUTPUT_DATASET_DESCRIPTOR_PREFIX = "gobblin.flow.dataset.descriptor.output";
   public static final String DATASET_DESCRIPTOR_CLASS_KEY = "class";
@@ -56,15 +58,15 @@ public class StaticFlowTemplate implements FlowTemplate {
   @Getter
   private String description;
   @Getter
-  private FlowCatalogWithTemplates catalog;
+  private transient FlowCatalogWithTemplates catalog;
   @Getter
   private List<Pair<DatasetDescriptor, DatasetDescriptor>> inputOutputDatasetDescriptors;
   @Getter
   private List<JobTemplate> jobTemplates;
 
-  private Dag<JobTemplate> dag;
+  private transient Dag<JobTemplate> dag;
 
-  private Config rawConfig;
+  private transient Config rawConfig;
   private boolean isTemplateMaterialized;
 
   public StaticFlowTemplate(URI uri, String version, String description, Config config,
