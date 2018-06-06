@@ -19,7 +19,6 @@ package org.apache.gobblin.cluster;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -147,8 +146,8 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
         postUpdateJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
       } else if (verb.equals(SpecExecutor.Verb.DELETE)) {
         // Handle delete
-        Spec anonymousSpec = (Spec) entry.getValue();
-        postDeleteJobConfigArrival(anonymousSpec.getUri().toString(), new Properties());
+        JobSpec jobSpec = (JobSpec) entry.getValue();
+        postDeleteJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
       }
     }
   }

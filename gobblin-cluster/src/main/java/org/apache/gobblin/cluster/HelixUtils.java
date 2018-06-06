@@ -138,6 +138,11 @@ public class HelixUtils {
             helixJobState == org.apache.helix.task.TaskState.STOPPED) {
           return;
         }
+      } else {
+        // We have waited for WorkflowContext to get initialized,
+        // so it is found null here, it must have been deleted in job cancellation process.
+        log.info("WorkflowContext not found. Job is probably cancelled.");
+        return;
       }
       Thread.sleep(1000);
     }

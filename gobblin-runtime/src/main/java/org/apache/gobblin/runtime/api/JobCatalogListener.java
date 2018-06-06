@@ -37,6 +37,10 @@ public interface JobCatalogListener {
    */
   public void onDeleteJob(URI deletedJobURI, String deletedJobVersion);
 
+  default void onDeleteJob(JobSpec deletedJob) {
+    onDeleteJob(deletedJob.getUri(), deletedJob.getVersion());
+  }
+
   /**
    * Invoked when the contents of a JobSpec gets updated in the catalog.
    */
@@ -60,6 +64,7 @@ public interface JobCatalogListener {
   public static class DeleteJobCallback extends Callback<JobCatalogListener, Void> {
     private final URI _deletedJobURI;
     private final String _deletedJobVersion;
+    private final JobSpec _deletedJob;
 
     public DeleteJobCallback(URI deletedJobURI, String deletedJobVersion) {
       super(Objects.toStringHelper("onDeleteJob")
@@ -68,10 +73,23 @@ public interface JobCatalogListener {
                    .toString());
       _deletedJobURI = deletedJobURI;
       _deletedJobVersion = deletedJobVersion;
+      _deletedJob = null;
+    }
+
+    public DeleteJobCallback(JobSpec deletedJob) {
+      super(Objects.toStringHelper("onDeleteJob")
+          .toString());
+      _deletedJobURI = null;
+      _deletedJobVersion = null;
+      _deletedJob = deletedJob;
     }
 
     @Override public Void apply(JobCatalogListener listener) {
-      listener.onDeleteJob(_deletedJobURI, _deletedJobVersion);
+      if (_deletedJob == null) {
+        listener.onDeleteJob(_deletedJobURI, _deletedJobVersion);
+      } else {
+        listener.onDeleteJob(_deletedJob);
+      }
       return null;
     }
   }

@@ -89,6 +89,17 @@ public class JobCatalogListenersList implements JobCatalogListener, JobCatalogLi
   }
 
   @Override
+  public synchronized void onDeleteJob(JobSpec deletedJob) {
+    Preconditions.checkNotNull(deletedJob.getUri());
+
+    try {
+      _disp.execCallbacks(new DeleteJobCallback(deletedJob));
+    } catch (InterruptedException e) {
+      getLog().warn("onDeleteJob interrupted.");
+    }
+  }
+
+  @Override
   public synchronized void onUpdateJob(JobSpec updatedJob) {
     Preconditions.checkNotNull(updatedJob);
     try {
