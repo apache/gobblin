@@ -34,8 +34,6 @@ import lombok.Getter;
  */
 @Alpha
 public class BaseHdfsDatasetDescriptor implements HdfsDatasetDescriptor {
-  public static final String HDFS_PLATFORM_NAME = "hdfs";
-
   @Getter
   private final String path;
   @Getter
@@ -43,7 +41,7 @@ public class BaseHdfsDatasetDescriptor implements HdfsDatasetDescriptor {
   @Getter
   private final String description;
   @Getter
-  private final String platform = HDFS_PLATFORM_NAME;
+  private final String platform;
 
   public BaseHdfsDatasetDescriptor(Config config) {
     Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.PATH_KEY), String.format("Missing required property %s", DatasetDescriptorConfigKeys.PATH_KEY));
@@ -52,6 +50,7 @@ public class BaseHdfsDatasetDescriptor implements HdfsDatasetDescriptor {
     this.path = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY, null);
     this.format = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.FORMAT_KEY, null);
     this.description = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.DESCRIPTION_KEY, "");
+    this.platform = "hdfs";
   }
 
   /**
