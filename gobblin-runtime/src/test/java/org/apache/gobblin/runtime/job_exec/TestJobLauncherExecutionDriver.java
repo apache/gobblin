@@ -73,8 +73,8 @@ public class TestJobLauncherExecutionDriver {
 
       JobLauncherExecutionDriver jled = null;
       JobExecutionMonitor monitor = launcher.launchJob(jobSpec1);
-      if (monitor instanceof JobLauncherExecutionDriver.JobExecutionFutureAndDriver) {
-        jled = ((JobLauncherExecutionDriver.JobExecutionFutureAndDriver) monitor).getDrvier();
+      if (monitor instanceof JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) {
+        jled = ((JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) monitor).getDriver();
       }
 
       Assert.assertTrue(jled.getLegacyLauncher() instanceof LocalJobLauncher);
@@ -105,8 +105,8 @@ public class TestJobLauncherExecutionDriver {
       monitor = launcher
           .withJobLauncherType(JobLauncherFactory.JobLauncherType.MAPREDUCE)
           .launchJob(jobSpec2);
-      if (monitor instanceof JobLauncherExecutionDriver.JobExecutionFutureAndDriver) {
-        jled = ((JobLauncherExecutionDriver.JobExecutionFutureAndDriver)monitor).getDrvier();
+      if (monitor instanceof JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) {
+        jled = ((JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) monitor).getDriver();
       }
 
       Assert.assertTrue(jled.getLegacyLauncher() instanceof MRJobLauncher);

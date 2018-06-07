@@ -210,10 +210,10 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     public void run() {
       try {
         JobExecutionMonitor monitor = _jobLauncher.launchJob(new ResolvedJobSpec(_jobSpec, _instanceDriver));
-        if (!(monitor instanceof JobLauncherExecutionDriver.JobExecutionFutureAndDriver)) {
-          throw new UnsupportedOperationException(JobLauncherExecutionDriver.JobExecutionFutureAndDriver.class.getName() + " is expected.");
+        if (!(monitor instanceof JobLauncherExecutionDriver.JobExecutionMonitorAndDriver)) {
+          throw new UnsupportedOperationException(JobLauncherExecutionDriver.JobExecutionMonitorAndDriver.class.getName() + " is expected.");
         }
-        JobExecutionDriver driver = ((JobLauncherExecutionDriver.JobExecutionFutureAndDriver) monitor).getDrvier();
+        JobExecutionDriver driver = ((JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) monitor).getDriver();
         _callbacksDispatcher.onJobLaunch(driver);
         driver.registerStateListener(new JobStateTracker());
         ExecutorsUtils.newThreadFactory(Optional.of(_log), Optional.of("gobblin-instance-driver")).newThread(driver).start();

@@ -35,10 +35,10 @@ public interface JobExecutionLauncher extends Instrumentable {
   /**
    * This method is to launch the job specified by {@param jobSpec}
    * The simplest way is to run a {@link JobExecutionDriver} and upon completion return a
-   * {@link org.apache.gobblin.runtime.job_exec.JobLauncherExecutionDriver.JobExecutionFutureAndDriver}.
+   * {@link org.apache.gobblin.runtime.job_exec.JobLauncherExecutionDriver.JobExecutionMonitorAndDriver}.
    *
    * If {@link JobExecutionDriver} does not run within the same process/node of {@link JobExecutionLauncher}, a simple monitoring
-   * future object ({@link JobExecutionMonitor}) is returned. This object can do two things:
+   * future object ({@link JobExecutionMonitor}) can be returned. This object can do two things:
    *
    * 1) Wait for computation of final {@link ExecutionResult} by invoking {@link Future#get()}.
    * 2) Monitor current job running status by invoking {@link JobExecutionMonitor#getRunningState()}.

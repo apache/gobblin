@@ -459,7 +459,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
 
       JobLauncherExecutionDriver driver = JobLauncherExecutionDriver.create(getSysConfig(), jobSpec, _jobLauncherType,
           Optional.of(getLog(jobSpec)), isInstrumentationEnabled(), getMetrics(), getInstanceBroker());
-      return new JobExecutionFutureAndDriver(driver);
+      return new JobExecutionMonitorAndDriver(driver);
     }
 
     @Override public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
@@ -529,43 +529,43 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
 
   /**
    * Old {@link JobExecutionLauncher#launchJob(JobSpec)} returns a {@link JobExecutionDriver} but new API returns a {@link JobExecutionMonitor}.
-   * For backward compatibility we wraps {@link JobExecutionDriver} inside of a new {@link JobExecutionFutureAndDriver}.
+   * For backward compatibility we wraps {@link JobExecutionDriver} inside of a new {@link JobExecutionMonitorAndDriver}.
    */
   @AllArgsConstructor
-  public static class JobExecutionFutureAndDriver implements JobExecutionMonitor {
+  public static class JobExecutionMonitorAndDriver implements JobExecutionMonitor {
     @Getter
-    JobLauncherExecutionDriver drvier;
+    JobLauncherExecutionDriver driver;
 
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-      return this.drvier.cancel(mayInterruptIfRunning);
+      return this.driver.cancel(mayInterruptIfRunning);
     }
 
     @Override
     public boolean isCancelled() {
-      return this.drvier.isCancelled();
+      return this.driver.isCancelled();
     }
 
     @Override
     public boolean isDone() {
-      return this.drvier.isDone();
+      return this.driver.isDone();
     }
 
     @Override
     public JobExecutionResult get()
         throws InterruptedException, ExecutionException {
-      return this.drvier.get();
+      return this.driver.get();
     }
 
     @Override
     public JobExecutionResult get(long timeout, TimeUnit unit)
         throws InterruptedException, ExecutionException, TimeoutException {
-      return this.drvier.get(timeout, unit);
+      return this.driver.get(timeout, unit);
     }
 
     @Override
     public MonitoredObject getRunningState() {
-      return this.drvier._jobState.getRunningState();
+      return this.driver._jobState.getRunningState();
     }
   }
 

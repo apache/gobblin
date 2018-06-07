@@ -104,8 +104,8 @@ public class TestStandardGobblinInstanceLauncher {
       GobblinInstanceDriver instance) throws TimeoutException, InterruptedException, ExecutionException {
     JobExecutionDriver jobDriver = null;
     JobExecutionMonitor monitor = instance.getJobLauncher().launchJob(js1);
-    if (monitor instanceof JobLauncherExecutionDriver.JobExecutionFutureAndDriver) {
-      jobDriver = ((JobLauncherExecutionDriver.JobExecutionFutureAndDriver) monitor).getDrvier();
+    if (monitor instanceof JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) {
+      jobDriver = ((JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) monitor).getDriver();
     }
 
     new Thread(jobDriver).run();
