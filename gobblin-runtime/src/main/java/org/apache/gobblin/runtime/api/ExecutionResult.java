@@ -14,14 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.gobblin.runtime.api;
 
-public interface JobExecutionStatus {
-  public static final String UKNOWN_STAGE = "unkown";
-  JobExecution getJobExecution();
-
-  MonitoredObject getRunningState();
-
-  /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
-  String getStage();
+/**
+ * An object which describes the result after job completion. This can be retrieved by {@link JobExecutionFuture#get()}
+ *
+ * @see JobExecutionResult as a derived class.
+ */
+public interface ExecutionResult {
 }

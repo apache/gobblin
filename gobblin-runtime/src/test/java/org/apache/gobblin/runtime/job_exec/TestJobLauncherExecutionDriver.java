@@ -33,6 +33,7 @@ import com.typesafe.config.ConfigValueFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobLauncherFactory;
 import org.apache.gobblin.runtime.api.JobExecution;
+import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.local.LocalJobLauncher;
 import org.apache.gobblin.runtime.mapreduce.MRJobLauncher;
@@ -70,7 +71,12 @@ public class TestJobLauncherExecutionDriver {
               .withJobLauncherType(JobLauncherFactory.JobLauncherType.LOCAL)
               .withLog(log);
 
-      JobLauncherExecutionDriver jled = (JobLauncherExecutionDriver)launcher.launchJob(jobSpec1);
+      JobLauncherExecutionDriver jled = null;
+      JobExecutionMonitor monitor = launcher.launchJob(jobSpec1);
+      if (monitor instanceof JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) {
+        jled = ((JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) monitor).getDriver();
+      }
+
       Assert.assertTrue(jled.getLegacyLauncher() instanceof LocalJobLauncher);
       JobExecution jex1 = jled.getJobExecution();
       Assert.assertEquals(jex1.getJobSpecURI(), jobSpec1.getUri());
@@ -95,10 +101,14 @@ public class TestJobLauncherExecutionDriver {
           .withValue(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, ConfigValueFactory.fromAnyRef(false));
 
       JobSpec jobSpec2 = JobSpec.builder().withConfig(jobConf2).build();
-
-      jled = (JobLauncherExecutionDriver)launcher
+      jled = null;
+      monitor = launcher
           .withJobLauncherType(JobLauncherFactory.JobLauncherType.MAPREDUCE)
           .launchJob(jobSpec2);
+      if (monitor instanceof JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) {
+        jled = ((JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) monitor).getDriver();
+      }
+
       Assert.assertTrue(jled.getLegacyLauncher() instanceof MRJobLauncher);
       JobExecution jex2 = jled.getJobExecution();
 
