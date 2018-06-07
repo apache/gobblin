@@ -16,8 +16,6 @@
  */
 package org.apache.gobblin.runtime.api;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;

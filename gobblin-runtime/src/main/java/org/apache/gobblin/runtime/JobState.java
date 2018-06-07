@@ -54,6 +54,7 @@ import org.apache.gobblin.rest.Metric;
 import org.apache.gobblin.rest.MetricArray;
 import org.apache.gobblin.rest.MetricTypeEnum;
 import org.apache.gobblin.rest.TaskExecutionInfoArray;
+import org.apache.gobblin.runtime.api.MonitoredObject;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.runtime.util.MetricGroup;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -85,7 +86,7 @@ public class JobState extends SourceState {
    *    <li> SUCCESSFUL => CANCELLED  (cancelled before committing)
    * </ul>
    */
-  public enum RunningState {
+  public enum RunningState implements MonitoredObject {
     /** Pending creation of {@link WorkUnit}s. */
     PENDING,
     /** Starting the execution of {@link WorkUnit}s. */
