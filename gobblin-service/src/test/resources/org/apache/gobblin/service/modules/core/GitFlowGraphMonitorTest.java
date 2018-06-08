@@ -96,9 +96,9 @@ public class GitFlowGraphMonitorTest {
     this.gitForPush.push().setRemote("origin").setRefSpecs(this.masterRefSpec).call();
 
     this.config = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.GIT_FLOWGRAPH_MONITOR_REPO_URI, this.remoteRepo.getDirectory().getAbsolutePath())
-        .addPrimitive(ConfigurationKeys.GIT_FLOWGRAPH_MONITOR_REPO_DIR, TEST_DIR + "/git-flowgraph")
-        .addPrimitive(ConfigurationKeys.GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL, 5)
+        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_URI, this.remoteRepo.getDirectory().getAbsolutePath())
+        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, TEST_DIR + "/git-flowgraph")
+        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5)
         .build();
 
     // Create a FSFlowCatalog instance

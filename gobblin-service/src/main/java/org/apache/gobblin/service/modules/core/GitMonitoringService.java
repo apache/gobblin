@@ -20,11 +20,18 @@ package org.apache.gobblin.service.modules.core;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.PullFileLoader;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -38,8 +45,11 @@ import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -52,27 +62,52 @@ public abstract class GitMonitoringService extends AbstractIdleService {
   private static final String REMOTE_NAME = "origin";
   private static final int TERMINATION_TIMEOUT = 30;
 
+  public static final String JAVA_PROPS_EXTENSIONS = "javaPropsExtensions";
+  public static final String HOCON_FILE_EXTENSIONS = "hoconFileExtensions";
+
   private Integer pollingInterval;
   protected final ScheduledExecutorService scheduledExecutor;
   protected GitMonitoringService.GitRepository gitRepo;
-
+  protected String repositoryDir;
+  protected String folderName;
+  protected Path folderPath;
+  protected final PullFileLoader pullFileLoader;
+  protected final Set<String> javaPropsExtensions;
+  protected final Set<String> hoconFileExtensions;
   protected volatile boolean isActive = false;
 
-  public GitMonitoringService() {
-    this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor(
-        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("FetchGitConfExecutor")));
-  }
+  public GitMonitoringService(Config config) {
+    Preconditions.checkArgument(config.hasPath(ConfigurationKeys.GIT_MONITOR_REPO_URI),
+        ConfigurationKeys.GIT_MONITOR_REPO_URI + " needs to be specified.");
 
-  public void initRepo(String repositoryUri, String repositoryDir, String branchName, Integer pollingInterval) {
+    String repositoryUri = config.getString(ConfigurationKeys.GIT_MONITOR_REPO_URI);
+    this.repositoryDir = config.getString(ConfigurationKeys.GIT_MONITOR_REPO_DIR);
+    String branchName = config.getString(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME);
+    this.pollingInterval = config.getInt(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL);
+    this.folderName = config.getString(ConfigurationKeys.GIT_MONITOR_FOLDER_NAME);
+
     try {
       this.gitRepo = new GitMonitoringService.GitRepository(repositoryUri, repositoryDir, branchName);
     } catch (GitAPIException | IOException e) {
       throw new RuntimeException("Could not open git repository", e);
     }
-    this.pollingInterval = pollingInterval;
+
+    this.folderPath = new Path(this.repositoryDir, this.folderName);
+    this.javaPropsExtensions = Sets.newHashSet(config.getString(JAVA_PROPS_EXTENSIONS).split(","));
+    this.hoconFileExtensions = Sets.newHashSet(config.getString(HOCON_FILE_EXTENSIONS).split(","));
+    try {
+      this.pullFileLoader = new PullFileLoader(this.folderPath,
+          FileSystem.get(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration()),
+          this.javaPropsExtensions, this.hoconFileExtensions);
+    } catch (IOException e) {
+      throw new RuntimeException("Could not create pull file loader", e);
+    }
+
+    this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor(
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("FetchGitConfExecutor")));
   }
 
-  public synchronized void setActive(boolean isActive) {
+  synchronized void setActive(boolean isActive) {
     if (this.isActive == isActive) {
       // No-op if already in correct state
       return;
@@ -93,7 +128,7 @@ public abstract class GitMonitoringService extends AbstractIdleService {
       @Override
       public void run() {
         try {
-          if(shouldPollGit()) {
+          if (shouldPollGit()) {
             processGitConfigChanges();
           }
         } catch (GitAPIException | IOException e) {

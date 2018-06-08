@@ -17,14 +17,11 @@
 package org.apache.gobblin.service.modules.core;
 
 import java.io.IOException;
-import java.net.URI;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.diff.DiffEntry;
 
-import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -37,7 +34,6 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PullFileLoader;
 
 /**
@@ -50,49 +46,35 @@ import org.apache.gobblin.util.PullFileLoader;
  */
 @Slf4j
 public class GitConfigMonitor extends GitMonitoringService {
+  public static final String GIT_CONFIG_MONITOR_PREFIX = "gitConfigMonitor";
+
   private static final String SPEC_DESCRIPTION = "Git-based flow config";
   private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
-  private static final int CONFIG_FILE_DEPTH = 3;
+  private static final String PROPERTIES_EXTENSIONS = "pull,job";
+  private static final String CONF_EXTENSIONS = "json,conf";
+  private static final String DEFAULT_GIT_CONFIG_MONITOR_REPO_DIR = "git-flow-config";
+  private static final String DEFAULT_GIT_CONFIG_MONITOR_CONFIG_DIR = "gobblin-config";
+  private static final String DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME = "master";
 
-  private final int pollingInterval;
-  private final String repositoryDir;
-  private final String configDir;
-  private final Path configDirPath;
+  private static final int CONFIG_FILE_DEPTH = 3;
+  private static final int DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL = 60;
+
+  private static final Config DEFAULT_FALLBACK =
+      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put(ConfigurationKeys.GIT_MONITOR_REPO_DIR, DEFAULT_GIT_CONFIG_MONITOR_REPO_DIR)
+          .put(ConfigurationKeys.GIT_MONITOR_FOLDER_NAME, DEFAULT_GIT_CONFIG_MONITOR_CONFIG_DIR)
+          .put(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME, DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME)
+          .put(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL)
+          .put(GitMonitoringService.JAVA_PROPS_EXTENSIONS, PROPERTIES_EXTENSIONS)
+          .put(GitMonitoringService.HOCON_FILE_EXTENSIONS, CONF_EXTENSIONS)
+          .build());
+
   private final FlowCatalog flowCatalog;
   private final Config emptyConfig = ConfigFactory.empty();
-  private final PullFileLoader pullFileLoader;
 
   GitConfigMonitor(Config config, FlowCatalog flowCatalog) {
+    super(config.getConfig(GIT_CONFIG_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
     this.flowCatalog = flowCatalog;
-
-    Preconditions.checkArgument(config.hasPath(ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_URI),
-        ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_URI + " needs to be specified.");
-
-    String repositoryUri = config.getString(ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_URI);
-
-    this.repositoryDir = ConfigUtils.getString(config, ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_DIR,
-        ConfigurationKeys.DEFAULT_GIT_CONFIG_MONITOR_REPO_DIR);
-
-    String branchName = ConfigUtils.getString(config, ConfigurationKeys.GIT_CONFIG_MONITOR_BRANCH_NAME,
-        ConfigurationKeys.DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME);
-
-    this.pollingInterval = ConfigUtils.getInt(config, ConfigurationKeys.GIT_CONFIG_MONITOR_POLLING_INTERVAL,
-        ConfigurationKeys.DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL);
-
-    this.configDir = ConfigUtils.getString(config, ConfigurationKeys.GIT_CONFIG_MONITOR_CONFIG_DIR,
-        ConfigurationKeys.DEFAULT_GIT_CONFIG_MONITOR_CONFIG_DIR);
-
-    this.configDirPath = new Path(this.repositoryDir, this.configDir);
-
-    try {
-      this.pullFileLoader = new PullFileLoader(this.configDirPath,
-          FileSystem.get(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration()),
-          PullFileLoader.DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS, PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
-    } catch (IOException e) {
-      throw new RuntimeException("Could not create pull file loader", e);
-    }
-
-    initRepo(repositoryUri, repositoryDir, branchName, pollingInterval);
   }
 
   @Override
@@ -167,7 +149,7 @@ public class GitConfigMonitor extends GitMonitoringService {
     String fileExtension = Files.getFileExtension(configFile.getName());
 
     if (configFile.depth() != CONFIG_FILE_DEPTH ||
-        !configFile.getParent().getParent().getName().equals(configDir) ||
+        !configFile.getParent().getParent().getName().equals(folderName) ||
         !(PullFileLoader.DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS.contains(fileExtension) ||
             PullFileLoader.DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS.contains(fileExtension))) {
       log.warn("Changed file does not conform to directory structure and file name format, skipping: "

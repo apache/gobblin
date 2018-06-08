@@ -93,10 +93,10 @@ public class GitConfigMonitorTest {
     this.gitForPush.push().setRemote("origin").setRefSpecs(this.masterRefSpec).call();
 
     this.config = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_URI, this.remoteRepo.getDirectory().getAbsolutePath())
-        .addPrimitive(ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_DIR, TEST_DIR + "/jobConfig")
+        .addPrimitive(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_URI, this.remoteRepo.getDirectory().getAbsolutePath())
+        .addPrimitive(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, TEST_DIR + "/jobConfig")
         .addPrimitive(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, TEST_DIR + "flowCatalog")
-        .addPrimitive(ConfigurationKeys.GIT_CONFIG_MONITOR_POLLING_INTERVAL, 5)
+        .addPrimitive(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5)
         .build();
 
     this.flowCatalog = new FlowCatalog(config);
@@ -128,7 +128,7 @@ public class GitConfigMonitorTest {
       this.flowCatalog.stopAsync().awaitTerminated();
     }
 
-    //cleanUpDir(TEST_DIR);
+    cleanUpDir(TEST_DIR);
   }
 
   private String formConfigFilePath(String groupDir, String fileName) {

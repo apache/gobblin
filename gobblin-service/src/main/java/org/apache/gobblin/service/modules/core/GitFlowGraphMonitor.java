@@ -18,21 +18,12 @@
 package org.apache.gobblin.service.modules.core;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.List;
-import java.util.Set;
 
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.diff.DiffEntry;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -46,9 +37,8 @@ import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.PullFileLoader;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import joptsimple.internal.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -62,56 +52,37 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class GitFlowGraphMonitor extends GitMonitoringService {
-  private static final int NODE_FILE_DEPTH=3;
-  private static final int EDGE_FILE_DEPTH=4;
+  public static final String GIT_FLOWGRAPH_MONITOR_PREFIX = "gitFlowGraphMonitor";
+
   private static final String PROPERTIES_EXTENSIONS = "properties,props";
   private static final String CONF_EXTENSIONS = "configuration,conf";
-  public static final String FLOW_EDGE_LABEL_JOINER_CHAR = ":";
+  private static final String FLOW_EDGE_LABEL_JOINER_CHAR = ":";
+  private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR = "git-flowgraph";
+  private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
+  private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME = "master";
+
+  private static final int NODE_FILE_DEPTH=3;
+  private static final int EDGE_FILE_DEPTH=4;
+  private static final int DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL = 60;
+
+  private static final Config DEFAULT_FALLBACK =
+      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put(ConfigurationKeys.GIT_MONITOR_REPO_DIR, DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR)
+          .put(ConfigurationKeys.GIT_MONITOR_FOLDER_NAME, DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR)
+          .put(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME, DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME)
+          .put(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL)
+          .put(JAVA_PROPS_EXTENSIONS, PROPERTIES_EXTENSIONS)
+          .put(HOCON_FILE_EXTENSIONS, CONF_EXTENSIONS)
+          .build());
 
   private FSFlowCatalog flowCatalog;
   private FlowGraph flowGraph;
-  private String flowGraphDir;
-  private String repositoryDir;
-  private Path flowGraphDirPath;
-  private final PullFileLoader pullFileLoader;
   private final Config emptyConfig = ConfigFactory.empty();
-  private final Set<String> javaPropsExtensions;
-  private final Set<String> hoconFileExtensions;
 
   public GitFlowGraphMonitor(Config config, FSFlowCatalog flowCatalog, FlowGraph graph) {
+    super(config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
     this.flowCatalog = flowCatalog;
     this.flowGraph = graph;
-
-    Preconditions.checkArgument(config.hasPath(ConfigurationKeys.GIT_FLOWGRAPH_MONITOR_REPO_URI),
-        ConfigurationKeys.GIT_FLOWGRAPH_MONITOR_REPO_URI + " needs to be specified.");
-
-    String repositoryUri = config.getString(ConfigurationKeys.GIT_FLOWGRAPH_MONITOR_REPO_URI);
-
-    this.repositoryDir = ConfigUtils.getString(config, ConfigurationKeys.GIT_FLOWGRAPH_MONITOR_REPO_DIR,
-        ConfigurationKeys.DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR);
-
-    String branchName = ConfigUtils.getString(config, ConfigurationKeys.GIT_FLOWGRAPH_MONITOR_BRANCH_NAME,
-        ConfigurationKeys.DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME);
-
-    Integer pollingInterval = ConfigUtils.getInt(config, ConfigurationKeys.GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL,
-        ConfigurationKeys.DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL);
-
-    this.flowGraphDir = ConfigUtils.getString(config, ConfigurationKeys.GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR,
-        ConfigurationKeys.DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR);
-
-    this.flowGraphDirPath = new Path(this.repositoryDir, this.flowGraphDir);
-    this.javaPropsExtensions = Sets.newHashSet(Splitter.on(",").split(PROPERTIES_EXTENSIONS));
-    this.hoconFileExtensions = Sets.newHashSet(Splitter.on(",").split(CONF_EXTENSIONS));
-
-    try {
-      this.pullFileLoader = new PullFileLoader(this.flowGraphDirPath,
-          FileSystem.get(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration()),
-          this.javaPropsExtensions, this.hoconFileExtensions);
-    } catch (IOException e) {
-      throw new RuntimeException("Could not create pull file loader", e);
-    }
-
-    initRepo(repositoryUri, repositoryDir, branchName, pollingInterval);
   }
 
   /**
@@ -130,9 +101,9 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   @Override
   public void addChange(DiffEntry change) {
     Path path = new Path(change.getNewPath());
-    if(path.depth() == 3) {
+    if (path.depth() == NODE_FILE_DEPTH) {
       addDataNode(change);
-    } else if(path.depth() == 4) {
+    } else if (path.depth() == EDGE_FILE_DEPTH) {
       addFlowEdge(change);
     }
   }
@@ -145,9 +116,9 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   @Override
   public void removeChange(DiffEntry change) {
     Path path = new Path(change.getOldPath());
-    if(path.depth() == 3) {
+    if (path.depth() == NODE_FILE_DEPTH) {
       removeDataNode(change);
-    } else if(path.depth() == 4) {
+    } else if (path.depth() == EDGE_FILE_DEPTH) {
       removeFlowEdge(change);
     }
   }
@@ -158,13 +129,13 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @param change
    */
   private void addDataNode(DiffEntry change) {
-    if(checkFilePath(change.getNewPath(), NODE_FILE_DEPTH)) {
+    if (checkFilePath(change.getNewPath(), NODE_FILE_DEPTH)) {
       Path nodeFilePath = new Path(this.repositoryDir, change.getNewPath());
       try {
         Config config = loadNodeFileWithOverrides(nodeFilePath);
         Class dataNodeClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_CLASS, FlowGraphConfigurationKeys.DEFAULT_DATA_NODE_CLASS));
         DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, config);
-        if(!this.flowGraph.addDataNode(dataNode)) {
+        if (!this.flowGraph.addDataNode(dataNode)) {
           log.warn("Could not add DataNode {} to FlowGraph; skipping", dataNode.getId());
         }
       } catch (Exception e) {
@@ -179,11 +150,11 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @param change
    */
   private void removeDataNode(DiffEntry change) {
-    if(checkFilePath(change.getOldPath(), NODE_FILE_DEPTH)) {
+    if (checkFilePath(change.getOldPath(), NODE_FILE_DEPTH)) {
       Path nodeFilePath = new Path(this.repositoryDir, change.getOldPath());
       Config config = getNodeConfigWithOverrides(ConfigFactory.empty(), nodeFilePath);
       String nodeId = config.getString(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY);
-      if(!this.flowGraph.deleteDataNode(nodeId)) {
+      if (!this.flowGraph.deleteDataNode(nodeId)) {
         log.warn("Could not remove DataNode {} from FlowGraph; skipping", nodeId);
       }
     }
@@ -195,14 +166,14 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @param change
    */
   private void addFlowEdge(DiffEntry change) {
-    if(checkFilePath(change.getNewPath(), EDGE_FILE_DEPTH)) {
+    if (checkFilePath(change.getNewPath(), EDGE_FILE_DEPTH)) {
       Path edgeFilePath = new Path(this.repositoryDir, change.getNewPath());
       try {
         Config config = loadEdgeFileWithOverrides(edgeFilePath);
         Class flowEdgeFactoryClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS, FlowGraphConfigurationKeys.DEFAULT_FLOW_EDGE_FACTORY_CLASS));
         FlowEdgeFactory flowEdgeFactory = (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, config);
         FlowEdge edge = flowEdgeFactory.createFlowEdge(config, flowCatalog);
-        if(!this.flowGraph.addFlowEdge(edge)) {
+        if (!this.flowGraph.addFlowEdge(edge)) {
           log.warn("Could not add edge {} to FlowGraph; skipping", edge.getId());
         }
       } catch (Exception e) {
@@ -218,12 +189,12 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @param change
    */
   private void removeFlowEdge(DiffEntry change) {
-    if(checkFilePath(change.getOldPath(), EDGE_FILE_DEPTH)) {
+    if (checkFilePath(change.getOldPath(), EDGE_FILE_DEPTH)) {
       Path edgeFilePath = new Path(this.repositoryDir, change.getOldPath());
       try {
         Config config = getEdgeConfigWithOverrides(ConfigFactory.empty(), edgeFilePath);
         String edgeId = config.getString(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY);
-        if(!this.flowGraph.deleteFlowEdge(edgeId)) {
+        if (!this.flowGraph.deleteFlowEdge(edgeId)) {
           log.warn("Could not remove FlowEdge {} from FlowGraph; skipping", edgeId);
         }
       } catch (Exception e) {
@@ -261,10 +232,10 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    */
   private boolean checkFileLevelRelativeToRoot(Path filePath, int depth) {
     Path path = filePath;
-    for(int i=0; i < depth - 1; i++) {
+    for (int i = 0; i < depth - 1; i++) {
       path = path.getParent();
     }
-    if (!path.getName().equals(flowGraphDir)) {
+    if (!path.getName().equals(folderName)) {
       return false;
     }
     return true;
