@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.core;
 
 import java.io.IOException;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.diff.DiffEntry;
 
@@ -54,8 +55,8 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 public class GitFlowGraphMonitor extends GitMonitoringService {
   public static final String GIT_FLOWGRAPH_MONITOR_PREFIX = "gitFlowGraphMonitor";
 
-  private static final String PROPERTIES_EXTENSIONS = "properties,props";
-  private static final String CONF_EXTENSIONS = "configuration,conf";
+  private static final String PROPERTIES_EXTENSIONS = "properties";
+  private static final String CONF_EXTENSIONS = StringUtils.EMPTY;
   private static final String FLOW_EDGE_LABEL_JOINER_CHAR = ":";
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR = "git-flowgraph";
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
