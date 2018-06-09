@@ -148,10 +148,10 @@ public class GitConfigMonitor extends GitMonitoringService {
     Path configFile = new Path(configFilePath);
     String fileExtension = Files.getFileExtension(configFile.getName());
 
-    if (configFile.depth() != CONFIG_FILE_DEPTH ||
-        !configFile.getParent().getParent().getName().equals(folderName) ||
-        !(PullFileLoader.DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS.contains(fileExtension) ||
-            PullFileLoader.DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS.contains(fileExtension))) {
+    if (configFile.depth() != CONFIG_FILE_DEPTH
+        || !configFile.getParent().getParent().getName().equals(folderName)
+        || !(PullFileLoader.DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS.contains(fileExtension)
+        || PullFileLoader.DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS.contains(fileExtension))) {
       log.warn("Changed file does not conform to directory structure and file name format, skipping: "
           + configFilePath);
 

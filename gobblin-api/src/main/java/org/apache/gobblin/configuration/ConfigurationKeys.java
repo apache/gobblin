@@ -103,7 +103,7 @@ public class ConfigurationKeys {
   public static final String JOB_CONFIG_FILE_DIR_KEY = "jobconf.dir";
 
   // Path where all job configuration files stored
-  public static final String JOB_CONFIG_FILE_GENERAL_PATH_KEY = "jobconf.fullyQualifiedPath" ;
+  public static final String JOB_CONFIG_FILE_GENERAL_PATH_KEY = "jobconf.fullyQualifiedPath";
   // Job configuration file extensions
   public static final String JOB_CONFIG_FILE_EXTENSIONS_KEY = "jobconf.extensions";
   public static final String DEFAULT_JOB_CONFIG_FILE_EXTENSIONS = "pull,job";
@@ -208,13 +208,13 @@ public class ConfigurationKeys {
   public static final long DEFAULT_QUEUED_TASK_TIME_MAX_AGE = TimeUnit.HOURS.toMillis(1);
 
   /** Optional, for user to specified which template to use, inside .job file */
-  public static final String JOB_TEMPLATE_PATH = "job.template" ;
+  public static final String JOB_TEMPLATE_PATH = "job.template";
 
   /**
    * Configuration property used only for job configuration file's tempalte, inside .template file
    */
   public static final String REQUIRED_ATRRIBUTES_LIST = "gobblin.template.required_attributes";
-  public static final String JOB_DEPENDENCIES="dependencies";
+  public static final String JOB_DEPENDENCIES = "dependencies";
 
   /**
    * Configuration for emitting job events
@@ -250,7 +250,7 @@ public class ConfigurationKeys {
    */
   // This property is used to specify the URN of a dataset a job or WorkUnit extracts data for
   public static final String DATASET_URN_KEY = "dataset.urn";
-  public static final String GLOBAL_WATERMARK_DATASET_URN="__globalDatasetWatermark";
+  public static final String GLOBAL_WATERMARK_DATASET_URN = "__globalDatasetWatermark";
   public static final String DEFAULT_DATASET_URN = "";
 
   /**

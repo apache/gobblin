@@ -27,8 +27,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.util.PullFileLoader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -51,10 +49,12 @@ import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.util.ExecutorsUtils;
-
-import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.util.PullFileLoader;
 
 
 @Slf4j

@@ -27,15 +27,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import joptsimple.internal.Strings;
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.util.ConfigUtils;
-
-import joptsimple.internal.Strings;
-import lombok.Getter;
 
 
 /**
@@ -91,11 +91,11 @@ public class BaseFlowEdge implements FlowEdge {
 
     FlowEdge that = (FlowEdge) o;
 
-    if(!(this.getEndPoints().get(0).equals(that.getEndPoints().get(0))) && ((this.getEndPoints().get(1)).equals(that.getEndPoints().get(1)))) {
+    if (!(this.getEndPoints().get(0).equals(that.getEndPoints().get(0))) && ((this.getEndPoints().get(1)).equals(that.getEndPoints().get(1)))) {
       return false;
     }
 
-    if(!this.getFlowTemplate().getUri().equals(that.getFlowTemplate().getUri())) {
+    if (!this.getFlowTemplate().getUri().equals(that.getFlowTemplate().getUri())) {
       return false;
     }
     return true;
@@ -126,17 +126,17 @@ public class BaseFlowEdge implements FlowEdge {
     @Override
     public FlowEdge createFlowEdge(Config edgeProps, FSFlowCatalog flowCatalog) throws FlowEdgeCreationException {
       try {
-        String source = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_SOURCE_KEY,"");
+        String source = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_SOURCE_KEY, "");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(source), "A FlowEdge must have a non-null or empty source");
-        String destination = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_DESTINATION_KEY,"");
+        String destination = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_DESTINATION_KEY, "");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(destination), "A FlowEdge must have a non-null or empty destination");
         List<String> endPoints = Lists.newArrayList(source, destination);
-        String edgeId = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY,"");
+        String edgeId = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(edgeId), "A FlowEdge must have a non-null or empty Id");
 
         List<Config> specExecutorConfigList = new ArrayList<>();
         boolean flag;
-        for(int i = 0; (flag = edgeProps.hasPath(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY + "." + i)) != false; i++) {
+        for (int i = 0; (flag = edgeProps.hasPath(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY + "." + i)); i++) {
           specExecutorConfigList.add(edgeProps.getConfig(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY + "." + i));
         }
 
@@ -160,7 +160,7 @@ public class BaseFlowEdge implements FlowEdge {
         }
         FlowTemplate flowTemplate = flowCatalog.getFlowTemplate(new URI(flowTemplateUri));
         return new BaseFlowEdge(endPoints, edgeId, flowTemplate, specExecutors, edgeProps, isActive);
-      } catch(RuntimeException e) {
+      } catch (RuntimeException e) {
         throw e;
       } catch (Exception e) {
         throw new FlowEdgeCreationException(e);

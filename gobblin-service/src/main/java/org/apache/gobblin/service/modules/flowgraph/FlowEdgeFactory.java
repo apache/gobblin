@@ -17,13 +17,9 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.io.IOException;
-import java.util.Properties;
-
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
-
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 
 public interface FlowEdgeFactory {
   /**

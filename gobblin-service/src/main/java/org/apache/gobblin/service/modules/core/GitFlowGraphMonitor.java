@@ -29,6 +29,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
@@ -38,8 +40,6 @@ import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -61,8 +61,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME = "master";
 
-  private static final int NODE_FILE_DEPTH=3;
-  private static final int EDGE_FILE_DEPTH=4;
+  private static final int NODE_FILE_DEPTH = 3;
+  private static final int EDGE_FILE_DEPTH = 4;
   private static final int DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL = 60;
 
   private static final Config DEFAULT_FALLBACK =
@@ -133,7 +133,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
       Path nodeFilePath = new Path(this.repositoryDir, change.getNewPath());
       try {
         Config config = loadNodeFileWithOverrides(nodeFilePath);
-        Class dataNodeClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_CLASS, FlowGraphConfigurationKeys.DEFAULT_DATA_NODE_CLASS));
+        Class dataNodeClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_CLASS,
+            FlowGraphConfigurationKeys.DEFAULT_DATA_NODE_CLASS));
         DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, config);
         if (!this.flowGraph.addDataNode(dataNode)) {
           log.warn("Could not add DataNode {} to FlowGraph; skipping", dataNode.getId());
@@ -170,7 +171,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
       Path edgeFilePath = new Path(this.repositoryDir, change.getNewPath());
       try {
         Config config = loadEdgeFileWithOverrides(edgeFilePath);
-        Class flowEdgeFactoryClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS, FlowGraphConfigurationKeys.DEFAULT_FLOW_EDGE_FACTORY_CLASS));
+        Class flowEdgeFactoryClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS,
+            FlowGraphConfigurationKeys.DEFAULT_FLOW_EDGE_FACTORY_CLASS));
         FlowEdgeFactory flowEdgeFactory = (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, config);
         FlowEdge edge = flowEdgeFactory.createFlowEdge(config, flowCatalog);
         if (!this.flowGraph.addFlowEdge(edge)) {
