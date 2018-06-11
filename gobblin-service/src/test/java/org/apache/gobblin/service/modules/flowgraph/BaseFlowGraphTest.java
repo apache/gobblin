@@ -51,6 +51,10 @@ public class BaseFlowGraphTest {
   private FlowEdge edge3;
   private FlowEdge edge3c;
 
+  private String edgeId1;
+  private String edgeId2;
+  private String edgeId3;
+
   BaseFlowGraph graph;
   @BeforeClass
   public void setUp()
@@ -58,33 +62,40 @@ public class BaseFlowGraphTest {
              IOException, DataNode.DataNodeCreationException {
     Properties properties = new Properties();
     properties.put("key1", "val1");
-    Config node1Config = ConfigUtils.propertiesToConfig(properties).withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, ConfigValueFactory.fromAnyRef("node1"));
+    Config node1Config = ConfigUtils.propertiesToConfig(properties).withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY,
+        ConfigValueFactory.fromAnyRef("node1"));
     node1 = new BaseDataNode(node1Config);
 
     properties = new Properties();
     properties.put("key2", "val2");
-    Config node2Config = ConfigUtils.propertiesToConfig(properties).withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, ConfigValueFactory.fromAnyRef("node2"));
+    Config node2Config = ConfigUtils.propertiesToConfig(properties).withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY,
+        ConfigValueFactory.fromAnyRef("node2"));
     node2 = new BaseDataNode(node2Config);
 
     properties = new Properties();
     properties.put("key3", "val3");
-    Config node3Config = ConfigUtils.propertiesToConfig(properties).withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, ConfigValueFactory.fromAnyRef("node3"));
+    Config node3Config = ConfigUtils.propertiesToConfig(properties).withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY,
+        ConfigValueFactory.fromAnyRef("node3"));
     node3 = new BaseDataNode(node3Config);
 
     //Create a clone of node3
     node3c = new BaseDataNode(node3Config);
 
-    FlowTemplate flowTemplate1 = new StaticFlowTemplate(new URI("FS:///uri1"),"","", ConfigFactory.empty(),null, null, null);
-    FlowTemplate flowTemplate2 = new StaticFlowTemplate(new URI("FS:///uri2"),"","", ConfigFactory.empty(),null, null, null);
-    FlowTemplate flowTemplate3 = new StaticFlowTemplate(new URI("FS:///uri3"),"","", ConfigFactory.empty(),null, null, null);
+    FlowTemplate flowTemplate1 = new StaticFlowTemplate(new URI("FS:///uri1"), "", "", ConfigFactory.empty(), null, null, null);
+    FlowTemplate flowTemplate2 = new StaticFlowTemplate(new URI("FS:///uri2"), "", "", ConfigFactory.empty(), null, null, null);
+    FlowTemplate flowTemplate3 = new StaticFlowTemplate(new URI("FS:///uri3"), "", "", ConfigFactory.empty(), null, null, null);
 
     //Create edge instances
-    edge1 = new BaseFlowEdge(Lists.newArrayList("node1", "node2"), "edge1", flowTemplate1, null, ConfigFactory.empty(), true);
-    edge2 = new BaseFlowEdge(Lists.newArrayList("node2", "node3"), "edge2", flowTemplate2, null, ConfigFactory.empty(), true);
-    edge3 = new BaseFlowEdge(Lists.newArrayList("node3", "node1"), "edge3", flowTemplate3, null, ConfigFactory.empty(), true);
+    edgeId1 = "node1:node2:edge1";
+    edgeId2 = "node2:node3:edge2";
+    edgeId3 = "node3:node1:edge3";
+
+    edge1 = new BaseFlowEdge(Lists.newArrayList("node1", "node2"), edgeId1, flowTemplate1, null, ConfigFactory.empty(), true);
+    edge2 = new BaseFlowEdge(Lists.newArrayList("node2", "node3"), edgeId2, flowTemplate2, null, ConfigFactory.empty(), true);
+    edge3 = new BaseFlowEdge(Lists.newArrayList("node3", "node1"), edgeId3, flowTemplate3, null, ConfigFactory.empty(), true);
 
     //Create a clone of edge3
-    edge3c = new BaseFlowEdge(Lists.newArrayList("node3", "node1"), "edge3", flowTemplate3, null, ConfigFactory.empty(), true);
+    edge3c = new BaseFlowEdge(Lists.newArrayList("node3", "node1"), edgeId3, flowTemplate3, null, ConfigFactory.empty(), true);
 
     //Create a FlowGraph
     graph = new BaseFlowGraph();
@@ -193,8 +204,7 @@ public class BaseFlowGraphTest {
 
   @Test (dependsOnMethods = "testDeleteDataNode")
   public void testDeleteFlowEdgeById() throws Exception {
-    String edgeLabel1 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node1", "node2"), "edge1");
-    Assert.assertTrue(graph.deleteFlowEdge(edgeLabel1));
+    Assert.assertTrue(graph.deleteFlowEdge(edgeId1));
     Assert.assertEquals(graph.getEdges("node1").size(), 0);
     Assert.assertEquals(graph.getEdges("node2").size(), 1);
     Assert.assertEquals(graph.getEdges("node3").size(), 1);
@@ -203,8 +213,7 @@ public class BaseFlowGraphTest {
     Assert.assertTrue(graph.getEdges("node2").contains(edge2));
     Assert.assertTrue(graph.getEdges("node3").contains(edge3));
 
-    String edgeLabel2 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node2", "node3"), "edge2");
-    Assert.assertTrue(graph.deleteFlowEdge(edgeLabel2));
+    Assert.assertTrue(graph.deleteFlowEdge(edgeId2));
     Assert.assertEquals(graph.getEdges("node1").size(), 0);
     Assert.assertEquals(graph.getEdges("node2").size(), 0);
     Assert.assertEquals(graph.getEdges("node3").size(), 1);
@@ -213,8 +222,7 @@ public class BaseFlowGraphTest {
     Assert.assertTrue(!graph.getEdges("node2").contains(edge2));
     Assert.assertTrue(graph.getEdges("node3").contains(edge3));
 
-    String edgeLabel3 = BaseFlowEdge.generateEdgeId(Lists.newArrayList("node3", "node1"), "edge3");
-    Assert.assertTrue(graph.deleteFlowEdge(edgeLabel3));
+    Assert.assertTrue(graph.deleteFlowEdge(edgeId3));
     Assert.assertEquals(graph.getEdges("node1").size(), 0);
     Assert.assertEquals(graph.getEdges("node2").size(), 0);
     Assert.assertEquals(graph.getEdges("node3").size(), 0);
@@ -223,8 +231,8 @@ public class BaseFlowGraphTest {
     Assert.assertTrue(!graph.getEdges("node2").contains(edge2));
     Assert.assertTrue(!graph.getEdges("node3").contains(edge3));
 
-    Assert.assertTrue(!graph.deleteFlowEdge(edgeLabel1));
-    Assert.assertTrue(!graph.deleteFlowEdge(edgeLabel2));
-    Assert.assertTrue(!graph.deleteFlowEdge(edgeLabel3));
+    Assert.assertTrue(!graph.deleteFlowEdge(edgeId1));
+    Assert.assertTrue(!graph.deleteFlowEdge(edgeId2));
+    Assert.assertTrue(!graph.deleteFlowEdge(edgeId3));
   }
 }

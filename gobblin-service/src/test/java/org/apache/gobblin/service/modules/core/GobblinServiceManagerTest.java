@@ -95,7 +95,7 @@ public class GobblinServiceManagerTest {
     Properties serviceCoreProperties = new Properties();
     serviceCoreProperties.put(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY, TOPOLOGY_SPEC_STORE_DIR);
     serviceCoreProperties.put(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, FLOW_SPEC_STORE_DIR);
-    serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_TOPOLOGY_NAMES_KEY , TEST_GOBBLIN_EXECUTOR_NAME);
+    serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_TOPOLOGY_NAMES_KEY, TEST_GOBBLIN_EXECUTOR_NAME);
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".description",
         "StandaloneTestExecutor");
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".version",
@@ -108,9 +108,9 @@ public class GobblinServiceManagerTest {
         TEST_SOURCE_NAME + ":" + TEST_SINK_NAME);
 
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY, true);
-    serviceCoreProperties.put(ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_URI, GIT_REMOTE_REPO_DIR);
-    serviceCoreProperties.put(ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_DIR, GIT_LOCAL_REPO_DIR);
-    serviceCoreProperties.put(ConfigurationKeys.GIT_CONFIG_MONITOR_POLLING_INTERVAL, 5);
+    serviceCoreProperties.put(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_URI, GIT_REMOTE_REPO_DIR);
+    serviceCoreProperties.put(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, GIT_LOCAL_REPO_DIR);
+    serviceCoreProperties.put(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5);
 
     // Create a bare repository
     RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(new File(GIT_REMOTE_REPO_DIR), FS.DETECTED);
@@ -200,7 +200,7 @@ public class GobblinServiceManagerTest {
 
     Assert.assertEquals(flowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
     Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME);
-    Assert.assertEquals(flowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE );
+    Assert.assertEquals(flowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE);
     Assert.assertEquals(flowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
     Assert.assertFalse(flowConfig.getSchedule().isRunImmediately());
     // Add this assert back when getFlowSpec() is changed to return the raw flow spec
@@ -228,7 +228,7 @@ public class GobblinServiceManagerTest {
 
     Assert.assertEquals(retrievedFlowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
     Assert.assertEquals(retrievedFlowConfig.getId().getFlowName(), TEST_FLOW_NAME);
-    Assert.assertEquals(retrievedFlowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE );
+    Assert.assertEquals(retrievedFlowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE);
     Assert.assertEquals(retrievedFlowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
     // Add this asssert when getFlowSpec() is changed to return the raw flow spec
     //Assert.assertEquals(flowConfig.getProperties().size(), 2);
@@ -279,7 +279,7 @@ public class GobblinServiceManagerTest {
     specs = this.gobblinServiceManager.flowCatalog.getSpecs();
     Assert.assertTrue(specs.size() == 1);
 
-    FlowSpec spec = (FlowSpec)(specs.iterator().next());
+    FlowSpec spec = (FlowSpec) (specs.iterator().next());
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow");
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");

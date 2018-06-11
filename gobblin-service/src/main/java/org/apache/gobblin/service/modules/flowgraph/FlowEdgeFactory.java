@@ -17,13 +17,9 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.io.IOException;
-import java.util.Properties;
-
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
-
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 
 public interface FlowEdgeFactory {
   /**
@@ -35,13 +31,6 @@ public interface FlowEdgeFactory {
    * @throws FlowEdgeCreationException
    */
   public FlowEdge createFlowEdge(Config edgeProps, FSFlowCatalog catalog) throws FlowEdgeCreationException;
-
-  /**
-   * Get an edge label from the edge properties
-   * @param edgeProps properties of the edge
-   * @return a string label identifying the edge
-   */
-  public String getEdgeId(Config edgeProps) throws IOException;
 
   public class FlowEdgeCreationException extends Exception {
     private static final String MESSAGE_FORMAT = "Failed to create FlowEdge because of: %s";
