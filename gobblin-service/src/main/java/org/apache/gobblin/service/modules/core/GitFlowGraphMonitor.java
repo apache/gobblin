@@ -69,7 +69,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   private static final Config DEFAULT_FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
           .put(ConfigurationKeys.GIT_MONITOR_REPO_DIR, DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR)
-          .put(ConfigurationKeys.GIT_MONITOR_FOLDER_NAME, DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR)
+          .put(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR, DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR)
           .put(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME, DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME)
           .put(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL)
           .put(JAVA_PROPS_EXTENSIONS, PROPERTIES_EXTENSIONS)
@@ -234,6 +234,9 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @return true if the file conforms to the expected hierarchy
    */
   private boolean checkFileLevelRelativeToRoot(Path filePath, int depth) {
+    if(filePath == null) {
+      return false;
+    }
     Path path = filePath;
     for (int i = 0; i < depth - 1; i++) {
       path = path.getParent();

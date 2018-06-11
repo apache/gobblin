@@ -904,7 +904,7 @@ public class ConfigurationKeys {
    */
   public static final String GIT_MONITOR_REPO_URI = "repositoryUri";
   public static final String GIT_MONITOR_REPO_DIR = "repositoryDirectory";
-  public static final String GIT_MONITOR_FOLDER_NAME = "folderName";
+  public static final String GIT_MONITOR_CONFIG_BASE_DIR = "configBaseDirectory";
   public static final String GIT_MONITOR_POLLING_INTERVAL = "pollingInterval";
   public static final String GIT_MONITOR_BRANCH_NAME = "branchName";
 }

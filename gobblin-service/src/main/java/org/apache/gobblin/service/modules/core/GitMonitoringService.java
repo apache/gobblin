@@ -84,7 +84,7 @@ public abstract class GitMonitoringService extends AbstractIdleService {
     this.repositoryDir = config.getString(ConfigurationKeys.GIT_MONITOR_REPO_DIR);
     String branchName = config.getString(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME);
     this.pollingInterval = config.getInt(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL);
-    this.folderName = config.getString(ConfigurationKeys.GIT_MONITOR_FOLDER_NAME);
+    this.folderName = config.getString(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR);
 
     try {
       this.gitRepo = new GitMonitoringService.GitRepository(repositoryUri, repositoryDir, branchName);
