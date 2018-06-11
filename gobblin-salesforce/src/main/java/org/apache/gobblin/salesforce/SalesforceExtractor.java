@@ -111,6 +111,11 @@ public class SalesforceExtractor extends RestApiExtractor {
   private static final int PK_CHUNKING_MAX_PARTITIONS_LIMIT = 3;
   private static final String FETCH_RETRY_LIMIT_KEY = "salesforce.fetchRetryLimit";
   private static final int DEFAULT_FETCH_RETRY_LIMIT = 5;
+  private static final String BULK_API_USE_QUERY_ALL = "salesforce.bulkApiUseQueryAll";
+  private static final boolean DEFAULT_BULK_API_USE_QUERY_ALL = false;
+  private static final String PK_CHUNKING_SKIP_COUNT_CHECK = "salesforce.pkChunkingSkipCountCheck";
+  private static final boolean DEFAULT_PK_CHUNKING_SKIP_COUNT_CHECK = false;
+
 
   private boolean pullStatus = true;
   private String nextUrl;
@@ -135,6 +140,9 @@ public class SalesforceExtractor extends RestApiExtractor {
   private final int fetchRetryLimit;
   private final int batchSize;
 
+  private final boolean pkChunkingSkipCountCheck;
+  private final boolean bulkApiUseQueryAll;
+
   public SalesforceExtractor(WorkUnitState state) {
     super(state);
     this.sfConnector = (SalesforceConnector) this.connector;
@@ -155,6 +163,9 @@ public class SalesforceExtractor extends RestApiExtractor {
     this.pkChunkingSize =
         Math.max(MIN_PK_CHUNKING_SIZE,
             Math.min(MAX_PK_CHUNKING_SIZE, state.getPropAsInt(PK_CHUNKING_SIZE_KEY, DEFAULT_PK_CHUNKING_SIZE)));
+
+    this.pkChunkingSkipCountCheck = state.getPropAsBoolean(PK_CHUNKING_SKIP_COUNT_CHECK, DEFAULT_PK_CHUNKING_SKIP_COUNT_CHECK);
+    this.bulkApiUseQueryAll = state.getPropAsBoolean(BULK_API_USE_QUERY_ALL, DEFAULT_BULK_API_USE_QUERY_ALL);
 
     // Get batch size from .pull file
     int tmpBatchSize = state.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE,
@@ -639,7 +650,8 @@ public class SalesforceExtractor extends RestApiExtractor {
     String hostName = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     String apiVersion = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_VERSION);
     if (Strings.isNullOrEmpty(apiVersion)) {
-      apiVersion = "29.0";
+      // queryAll was introduced in version 39.0, so need to use a higher version when using queryAll with the bulk api
+      apiVersion = this.bulkApiUseQueryAll ? "42.0" : "29.0";
     }
 
     String soapAuthEndPoint = hostName + SALESFORCE_SOAP_SERVICE + "/" + apiVersion;
@@ -716,11 +728,11 @@ public class SalesforceExtractor extends RestApiExtractor {
 
       // Set bulk job attributes
       this.bulkJob.setObject(entity);
-      this.bulkJob.setOperation(OperationEnum.query);
+      this.bulkJob.setOperation(this.bulkApiUseQueryAll ? OperationEnum.queryAll : OperationEnum.query);
       this.bulkJob.setConcurrencyMode(ConcurrencyMode.Parallel);
 
       // use pk chunking if pk chunking is configured and the expected record count is larger than the pk chunking size
-      if (this.pkChunking && getExpectedRecordCount() > this.pkChunkingSize) {
+      if (this.pkChunking && (this.pkChunkingSkipCountCheck || getExpectedRecordCount() > this.pkChunkingSize)) {
         log.info("Enabling pk chunking with size {}", this.pkChunkingSize);
         this.bulkConnection.addHeader("Sforce-Enable-PKChunking", "chunkSize=" + this.pkChunkingSize);
         usingPkChunking = true;
