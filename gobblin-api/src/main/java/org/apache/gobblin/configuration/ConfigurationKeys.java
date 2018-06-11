@@ -103,7 +103,7 @@ public class ConfigurationKeys {
   public static final String JOB_CONFIG_FILE_DIR_KEY = "jobconf.dir";
 
   // Path where all job configuration files stored
-  public static final String JOB_CONFIG_FILE_GENERAL_PATH_KEY = "jobconf.fullyQualifiedPath" ;
+  public static final String JOB_CONFIG_FILE_GENERAL_PATH_KEY = "jobconf.fullyQualifiedPath";
   // Job configuration file extensions
   public static final String JOB_CONFIG_FILE_EXTENSIONS_KEY = "jobconf.extensions";
   public static final String DEFAULT_JOB_CONFIG_FILE_EXTENSIONS = "pull,job";
@@ -208,13 +208,13 @@ public class ConfigurationKeys {
   public static final long DEFAULT_QUEUED_TASK_TIME_MAX_AGE = TimeUnit.HOURS.toMillis(1);
 
   /** Optional, for user to specified which template to use, inside .job file */
-  public static final String JOB_TEMPLATE_PATH = "job.template" ;
+  public static final String JOB_TEMPLATE_PATH = "job.template";
 
   /**
    * Configuration property used only for job configuration file's tempalte, inside .template file
    */
   public static final String REQUIRED_ATRRIBUTES_LIST = "gobblin.template.required_attributes";
-  public static final String JOB_DEPENDENCIES="dependencies";
+  public static final String JOB_DEPENDENCIES = "dependencies";
 
   /**
    * Configuration for emitting job events
@@ -250,7 +250,7 @@ public class ConfigurationKeys {
    */
   // This property is used to specify the URN of a dataset a job or WorkUnit extracts data for
   public static final String DATASET_URN_KEY = "dataset.urn";
-  public static final String GLOBAL_WATERMARK_DATASET_URN="__globalDatasetWatermark";
+  public static final String GLOBAL_WATERMARK_DATASET_URN = "__globalDatasetWatermark";
   public static final String DEFAULT_DATASET_URN = "";
 
   /**
@@ -900,16 +900,11 @@ public class ConfigurationKeys {
   public static final String CONFIG_BASED_PREFIX = "gobblin.configBased";
 
   /**
-   * Configuration related to the git flow config monitoring service
+   * Configuration related to the Git based monitoring service
    */
-  public static final String GIT_CONFIG_MONITOR_PREFIX = "gitConfigMonitor.";
-  public static final String GIT_CONFIG_MONITOR_REPO_URI = GIT_CONFIG_MONITOR_PREFIX + "repositoryUri";
-  public static final String GIT_CONFIG_MONITOR_REPO_DIR = GIT_CONFIG_MONITOR_PREFIX + "repositoryDirectory";
-  public static final String DEFAULT_GIT_CONFIG_MONITOR_REPO_DIR = "git-flow-config";
-  public static final String GIT_CONFIG_MONITOR_CONFIG_DIR = GIT_CONFIG_MONITOR_PREFIX + "configDirectory";
-  public static final String DEFAULT_GIT_CONFIG_MONITOR_CONFIG_DIR = "gobblin-config";
-  public static final String GIT_CONFIG_MONITOR_POLLING_INTERVAL = GIT_CONFIG_MONITOR_PREFIX + "pollingInterval";
-  public static final String GIT_CONFIG_MONITOR_BRANCH_NAME = GIT_CONFIG_MONITOR_PREFIX + "branchName";
-  public static final String DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME = "master";
-  public static final int DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL = 60;
+  public static final String GIT_MONITOR_REPO_URI = "repositoryUri";
+  public static final String GIT_MONITOR_REPO_DIR = "repositoryDirectory";
+  public static final String GIT_MONITOR_CONFIG_BASE_DIR = "configBaseDirectory";
+  public static final String GIT_MONITOR_POLLING_INTERVAL = "pollingInterval";
+  public static final String GIT_MONITOR_BRANCH_NAME = "branchName";
 }
