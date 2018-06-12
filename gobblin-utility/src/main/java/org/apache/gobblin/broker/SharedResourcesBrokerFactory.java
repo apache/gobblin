@@ -21,6 +21,8 @@ import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -54,6 +56,10 @@ public class SharedResourcesBrokerFactory {
   public static final String BROKER_CONF_FILE_KEY = BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX + ".configuration";
   public static final String DEFAULT_BROKER_CONF_FILE = "gobblinBroker.conf";
 
+  private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
+  private static final Config BROKER_NAMESPACES_FALLBACK = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+      .put(BrokerConstants.GOBBLIN_BROKER_CONFIG_NAMESPACES, "").build());
+
   /**
    * Create a root {@link SharedResourcesBroker}. Subscoped brokers should be built using
    * {@link SharedResourcesBroker#newSubscopedBuilder(ScopeInstance)}.
@@ -78,12 +84,30 @@ public class SharedResourcesBrokerFactory {
     return new SharedResourcesBrokerImpl<>(new DefaultBrokerCache<S>(),
         scopeWrapper,
         Lists.newArrayList(new SharedResourcesBrokerImpl.ScopedConfig<>(globalScope.getType(),
-            ConfigUtils.getConfigOrEmpty(addSystemConfigurationToConfig(config), BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX))),
+            getBrokerConfig(addSystemConfigurationToConfig(config)))),
         ImmutableMap.of(globalScope.getType(), scopeWrapper));
   }
 
   private static InheritableThreadLocal<SharedResourcesBroker<?>> threadLocalBroker = new ThreadLocalBroker();
   private static SharedResourcesBroker<SimpleScopeType> SINGLETON;
+
+  /**
+   * Get all broker configurations from the given {@code srcConfig}. Configurations from
+   * {@value BrokerConstants#GOBBLIN_BROKER_CONFIG_PREFIX} is always loaded first, then in-order from namespaces,
+   * which is encoded as a comma separated string keyed by {@value BrokerConstants#GOBBLIN_BROKER_CONFIG_NAMESPACES}.
+   */
+  @VisibleForTesting
+  static Config getBrokerConfig(Config srcConfig) {
+    Config allSrcConfig = srcConfig.withFallback(BROKER_NAMESPACES_FALLBACK);
+    String namespaces = allSrcConfig.getString(BrokerConstants.GOBBLIN_BROKER_CONFIG_NAMESPACES);
+    Config brokerConfig = ConfigUtils.getConfigOrEmpty(allSrcConfig, BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX);
+
+    for (String namespace : LIST_SPLITTER.splitToList(namespaces)) {
+      brokerConfig = brokerConfig.withFallback(ConfigUtils.getConfigOrEmpty(allSrcConfig, namespace));
+    }
+
+    return brokerConfig;
+  }
 
   /**
    * Get the implicit {@link SharedResourcesBroker} in the callers thread. This is either a singleton broker configured
