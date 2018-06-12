@@ -206,7 +206,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
    */
   public void close(ScopeWrapper<S> scope)
       throws IOException {
-    Set<Exception> exceptionsSet  = new HashSet<>();
+    List<Throwable> exceptionsList = Lists.newArrayList();
     List<Service> awaitShutdown = Lists.newArrayList();
 
     for (Map.Entry<RawJobBrokerKey, Object> entry : Maps.filterKeys(this.sharedResourceCache.asMap(),
@@ -219,8 +219,8 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
         // Catch unchecked exception while closing resources, make sure all resources managed by cache are closed.
         try {
           SharedResourcesBrokerUtils.shutdownObject(obj, log);
-        } catch (Exception e) {
-          exceptionsSet.add(e);
+        } catch (Throwable t) {
+          exceptionsList.add(t);
         }
         if (obj instanceof Service) {
           awaitShutdown.add((Service) obj);
@@ -237,8 +237,8 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
     }
 
     // log exceptions while closing resources up.
-    if (exceptionsSet.size() > 0) {
-      log.error(exceptionsSet.stream()
+    if (exceptionsList.size() > 0) {
+      log.error(exceptionsList.stream()
           .map(Throwables::getStackTraceAsString).collect(Collectors.joining("\n")));
     }
   }
