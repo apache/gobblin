@@ -80,6 +80,11 @@ public class CliOptions {
         jobConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(jobConfigLocation));
       } else {
         jobConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(jobConfigLocation), conf);
+        for (String configKey : jobConfig.stringPropertyNames()) {
+          if (conf.get(configKey) != null) {
+            conf.unset(configKey);
+          }
+        }
         JobConfigurationUtils.putConfigurationIntoProperties(conf, jobConfig);
       }
       return jobConfig;
