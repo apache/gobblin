@@ -17,9 +17,15 @@
 
 package org.apache.gobblin.cluster.suite;
 
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,10 +38,15 @@ import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
 import org.assertj.core.util.Lists;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigParseOptions;
+import com.typesafe.config.ConfigRenderOptions;
+import com.typesafe.config.ConfigSyntax;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -124,10 +135,32 @@ public class IntegrationBasicSuite {
     }
   }
 
-  protected void copyJobConfFromResource() throws IOException {
+  private void copyJobConfFromResource() throws IOException {
+    Map<String, Config> jobConfigs;
     try (InputStream resourceStream = this.jobConfResourceUrl.openStream()) {
-      File targetFile = new File(this.jobConfigPath + "/" + JOB_CONF_NAME);
-      FileUtils.copyInputStreamToFile(resourceStream, targetFile);
+      Reader reader = new InputStreamReader(resourceStream);
+      Config rawJobConfig = ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF));
+      jobConfigs = overrideJobConfigs(rawJobConfig);
+      jobConfigs.forEach((jobName, jobConfig)-> {
+        try {
+          writeJobConf(jobName, jobConfig);
+        } catch (IOException e) {
+          log.error("Job " + jobName + " config cannot be written.");
+        }
+      });
+    }
+  }
+
+  protected Map<String, Config> overrideJobConfigs(Config rawJobConfig) {
+    return ImmutableMap.of("HelloWorldJob", rawJobConfig);
+  }
+
+  private void writeJobConf(String jobName, Config jobConfig) throws IOException {
+    String targetPath = this.jobConfigPath + "/" + jobName + ".conf";
+    String renderedConfig = jobConfig.root().render(ConfigRenderOptions.defaults());
+    try (DataOutputStream os = new DataOutputStream(new FileOutputStream(targetPath));
+        Writer writer = new OutputStreamWriter(os, Charsets.UTF_8)) {
+      writer.write(renderedConfig);
     }
   }
 

@@ -17,31 +17,20 @@
 
 package org.apache.gobblin.cluster.suite;
 
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Reader;
-import java.io.Writer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.testng.collections.Lists;
+import org.testng.collections.Maps;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigParseOptions;
-import com.typesafe.config.ConfigRenderOptions;
-import com.typesafe.config.ConfigSyntax;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -136,39 +125,22 @@ public class IntegrationJobTagSuite extends IntegrationBasicSuite {
    * Create different jobs with different tags
    */
   @Override
-  protected void copyJobConfFromResource() throws IOException {
-    try (InputStream resourceStream = this.jobConfResourceUrl.openStream()) {
-      Reader reader = new InputStreamReader(resourceStream);
-      Config jobConfig = ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF));
-      for(Map.Entry<String, String> assoc: JOB_TAG_ASSOCIATION.entrySet()) {
-        generateJobConf(jobConfig,assoc.getKey(),assoc.getValue());
-      }
+  protected Map<String, Config> overrideJobConfigs(Config rawJobConfig) {
+    Map<String, Config> jobConfigs = Maps.newHashMap();
+    for(Map.Entry<String, String> assoc: JOB_TAG_ASSOCIATION.entrySet()) {
+      Config newConfig = getConfigOverride(rawJobConfig, assoc.getKey(), assoc.getValue());
+      jobConfigs.put(assoc.getKey(), newConfig);
     }
+    return jobConfigs;
   }
 
-  private void generateJobConf(Config jobConfig, String jobName, String tag) throws IOException {
-    Config newConfig = addJobTag(jobConfig, tag);
-    newConfig = getConfigOverride(newConfig, jobName);
-
-    String targetPath = this.jobConfigPath + "/" + jobName + ".conf";
-    String renderedConfig = newConfig.root().render(ConfigRenderOptions.defaults());
-    try (DataOutputStream os = new DataOutputStream(new FileOutputStream(targetPath));
-        Writer writer = new OutputStreamWriter(os, Charsets.UTF_8)) {
-      writer.write(renderedConfig);
-    }
-  }
-
-  private Config getConfigOverride(Config config, String jobName) {
+  private Config getConfigOverride(Config config, String jobName, String jobTag) {
     Config newConfig = ConfigFactory.parseMap(ImmutableMap.of(
+        GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY, jobTag,
         ConfigurationKeys.JOB_NAME_KEY, jobName,
         ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, this.jobOutputBasePath + "/" + jobName))
         .withFallback(config);
     return newConfig;
-  }
-
-  private Config addJobTag(Config jobConfig, String jobTag) {
-    return ConfigFactory.parseMap(ImmutableMap.of(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY, jobTag))
-        .withFallback(jobConfig);
   }
 
   @Override

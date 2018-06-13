@@ -17,12 +17,24 @@
 
 package org.apache.gobblin.cluster;
 
+import java.util.Optional;
+import java.util.concurrent.TimeoutException;
+
+import org.apache.helix.HelixManager;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
+import org.apache.helix.task.JobConfig;
+import org.apache.helix.task.JobQueue;
+import org.apache.helix.task.TargetState;
+import org.apache.helix.task.TaskDriver;
+import org.apache.helix.task.TaskUtil;
+import org.apache.helix.task.WorkflowConfig;
+import org.apache.helix.task.WorkflowContext;
 import org.apache.helix.tools.ClusterSetup;
 
-import org.apache.gobblin.annotation.Alpha;
+import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.annotation.Alpha;
 
 /**
  * A utility class for working with Gobblin on Helix.
@@ -30,6 +42,7 @@ import org.apache.gobblin.annotation.Alpha;
  * @author Yinan Li
  */
 @Alpha
+@Slf4j
 public class HelixUtils {
 
   /**
@@ -38,7 +51,9 @@ public class HelixUtils {
    * @param zkConnectionString the ZooKeeper connection string
    * @param clusterName the Helix cluster name
    */
-  public static void createGobblinHelixCluster(String zkConnectionString, String clusterName) {
+  public static void createGobblinHelixCluster(
+      String zkConnectionString,
+      String clusterName) {
     createGobblinHelixCluster(zkConnectionString, clusterName, true);
   }
 
@@ -49,7 +64,10 @@ public class HelixUtils {
    * @param clusterName the Helix cluster name
    * @param overwrite true to overwrite exiting cluster, false to reuse existing cluster
    */
-  public static void createGobblinHelixCluster(String zkConnectionString, String clusterName, boolean overwrite) {
+  public static void createGobblinHelixCluster(
+      String zkConnectionString,
+      String clusterName,
+      boolean overwrite) {
     ClusterSetup clusterSetup = new ClusterSetup(zkConnectionString);
     // Create the cluster and overwrite if it already exists
     clusterSetup.addCluster(clusterName, overwrite);
@@ -65,7 +83,90 @@ public class HelixUtils {
    * @param instanceId an integer instance ID
    * @return a Helix instance name that is a concatenation of the given prefix and instance ID
    */
-  public static String getHelixInstanceName(String namePrefix, int instanceId) {
+  public static String getHelixInstanceName(
+      String namePrefix,
+      int instanceId) {
     return namePrefix + "_" + instanceId;
+  }
+
+  public static void submitJobToQueue(
+      JobConfig.Builder jobConfigBuilder,
+      String queueName,
+      String jobName,
+      TaskDriver helixTaskDriver,
+      HelixManager helixManager,
+      long jobQueueDeleteTimeoutSeconds) throws Exception {
+
+    WorkflowConfig workflowConfig = helixTaskDriver.getWorkflowConfig(helixManager, queueName);
+
+    // If the queue is present, but in delete state then wait for cleanup before recreating the queue
+    if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
+      GobblinHelixTaskDriver gobblinHelixTaskDriver = new GobblinHelixTaskDriver(helixManager);
+      gobblinHelixTaskDriver.deleteWorkflow(queueName, jobQueueDeleteTimeoutSeconds);
+      // if we get here then the workflow was successfully deleted
+      workflowConfig = null;
+    }
+
+    // Create one queue for each job with the job name being the queue name
+    if (workflowConfig == null) {
+      JobQueue jobQueue = new JobQueue.Builder(queueName).build();
+      helixTaskDriver.createQueue(jobQueue);
+      log.info("Created job queue {}", queueName);
+    } else {
+      log.info("Job queue {} already exists", queueName);
+    }
+
+    // Put the job into the queue
+    helixTaskDriver.enqueueJob(queueName, jobName, jobConfigBuilder);
+  }
+
+  public static void waitJobCompletion(
+      HelixManager helixManager,
+      String queueName,
+      String jobName,
+      Optional<Long> timeoutInSeconds) throws InterruptedException, TimeoutException {
+
+    log.info("Waiting for job to complete...");
+    long endTime = 0;
+    if (timeoutInSeconds.isPresent()) {
+      endTime = System.currentTimeMillis() + timeoutInSeconds.get() * 1000;
+    }
+
+    while (!timeoutInSeconds.isPresent() || System.currentTimeMillis() <= endTime) {
+      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, queueName);
+      if (workflowContext != null) {
+        org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(TaskUtil.getNamespacedJobName(queueName, jobName));
+        if (helixJobState == org.apache.helix.task.TaskState.COMPLETED ||
+            helixJobState == org.apache.helix.task.TaskState.FAILED ||
+            helixJobState == org.apache.helix.task.TaskState.STOPPED) {
+          return;
+        }
+      }
+      Thread.sleep(1000);
+    }
+
+    throw new TimeoutException("task driver wait time [" + timeoutInSeconds + " sec] is expired.");
+  }
+
+  /**
+   * Because fix https://github.com/apache/helix/commit/ae8e8e2ef37f48d782fc12f85ca97728cf2b70c4
+   * is not available in currently used version 0.6.9
+   */
+  public static void helixTaskDriverWaitToStop(
+      HelixManager helixManager,
+      TaskDriver helixTaskDriver,
+      String queueName,
+      long timeoutInSeconds) throws InterruptedException {
+    helixTaskDriver.stop(queueName);
+    long endTime = System.currentTimeMillis() + timeoutInSeconds*1000;
+    while (System.currentTimeMillis() <= endTime) {
+      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, queueName);
+      if (workflowContext == null || workflowContext.getWorkflowState()
+          .equals(org.apache.helix.task.TaskState.IN_PROGRESS)) {
+        Thread.sleep(1000);
+      } else {
+        log.info("Successfully stopped the queue");
+      }
+    }
   }
 }
