@@ -233,6 +233,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           .resources(Lists.<Class<? extends BaseResource>>newArrayList(FlowConfigsResource.class))
           .injector(injector)
           .build();
+      this.restliServer.setPort(ConfigUtils.getInt(config, 
+    		  ServiceConfigKeys.SERVICE_PORT, new Integer(0)));
       this.serviceLauncher.addService(restliServer);
     }
 
