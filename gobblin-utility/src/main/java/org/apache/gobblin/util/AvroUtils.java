@@ -20,7 +20,6 @@ package org.apache.gobblin.util;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,6 +50,7 @@ import org.apache.avro.mapred.FsInput;
 import org.apache.avro.util.Utf8;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -380,8 +380,8 @@ public class AvroUtils {
   public static Schema parseSchemaFromFile(Path filePath, FileSystem fs) throws IOException {
     Preconditions.checkArgument(fs.exists(filePath), filePath + " does not exist");
 
-    try (InputStream in = fs.open(filePath)) {
-      return new Schema.Parser().parse(in);
+    try (FSDataInputStream in = fs.open(filePath)) {
+      return new Schema.Parser().parse(in.readUTF());
     }
   }
 
