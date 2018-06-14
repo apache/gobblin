@@ -19,15 +19,19 @@ package org.apache.gobblin.broker;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Lock;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
@@ -202,6 +206,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
    */
   public void close(ScopeWrapper<S> scope)
       throws IOException {
+    List<Throwable> exceptionsList = Lists.newArrayList();
     List<Service> awaitShutdown = Lists.newArrayList();
 
     for (Map.Entry<RawJobBrokerKey, Object> entry : Maps.filterKeys(this.sharedResourceCache.asMap(),
@@ -211,8 +216,12 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
 
       if (entry.getValue() instanceof ResourceInstance) {
         Object obj = ((ResourceInstance) entry.getValue()).getResource();
-
-        SharedResourcesBrokerUtils.shutdownObject(obj, log);
+        // Catch unchecked exception while closing resources, make sure all resources managed by cache are closed.
+        try {
+          SharedResourcesBrokerUtils.shutdownObject(obj, log);
+        } catch (Throwable t) {
+          exceptionsList.add(t);
+        }
         if (obj instanceof Service) {
           awaitShutdown.add((Service) obj);
         }
@@ -225,6 +234,12 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
       } catch (TimeoutException te) {
         log.error("Failed to shutdown {}.", service);
       }
+    }
+
+    // log exceptions while closing resources up.
+    if (exceptionsList.size() > 0) {
+      log.error(exceptionsList.stream()
+          .map(Throwables::getStackTraceAsString).collect(Collectors.joining("\n")));
     }
   }
 
