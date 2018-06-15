@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
@@ -56,7 +73,11 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
 
     //TODO: change below to Helix UserConentStore
     protected void setResultToUserContent(Map<String, String> keyValues) throws IOException {
-      super.setResultToUserContent(keyValues);
+      Map<String, String> customizedKVs = Maps.newHashMap(keyValues);
+      customizedKVs.put("customizedKey_1", "customizedVal_1");
+      customizedKVs.put("customizedKey_2", "customizedVal_2");
+      customizedKVs.put("customizedKey_3", "customizedVal_3");
+      super.setResultToUserContent(customizedKVs);
     }
   }
 
@@ -71,7 +92,12 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
     protected DistributeJobResult getResultFromUserContent() {
       DistributeJobResult rst = super.getResultFromUserContent();
       Properties properties = rst.getProperties().get();
+      Assert.assertTrue(properties.containsKey(Partitioner.IS_EARLY_STOPPED));
       Assert.assertFalse(PropertiesUtils.getPropAsBoolean(properties, Partitioner.IS_EARLY_STOPPED, "false"));
+
+      Assert.assertTrue(properties.getProperty("customizedKey_1").equals("customizedVal_1"));
+      Assert.assertTrue(properties.getProperty("customizedKey_2").equals("customizedVal_2"));
+      Assert.assertTrue(properties.getProperty("customizedKey_3").equals("customizedVal_3"));
       IntegrationJobFactorySuite.completed.set(true);
       return rst;
     }

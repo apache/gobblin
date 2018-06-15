@@ -35,6 +35,7 @@ import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
@@ -66,8 +67,21 @@ import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
- * This {@link JobExecutionLauncher} submits job to Helix. The job will be assigned to one of Helix participant instances.
- * The assigned instances parse job properties and run the task driver logic.
+ * To avoid all the task driver logic ({@link GobblinHelixJobLauncher}) runs on the same instance (node), this
+ * {@link JobExecutionLauncher} can distribute the original job (called planning job) to Helix. Helix will
+ * assign this job to one participant. The participant can parse the original job properties and run the task driver.
+ *
+ * <p>
+ *   For job submission, the Helix workflow name will be the original job name with prefix
+ *   {@link GobblinClusterConfigurationKeys#PLANNING_JOB_NAME_PREFIX}. The Helix job name will be the auto-generated planning
+ *   job ID with prefix {@link GobblinClusterConfigurationKeys#PLANNING_ID_KEY}.
+ * </p>
+ *
+ * <p>
+ *   We will associate this job to Helix's {@link org.apache.helix.task.TaskFactory}
+ *   by specifying {@link GobblinTaskRunner#GOBBLIN_JOB_FACTORY_NAME} in the {@link JobConfig.Builder}.
+ *   This job will only contain a single task, which is the same as planningID.
+ * </p>
  */
 @Alpha
 @Slf4j
@@ -81,6 +95,10 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   protected static final String PLANNING_WORK_UNIT_DIR_NAME = "_plan_workunits";
   protected static final String PLANNING_TASK_STATE_DIR_NAME = "_plan_taskstates";
   protected static final String PLANNING_JOB_STATE_DIR_NAME = "_plan_jobstates";
+
+  protected static final String JOB_PROPS_PREFIX = "gobblin.jobProps.";
+
+  private final long jobQueueDeleteTimeoutSeconds;
 
   public GobblinHelixDistributeJobExecutionLauncher(Builder builder) throws Exception {
     this.helixManager = builder.manager;
@@ -100,6 +118,10 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         builder.appWorkDir, PLANNING_TASK_STATE_DIR_NAME,
         builder.appWorkDir, PLANNING_WORK_UNIT_DIR_NAME,
         builder.appWorkDir, PLANNING_JOB_STATE_DIR_NAME);
+
+    this.jobQueueDeleteTimeoutSeconds = ConfigUtils.getLong(combined,
+        GobblinClusterConfigurationKeys.HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS);
   }
 
   @Setter
@@ -127,13 +149,16 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     return planningId;
   }
 
+  /**
+   * Create a job config builder which has a single task that wraps the original jobProps.
+   */
   private JobConfig.Builder createPlanningJob (Properties jobProps) {
     // Create a single task for job planning
     String planningId = getPlanningJobId(jobProps);
     Map<String, TaskConfig> taskConfigMap = Maps.newHashMap();
     Map<String, String> rawConfigMap = Maps.newHashMap();
     for (String key : jobProps.stringPropertyNames()) {
-      rawConfigMap.put(GobblinClusterConfigurationKeys.PLANNING_CONF_PREFIX + key, (String)jobProps.get(key));
+      rawConfigMap.put(JOB_PROPS_PREFIX + key, (String)jobProps.get(key));
     }
     rawConfigMap.put(GobblinClusterConfigurationKeys.TASK_SUCCESS_OPTIONAL_KEY, "true");
 
@@ -152,6 +177,12 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     return jobConfigBuilder;
   }
 
+  /**
+   * Submit job to helix so that it can be re-assigned to one of its participants.
+   * @param jobName A planning job name which has prefix {@link GobblinClusterConfigurationKeys#PLANNING_JOB_NAME_PREFIX}.
+   * @param jobId   A planning job id created by {@link GobblinHelixDistributeJobExecutionLauncher#getPlanningJobId}.
+   * @param jobConfigBuilder A job config builder which contains a single task.
+   */
   private void submitJobToHelix(String jobName, String jobId, JobConfig.Builder jobConfigBuilder) throws Exception {
     TaskDriver taskDriver = new TaskDriver(this.helixManager);
     HelixUtils.submitJobToQueue(jobConfigBuilder,
@@ -159,7 +190,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         jobId,
         taskDriver,
         this.helixManager,
-        60*60);
+        this.jobQueueDeleteTimeoutSeconds);
   }
 
   @Override
@@ -209,6 +240,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   }
 
   //TODO: change below to Helix UserConentStore
+  @VisibleForTesting
   protected DistributeJobResult getResultFromUserContent() {
     String planningId = getPlanningJobId(this.jobProperties);
     try {
@@ -221,7 +253,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   @Getter
   @AllArgsConstructor
-  class DistributeJobResult implements ExecutionResult {
+  static class DistributeJobResult implements ExecutionResult {
     boolean isEarlyStopped = false;
     Optional<Properties> properties;
     Optional<Throwable> throwable;
@@ -234,7 +266,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     }
   }
 
-  class DistributeJobMonitor extends FutureTask<ExecutionResult> implements JobExecutionMonitor {
+  static class DistributeJobMonitor extends FutureTask<ExecutionResult> implements JobExecutionMonitor {
     private ExecutorService executor = Executors.newSingleThreadExecutor();
     public DistributeJobMonitor (Callable<ExecutionResult> c) {
       super(c);

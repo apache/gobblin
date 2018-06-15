@@ -72,9 +72,9 @@ public class GobblinClusterConfigurationKeys {
   public static final String HELIX_INSTANCE_TAGS_KEY = GOBBLIN_CLUSTER_PREFIX + "helixInstanceTags";
 
   // Planning job properties
-  public static String PLANNING_JOB_NAME_PREFIX = "PlanningJob";
-  public static String PLANNING_CONF_PREFIX = "planning.";
-  public static String PLANNING_ID_KEY = PLANNING_CONF_PREFIX + "id.key";
+  public static final String PLANNING_JOB_NAME_PREFIX = "PlanningJob";
+  public static final String PLANNING_CONF_PREFIX = GOBBLIN_CLUSTER_PREFIX + "planning.";
+  public static final String PLANNING_ID_KEY = PLANNING_CONF_PREFIX + "idKey";
 
   /**
    * A path pointing to a directory that contains job execution files to be executed by Gobblin. This directory can

@@ -26,6 +26,7 @@ import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskResult;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 
@@ -58,8 +59,8 @@ public class GobblinHelixJobTask implements Task {
     this.jobConfig = ConfigUtils.configToProperties(sysConfig);
     Map<String, String> configMap = this.taskConfig.getConfigMap();
     for (Map.Entry<String, String> entry: configMap.entrySet()) {
-      if (entry.getKey().startsWith(GobblinClusterConfigurationKeys.PLANNING_CONF_PREFIX)) {
-          String key = entry.getKey().replaceFirst(GobblinClusterConfigurationKeys.PLANNING_CONF_PREFIX, "");
+      if (entry.getKey().startsWith(GobblinHelixDistributeJobExecutionLauncher.JOB_PROPS_PREFIX)) {
+          String key = entry.getKey().replaceFirst(GobblinHelixDistributeJobExecutionLauncher.JOB_PROPS_PREFIX, "");
           jobConfig.put(key, entry.getValue());
       }
     }
@@ -87,6 +88,7 @@ public class GobblinHelixJobTask implements Task {
   }
 
   //TODO: change below to Helix UserConentStore
+  @VisibleForTesting
   protected void setResultToUserContent(Map<String, String> keyValues) throws IOException {
     WorkUnitState wus = new WorkUnitState();
     wus.setProp(ConfigurationKeys.JOB_ID_KEY, this.planningJobId);
