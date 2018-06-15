@@ -19,11 +19,13 @@ package org.apache.gobblin.cluster;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.helix.task.TaskFactory;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
@@ -46,6 +48,7 @@ class TaskRunnerSuiteThreadModel extends TaskRunnerSuiteBase {
     super(builder);
     this.taskExecutor = new TaskExecutor(ConfigUtils.configToProperties(builder.getConfig()));
     this.taskFactory = getInProcessTaskFactory(taskExecutor, builder);
+    this.jobFactory = new GobblinHelixJobFactory(builder);
     this.taskMetrics = new GobblinTaskRunnerMetrics.InProcessTaskRunnerMetrics(taskExecutor, metricContext);
   }
 
@@ -55,8 +58,11 @@ class TaskRunnerSuiteThreadModel extends TaskRunnerSuiteBase {
   }
 
   @Override
-  protected TaskFactory getTaskFactory() {
-    return this.taskFactory;
+  protected Map<String, TaskFactory> getTaskFactoryMap() {
+    Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
+    taskFactoryMap.put(GobblinTaskRunner.GOBBLIN_TASK_FACTORY_NAME, taskFactory);
+    taskFactoryMap.put(GobblinTaskRunner.GOBBLIN_JOB_FACTORY_NAME, jobFactory);
+    return taskFactoryMap;
   }
 
   @Override

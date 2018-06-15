@@ -18,10 +18,12 @@
 package org.apache.gobblin.cluster;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskFactory;
 
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Service;
 
 import lombok.extern.slf4j.Slf4j;
@@ -51,8 +53,13 @@ class TaskRunnerSuiteProcessModel extends TaskRunnerSuiteBase {
   }
 
   @Override
-  protected TaskFactory getTaskFactory() {
-    return this.taskFactory;
+  protected Map<String, TaskFactory> getTaskFactoryMap() {
+    Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
+
+    taskFactoryMap.put(GobblinTaskRunner.GOBBLIN_TASK_FACTORY_NAME, taskFactory);
+
+    //TODO: taskFactoryMap.put(GOBBLIN_JOB_FACTORY_NAME, jobFactory);
+    return taskFactoryMap;
   }
 
   @Override
