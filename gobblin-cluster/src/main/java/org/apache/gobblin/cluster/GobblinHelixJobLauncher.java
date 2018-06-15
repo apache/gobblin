@@ -21,9 +21,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -31,12 +33,9 @@ import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
-import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskUtil;
-import org.apache.helix.task.WorkflowConfig;
-import org.apache.helix.task.WorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -279,27 +278,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    * Submit a job to run.
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
-    WorkflowConfig workflowConfig = this.helixTaskDriver.getWorkflowConfig(this.helixManager, this.helixQueueName);
-
-    // If the queue is present, but in delete state then wait for cleanup before recreating the queue
-    if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
-      GobblinHelixTaskDriver gobblinHelixTaskDriver = new GobblinHelixTaskDriver(this.helixManager);
-      gobblinHelixTaskDriver.deleteWorkflow(this.helixQueueName, this.jobQueueDeleteTimeoutSeconds);
-      // if we get here then the workflow was successfully deleted
-      workflowConfig = null;
-    }
-
-    // Create one queue for each job with the job name being the queue name
-    if (workflowConfig == null) {
-        JobQueue jobQueue = new JobQueue.Builder(this.helixQueueName).build();
-        this.helixTaskDriver.createQueue(jobQueue);
-        LOGGER.info("Created job queue {}", this.helixQueueName);
-    } else {
-      LOGGER.info("Job queue {} already exists", this.helixQueueName);
-    }
-
-    // Put the job into the queue
-    this.helixTaskDriver.enqueueJob(this.jobContext.getJobName(), this.jobContext.getJobId(), jobConfigBuilder);
+    HelixUtils.submitJobToQueue(jobConfigBuilder, this.helixQueueName, this.jobContext.getJobId(),
+        this.helixTaskDriver, this.helixManager, this.jobQueueDeleteTimeoutSeconds);
   }
 
   public void launchJob(@Nullable JobListener jobListener)
@@ -380,45 +360,22 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
     long timeoutInSeconds = Long.parseLong(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
         ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
-    long endTime = System.currentTimeMillis() + timeoutInSeconds*1000;
-    while (!timeoutEnabled || System.currentTimeMillis() <= endTime) {
-      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(this.helixManager, this.helixQueueName);
-      if (workflowContext != null) {
-        org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(this.jobResourceName);
-        if (helixJobState == org.apache.helix.task.TaskState.COMPLETED ||
-            helixJobState == org.apache.helix.task.TaskState.FAILED ||
-            helixJobState == org.apache.helix.task.TaskState.STOPPED) {
-          return;
-        }
-      }
-      Thread.sleep(1000);
-    }
-    helixTaskDriverWaitToStop(this.helixQueueName, 10L);
-    try {
-      cancelJob(this.jobListener);
-    } catch (JobException e) {
-      throw new RuntimeException("Unable to cancel job " + jobContext.getJobName() + ": ", e);
-    }
-    this.helixTaskDriver.resume(this.helixQueueName);
-    LOGGER.info("stopped the queue, deleted the job");
-  }
 
-  /**
-   * Because fix https://github.com/apache/helix/commit/ae8e8e2ef37f48d782fc12f85ca97728cf2b70c4
-   * is not available in currently used version 0.6.9
-   */
-  private void helixTaskDriverWaitToStop(String workflow, long timeoutInSeconds) throws InterruptedException {
-    this.helixTaskDriver.stop(workflow);
-    long endTime = System.currentTimeMillis() + timeoutInSeconds*1000;
-    while (System.currentTimeMillis() <= endTime) {
-      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(this.helixManager, this.helixQueueName);
-      if (workflowContext == null || workflowContext.getWorkflowState()
-          .equals(org.apache.helix.task.TaskState.IN_PROGRESS)) {
-        Thread.sleep(1000);
-      } else {
-        LOGGER.info("Successfully stopped the queue");
-        return;
+    try {
+      HelixUtils.waitJobCompletion(
+          this.helixManager,
+          this.helixQueueName,
+          this.jobContext.getJobId(),
+          timeoutEnabled? Optional.of(timeoutInSeconds) : Optional.empty());
+    } catch (TimeoutException te) {
+      HelixUtils.helixTaskDriverWaitToStop(helixManager, helixTaskDriver, helixQueueName, 10L);
+      try {
+        cancelJob(this.jobListener);
+      } catch (JobException e) {
+        throw new RuntimeException("Unable to cancel job " + jobContext.getJobName() + ": ", e);
       }
+      this.helixTaskDriver.resume(this.helixQueueName);
+      LOGGER.info("stopped the queue, deleted the job");
     }
   }
 

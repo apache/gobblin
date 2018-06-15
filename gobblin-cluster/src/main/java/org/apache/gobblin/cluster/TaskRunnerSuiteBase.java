@@ -18,6 +18,7 @@
 package org.apache.gobblin.cluster;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -32,6 +33,7 @@ import com.typesafe.config.Config;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.MetricContext;
@@ -46,8 +48,10 @@ import org.apache.gobblin.util.ConfigUtils;
  * A list of {@link Service} : register any runtime services necessary to run the tasks.
  */
 @Slf4j
+@Alpha
 public abstract class TaskRunnerSuiteBase {
   protected TaskFactory taskFactory;
+  protected TaskFactory jobFactory;
   protected MetricContext metricContext;
   protected StandardMetricsBridge.StandardMetrics taskMetrics;
   protected List<Service> services = Lists.newArrayList();
@@ -62,7 +66,7 @@ public abstract class TaskRunnerSuiteBase {
 
   protected abstract StandardMetricsBridge.StandardMetrics getTaskMetrics();
 
-  protected abstract TaskFactory getTaskFactory();
+  protected abstract Map<String, TaskFactory> getTaskFactoryMap();
 
   protected abstract List<Service> getServices();
 

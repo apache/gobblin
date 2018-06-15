@@ -21,7 +21,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -41,7 +40,6 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
 import javax.annotation.Nonnull;
-import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
@@ -56,7 +54,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
@@ -65,7 +62,6 @@ import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -277,56 +273,27 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
-    new RetriggeringJobCallable(jobProps, jobListener).call();
+    new HelixRetriggeringJobCallable(this, this.properties, jobProps, jobListener, this.appWorkDir, this.helixManager).call();
   }
 
   @Override
   public GobblinHelixJobLauncher buildJobLauncher(Properties jobProps)
       throws Exception {
-    return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
-  }
+    Properties combinedProps = new Properties();
+    combinedProps.putAll(properties);
+    combinedProps.putAll(jobProps);
 
-  private class RetriggeringJobCallable implements Callable {
-    Properties jobProps;
-    JobListener jobListener;
-
-    public RetriggeringJobCallable(Properties jobProps, JobListener jobListener) {
-      this.jobProps = jobProps;
-      this.jobListener = jobListener;
-    }
-
-    private boolean isRetriggeringEnabled() {
-      return PropertiesUtils.getPropAsBoolean(jobProps, ConfigurationKeys.JOB_RETRIGGERING_ENABLED, ConfigurationKeys.DEFAULT_JOB_RETRIGGERING_ENABLED);
-    }
-
-    @Getter
-    JobLauncher currentJobLauncher = null;
-
-    @Override
-    public Void call() throws JobException {
-      try {
-        while (true) {
-          currentJobLauncher = buildJobLauncher(jobProps);
-          boolean isEarlyStopped = runJob(jobProps, jobListener, currentJobLauncher);
-          boolean isRetriggerEnabled = this.isRetriggeringEnabled();
-          if (isEarlyStopped && isRetriggerEnabled) {
-            LOGGER.info("Job {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
-          } else {
-            break;
-          }
-          currentJobLauncher = null;
-        }
-      } catch (Exception e) {
-        LOGGER.error("Failed to run job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
-        throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
-      }
-
-      return null;
-    }
+    return new GobblinHelixJobLauncher(combinedProps, this.helixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
   }
 
   public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener) {
-    RetriggeringJobCallable retriggeringJob = new RetriggeringJobCallable(jobProps, jobListener);
+    HelixRetriggeringJobCallable retriggeringJob = new HelixRetriggeringJobCallable(this,
+        this.properties,
+        jobProps,
+        jobListener,
+        this.appWorkDir,
+        this.helixManager);
+
     final Future<?> future = this.jobExecutor.submit(retriggeringJob);
     return new Future() {
       @Override
@@ -336,10 +303,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         }
         boolean result = true;
         try {
-          JobLauncher jobLauncher = retriggeringJob.getCurrentJobLauncher();
-          if (jobLauncher != null) {
-            jobLauncher.cancelJob(jobListener);
-          }
+          retriggeringJob.cancel();
         } catch (JobException e) {
           LOGGER.error("Failed to cancel job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
           result = false;
@@ -377,7 +341,6 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     LOGGER.info("Received new job configuration of job " + newJobArrival.getJobName());
     try {
       Properties jobConfig = new Properties();
-      jobConfig.putAll(this.properties);
       jobConfig.putAll(newJobArrival.getJobConfig());
 
       metrics.updateTimeBeforeJobScheduling(jobConfig);
