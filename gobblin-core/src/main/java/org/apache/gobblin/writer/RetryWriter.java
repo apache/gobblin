@@ -51,6 +51,7 @@ import org.apache.gobblin.util.FinalState;
 public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
   private static final Logger LOG = LoggerFactory.getLogger(RetryWriter.class);
   public static final String RETRY_CONF_PREFIX = "gobblin.writer.retry.";
+  public static final String RETRY_WRITER_ENABLED = RETRY_CONF_PREFIX + "enabled";
   public static final String FAILED_RETRY_WRITES_METER = RETRY_CONF_PREFIX + "failed_writes";
   public static final String RETRY_MULTIPLIER = RETRY_CONF_PREFIX + "multiplier";
   public static final String RETRY_MAX_WAIT_MS_PER_INTERVAL = RETRY_CONF_PREFIX + "max_wait_ms_per_interval";
