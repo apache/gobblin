@@ -83,7 +83,7 @@ public abstract class HadoopFsEndPoint implements EndPoint {
   @Override
   public boolean isFileSystemAvailable() {
     try {
-      FileSystem.get(this.getFsURI(), new Configuration()).close();
+      FileSystem.get(this.getFsURI(), new Configuration());
     } catch (IOException ioe){
       log.error(String.format("FileSystem %s is not available", this.getFsURI()), ioe);
       return false;
