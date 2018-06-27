@@ -62,7 +62,7 @@ public class PropertiesUtils {
   }
 
   public static long getPropAsLong(Properties properties, String key, long defaultValue) {
-    return Long.valueOf(properties.getProperty(key, Long.toString(defaultValue)));
+    return Long.parseLong(properties.getProperty(key, Long.toString(defaultValue)));
   }
 
   /**
