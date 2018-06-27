@@ -135,7 +135,7 @@ class HelixRetriggeringJobCallable implements Callable {
       log.error("Failed to run job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
       throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     } finally {
-      this.jobScheduler.jobLaunchers.remove(jobProps.getProperty(GobblinHelixJobScheduler.JOB_URI));
+      this.jobScheduler.getJobLaunchers().remove(jobProps.getProperty(GobblinHelixJobScheduler.JOB_URI));
     }
   }
 

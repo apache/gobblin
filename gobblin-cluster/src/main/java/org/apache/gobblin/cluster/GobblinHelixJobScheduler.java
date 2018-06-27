@@ -42,6 +42,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
 import javax.annotation.Nonnull;
+import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
@@ -88,7 +89,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private final MetricContext metricContext;
   private final Metrics metrics;
   private boolean startServicesCompleted;
-  public Map<String, GobblinHelixJobLauncher> jobLaunchers;
+  @Getter
+  private Map<String, GobblinHelixJobLauncher> jobLaunchers;
   public static final String JOB_URI = "job.uri";
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
@@ -105,7 +107,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
     this.metrics = new Metrics(this.metricContext);
     this.startServicesCompleted = false;
-    this.jobLaunchers = new HashMap<>();
+    this.jobLaunchers = new ConcurrentHashMap<>();
   }
 
   @Nonnull

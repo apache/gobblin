@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.SpecExecutor;
@@ -92,7 +93,7 @@ public class MockedAvroJobSpecKafkaJobMonitor extends AvroJobSpecKafkaJobMonitor
         } else if (tokens.get(0).equals(REMOVE_WITH_STATE)) {
           URI uri = new URI(tokens.get(1));
           jobSpec = new JobSpec.Builder(uri).withConfig(
-              ConfigFactory.parseMap(ImmutableMap.of(AvroJobSpecKafkaJobMonitor.DELETE_STATE_STORE_KEY, Boolean.TRUE.toString()))).
+              ConfigFactory.parseMap(ImmutableMap.of(ConfigurationKeys.DELETE_STATE_STORE, Boolean.TRUE.toString()))).
               withMetadata(ImmutableMap.of(JobSpec.VERB_KEY, SpecExecutor.Verb.DELETE.name())).build();
         } else {
           // create job spec for upsert
