@@ -208,7 +208,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       //Submit alertable events for unfulfilled requests
       submitUnfulfilledRequestEvents(allocator);
 
-      String filesetWuGeneratorAlias = state.getProp(ConfigurationKeys.COPY_SOURCE_FILESET_WU_GENERATOR, FileSetWorkUnitGenerator.class.getName());
+      String filesetWuGeneratorAlias = state.getProp(ConfigurationKeys.COPY_SOURCE_FILESET_WU_GENERATOR_CLASS, FileSetWorkUnitGenerator.class.getName());
       Iterator<Callable<Void>> callableIterator =
           Iterators.transform(prioritizedFileSets, new Function<FileSet<CopyEntity>, Callable<Void>>() {
             @Nullable
