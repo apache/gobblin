@@ -44,6 +44,8 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.crypto.EncryptionConfigParser;
 import org.apache.gobblin.crypto.GPGFileDecryptor;
+import org.apache.gobblin.crypto.GPGFileEncryptor;
+import org.apache.gobblin.crypto.GPGFileEncryptorTest;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
@@ -197,7 +199,13 @@ public class FileAwareInputStreamDataWriterTest {
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
     state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "gpg");
-    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY, "testPassword");
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY,
+        GPGFileEncryptor.class.getResource(
+            GPGFileEncryptorTest.PUBLIC_KEY).toString());
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY,
+        GPGFileEncryptorTest.PASSPHRASE);
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEY_NAME,
+        GPGFileEncryptorTest.KEY_ID);
 
     CopySource.serializeCopyEntity(state, cf);
     CopySource.serializeCopyableDataset(state, metadata);
@@ -215,8 +223,9 @@ public class FileAwareInputStreamDataWriterTest {
         "Expected encryption name to be appended to destination");
     byte[] encryptedContent = IOUtils.toByteArray(new FileInputStream(writtenFilePath.toString()));
     byte[] decryptedContent = new byte[streamString.length];
-    IOUtils.readFully(GPGFileDecryptor.decryptFile(new FileInputStream(writtenFilePath.toString()), "testPassword"),
-        decryptedContent);
+    IOUtils.readFully(GPGFileDecryptor.decryptFile(new FileInputStream(writtenFilePath.toString()),
+        GPGFileEncryptor.class.getResourceAsStream(GPGFileEncryptorTest.PRIVATE_KEY),
+        GPGFileEncryptorTest.PASSPHRASE), decryptedContent);
 
 
     // encrypted string should not be the same as the plaintext
