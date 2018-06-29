@@ -38,6 +38,11 @@ public class NoopTask extends BaseAbstractTask {
     return workUnit;
   }
 
+  @Override
+  public boolean isSpeculativeExecutionSafe() {
+    return true;
+  }
+
   /**
    * The factory for a {@link NoopTask}.
    */
@@ -56,5 +61,4 @@ public class NoopTask extends BaseAbstractTask {
   private NoopTask(TaskContext taskContext) {
     super(taskContext);
   }
-
 }
