@@ -32,6 +32,8 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.template_catalog.FlowCatalogWithTemplates;
+import org.apache.gobblin.util.ConfigUtils;
+
 
 /**
  * A {@link FlowTemplate} that loads a HOCON file as a {@link StaticFlowTemplate}.
@@ -39,7 +41,7 @@ import org.apache.gobblin.service.modules.template_catalog.FlowCatalogWithTempla
 @Alpha
 public class HOCONInputStreamFlowTemplate extends StaticFlowTemplate {
   public static final String VERSION_KEY = "gobblin.flow.template.version";
-  public static final String DEFAULT_VERSION = "1";
+  private static final String DEFAULT_VERSION = "1";
 
   public HOCONInputStreamFlowTemplate(InputStream inputStream, URI uri, FlowCatalogWithTemplates catalog)
       throws SpecNotFoundException, IOException, ReflectiveOperationException, JobTemplate.TemplateException {
@@ -49,7 +51,7 @@ public class HOCONInputStreamFlowTemplate extends StaticFlowTemplate {
 
   public HOCONInputStreamFlowTemplate(Config config, URI uri, FlowCatalogWithTemplates catalog)
       throws SpecNotFoundException, IOException, ReflectiveOperationException, JobTemplate.TemplateException {
-    super(uri, config.hasPath(VERSION_KEY) ? config.getString(VERSION_KEY) : DEFAULT_VERSION,
+    super(uri, ConfigUtils.getString(config, VERSION_KEY, DEFAULT_VERSION),
         config.hasPath(ConfigurationKeys.FLOW_DESCRIPTION_KEY) ? config
             .getString(ConfigurationKeys.FLOW_DESCRIPTION_KEY) : "", config, catalog);
   }
