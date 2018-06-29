@@ -251,8 +251,12 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           log.info(String.format("Actions for dataset %s file set %s.", entry.getKey().getDataset().datasetURN(),
               entry.getKey().getName()));
           for (WorkUnit workUnit : entry.getValue()) {
-            CopyEntity copyEntity = deserializeCopyEntity(workUnit);
-            log.info(copyEntity.explain());
+            try {
+              CopyEntity copyEntity = deserializeCopyEntity(workUnit);
+              log.info(copyEntity.explain());
+            } catch (Exception e) {
+              log.info("Cannot deserialize CopyEntity from wu : {}", workUnit.toString());
+            }
           }
         }
         return Lists.newArrayList();
