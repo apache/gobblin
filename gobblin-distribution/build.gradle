@@ -74,7 +74,8 @@ task buildDistributionTar(type: Tar, overwrite: true) {
       into project.rootDir.path
 
       archiveName = "${baseName}-${project.version}.tar.gz"
-      ant.checksum file:"$buildDir.path/distributions/$archiveName", algorithm: "MD5", fileext: ".md5"
+      // Disable md5, since Apache release policy has changed
+      // ant.checksum file:"$buildDir.path/distributions/$archiveName", algorithm: "MD5", fileext: ".md5"
       ant.checksum file:"$buildDir.path/distributions/$archiveName", algorithm: "SHA-512", fileext: ".sha512"
     }
   }

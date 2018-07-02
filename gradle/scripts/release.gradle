@@ -124,7 +124,8 @@ task sourceRelease(type: Tar, dependsOn: prepare_release_config) {
 
     archiveName = "${baseName}.tgz"
     doLast {
-        ant.checksum file:"$destinationDir/$archiveName", algorithm: "MD5", fileext: ".md5"
+        // Disable md5, since Apache release policy has changed
+        // ant.checksum file:"$destinationDir/$archiveName", algorithm: "MD5", fileext: ".md5"
         ant.checksum file:"$destinationDir/$archiveName", algorithm: "SHA-512", fileext: ".sha512"
     }
 }
