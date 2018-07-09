@@ -94,7 +94,7 @@ public class GPGFileEncryptor {
   /**
    * Taking in an input {@link OutputStream}, keyring inputstream and a passPhrase, generate an encrypted {@link OutputStream}.
    * @param outputStream {@link OutputStream} that will receive the encrypted content
-   * @param keyIn keyring inputstream
+   * @param keyIn keyring inputstream. This InputStream is owned by the caller.
    * @param keyId key identifier
    * @param cipher the symmetric cipher to use for encryption. If null or empty then a default cipher is used.
    * @return an {@link OutputStream} to write content to for encryption
