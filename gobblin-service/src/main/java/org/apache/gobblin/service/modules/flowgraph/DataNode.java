@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.flowgraph;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
 
 
 /**
@@ -37,7 +36,17 @@ public interface DataNode {
    * @return the attributes of a {@link DataNode}. It also includes properties for resolving a {@link org.apache.gobblin.runtime.api.JobTemplate}
    * e.g. "source.fs.uri" for an HDFS node, "jdbc.publisher.url" for JDBC node.
    */
-  Config getProps();
+  Config getRawConfig();
+
+  /**
+   * @return the attributes of a {@link DataNode} as a source of a {@link FlowEdge}.
+   */
+  Config getSrcConfig();
+
+  /**
+   * @return the attributes of a {@link DataNode} as a destination of a {@link FlowEdge}.
+   */
+  Config getDestConfig();
 
   /**
    * @return true if the {@link DataNode} is active

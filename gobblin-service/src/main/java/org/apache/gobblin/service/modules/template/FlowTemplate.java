@@ -20,16 +20,16 @@ package org.apache.gobblin.service.modules.template;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigResolveOptions;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
 
 /**
  * An interface primarily for representing a flow of {@link JobTemplate}s. It also has
@@ -45,18 +45,32 @@ public interface FlowTemplate extends Spec {
 
   /**
    *
-   * @return the {@link Dag<JobTemplate>} that backs the {@link FlowTemplate}.
-   */
-  Dag<JobTemplate> getDag() throws IOException;
-
-  /**
-   *
    * @return all configuration inside pre-written template.
    */
   Config getRawTemplateConfig();
 
   /**
+   * Return the combine configuration of template and user customized attributes.
+   * @return a list of resolved {@link JobTemplate}s.
+   */
+  List<Config> getResolvedJobTemplates(Config userConfig) throws SpecNotFoundException, JobTemplate.TemplateException;
+
+  /**
+   * Checks if the {@link FlowTemplate} is resolvable using the provided {@link Config} object. A {@link FlowTemplate}
+   * is resolvable only if each of the {@link JobTemplate}s in the flow is resolvable
+   * @param userConfig User supplied Config
+   * @return true if the {@link FlowTemplate} is resolvable
+   */
+  boolean isResolvable(Config userConfig) throws SpecNotFoundException, JobTemplate.TemplateException;
+
+  List<Pair<DatasetDescriptor, DatasetDescriptor>> getInputOutputDatasetDescriptors(Config userConfig,
+      ConfigResolveOptions options)
+      throws IOException, ReflectiveOperationException;
+
+  /**
+   * @param userConfig a list of user customized attributes.
    * @return list of input/output {@link DatasetDescriptor}s for the {@link FlowTemplate}.
    */
-  List<Pair<DatasetDescriptor, DatasetDescriptor>> getInputOutputDatasetDescriptors();
+  List<Pair<DatasetDescriptor, DatasetDescriptor>> getInputOutputDatasetDescriptors(Config userConfig)
+      throws IOException, ReflectiveOperationException;
 }

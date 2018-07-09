@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service.modules.dataset;
 
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.annotation.Alpha;
 
 
@@ -31,6 +33,28 @@ public interface DatasetDescriptor {
   public String getPlatform();
 
   /**
+   *
+   * @return dataset path. Path could be a directory when backed by a FileSystem or an FQDN a JDBC table etc.
+   */
+  public String getPath();
+
+  /**
+   *
+   * @return storage format of the dataset. E.g. avro, json, csv.
+   */
+  public String getFormat();
+
+  /**
+   * @return codec type i.e. bzip2, snappy, gzip, none, deflate
+   */
+  public String getCodecType();
+
+  /**
+   * @return encryption properties of the dataset if any as a {@link Config} object.
+   */
+  public EncryptionConfig getEncryptionConfig();
+
+  /**
    * @return a human-readable description of the dataset.
    */
   public String getDescription();
@@ -41,4 +65,15 @@ public interface DatasetDescriptor {
    * This check is non-commutative.
    */
   public boolean isCompatibleWith(DatasetDescriptor other);
+
+  /**
+   * @return true if the platform-independent properties of this {@link DatasetDescriptor} are compatible with the
+   * platform-independent properties of the other {@link DatasetDescriptor}.
+   */
+  public boolean isPropertyCompatibleWith(DatasetDescriptor other);
+
+  /**
+   * @return the raw config.
+   */
+  public Config getRawConfig();
 }

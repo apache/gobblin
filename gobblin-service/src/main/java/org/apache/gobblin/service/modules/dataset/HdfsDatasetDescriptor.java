@@ -17,24 +17,68 @@
 
 package org.apache.gobblin.service.modules.dataset;
 
-import org.apache.gobblin.annotation.Alpha;
+import com.typesafe.config.Config;
+
+import lombok.Getter;
 
 
-/**
- * A descriptor interface for HDFS datasets
- */
-@Alpha
-public interface HdfsDatasetDescriptor extends DatasetDescriptor {
+public class HdfsDatasetDescriptor extends BaseFsDatasetDescriptor {
+  @Getter
+  private final String platform;
+
+  public HdfsDatasetDescriptor(Config config) {
+    super(config);
+    this.platform = "hdfs";
+  }
+
+  /**
+   * A {@link HdfsDatasetDescriptor} is compatible with another {@link DatasetDescriptor} iff they have identical
+   * platform, type, path, and format.
+   * TODO: Currently isCompatibleWith() only checks if HDFS paths described by the two {@link DatasetDescriptor}s
+   * being compared are identical. Need to enhance this for the case of where paths can contain glob patterns.
+   * e.g. paths described by the pattern /data/input/* are a subset of paths described by /data/* and hence, the
+   * two descriptors should be compatible.
+   * @return true if this {@link HdfsDatasetDescriptor} is compatibe with another {@link DatasetDescriptor}.
+   */
+  @Override
+  public boolean isCompatibleWith(DatasetDescriptor o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof HdfsDatasetDescriptor)) {
+      return false;
+    }
+    HdfsDatasetDescriptor other = (HdfsDatasetDescriptor) o;
+    if (this.getPlatform() == null || other.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(other.getPlatform())) {
+      return false;
+    }
+    return isPropertyCompatibleWith(other) && isPathCompatible(other.getPath());
+  }
+
   /**
    *
-   * @return dataset path.
+   * @param o
+   * @return true iff  "this" dataset descriptor is compatible with the "other" and the "other" dataset descriptor is
+   * compatible with this dataset descriptor.
    */
-  public String getPath();
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof HdfsDatasetDescriptor)) {
+      return false;
+    }
+    HdfsDatasetDescriptor other = (HdfsDatasetDescriptor) o;
+    if (this.getPlatform() == null || other.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(other.getPlatform())) {
+      return false;
+    }
+    return this.getPath().equals(other.getPath()) && this.getFormat().equalsIgnoreCase(other.getFormat())
+        && this.getCodecType().equalsIgnoreCase(other.getCodecType()) && this.getEncryptionConfig().equals(other.getEncryptionConfig());
+  }
 
-  /**
-   *
-   * @return storage format of the dataset.
-   */
-  public String getFormat();
-
+  @Override
+  public int hashCode() {
+    return this.toString().hashCode();
+  }
 }

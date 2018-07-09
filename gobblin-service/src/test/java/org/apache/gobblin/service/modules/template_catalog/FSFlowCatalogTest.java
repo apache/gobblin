@@ -25,7 +25,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.runtime.api.JobTemplate;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -36,6 +35,7 @@ import org.apache.gobblin.service.modules.dataset.HdfsDatasetDescriptor;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
 import org.testng.collections.Lists;
 
@@ -43,9 +43,8 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class FSFlowCatalogTest {
-  private static final String TEST_TEMPLATE_NAME = "test-template";
-  private static final String TEST_FLOW_CONF_FILE_NAME="flow.conf";
-  private static final String TEST_TEMPLATE_URI = "FS:///" + TEST_TEMPLATE_NAME + "/" + TEST_FLOW_CONF_FILE_NAME;
+  private static final String TEST_TEMPLATE_NAME = "flowEdgeTemplate";
+  private static final String TEST_TEMPLATE_DIR_URI = "FS:///" + TEST_TEMPLATE_NAME;
 
   @Test
   public void testGetFlowTemplate() throws Exception {
@@ -58,37 +57,27 @@ public class FSFlowCatalogTest {
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
     FSFlowCatalog catalog = new FSFlowCatalog(templateCatalogCfg);
-    FlowTemplate flowTemplate = catalog.getFlowTemplate(new URI(TEST_TEMPLATE_URI));
+    FlowTemplate flowTemplate = catalog.getFlowTemplate(new URI(TEST_TEMPLATE_DIR_URI));
 
     //Basic sanity check for the FlowTemplate
-    Dag<JobTemplate> jobTemplateDag = flowTemplate.getDag();
-    List<Dag.DagNode<JobTemplate>> dagNodes = jobTemplateDag.getNodes();
-    Assert.assertTrue(dagNodes.size() == 4);
-    Assert.assertEquals(jobTemplateDag.getStartNodes().size(), 1);
-    Assert.assertEquals(jobTemplateDag.getEndNodes().size(), 1);
-    Dag.DagNode<JobTemplate> dagNode = jobTemplateDag.getStartNodes().get(0);
-    URI startNodeUri = this.getClass().getClassLoader().getResource("template_catalog/test-template/jobs/job1.conf").toURI();
-    URI endNodeUri = this.getClass().getClassLoader().getResource("template_catalog/test-template/jobs/job4.conf").toURI();
-    Assert.assertEquals(jobTemplateDag.getStartNodes().get(0).getValue().getUri(), startNodeUri);
-    Assert.assertEquals(jobTemplateDag.getEndNodes().get(0).getValue().getUri(), endNodeUri);
 
     List<JobTemplate> jobTemplates = flowTemplate.getJobTemplates();
     Assert.assertEquals(jobTemplates.size(), 4);
-    for(int i=0; i<4; i++) {
+    for (int i = 0; i < 4; i++) {
       String uri = new Path(jobTemplates.get(i).getUri()).getName().split("\\.")[0];
       String templateId = uri.substring(uri.length() - 1);
-      for(int j=0; j<2; j++) {
+      for (int j = 0; j < 2; j++) {
         Config jobTemplateConfig = jobTemplates.get(i).getRawTemplateConfig();
-        String suffix = templateId + Integer.toString(j+1);
+        String suffix = templateId + Integer.toString(j + 1);
         Assert.assertEquals(jobTemplateConfig.getString("key" + suffix), "val" + suffix);
       }
     }
 
-    List<Pair<DatasetDescriptor, DatasetDescriptor>> inputOutputDescriptors = flowTemplate.getInputOutputDatasetDescriptors();
+    List<Pair<DatasetDescriptor, DatasetDescriptor>> inputOutputDescriptors = flowTemplate.getInputOutputDatasetDescriptors(ConfigFactory.empty());
     Assert.assertTrue(inputOutputDescriptors.size() == 2);
     List<String> dirs = Lists.newArrayList("inbound", "outbound");
-    for(int i=0; i<2; i++) {
-      for (int j=0; j<2; j++) {
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 2; j++) {
         HdfsDatasetDescriptor datasetDescriptor;
         if (j == 0) {
           datasetDescriptor = (HdfsDatasetDescriptor) inputOutputDescriptors.get(i).getLeft();
@@ -97,11 +86,13 @@ public class FSFlowCatalogTest {
         }
         Assert.assertEquals(datasetDescriptor.getPlatform(), "hdfs");
         Assert.assertEquals(datasetDescriptor.getFormat(), "avro");
-        Assert.assertEquals(datasetDescriptor.getPath(), "/data/" + dirs.get(i) + "/<TEAM_NAME>/<DATASET_NAME>");
+        Assert.assertEquals(datasetDescriptor.getPath(), "/data/" + dirs.get(i) + "/test-team/test-dataset");
       }
     }
     Config flowTemplateConfig = flowTemplate.getRawTemplateConfig();
-    Assert.assertEquals(flowTemplateConfig.getString("gobblin.flow.dataset.descriptor.input.0.class"), "org.apache.gobblin.service.modules.dataset.BaseHdfsDatasetDescriptor");
-    Assert.assertEquals(flowTemplateConfig.getString("gobblin.flow.dataset.descriptor.output.0.class"), "org.apache.gobblin.service.modules.dataset.BaseHdfsDatasetDescriptor");
+    Assert.assertEquals(flowTemplateConfig.getString(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX + ".0."
+        + DatasetDescriptorConfigKeys.CLASS_KEY), HdfsDatasetDescriptor.class.getCanonicalName());
+    Assert.assertEquals(flowTemplateConfig.getString(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX
+        + ".0." + DatasetDescriptorConfigKeys.CLASS_KEY), HdfsDatasetDescriptor.class.getCanonicalName());
   }
 }

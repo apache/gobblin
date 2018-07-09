@@ -19,25 +19,29 @@ package org.apache.gobblin.service.modules.template;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
-
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
+import com.typesafe.config.ConfigResolveOptions;
+
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.template_catalog.FlowCatalogWithTemplates;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.hadoop.fs.Path;
-
-import lombok.Getter;
 
 
 /**
@@ -46,10 +50,6 @@ import lombok.Getter;
 @Alpha
 public class StaticFlowTemplate implements FlowTemplate {
   private static final long serialVersionUID = 84641624233978L;
-
-  public static final String INPUT_DATASET_DESCRIPTOR_PREFIX = "gobblin.flow.dataset.descriptor.input";
-  public static final String OUTPUT_DATASET_DESCRIPTOR_PREFIX = "gobblin.flow.dataset.descriptor.output";
-  public static final String DATASET_DESCRIPTOR_CLASS_KEY = "class";
 
   @Getter
   private URI uri;
@@ -67,25 +67,21 @@ public class StaticFlowTemplate implements FlowTemplate {
   private transient Dag<JobTemplate> dag;
 
   private transient Config rawConfig;
-  private boolean isTemplateMaterialized;
 
-  public StaticFlowTemplate(URI uri, String version, String description, Config config,
+  public StaticFlowTemplate(URI flowTemplateDirUri, String version, String description, Config config,
       FlowCatalogWithTemplates catalog)
-      throws IOException, ReflectiveOperationException, SpecNotFoundException, JobTemplate.TemplateException {
-    this.uri = uri;
+      throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
+    this.uri = flowTemplateDirUri;
     this.version = version;
     this.description = description;
-    this.inputOutputDatasetDescriptors = buildInputOutputDescriptors(config);
     this.rawConfig = config;
     this.catalog = catalog;
-    URI flowTemplateDir = new Path(this.uri).getParent().toUri();
-    this.jobTemplates = this.catalog.getJobTemplatesForFlow(flowTemplateDir);
+    this.jobTemplates = this.catalog.getJobTemplatesForFlow(flowTemplateDirUri);
   }
 
   //Constructor for testing purposes
   public StaticFlowTemplate(URI uri, String version, String description, Config config,
-      FlowCatalogWithTemplates catalog, List<Pair<DatasetDescriptor, DatasetDescriptor>> inputOutputDatasetDescriptors, List<JobTemplate> jobTemplates)
-      throws IOException, ReflectiveOperationException, SpecNotFoundException, JobTemplate.TemplateException {
+      FlowCatalogWithTemplates catalog, List<Pair<DatasetDescriptor, DatasetDescriptor>> inputOutputDatasetDescriptors, List<JobTemplate> jobTemplates) {
     this.uri = uri;
     this.version = version;
     this.description = description;
@@ -97,32 +93,37 @@ public class StaticFlowTemplate implements FlowTemplate {
 
   /**
    * Generate the input/output dataset descriptors for the {@link FlowTemplate}.
+   * @param userConfig
+   * @param options Config resolve options.
+   * @return a List of Input/Output DatasetDescriptors associated with this {@link org.apache.gobblin.service.modules.flowgraph.FlowEdge}.
    */
-  private List<Pair<DatasetDescriptor, DatasetDescriptor>> buildInputOutputDescriptors(Config config)
+  private List<Pair<DatasetDescriptor, DatasetDescriptor>> buildInputOutputDescriptors(Config userConfig, ConfigResolveOptions options)
       throws IOException, ReflectiveOperationException {
-    if (!config.hasPath(INPUT_DATASET_DESCRIPTOR_PREFIX) || !config.hasPath(OUTPUT_DATASET_DESCRIPTOR_PREFIX)) {
+    Config config = this.getResolvedFlowConfig(userConfig).resolve(options);
+
+    if (!config.hasPath(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX)
+        || !config.hasPath(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX)) {
       throw new IOException("Flow template must specify at least one input/output dataset descriptor");
     }
     int i = 0;
-    String inputPrefix = Joiner.on(".").join(INPUT_DATASET_DESCRIPTOR_PREFIX, Integer.toString(i));
+    String inputPrefix = Joiner.on(".").join(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX, Integer.toString(i));
     List<Pair<DatasetDescriptor, DatasetDescriptor>> result = Lists.newArrayList();
     while (config.hasPath(inputPrefix)) {
       Config inputDescriptorConfig = config.getConfig(inputPrefix);
       DatasetDescriptor inputDescriptor = getDatasetDescriptor(inputDescriptorConfig);
-      String outputPrefix = Joiner.on(".").join(OUTPUT_DATASET_DESCRIPTOR_PREFIX, Integer.toString(i++));
+      String outputPrefix = Joiner.on(".").join(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX, Integer.toString(i++));
       Config outputDescriptorConfig = config.getConfig(outputPrefix);
       DatasetDescriptor outputDescriptor = getDatasetDescriptor(outputDescriptorConfig);
       result.add(ImmutablePair.of(inputDescriptor, outputDescriptor));
-      inputPrefix = Joiner.on(".").join(INPUT_DATASET_DESCRIPTOR_PREFIX, Integer.toString(i));
+      inputPrefix = Joiner.on(".").join(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX, Integer.toString(i));
     }
     return result;
   }
 
   private DatasetDescriptor getDatasetDescriptor(Config descriptorConfig)
       throws ReflectiveOperationException {
-    Class datasetDescriptorClass = Class.forName(descriptorConfig.getString(DATASET_DESCRIPTOR_CLASS_KEY));
-    return (DatasetDescriptor) GobblinConstructorUtils
-        .invokeLongestConstructor(datasetDescriptorClass, descriptorConfig);
+    Class datasetDescriptorClass = Class.forName(descriptorConfig.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
+    return (DatasetDescriptor) GobblinConstructorUtils.invokeLongestConstructor(datasetDescriptorClass, descriptorConfig);
   }
 
   @Override
@@ -130,27 +131,66 @@ public class StaticFlowTemplate implements FlowTemplate {
     return this.rawConfig;
   }
 
-  private void ensureTemplateMaterialized()
-      throws IOException {
-    try {
-      if (!isTemplateMaterialized) {
-        this.dag = JobTemplateDagFactory.createDagFromJobTemplates(this.jobTemplates);
-      }
-      this.isTemplateMaterialized = true;
-    } catch (Exception e) {
-      throw new IOException(e);
-    }
-  }
-
   @Override
   public List<JobTemplate> getJobTemplates() {
     return this.jobTemplates;
   }
 
+  private Config getResolvedFlowConfig(Config userConfig) {
+    return userConfig.withFallback(this.rawConfig);
+  }
+
   @Override
-  public Dag<JobTemplate> getDag()
-      throws IOException {
-    ensureTemplateMaterialized();
-    return this.dag;
+  public List<Config> getResolvedJobTemplates(Config userConfig) throws SpecNotFoundException, JobTemplate.TemplateException {
+    List<Config> resolvedJobTemplates = new ArrayList<>();
+    for (JobTemplate jobTemplate: this.jobTemplates) {
+      resolvedJobTemplates.add(userConfig.withFallback(jobTemplate.getRawTemplateConfig()));
+    }
+    return resolvedJobTemplates;
+  }
+
+  /**
+   * Checks if the {@link FlowTemplate} is resolvable using the provided {@link Config} object. A {@link FlowTemplate}
+   * is resolvable only if each of the {@link JobTemplate}s in the flow is resolvable
+   * @param userConfig User supplied Config
+   * @return true if the {@link FlowTemplate} is resolvable
+   */
+  @Override
+  public boolean isResolvable(Config userConfig) throws SpecNotFoundException, JobTemplate.TemplateException {
+    ConfigResolveOptions resolveOptions = ConfigResolveOptions.defaults().setAllowUnresolved(true);
+    if (!userConfig.withFallback(this.rawConfig).resolve(resolveOptions).isResolved()) {
+      return false;
+    }
+
+    for (JobTemplate template: this.jobTemplates) {
+      Config tmpConfig = template.getResolvedConfig(userConfig).resolve(resolveOptions);
+      if (!template.getResolvedConfig(userConfig).resolve(resolveOptions).isResolved()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * @param userConfig a list of user customized attributes.
+   * @return list of input/output {@link DatasetDescriptor}s for the {@link FlowTemplate}.
+   */
+  @Override
+  public List<Pair<DatasetDescriptor, DatasetDescriptor>> getInputOutputDatasetDescriptors(Config userConfig, ConfigResolveOptions options)
+      throws IOException, ReflectiveOperationException {
+      if (this.inputOutputDatasetDescriptors == null) {
+        this.inputOutputDatasetDescriptors = buildInputOutputDescriptors(userConfig, options);
+      }
+      return this.inputOutputDatasetDescriptors;
+  }
+
+  /**
+   * @param userConfig a list of user customized attributes.
+   * @return list of input/output {@link DatasetDescriptor}s for the {@link FlowTemplate}.
+   */
+  @Override
+  public List<Pair<DatasetDescriptor, DatasetDescriptor>> getInputOutputDatasetDescriptors(Config userConfig)
+      throws IOException, ReflectiveOperationException {
+    return getInputOutputDatasetDescriptors(userConfig, ConfigResolveOptions.defaults());
   }
 }

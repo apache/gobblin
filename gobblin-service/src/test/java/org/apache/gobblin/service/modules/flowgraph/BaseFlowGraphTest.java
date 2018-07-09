@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -33,8 +32,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import org.apache.gobblin.runtime.api.JobTemplate;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
 import org.apache.gobblin.service.modules.template.StaticFlowTemplate;
 import org.apache.gobblin.util.ConfigUtils;
@@ -57,9 +54,7 @@ public class BaseFlowGraphTest {
 
   BaseFlowGraph graph;
   @BeforeClass
-  public void setUp()
-      throws URISyntaxException, ReflectiveOperationException, JobTemplate.TemplateException, SpecNotFoundException,
-             IOException, DataNode.DataNodeCreationException {
+  public void setUp() throws URISyntaxException, DataNode.DataNodeCreationException {
     Properties properties = new Properties();
     properties.put("key1", "val1");
     Config node1Config = ConfigUtils.propertiesToConfig(properties).withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY,
