@@ -59,6 +59,7 @@ dependencies {
 
   testRuntime project(":gobblin-modules:gobblin-crypto-provider") // for GPG
   testCompile project(":gobblin-modules:gobblin-crypto") // for GPG
+  testCompile project(path: ":gobblin-modules:gobblin-crypto", configuration: "tests")
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
