@@ -282,7 +282,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    * Submit a job to run.
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
-    HelixUtils.submitJobToQueue(jobConfigBuilder, this.helixQueueName, this.jobContext.getJobId(),
+    HelixUtils.submitJobToWorkFlow(jobConfigBuilder, this.helixQueueName, this.jobContext.getJobId(),
         this.helixTaskDriver, this.helixManager, this.jobQueueDeleteTimeoutSeconds);
   }
 

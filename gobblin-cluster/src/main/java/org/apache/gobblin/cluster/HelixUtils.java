@@ -18,16 +18,17 @@
 package org.apache.gobblin.cluster;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.helix.HelixManager;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.task.JobConfig;
-import org.apache.helix.task.JobQueue;
 import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskUtil;
+import org.apache.helix.task.Workflow;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
 import org.apache.helix.tools.ClusterSetup;
@@ -89,6 +90,8 @@ public class HelixUtils {
     return namePrefix + "_" + instanceId;
   }
 
+  // We have switched from Helix JobQueue to WorkFlow based job execution.
+  @Deprecated
   public static void submitJobToQueue(
       JobConfig.Builder jobConfigBuilder,
       String queueName,
@@ -96,7 +99,15 @@ public class HelixUtils {
       TaskDriver helixTaskDriver,
       HelixManager helixManager,
       long jobQueueDeleteTimeoutSeconds) throws Exception {
+    submitJobToWorkFlow(jobConfigBuilder, queueName, jobName, helixTaskDriver, helixManager, jobQueueDeleteTimeoutSeconds);
+  }
 
+  public static void submitJobToWorkFlow(JobConfig.Builder jobConfigBuilder,
+      String queueName,
+      String jobName,
+      TaskDriver helixTaskDriver,
+      HelixManager helixManager,
+      long jobQueueDeleteTimeoutSeconds) throws Exception {
     WorkflowConfig workflowConfig = helixTaskDriver.getWorkflowConfig(helixManager, queueName);
 
     log.info("[DELETE] workflow {} in the beginning", queueName);
@@ -107,17 +118,16 @@ public class HelixUtils {
       workflowConfig = null;
     }
 
-    // Create one queue for each job with the job name being the queue name
+    // Create a work flow for each job with the name being the queue name
     if (workflowConfig == null) {
-      JobQueue jobQueue = new JobQueue.Builder(queueName).build();
-      helixTaskDriver.createQueue(jobQueue);
-      log.info("Created job queue {}", queueName);
+      // Create a workflow and add the job
+      Workflow workflow = new Workflow.Builder(queueName).addJob(jobName, jobConfigBuilder).build();
+      // start the workflow
+      helixTaskDriver.start(workflow);
+      log.info("Created a work flow {}", queueName);
     } else {
-      log.info("Job queue {} already exists", queueName);
+      log.info("Work flow {} already exists", queueName);
     }
-
-    // Put the job into the queue
-    helixTaskDriver.enqueueJob(queueName, jobName, jobConfigBuilder);
   }
 
   public static void waitJobCompletion(
