@@ -62,6 +62,7 @@ import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -403,6 +404,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     @Override
     public void run() {
+      boolean isDeleted = false;
       try {
         ((MetricsTrackingListener)jobListener).metrics.updateTimeBeforeJobLaunching(this.jobConfig);
         ((MetricsTrackingListener)jobListener).metrics.updateTimeBetweenJobSchedulingAndJobLaunching(this.creationTimeInMillis, System.currentTimeMillis());
@@ -412,11 +414,21 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         if (GobblinHelixJobScheduler.this.jobCatalog != null) {
           try {
             GobblinHelixJobScheduler.this.jobCatalog.remove(new URI(jobUri));
+            isDeleted = true;
           } catch (URISyntaxException e) {
             LOGGER.error("Failed to remove job with bad uri " + jobUri, e);
           }
         }
       } catch (JobException je) {
+        boolean alwaysDelete = PropertiesUtils
+            .getPropAsBoolean(this.jobConfig, GobblinClusterConfigurationKeys.JOB_ALWAYS_DELETE, "false");
+        if (alwaysDelete && !isDeleted) {
+          try {
+            GobblinHelixJobScheduler.this.jobCatalog.remove(new URI(jobUri));
+          } catch (URISyntaxException e) {
+            LOGGER.error("Always delete " + jobUri + ". Failed to remove job with bad uri " + jobUri, e);
+          }
+        }
         LOGGER.error("Failed to run job " + this.jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
       }
     }
