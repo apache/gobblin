@@ -231,7 +231,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
           timeoutEnabled? Optional.of(timeoutInSeconds) : Optional.empty());
       return getResultFromUserContent();
     } catch (TimeoutException te) {
-      HelixUtils.helixTaskDriverWaitToStop(helixManager, helixTaskDriver, planningName, 10L);
+      helixTaskDriver.waitToStop(planningName, 10L);
       this.helixTaskDriver.delete(planningName);
       this.helixTaskDriver.resume(planningName);
       log.info("stopped the queue, deleted the job");

@@ -368,7 +368,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
           this.jobContext.getJobId(),
           timeoutEnabled? Optional.of(timeoutInSeconds) : Optional.empty());
     } catch (TimeoutException te) {
-      HelixUtils.helixTaskDriverWaitToStop(helixManager, helixTaskDriver, helixQueueName, 10L);
+      helixTaskDriver.waitToStop(helixQueueName, 10L);
       try {
         cancelJob(this.jobListener);
       } catch (JobException e) {
