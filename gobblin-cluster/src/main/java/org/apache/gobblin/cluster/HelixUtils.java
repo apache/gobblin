@@ -89,6 +89,16 @@ public class HelixUtils {
     return namePrefix + "_" + instanceId;
   }
 
+  /**
+   * Get a Helix TaskDriver.
+   * @param manager helix manager
+   * @return a helix TaskDriver
+   */
+  public static TaskDriver getHelixTaskDriver(HelixManager manager) {
+    return new TaskDriver(manager.getClusterManagmentTool(), manager.getHelixDataAccessor(),
+        manager.getHelixPropertyStore(), manager.getClusterName());
+  }
+
   public static void submitJobToQueue(
       JobConfig.Builder jobConfigBuilder,
       String queueName,
@@ -101,8 +111,7 @@ public class HelixUtils {
 
     // If the queue is present, but in delete state then wait for cleanup before recreating the queue
     if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
-      GobblinHelixTaskDriver gobblinHelixTaskDriver = new GobblinHelixTaskDriver(helixManager);
-      gobblinHelixTaskDriver.deleteWorkflow(queueName, jobQueueDeleteTimeoutSeconds);
+      HelixUtils.getHelixTaskDriver(helixManager).deleteAndWaitForCompletion(queueName, jobQueueDeleteTimeoutSeconds);
       // if we get here then the workflow was successfully deleted
       workflowConfig = null;
     }
@@ -146,27 +155,5 @@ public class HelixUtils {
     }
 
     throw new TimeoutException("task driver wait time [" + timeoutInSeconds + " sec] is expired.");
-  }
-
-  /**
-   * Because fix https://github.com/apache/helix/commit/ae8e8e2ef37f48d782fc12f85ca97728cf2b70c4
-   * is not available in currently used version 0.6.9
-   */
-  public static void helixTaskDriverWaitToStop(
-      HelixManager helixManager,
-      TaskDriver helixTaskDriver,
-      String queueName,
-      long timeoutInSeconds) throws InterruptedException {
-    helixTaskDriver.stop(queueName);
-    long endTime = System.currentTimeMillis() + timeoutInSeconds*1000;
-    while (System.currentTimeMillis() <= endTime) {
-      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, queueName);
-      if (workflowContext == null || workflowContext.getWorkflowState()
-          .equals(org.apache.helix.task.TaskState.IN_PROGRESS)) {
-        Thread.sleep(1000);
-      } else {
-        log.info("Successfully stopped the queue");
-      }
-    }
   }
 }
