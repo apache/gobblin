@@ -89,16 +89,6 @@ public class HelixUtils {
     return namePrefix + "_" + instanceId;
   }
 
-  /**
-   * Get a Helix TaskDriver.
-   * @param manager helix manager
-   * @return a helix TaskDriver
-   */
-  public static TaskDriver getHelixTaskDriver(HelixManager manager) {
-    return new TaskDriver(manager.getClusterManagmentTool(), manager.getHelixDataAccessor(),
-        manager.getHelixPropertyStore(), manager.getClusterName());
-  }
-
   public static void submitJobToQueue(
       JobConfig.Builder jobConfigBuilder,
       String queueName,
@@ -111,7 +101,7 @@ public class HelixUtils {
 
     // If the queue is present, but in delete state then wait for cleanup before recreating the queue
     if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
-      HelixUtils.getHelixTaskDriver(helixManager).deleteAndWaitForCompletion(queueName, jobQueueDeleteTimeoutSeconds);
+      new TaskDriver(helixManager).deleteAndWaitForCompletion(queueName, jobQueueDeleteTimeoutSeconds);
       // if we get here then the workflow was successfully deleted
       workflowConfig = null;
     }
