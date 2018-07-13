@@ -23,6 +23,8 @@ import java.util.concurrent.Callable;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 
+import com.google.common.io.Closer;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -38,7 +40,31 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
- * A {@link Callable} that runs {@link JobLauncher} multiple times iff re-triggering is enabled and job stops early.
+ * A {@link Callable} that can run a given job multiple times iff:
+ *  1) Re-triggering is enabled and
+ *  2) Job stops early.
+ *
+ * Moreover based on the job properties, a job can be processed immediately (non-distributed) or forwarded to a remote
+ * node (distributed) for handling. Details are illustrated as follows:
+ *
+ * <p>
+ *   If {@link GobblinClusterConfigurationKeys#DISTRIBUTED_JOB_LAUNCHER_ENABLED} is false, the job will be handled
+ *   by {@link HelixRetriggeringJobCallable#launchJobLauncherLoop()}, which simply submits the job to Helix for execution.
+ *
+ *   See {@link GobblinHelixJobLauncher} for job launcher details.
+ * </p>
+ *
+ * <p>
+ *   If {@link GobblinClusterConfigurationKeys#DISTRIBUTED_JOB_LAUNCHER_ENABLED} is true, the job will be handled
+ *   by {@link HelixRetriggeringJobCallable#launchJobExecutionLauncherLoop()}}. It will first create a planning job with
+ *   {@link GobblinTaskRunner#GOBBLIN_JOB_FACTORY_NAME} pre-configured, so that Helix can forward this planning job to
+ *   any nodes that has implemented the Helix task factory model matching the same name. See {@link TaskRunnerSuiteThreadModel}
+ *   implementation of how task factory model is setup.
+ *
+ *   Once the planning job reaches to the remote end, it will be handled by {@link GobblinHelixJobTask} which is
+ *   created by {@link GobblinHelixJobTask}. The actual handling is similar to the non-distributed mode, where
+ *   {@link GobblinHelixJobLauncher} is invoked.
+ * </p>
  */
 @Slf4j
 @Alpha
@@ -123,16 +149,22 @@ class HelixRetriggeringJobCallable implements Callable {
         builder.setManager(this.helixManager);
         builder.setAppWorkDir(this.appWorkDir);
 
-        this.currentJobMonitor = builder.build().launchJob(null);
-        ExecutionResult result = this.currentJobMonitor.get();
-        boolean isEarlyStopped = ((GobblinHelixDistributeJobExecutionLauncher.DistributeJobResult) result).isEarlyStopped();
-        boolean isRetriggerEnabled = this.isRetriggeringEnabled();
-        if (isEarlyStopped && isRetriggerEnabled) {
-          log.info("DistributeJob {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
-        } else {
-          break;
+        try (Closer closer = Closer.create()) {
+          GobblinHelixDistributeJobExecutionLauncher launcher = builder.build();
+          closer.register(launcher);
+          this.currentJobMonitor = launcher.launchJob(null);
+          ExecutionResult result = this.currentJobMonitor.get();
+          boolean isEarlyStopped = ((GobblinHelixDistributeJobExecutionLauncher.DistributeJobResult) result).isEarlyStopped();
+          boolean isRetriggerEnabled = this.isRetriggeringEnabled();
+          if (isEarlyStopped && isRetriggerEnabled) {
+            log.info("DistributeJob {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+          } else {
+            break;
+          }
+          currentJobMonitor = null;
+        } catch (Throwable t) {
+          throw new JobException("Failed to launch and run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), t);
         }
-        currentJobMonitor = null;
       }
     } catch (Exception e) {
       log.error("Failed to run job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);

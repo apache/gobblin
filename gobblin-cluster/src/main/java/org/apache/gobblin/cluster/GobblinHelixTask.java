@@ -26,12 +26,12 @@ import org.apache.helix.task.Task;
 import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import com.google.common.base.Throwables;
 import com.google.common.io.Closer;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -58,14 +58,14 @@ import org.apache.gobblin.util.Id;
  * </p>
  */
 @Alpha
+@Slf4j
 public class GobblinHelixTask implements Task {
-
-  private static final Logger _logger = LoggerFactory.getLogger(GobblinHelixTask.class);
 
   private final TaskConfig taskConfig;
   private String jobName;
   private String jobId;
   private String jobKey;
+  private String taskId;
   private Path workUnitFilePath;
 
   private SingleTask task;
@@ -90,22 +90,25 @@ public class GobblinHelixTask implements Task {
     this.jobName = configMap.get(ConfigurationKeys.JOB_NAME_KEY);
     this.jobId = configMap.get(ConfigurationKeys.JOB_ID_KEY);
     this.jobKey = Long.toString(Id.parse(this.jobId).getSequence());
+    this.taskId = configMap.get(ConfigurationKeys.TASK_ID_KEY);
     this.workUnitFilePath =
         new Path(configMap.get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH));
   }
 
   @Override
   public TaskResult run() {
+    log.info("Actual task {} started.", this.taskId);
     try (Closer closer = Closer.create()) {
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_NAME_KEY, this.jobName));
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_KEY_KEY, this.jobKey));
       this.task.run();
+      log.info("Actual task {} finished.", this.taskId);
       return new TaskResult(TaskResult.Status.COMPLETED, "");
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
       return new TaskResult(TaskResult.Status.CANCELED, "");
     } catch (Throwable t) {
-      _logger.error("GobblinHelixTask failed due to " + t.getMessage(), t);
+      log.error("GobblinHelixTask " + taskId + " failed due to " + t.getMessage(), t);
       return new TaskResult(TaskResult.Status.FAILED, Throwables.getStackTraceAsString(t));
     }
   }

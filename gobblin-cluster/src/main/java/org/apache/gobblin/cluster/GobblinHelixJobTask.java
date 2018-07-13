@@ -18,9 +18,14 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixManager;
 import org.apache.helix.task.Task;
 import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskConfig;
@@ -28,61 +33,85 @@ import org.apache.helix.task.TaskResult;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.extractor.partition.Partitioner;
 import org.apache.gobblin.util.ConfigUtils;
 
 /**
- * An implementation of Helix's {@link org.apache.helix.task.Task} that runs original {@link GobblinHelixJobLauncher}
+ * An implementation of Helix's {@link org.apache.helix.task.Task} that runs original {@link GobblinHelixJobLauncher}.
  */
 @Slf4j
 public class GobblinHelixJobTask implements Task {
 
   private final TaskConfig taskConfig;
-  private Config sysConfig;
-  private Properties jobConfig;
-  private StateStores stateStores;
-  private String planningJobId;
+  private final Config sysConfig;
+  private final Properties jobPlusSysConfig;
+  private final StateStores stateStores;
+  private final String planningJobId;
+  private final HelixManager helixManager;
+  private final Path appWorkDir;
+  private final List<? extends Tag<?>> metadataTags;
 
+  private GobblinHelixJobLauncher launcher;
   public GobblinHelixJobTask(TaskCallbackContext context,
-      Config sysConfig,
-      StateStores stateStores) {
+      StateStores stateStores,
+      TaskRunnerSuiteBase.Builder builder) {
     this.taskConfig = context.getTaskConfig();
-    this.sysConfig = sysConfig;
-    this.jobConfig = ConfigUtils.configToProperties(sysConfig);
+    this.sysConfig = builder.getConfig();
+    this.helixManager = builder.getHelixManager();
+    this.jobPlusSysConfig = ConfigUtils.configToProperties(sysConfig);
     Map<String, String> configMap = this.taskConfig.getConfigMap();
     for (Map.Entry<String, String> entry: configMap.entrySet()) {
       if (entry.getKey().startsWith(GobblinHelixDistributeJobExecutionLauncher.JOB_PROPS_PREFIX)) {
           String key = entry.getKey().replaceFirst(GobblinHelixDistributeJobExecutionLauncher.JOB_PROPS_PREFIX, "");
-          jobConfig.put(key, entry.getValue());
+        jobPlusSysConfig.put(key, entry.getValue());
       }
     }
 
-    if (!jobConfig.containsKey(GobblinClusterConfigurationKeys.PLANNING_ID_KEY)) {
+    if (!jobPlusSysConfig.containsKey(GobblinClusterConfigurationKeys.PLANNING_ID_KEY)) {
       throw new RuntimeException("Job doesn't have plannning ID");
     }
 
-    this.planningJobId = jobConfig.getProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY);
+    this.planningJobId = jobPlusSysConfig.getProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY);
     this.stateStores = stateStores;
+    this.appWorkDir = builder.getAppWorkPath();
+    this.metadataTags = Tag.fromMap(new ImmutableMap.Builder<String, Object>()
+        .put(GobblinClusterMetricTagNames.APPLICATION_NAME, builder.getApplicationName())
+        .put(GobblinClusterMetricTagNames.APPLICATION_ID, builder.getApplicationId())
+        .build());
+  }
+
+
+  private GobblinHelixJobLauncher createJobLauncher()
+      throws Exception {
+    return new GobblinHelixJobLauncher(jobPlusSysConfig,
+        this.helixManager,
+        this.appWorkDir,
+        this.metadataTags,
+        new ConcurrentHashMap<>());
   }
 
   @Override
   public TaskResult run() {
-    log.info("We will run planning job " + this.planningJobId);
-
-    // TODO: We should run GobblinHelixJobLauncher#launchJob() here
-
-    try {
+    log.info("Running planning job {}", this.planningJobId);
+    // Launch the job
+    try (Closer closer = Closer.create()) {
+      this.launcher = createJobLauncher();
+      //TODO: we will provide additional listener
+      closer.register(launcher).launchJob(null);
       setResultToUserContent(ImmutableMap.of(Partitioner.IS_EARLY_STOPPED, "false"));
-    } catch (IOException e) {
-      return new TaskResult(TaskResult.Status.FAILED, "State store cannot be persisted for job " + planningJobId);
+    } catch (Exception e) {
+      return new TaskResult(TaskResult.Status.FAILED, "Exception occurred for job " + planningJobId + ":" + ExceptionUtils
+          .getFullStackTrace(e));
     }
     return new TaskResult(TaskResult.Status.COMPLETED, "");
   }
@@ -102,6 +131,9 @@ public class GobblinHelixJobTask implements Task {
 
   @Override
   public void cancel() {
-    // TODO: We should delete the real job.
+    log.info("Cancelling planning job {}", this.planningJobId);
+    if (launcher != null) {
+      launcher.executeCancellation();
+    }
   }
 }

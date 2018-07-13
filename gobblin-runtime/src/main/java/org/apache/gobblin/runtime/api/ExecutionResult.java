@@ -18,7 +18,7 @@
 package org.apache.gobblin.runtime.api;
 
 /**
- * An object which describes the result after job completion. This can be retrieved by {@link JobExecutionFuture#get()}
+ * An object which describes the result after job completion. This can be retrieved by {@link JobExecutionMonitor#get()}
  *
  * @see JobExecutionResult as a derived class.
  */

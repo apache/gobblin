@@ -89,9 +89,10 @@ import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER
  * {@link org.apache.gobblin.source.workunit.WorkUnit}s.
  *
  * <p>
- *   This class serves as a Helix participant and it uses a {@link HelixManager} to work with Helix.
- *   This class also uses the Helix task execution framework and {@link GobblinHelixTaskFactory} class
- *   for creating {@link GobblinHelixTask}s that Helix manages to run Gobblin data ingestion tasks.
+ *   This class presents a Helix participant and uses a {@link HelixManager} to communicate with Helix.
+ *   It also uses Helix task execution framework and {@link GobblinHelixTaskFactory} class to generate
+ *   {@link GobblinHelixTask}s which handles real Gobblin tasks. All the Helix related task framework is
+ *   encapsulated in {@link TaskRunnerSuiteBase}.
  * </p>
  *
  * <p>
@@ -174,7 +175,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     TaskRunnerSuiteBase suite = builder.setAppWorkPath(this.appWorkPath)
         .setContainerMetrics(this.containerMetrics)
         .setFileSystem(this.fs)
-        .setHelixManager(this.helixManager).build();
+        .setHelixManager(this.helixManager)
+        .setApplicationId(applicationId)
+        .setApplicationName(applicationName)
+        .build();
 
     this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactoryMap());
     this.metrics = suite.getTaskMetrics();
