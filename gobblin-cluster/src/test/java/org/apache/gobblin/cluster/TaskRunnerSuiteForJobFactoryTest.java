@@ -27,7 +27,6 @@ import org.apache.helix.task.TaskFactory;
 import org.testng.Assert;
 
 import com.google.common.collect.Maps;
-import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,19 +55,20 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
   public class TestJobFactory extends GobblinHelixJobFactory {
     public TestJobFactory(IntegrationJobFactorySuite.TestJobFactorySuiteBuilder builder) {
       super (builder);
+      this.builder = builder;
     }
 
     @Override
     public Task createNewTask(TaskCallbackContext context) {
-      return new TestHelixJobTask(context, this.sysConfig, stateStores);
+      return new TestHelixJobTask(context, stateStores, builder);
     }
   }
 
   public class TestHelixJobTask extends GobblinHelixJobTask {
     public TestHelixJobTask(TaskCallbackContext context,
-        Config sysConfig,
-        StateStores stateStores) {
-      super(context, sysConfig, stateStores);
+        StateStores stateStores,
+        TaskRunnerSuiteBase.Builder builder) {
+      super(context, stateStores, builder);
     }
 
     //TODO: change below to Helix UserConentStore

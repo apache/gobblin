@@ -45,6 +45,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
 import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -96,6 +97,7 @@ import org.apache.gobblin.util.SerializationUtils;
  * @author Yinan Li
  */
 @Alpha
+@Slf4j
 public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobLauncher.class);
@@ -136,8 +138,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.runningMap = runningMap;
     this.appWorkDir = appWorkDir;
     this.inputWorkUnitDir = new Path(appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
-    this.outputTaskStateDir = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME +
-        Path.SEPARATOR + this.jobContext.getJobId());
+    this.outputTaskStateDir = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME
+        + Path.SEPARATOR + this.jobContext.getJobId());
 
     this.helixQueueName = this.jobContext.getJobName();
     this.jobResourceName = TaskUtil.getNamespacedJobName(this.helixQueueName, this.jobContext.getJobId());
@@ -149,7 +151,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     jobConfig = ConfigUtils.propertiesToConfig(jobProps);
 
-    this.jobQueueDeleteTimeoutSeconds = ConfigUtils.getLong(jobConfig, GobblinClusterConfigurationKeys.HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS,
+    this.jobQueueDeleteTimeoutSeconds = ConfigUtils.getLong(jobConfig,
+        GobblinClusterConfigurationKeys.HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS);
 
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
@@ -211,6 +214,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   protected void executeCancellation() {
     if (this.jobSubmitted) {
       try {
+        log.info("[DELETE] workflow {}", this.helixQueueName);
         this.helixTaskDriver.delete(this.helixQueueName);
       } catch (IllegalArgumentException e) {
         LOGGER.warn("Failed to cancel job {} in Helix", this.jobContext.getJobId(), e);

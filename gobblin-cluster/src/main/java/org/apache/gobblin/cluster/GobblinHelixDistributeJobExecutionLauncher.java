@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -85,7 +86,7 @@ import org.apache.gobblin.util.PropertiesUtils;
  */
 @Alpha
 @Slf4j
-class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher {
+class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher, Closeable {
   protected HelixManager helixManager;
   protected TaskDriver helixTaskDriver;
   protected Properties sysProperties;
@@ -100,12 +101,14 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   private final long jobQueueDeleteTimeoutSeconds;
 
+  private boolean jobSubmitted;
+
   public GobblinHelixDistributeJobExecutionLauncher(Builder builder) throws Exception {
     this.helixManager = builder.manager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
     this.sysProperties = builder.sysProperties;
     this.jobProperties = builder.jobProperties;
-
+    this.jobSubmitted = false;
     Config combined = ConfigUtils.propertiesToConfig(jobProperties)
         .withFallback(ConfigUtils.propertiesToConfig(sysProperties));
 
@@ -122,6 +125,17 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     this.jobQueueDeleteTimeoutSeconds = ConfigUtils.getLong(combined,
         GobblinClusterConfigurationKeys.HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS);
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    // we should delete the planning job at the end.
+    if (this.jobSubmitted) {
+      String planningName = getPlanningJobName(this.jobProperties);
+      log.info("[DELETE] workflow {} in the close.", planningName);
+      this.helixTaskDriver.delete(planningName);
+    }
   }
 
   @Setter
@@ -191,6 +205,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         taskDriver,
         this.helixManager,
         this.jobQueueDeleteTimeoutSeconds);
+    this.jobSubmitted = true;
   }
 
   @Override
@@ -232,6 +247,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
       return getResultFromUserContent();
     } catch (TimeoutException te) {
       helixTaskDriver.waitToStop(planningName, 10L);
+      log.info("[DELETE] workflow {} timeout.", planningName);
       this.helixTaskDriver.delete(planningName);
       this.helixTaskDriver.resume(planningName);
       log.info("stopped the queue, deleted the job");
