@@ -43,7 +43,8 @@ public class IntegrationJobFactorySuite extends IntegrationBasicSuite {
   protected Map<String, Config> overrideJobConfigs(Config rawJobConfig) {
     Config newConfig = ConfigFactory.parseMap(ImmutableMap.of(
         GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_ENABLED, true,
-        GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_BUILDER, "TestDistributedExecutionLauncherBuilder"));
+        GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_BUILDER, "TestDistributedExecutionLauncherBuilder"))
+        .withFallback(rawJobConfig);
     return ImmutableMap.of("HelloWorldJob", newConfig);
   }
 

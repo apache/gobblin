@@ -39,11 +39,12 @@ import org.apache.gobblin.util.PathUtils;
  */
 @Slf4j
 public class GobblinHelixJobFactory implements TaskFactory {
-  protected Config sysConfig;
   protected StateStores stateStores;
 
-  public GobblinHelixJobFactory(TaskRunnerSuiteBase.Builder builder) {
-    this.sysConfig = builder.getConfig();
+  protected TaskRunnerSuiteBase.Builder builder;
+
+  private void initializeStateStore(TaskRunnerSuiteBase.Builder builder) {
+    Config sysConfig = builder.getConfig();
     Path appWorkDir = builder.getAppWorkPath();
     URI rootPathUri = PathUtils.getRootPath(appWorkDir).toUri();
     Config stateStoreJobConfig = sysConfig
@@ -56,8 +57,16 @@ public class GobblinHelixJobFactory implements TaskFactory {
         appWorkDir, GobblinHelixDistributeJobExecutionLauncher.PLANNING_JOB_STATE_DIR_NAME);
   }
 
+  public GobblinHelixJobFactory(TaskRunnerSuiteBase.Builder builder) {
+    this.builder = builder;
+    // TODO: We can remove below initialization once Helix allow us to persist job resut in userContentStore
+    initializeStateStore(this.builder);
+  }
+
   @Override
   public Task createNewTask(TaskCallbackContext context) {
-    return new GobblinHelixJobTask(context, this.sysConfig, stateStores);
+    return new GobblinHelixJobTask(context,
+        this.stateStores,
+        this.builder);
   }
 }

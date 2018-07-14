@@ -47,7 +47,7 @@ class TaskRunnerSuiteThreadModel extends TaskRunnerSuiteBase {
   TaskRunnerSuiteThreadModel(TaskRunnerSuiteBase.Builder builder) {
     super(builder);
     this.taskExecutor = new TaskExecutor(ConfigUtils.configToProperties(builder.getConfig()));
-    this.taskFactory = getInProcessTaskFactory(taskExecutor, builder);
+    this.taskFactory = generateTaskFactory(taskExecutor, builder);
     this.jobFactory = new GobblinHelixJobFactory(builder);
     this.taskMetrics = new GobblinTaskRunnerMetrics.InProcessTaskRunnerMetrics(taskExecutor, metricContext);
   }
@@ -70,7 +70,7 @@ class TaskRunnerSuiteThreadModel extends TaskRunnerSuiteBase {
     return this.services;
   }
 
-  private TaskFactory getInProcessTaskFactory(TaskExecutor taskExecutor, Builder builder) {
+  private TaskFactory generateTaskFactory(TaskExecutor taskExecutor, Builder builder) {
     Properties properties = ConfigUtils.configToProperties(builder.getConfig());
     URI rootPathUri = PathUtils.getRootPath(builder.getAppWorkPath()).toUri();
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(properties)

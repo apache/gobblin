@@ -53,11 +53,15 @@ public abstract class TaskRunnerSuiteBase {
   protected TaskFactory taskFactory;
   protected TaskFactory jobFactory;
   protected MetricContext metricContext;
+  protected String applicationId;
+  protected String applicationName;
   protected StandardMetricsBridge.StandardMetrics taskMetrics;
   protected List<Service> services = Lists.newArrayList();
 
   protected TaskRunnerSuiteBase(Builder builder) {
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(builder.config), this.getClass());
+    this.applicationId = builder.getApplicationId();
+    this.applicationName = builder.getApplicationName();
   }
 
   protected MetricContext getMetricContext() {
@@ -70,6 +74,14 @@ public abstract class TaskRunnerSuiteBase {
 
   protected abstract List<Service> getServices();
 
+  protected String getApplicationId() {
+    return this.applicationId;
+  }
+
+  protected String getApplicationName() {
+    return this.applicationName;
+  }
+
   @Getter
   public static class Builder {
     private Config config;
@@ -77,6 +89,8 @@ public abstract class TaskRunnerSuiteBase {
     private Optional<ContainerMetrics> containerMetrics;
     private FileSystem fs;
     private Path appWorkPath;
+    private String applicationId;
+    private String applicationName;
 
     public Builder(Config config) {
       this.config = config;
@@ -84,6 +98,16 @@ public abstract class TaskRunnerSuiteBase {
 
     public Builder setHelixManager(HelixManager manager) {
       this.helixManager = manager;
+      return this;
+    }
+
+    public Builder setApplicationName(String applicationName) {
+      this.applicationName = applicationName;
+      return this;
+    }
+
+    public Builder setApplicationId(String applicationId) {
+      this.applicationId = applicationId;
       return this;
     }
 
