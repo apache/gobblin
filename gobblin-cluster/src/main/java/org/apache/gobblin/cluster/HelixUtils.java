@@ -103,17 +103,17 @@ public class HelixUtils {
   }
 
   public static void submitJobToWorkFlow(JobConfig.Builder jobConfigBuilder,
-      String queueName,
+      String workFlowName,
       String jobName,
       TaskDriver helixTaskDriver,
       HelixManager helixManager,
       long jobQueueDeleteTimeoutSeconds) throws Exception {
-    WorkflowConfig workflowConfig = helixTaskDriver.getWorkflowConfig(helixManager, queueName);
+    WorkflowConfig workflowConfig = helixTaskDriver.getWorkflowConfig(helixManager, workFlowName);
 
-    log.info("[DELETE] workflow {} in the beginning", queueName);
+    log.info("[DELETE] workflow {} in the beginning", workFlowName);
     // If the queue is present, but in delete state then wait for cleanup before recreating the queue
     if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
-      new TaskDriver(helixManager).deleteAndWaitForCompletion(queueName, jobQueueDeleteTimeoutSeconds);
+      new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, jobQueueDeleteTimeoutSeconds);
       // if we get here then the workflow was successfully deleted
       workflowConfig = null;
     }
@@ -121,18 +121,18 @@ public class HelixUtils {
     // Create a work flow for each job with the name being the queue name
     if (workflowConfig == null) {
       // Create a workflow and add the job
-      Workflow workflow = new Workflow.Builder(queueName).addJob(jobName, jobConfigBuilder).build();
+      Workflow workflow = new Workflow.Builder(workFlowName).addJob(jobName, jobConfigBuilder).build();
       // start the workflow
       helixTaskDriver.start(workflow);
-      log.info("Created a work flow {}", queueName);
+      log.info("Created a work flow {}", workFlowName);
     } else {
-      log.info("Work flow {} already exists", queueName);
+      log.info("Work flow {} already exists", workFlowName);
     }
   }
 
   public static void waitJobCompletion(
       HelixManager helixManager,
-      String queueName,
+      String workFlowName,
       String jobName,
       Optional<Long> timeoutInSeconds) throws InterruptedException, TimeoutException {
 
@@ -143,9 +143,9 @@ public class HelixUtils {
     }
 
     while (!timeoutInSeconds.isPresent() || System.currentTimeMillis() <= endTime) {
-      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, queueName);
+      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
       if (workflowContext != null) {
-        org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(TaskUtil.getNamespacedJobName(queueName, jobName));
+        org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName));
         if (helixJobState == org.apache.helix.task.TaskState.COMPLETED ||
             helixJobState == org.apache.helix.task.TaskState.FAILED ||
             helixJobState == org.apache.helix.task.TaskState.STOPPED) {
