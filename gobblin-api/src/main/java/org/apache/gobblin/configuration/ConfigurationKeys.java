@@ -576,6 +576,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_CONN_HOST_NAME = SOURCE_CONN_PREFIX + "host";
   public static final String SOURCE_CONN_VERSION = SOURCE_CONN_PREFIX + "version";
   public static final String SOURCE_CONN_TIMEOUT = SOURCE_CONN_PREFIX + "timeout";
+  public static final String SOURCE_CONN_PROPERTIES = SOURCE_CONN_PREFIX + "properties";
   public static final String SOURCE_CONN_REST_URL = SOURCE_CONN_PREFIX + "rest.url";
   public static final String SOURCE_CONN_USE_PROXY_URL = SOURCE_CONN_PREFIX + "use.proxy.url";
   public static final String SOURCE_CONN_USE_PROXY_PORT = SOURCE_CONN_PREFIX + "use.proxy.port";

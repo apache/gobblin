@@ -183,10 +183,16 @@ public class MysqlExtractor extends JdbcExtractor {
     String port = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
     String database = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
     String url = "jdbc:mysql://" + host.trim() + ":" + port + "/" + database.trim();
+    String connProps = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PROPERTIES, "");
 
     if (Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED))) {
-      return url + "?useCompression=true";
+      connProps = connProps + (connProps.isEmpty() ? "" : "&" + "useCompression=true");
     }
+
+    if (!connProps.isEmpty()) {
+      url = url + "?" + connProps;
+    }
+
     return url;
   }
 
